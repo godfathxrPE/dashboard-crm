@@ -29,6 +29,26 @@ export function useActivityLog(projectId: string) {
   });
 }
 
+/** Последние записи из activity_log (все проекты) */
+export function useRecentActivity(limit = 10) {
+  useRealtimeSync('activity_log', QUERY_KEY);
+
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'recent', limit],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('*, project:projects(id, name)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data ?? []) as (ActivityLog & { project?: { id: string; name: string } | null })[];
+    },
+  });
+}
+
 export function useLogActivity() {
   const qc = useQueryClient();
 
