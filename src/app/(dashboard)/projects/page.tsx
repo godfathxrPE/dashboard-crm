@@ -1,12 +1,19 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { PipelineBoard } from '@/components/projects/PipelineBoard';
+import { ProjectsView } from '@/components/projects/ProjectsView';
 
-export default async function ProjectsPage() {
+interface Props {
+  searchParams: Promise<{ view?: string }>;
+}
+
+export default async function ProjectsPage({ searchParams }: Props) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect('/login');
 
-  return <PipelineBoard />;
+  const params = await searchParams;
+  const view = params.view === 'board' ? 'board' : 'pipeline';
+
+  return <ProjectsView initialView={view} />;
 }

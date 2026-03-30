@@ -178,7 +178,11 @@ function WonDeals({ projects }: { projects: Project[] }) {
 // Main Board
 // ═══════════════════════════════════════════════════════
 
-export function PipelineBoard() {
+interface PipelineBoardProps {
+  onSwitchView?: () => void;
+}
+
+export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
   const { data: projects, isLoading, error } = useProjects();
   const { moveToStage } = useMoveProject();
   const deleteProject = useDeleteProject();
@@ -337,6 +341,17 @@ export function PipelineBoard() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* View toggle */}
+          {onSwitchView && (
+            <button
+              onClick={onSwitchView}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim
+                         transition-colors hover:bg-surface-hover"
+            >
+              Доска
+            </button>
+          )}
+
           {/* Sort */}
           <div className="flex items-center gap-1 rounded-lg border border-border px-2 py-1">
             <ArrowUpDown size={12} className="text-text-mute" />
