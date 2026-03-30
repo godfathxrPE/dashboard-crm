@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══ THEME: Claude (default, light) ═══ */
+:root, .t-claude {
+  --surface:    #f5f4ef;
+  --surface2:   #eae8e1;
+  --surface3:   #dfddd5;
+  --border:     #d4d1c7;
+  --accent:     #b5622a;
+  --accent-l:   rgba(181,98,42,0.1);
+  --text:       #2c2c2a;
+  --text-dim:   #5a5a56;
+  --text-mute:  #8a8a84;
+  --green:      #22a55a;
+  --red:        #e04444;
+  --blue:       #3b82f6;
+  --yellow:     #e5a820;
+  --red-l:      rgba(224,68,68,0.12);
+  --green-l:    rgba(34,165,90,0.12);
+  --blue-l:     rgba(59,130,246,0.12);
+  --yellow-l:   rgba(229,168,32,0.12);
+  --radius-s:   6px;
+  --radius-m:   10px;
+  --radius-l:   16px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ═══ THEME: Frost (dark, blue) ═══ */
+.t-frost {
+  --surface:    #0d1020;
+  --surface2:   #161a30;
+  --surface3:   #1f2440;
+  --border:     rgba(255,255,255,0.1);
+  --accent:     #5b8aff;
+  --accent-l:   rgba(91,138,255,0.12);
+  --text:       #e8e6f0;
+  --text-dim:   #a0a0b8;
+  --text-mute:  #6a6a80;
+  --green:      #34d399;
+  --red:        #f87171;
+  --blue:       #60a5fa;
+  --yellow:     #fbbf24;
+  --red-l:      rgba(248,113,113,0.12);
+  --green-l:    rgba(52,211,153,0.12);
+  --blue-l:     rgba(96,165,250,0.12);
+  --yellow-l:   rgba(251,191,36,0.12);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ═══ THEME: Paper (light, warm) ═══ */
+.t-paper {
+  --surface:    #f5f0e0;
+  --surface2:   #ebe5d0;
+  --surface3:   #dfd8c2;
+  --border:     #c8bfa0;
+  --accent:     #8b3a1a;
+  --accent-l:   rgba(139,58,26,0.1);
+  --text:       #3a2e20;
+  --text-dim:   #6a5a48;
+  --text-mute:  #9a8a74;
+  --green:      #3a8a4a;
+  --red:        #c04030;
+  --blue:       #4070b0;
+  --yellow:     #c09030;
+  --red-l:      rgba(192,64,48,0.12);
+  --green-l:    rgba(58,138,74,0.12);
+  --blue-l:     rgba(64,112,176,0.12);
+  --yellow-l:   rgba(192,144,48,0.12);
+  --shadow-card: 0 1px 3px rgba(58,46,32,0.08);
+}
+
+/* ═══ THEME: Sand (light, orange) ═══ */
+.t-sand {
+  --surface:    #f0e8d8;
+  --surface2:   #e6ddc8;
+  --surface3:   #dad0b8;
+  --border:     #c0a880;
+  --accent:     #c05828;
+  --accent-l:   rgba(192,88,40,0.1);
+  --text:       #3a3020;
+  --text-dim:   #6a5840;
+  --text-mute:  #9a8868;
+  --green:      #2a8a40;
+  --red:        #c04030;
+  --blue:       #3870b0;
+  --yellow:     #c09020;
+  --red-l:      rgba(192,64,48,0.12);
+  --green-l:    rgba(42,138,64,0.12);
+  --blue-l:     rgba(56,112,176,0.12);
+  --yellow-l:   rgba(192,144,32,0.12);
+  --shadow-card: 0 1px 3px rgba(58,48,32,0.08);
+}
+
+/* ═══ THEME: Aurora (dark, purple-green) ═══ */
+.t-aurora {
+  --surface:    #0a0e1a;
+  --surface2:   #121828;
+  --surface3:   #1a2238;
+  --border:     rgba(255,255,255,0.08);
+  --accent:     #a060ff;
+  --accent-l:   rgba(160,96,255,0.12);
+  --text:       #e0e0f0;
+  --text-dim:   #9898b0;
+  --text-mute:  #606078;
+  --green:      #20e8a0;
+  --red:        #ff6088;
+  --blue:       #60a0ff;
+  --yellow:     #ffcc40;
+  --red-l:      rgba(255,96,136,0.12);
+  --green-l:    rgba(32,232,160,0.12);
+  --blue-l:     rgba(96,160,255,0.12);
+  --yellow-l:   rgba(255,204,64,0.12);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ═══ THEME: Tidal (dark, teal) ═══ */
+.t-tidal {
+  --surface:    #080f0d;
+  --surface2:   #101a16;
+  --surface3:   #182420;
+  --border:     rgba(72,184,144,0.15);
+  --accent:     #48b890;
+  --accent-l:   rgba(72,184,144,0.12);
+  --text:       #d8e8e0;
+  --text-dim:   #88a898;
+  --text-mute:  #587868;
+  --green:      #48d890;
+  --red:        #f07060;
+  --blue:       #5ca8d0;
+  --yellow:     #d0b040;
+  --red-l:      rgba(240,112,96,0.12);
+  --green-l:    rgba(72,216,144,0.12);
+  --blue-l:     rgba(92,168,208,0.12);
+  --yellow-l:   rgba(208,176,64,0.12);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ═══ BASE STYLES ═══ */
+body {
+  font-family: 'Manrope', system-ui, sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-l);
+  color: var(--accent);
+}

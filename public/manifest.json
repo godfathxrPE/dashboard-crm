@@ -1,0 +1,16 @@
+{
+  "name": "Dashboard CRM — БИТ.IIOT",
+  "short_name": "Dashboard",
+  "description": "PM + CRM + Аналитика",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#b5622a",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
