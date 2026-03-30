@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import { logActivity } from './use-activity-log';
 
 export interface Meeting {
   id: string;
@@ -104,6 +105,15 @@ export function useCreateMeeting() {
       };
       qc.setQueryData<Meeting[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);
       return { prev };
+    },
+    onSuccess: (result) => {
+      if (result.project_id) {
+        logActivity(result.project_id, 'meeting_scheduled', {
+          title: result.title,
+          date: result.date,
+          location: result.location,
+        });
+      }
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
     onSettled: () => { qc.invalidateQueries({ queryKey: QUERY_KEY }); },

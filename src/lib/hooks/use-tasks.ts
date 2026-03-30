@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
+import { logActivity } from './use-activity-log';
 
 const QUERY_KEY = ['tasks'] as const;
 
@@ -102,6 +103,14 @@ export function useCreateTask() {
 
       return { previous };
     },
+    onSuccess: (result, input) => {
+      if (input.project_id) {
+        logActivity(input.project_id, 'task_created', {
+          title: input.text,
+          priority: input.priority ?? 'normal',
+        });
+      }
+    },
     onError: (_err, _input, context) => {
       if (context?.previous) {
         queryClient.setQueryData(QUERY_KEY, context.previous);
@@ -141,6 +150,11 @@ export function useUpdateTask() {
       );
 
       return { previous };
+    },
+    onSuccess: (result, vars) => {
+      if (vars.lane === 'done' && result.project_id) {
+        logActivity(result.project_id, 'task_completed', { title: result.text });
+      }
     },
     onError: (_err, _input, context) => {
       if (context?.previous) {

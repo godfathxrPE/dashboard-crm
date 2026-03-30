@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
@@ -20,6 +20,9 @@ import {
   useUpdateProject,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { useCompanies } from '@/lib/hooks/use-companies';
+import { useContacts } from '@/lib/hooks/use-contacts';
+import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -30,6 +33,8 @@ interface ProjectModalProps {
 export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
+  const { data: companies = [] } = useCompanies();
+  const { data: contacts = [] } = useContacts();
 
   const {
     register,
@@ -37,6 +42,7 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
     reset,
     watch,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
@@ -55,6 +61,26 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
 
   const currentStage = watch('stage');
   const isLost = currentStage === 'lost';
+  const selectedCompanyId = watch('company_id');
+
+  const companyOptions: ComboboxOption[] = useMemo(
+    () => companies.map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
+    [companies],
+  );
+
+  // Контакты, привязанные к выбранной компании (или все, если компания не выбрана)
+  const contactOptions: ComboboxOption[] = useMemo(() => {
+    const list = selectedCompanyId
+      ? contacts.filter((c) =>
+          c.companies?.some((cc) => cc.company_id === selectedCompanyId),
+        )
+      : contacts;
+    return list.map((c) => ({
+      value: c.id,
+      label: [c.last_name, c.first_name].filter(Boolean).join(' '),
+      sub: c.position ?? undefined,
+    }));
+  }, [contacts, selectedCompanyId]);
 
   // Заполнить форму при редактировании
   useEffect(() => {
@@ -257,8 +283,52 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
             </div>
           )}
 
-          {/* TODO: Company & Contact selects — Sprint 3 */}
-          {/* Пока оставляем null, в Sprint 3 добавим ComboBox с поиском */}
+          {/* Company */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">
+              Компания
+            </label>
+            <Controller
+              name="company_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox
+                  options={companyOptions}
+                  value={field.value}
+                  onChange={(val) => {
+                    field.onChange(val);
+                    // Сбросить контакт при смене компании
+                    if (val !== field.value) setValue('contact_id', null);
+                  }}
+                  placeholder="Выбрать компанию..."
+                />
+              )}
+            />
+          </div>
+
+          {/* Contact */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">
+              Контактное лицо
+            </label>
+            <Controller
+              name="contact_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox
+                  options={contactOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder={
+                    selectedCompanyId
+                      ? 'Выбрать контакт...'
+                      : 'Сначала выберите компанию'
+                  }
+                  disabled={!selectedCompanyId && contactOptions.length === 0}
+                />
+              )}
+            />
+          </div>
 
           {/* Submit */}
           <div className="flex justify-end gap-2 pt-2">

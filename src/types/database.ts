@@ -232,6 +232,23 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['activities']['Insert']>;
       };
+      activity_log: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          event_type: string;
+          payload: Json;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          user_id: string;
+          event_type: string;
+          payload?: Json;
+        };
+        Update: Partial<Database['public']['Tables']['activity_log']['Insert']>;
+      };
       user_settings: {
         Row: {
           profile_id: string;

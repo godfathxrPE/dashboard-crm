@@ -20,3 +20,5 @@ export type CallInsert = Database['public']['Tables']['calls']['Insert'];
 export type CompanyInsert = Database['public']['Tables']['companies']['Insert'];
 export type ContactInsert = Database['public']['Tables']['contacts']['Insert'];
 export type MeetingInsert = Database['public']['Tables']['meetings']['Insert'];
+export type ActivityLog = Database['public']['Tables']['activity_log']['Row'];
+export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert'];

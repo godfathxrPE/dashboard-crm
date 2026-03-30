@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { DealStage } from '@/lib/validators/project';
+import { logActivity } from './use-activity-log';
 
 // ═══════════════════════════════════════════════════════
 // Types — маппинг на таблицу `projects` из Supabase
@@ -220,6 +221,19 @@ export function useUpdateProject() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev);
+    },
+    onSuccess: (result, vars, ctx) => {
+      // Находим предыдущее состояние из сохранённого кеша (до оптимистичного обновления)
+      const oldProject = ctx?.prev?.find((p) => p.id === vars.id);
+
+      if (vars.stage && oldProject && vars.stage !== oldProject.stage) {
+        logActivity(vars.id, 'stage_change', { from: oldProject.stage, to: vars.stage });
+      } else {
+        const changed = Object.keys(vars).filter((k) => k !== 'id');
+        if (changed.length > 0) {
+          logActivity(vars.id, 'project_updated', { fields_changed: changed });
+        }
+      }
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });

@@ -12,9 +12,10 @@ interface MeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   editMeeting: Meeting | null;
+  defaultProjectId?: string | null;
 }
 
-export function MeetingModal({ isOpen, onClose, editMeeting }: MeetingModalProps) {
+export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId }: MeetingModalProps) {
   const create = useCreateMeeting();
   const update = useUpdateMeeting();
   const { data: projects } = useProjects();
@@ -36,10 +37,10 @@ export function MeetingModal({ isOpen, onClose, editMeeting }: MeetingModalProps
     } else {
       reset({
         title: '', date: new Date().toISOString().slice(0, 10),
-        time: null, location: null, project_id: null, notes: null,
+        time: null, location: null, project_id: defaultProjectId ?? null, notes: null,
       });
     }
-  }, [editMeeting, reset]);
+  }, [editMeeting, defaultProjectId, reset]);
 
   const onSubmit = async (values: MeetingFormValues) => {
     try {

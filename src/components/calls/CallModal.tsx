@@ -14,9 +14,10 @@ interface CallModalProps {
   isOpen: boolean;
   onClose: () => void;
   editCall: Call | null;
+  defaultProjectId?: string | null;
 }
 
-export function CallModal({ isOpen, onClose, editCall }: CallModalProps) {
+export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallModalProps) {
   const create = useCreateCall();
   const update = useUpdateCall();
   const { data: companies } = useCompanies();
@@ -41,12 +42,12 @@ export function CallModal({ isOpen, onClose, editCall }: CallModalProps) {
       });
     } else {
       reset({
-        company_id: null, contact_id: null, project_id: null,
+        company_id: null, contact_id: null, project_id: defaultProjectId ?? null,
         date: new Date().toISOString().slice(0, 16),
         status: 'done', next_step: null, agreements: null, duration_s: null,
       });
     }
-  }, [editCall, reset]);
+  }, [editCall, defaultProjectId, reset]);
 
   const onSubmit = async (values: CallFormValues) => {
     try {

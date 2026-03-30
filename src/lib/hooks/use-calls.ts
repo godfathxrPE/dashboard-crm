@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { CallStatus } from '@/lib/validators/call';
+import { logActivity } from './use-activity-log';
 
 export interface Call {
   id: string;
@@ -118,6 +119,18 @@ export function useCreateCall() {
       };
       qc.setQueryData<Call[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);
       return { prev };
+    },
+    onSuccess: (result) => {
+      if (result.project_id) {
+        const contactName = result.contact
+          ? `${result.contact.first_name} ${result.contact.last_name}`
+          : null;
+        logActivity(result.project_id, 'call_logged', {
+          contact_name: contactName,
+          status: result.status,
+          duration: result.duration_s,
+        });
+      }
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
     onSettled: () => { qc.invalidateQueries({ queryKey: QUERY_KEY }); },
