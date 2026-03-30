@@ -189,20 +189,25 @@ const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
 };
 
 const EVENT_COLOR: Record<string, string> = {
-  stage_change: 'text-accent',
-  call_logged: 'text-blue',
-  task_created: 'text-yellow',
-  task_completed: 'text-green',
-  meeting_scheduled: 'text-purple',
+  stage_change: 'text-blue',
+  call_logged: 'text-green',
+  task_created: 'text-purple',
+  task_completed: 'text-purple',
+  meeting_scheduled: 'text-yellow',
   project_updated: 'text-text-dim',
-  comment_added: 'text-text-main',
+  comment_added: 'text-text-mute',
 };
+
+function stageName(key: unknown): string {
+  const s = String(key);
+  return (STAGE_CONFIG as Record<string, { shortLabel: string }>)[s]?.shortLabel ?? s;
+}
 
 function describeEvent(entry: ActivityLog): string {
   const p = entry.payload as Record<string, unknown>;
   switch (entry.event_type) {
     case 'stage_change':
-      return `Стадия: ${p.from} → ${p.to}`;
+      return `Стадия: ${stageName(p.from)} → ${stageName(p.to)}`;
     case 'call_logged':
       return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
     case 'task_created':

@@ -11,6 +11,7 @@ const config: Config = {
         sans: ['Manrope', 'system-ui', 'sans-serif'],
       },
       colors: {
+        bg: 'var(--bg)',
         surface: 'var(--surface)',
         surface2: 'var(--surface2)',
         surface3: 'var(--surface3)',
@@ -20,11 +21,17 @@ const config: Config = {
         'text-main': 'var(--text)',
         'text-dim': 'var(--text-dim)',
         'text-mute': 'var(--text-mute)',
+        purple: 'var(--purple)',
+        'purple-l': 'var(--purple-l)',
       },
       borderRadius: {
         sm: 'var(--radius-s)',
         md: 'var(--radius-m)',
         lg: 'var(--radius-l)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        'card-hover': 'var(--shadow-card-hover)',
       },
     },
   },

@@ -139,14 +139,14 @@ function KpiCards() {
       icon: FolderKanban,
       label: 'Активные проекты',
       value: kpi.activeProjects,
-      color: 'bg-accent-l text-accent',
+      iconBg: 'bg-blue-l text-blue',
       href: '/projects',
     },
     {
       icon: Banknote,
       label: 'Сумма pipeline',
       value: formatBudget(kpi.pipeline),
-      color: 'bg-green/10 text-green',
+      iconBg: 'bg-green-l text-green',
       href: '/projects',
     },
     {
@@ -154,14 +154,14 @@ function KpiCards() {
       label: 'Задачи на сегодня',
       value: kpi.urgentTasks,
       sub: 'просрочено или дедлайн сегодня',
-      color: 'bg-red/10 text-red',
+      iconBg: 'bg-red-l text-red',
       href: '/tasks',
     },
     {
       icon: Phone,
       label: 'Звонки за неделю',
       value: kpi.weekCalls,
-      color: 'bg-blue/10 text-blue',
+      iconBg: 'bg-accent-l text-accent',
       href: '/calls',
     },
     {
@@ -169,30 +169,36 @@ function KpiCards() {
       label: 'Конверсия',
       value: `${kpi.conversion}%`,
       sub: 'won / (won + lost)',
-      color: 'bg-yellow/10 text-yellow',
+      iconBg: 'bg-yellow-l text-yellow',
       href: '/analytics',
     },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {cards.map((c) => (
-        <a
-          key={c.label}
-          href={c.href}
-          className="group flex items-center gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3
-                     transition-all hover:border-border hover:shadow-sm"
-        >
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${c.color}`}>
-            <c.icon size={16} />
-          </div>
-          <div className="min-w-0">
-            <div className="text-lg font-bold text-text-main">{c.value}</div>
-            <div className="text-[10px] text-text-mute">{c.label}</div>
-            {c.sub && <div className="text-[9px] text-text-dim">{c.sub}</div>}
-          </div>
-        </a>
-      ))}
+      {cards.map((c) => {
+        const isEmpty = c.value === 0 || c.value === '0%' || c.value === '—';
+        return (
+          <a
+            key={c.label}
+            href={c.href}
+            data-kpi
+            className="group flex items-center gap-3 rounded-xl bg-surface px-4 py-3
+                       shadow-card transition-all duration-150 hover:shadow-card-hover"
+          >
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${c.iconBg}`}>
+              <c.icon size={16} />
+            </div>
+            <div className="min-w-0">
+              <div className={`text-lg font-bold ${isEmpty ? 'text-text-mute' : 'text-text-main'}`}>
+                {c.value}
+              </div>
+              <div className="text-[10px] text-text-mute">{c.label}</div>
+              {c.sub && <div className="text-[9px] text-text-dim">{c.sub}</div>}
+            </div>
+          </a>
+        );
+      })}
     </div>
   );
 }
@@ -229,7 +235,7 @@ function PipelineFunnelChart() {
   };
 
   return (
-    <div className="rounded-xl border border-border/50 bg-surface p-4">
+    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
       <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={chartData} layout="vertical" margin={{ left: 60, right: 16, top: 0, bottom: 0 }}>
@@ -288,7 +294,7 @@ function CallsRecentChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="rounded-xl border border-border/50 bg-surface p-4">
+    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
       <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за 14 дней</h3>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={chartData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
@@ -339,7 +345,7 @@ function UpcomingDeadlines() {
   }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-surface p-4">
+    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
       <div className="mb-3 flex items-center gap-2">
         <Calendar size={14} className="text-yellow" />
         <span className="text-xs font-semibold text-text-dim">Ближайшие дедлайны</span>
@@ -394,20 +400,25 @@ const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
 };
 
 const EVENT_COLOR: Record<string, string> = {
-  stage_change: 'text-accent',
-  call_logged: 'text-blue',
-  task_created: 'text-yellow',
-  task_completed: 'text-green',
-  meeting_scheduled: 'text-purple',
+  stage_change: 'text-blue',
+  call_logged: 'text-green',
+  task_created: 'text-purple',
+  task_completed: 'text-purple',
+  meeting_scheduled: 'text-yellow',
   project_updated: 'text-text-dim',
-  comment_added: 'text-text-main',
+  comment_added: 'text-text-mute',
 };
+
+function stageName(key: unknown): string {
+  const s = String(key);
+  return (STAGE_CONFIG as Record<string, { shortLabel: string }>)[s]?.shortLabel ?? s;
+}
 
 function describeEvent(entry: ActivityLog): string {
   const p = entry.payload as Record<string, unknown>;
   switch (entry.event_type) {
     case 'stage_change':
-      return `Стадия: ${p.from} → ${p.to}`;
+      return `Стадия: ${stageName(p.from)} → ${stageName(p.to)}`;
     case 'call_logged':
       return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
     case 'task_created':
@@ -442,7 +453,7 @@ function RecentActivityList() {
   }
 
   return (
-    <div className="rounded-xl border border-border/50 bg-surface p-4">
+    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
       <div className="mb-3 flex items-center gap-2">
         <Clock size={14} className="text-text-dim" />
         <span className="text-xs font-semibold text-text-dim">Последние действия</span>

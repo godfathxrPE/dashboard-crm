@@ -12,8 +12,15 @@ import {
   Banknote,
   ChevronRight,
 } from 'lucide-react';
-import { STAGE_CONFIG, formatBudget, getNextStage } from '@/lib/validators/project';
+import { STAGE_CONFIG, formatBudget, getNextStage, type DealStage } from '@/lib/validators/project';
 import type { Project } from '@/lib/hooks/use-projects';
+
+const PHASE_BORDER: Record<string, string> = {
+  attract: 'phase-attract',
+  develop: 'phase-develop',
+  negotiate: 'phase-negotiate',
+  close: 'phase-close',
+};
 
 interface ProjectCardProps {
   project: Project;
@@ -54,9 +61,10 @@ export function ProjectCard({
       ref={setNodeRef}
       style={style}
       className={`
-        group relative rounded-lg border border-border bg-surface p-3
-        transition-shadow hover:shadow-md
-        ${isDragging ? 'opacity-50 shadow-lg' : ''}
+        group relative rounded-lg bg-surface p-3
+        shadow-card transition-shadow duration-150 hover:shadow-card-hover
+        ${PHASE_BORDER[stageConfig.phase] ?? ''}
+        ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}
       `}
     >
       {/* Drag handle */}

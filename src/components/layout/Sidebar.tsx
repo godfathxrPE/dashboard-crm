@@ -9,7 +9,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
 
-const NAV_ITEMS = [
+const MAIN_NAV = [
   { href: '/',          label: 'Дашборд',    icon: LayoutDashboard },
   { href: '/tasks',     label: 'Задачи',     icon: CheckSquare },
   { href: '/projects',  label: 'Проекты',    icon: FolderKanban },
@@ -17,13 +17,50 @@ const NAV_ITEMS = [
   { href: '/companies', label: 'Компании',   icon: Building2 },
   { href: '/calls',     label: 'Звонки',     icon: Phone },
   { href: '/meetings',  label: 'Встречи',    icon: CalendarDays },
+] as const;
+
+const UTIL_NAV = [
   { href: '/analytics', label: 'Аналитика',  icon: BarChart3 },
   { href: '/settings',  label: 'Настройки',  icon: Settings },
 ] as const;
 
+function NavItem({
+  href,
+  label,
+  icon: Icon,
+  isActive,
+  sidebarOpen,
+}: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  isActive: boolean;
+  sidebarOpen: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150',
+        isActive
+          ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
+          : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
+      )}
+      title={!sidebarOpen ? label : undefined}
+    >
+      <Icon size={20} className={cn('shrink-0', isActive ? 'text-accent' : 'text-text-mute')} />
+      {sidebarOpen && <span className="truncate">{label}</span>}
+    </Link>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
+
+  function isActive(href: string) {
+    return pathname === href || (href !== '/' && pathname.startsWith(href));
+  }
 
   return (
     <aside
@@ -49,27 +86,28 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex flex-col gap-1 p-2 mt-2">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                isActive
-                  ? 'bg-accent-l text-accent font-medium'
-                  : 'text-text-dim hover:bg-surface2 hover:text-text-main',
-              )}
-              title={!sidebarOpen ? label : undefined}
-            >
-              <Icon size={18} className="shrink-0" />
-              {sidebarOpen && <span className="truncate">{label}</span>}
-            </Link>
-          );
-        })}
+      {/* Main navigation */}
+      <nav className="flex flex-col gap-0.5 p-2 mt-2">
+        {MAIN_NAV.map((item) => (
+          <NavItem
+            key={item.href}
+            {...item}
+            isActive={isActive(item.href)}
+            sidebarOpen={sidebarOpen}
+          />
+        ))}
+
+        {/* Separator */}
+        <div className="my-2 border-t border-border/50" />
+
+        {UTIL_NAV.map((item) => (
+          <NavItem
+            key={item.href}
+            {...item}
+            isActive={isActive(item.href)}
+            sidebarOpen={sidebarOpen}
+          />
+        ))}
       </nav>
     </aside>
   );

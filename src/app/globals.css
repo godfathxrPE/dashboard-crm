@@ -4,6 +4,7 @@
 
 /* ═══ THEME: Claude (default, light) ═══ */
 :root, .t-claude {
+  --bg:         #edece7;
   --surface:    #f5f4ef;
   --surface2:   #eae8e1;
   --surface3:   #dfddd5;
@@ -17,18 +18,22 @@
   --red:        #e04444;
   --blue:       #3b82f6;
   --yellow:     #e5a820;
+  --purple:     #7c3aed;
   --red-l:      rgba(224,68,68,0.12);
   --green-l:    rgba(34,165,90,0.12);
   --blue-l:     rgba(59,130,246,0.12);
   --yellow-l:   rgba(229,168,32,0.12);
+  --purple-l:   rgba(124,58,237,0.12);
   --radius-s:   6px;
   --radius-m:   10px;
   --radius-l:   16px;
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-card:     0 1px 3px rgba(0,0,0,0.08);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.10);
 }
 
 /* ═══ THEME: Frost (dark, blue) ═══ */
 .t-frost {
+  --bg:         #080c18;
   --surface:    #0d1020;
   --surface2:   #161a30;
   --surface3:   #1f2440;
@@ -42,15 +47,19 @@
   --red:        #f87171;
   --blue:       #60a5fa;
   --yellow:     #fbbf24;
+  --purple:     #a78bfa;
   --red-l:      rgba(248,113,113,0.12);
   --green-l:    rgba(52,211,153,0.12);
   --blue-l:     rgba(96,165,250,0.12);
   --yellow-l:   rgba(251,191,36,0.12);
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.3);
+  --purple-l:   rgba(167,139,250,0.12);
+  --shadow-card:     0 1px 4px rgba(0,0,0,0.3);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.4);
 }
 
 /* ═══ THEME: Paper (light, warm) ═══ */
 .t-paper {
+  --bg:         #ece7d5;
   --surface:    #f5f0e0;
   --surface2:   #ebe5d0;
   --surface3:   #dfd8c2;
@@ -64,15 +73,19 @@
   --red:        #c04030;
   --blue:       #4070b0;
   --yellow:     #c09030;
+  --purple:     #7a4aa0;
   --red-l:      rgba(192,64,48,0.12);
   --green-l:    rgba(58,138,74,0.12);
   --blue-l:     rgba(64,112,176,0.12);
   --yellow-l:   rgba(192,144,48,0.12);
-  --shadow-card: 0 1px 3px rgba(58,46,32,0.08);
+  --purple-l:   rgba(122,74,160,0.12);
+  --shadow-card:     0 1px 3px rgba(58,46,32,0.08);
+  --shadow-card-hover: 0 4px 12px rgba(58,46,32,0.12);
 }
 
 /* ═══ THEME: Sand (light, orange) ═══ */
 .t-sand {
+  --bg:         #e7dfcc;
   --surface:    #f0e8d8;
   --surface2:   #e6ddc8;
   --surface3:   #dad0b8;
@@ -86,15 +99,19 @@
   --red:        #c04030;
   --blue:       #3870b0;
   --yellow:     #c09020;
+  --purple:     #8a50b0;
   --red-l:      rgba(192,64,48,0.12);
   --green-l:    rgba(42,138,64,0.12);
   --blue-l:     rgba(56,112,176,0.12);
   --yellow-l:   rgba(192,144,32,0.12);
-  --shadow-card: 0 1px 3px rgba(58,48,32,0.08);
+  --purple-l:   rgba(138,80,176,0.12);
+  --shadow-card:     0 1px 3px rgba(58,48,32,0.08);
+  --shadow-card-hover: 0 4px 12px rgba(58,48,32,0.12);
 }
 
 /* ═══ THEME: Aurora (dark, purple-green) ═══ */
 .t-aurora {
+  --bg:         #06090f;
   --surface:    #0a0e1a;
   --surface2:   #121828;
   --surface3:   #1a2238;
@@ -108,15 +125,19 @@
   --red:        #ff6088;
   --blue:       #60a0ff;
   --yellow:     #ffcc40;
+  --purple:     #c084fc;
   --red-l:      rgba(255,96,136,0.12);
   --green-l:    rgba(32,232,160,0.12);
   --blue-l:     rgba(96,160,255,0.12);
   --yellow-l:   rgba(255,204,64,0.12);
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.4);
+  --purple-l:   rgba(192,132,252,0.12);
+  --shadow-card:     0 1px 4px rgba(0,0,0,0.4);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.5);
 }
 
 /* ═══ THEME: Tidal (dark, teal) ═══ */
 .t-tidal {
+  --bg:         #050b09;
   --surface:    #080f0d;
   --surface2:   #101a16;
   --surface3:   #182420;
@@ -130,17 +151,20 @@
   --red:        #f07060;
   --blue:       #5ca8d0;
   --yellow:     #d0b040;
+  --purple:     #a088d0;
   --red-l:      rgba(240,112,96,0.12);
   --green-l:    rgba(72,216,144,0.12);
   --blue-l:     rgba(92,168,208,0.12);
   --yellow-l:   rgba(208,176,64,0.12);
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.4);
+  --purple-l:   rgba(160,136,208,0.12);
+  --shadow-card:     0 1px 4px rgba(0,0,0,0.4);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.5);
 }
 
 /* ═══ BASE STYLES ═══ */
 body {
   font-family: 'Manrope', system-ui, sans-serif;
-  background: var(--surface);
+  background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -161,4 +185,108 @@ body {
 ::selection {
   background: var(--accent-l);
   color: var(--accent);
+}
+
+/* ═══ TYPOGRAPHY HIERARCHY ═══ */
+h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+h2 { font-size: 1.125rem; font-weight: 600; }
+
+/* Tabular figures for numbers — KPI, budgets, counters */
+.tabular-nums,
+[data-kpi],
+.font-bold,
+.font-semibold {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══ CARD SYSTEM — depth via shadow ═══ */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 150ms ease, border-color 150ms ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Surface-hover utility (was missing, used in DataTable etc.) */
+  .bg-surface-hover {
+    background: var(--surface2);
+  }
+}
+
+/* ═══ TABLE POLISH ═══ */
+@layer components {
+  /* Alternating rows */
+  table tbody tr:nth-child(even) {
+    background: var(--surface2);
+  }
+  table tbody tr:nth-child(odd) {
+    background: transparent;
+  }
+
+  /* Row hover with left accent */
+  table tbody tr {
+    transition: background 150ms ease, border-color 150ms ease;
+    border-left: 2px solid transparent;
+  }
+  table tbody tr:hover {
+    background: var(--accent-l) !important;
+    border-left-color: var(--accent);
+  }
+
+  /* Table header */
+  table thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-mute);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+}
+
+/* ═══ SIDEBAR ACTIVE STATE ═══ */
+@layer components {
+  /* Active nav item: left border accent + bg */
+  .nav-active {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-l);
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .nav-active .lucide { color: var(--accent); }
+}
+
+/* ═══ PIPELINE CARD — phase border-left ═══ */
+@layer components {
+  .phase-attract { border-left: 4px solid var(--blue); }
+  .phase-develop { border-left: 4px solid var(--accent); }
+  .phase-negotiate { border-left: 4px solid var(--yellow); }
+  .phase-close { border-left: 4px solid var(--green); }
+}
+
+/* ═══ BUTTONS — refined ═══ */
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: var(--radius-m);
+    background: var(--accent);
+    color: white;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: filter 150ms ease, box-shadow 150ms ease;
+    height: 2.25rem;
+  }
+  .btn-primary:hover { filter: brightness(0.9); }
+  .btn-primary:disabled { opacity: 0.5; }
 }

@@ -162,17 +162,21 @@ function StageColumn({
   const phaseConfig = PHASE_CONFIG[config.phase];
   const totalBudget = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
 
+  const isEmpty = projects.length === 0;
+
   return (
     <div
       ref={setNodeRef}
       className={`
-        flex w-56 shrink-0 flex-col rounded-xl border border-border/50 bg-bg
-        transition-colors snap-start
-        ${isOver ? 'border-accent/50 bg-accent-l/20' : ''}
+        flex shrink-0 flex-col rounded-xl snap-start transition-all duration-150
+        ${isEmpty
+          ? 'w-32 border border-dashed border-border/50 bg-bg/50'
+          : 'w-56 bg-bg shadow-card'}
+        ${isOver ? 'border-accent/50 bg-accent-l/20 shadow-card-hover' : ''}
       `}
     >
       {/* Header */}
-      <div className="border-b border-border/50 px-2.5 py-2">
+      <div className={`border-b border-border/50 px-2.5 py-2 rounded-t-xl ${phaseConfig.bgColor}`}>
         <div className="flex items-center gap-1.5">
           <span className={`h-2 w-2 shrink-0 rounded-full ${phaseConfig.dotColor}`} />
           <span className="truncate text-[11px] font-semibold text-text-main">
@@ -183,7 +187,7 @@ function StageColumn({
           </span>
         </div>
         {totalBudget > 0 && (
-          <div className="mt-0.5 text-[10px] text-text-mute">
+          <div className="mt-0.5 text-[10px] font-semibold text-text-dim">
             {formatBudget(totalBudget)}
           </div>
         )}

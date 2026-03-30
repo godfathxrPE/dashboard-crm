@@ -116,11 +116,11 @@ export function DataTable<T>({
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-surface/50">
+            <tr className="border-b border-border">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-3 py-2 text-left text-xs font-medium text-text-dim"
+                  className="px-3 py-2 text-left"
                   style={col.width ? { width: col.width } : undefined}
                 >
                   {col.sortable ? (

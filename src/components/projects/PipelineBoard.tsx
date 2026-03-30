@@ -81,7 +81,7 @@ function PhaseColumn({
       `}
     >
       {/* Column header */}
-      <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2.5">
+      <div className={`flex items-center gap-2 border-b border-border/50 px-3 py-2.5 ${config.bgColor}`}>
         <span className={`h-2 w-2 rounded-full ${config.dotColor}`} />
         <span className="text-xs font-semibold text-text-main">
           {config.label}
@@ -90,7 +90,7 @@ function PhaseColumn({
           {projects.length}
         </span>
         {totalBudget > 0 && (
-          <span className="ml-auto text-[10px] text-text-mute">
+          <span className="ml-auto text-[10px] font-semibold text-text-dim">
             {formatBudget(totalBudget)}
           </span>
         )}
