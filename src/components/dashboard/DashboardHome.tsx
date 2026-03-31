@@ -138,14 +138,16 @@ function KpiCards() {
       icon: FolderKanban,
       label: 'Активные проекты',
       value: kpi.activeProjects,
-      iconBg: 'bg-blue-l text-blue',
+      iconBg: 'bg-accent-l text-accent',
+      borderColor: 'border-accent',
       href: '/projects',
     },
     {
       icon: Banknote,
       label: 'Сумма pipeline',
       value: formatBudget(kpi.pipeline),
-      iconBg: 'bg-green-l text-green',
+      iconBg: 'bg-accent-l text-accent',
+      borderColor: 'border-accent',
       href: '/projects',
     },
     {
@@ -154,13 +156,15 @@ function KpiCards() {
       value: kpi.urgentTasks,
       sub: 'просрочено или дедлайн сегодня',
       iconBg: 'bg-red-l text-red',
+      borderColor: 'border-red',
       href: '/tasks',
     },
     {
       icon: Phone,
       label: 'Звонки за неделю',
       value: kpi.weekCalls,
-      iconBg: 'bg-accent-l text-accent',
+      iconBg: 'bg-green-l text-green',
+      borderColor: 'border-green',
       href: '/calls',
     },
     {
@@ -168,7 +172,8 @@ function KpiCards() {
       label: 'Конверсия',
       value: `${kpi.conversion}%`,
       sub: 'won / (won + lost)',
-      iconBg: 'bg-yellow-l text-yellow',
+      iconBg: 'bg-green-l text-green',
+      borderColor: 'border-green',
       href: '/analytics',
     },
   ];
@@ -182,9 +187,9 @@ function KpiCards() {
             key={c.label}
             href={c.href}
             data-kpi
-            className="group flex items-center gap-3 rounded-lg bg-surface px-4 py-4
+            className={`group flex items-center gap-3 rounded-lg bg-surface px-4 py-4
                        shadow-card transition-all duration-fast hover:shadow-card-hover
-                       hover:-translate-y-0.5"
+                       hover:-translate-y-0.5 border-t-2 ${c.borderColor}`}
           >
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
                             ${isEmpty ? 'bg-surface2 text-text-mute opacity-50' : c.iconBg}`}>

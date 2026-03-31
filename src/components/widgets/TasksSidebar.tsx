@@ -66,7 +66,7 @@ function PlannedCalls() {
     <div className="rounded-lg bg-surface p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-text-dim">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-green">
             Запланированные звонки
           </span>
           {pending.length > 0 && (
@@ -139,10 +139,10 @@ function FocusWidget() {
   );
 
   return (
-    <div className="rounded-lg border-l-[3px] border-accent bg-surface p-4 shadow-card">
+    <div className="rounded-lg border-l-[3px] border-yellow bg-surface p-4 shadow-card">
       <div className="mb-2 flex items-center gap-2">
-        <Target size={12} className="text-accent" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-accent">
+        <Target size={12} className="text-yellow" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-yellow">
           Фокус дня
         </span>
       </div>
@@ -175,15 +175,15 @@ function MiniKpi() {
   const upMeetings = (meetings ?? []).filter((m) => m.date >= todayStr).length;
 
   const items = [
-    { value: active, label: 'Проектов', color: 'text-green' },
-    { value: weekCalls, label: 'Звонков/нед', color: 'text-blue' },
+    { value: active, label: 'Проектов', color: 'text-accent' },
+    { value: weekCalls, label: 'Звонков/нед', color: 'text-green' },
     { value: dueTasks, label: 'Задач к сроку', color: 'text-red' },
-    { value: upMeetings, label: 'Встреч', color: 'text-accent' },
+    { value: upMeetings, label: 'Встреч', color: 'text-yellow' },
   ];
 
   return (
     <div className="rounded-lg bg-surface p-4 shadow-card">
-      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-text-dim">
+      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-accent">
         Сейчас в работе
       </div>
       <div className="grid grid-cols-2 gap-3">

@@ -14,9 +14,9 @@ import type { TaskLane } from '@/types/database';
 
 const LANE_HEADER_COLOR: Record<TaskLane, string> = {
   now: 'text-accent',
-  next: 'text-blue',
-  wait: 'text-text-dim',
-  done: 'text-text-mute',
+  next: 'text-yellow',
+  wait: 'text-yellow',
+  done: 'text-green',
 };
 
 interface LaneColumnProps {

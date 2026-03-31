@@ -55,6 +55,13 @@ const PHASE_TINT_COLOR: Record<Phase, string> = {
   close: 'var(--green)',
 };
 
+const PHASE_HEADER_TEXT: Record<Phase, string> = {
+  attract: 'text-accent',
+  develop: 'text-accent',
+  negotiate: 'text-yellow',
+  close: 'text-green',
+};
+
 // ═══════════════════════════════════════════════════════
 // Hero KPI Row
 // ═══════════════════════════════════════════════════════
@@ -77,20 +84,20 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
     : 0;
 
   const metrics = [
-    { label: 'Активные', value: active.length, fmt: String(active.length) },
-    { label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline) },
-    { label: 'Конверсия', value: conversion, fmt: `${conversion}%` },
-    { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—' },
+    { label: 'Активные', value: active.length, fmt: String(active.length), color: 'text-accent' },
+    { label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline), color: 'text-green' },
+    { label: 'Конверсия', value: conversion, fmt: `${conversion}%`, color: 'text-green' },
+    { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—', color: 'text-text-main' },
   ];
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {metrics.map((m) => (
         <div key={m.label} className="rounded bg-surface2 px-3.5 py-3">
-          <div className="text-[10px] font-medium uppercase tracking-[0.04em] text-text-mute mb-1">
+          <div className="text-xs font-medium uppercase tracking-[0.04em] text-text-dim mb-1">
             {m.label}
           </div>
-          <div className={`text-2xl font-extrabold tabular-nums leading-none ${m.value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
+          <div className={`text-2xl font-extrabold tabular-nums leading-none ${m.value === 0 ? 'text-text-mute' : m.color}`}>
             {m.fmt}
           </div>
         </div>
@@ -142,7 +149,7 @@ function PhaseColumn({
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
         <span className={`h-2 w-2 shrink-0 rounded-full ${config.dotColor}`} />
-        <span className="text-xs font-bold uppercase tracking-[0.06em] text-text-main">
+        <span className={`text-xs font-bold uppercase tracking-[0.06em] ${PHASE_HEADER_TEXT[phase]}`}>
           {config.label}
         </span>
         <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">

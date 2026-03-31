@@ -88,10 +88,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-fast',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-fast',
                 active
-                  ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
-                  : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
+                  ? 'bg-accent-l font-medium text-accent'
+                  : 'text-text-dim hover:text-text-main',
               )}
               title={!sidebarOpen ? item.label : undefined}
             >
@@ -119,10 +119,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-fast',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-fast',
                 active
-                  ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
-                  : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
+                  ? 'bg-accent-l font-medium text-accent'
+                  : 'text-text-dim hover:text-text-main',
               )}
               title={!sidebarOpen ? item.label : undefined}
             >

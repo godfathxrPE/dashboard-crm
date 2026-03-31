@@ -49,11 +49,11 @@ export function CallLog() {
     );
   }
 
-  const tabs: { key: TabFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'Все', count: calls?.length ?? 0 },
-    { key: 'done', label: 'Выполненные', count: calls?.filter((c) => c.status === 'done').length ?? 0 },
-    { key: 'pending', label: 'Запланированные', count: calls?.filter((c) => c.status === 'pending').length ?? 0 },
-    { key: 'cancelled', label: 'Отменённые', count: calls?.filter((c) => c.status === 'cancelled').length ?? 0 },
+  const tabs: { key: TabFilter; label: string; count: number; activeColor: string }[] = [
+    { key: 'all', label: 'Все', count: calls?.length ?? 0, activeColor: 'border-accent text-accent' },
+    { key: 'done', label: 'Выполненные', count: calls?.filter((c) => c.status === 'done').length ?? 0, activeColor: 'border-green text-green' },
+    { key: 'pending', label: 'Запланированные', count: calls?.filter((c) => c.status === 'pending').length ?? 0, activeColor: 'border-yellow text-yellow' },
+    { key: 'cancelled', label: 'Отменённые', count: calls?.filter((c) => c.status === 'cancelled').length ?? 0, activeColor: 'border-red text-red' },
   ];
 
   return (
@@ -114,7 +114,7 @@ export function CallLog() {
             {tabs.map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px
-                  ${tab === t.key ? 'border-accent text-accent' : 'border-transparent text-text-mute hover:text-text-dim'}`}>
+                  ${tab === t.key ? t.activeColor : 'border-transparent text-text-mute hover:text-text-dim'}`}>
                 {t.label}
                 <span className="ml-1 rounded-full bg-surface px-1.5 py-0.5 text-[10px]">{t.count}</span>
               </button>
