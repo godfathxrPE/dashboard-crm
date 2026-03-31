@@ -324,3 +324,10 @@ h2 { font-size: 1.125rem; font-weight: 600; }
 .t-tidal *::before, .t-tidal *::after {
   border-color: var(--border);
 }
+
+/* Dark themes: sidebar active item — no bg highlight, border-left only */
+.t-frost aside nav a.font-semibold,
+.t-aurora aside nav a.font-semibold,
+.t-tidal aside nav a.font-semibold {
+  background: transparent !important;
+}

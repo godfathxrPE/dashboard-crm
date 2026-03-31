@@ -54,7 +54,7 @@ export function TasksDistribution() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={chartData} cx="50%" cy="50%" innerRadius={40} outerRadius={70}
-              paddingAngle={3} dataKey="value" nameKey="name">
+              paddingAngle={3} dataKey="value" nameKey="name" stroke="var(--bg)" strokeWidth={1}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />
               ))}
