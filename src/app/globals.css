@@ -312,3 +312,15 @@ h2 { font-size: 1.125rem; font-weight: 600; }
   -webkit-backdrop-filter: var(--glass-blur);
   border-color: var(--glass-border);
 }
+
+/* ═══ DARK THEME BORDER SAFETY NET ═══
+   Force all borders to use theme variables.
+   Catches any Tailwind `border` without explicit color. */
+.t-frost *, .t-aurora *, .t-tidal * {
+  border-color: var(--border);
+}
+.t-frost *::before, .t-frost *::after,
+.t-aurora *::before, .t-aurora *::after,
+.t-tidal *::before, .t-tidal *::after {
+  border-color: var(--border);
+}

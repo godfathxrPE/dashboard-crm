@@ -48,6 +48,18 @@ const config: Config = {
         fast: 'var(--duration-fast)',
         normal: 'var(--duration-normal)',
       },
+      borderColor: {
+        DEFAULT: 'var(--border)',
+      },
+      divideColor: {
+        DEFAULT: 'var(--border)',
+      },
+      outlineColor: {
+        DEFAULT: 'var(--border)',
+      },
+      ringColor: {
+        DEFAULT: 'var(--accent)',
+      },
     },
   },
   plugins: [],
