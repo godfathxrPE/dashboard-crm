@@ -320,26 +320,6 @@ h2 { font-size: 1.125rem; font-weight: 600; }
   }
 }
 
-/* ═══ TASK CARD — minimal, no border ═══ */
-@layer components {
-  .task-card {
-    border: none;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    border-radius: var(--radius-s);
-  }
-}
-.t-frost .task-card,
-.t-aurora .task-card,
-.t-tidal .task-card {
-  background: rgba(255,255,255,0.03);
-  box-shadow: none;
-}
-.t-frost .task-card:hover,
-.t-aurora .task-card:hover,
-.t-tidal .task-card:hover {
-  background: rgba(255,255,255,0.06);
-}
-
 /* ═══ GLASSMORPHISM ═══ */
 @layer components {
   .glass-card {

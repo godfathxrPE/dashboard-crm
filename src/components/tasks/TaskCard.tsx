@@ -2,10 +2,10 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Calendar, Check } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
-import { PRIORITY_CONFIG } from '@/lib/validators/task';
+import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import type { Task } from '@/types/entities';
 
 interface TaskCardProps {
@@ -23,6 +23,8 @@ function deadlineUrgency(deadline: string, lane: string): { cls: string; label: 
 }
 
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
+  const updateTask = useUpdateTask();
+
   const {
     attributes,
     listeners,
@@ -37,106 +39,90 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
     transition,
   };
 
-  const priorityCfg = PRIORITY_CONFIG[task.priority];
-  const isOverdue =
-    task.deadline && new Date(task.deadline) < new Date() && task.lane !== 'done';
+  const isDone = task.lane === 'done';
+
+  function toggleDone() {
+    updateTask.mutate({ id: task.id, lane: isDone ? 'now' : 'done' });
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        'group relative rounded-sm bg-surface px-3 py-2 text-left transition-colors duration-fast',
-        'task-card hover:bg-surface2',
-        isDragging && 'opacity-50 shadow-md rotate-1',
-        isOverdue && 'ring-1 ring-red/30',
+        'group flex items-start gap-2 rounded-sm px-2 py-[7px] text-left',
+        'cursor-grab transition-all duration-fast',
+        'hover:bg-surface2 active:scale-[0.99]',
+        isDragging && 'opacity-40 rotate-1 bg-accent-l',
+        isDone && 'opacity-45',
+        task.priority === 'important' && 'border-l-[3px] border-yellow bg-yellow/[0.06]',
+        task.priority === 'critical' && 'border-l-[3px] border-red bg-red/[0.06]',
       )}
     >
-      <div className="flex items-start gap-2">
-        {/* Priority dot */}
-        {task.priority !== 'normal' && (
-          <span
-            className={cn(
-              'mt-1.5 h-2 w-2 shrink-0 rounded-full',
-              task.priority === 'critical' ? 'bg-red' : 'bg-yellow',
-            )}
-          />
+      {/* Checkbox */}
+      <button
+        onClick={(e) => { e.stopPropagation(); toggleDone(); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className={cn(
+          'mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] transition-all',
+          isDone
+            ? 'border-green bg-green text-white'
+            : 'border-border2 group-hover:border-accent group-hover:shadow-[0_0_0_3px_var(--accent-l)]',
         )}
+      >
+        {isDone && <Check size={10} strokeWidth={3} />}
+      </button>
 
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="mt-0.5 shrink-0 cursor-grab text-text-mute opacity-0 group-hover:opacity-100 transition-opacity active:cursor-grabbing"
-          tabIndex={-1}
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            'text-[0.8125rem] leading-[1.4] text-text-main',
+            isDone && 'line-through text-text-mute',
+          )}
         >
-          <GripVertical size={14} />
-        </button>
+          {task.text}
+        </p>
 
-        <div className="flex-1 min-w-0">
-          {/* Task text */}
-          <p
-            className={cn(
-              'text-sm text-text-main leading-snug',
-              task.lane === 'done' && 'line-through text-text-mute',
-            )}
-          >
-            {task.text}
-          </p>
-
-          {/* Meta row */}
-          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-            {/* Priority badge */}
-            {task.priority !== 'normal' && (
-              <span
-                className={cn(
-                  'text-[10px] font-medium px-1.5 py-0.5 rounded',
-                  task.priority === 'critical'
-                    ? 'bg-red-l text-red'
-                    : 'bg-yellow-l text-yellow',
-                )}
-              >
-                {priorityCfg.label}
-              </span>
-            )}
-
-            {/* Project badge */}
-            {task.project_id && (
-              <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent truncate max-w-[120px]">
-                проект
-              </span>
-            )}
-
-            {/* Deadline */}
+        {/* Meta */}
+        {(task.deadline || task.project_id) && (
+          <div className="mt-0.5 flex items-center gap-2 flex-wrap">
             {task.deadline && (() => {
               const urg = deadlineUrgency(task.deadline, task.lane);
               return (
-                <span className={cn('flex items-center gap-1 text-[10px]', urg.cls)}>
-                  <Calendar size={10} />
+                <span className={cn('flex items-center gap-1 text-[0.625rem]', urg.cls)}>
+                  <Calendar size={9} />
                   {urg.label}
                 </span>
               );
             })()}
+            {task.project_id && (
+              <span className="rounded bg-accent-l px-1 py-0.5 text-[0.625rem] text-accent truncate max-w-[100px]">
+                проект
+              </span>
+            )}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Actions */}
-        <div className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(task)}
-            className="rounded p-1 text-text-mute hover:text-accent hover:bg-accent-l transition-colors"
-            title="Редактировать"
-          >
-            <Pencil size={13} />
-          </button>
-          <button
-            onClick={() => onDelete(task.id)}
-            className="rounded p-1 text-text-mute hover:text-red hover:bg-red-l transition-colors"
-            title="Удалить"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
+      {/* Actions — on hover */}
+      <div className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="rounded p-0.5 text-text-mute hover:text-accent transition-colors"
+        >
+          <Pencil size={12} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="rounded p-0.5 text-text-mute hover:text-red transition-colors"
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
     </div>
   );

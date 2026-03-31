@@ -138,7 +138,8 @@ export function KanbanBoard() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-surface shadow-card overflow-hidden
+                        grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {taskLanes.map((lane) => (
                 <LaneColumn
                   key={lane}
