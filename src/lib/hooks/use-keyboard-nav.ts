@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface UseKeyboardNavOptions {
   itemCount: number;
@@ -10,10 +10,8 @@ interface UseKeyboardNavOptions {
 
 export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeyboardNavOptions) {
   const [activeIndex, setActiveIndex] = useState(-1);
-
-  const handleSelect = useCallback((index: number) => {
-    onSelect?.(index);
-  }, [onSelect]);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
   useEffect(() => {
     if (!enabled || itemCount === 0) return;
@@ -27,7 +25,7 @@ export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeybo
 
     function handleKeyDown(e: KeyboardEvent) {
       if (isInputFocused()) return;
-      if (e.metaKey || e.ctrlKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       switch (e.key) {
         case 'j':
@@ -38,11 +36,11 @@ export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeybo
         case 'k':
         case 'ArrowUp':
           e.preventDefault();
-          setActiveIndex((i) => Math.max(i - 1, i === -1 ? -1 : 0));
+          setActiveIndex((i) => Math.max(i - 1, 0));
           break;
         case 'Enter':
           setActiveIndex((i) => {
-            if (i >= 0) { e.preventDefault(); handleSelect(i); }
+            if (i >= 0) { e.preventDefault(); onSelectRef.current?.(i); }
             return i;
           });
           break;
@@ -54,7 +52,7 @@ export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeybo
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [itemCount, handleSelect, enabled]);
+  }, [itemCount, enabled]);
 
   // Scroll active row into view
   useEffect(() => {
