@@ -9,6 +9,8 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
+import { useCalls } from '@/lib/hooks/use-calls';
+import { useMeetings } from '@/lib/hooks/use-meetings';
 
 interface CmdItem {
   id: string;
@@ -30,6 +32,8 @@ export function CommandPalette() {
   const { data: projects } = useProjects();
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
+  const { data: calls } = useCalls();
+  const { data: meetings } = useMeetings();
 
   // Global keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -118,8 +122,35 @@ export function CommandPalette() {
       });
     }
 
+    // Calls
+    for (const c of calls ?? []) {
+      const name = c.contact
+        ? `${c.contact.first_name} ${c.contact.last_name}`
+        : c.company?.name ?? 'Звонок';
+      items.push({
+        id: `call-${c.id}`,
+        label: name,
+        sub: c.status,
+        icon: Phone,
+        href: '/calls',
+        section: 'Звонки',
+      });
+    }
+
+    // Meetings
+    for (const m of meetings ?? []) {
+      items.push({
+        id: `meet-${m.id}`,
+        label: m.title,
+        sub: new Date(m.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+        icon: CalendarDays,
+        href: '/meetings',
+        section: 'Встречи',
+      });
+    }
+
     return items;
-  }, [tasks, projects, companies, contacts]);
+  }, [tasks, projects, companies, contacts, calls, meetings]);
 
   // Filter
   const filtered = useMemo(() => {
