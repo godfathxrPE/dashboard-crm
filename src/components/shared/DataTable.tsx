@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useStagger } from '@/lib/hooks/use-stagger';
@@ -267,9 +268,9 @@ export function DataTable<T>({
         </div>
       )}
 
-      {/* Floating Bulk Action Bar */}
-      {selectable && bulkActions && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-3
+      {/* Floating Bulk Action Bar — portal to body to escape overflow/transform ancestors */}
+      {selectable && bulkActions && selectedIds.size > 0 && typeof document !== 'undefined' && createPortal(
+        <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 flex items-center gap-3
                         rounded-xl border border-border bg-surface px-4 py-2.5
                         shadow-lg bulk-bar-enter">
           <span className="text-sm font-medium text-text-main tabular-nums">
@@ -297,7 +298,8 @@ export function DataTable<T>({
           >
             <X size={14} />
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
