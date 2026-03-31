@@ -25,11 +25,9 @@ export default function DashboardLayout({
         )}
       >
         <Header />
-        <main className="p-4 md:p-6">
-          <SmartAlerts />
-          {children}
-        </main>
+        <main className="p-4 md:p-6">{children}</main>
       </div>
+      <SmartAlerts />
       <CommandPalette />
       <Hotkeys />
     </div>

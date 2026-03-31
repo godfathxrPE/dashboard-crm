@@ -47,14 +47,67 @@ import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 
+// Phase tint gradients (light themes only — dark themes use surface)
+const PHASE_TINT: Record<Phase, string> = {
+  attract: 'from-[#E6F1FB]/60 to-transparent',
+  develop: 'from-[#FAEEDA]/60 to-transparent',
+  negotiate: 'from-[#FFF8E6]/40 to-transparent',
+  close: 'from-[#EAF3DE]/60 to-transparent',
+};
+
 // ═══════════════════════════════════════════════════════
-// Droppable Phase Column
+// Hero KPI Row
+// ═══════════════════════════════════════════════════════
+
+function HeroMetrics({ projects }: { projects: Project[] }) {
+  const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost');
+  const won = projects.filter((p) => p.stage === 'won');
+  const lost = projects.filter((p) => p.stage === 'lost');
+  const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
+  const closed = won.length + lost.length;
+  const conversion = closed > 0 ? Math.round((won.length / closed) * 100) : 0;
+
+  // Avg cycle: days from created_at to won
+  const avgCycle = won.length > 0
+    ? Math.round(
+        won.reduce((s, p) => {
+          return s + (new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) / 86400000;
+        }, 0) / won.length,
+      )
+    : 0;
+
+  const metrics = [
+    { label: 'Активные', value: active.length, fmt: String(active.length) },
+    { label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline) },
+    { label: 'Конверсия', value: conversion, fmt: `${conversion}%` },
+    { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—' },
+  ];
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      {metrics.map((m) => (
+        <div key={m.label} className="rounded bg-surface2 px-3.5 py-3">
+          <div className="text-[10px] font-medium uppercase tracking-[0.04em] text-text-mute mb-1">
+            {m.label}
+          </div>
+          <div className={`text-2xl font-extrabold tabular-nums leading-none ${m.value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
+            {m.fmt}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Droppable Phase Column — tinted
 // ═══════════════════════════════════════════════════════
 
 function PhaseColumn({
   phase,
   projects,
   totalBudget,
+  isLast,
   onEdit,
   onDelete,
   onAdvance,
@@ -63,6 +116,7 @@ function PhaseColumn({
   phase: Phase;
   projects: Project[];
   totalBudget: number;
+  isLast: boolean;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onAdvance: (id: string) => void;
@@ -75,22 +129,23 @@ function PhaseColumn({
     <div
       ref={setNodeRef}
       className={`
-        flex min-h-[200px] flex-1 flex-col rounded-xl border border-border/50 bg-bg
+        flex min-h-[200px] flex-1 flex-col bg-gradient-to-b ${PHASE_TINT[phase]}
         transition-colors
-        ${isOver ? 'border-accent/50 bg-accent-l/30' : ''}
+        ${!isLast ? 'border-r border-border/50' : ''}
+        ${isOver ? 'bg-accent-l/20' : ''}
       `}
     >
       {/* Column header */}
-      <div className={`flex items-center gap-2 border-b border-border/50 px-3 py-2.5 ${config.bgColor}`}>
-        <span className={`h-2 w-2 rounded-full ${config.dotColor}`} />
-        <span className="text-xs font-semibold text-text-main">
+      <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${config.dotColor}`} />
+        <span className="text-xs font-bold uppercase tracking-[0.06em] text-text-main">
           {config.label}
         </span>
         <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
           {projects.length}
         </span>
         {totalBudget > 0 && (
-          <span className="ml-auto text-[10px] font-semibold text-text-dim">
+          <span className="ml-auto text-[10px] font-semibold text-text-dim tabular-nums">
             {formatBudget(totalBudget)}
           </span>
         )}
@@ -114,31 +169,22 @@ function PhaseColumn({
           ))}
         </SortableContext>
 
-        {/* Empty state */}
         {projects.length === 0 && (
-          <div className="flex h-20 items-center justify-center text-xs text-text-mute">
-            Перетащи проект сюда
+          <div className="flex h-20 items-center justify-center">
+            <span className="text-xs text-text-mute">Перетащи проект сюда</span>
           </div>
         )}
       </div>
 
-      {/* Stages breakdown footer */}
+      {/* Stages breakdown */}
       <div className="border-t border-border/30 px-3 py-1.5">
         <div className="flex flex-wrap gap-1">
           {config.stages.map((stage) => {
             const count = projects.filter((p) => p.stage === stage).length;
             return (
-              <span
-                key={stage}
-                className="text-[9px] text-text-mute"
-                title={STAGE_CONFIG[stage].label}
-              >
+              <span key={stage} className="text-[9px] text-text-mute" title={STAGE_CONFIG[stage].label}>
                 {STAGE_CONFIG[stage].shortLabel}
-                {count > 0 && (
-                  <span className="ml-0.5 font-medium text-text-dim">
-                    {count}
-                  </span>
-                )}
+                {count > 0 && <span className="ml-0.5 font-medium text-text-dim">{count}</span>}
               </span>
             );
           })}
@@ -154,20 +200,15 @@ function PhaseColumn({
 
 function WonDeals({ projects }: { projects: Project[] }) {
   if (projects.length === 0) return null;
-
-  const totalWon = projects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
+  const total = projects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
   return (
-    <div className="mt-4 rounded-xl border border-green/30 bg-green/5 px-4 py-3">
+    <div className="mt-4 rounded border border-green/30 bg-green/5 px-4 py-3">
       <div className="flex items-center gap-2">
         <Trophy size={16} className="text-green" />
-        <span className="text-sm font-semibold text-green">
-          Выиграно: {projects.length}
-        </span>
-        {totalWon > 0 && (
-          <span className="ml-auto text-sm font-medium text-green">
-            {formatBudget(totalWon)}
-          </span>
+        <span className="text-sm font-semibold text-green">Выиграно: {projects.length}</span>
+        {total > 0 && (
+          <span className="ml-auto text-sm font-medium text-green tabular-nums">{formatBudget(total)}</span>
         )}
       </div>
     </div>
@@ -186,7 +227,6 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
   const { data: projects, isLoading, error } = useProjects();
   const { moveToStage } = useMoveProject();
   const deleteProject = useDeleteProject();
-  const updateProject = useUpdateProject();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -195,14 +235,11 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor),
   );
 
-  // ─── Group projects by phase ───
   const grouped = useMemo(() => {
     if (!projects) return { attract: [], develop: [], negotiate: [], close: [], won: [], lost: [] };
-
-    // Sort
     const sorted = [...projects].sort((a, b) => {
       switch (sortBy) {
         case 'deadline':
@@ -213,98 +250,54 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
           return (b.budget ?? 0) - (a.budget ?? 0);
         case 'stage':
           return STAGE_CONFIG[a.stage].order - STAGE_CONFIG[b.stage].order;
-        default: // created_at
+        default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
 
     const result: Record<Phase | 'won' | 'lost', Project[]> = {
-      attract: [],
-      develop: [],
-      negotiate: [],
-      close: [],
-      won: [],
-      lost: [],
+      attract: [], develop: [], negotiate: [], close: [], won: [], lost: [],
     };
-
     for (const p of sorted) {
-      if (p.stage === 'won') {
-        result.won.push(p);
-      } else if (p.stage === 'lost') {
-        result.lost.push(p);
-      } else {
-        const phase = getPhaseForStage(p.stage);
-        result[phase].push(p);
-      }
+      if (p.stage === 'won') result.won.push(p);
+      else if (p.stage === 'lost') result.lost.push(p);
+      else result[getPhaseForStage(p.stage)].push(p);
     }
-
     return result;
   }, [projects, sortBy]);
 
-  // ─── Drag handlers ───
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === activeId) ?? null,
-    [projects, activeId]
+    [projects, activeId],
   );
 
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string);
-  }
-
+  function handleDragStart(event: DragStartEvent) { setActiveId(event.active.id as string); }
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null);
-
     if (!over) return;
-
-    const projectId = active.id as string;
-    const targetPhase = over.id as Phase;
-
-    // Если дропнули в ту же фазу — ничего не делаем
-    const project = projects?.find((p) => p.id === projectId);
+    const project = projects?.find((p) => p.id === active.id as string);
     if (!project) return;
-
     const currentPhase = getPhaseForStage(project.stage);
+    const targetPhase = over.id as Phase;
     if (currentPhase === targetPhase) return;
-
-    // Перемещаем в первую стадию целевой фазы
-    const targetStage = PHASE_CONFIG[targetPhase].stages[0];
-    moveToStage(projectId, targetStage);
+    moveToStage(active.id as string, PHASE_CONFIG[targetPhase].stages[0]);
   }
 
-  // ─── Action handlers ───
-  function handleEdit(project: Project) {
-    setEditProject(project);
-    setModalOpen(true);
-  }
-
+  function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
   function handleDelete(id: string) {
-    if (confirm('Удалить проект? Это действие нельзя отменить.')) {
-      deleteProject.mutate(id);
-    }
+    if (confirm('Удалить проект?')) deleteProject.mutate(id);
   }
-
   function handleAdvance(id: string) {
-    const project = projects?.find((p) => p.id === id);
-    if (!project) return;
-    const next = getNextStage(project.stage);
-    if (next) moveToStage(id, next);
+    const p = projects?.find((pr) => pr.id === id);
+    if (p) { const n = getNextStage(p.stage); if (n) moveToStage(id, n); }
   }
+  function handleOpen(id: string) { window.location.href = `/projects/${id}`; }
+  function handleRestore(id: string) { moveToStage(id, 'new_lead'); }
 
-  function handleOpen(id: string) {
-    // Навигация на detail page
-    window.location.href = `/projects/${id}`;
-  }
-
-  function handleRestore(id: string) {
-    moveToStage(id, 'new_lead');
-  }
-
-  // ─── Budget totals per phase ───
   const phaseBudget = (phase: Phase) =>
     grouped[phase].reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
-  // ─── Loading / Error states ───
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -312,19 +305,15 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       </div>
     );
   }
-
   if (error) {
     return (
-      <div className="rounded-xl border border-red/30 bg-red/5 p-6 text-center">
+      <div className="rounded border border-red/30 bg-red/5 p-6 text-center">
         <p className="text-sm text-red">Ошибка загрузки проектов</p>
-        <p className="mt-1 text-xs text-text-mute">{(error as Error).message}</p>
       </div>
     );
   }
 
-  const activeCount = (projects ?? []).filter(
-    (p) => p.stage !== 'won' && p.stage !== 'lost'
-  ).length;
+  const activeCount = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
 
   return (
     <>
@@ -332,71 +321,43 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FolderKanban size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">
-            Воронка проектов
-          </h1>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text-mute">
-            {activeCount} активн.
-          </span>
+          <h1 className="text-lg font-semibold text-text-main">Воронка проектов</h1>
+          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs text-text-mute">{activeCount} активн.</span>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           {onSwitchView && (
-            <button
-              onClick={onSwitchView}
-              className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim
-                         transition-colors hover:bg-surface-hover"
-            >
+            <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
               Доска
             </button>
           )}
-
-          {/* Sort */}
-          <div className="flex items-center gap-1 rounded-lg border border-border px-2 py-1">
+          <div className="flex items-center gap-1 rounded border border-border px-2 py-1">
             <ArrowUpDown size={12} className="text-text-mute" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="bg-transparent text-xs text-text-dim focus:outline-none"
-            >
-              {sortOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="bg-transparent text-xs text-text-dim focus:outline-none">
+              {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-
-          {/* Add */}
-          <button
-            onClick={() => {
-              setEditProject(null);
-              setModalOpen(true);
-            }}
-            className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5
-                       text-xs font-medium text-white transition-opacity hover:opacity-90"
-          >
-            <Plus size={14} />
-            Проект
+          <button onClick={() => { setEditProject(null); setModalOpen(true); }}
+            className="flex items-center gap-1 rounded bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+            <Plus size={14} /> Проект
           </button>
         </div>
       </div>
 
-      {/* Pipeline Kanban */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-4 gap-3">
-          {phases.map((phase) => (
+      {/* Hero Metrics */}
+      <HeroMetrics projects={projects ?? []} />
+
+      {/* Pipeline columns in single card */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter}
+        onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="rounded border border-border overflow-hidden shadow-card grid grid-cols-4">
+          {phases.map((phase, i) => (
             <PhaseColumn
               key={phase}
               phase={phase}
               projects={grouped[phase]}
               totalBudget={phaseBudget(phase)}
+              isLast={i === phases.length - 1}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onAdvance={handleAdvance}
@@ -405,41 +366,20 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
           ))}
         </div>
 
-        {/* Drag overlay */}
         <DragOverlay>
           {activeProject ? (
-            <div className="rounded-lg border border-accent/50 bg-surface p-3 shadow-xl opacity-90 rotate-2">
-              <p className="text-sm font-medium text-text-main">
-                {activeProject.name}
-              </p>
-              <p className="mt-0.5 text-[10px] text-text-mute">
-                {STAGE_CONFIG[activeProject.stage].label}
-              </p>
+            <div className="rounded bg-surface p-3 shadow-lg opacity-90 rotate-2 max-w-[250px]">
+              <p className="text-sm font-medium text-text-main">{activeProject.name}</p>
+              <p className="mt-0.5 text-[10px] text-text-mute">{STAGE_CONFIG[activeProject.stage].label}</p>
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
 
-      {/* Won deals */}
       <WonDeals projects={grouped.won} />
+      <LostDeals projects={grouped.lost} onRestore={handleRestore} onDelete={handleDelete} onEdit={handleEdit} />
 
-      {/* Lost deals — collapsible */}
-      <LostDeals
-        projects={grouped.lost}
-        onRestore={handleRestore}
-        onDelete={handleDelete}
-        onEdit={handleEdit}
-      />
-
-      {/* Modal */}
-      <ProjectModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditProject(null);
-        }}
-        editProject={editProject}
-      />
+      <ProjectModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditProject(null); }} editProject={editProject} />
     </>
   );
 }
