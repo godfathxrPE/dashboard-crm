@@ -101,7 +101,7 @@ function PlannedCalls() {
               <span className="truncate text-text-main">
                 {c.contact ? `${c.contact.first_name} ${c.contact.last_name}` : c.company?.name ?? 'Звонок'}
               </span>
-              <span className="shrink-0 text-[10px] text-text-mute">
+              <span className="shrink-0 text-xs text-text-dim">
                 {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
               </span>
             </div>
@@ -190,7 +190,7 @@ function MiniKpi() {
         {items.map((it) => (
           <div key={it.label}>
             <div className={`text-2xl font-bold tabular-nums ${it.color}`}>{it.value}</div>
-            <div className="text-[10px] text-text-mute">{it.label}</div>
+            <div className="text-xs text-text-dim">{it.label}</div>
           </div>
         ))}
       </div>

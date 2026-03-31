@@ -62,7 +62,7 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
                   >
                     {project.name}
                   </button>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-text-mute">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-text-dim">
                     {project.company?.name && (
                       <span className="flex items-center gap-0.5">
                         <Building2 size={9} />
@@ -88,7 +88,7 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
                     )}
                   </div>
                   {project.loss_detail && (
-                    <p className="mt-0.5 line-clamp-1 text-[10px] text-text-mute italic">
+                    <p className="mt-0.5 line-clamp-1 text-xs text-text-dim italic">
                       {project.loss_detail}
                     </p>
                   )}

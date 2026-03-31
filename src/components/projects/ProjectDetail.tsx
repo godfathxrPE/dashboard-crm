@@ -106,7 +106,7 @@ function TaskMiniCard({ task }: { task: Task }) {
         </span>
       </div>
       {task.deadline && (
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-text-mute">
+        <div className="mt-1 flex items-center gap-1 text-xs text-text-dim">
           <Clock size={9} />
           {new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
         </div>
@@ -133,7 +133,7 @@ function CallMiniCard({ call }: { call: Call }) {
           {status.label}
         </span>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-[10px] text-text-mute">
+      <div className="mt-1 flex items-center gap-2 text-xs text-text-dim">
         <span>{new Date(call.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {call.duration_s != null && call.duration_s > 0 && (
           <span>{formatDuration(call.duration_s)}</span>
@@ -155,7 +155,7 @@ function MeetingMiniCard({ meeting }: { meeting: Meeting }) {
           <span className="text-sm text-text-main">{meeting.title}</span>
         </div>
       </div>
-      <div className="mt-1 flex items-center gap-2 text-[10px] text-text-mute">
+      <div className="mt-1 flex items-center gap-2 text-xs text-text-dim">
         <span>
           {new Date(meeting.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
         </span>
@@ -311,7 +311,7 @@ function ActivityTimeline({ projectId }: { projectId: string }) {
                   <p className="text-xs text-text-dim leading-relaxed">
                     {describeEvent(entry)}
                   </p>
-                  <span className="text-[10px] text-text-mute">
+                  <span className="text-xs text-text-mute">
                     {relativeTime(entry.created_at)}
                   </span>
                 </div>
@@ -674,7 +674,7 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-      <div className="mb-1 flex items-center gap-1 text-[10px] text-text-mute">
+      <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
         <Icon size={10} />
         {label}
       </div>

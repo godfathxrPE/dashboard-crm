@@ -141,7 +141,7 @@ function MeetingCard({
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium text-text-main">{meeting.title}</span>
 
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-text-mute">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-dim">
           <span>{dateStr}</span>
           {meeting.time && <span>{meeting.time.slice(0, 5)}</span>}
           {meeting.location && (

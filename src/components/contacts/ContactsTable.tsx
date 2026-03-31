@@ -23,7 +23,7 @@ export function ContactsTable() {
       render: (c) => (
         <div>
           <span className="font-medium text-text-main">{c.first_name} {c.last_name}</span>
-          {c.position && <span className="ml-2 text-[10px] text-text-mute">{c.position}</span>}
+          {c.position && <span className="ml-2 text-xs text-text-dim">{c.position}</span>}
         </div>
       ),
       searchValue: (c) => `${c.first_name} ${c.last_name} ${c.position ?? ''}`,
@@ -67,7 +67,7 @@ export function ContactsTable() {
       sortable: true,
       width: '120px',
       render: (c) => (
-        <span className="text-xs text-text-mute">
+        <span className="text-xs text-text-dim">
           {new Date(c.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       ),

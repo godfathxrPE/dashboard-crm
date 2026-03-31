@@ -28,7 +28,7 @@ function StatCard({ icon: Icon, label, value, sub, color, href }: StatCardProps)
       </div>
       <div className="min-w-0">
         <div className="text-lg font-bold text-text-main">{value}</div>
-        <div className="text-[10px] text-text-mute">{label}</div>
+        <div className="text-xs text-text-dim">{label}</div>
         {sub && <div className="text-[9px] text-text-dim">{sub}</div>}
       </div>
     </a>

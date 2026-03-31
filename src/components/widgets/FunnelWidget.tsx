@@ -33,7 +33,7 @@ export function FunnelWidget() {
 
           return (
             <div key={f.phase} className="flex items-center gap-2">
-              <span className="w-24 text-right text-[10px] text-text-mute">{config.label}</span>
+              <span className="w-24 text-right text-xs text-text-dim">{config.label}</span>
               <div className="flex-1">
                 <div
                   className={`h-6 rounded ${config.bgColor} flex items-center px-2 transition-all`}
@@ -44,7 +44,7 @@ export function FunnelWidget() {
                   </span>
                 </div>
               </div>
-              <span className="w-16 text-right text-[10px] text-text-mute">
+              <span className="w-16 text-right text-xs text-text-dim">
                 {formatBudget(f.budget)}
               </span>
             </div>

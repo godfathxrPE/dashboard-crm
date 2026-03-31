@@ -82,7 +82,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
             <div key={s.label} className="rounded-lg border border-border/50 bg-bg px-3 py-2.5 text-center">
               <s.icon size={16} className={`mx-auto mb-1 ${s.color}`} />
               <div className="text-xl font-bold text-text-main">{s.value}</div>
-              <div className="text-[10px] text-text-mute">{s.label}</div>
+              <div className="text-xs text-text-dim">{s.label}</div>
             </div>
           ))}
         </div>

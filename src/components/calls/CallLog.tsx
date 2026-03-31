@@ -96,7 +96,7 @@ export function CallLog() {
                       </div>
                     )}
                     {c.contact && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-mute">
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-dim">
                         <User size={9} /> {c.contact.first_name} {c.contact.last_name}
                       </div>
                     )}
@@ -141,11 +141,11 @@ export function CallLog() {
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${CALL_STATUS_CONFIG[call.status].bg} ${CALL_STATUS_CONFIG[call.status].color}`}>
                         {CALL_STATUS_CONFIG[call.status].label}
                       </span>
-                      <span className="text-[10px] text-text-mute">
+                      <span className="text-[10px] text-text-dim">
                         {new Date(call.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {call.duration_s != null && call.duration_s > 0 && (
-                        <span className="text-[10px] text-text-mute">{formatDuration(call.duration_s)}</span>
+                        <span className="text-[10px] text-text-dim">{formatDuration(call.duration_s)}</span>
                       )}
                     </div>
 

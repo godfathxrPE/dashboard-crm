@@ -196,7 +196,7 @@ export function CommandPalette() {
                     <item.icon size={14} className={i === selectedIdx ? 'text-accent' : 'text-text-mute'} />
                     <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
                     {item.sub && (
-                      <span className="shrink-0 text-[10px] text-text-mute">{item.sub}</span>
+                      <span className="shrink-0 text-xs text-text-dim">{item.sub}</span>
                     )}
                   </button>
                 </div>

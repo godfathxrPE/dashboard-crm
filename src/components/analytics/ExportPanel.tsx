@@ -135,7 +135,7 @@ export function ExportPanel() {
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-hover disabled:opacity-50">
             <FileSpreadsheet size={13} className="text-green" />
             <span className="flex-1 text-xs text-text-main">{item.label}</span>
-            <span className="text-[10px] text-text-mute">{item.count} записей</span>
+            <span className="text-xs text-text-dim">{item.count} записей</span>
             {exporting === item.key && <Loader2 size={12} className="animate-spin" />}
           </button>
         ))}

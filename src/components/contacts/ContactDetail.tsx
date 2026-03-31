@@ -109,7 +109,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {infoFields.filter((f) => f.value).map((f) => (
           <div key={f.label} className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-            <div className="mb-1 flex items-center gap-1 text-[10px] text-text-mute"><f.icon size={10} /> {f.label}</div>
+            <div className="mb-1 flex items-center gap-1 text-xs text-text-dim"><f.icon size={10} /> {f.label}</div>
             <div className="text-sm text-text-main">{f.value}</div>
           </div>
         ))}
@@ -210,7 +210,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                   <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
                     {STAGE_CONFIG[p.stage].shortLabel}
                   </span>
-                  {p.budget != null && <span className="ml-auto text-[10px] text-text-mute">{formatBudget(p.budget)}</span>}
+                  {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}
                 </button>
               ))}
             </div>

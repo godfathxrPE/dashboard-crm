@@ -66,7 +66,7 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
         {/* Stats */}
         <div className="flex-1 space-y-2">
           <div>
-            <span className="text-[10px] text-text-mute">За неделю</span>
+            <span className="text-xs text-text-dim">За неделю</span>
             <div className="flex items-center gap-1">
               <TrendingUp size={12} className="text-green" />
               <span className="text-sm font-semibold text-text-main">{weekCalls}</span>

@@ -23,7 +23,7 @@ export function CompaniesTable() {
       render: (c) => (
         <div>
           <span className="font-medium text-text-main">{c.name}</span>
-          {c.inn && <span className="ml-2 text-[10px] text-text-mute">ИНН {c.inn}</span>}
+          {c.inn && <span className="ml-2 text-xs text-text-dim">ИНН {c.inn}</span>}
         </div>
       ),
       searchValue: (c) => `${c.name} ${c.inn ?? ''}`,
@@ -52,7 +52,7 @@ export function CompaniesTable() {
       sortable: true,
       width: '120px',
       render: (c) => (
-        <span className="text-xs text-text-mute">
+        <span className="text-xs text-text-dim">
           {new Date(c.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
       ),

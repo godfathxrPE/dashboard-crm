@@ -370,7 +370,7 @@ function UpcomingDeadlines() {
                   {p.name}
                 </span>
                 {p.company?.name && (
-                  <span className="hidden shrink-0 text-[10px] text-text-mute sm:inline">
+                  <span className="hidden shrink-0 text-xs text-text-dim sm:inline">
                     {p.company.name}
                   </span>
                 )}
@@ -488,7 +488,7 @@ function RecentActivityList() {
                     <span className="text-[10px] text-text-main font-medium">{projectName}</span>
                   )}
                 </div>
-                <span className="shrink-0 text-[10px] text-text-mute">
+                <span className="shrink-0 text-xs text-text-mute">
                   {relativeTime(entry.created_at)}
                 </span>
               </a>
