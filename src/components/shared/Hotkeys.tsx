@@ -1,27 +1,47 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 
-/**
- * Глобальные хоткеи (активны когда не в input/textarea/select)
- *
- * g+d = Dashboard
- * g+t = Tasks
- * g+p = Projects
- * g+c = Calls
- * g+m = Meetings
- * g+o = Companies
- * g+n = Contacts
- * g+a = Analytics
- */
+const GO_ROUTES: Record<string, string> = {
+  d: '/',
+  t: '/tasks',
+  p: '/projects',
+  c: '/calls',
+  m: '/meetings',
+  o: '/companies',
+  n: '/contacts',
+  a: '/analytics',
+  s: '/settings',
+};
+
+const SHORTCUTS = [
+  { keys: 'J / K', label: 'Навигация по строкам' },
+  { keys: 'Enter', label: 'Открыть' },
+  { keys: 'Esc', label: 'Закрыть / Сбросить' },
+  { keys: '⌘K', label: 'Поиск' },
+  { keys: '/', label: 'Фокус на поиск' },
+  null,
+  { keys: 'G D', label: 'Дашборд' },
+  { keys: 'G T', label: 'Задачи' },
+  { keys: 'G P', label: 'Проекты' },
+  { keys: 'G C', label: 'Звонки' },
+  { keys: 'G N', label: 'Контакты' },
+  { keys: 'G O', label: 'Компании' },
+  { keys: 'G M', label: 'Встречи' },
+  { keys: 'G A', label: 'Аналитика' },
+  null,
+  { keys: '?', label: 'Показать подсказки' },
+];
+
 export function Hotkeys() {
   const router = useRouter();
+  const gPressed = useRef(false);
+  const gTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
-    let gPressed = false;
-    let gTimeout: ReturnType<typeof setTimeout>;
-
     function isInputFocused(): boolean {
       const el = document.activeElement;
       if (!el) return false;
@@ -35,30 +55,34 @@ export function Hotkeys() {
 
       const key = e.key.toLowerCase();
 
-      if (key === 'g') {
-        gPressed = true;
-        clearTimeout(gTimeout);
-        gTimeout = setTimeout(() => { gPressed = false; }, 500);
+      // ? → help
+      if (e.key === '?' && e.shiftKey) {
+        e.preventDefault();
+        setShowHelp((v) => !v);
         return;
       }
 
-      if (gPressed) {
-        gPressed = false;
-        clearTimeout(gTimeout);
-        const routes: Record<string, string> = {
-          d: '/',
-          t: '/tasks',
-          p: '/projects',
-          c: '/calls',
-          m: '/meetings',
-          o: '/companies',
-          n: '/contacts',
-          a: '/analytics',
-          s: '/settings',
-        };
-        if (routes[key]) {
+      // / → focus search
+      if (e.key === '/' && !e.shiftKey) {
+        const input = document.querySelector<HTMLInputElement>('[data-search-input]');
+        if (input) { e.preventDefault(); input.focus(); }
+        return;
+      }
+
+      // G prefix
+      if (key === 'g') {
+        gPressed.current = true;
+        clearTimeout(gTimer.current);
+        gTimer.current = setTimeout(() => { gPressed.current = false; }, 500);
+        return;
+      }
+
+      if (gPressed.current) {
+        gPressed.current = false;
+        clearTimeout(gTimer.current);
+        if (GO_ROUTES[key]) {
           e.preventDefault();
-          router.push(routes[key]);
+          router.push(GO_ROUTES[key]);
         }
       }
     }
@@ -66,9 +90,38 @@ export function Hotkeys() {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      clearTimeout(gTimeout);
+      clearTimeout(gTimer.current);
     };
   }, [router]);
 
-  return null; // Renderless component
+  if (!showHelp) return null;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={() => setShowHelp(false)} />
+      <div className="fixed left-1/2 top-1/2 z-[60] w-80 -translate-x-1/2 -translate-y-1/2
+                      rounded-xl border border-border bg-surface p-5 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-text-main">Клавиатурные сокращения</h3>
+          <button onClick={() => setShowHelp(false)} className="rounded p-1 text-text-mute hover:text-text-main">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="space-y-1.5 text-sm">
+          {SHORTCUTS.map((s, i) =>
+            s === null ? (
+              <div key={i} className="my-2 border-t border-border" />
+            ) : (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-text-dim">{s.label}</span>
+                <kbd className="rounded border border-border bg-surface2 px-1.5 py-0.5 text-[10px] font-mono text-text-mute">
+                  {s.keys}
+                </kbd>
+              </div>
+            ),
+          )}
+        </div>
+      </div>
+    </>
+  );
 }

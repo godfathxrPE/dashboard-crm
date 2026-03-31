@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useStagger } from '@/lib/hooks/use-stagger';
+import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
 
 export interface Column<T> {
   key: string;
@@ -96,6 +97,13 @@ export function DataTable<T>({
     setPage(0);
   }
 
+  // ─── Keyboard nav (J/K/Enter) ───
+  const { activeIndex } = useKeyboardNav({
+    itemCount: paged.length,
+    onSelect: onRowClick ? (idx) => onRowClick(paged[idx]) : undefined,
+    enabled: !!onRowClick,
+  });
+
   // ─── Selection ───
   const getId = useCallback((item: T) => String(item[keyField]), [keyField]);
 
@@ -145,6 +153,7 @@ export function DataTable<T>({
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder={searchPlaceholder}
+            data-search-input
             className="w-full rounded-lg border border-border bg-surface py-1.5 pl-8 pr-3
                        text-sm text-text-main placeholder:text-text-mute
                        focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
@@ -209,11 +218,12 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={id}
+                    data-row-index={idx}
                     onClick={() => onRowClick?.(item)}
                     className={cn(
                       'border-b border-border/50 transition-colors duration-150',
                       onRowClick && 'cursor-pointer',
-                      isSelected ? 'bg-accent-l' : onRowClick ? 'hover:bg-accent-l' : '',
+                      isSelected ? 'bg-accent-l' : idx === activeIndex ? 'ring-2 ring-inset ring-accent bg-accent-l/30' : onRowClick ? 'hover:bg-accent-l' : '',
                     )}
                   >
                     {selectable && (
