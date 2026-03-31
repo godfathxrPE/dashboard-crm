@@ -11,6 +11,7 @@ const THEMES = [
   { id: 't-sand', label: 'Sand', color: '#b8956a' },
   { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
   { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
+  { id: 't-chalk', label: 'Chalk', color: '#506898' },
 ] as const;
 
 interface SettingsContentProps {

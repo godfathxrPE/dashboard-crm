@@ -14,6 +14,7 @@ const THEME_META: Record<Theme, { label: string; swatch: string }> = {
   't-sand':   { label: 'Sand',   swatch: 'bg-[#c05828]' },
   't-aurora': { label: 'Aurora', swatch: 'bg-[#a060ff]' },
   't-tidal':  { label: 'Tidal',  swatch: 'bg-[#48b890]' },
+  't-chalk':  { label: 'Chalk',  swatch: 'bg-[#506898]' },
 };
 
 export function Header() {
