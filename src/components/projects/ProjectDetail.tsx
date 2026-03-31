@@ -48,6 +48,8 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { useActivityLog, useLogActivity } from '@/lib/hooks/use-activity-log';
+import { calculateDealHealth } from '@/lib/utils/deal-health';
+import { HealthDot } from '@/components/shared/HealthDot';
 import type { Task, ActivityLog } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -435,7 +437,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-text-main">{project.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-text-main">{project.name}</h1>
+            <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
+          </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageConfig.probability > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
               {stageConfig.label} · {stageConfig.probability}%

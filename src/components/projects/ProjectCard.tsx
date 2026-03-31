@@ -4,6 +4,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight } from 'lucide-react';
 import { STAGE_CONFIG, formatBudget, getNextStage } from '@/lib/validators/project';
+import { calculateDealHealth } from '@/lib/utils/deal-health';
+import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
 
 // Phase colors for notch, glow, progress bar
@@ -80,6 +82,7 @@ export function ProjectCard({
   const nextStage = getNextStage(project.stage);
   const phaseColor = PHASE_COLOR[stageConfig.phase] ?? 'var(--accent)';
   const progress = Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE) * 100);
+  const health = calculateDealHealth(project);
 
   return (
     <div
@@ -129,8 +132,9 @@ export function ProjectCard({
           <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
             {stageConfig.shortLabel}
           </span>
-          <span className="ml-auto text-[10px] text-text-mute">
-            {stageConfig.probability}%
+          <span className="ml-auto flex items-center gap-1.5">
+            <HealthDot level={health.level} score={health.total} />
+            <span className="text-[10px] text-text-mute">{stageConfig.probability}%</span>
           </span>
         </div>
 
