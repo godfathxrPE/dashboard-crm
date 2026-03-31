@@ -8,10 +8,10 @@ import type { Project } from '@/lib/hooks/use-projects';
 
 // Phase colors for notch, glow, progress bar
 const PHASE_COLOR: Record<string, string> = {
-  attract: '#2d6ab4',
-  develop: '#b5622a',
-  negotiate: '#a07020',
-  close: '#2e7d52',
+  attract: 'var(--blue)',
+  develop: 'var(--accent)',
+  negotiate: 'var(--yellow)',
+  close: 'var(--green)',
 };
 
 const TOTAL_ACTIVE = 12;

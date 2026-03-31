@@ -63,8 +63,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-xl border border-border p-6 shadow-2xl ring-1 ring-black/5"
-        style={{ backgroundColor: 'var(--color-surface, #fff)' }}
+      <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-black/5"
         onClick={(e) => e.stopPropagation()}>
 
         <div className="mb-5 flex items-center justify-between">

@@ -48,9 +48,9 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
         <div className="relative">
           <svg width="88" height="88" viewBox="0 0 88 88">
             <circle cx="44" cy="44" r={radius} fill="none"
-              stroke="var(--color-border)" strokeWidth="6" />
+              stroke="var(--border)" strokeWidth="6" />
             <circle cx="44" cy="44" r={radius} fill="none"
-              stroke="var(--color-accent)" strokeWidth="6"
+              stroke="var(--accent)" strokeWidth="6"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={offset}

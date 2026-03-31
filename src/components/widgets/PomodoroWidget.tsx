@@ -86,9 +86,9 @@ export function PomodoroWidget() {
         <div className="relative mb-3">
           <svg width="108" height="108" viewBox="0 0 108 108">
             <circle cx="54" cy="54" r={radius} fill="none"
-              stroke="var(--color-border)" strokeWidth="5" />
+              stroke="var(--border)" strokeWidth="5" />
             <circle cx="54" cy="54" r={radius} fill="none"
-              stroke={mode === 'work' ? 'var(--color-accent)' : 'var(--color-green, #22c55e)'}
+              stroke={mode === 'work' ? 'var(--accent)' : 'var(--green)'}
               strokeWidth="5" strokeLinecap="round"
               strokeDasharray={circumference} strokeDashoffset={offset}
               transform="rotate(-90 54 54)"
