@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Phone, Plus, Target } from 'lucide-react';
+import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
@@ -189,7 +190,7 @@ function MiniKpi() {
       <div className="grid grid-cols-2 gap-3">
         {items.map((it) => (
           <div key={it.label}>
-            <div className={`text-2xl font-bold tabular-nums ${it.color}`}>{it.value}</div>
+            <AnimatedNumber value={it.value} className={`text-2xl font-bold tabular-nums block ${it.color}`} />
             <div className="text-xs text-text-dim">{it.label}</div>
           </div>
         ))}

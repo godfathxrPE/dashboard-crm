@@ -35,6 +35,7 @@ import {
   formatBudget,
   type DealStage,
 } from '@/lib/validators/project';
+import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import type { ActivityLog } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -137,7 +138,8 @@ function KpiCards() {
     {
       icon: FolderKanban,
       label: 'Активные проекты',
-      value: kpi.activeProjects,
+      num: kpi.activeProjects,
+      fmt: (n: number) => String(Math.round(n)),
       iconBg: 'bg-accent-l text-accent',
       borderColor: 'border-accent',
       href: '/projects',
@@ -145,7 +147,8 @@ function KpiCards() {
     {
       icon: Banknote,
       label: 'Сумма pipeline',
-      value: formatBudget(kpi.pipeline),
+      num: kpi.pipeline,
+      fmt: (n: number) => formatBudget(Math.round(n)),
       iconBg: 'bg-accent-l text-accent',
       borderColor: 'border-accent',
       href: '/projects',
@@ -153,7 +156,8 @@ function KpiCards() {
     {
       icon: CheckSquare,
       label: 'Задачи на сегодня',
-      value: kpi.urgentTasks,
+      num: kpi.urgentTasks,
+      fmt: (n: number) => String(Math.round(n)),
       sub: 'просрочено или дедлайн сегодня',
       iconBg: 'bg-red-l text-red',
       borderColor: 'border-red',
@@ -162,7 +166,8 @@ function KpiCards() {
     {
       icon: Phone,
       label: 'Звонки за неделю',
-      value: kpi.weekCalls,
+      num: kpi.weekCalls,
+      fmt: (n: number) => String(Math.round(n)),
       iconBg: 'bg-green-l text-green',
       borderColor: 'border-green',
       href: '/calls',
@@ -170,7 +175,8 @@ function KpiCards() {
     {
       icon: TrendingUp,
       label: 'Конверсия',
-      value: `${kpi.conversion}%`,
+      num: kpi.conversion,
+      fmt: (n: number) => `${Math.round(n)}%`,
       sub: 'won / (won + lost)',
       iconBg: 'bg-green-l text-green',
       borderColor: 'border-green',
@@ -181,7 +187,7 @@ function KpiCards() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {cards.map((c) => {
-        const isEmpty = c.value === 0 || c.value === '0%' || c.value === '—';
+        const isEmpty = c.num === 0;
         return (
           <a
             key={c.label}
@@ -196,10 +202,12 @@ function KpiCards() {
               <c.icon size={18} />
             </div>
             <div className="min-w-0">
-              <div className={`text-2xl font-extrabold leading-tight
-                              ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}>
-                {c.value}
-              </div>
+              <AnimatedNumber
+                value={c.num}
+                formatFn={c.fmt}
+                className={`text-2xl font-extrabold leading-tight block
+                            ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
+              />
               <div className="text-[11px] text-text-mute leading-tight mt-0.5">{c.label}</div>
               {c.sub && <div className="text-[9px] text-text-dim">{c.sub}</div>}
             </div>

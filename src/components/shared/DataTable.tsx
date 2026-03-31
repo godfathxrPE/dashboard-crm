@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useStagger } from '@/lib/hooks/use-stagger';
 
 // ═══════════════════════════════════════════════════════
 // Generic DataTable — паттерн из Salesforce List Views
@@ -44,6 +45,7 @@ export function DataTable<T>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(0);
+  const tbodyRef = useStagger<HTMLTableSectionElement>(30);
 
   // ─── Search filter ───
   const filtered = useMemo(() => {
@@ -144,7 +146,7 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={tbodyRef}>
             {paged.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-3 py-12 text-center">

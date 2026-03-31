@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils/cn';
 import { LANE_CONFIG } from '@/lib/validators/task';
 import { TaskCard } from './TaskCard';
 import { TaskQuickAdd } from './TaskQuickAdd';
+import { useStagger } from '@/lib/hooks/use-stagger';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
 
@@ -29,6 +30,7 @@ interface LaneColumnProps {
 export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
   const config = LANE_CONFIG[lane];
   const { setNodeRef, isOver } = useDroppable({ id: lane });
+  const listRef = useStagger<HTMLDivElement>(30);
 
   return (
     <div
@@ -63,7 +65,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-1 flex-col">
+        <div ref={listRef} className="flex flex-1 flex-col">
           {tasks.length === 0 && (
             <div className="flex-1 flex items-center justify-center min-h-[60px]">
               <span className="text-xs text-text-mute">Пусто</span>
