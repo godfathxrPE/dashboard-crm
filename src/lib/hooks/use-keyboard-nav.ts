@@ -14,7 +14,7 @@ export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeybo
   onSelectRef.current = onSelect;
 
   useEffect(() => {
-    if (!enabled || itemCount === 0) return;
+    if (!enabled) return;
 
     function isInputFocused(): boolean {
       const el = document.activeElement;
@@ -53,6 +53,9 @@ export function useKeyboardNav({ itemCount, onSelect, enabled = true }: UseKeybo
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [itemCount, enabled]);
+
+  // Reset when item count changes (page switch, filter)
+  useEffect(() => { setActiveIndex(-1); }, [itemCount]);
 
   // Scroll active row into view
   useEffect(() => {
