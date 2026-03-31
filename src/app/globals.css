@@ -188,6 +188,13 @@ main > * {
   main > * { animation: none; }
 }
 
+/* Bulk action bar slide-in */
+@keyframes bulkBarIn {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.bulk-bar-enter { animation: bulkBarIn 0.2s ease-out both; }
+
 /* Editable cell hover hint */
 [title="Кликни для редактирования"]:hover {
   text-decoration: underline dotted;

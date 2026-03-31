@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Users, Loader2, Building2 } from 'lucide-react';
+import { Plus, Users, Loader2, Building2, Trash2, Download } from 'lucide-react';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
-import { DataTable, type Column } from '@/components/shared/DataTable';
+import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { ContactModal } from './ContactModal';
 
@@ -125,6 +125,32 @@ export function ContactsTable() {
         searchPlaceholder="Поиск по имени, компании..."
         emptyMessage="Нет контактов. Создай первый!"
         emptyIcon={<Users size={32} className="text-text-mute" />}
+        selectable
+        bulkActions={[
+          {
+            label: 'Удалить',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: (ids) => {
+              if (!confirm(`Удалить ${ids.length} контактов?`)) return;
+              ids.forEach((id) => deleteContact.mutate(id));
+            },
+          },
+          {
+            label: 'CSV',
+            icon: <Download size={14} />,
+            onClick: (ids) => {
+              const sel = (contacts ?? []).filter((c) => ids.includes(c.id));
+              const csv = [
+                'Имя,Фамилия,Должность,Телефон,Email',
+                ...sel.map((c) => [c.first_name, c.last_name, c.position ?? '', c.phone ?? '', c.email ?? ''].join(',')),
+              ].join('\n');
+              const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+            },
+          },
+        ]}
       />
 
       <ContactModal

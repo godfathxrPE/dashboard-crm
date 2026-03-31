@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Building2, Loader2 } from 'lucide-react';
+import { Trash2, Download } from 'lucide-react';
 import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
-import { DataTable, type Column } from '@/components/shared/DataTable';
+import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { CompanyModal } from './CompanyModal';
 
@@ -118,6 +119,32 @@ export function CompaniesTable() {
         searchPlaceholder="Поиск по названию, ИНН..."
         emptyMessage="Нет компаний. Создай первую!"
         emptyIcon={<Building2 size={32} className="text-text-mute" />}
+        selectable
+        bulkActions={[
+          {
+            label: 'Удалить',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: (ids) => {
+              if (!confirm(`Удалить ${ids.length} компаний?`)) return;
+              ids.forEach((id) => deleteCompany.mutate(id));
+            },
+          },
+          {
+            label: 'CSV',
+            icon: <Download size={14} />,
+            onClick: (ids) => {
+              const sel = (companies ?? []).filter((c) => ids.includes(c.id));
+              const csv = [
+                'Название,ИНН,Отрасль,Телефон,Email',
+                ...sel.map((c) => [c.name, c.inn ?? '', c.industry ?? '', c.phone ?? '', c.email ?? ''].join(',')),
+              ].join('\n');
+              const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `companies-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+            },
+          },
+        ]}
       />
 
       <CompanyModal
