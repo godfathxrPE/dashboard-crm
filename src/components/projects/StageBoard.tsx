@@ -107,13 +107,13 @@ function BoardCard({
 
       <div className="mt-1.5 flex flex-col gap-0.5">
         {project.company?.name && (
-          <span className="flex items-center gap-1 text-[10px] text-text-mute">
+          <span className="flex items-center gap-1 text-[10px] text-text-dim">
             <Building2 size={9} />
             <span className="truncate">{project.company.name}</span>
           </span>
         )}
         {project.contact && (
-          <span className="flex items-center gap-1 text-[10px] text-text-mute">
+          <span className="flex items-center gap-1 text-[10px] text-text-dim">
             <User size={9} />
             <span className="truncate">
               {project.contact.first_name} {project.contact.last_name}

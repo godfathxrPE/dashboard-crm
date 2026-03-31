@@ -308,7 +308,7 @@ function ActivityTimeline({ projectId }: { projectId: string }) {
                 </div>
                 {/* Content */}
                 <div className={`pb-4 ${isLast ? '' : ''}`}>
-                  <p className="text-xs text-text-main leading-relaxed">
+                  <p className="text-xs text-text-dim leading-relaxed">
                     {describeEvent(entry)}
                   </p>
                   <span className="text-[10px] text-text-mute">

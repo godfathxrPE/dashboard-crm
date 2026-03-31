@@ -137,7 +137,7 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-black/5"
+        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

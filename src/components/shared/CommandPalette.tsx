@@ -161,7 +161,7 @@ export function CommandPalette() {
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50 backdrop-blur-sm"
       onClick={() => setOpen(false)}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl ring-1 ring-black/5 overflow-hidden"
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl ring-1 ring-border overflow-hidden"
         onClick={(e) => e.stopPropagation()}>
 
         {/* Search input */}

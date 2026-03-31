@@ -481,11 +481,11 @@ function RecentActivityList() {
                   <Icon size={10} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="block truncate text-xs text-text-main">
+                  <span className="block truncate text-xs text-text-dim">
                     {describeEvent(entry)}
                   </span>
                   {projectName && (
-                    <span className="text-[10px] text-text-mute">{projectName}</span>
+                    <span className="text-[10px] text-text-main font-medium">{projectName}</span>
                   )}
                 </div>
                 <span className="shrink-0 text-[10px] text-text-mute">
