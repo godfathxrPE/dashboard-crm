@@ -3,17 +3,17 @@
 import { useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis,
 } from 'recharts';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { PHASE_CONFIG, phases, getPhaseForStage, formatBudget } from '@/lib/validators/project';
 
 const LANE_COLORS: Record<string, string> = {
-  now: 'var(--color-accent, #c27a3a)',
-  next: 'var(--color-blue, #3b82f6)',
-  wait: 'var(--color-yellow, #eab308)',
-  done: 'var(--color-green, #22c55e)',
+  now: 'var(--accent)',
+  next: 'var(--blue)',
+  wait: 'var(--yellow)',
+  done: 'var(--green)',
 };
 
 const LANE_LABELS: Record<string, string> = {
@@ -21,6 +21,14 @@ const LANE_LABELS: Record<string, string> = {
   next: 'Следующие',
   wait: 'Отложено',
   done: 'Выполнено',
+};
+
+const TOOLTIP_STYLE = {
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-md)',
+  fontSize: 11,
 };
 
 export function TasksDistribution() {
@@ -40,7 +48,7 @@ export function TasksDistribution() {
   }, [tasks]);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
@@ -51,13 +59,7 @@ export function TasksDistribution() {
                 <Cell key={i} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8, fontSize: 11,
-              }}
-            />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
           </PieChart>
         </ResponsiveContainer>
@@ -69,10 +71,10 @@ export function TasksDistribution() {
 // ═══ Pipeline Chart ═══
 
 const PHASE_COLORS: Record<string, string> = {
-  attract: 'var(--color-blue, #3b82f6)',
-  develop: 'var(--color-accent, #c27a3a)',
-  negotiate: 'var(--color-yellow, #eab308)',
-  close: 'var(--color-green, #22c55e)',
+  attract: 'var(--blue)',
+  develop: 'var(--accent)',
+  negotiate: 'var(--yellow)',
+  close: 'var(--green)',
 };
 
 export function PipelineChart() {
@@ -95,21 +97,14 @@ export function PipelineChart() {
   }, [projects]);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Проекты по фазам</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical" barSize={16}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--color-text-mute)' }} />
-            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--color-text-mute)' }} />
-           <Tooltip
-              contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8, fontSize: 11,
-              }}
-            />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
             <Bar dataKey="count" name="Проектов" radius={[0, 4, 4, 0]}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.fill} />

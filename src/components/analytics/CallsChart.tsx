@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { useCalls } from '@/lib/hooks/use-calls';
 
@@ -38,24 +38,24 @@ export function CallsChart() {
   }, [calls]);
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Звонки по неделям</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-mute)' }} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--color-text-mute)' }} width={24} />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} width={24} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                boxShadow: 'var(--shadow-md)',
                 fontSize: 11,
               }}
             />
-            <Bar dataKey="done" name="Выполнено" fill="var(--color-green, #22c55e)" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="pending" name="Запланировано" fill="var(--color-blue, #3b82f6)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="done" name="Выполнено" fill="var(--green)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="pending" name="Запланировано" fill="var(--blue)" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -95,9 +95,10 @@ function BoardCard({
       {...listeners}
       onClick={() => onOpen(project.id)}
       className={`
-        cursor-grab rounded-lg border border-border bg-surface p-2.5
-        transition-shadow hover:shadow-md active:cursor-grabbing
-        ${isDragging ? 'opacity-50 shadow-xl ring-2 ring-accent/40 rotate-1' : ''}
+        cursor-grab rounded-lg bg-surface p-2.5 overflow-hidden
+        shadow-card transition-all duration-fast hover:shadow-card-hover
+        hover:-translate-y-px active:cursor-grabbing
+        ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}
       `}
     >
       <p className="text-xs font-semibold text-text-main leading-tight">
@@ -140,6 +141,14 @@ function BoardCard({
           </span>
         )}
       </div>
+
+      {/* Stage progress */}
+      <div
+        className="stage-progress mt-2 -mx-2.5 -mb-2.5"
+        style={{
+          background: `linear-gradient(to right, var(--accent) ${Math.round(((STAGE_CONFIG[project.stage]?.order ?? 0) + 1) / 12 * 100)}%, var(--border) 0%)`,
+        }}
+      />
     </div>
   );
 }

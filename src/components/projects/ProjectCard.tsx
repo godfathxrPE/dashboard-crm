@@ -22,6 +22,15 @@ const PHASE_BORDER: Record<string, string> = {
   close: 'phase-close',
 };
 
+const PHASE_BAR_COLOR: Record<string, string> = {
+  attract: 'var(--blue)',
+  develop: 'var(--accent)',
+  negotiate: 'var(--yellow)',
+  close: 'var(--green)',
+};
+
+const TOTAL_ACTIVE_STAGES = 12; // excluding won/lost
+
 interface ProjectCardProps {
   project: Project;
   onEdit: (project: Project) => void;
@@ -177,6 +186,16 @@ export function ProjectCard({
           </div>
         </div>
       </div>
+
+      {/* Stage progress bar */}
+      {project.stage !== 'won' && project.stage !== 'lost' && (
+        <div
+          className="stage-progress mt-2"
+          style={{
+            background: `linear-gradient(to right, ${PHASE_BAR_COLOR[stageConfig.phase] ?? 'var(--accent)'} ${Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE_STAGES) * 100)}%, var(--border) 0%)`,
+          }}
+        />
+      )}
     </div>
   );
 }

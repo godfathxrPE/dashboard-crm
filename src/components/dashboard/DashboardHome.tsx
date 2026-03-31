@@ -20,7 +20,6 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Cell,
@@ -183,17 +182,20 @@ function KpiCards() {
             key={c.label}
             href={c.href}
             data-kpi
-            className="group flex items-center gap-3 rounded-xl bg-surface px-4 py-3
-                       shadow-card transition-all duration-150 hover:shadow-card-hover"
+            className="group flex items-center gap-3 rounded-lg bg-surface px-4 py-4
+                       shadow-card transition-all duration-fast hover:shadow-card-hover
+                       hover:-translate-y-0.5"
           >
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${c.iconBg}`}>
-              <c.icon size={16} />
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                            ${isEmpty ? 'bg-surface2 text-text-mute opacity-50' : c.iconBg}`}>
+              <c.icon size={18} />
             </div>
             <div className="min-w-0">
-              <div className={`text-lg font-bold ${isEmpty ? 'text-text-mute' : 'text-text-main'}`}>
+              <div className={`text-2xl font-extrabold leading-tight
+                              ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}>
                 {c.value}
               </div>
-              <div className="text-[10px] text-text-mute">{c.label}</div>
+              <div className="text-[11px] text-text-mute leading-tight mt-0.5">{c.label}</div>
               {c.sub && <div className="text-[9px] text-text-dim">{c.sub}</div>}
             </div>
           </a>
@@ -227,33 +229,32 @@ function PipelineFunnelChart() {
 
   if (isLoading) return <SkeletonChart />;
 
-  const phaseColors: Record<string, string> = {
-    attract: 'var(--color-blue, #3b82f6)',
-    develop: 'var(--color-accent, #c27a3a)',
-    negotiate: 'var(--color-yellow, #eab308)',
-    close: 'var(--color-green, #22c55e)',
-  };
-
   return (
-    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
+    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
       <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={chartData} layout="vertical" margin={{ left: 60, right: 16, top: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e5e5)" />
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
-          <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={55} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
+          <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'var(--text-dim)' }} width={55} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{
-              background: 'var(--color-surface, #fff)',
-              border: '1px solid var(--color-border, #e5e5e5)',
-              borderRadius: 8,
-              fontSize: 12,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              boxShadow: 'var(--shadow-md)',
+              fontSize: 11,
             }}
           />
           <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={16}>
-            {chartData.map((entry, idx) => (
-              <Cell key={idx} fill={phaseColors[entry.phase] ?? '#999'} />
-            ))}
+            {chartData.map((entry, idx) => {
+              const fills: Record<string, string> = {
+                attract: 'var(--blue)',
+                develop: 'var(--accent)',
+                negotiate: 'var(--yellow)',
+                close: 'var(--green)',
+              };
+              return <Cell key={idx} fill={fills[entry.phase] ?? 'var(--text-mute)'} />;
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -294,24 +295,24 @@ function CallsRecentChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="rounded-xl bg-surface p-4 shadow-card transition-shadow duration-150 hover:shadow-card-hover">
+    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
       <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за 14 дней</h3>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={chartData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #e5e5e5)" />
-          <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={1} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={24} />
+          <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-mute)' }} interval={1} axisLine={false} tickLine={false} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} width={24} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{
-              background: 'var(--color-surface, #fff)',
-              border: '1px solid var(--color-border, #e5e5e5)',
-              borderRadius: 8,
-              fontSize: 12,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              boxShadow: 'var(--shadow-md)',
+              fontSize: 11,
             }}
           />
-          <Bar dataKey="done" stackId="calls" fill="var(--color-green, #22c55e)" name="Выполнено" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="pending" stackId="calls" fill="var(--color-blue, #3b82f6)" name="Запланир." radius={[0, 0, 0, 0]} />
-          <Bar dataKey="cancelled" stackId="calls" fill="var(--color-red, #ef4444)" name="Отменено" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="done" stackId="calls" fill="var(--green)" name="Выполнено" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="pending" stackId="calls" fill="var(--blue)" name="Запланир." radius={[0, 0, 0, 0]} />
+          <Bar dataKey="cancelled" stackId="calls" fill="var(--red)" name="Отменено" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

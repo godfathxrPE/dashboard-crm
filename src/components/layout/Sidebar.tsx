@@ -8,15 +8,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
+import { useTasks } from '@/lib/hooks/use-tasks';
+import { useCalls } from '@/lib/hooks/use-calls';
 
 const MAIN_NAV = [
-  { href: '/',          label: 'Дашборд',    icon: LayoutDashboard },
-  { href: '/tasks',     label: 'Задачи',     icon: CheckSquare },
-  { href: '/projects',  label: 'Проекты',    icon: FolderKanban },
-  { href: '/contacts',  label: 'Контакты',   icon: Users },
-  { href: '/companies', label: 'Компании',   icon: Building2 },
-  { href: '/calls',     label: 'Звонки',     icon: Phone },
-  { href: '/meetings',  label: 'Встречи',    icon: CalendarDays },
+  { href: '/',          label: 'Дашборд',    icon: LayoutDashboard, badgeKey: null },
+  { href: '/tasks',     label: 'Задачи',     icon: CheckSquare,     badgeKey: 'tasks' as const },
+  { href: '/projects',  label: 'Проекты',    icon: FolderKanban,    badgeKey: null },
+  { href: '/contacts',  label: 'Контакты',   icon: Users,           badgeKey: null },
+  { href: '/companies', label: 'Компании',   icon: Building2,       badgeKey: null },
+  { href: '/calls',     label: 'Звонки',     icon: Phone,           badgeKey: 'calls' as const },
+  { href: '/meetings',  label: 'Встречи',    icon: CalendarDays,    badgeKey: null },
 ] as const;
 
 const UTIL_NAV = [
@@ -24,39 +26,29 @@ const UTIL_NAV = [
   { href: '/settings',  label: 'Настройки',  icon: Settings },
 ] as const;
 
-function NavItem({
-  href,
-  label,
-  icon: Icon,
-  isActive,
-  sidebarOpen,
-}: {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  isActive: boolean;
-  sidebarOpen: boolean;
-}) {
+function NavBadge({ count }: { count: number }) {
+  if (count === 0) return null;
   return (
-    <Link
-      href={href}
-      className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150',
-        isActive
-          ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
-          : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
-      )}
-      title={!sidebarOpen ? label : undefined}
-    >
-      <Icon size={20} className={cn('shrink-0', isActive ? 'text-accent' : 'text-text-mute')} />
-      {sidebarOpen && <span className="truncate">{label}</span>}
-    </Link>
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full
+                     bg-accent px-1 text-[10px] font-medium text-white">
+      {count > 99 ? '99+' : count}
+    </span>
   );
 }
 
 export function Sidebar() {
   const pathname = usePathname();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
+  const { data: tasks } = useTasks();
+  const { data: calls } = useCalls();
+
+  const activeTasks = (tasks ?? []).filter((t) => t.lane === 'now' || t.lane === 'next').length;
+  const pendingCalls = (calls ?? []).filter((c) => c.status === 'pending').length;
+
+  const badges: Record<string, number> = {
+    tasks: activeTasks,
+    calls: pendingCalls,
+  };
 
   function isActive(href: string) {
     return pathname === href || (href !== '/' && pathname.startsWith(href));
@@ -88,26 +80,57 @@ export function Sidebar() {
 
       {/* Main navigation */}
       <nav className="flex flex-col gap-0.5 p-2 mt-2">
-        {MAIN_NAV.map((item) => (
-          <NavItem
-            key={item.href}
-            {...item}
-            isActive={isActive(item.href)}
-            sidebarOpen={sidebarOpen}
-          />
-        ))}
+        {MAIN_NAV.map((item) => {
+          const active = isActive(item.href);
+          const badge = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-fast',
+                active
+                  ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
+                  : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
+              )}
+              title={!sidebarOpen ? item.label : undefined}
+            >
+              <item.icon size={20} className={cn('shrink-0', active ? 'text-accent' : 'text-text-mute')} />
+              {sidebarOpen && (
+                <>
+                  <span className="truncate">{item.label}</span>
+                  {badge > 0 && <NavBadge count={badge} />}
+                </>
+              )}
+              {!sidebarOpen && badge > 0 && (
+                <span className="absolute right-1.5 top-0.5 h-2 w-2 rounded-full bg-accent" />
+              )}
+            </Link>
+          );
+        })}
 
         {/* Separator */}
         <div className="my-2 border-t border-border/50" />
 
-        {UTIL_NAV.map((item) => (
-          <NavItem
-            key={item.href}
-            {...item}
-            isActive={isActive(item.href)}
-            sidebarOpen={sidebarOpen}
-          />
-        ))}
+        {UTIL_NAV.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-fast',
+                active
+                  ? 'border-l-[3px] border-accent bg-accent-l font-semibold text-accent'
+                  : 'border-l-[3px] border-transparent text-text-dim hover:bg-surface2 hover:text-text-main',
+              )}
+              title={!sidebarOpen ? item.label : undefined}
+            >
+              <item.icon size={20} className={cn('shrink-0', active ? 'text-accent' : 'text-text-mute')} />
+              {sidebarOpen && <span className="truncate">{item.label}</span>}
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );
