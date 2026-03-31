@@ -188,6 +188,12 @@ main > * {
   main > * { animation: none; }
 }
 
+/* Editable cell hover hint */
+[title="Кликни для редактирования"]:hover {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

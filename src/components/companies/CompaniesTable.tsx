@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Building2, Loader2 } from 'lucide-react';
-import { useCompanies, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
+import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
 import { DataTable, type Column } from '@/components/shared/DataTable';
+import { EditableCell } from '@/components/shared/EditableCell';
 import { CompanyModal } from './CompanyModal';
 
 export function CompaniesTable() {
   const router = useRouter();
   const { data: companies, isLoading, error } = useCompanies();
+  const updateCompany = useUpdateCompany();
   const deleteCompany = useDeleteCompany();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,19 +34,37 @@ export function CompaniesTable() {
       key: 'industry',
       label: 'Отрасль',
       sortable: true,
-      render: (c) => <span className="text-text-dim">{c.industry ?? '—'}</span>,
+      render: (c) => (
+        <EditableCell
+          value={c.industry ?? ''}
+          className="text-text-dim"
+          onSave={(val) => updateCompany.mutateAsync({ id: c.id, industry: val || null })}
+        />
+      ),
     },
     {
       key: 'phone',
       label: 'Телефон',
-      render: (c) => <span className="text-text-dim">{c.phone ?? '—'}</span>,
+      render: (c) => (
+        <EditableCell
+          value={c.phone ?? ''}
+          type="tel"
+          className="text-text-dim"
+          onSave={(val) => updateCompany.mutateAsync({ id: c.id, phone: val || null })}
+        />
+      ),
     },
     {
       key: 'email',
       label: 'Email',
-      render: (c) => c.email
-        ? <a href={`mailto:${c.email}`} className="text-accent hover:underline" onClick={(e) => e.stopPropagation()}>{c.email}</a>
-        : <span className="text-text-mute">—</span>,
+      render: (c) => (
+        <EditableCell
+          value={c.email ?? ''}
+          type="email"
+          className="text-accent"
+          onSave={(val) => updateCompany.mutateAsync({ id: c.id, email: val || null })}
+        />
+      ),
     },
     {
       key: 'created_at',
@@ -74,7 +94,6 @@ export function CompaniesTable() {
 
   return (
     <>
-      {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Building2 size={18} className="text-accent" />
@@ -91,7 +110,6 @@ export function CompaniesTable() {
         </button>
       </div>
 
-      {/* Table */}
       <DataTable
         data={companies ?? []}
         columns={columns}
@@ -102,7 +120,6 @@ export function CompaniesTable() {
         emptyIcon={<Building2 size={32} className="text-text-mute" />}
       />
 
-      {/* Modal */}
       <CompanyModal
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditCompany(null); }}

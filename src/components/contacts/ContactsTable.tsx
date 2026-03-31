@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users, Loader2, Building2 } from 'lucide-react';
-import { useContacts, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
+import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
 import { DataTable, type Column } from '@/components/shared/DataTable';
+import { EditableCell } from '@/components/shared/EditableCell';
 import { ContactModal } from './ContactModal';
 
 export function ContactsTable() {
   const router = useRouter();
   const { data: contacts, isLoading, error } = useContacts();
+  const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,14 +54,26 @@ export function ContactsTable() {
     {
       key: 'phone',
       label: 'Телефон',
-      render: (c) => <span className="text-text-dim">{c.phone ?? '—'}</span>,
+      render: (c) => (
+        <EditableCell
+          value={c.phone ?? ''}
+          type="tel"
+          className="text-text-dim"
+          onSave={(val) => updateContact.mutateAsync({ id: c.id, phone: val || null })}
+        />
+      ),
     },
     {
       key: 'email',
       label: 'Email',
-      render: (c) => c.email
-        ? <a href={`mailto:${c.email}`} className="text-accent hover:underline" onClick={(e) => e.stopPropagation()}>{c.email}</a>
-        : <span className="text-text-mute">—</span>,
+      render: (c) => (
+        <EditableCell
+          value={c.email ?? ''}
+          type="email"
+          className="text-accent"
+          onSave={(val) => updateContact.mutateAsync({ id: c.id, email: val || null })}
+        />
+      ),
     },
     {
       key: 'created_at',
