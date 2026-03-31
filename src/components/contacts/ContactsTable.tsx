@@ -93,7 +93,7 @@ export function ContactsTable() {
         <div className="flex items-center gap-2">
           <Users size={18} className="text-accent" />
           <h1 className="text-lg font-semibold text-text-main">Контакты</h1>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text-mute">{contacts?.length ?? 0}</span>
+          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{contacts?.length ?? 0}</span>
         </div>
         <button
           onClick={() => { setEditContact(null); setModalOpen(true); }}

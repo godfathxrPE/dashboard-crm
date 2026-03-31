@@ -113,11 +113,11 @@ export function ExportPanel() {
   }
 
   const csvItems = [
-    { key: 'tasks', label: 'Задачи', count: tasks?.length ?? 0 },
-    { key: 'projects', label: 'Проекты', count: projects?.length ?? 0 },
-    { key: 'calls', label: 'Звонки', count: calls?.length ?? 0 },
-    { key: 'contacts', label: 'Контакты', count: contacts?.length ?? 0 },
-    { key: 'companies', label: 'Компании', count: companies?.length ?? 0 },
+    { key: 'tasks', label: 'Задачи', count: tasks?.length ?? 0, iconColor: 'text-accent' },
+    { key: 'projects', label: 'Проекты', count: projects?.length ?? 0, iconColor: 'text-accent' },
+    { key: 'calls', label: 'Звонки', count: calls?.length ?? 0, iconColor: 'text-green' },
+    { key: 'contacts', label: 'Контакты', count: contacts?.length ?? 0, iconColor: 'text-yellow' },
+    { key: 'companies', label: 'Компании', count: companies?.length ?? 0, iconColor: 'text-yellow' },
   ];
 
   return (
@@ -133,7 +133,7 @@ export function ExportPanel() {
           <button key={item.key} onClick={() => exportCSV(item.key)}
             disabled={exporting === item.key}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-hover disabled:opacity-50">
-            <FileSpreadsheet size={13} className="text-green" />
+            <FileSpreadsheet size={13} className={item.iconColor} />
             <span className="flex-1 text-xs text-text-main">{item.label}</span>
             <span className="text-xs text-text-dim">{item.count} записей</span>
             {exporting === item.key && <Loader2 size={12} className="animate-spin" />}

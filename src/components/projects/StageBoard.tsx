@@ -366,7 +366,7 @@ export function StageBoard({ onSwitchView }: StageBoardProps) {
           <h1 className="text-lg font-semibold text-text-main">
             Доска по стадиям
           </h1>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text-mute">
+          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
             {activeCount} активн.
           </span>
         </div>

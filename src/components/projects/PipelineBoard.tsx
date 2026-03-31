@@ -333,7 +333,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
         <div className="flex items-center gap-2">
           <FolderKanban size={18} className="text-accent" />
           <h1 className="text-lg font-semibold text-text-main">Воронка проектов</h1>
-          <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs text-text-mute">{activeCount} активн.</span>
+          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
         </div>
         <div className="flex items-center gap-2">
           {onSwitchView && (

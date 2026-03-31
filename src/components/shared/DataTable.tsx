@@ -158,8 +158,8 @@ export function DataTable<T>({
                   key={String(item[keyField])}
                   onClick={() => onRowClick?.(item)}
                   className={`
-                    border-b border-border/50 transition-colors
-                    ${onRowClick ? 'cursor-pointer hover:bg-surface-hover' : ''}
+                    border-b border-border/50 transition-colors duration-150
+                    ${onRowClick ? 'cursor-pointer hover:bg-accent-l' : ''}
                   `}
                 >
                   {columns.map((col) => (

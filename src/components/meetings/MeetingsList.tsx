@@ -50,7 +50,7 @@ export function MeetingsList() {
         <div className="flex items-center gap-2">
           <CalendarDays size={18} className="text-accent" />
           <h1 className="text-lg font-semibold text-text-main">Встречи</h1>
-          <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-text-mute">
+          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
             {meetings?.length ?? 0}
           </span>
         </div>
@@ -63,8 +63,9 @@ export function MeetingsList() {
       {/* Upcoming */}
       {upcoming.length > 0 && (
         <div className="mb-6">
-          <h2 className="mb-3 flex items-center gap-1 text-xs font-semibold text-blue">
-            <Clock size={12} /> Предстоящие ({upcoming.length})
+          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold text-yellow">
+            <Clock size={12} /> Предстоящие
+            <span className="rounded-full bg-yellow-l px-2 py-0.5 text-xs font-medium text-yellow">{upcoming.length}</span>
           </h2>
           <div className="space-y-2">
             {upcoming.map((m) => (
@@ -80,8 +81,9 @@ export function MeetingsList() {
 
       {/* Past */}
       <div>
-        <h2 className="mb-3 text-xs font-semibold text-text-mute">
-          Прошедшие ({past.length})
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-dim">
+          Прошедшие
+          <span className="rounded-full bg-green-l px-2 py-0.5 text-xs font-medium text-green">{past.length}</span>
         </h2>
         {past.length === 0 ? (
           <div className="py-8 text-center text-xs text-text-mute">Нет прошедших встреч</div>
@@ -124,15 +126,14 @@ function MeetingCard({
   return (
     <div
       className={`group flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-border
-        ${isUpcoming ? 'border-blue/30 bg-blue/5' : 'border-border/50 bg-surface'}`}
+        ${isUpcoming ? 'border-yellow/30 bg-surface border-l-2 border-l-yellow' : 'border-border/50 bg-surface border-l-2 border-l-green'}`}
     >
       {/* Date badge */}
-      <div className={`mt-0.5 flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg
-        ${isUpcoming ? 'bg-blue/10' : 'bg-surface'}`}>
-        <span className={`text-sm font-bold ${isUpcoming ? 'text-blue' : 'text-text-main'}`}>
+      <div className="mt-0.5 flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-accent text-white">
+        <span className="text-sm font-bold">
           {new Date(meeting.date).getDate()}
         </span>
-        <span className="text-[8px] uppercase text-text-mute">
+        <span className="text-[8px] uppercase opacity-80">
           {new Date(meeting.date).toLocaleDateString('ru-RU', { month: 'short' })}
         </span>
       </div>
