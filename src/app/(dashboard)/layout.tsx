@@ -2,10 +2,12 @@
 
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { SmartAlerts } from '@/components/shared/SmartAlerts';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { cn } from '@/lib/utils/cn';
 import { CommandPalette } from '@/components/shared/CommandPalette';
 import { Hotkeys } from '@/components/shared/Hotkeys';
+
 export default function DashboardLayout({
   children,
 }: {
@@ -14,7 +16,7 @@ export default function DashboardLayout({
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-bg">
       <Sidebar />
       <div
         className={cn(
@@ -23,10 +25,13 @@ export default function DashboardLayout({
         )}
       >
         <Header />
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="p-4 md:p-6">
+          <SmartAlerts />
+          {children}
+        </main>
       </div>
       <CommandPalette />
-<Hotkeys />
+      <Hotkeys />
     </div>
   );
 }

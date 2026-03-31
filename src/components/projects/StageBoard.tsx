@@ -95,7 +95,7 @@ function BoardCard({
       {...listeners}
       onClick={() => onOpen(project.id)}
       className={`
-        cursor-grab rounded-lg bg-surface p-2.5 overflow-hidden
+        cursor-grab rounded-lg bg-surface p-2.5 overflow-hidden glass-card
         shadow-card transition-all duration-fast hover:shadow-card-hover
         hover:-translate-y-px active:cursor-grabbing
         ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}

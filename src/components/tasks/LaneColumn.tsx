@@ -37,7 +37,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className={cn('h-2 w-2 rounded-full', config.dotColor)} />
-          <span className="text-sm font-semibold text-text-main">
+          <span className="text-xs font-bold uppercase tracking-wider text-text-main">
             {config.label}
           </span>
         </div>
@@ -57,7 +57,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
         items={tasks.map((t) => t.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex flex-1 flex-col gap-1">
           {tasks.length === 0 && (
             <div className="flex-1 rounded-lg border border-dashed border-border/60 flex items-center justify-center min-h-[60px]">
               <span className="text-xs text-text-mute">Пусто</span>

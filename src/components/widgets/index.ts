@@ -5,3 +5,4 @@ export { DeadlineRadar } from './DeadlineRadar';
 export { ClockWidget } from './ClockWidget';
 export { QuickActions } from './QuickActions';
 export { WeeklyHeatmap } from './WeeklyHeatmap';
+export { TasksSidebar } from './TasksSidebar';

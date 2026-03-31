@@ -11,12 +11,12 @@ import {
   rectIntersection,
   type DragEndEvent,
   type DragStartEvent,
-  type DragOverEvent,
 } from '@dnd-kit/core';
 import { useTasksByLane, useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
 import { taskLanes } from '@/lib/validators/task';
 import { LaneColumn } from './LaneColumn';
 import { TaskModal } from './TaskModal';
+import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
@@ -68,19 +68,15 @@ export function KanbanBoard() {
       const taskId = active.id as string;
       const overId = over.id as string;
 
-      // Find which lane the task came from
       const allTasks = Object.values(lanes).flat();
       const task = allTasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      // Determine target lane
       let targetLane: TaskLane | null = null;
 
-      // Over is a lane droppable
       if (taskLanes.includes(overId as TaskLane)) {
         targetLane = overId as TaskLane;
       } else {
-        // Over is another task — find which lane it belongs to
         for (const lane of taskLanes) {
           if (lanes[lane].some((t) => t.id === overId)) {
             targetLane = lane;
@@ -106,7 +102,7 @@ export function KanbanBoard() {
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-red/30 bg-red-l p-6 text-center">
+      <div className="rounded-lg border border-red/30 bg-red-l p-6 text-center">
         <p className="text-sm text-red font-medium">Ошибка загрузки задач</p>
         <p className="mt-1 text-xs text-text-mute">
           {error instanceof Error ? error.message : 'Неизвестная ошибка'}
@@ -133,32 +129,40 @@ export function KanbanBoard() {
         </button>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={rectIntersection}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {taskLanes.map((lane) => (
-            <LaneColumn
-              key={lane}
-              lane={lane}
-              tasks={lanes[lane]}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          ))}
+      <div className="flex gap-6">
+        {/* Main kanban */}
+        <div className="flex-1 min-w-0">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={rectIntersection}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {taskLanes.map((lane) => (
+                <LaneColumn
+                  key={lane}
+                  lane={lane}
+                  tasks={lanes[lane]}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+
+            <DragOverlay>
+              {activeTask ? (
+                <div className="rounded-lg border border-accent/50 bg-surface p-3 shadow-lg opacity-90 rotate-2 max-w-[280px]">
+                  <p className="text-sm text-text-main">{activeTask.text}</p>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
 
-        <DragOverlay>
-          {activeTask ? (
-            <div className="rounded-lg border border-accent/50 bg-surface p-3 shadow-xl opacity-90 rotate-2 max-w-[280px]">
-              <p className="text-sm text-text-main">{activeTask.text}</p>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        {/* Right sidebar — hidden on < lg */}
+        <TasksSidebar />
+      </div>
 
       <TaskModal
         isOpen={modalOpen}

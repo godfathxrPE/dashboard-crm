@@ -70,8 +70,8 @@ export function ProjectCard({
       ref={setNodeRef}
       style={style}
       className={`
-        group relative rounded-lg bg-surface p-3
-        shadow-card transition-shadow duration-150 hover:shadow-card-hover
+        group relative rounded-lg bg-surface p-3 glass-card
+        shadow-card transition-all duration-fast hover:shadow-card-hover hover:-translate-y-px
         ${PHASE_BORDER[stageConfig.phase] ?? ''}
         ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}
       `}
