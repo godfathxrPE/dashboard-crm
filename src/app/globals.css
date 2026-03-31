@@ -23,7 +23,7 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
   --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: none;  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
 }
@@ -69,7 +69,7 @@
   --shadow-md: 0 4px 12px rgba(26,21,8,0.08);
   --shadow-lg: 0 10px 32px rgba(26,21,8,0.12);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: none;  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
 }
@@ -91,7 +91,7 @@
   --shadow-md: 3px 3px 0 rgba(28,18,8,0.10);
   --shadow-lg: 5px 5px 0 rgba(28,18,8,0.14);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: none;  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
 }

@@ -47,12 +47,12 @@ import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 
-// Phase tint gradients (light themes only — dark themes use surface)
-const PHASE_TINT: Record<Phase, string> = {
-  attract: 'from-[#E6F1FB]/60 to-transparent',
-  develop: 'from-[#FAEEDA]/60 to-transparent',
-  negotiate: 'from-[#FFF8E6]/40 to-transparent',
-  close: 'from-[#EAF3DE]/60 to-transparent',
+// Phase tint colors for column backgrounds (inline style, works with all themes)
+const PHASE_TINT_COLOR: Record<Phase, string> = {
+  attract: 'var(--blue)',
+  develop: 'var(--accent)',
+  negotiate: 'var(--yellow)',
+  close: 'var(--green)',
 };
 
 // ═══════════════════════════════════════════════════════
@@ -129,11 +129,15 @@ function PhaseColumn({
     <div
       ref={setNodeRef}
       className={`
-        flex min-h-[200px] flex-1 flex-col bg-gradient-to-b ${PHASE_TINT[phase]}
-        transition-colors
+        flex min-h-[200px] flex-1 flex-col transition-colors
         ${!isLast ? 'border-r border-border/50' : ''}
         ${isOver ? 'bg-accent-l/20' : ''}
       `}
+      style={{
+        background: isOver
+          ? undefined
+          : `linear-gradient(180deg, color-mix(in srgb, ${PHASE_TINT_COLOR[phase]} 8%, transparent) 0%, transparent 100%)`,
+      }}
     >
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">

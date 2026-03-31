@@ -38,7 +38,7 @@ export function Header() {
   const isDark = ['t-frost', 't-aurora', 't-tidal'].includes(theme);
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-surface px-4">
+    <header className="relative z-50 flex h-14 items-center justify-between border-b border-border bg-surface px-4">
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
@@ -74,7 +74,7 @@ export function Header() {
             {isDark ? <Moon size={16} /> : <Sun size={16} />}
           </button>
           {themeMenuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            <div className="absolute right-0 top-full z-[9999] mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-lg">
               {THEMES.map((t) => (
                 <button
                   key={t}
