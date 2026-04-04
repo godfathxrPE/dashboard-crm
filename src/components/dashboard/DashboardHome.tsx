@@ -109,12 +109,12 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
   );
 }
 
-const FUJI_KPI_META: Record<string, { short: string; iconBg: string; iconColor: string }> = {
-  'Активные проекты':  { short: 'Проекты',  iconBg: 'rgba(43,80,120,0.1)',    iconColor: '#2B5078' },
-  'Сумма pipeline':    { short: 'Pipeline',  iconBg: 'rgba(196,170,120,0.12)', iconColor: '#7A6538' },
-  'Задачи на сегодня': { short: 'Задачи',    iconBg: 'rgba(194,59,59,0.08)',   iconColor: '#C23B3B' },
-  'Звонки за неделю':  { short: 'Звонки',    iconBg: 'rgba(194,59,59,0.08)',   iconColor: '#C23B3B' },
-  'Конверсия':         { short: 'Конверсия',  iconBg: 'rgba(74,122,90,0.1)',    iconColor: '#4A7A5A' },
+const FUJI_KPI_META: Record<string, { watermark: string; wmColor: string }> = {
+  'Активные проекты':  { watermark: 'ПРОЕКТЫ',  wmColor: 'rgba(26,39,68,0.05)' },
+  'Сумма pipeline':    { watermark: 'PIPELINE',  wmColor: 'rgba(196,170,120,0.07)' },
+  'Задачи на сегодня': { watermark: 'ЗАДАЧИ',    wmColor: 'rgba(26,39,68,0.05)' },
+  'Звонки за неделю':  { watermark: 'ЗВОНКИ',    wmColor: 'rgba(194,59,59,0.05)' },
+  'Конверсия':         { watermark: 'КОНВЕРСИЯ',  wmColor: 'rgba(74,122,90,0.05)' },
 };
 
 const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: string }> = {
@@ -227,12 +227,62 @@ function KpiCards() {
     },
   ];
 
+  // Fuji: 4 cards (skip Конверсия)
+  const visibleCards = isFuji ? cards.filter((c) => c.label !== 'Конверсия') : cards;
+  const gridCols = isFuji ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {cards.map((c, i) => {
+    <div className={`grid ${gridCols}`}>
+      {visibleCards.map((c, i) => {
         const isEmpty = c.num === 0;
         const wm = isWashi ? WASHI_KPI_META[c.label] : null;
         const fm = isFuji ? FUJI_KPI_META[c.label] : null;
+
+        // Fuji: watermark layout — no icon, text watermark bottom-right
+        if (fm) {
+          return (
+            <a
+              key={c.label}
+              href={c.href}
+              data-kpi
+              className={`group relative overflow-hidden rounded-lg bg-surface px-5 py-5
+                         elevation-hover border border-border ${staggerClass(i)}`}
+              style={{ minHeight: 100 }}
+            >
+              {/* Watermark text */}
+              <span
+                className="absolute select-none pointer-events-none"
+                aria-hidden="true"
+                style={{
+                  right: 12,
+                  bottom: 8,
+                  fontSize: '48px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                  color: fm.wmColor,
+                }}
+              >
+                {fm.watermark}
+              </span>
+              {/* Value */}
+              <AnimatedNumber
+                value={c.num}
+                formatFn={c.fmt}
+                className="text-[32px] font-bold leading-none block relative z-[1] text-text-main"
+              />
+              {/* Trend */}
+              {'trend' in c && c.trend != null && (
+                <div className="relative z-[1] mt-1.5">
+                  <TrendBadge delta={c.trend} />
+                </div>
+              )}
+            </a>
+          );
+        }
+
         return (
           <a
             key={c.label}
@@ -258,17 +308,10 @@ function KpiCards() {
                 {wm.kanji}
               </span>
             )}
-            {/* Icon: washi = bare, fuji = square radius, others = circle */}
+            {/* Icon */}
             {wm ? (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center">
                 <c.icon size={28} style={{ color: isEmpty ? undefined : wm.color }} className={isEmpty ? 'text-text-mute opacity-50' : ''} />
-              </div>
-            ) : fm ? (
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                style={{ background: isEmpty ? undefined : fm.iconBg, color: isEmpty ? undefined : fm.iconColor }}
-              >
-                <c.icon size={18} className={isEmpty ? 'text-text-mute opacity-50' : ''} />
               </div>
             ) : (
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
@@ -283,10 +326,10 @@ function KpiCards() {
                 className={`text-2xl font-extrabold leading-tight block
                             ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
               />
-              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm || fm ? c.label : undefined}>
-                {wm ? wm.short : fm ? fm.short : c.label}
+              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm ? c.label : undefined}>
+                {wm ? wm.short : c.label}
               </div>
-              {c.sub && !wm && !fm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
+              {c.sub && !wm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
               {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
             </div>
           </a>
