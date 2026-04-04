@@ -45,6 +45,9 @@ import {
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
 import { ProjectFiles } from './ProjectFiles';
+import { Watermark } from '@/components/ui/Watermark';
+import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { LANE_CONFIG, PRIORITY_CONFIG } from '@/lib/validators/task';
 import { CALL_STATUS_CONFIG, formatDuration } from '@/lib/validators/call';
@@ -56,6 +59,23 @@ import { useActivityLog, useLogActivity } from '@/lib/hooks/use-activity-log';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Task, ActivityLog } from '@/types/entities';
+
+const SCANDI_SECTION_WM: Record<string, { colors: readonly string[] }> = {
+  tasks:    { colors: ['#ff9a56','#ff6b81','#c44cff','#8c6cff','#548cff','#389cff'] },
+  calls:    { colors: ['#0652DD','#1dd1a1','#00d2d3'] },
+  meetings: { colors: ['#ff6b9d','#e85baa','#d14bb7','#ba3bc4','#a33bd1','#8c3bde','#753beb'] },
+  files:    { colors: ['#74b9ff','#889bf0','#928cfe','#8b6ce7','#7b5bde','#6c5ce7','#5b4cdb','#4a3dc9'] },
+  timeline: { colors: ['#2ecc71','#3498db','#9b59b6','#e84393','#fd79a8'] },
+};
+
+function ScandiSectionHeader({ title, colors }: { title: string; colors: readonly string[] }) {
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  return (
+    <div className="mb-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      <Watermark text={title} colors={colors} size="md" isActive={isActive} />
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════
 // Data Completeness
@@ -393,6 +413,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: project, isLoading, error } = useProject(projectId);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
   const { data: allTasks = [] } = useTasks();
   const { data: allCalls = [] } = useCalls();
@@ -613,6 +634,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* ═══ Related: Tasks ═══ */}
       <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+        {isScandi && <ScandiSectionHeader title="Задачи" colors={SCANDI_SECTION_WM.tasks.colors} />}
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckSquare size={14} className="text-text-dim" />
@@ -645,6 +667,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* ═══ Related: Calls ═══ */}
       <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+        {isScandi && <ScandiSectionHeader title="Звонки" colors={SCANDI_SECTION_WM.calls.colors} />}
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Phone size={14} className="text-text-dim" />
@@ -677,6 +700,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* ═══ Related: Meetings ═══ */}
       <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+        {isScandi && <ScandiSectionHeader title="Встречи" colors={SCANDI_SECTION_WM.meetings.colors} />}
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={14} className="text-text-dim" />

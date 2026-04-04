@@ -47,6 +47,8 @@ import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { Watermark } from '@/components/ui/Watermark';
+import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
 
 // Phase tint colors for column backgrounds (inline style, works with all themes)
 const PHASE_TINT_COLOR: Record<Phase, string> = {
@@ -67,7 +69,33 @@ const PHASE_HEADER_COLOR: Record<Phase, string> = {
 // Hero KPI Row
 // ═══════════════════════════════════════════════════════
 
+function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
+  label: string; fmt: string; value: number; color: string;
+  wmColors?: readonly string[]; isScandi: boolean;
+}) {
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  if (isScandi && wmColors) {
+    return (
+      <div className="py-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+        <Watermark text={label} colors={wmColors} size="sm" isActive={isActive} className="mb-1 block" />
+        <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
+          {fmt}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded bg-surface2 px-3.5 py-3">
+      <div className="text-xs font-medium uppercase tracking-[0.04em] text-text-dim mb-1">{label}</div>
+      <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : color}`}>
+        {fmt}
+      </div>
+    </div>
+  );
+}
+
 function HeroMetrics({ projects }: { projects: Project[] }) {
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost');
   const won = projects.filter((p) => p.stage === 'won');
   const lost = projects.filter((p) => p.stage === 'lost');
@@ -93,19 +121,30 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      {metrics.map((m) => (
-        <div key={m.label} className="rounded bg-surface2 px-3.5 py-3">
-          <div className="text-xs font-medium uppercase tracking-[0.04em] text-text-dim mb-1">
-            {m.label}
-          </div>
-          <div className={`text-2xl font-extrabold tabular-nums leading-none ${m.value === 0 ? 'text-text-mute' : m.color}`}>
-            {m.fmt}
-          </div>
-        </div>
-      ))}
+      {metrics.map((m, idx) => {
+        const sw = isScandi ? SCANDI_HERO_WM[idx] : null;
+        return (
+          <ScandiHeroCard key={m.label} label={m.label} fmt={m.fmt} value={m.value}
+            color={m.color} wmColors={sw?.colors} isScandi={isScandi} />
+        );
+      })}
     </div>
   );
 }
+
+const SCANDI_PHASE_WM: Record<Phase, { text: string; colors: readonly string[] }> = {
+  attract:   { text: 'Привлечение', colors: ['#00dc82','#10c98a','#20b793','#36d1dc','#4cc3e0','#5ab5e4','#6aa7e8','#7a99ec'] },
+  develop:   { text: 'Проработка',  colors: ['#ff6b9d','#c44cff','#45caff','#6ee7b7','#ffca28','#ffa726','#ff7043','#e84393'] },
+  negotiate: { text: 'Согласование', colors: ['#ffca28','#f0b42e','#e09e34','#d0883a','#c07240','#b05c46','#a0464c','#903052','#801a58','#70045e','#6c04a0','#8804d0','#a404ff'] },
+  close:     { text: 'Закрытие',    colors: ['#0652DD','#0e6ec9','#168ab5','#1ea6a1','#26c28d','#2ecc71','#36d68b','#3ee0a5'] },
+};
+
+const SCANDI_HERO_WM = [
+  { label: 'Активные', colors: ['#00dc82','#10c98a','#20b793','#36d1dc','#4cc3e0','#5ab5e4','#6aa7e8','#7a99ec'] },
+  { label: 'Pipeline', colors: ['#2ecc71','#3498db','#9b59b6','#e84393','#fd79a8'] },
+  { label: 'Конверсия', colors: ['#ff9a56','#ff8866','#ff7676','#ff6b81','#e55a9b','#cc49b5','#b238cf','#9927e9','#8016ff'] },
+  { label: 'Avg цикл', colors: ['#74b9ff','#889bf0','#928cfe','#8b6ce7','#7b5bde','#6c5ce7','#5b4cdb','#4a3dc9'] },
+];
 
 const WASHI_PHASE_KANJI: Record<Phase, { kanji: string; color: string }> = {
   attract:   { kanji: '集', color: '#2B5F8A' },
@@ -139,19 +178,25 @@ function PhaseColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: phase });
   const config = PHASE_CONFIG[phase];
-  const isWashi = useThemeStore((s) => s.theme) === 't-washi';
+  const themeVal = useThemeStore((s) => s.theme);
+  const isWashi = themeVal === 't-washi';
+  const isScandi = themeVal === 't-scandi';
   const wk = isWashi ? WASHI_PHASE_KANJI[phase] : null;
+  const sw = isScandi ? SCANDI_PHASE_WM[phase] : null;
+  const { isActive: swActive, onMouseEnter: swEnter, onMouseLeave: swLeave } = useWatermarkHover(2000);
 
   return (
     <div
       ref={setNodeRef}
+      onMouseEnter={sw ? swEnter : undefined}
+      onMouseLeave={sw ? swLeave : undefined}
       className={`
         relative flex min-h-[200px] flex-1 flex-col transition-colors overflow-hidden
         ${!isLast ? 'border-r border-border/50' : ''}
         ${isOver ? 'bg-accent-l/20' : ''}
       `}
       style={{
-        background: isOver
+        background: isScandi ? undefined : isOver
           ? undefined
           : `linear-gradient(180deg, color-mix(in srgb, ${PHASE_TINT_COLOR[phase]} 8%, transparent) 0%, transparent 100%)`,
       }}
@@ -174,6 +219,12 @@ function PhaseColumn({
         >
           {wk.kanji}
         </span>
+      )}
+      {/* Scandi: watermark column name */}
+      {sw && (
+        <div className="px-3.5 pt-2">
+          <Watermark text={sw.text} colors={sw.colors} size="md" isActive={swActive} />
+        </div>
       )}
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">

@@ -971,6 +971,28 @@
   border-bottom: none;
 }
 
+/* ── Scandi: Pipeline kanban — flat columns ── */
+.t-scandi .grid.grid-cols-4 {
+  border: 0.5px solid var(--border) !important;
+  box-shadow: none !important;
+}
+.t-scandi .grid.grid-cols-4 > div {
+  background: transparent !important;
+}
+/* Project cards in kanban */
+.t-scandi .grid.grid-cols-4 .space-y-2 > div {
+  border: 0.5px solid var(--border) !important;
+}
+.t-scandi .grid.grid-cols-4 .space-y-2 > div:hover {
+  border-color: var(--border2) !important;
+}
+/* Progress bars: monochrome */
+.t-scandi .stage-progress {
+  height: 3px;
+  background: var(--text);
+  opacity: 0.12;
+}
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
