@@ -43,6 +43,32 @@ import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
+// Fuji watermark helper
+// ═══════════════════════════════════════════════════════
+
+function FujiWatermark({ text, color }: { text: string; color?: string }) {
+  return (
+    <span
+      className="absolute select-none pointer-events-none"
+      aria-hidden="true"
+      style={{
+        right: 16,
+        bottom: 12,
+        fontSize: '48px',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '2px',
+        lineHeight: 1,
+        whiteSpace: 'nowrap',
+        color: color ?? 'rgba(26,39,68,0.05)',
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════
 
@@ -345,6 +371,7 @@ function KpiCards() {
 
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
+  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
   const [drillStage, setDrillStage] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
@@ -371,9 +398,11 @@ function PipelineFunnelChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="rounded-lg bg-surface p-4 elevation-hover">
-      <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
-      <ResponsiveContainer width="100%" height={260}>
+    <div className="relative overflow-hidden rounded-lg bg-surface p-4 elevation-hover">
+      {isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
+        <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
+      )}
+      <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
         <BarChart data={chartData} layout="vertical" margin={{ left: 60, right: 16, top: 0, bottom: 0 }}>
           <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
           <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'var(--text-dim)' }} width={55} axisLine={false} tickLine={false} />
@@ -452,13 +481,15 @@ function PipelineFunnelChart() {
 
 function CallsRecentChart() {
   const { data: calls, isLoading } = useCalls();
+  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
+  const dayCount = isFuji ? 7 : 14;
 
   const chartData = useMemo(() => {
     if (!calls) return [];
     const now = new Date();
     const days: { date: string; label: string; done: number; pending: number; cancelled: number }[] = [];
 
-    for (let i = 13; i >= 0; i--) {
+    for (let i = dayCount - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
@@ -474,14 +505,16 @@ function CallsRecentChart() {
       });
     }
     return days;
-  }, [calls]);
+  }, [calls, dayCount]);
 
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="rounded-lg bg-surface p-4 elevation-hover">
-      <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за 14 дней</h3>
-      <ResponsiveContainer width="100%" height={260}>
+    <div className="relative overflow-hidden rounded-lg bg-surface p-4 elevation-hover">
+      {isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
+        <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>
+      )}
+      <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
         <BarChart data={chartData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
           <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-mute)' }} interval={1} axisLine={false} tickLine={false} />
           <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} width={24} axisLine={false} tickLine={false} />
@@ -512,6 +545,7 @@ function CallsRecentChart() {
 
 function UpcomingDeadlines() {
   const { data: projects, isLoading } = useProjects();
+  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
 
   const items = useMemo(() => {
     if (!projects) return [];
@@ -533,11 +567,13 @@ function UpcomingDeadlines() {
   }
 
   return (
-    <div className="rounded-xl bg-surface p-4 elevation-hover">
-      <div className="mb-3 flex items-center gap-2">
-        <Calendar size={14} className="text-yellow" />
-        <span className="text-xs font-semibold text-text-dim">Ближайшие дедлайны</span>
-      </div>
+    <div className="relative overflow-hidden rounded-xl bg-surface p-4 elevation-hover">
+      {isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
+        <div className="mb-3 flex items-center gap-2">
+          <Calendar size={14} className="text-yellow" />
+          <span className="text-xs font-semibold text-text-dim">Ближайшие дедлайны</span>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <p className="py-4 text-center text-xs text-text-mute italic">Нет ближайших дедлайнов</p>
@@ -652,6 +688,7 @@ const ACTIVITY_TABS = [
 
 function RecentActivityList() {
   const { data: entries, isLoading } = useRecentActivity(20);
+  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
   const [activeTab, setActiveTab] = useState('all');
 
   if (isLoading) {
@@ -666,11 +703,13 @@ function RecentActivityList() {
   }
 
   return (
-    <div className="rounded-xl bg-surface p-4 elevation-hover">
-      <div className="mb-3 flex items-center gap-2">
-        <Clock size={14} className="text-text-dim" />
-        <span className="text-xs font-semibold text-text-dim">Последние действия</span>
-      </div>
+    <div className="relative overflow-hidden rounded-xl bg-surface p-4 elevation-hover">
+      {isFuji ? <FujiWatermark text="ACTIVITY" /> : (
+        <div className="mb-3 flex items-center gap-2">
+          <Clock size={14} className="text-text-dim" />
+          <span className="text-xs font-semibold text-text-dim">Последние действия</span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mb-3 flex gap-1 border-b border-border">
