@@ -18,6 +18,9 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { Watermark } from '@/components/ui/Watermark';
+import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import {
   BarChart,
   Bar,
@@ -39,6 +42,7 @@ import {
   type DealStage,
 } from '@/lib/validators/project';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
+import { cn } from '@/lib/utils/cn';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 
@@ -135,6 +139,13 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
   );
 }
 
+const SCANDI_KPI_META: Record<string, { label: string; colors: readonly string[] }> = {
+  'Активные проекты':  { label: 'Проекты',  colors: ['#00dc82', '#36d1dc', '#9b59b6'] },
+  'Сумма pipeline':    { label: 'Pipeline',  colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393', '#fd79a8'] },
+  'Задачи на сегодня': { label: 'Задачи',    colors: ['#ff9a56', '#ff6b81', '#c44cff'] },
+  'Звонки за неделю':  { label: 'Звонки',    colors: ['#0652DD', '#1dd1a1', '#00d2d3'] },
+};
+
 const FUJI_KPI_META: Record<string, { watermark: string; wmColor: string }> = {
   'Активные проекты':  { watermark: 'ПРОЕКТЫ',  wmColor: 'rgba(26,39,68,0.05)' },
   'Сумма pipeline':    { watermark: 'PIPELINE',  wmColor: 'rgba(196,170,120,0.07)' },
@@ -151,6 +162,28 @@ const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: stri
   'Конверсия':         { kanji: '率', color: '#8B6914', short: 'Конверсия' },
 };
 
+function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: {
+  href: string; value: number; fmt: (n: number) => string;
+  label: string; colors: readonly string[]; trend?: number; staggerIdx: number;
+}) {
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  return (
+    <a
+      href={href}
+      data-kpi
+      className={`group relative block py-4 ${staggerClass(staggerIdx)}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <Watermark text={label} colors={colors} size="sm" isActive={isActive} className="mb-1 block" />
+      <AnimatedNumber value={value} formatFn={fmt} className="text-[24px] font-medium leading-none block text-text-main" />
+      {trend != null && trend !== 0 && (
+        <div className="mt-1"><TrendBadge delta={trend} /></div>
+      )}
+    </a>
+  );
+}
+
 function KpiCards() {
   const { data: projects, isLoading: loadingP } = useProjects();
   const { data: tasks, isLoading: loadingT } = useTasks();
@@ -158,6 +191,7 @@ function KpiCards() {
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
   const isFuji = theme === 't-fuji';
+  const isScandi = theme === 't-scandi';
 
   const kpi = useMemo(() => {
     const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost');
@@ -253,9 +287,9 @@ function KpiCards() {
     },
   ];
 
-  // Fuji: 4 cards (skip Конверсия)
-  const visibleCards = isFuji ? cards.filter((c) => c.label !== 'Конверсия') : cards;
-  const gridCols = isFuji ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
+  // Fuji/Scandi: 4 cards (skip Конверсия)
+  const visibleCards = (isFuji || isScandi) ? cards.filter((c) => c.label !== 'Конверсия') : cards;
+  const gridCols = (isFuji || isScandi) ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
 
   return (
     <div className={`grid ${gridCols}`}>
@@ -263,6 +297,23 @@ function KpiCards() {
         const isEmpty = c.num === 0;
         const wm = isWashi ? WASHI_KPI_META[c.label] : null;
         const fm = isFuji ? FUJI_KPI_META[c.label] : null;
+        const sm = isScandi ? SCANDI_KPI_META[c.label] : null;
+
+        // Scandi: minimal card with watermark label
+        if (sm) {
+          return (
+            <ScandiStatCard
+              key={c.label}
+              href={c.href}
+              value={c.num}
+              fmt={c.fmt}
+              label={sm.label}
+              colors={sm.colors}
+              trend={'trend' in c ? (c.trend as number | undefined) : undefined}
+              staggerIdx={i}
+            />
+          );
+        }
 
         // Fuji: watermark layout — no icon, text watermark bottom-right
         if (fm) {
@@ -369,9 +420,23 @@ function KpiCards() {
 // Pipeline Funnel Chart (horizontal bars)
 // ═══════════════════════════════════════════════════════
 
+function ScandiWidgetWrap({ children, text, colors, className }: {
+  children: React.ReactNode; text: string; colors: readonly string[]; className?: string;
+}) {
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  return (
+    <div className={cn('relative', className)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+      <Watermark text={text} colors={colors} size="xl" isActive={isActive} className="mb-2 block" />
+      {children}
+    </div>
+  );
+}
+
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
-  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
+  const themeVal = useThemeStore((s) => s.theme);
+  const isFuji = themeVal === 't-fuji';
+  const isScandi = themeVal === 't-scandi';
   const [drillStage, setDrillStage] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
@@ -398,8 +463,8 @@ function PipelineFunnelChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="relative overflow-hidden rounded-lg bg-surface p-4 elevation-hover">
-      {isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
+    <div className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}>
+      {isScandi ? null : isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
       )}
       <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
@@ -481,7 +546,9 @@ function PipelineFunnelChart() {
 
 function CallsRecentChart() {
   const { data: calls, isLoading } = useCalls();
-  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
+  const themeVal2 = useThemeStore((s) => s.theme);
+  const isFuji = themeVal2 === 't-fuji';
+  const isScandi = themeVal2 === 't-scandi';
   const dayCount = isFuji ? 7 : 14;
 
   const chartData = useMemo(() => {
@@ -510,8 +577,8 @@ function CallsRecentChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className="relative overflow-hidden rounded-lg bg-surface p-4 elevation-hover">
-      {isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
+    <div className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}>
+      {isScandi ? null : isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>
       )}
       <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
@@ -545,7 +612,9 @@ function CallsRecentChart() {
 
 function UpcomingDeadlines() {
   const { data: projects, isLoading } = useProjects();
-  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
+  const themeVal3 = useThemeStore((s) => s.theme);
+  const isFuji = themeVal3 === 't-fuji';
+  const isScandi = themeVal3 === 't-scandi';
 
   const items = useMemo(() => {
     if (!projects) return [];
@@ -567,8 +636,8 @@ function UpcomingDeadlines() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-surface p-4 elevation-hover">
-      {isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
+    <div className={cn('relative overflow-hidden rounded-xl p-4', !isScandi && 'bg-surface elevation-hover')}>
+      {isScandi ? null : isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Calendar size={14} className="text-yellow" />
           <span className="text-xs font-semibold text-text-dim">Ближайшие дедлайны</span>
@@ -688,7 +757,9 @@ const ACTIVITY_TABS = [
 
 function RecentActivityList() {
   const { data: entries, isLoading } = useRecentActivity(20);
-  const isFuji = useThemeStore((s) => s.theme) === 't-fuji';
+  const themeVal4 = useThemeStore((s) => s.theme);
+  const isFuji = themeVal4 === 't-fuji';
+  const isScandi = themeVal4 === 't-scandi';
   const [activeTab, setActiveTab] = useState('all');
 
   if (isLoading) {
@@ -703,8 +774,8 @@ function RecentActivityList() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-surface p-4 elevation-hover">
-      {isFuji ? <FujiWatermark text="ACTIVITY" /> : (
+    <div className={cn('relative overflow-hidden rounded-xl p-4', !isScandi && 'bg-surface elevation-hover')}>
+      {isScandi ? null : isFuji ? <FujiWatermark text="ACTIVITY" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Clock size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-dim">Последние действия</span>
@@ -779,6 +850,13 @@ function RecentActivityList() {
 // ═══════════════════════════════════════════════════════
 
 export function DashboardHome() {
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+
+  const funnelWidget = <PipelineFunnelChart />;
+  const callsWidget = <CallsRecentChart />;
+  const deadlinesWidget = <UpcomingDeadlines />;
+  const activityWidget = <RecentActivityList />;
+
   return (
     <div className="space-y-4">
       {/* Row 1: KPI cards */}
@@ -786,14 +864,34 @@ export function DashboardHome() {
 
       {/* Row 2: Charts */}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="animate-appear stagger-6"><PipelineFunnelChart /></div>
-        <div className="animate-appear stagger-7"><CallsRecentChart /></div>
+        <div className="animate-appear stagger-6">
+          {isScandi ? (
+            <ScandiWidgetWrap text="Воронка" colors={WATERMARK_GRADIENTS.aurora}>
+              {funnelWidget}
+            </ScandiWidgetWrap>
+          ) : funnelWidget}
+        </div>
+        <div className="animate-appear stagger-7">
+          {isScandi ? (
+            <ScandiWidgetWrap text="Звонки" colors={WATERMARK_GRADIENTS.tidal}>
+              {callsWidget}
+            </ScandiWidgetWrap>
+          ) : callsWidget}
+        </div>
       </div>
 
-      {/* Row 3: Lists — no animate-appear (re-renders on realtime updates) */}
+      {/* Row 3: Lists */}
       <div className="grid gap-4 md:grid-cols-2">
-        <UpcomingDeadlines />
-        <RecentActivityList />
+        {isScandi ? (
+          <ScandiWidgetWrap text="Дедлайны" colors={WATERMARK_GRADIENTS.frost}>
+            {deadlinesWidget}
+          </ScandiWidgetWrap>
+        ) : deadlinesWidget}
+        {isScandi ? (
+          <ScandiWidgetWrap text="Activity" colors={WATERMARK_GRADIENTS.oilSlick}>
+            {activityWidget}
+          </ScandiWidgetWrap>
+        ) : activityWidget}
       </div>
     </div>
   );

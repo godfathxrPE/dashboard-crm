@@ -942,7 +942,33 @@
   border-bottom-color: var(--text) !important;
   outline: none !important;
   box-shadow: none !important;
-  ring: none !important;
+}
+
+/* ── Scandi: Dashboard — monochrome charts, no card chrome ── */
+.t-scandi [data-kpi] {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.t-scandi .elevation-hover {
+  box-shadow: none !important;
+}
+.t-scandi .elevation-hover:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+/* Funnel bars: thin, monochrome */
+.t-scandi .recharts-bar-rectangle rect {
+  opacity: 0.12;
+  rx: 0;
+  ry: 0;
+}
+/* Activity & deadline items: thin separators */
+.t-scandi .hover\:bg-surface-hover {
+  border-bottom: 0.5px solid var(--border);
+}
+.t-scandi .hover\:bg-surface-hover:last-child {
+  border-bottom: none;
 }
 
 /* ═══════════════════════════════════════════════════════
