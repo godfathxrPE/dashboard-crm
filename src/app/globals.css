@@ -708,6 +708,75 @@
 }
 .t-fuji .border-green.bg-green { background: var(--accent) !important; border-color: var(--accent) !important; }
 
+/* ── Fuji: Dashboard KPI cards ── */
+/* Icon containers: square radius instead of circle */
+.t-fuji [data-kpi] .rounded-full:not(.px-2):not(.px-1\.5) {
+  border-radius: 8px;
+}
+/* KPI labels: uppercase, short */
+.t-fuji [data-kpi] .text-\[11px\].text-text-mute {
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+/* KPI values: larger */
+.t-fuji [data-kpi] .text-2xl {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+/* KPI trend: larger */
+.t-fuji [data-kpi] .text-\[9px\] {
+  font-size: 12px;
+}
+
+/* ── Fuji: Widget titles — UPPERCASE ── */
+.t-fuji .text-xs.font-semibold.text-text-dim,
+.t-fuji h3.text-xs.font-semibold {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── Fuji: Funnel bars — wider ── */
+.t-fuji .recharts-bar-rectangle rect {
+  rx: 4;
+  ry: 4;
+}
+
+/* ── Fuji: Activity tabs — suna gold active underline ── */
+.t-fuji .border-b-2.border-accent {
+  border-color: var(--gold) !important;
+}
+/* Hide "Удаления" tab (5th child) */
+.t-fuji .flex.gap-1.border-b > button:nth-child(5) {
+  display: none;
+}
+/* Activity items — hide icon circles, text-only */
+.t-fuji .rounded-lg.px-2.py-1\.5 .rounded-full.bg-bg {
+  display: none;
+}
+.t-fuji .rounded-lg.px-2.py-1\.5 .text-xs.text-text-dim {
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── Fuji: Deadline urgency — suna gold for future dates ── */
+.t-fuji .text-green {
+  color: var(--success);
+}
+.t-fuji .text-yellow {
+  color: var(--gold);
+}
+
+/* ── Fuji: Deadline icon — square bero-ai bg ── */
+.t-fuji .shrink-0.text-accent {
+  background: rgba(43,80,120,0.1);
+  border-radius: 6px;
+  padding: 4px;
+}
+
 /* ── Fuji: Kanban pipeline column body — subtle kinu tint ── */
 .t-fuji .grid.grid-cols-4 > div {
   background: linear-gradient(180deg, var(--surface) 0%, rgba(221,213,197,0.06) 100%);

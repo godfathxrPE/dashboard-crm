@@ -109,6 +109,14 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
   );
 }
 
+const FUJI_KPI_META: Record<string, { short: string; iconBg: string; iconColor: string }> = {
+  'Активные проекты':  { short: 'Проекты',  iconBg: 'rgba(43,80,120,0.1)',    iconColor: '#2B5078' },
+  'Сумма pipeline':    { short: 'Pipeline',  iconBg: 'rgba(196,170,120,0.12)', iconColor: '#7A6538' },
+  'Задачи на сегодня': { short: 'Задачи',    iconBg: 'rgba(194,59,59,0.08)',   iconColor: '#C23B3B' },
+  'Звонки за неделю':  { short: 'Звонки',    iconBg: 'rgba(194,59,59,0.08)',   iconColor: '#C23B3B' },
+  'Конверсия':         { short: 'Конверсия',  iconBg: 'rgba(74,122,90,0.1)',    iconColor: '#4A7A5A' },
+};
+
 const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: string }> = {
   'Активные проекты':  { kanji: '案', color: '#2B5F8A', short: 'Проекты' },
   'Сумма pipeline':    { kanji: '額', color: '#2B5F8A', short: 'Pipeline' },
@@ -121,7 +129,9 @@ function KpiCards() {
   const { data: projects, isLoading: loadingP } = useProjects();
   const { data: tasks, isLoading: loadingT } = useTasks();
   const { data: calls, isLoading: loadingC } = useCalls();
-  const isWashi = useThemeStore((s) => s.theme) === 't-washi';
+  const theme = useThemeStore((s) => s.theme);
+  const isWashi = theme === 't-washi';
+  const isFuji = theme === 't-fuji';
 
   const kpi = useMemo(() => {
     const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost');
@@ -222,6 +232,7 @@ function KpiCards() {
       {cards.map((c, i) => {
         const isEmpty = c.num === 0;
         const wm = isWashi ? WASHI_KPI_META[c.label] : null;
+        const fm = isFuji ? FUJI_KPI_META[c.label] : null;
         return (
           <a
             key={c.label}
@@ -247,10 +258,17 @@ function KpiCards() {
                 {wm.kanji}
               </span>
             )}
-            {/* Icon: washi = bare icon, others = bg circle */}
+            {/* Icon: washi = bare, fuji = square radius, others = circle */}
             {wm ? (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center">
                 <c.icon size={28} style={{ color: isEmpty ? undefined : wm.color }} className={isEmpty ? 'text-text-mute opacity-50' : ''} />
+              </div>
+            ) : fm ? (
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: isEmpty ? undefined : fm.iconBg, color: isEmpty ? undefined : fm.iconColor }}
+              >
+                <c.icon size={18} className={isEmpty ? 'text-text-mute opacity-50' : ''} />
               </div>
             ) : (
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
@@ -265,10 +283,10 @@ function KpiCards() {
                 className={`text-2xl font-extrabold leading-tight block
                             ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
               />
-              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm ? c.label : undefined}>
-                {wm ? wm.short : c.label}
+              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm || fm ? c.label : undefined}>
+                {wm ? wm.short : fm ? fm.short : c.label}
               </div>
-              {c.sub && !wm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
+              {c.sub && !wm && !fm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
               {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
             </div>
           </a>
