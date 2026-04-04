@@ -8,6 +8,8 @@ export const taskFormSchema = z.object({
   lane: z.enum(taskLanes).default('now'),
   priority: z.enum(taskPriorities).default('normal'),
   project_id: z.string().nullable().default(null),
+  company_id: z.string().nullable().default(null),
+  contact_id: z.string().nullable().default(null),
   deadline: z.string().nullable().default(null),
   remind_min: z.number().nullable().default(null),
 });

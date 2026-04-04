@@ -87,6 +87,8 @@ export function useCreateTask() {
         lane: input.lane ?? 'now',
         priority: input.priority ?? 'normal',
         project_id: input.project_id ?? null,
+        company_id: input.company_id ?? null,
+        contact_id: input.contact_id ?? null,
         deadline: input.deadline ?? null,
         remind_min: input.remind_min ?? null,
         sort_order: input.sort_order ?? 0,

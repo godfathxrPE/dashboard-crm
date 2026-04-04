@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useCreateTask, useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useCompanies } from '@/lib/hooks/use-companies';
+import { useContacts } from '@/lib/hooks/use-contacts';
 import {
   taskFormSchema,
   type TaskFormValues,
@@ -26,6 +28,8 @@ interface TaskModalProps {
 export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const { data: companies } = useCompanies();
+  const { data: contacts } = useContacts();
 
   const {
     register,
@@ -41,6 +45,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
       lane: 'now',
       priority: 'normal',
       project_id: null,
+      company_id: null,
+      contact_id: null,
       deadline: null,
       remind_min: null,
     },
@@ -56,7 +62,9 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
         lane: editTask.lane,
         priority: editTask.priority,
         project_id: editTask.project_id,
-        deadline: editTask.deadline?.slice(0, 16) ?? null, // datetime-local format
+        company_id: editTask.company_id ?? null,
+        contact_id: editTask.contact_id ?? null,
+        deadline: editTask.deadline?.slice(0, 16) ?? null,
         remind_min: editTask.remind_min,
       });
     } else {
@@ -65,6 +73,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
         lane: 'now',
         priority: 'normal',
         project_id: defaultProjectId ?? null,
+        company_id: null,
+        contact_id: null,
         deadline: null,
         remind_min: null,
       });
@@ -96,7 +106,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-xl">
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 elevation-3" role="dialog" aria-modal="true">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-text-main">
@@ -104,6 +114,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
           </h2>
           <button
             onClick={onClose}
+            aria-label="Закрыть"
             className="rounded-md p-1 text-text-mute hover:text-text-main hover:bg-surface2 transition-colors"
           >
             <X size={18} />
@@ -116,11 +127,13 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
             <label className="block text-xs font-medium text-text-dim mb-1">
               Задача
             </label>
-            <input
+            <textarea
               {...register('text')}
               autoFocus
               placeholder="Что нужно сделать?"
+              rows={2}
               className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+              style={{ minHeight: '60px', resize: 'vertical' }}
             />
             {errors.text && (
               <p className="mt-1 text-xs text-red">{errors.text.message}</p>
@@ -165,6 +178,30 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
                   {PRIORITY_CONFIG[p].label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Company + Contact */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-dim mb-1">Компания</label>
+              <select
+                {...register('company_id')}
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              >
+                <option value="">— не указана —</option>
+                {(companies ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-dim mb-1">Контакт</label>
+              <select
+                {...register('contact_id')}
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              >
+                <option value="">— не указан —</option>
+                {(contacts ?? []).map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+              </select>
             </div>
           </div>
 

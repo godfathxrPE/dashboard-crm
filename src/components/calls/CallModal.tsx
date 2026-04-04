@@ -15,9 +15,11 @@ interface CallModalProps {
   onClose: () => void;
   editCall: Call | null;
   defaultProjectId?: string | null;
+  defaultContactId?: string | null;
+  onSaved?: (values: { next_step?: string | null; project_id?: string | null }) => void;
 }
 
-export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallModalProps) {
+export function CallModal({ isOpen, onClose, editCall, defaultProjectId, defaultContactId, onSaved }: CallModalProps) {
   const create = useCreateCall();
   const update = useUpdateCall();
   const { data: companies } = useCompanies();
@@ -42,12 +44,12 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallM
       });
     } else {
       reset({
-        company_id: null, contact_id: null, project_id: defaultProjectId ?? null,
+        company_id: null, contact_id: defaultContactId ?? null, project_id: defaultProjectId ?? null,
         date: new Date().toISOString().slice(0, 16),
         status: 'done', next_step: null, agreements: null, duration_s: null,
       });
     }
-  }, [editCall, defaultProjectId, reset]);
+  }, [editCall, defaultProjectId, defaultContactId, reset]);
 
   const onSubmit = async (values: CallFormValues) => {
     try {
@@ -56,6 +58,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallM
       } else {
         await create.mutateAsync(values);
       }
+      onSaved?.({ next_step: values.next_step, project_id: values.project_id });
       onClose();
     } catch (err) {
       console.error('Call save error:', err);
@@ -65,15 +68,15 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallM
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-border"
-        onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
+        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
 
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-main">
             {editCall ? 'Редактировать звонок' : 'Новый звонок'}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1 text-text-mute hover:bg-surface-hover"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Закрыть" className="rounded-lg p-1 text-text-mute hover:bg-surface-hover"><X size={18} /></button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
@@ -131,8 +134,9 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId }: CallM
           {/* Agreements */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Что обсуждали / договорённости</label>
-            <textarea {...register('agreements')} rows={2} placeholder="Обсудили цены, договорились о КП..."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+            <textarea {...register('agreements')} rows={5} placeholder="Обсудили цены, договорились о КП..."
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              style={{ minHeight: '120px', resize: 'vertical' }} />
           </div>
 
           {/* Next step */}

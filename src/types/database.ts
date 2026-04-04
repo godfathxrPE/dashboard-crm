@@ -138,6 +138,8 @@ export interface Database {
           lane: TaskLane;
           priority: TaskPriority;
           project_id: string | null;
+          company_id: string | null;
+          contact_id: string | null;
           deadline: string | null;
           remind_min: number | null;
           sort_order: number;
@@ -151,6 +153,8 @@ export interface Database {
           lane?: TaskLane;
           priority?: TaskPriority;
           project_id?: string | null;
+          company_id?: string | null;
+          contact_id?: string | null;
           deadline?: string | null;
           remind_min?: number | null;
           sort_order?: number;
@@ -193,6 +197,8 @@ export interface Database {
           time: string | null;
           location: string | null;
           project_id: string | null;
+          company_id: string | null;
+          contact_id: string | null;
           notes: string | null;
           created_by: string | null;
           created_at: string;
@@ -204,6 +210,8 @@ export interface Database {
           time?: string | null;
           location?: string | null;
           project_id?: string | null;
+          company_id?: string | null;
+          contact_id?: string | null;
           notes?: string | null;
         };
         Update: Partial<Database['public']['Tables']['meetings']['Insert']>;
@@ -235,14 +243,14 @@ export interface Database {
       activity_log: {
         Row: {
           id: string;
-          project_id: string;
+          project_id: string | null;
           user_id: string;
           event_type: string;
           payload: Json;
           created_at: string;
         };
         Insert: {
-          project_id: string;
+          project_id?: string | null;
           user_id: string;
           event_type: string;
           payload?: Json;
