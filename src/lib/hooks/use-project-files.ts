@@ -96,18 +96,17 @@ export function useDownloadProjectFile() {
   return async (storagePath: string, fileName: string) => {
     const { data, error } = await supabase.storage
       .from(BUCKET)
-      .download(storagePath);
-    if (error) throw error;
+      .createSignedUrl(storagePath, 60);
 
-    // Trigger browser download
-    const url = URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (error || !data?.signedUrl) {
+      console.error('Download error:', error);
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = data.signedUrl;
+    link.download = fileName;
+    link.click();
   };
 }
 
