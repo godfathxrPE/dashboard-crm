@@ -6,6 +6,8 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { cn } from '@/lib/utils/cn';
 import { useState, useRef, useEffect } from 'react';
+import { StatusBeacon } from '@/components/shared/StatusBeacon';
+import { useAlerts } from '@/lib/hooks/use-alerts';
 
 const THEME_META: Record<Theme, { label: string; swatch: string }> = {
   't-claude': { label: 'Claude', swatch: 'bg-[#b5622a]' },
@@ -14,13 +16,18 @@ const THEME_META: Record<Theme, { label: string; swatch: string }> = {
   't-sand':   { label: 'Sand',   swatch: 'bg-[#c05828]' },
   't-aurora': { label: 'Aurora', swatch: 'bg-[#a060ff]' },
   't-tidal':  { label: 'Tidal',  swatch: 'bg-[#48b890]' },
-  't-chalk':  { label: 'Chalk',  swatch: 'bg-[#d6006d]' },
+  't-quartz': { label: 'Quartz', swatch: 'bg-[#0D9488]' },
+  't-keyswitch': { label: 'Keyswitch', swatch: 'bg-[#6366f1]' },
+  't-nvg8':      { label: 'NVG8',      swatch: 'bg-[#FF6633]' },
+  't-washi':     { label: '和紙 Washi', swatch: 'bg-[#C23B3B]' },
+  't-fuji':      { label: '富士 Fuji', swatch: 'bg-[#2B5078]' },
 };
 
 export function Header() {
   const { toggleSidebar, toggleCommandPalette } = useUiStore();
   const { theme, setTheme } = useThemeStore();
   const { user, signOut } = useAuth();
+  const alerts = useAlerts();
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +72,9 @@ export function Header() {
           </kbd>
         </button>
 
+        {/* Status beacon */}
+        <StatusBeacon alerts={alerts} />
+
         {/* Theme menu */}
         <div className="relative" ref={menuRef}>
           <button
@@ -75,7 +85,7 @@ export function Header() {
             {isDark ? <Moon size={16} /> : <Sun size={16} />}
           </button>
           {themeMenuOpen && (
-            <div className="absolute right-0 top-full z-[9999] mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-lg">
+            <div className="absolute right-0 top-full z-[9999] mt-1 w-40 rounded-lg border border-border bg-surface p-1 elevation-3">
               {THEMES.map((t) => (
                 <button
                   key={t}
@@ -96,15 +106,13 @@ export function Header() {
         </div>
 
         {/* User / Sign Out */}
-        {user && (
-          <button
-            onClick={signOut}
-            className="rounded-md p-2 text-text-dim hover:bg-surface2 hover:text-text-main transition-colors"
-            title="Выйти"
-          >
-            <LogOut size={16} />
-          </button>
-        )}
+        <button
+          onClick={signOut}
+          className="rounded-md p-2 text-text-dim hover:bg-surface2 hover:text-text-main transition-colors"
+          aria-label="Выйти"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
     </header>
   );

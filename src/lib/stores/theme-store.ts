@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const THEMES = ['t-claude', 't-frost', 't-paper', 't-sand', 't-aurora', 't-tidal', 't-chalk'] as const;
+const THEMES = ['t-claude', 't-frost', 't-paper', 't-sand', 't-aurora', 't-tidal', 't-quartz', 't-keyswitch', 't-nvg8', 't-washi', 't-fuji'] as const;
 export type Theme = (typeof THEMES)[number];
 
 interface ThemeState {

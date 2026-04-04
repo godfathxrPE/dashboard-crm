@@ -498,6 +498,162 @@
 .t-washi button.bg-accent > *,
 .t-washi a.bg-accent > * { position: relative; z-index: 1; }
 
+/* ═══ Fuji 富士 (light, warm indigo frame) ═══ */
+.t-fuji {
+  --bg: #EDE8DF;  --surface: #FDFCF8;  --surface2: #F0EBE2;  --surface3: #E3DDD2;
+  --border: #DDD5C5;  --border2: #C8C0B0;
+  --text: #1A2744;  --text-dim: #5A6A78;  --text-mute: #7A828A;
+  --sidebar-indicator: transparent;  --sidebar-active-text: #C4AA78;
+  --accent: #2B5078;  --accent-l: rgba(43,80,120,0.08);  --accent-l2: rgba(43,80,120,0.16);
+  --green: #4A7A5A;  --green-l: rgba(74,122,90,0.10);  --green-text: #3A6248;
+  --red: #C23B3B;  --red-l: rgba(194,59,59,0.09);  --red-text: #C23B3B;
+  --blue: #2B5078;  --blue-l: rgba(43,80,120,0.08);  --blue-text: #2B5078;
+  --yellow: #C4AA78;  --yellow-l: rgba(196,170,120,0.12);  --yellow-text: #7A6538;
+  --purple: #6A5A8E;  --purple-l: rgba(106,90,142,0.09);  --purple-text: #6A5A8E;
+  /* Fuji-specific tokens */
+  --gold: #C4AA78;  --gold-dark: #7A6538;  --accent-foam: #8CB4CA;
+  --danger: #C23B3B;  --success: #4A7A5A;  --success-text: #3A6248;
+  --warning: #C4AA78;  --warning-text: #7A6538;  --info: #2B5078;
+  /* Sidebar / header (indigo L-frame) */
+  --sidebar-bg: #1A2744;
+  --sidebar-text: rgba(232,219,191,0.7);
+  --sidebar-text-dim: rgba(232,219,191,0.45);
+  --sidebar-border: rgba(200,221,230,0.06);
+  --sidebar-hover: rgba(232,219,191,0.05);
+  /* Radii & shadows */
+  --radius: 10px;  --radius-s: 4px;  --radius-m: 10px;  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(26,39,68,0.04);
+  --shadow-sm: 0 1px 3px rgba(26,39,68,0.06), 0 1px 2px rgba(26,39,68,0.03);
+  --shadow-md: 0 4px 12px rgba(26,39,68,0.06), 0 1px 3px rgba(26,39,68,0.03);
+  --shadow-lg: 0 10px 32px rgba(26,39,68,0.08), 0 2px 8px rgba(26,39,68,0.04);
+  --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(26,39,68,0.06), 0 1px 2px rgba(26,39,68,0.03);
+  --elevation-2: 0 4px 12px rgba(26,39,68,0.08), 0 2px 4px rgba(26,39,68,0.03);
+  --elevation-3: 0 12px 40px rgba(26,39,68,0.10), 0 4px 8px rgba(26,39,68,0.05);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;  --duration-normal: 0.25s;
+  /* Pipeline tracks */
+  --track-prep-done: rgba(43,80,120,0.10);   --track-prep-current: #2B5078;
+  --track-exp-done: rgba(194,59,59,0.09);    --track-exp-current: #C23B3B;
+  --track-nego-done: rgba(196,170,120,0.10); --track-nego-current: #C4AA78;
+  --track-proj-done: rgba(74,122,90,0.10);   --track-proj-current: #4A7A5A;
+}
+
+/* Fuji: font override */
+.t-fuji body,
+.t-fuji { font-family: 'IBM Plex Sans', 'Noto Sans JP', 'Manrope', system-ui, sans-serif; }
+
+/* ── Fuji: Indigo L-frame (sidebar + header) ── */
+.t-fuji aside {
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
+}
+.t-fuji aside .nav-item {
+  color: var(--sidebar-text) !important;
+}
+.t-fuji aside .nav-item:hover {
+  color: rgba(232,219,191,0.9) !important;
+  background: var(--sidebar-hover) !important;
+}
+.t-fuji aside .nav-item svg { opacity: 0.4; color: var(--sidebar-text) !important; }
+.t-fuji aside .nav-active {
+  background: transparent !important;
+  border-left: none !important;
+  color: var(--gold) !important;
+}
+.t-fuji aside .nav-active > *,
+.t-fuji aside .nav-active span { color: var(--gold) !important; }
+.t-fuji aside .nav-active svg { opacity: 0.75; color: var(--gold) !important; }
+/* Sidebar chrome */
+.t-fuji aside .flex.h-14 { border-color: var(--sidebar-border) !important; }
+.t-fuji aside .text-text-main,
+.t-fuji aside .text-sm.font-semibold { color: #E8DBbf !important; }
+.t-fuji aside .text-text-mute.truncate,
+.t-fuji aside .text-\[11px\] { color: rgba(232,219,191,0.35) !important; }
+.t-fuji aside .border-border\/50,
+.t-fuji aside .border-t { border-color: var(--sidebar-border) !important; }
+
+/* Header */
+.t-fuji header {
+  background: var(--sidebar-bg) !important;
+  border-bottom: 1px solid var(--sidebar-border) !important;
+  box-shadow: none !important;
+}
+.t-fuji header { color: #E8DBbf; }
+.t-fuji header .text-text-dim { color: rgba(232,219,191,0.5) !important; }
+.t-fuji header .text-text-mute { color: rgba(232,219,191,0.35) !important; }
+.t-fuji header .text-text-main { color: #E8DBbf !important; }
+.t-fuji header svg,
+.t-fuji header .lucide { color: rgba(232,219,191,0.45) !important; }
+.t-fuji header button:hover { background: rgba(232,219,191,0.05) !important; }
+.t-fuji header button:hover svg { color: rgba(232,219,191,0.7) !important; }
+.t-fuji header .border-border { border-color: rgba(232,219,191,0.12) !important; }
+.t-fuji header kbd { border-color: rgba(232,219,191,0.12) !important; color: rgba(232,219,191,0.35) !important; background: transparent !important; }
+/* Theme dropdown stays on light surface */
+.t-fuji header .absolute.right-0 {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+.t-fuji header .absolute.right-0 .text-text-dim { color: var(--text-dim) !important; }
+.t-fuji header .absolute.right-0 .text-accent { color: var(--accent) !important; }
+.t-fuji header .absolute.right-0 button:hover { background: var(--surface2) !important; }
+
+/* ── Fuji: CTA buttons — pill outline, gold gradient fill on hover ── */
+.t-fuji .btn-primary,
+.t-fuji button.bg-accent,
+.t-fuji a.bg-accent {
+  background: transparent !important;
+  color: #A68B5B !important;
+  border: 1.5px solid var(--gold) !important;
+  border-radius: 20px !important;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  transition: color 0.35s ease;
+}
+.t-fuji .btn-primary::before,
+.t-fuji button.bg-accent::before,
+.t-fuji a.bg-accent::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(135deg, #C4AA78, #A68B5B);
+  z-index: -1;
+  transition: width 0.35s ease;
+  border-radius: 20px;
+}
+.t-fuji .btn-primary:hover::before,
+.t-fuji button.bg-accent:hover::before,
+.t-fuji a.bg-accent:hover::before {
+  width: 100%;
+}
+.t-fuji .btn-primary:hover,
+.t-fuji button.bg-accent:hover,
+.t-fuji a.bg-accent:hover {
+  color: #1A2744 !important;
+  filter: none;
+  opacity: 1 !important;
+}
+.t-fuji .btn-primary > *,
+.t-fuji button.bg-accent > *,
+.t-fuji a.bg-accent > * { position: relative; z-index: 1; }
+
+/* ── Fuji: Task section lane colors ── */
+.t-fuji .text-accent { color: #C23B3B; }
+.t-fuji .bg-accent-l { background: rgba(194,59,59,0.10); }
+
+/* Task checkbox — kinu border, suna hover, bero-ai checked */
+.t-fuji .border-border2 { border-color: #DDD5C5; }
+.t-fuji .group:hover .group-hover\:border-accent { border-color: var(--gold) !important; }
+.t-fuji .group:hover .group-hover\:shadow-\[0_0_0_3px_var\(--accent-l\)\] {
+  box-shadow: 0 0 0 3px rgba(196,170,120,0.15) !important;
+}
+.t-fuji .border-green.bg-green { background: var(--accent) !important; border-color: var(--accent) !important; }
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
