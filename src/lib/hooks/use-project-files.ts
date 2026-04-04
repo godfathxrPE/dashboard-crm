@@ -39,7 +39,9 @@ export function useUploadProjectFile(projectId: string) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const storagePath = `${user.id}/${projectId}/${file.name}`;
+      const ext = file.name.split('.').pop() || 'bin';
+      const safeName = `${crypto.randomUUID()}.${ext}`;
+      const storagePath = `${user.id}/${projectId}/${safeName}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
