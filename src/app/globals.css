@@ -993,6 +993,60 @@
   opacity: 0.12;
 }
 
+/* ── Scandi: Tasks — monochrome, clean typography ── */
+.t-scandi .rounded-xl.border.bg-surface {
+  background: transparent !important;
+  border-color: var(--border) !important;
+  border-width: 0.5px;
+}
+/* Task checkbox: slightly rounded exception */
+.t-scandi .rounded-\[4px\] { border-radius: 3px !important; }
+/* Overdue dates: not colored, just bold */
+.t-scandi .text-red.font-semibold {
+  color: var(--text) !important;
+  font-weight: 500;
+}
+/* Project tag: square */
+.t-scandi .rounded.bg-accent-l {
+  border: 0.5px solid var(--border);
+  background: transparent !important;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+/* Task sidebar widgets: no chrome */
+.t-scandi .rounded-lg.bg-surface.elevation-1,
+.t-scandi .rounded-lg.bg-surface.p-4 {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* ── Scandi: Tables (Contacts, Companies) — thin, clean ── */
+.t-scandi table thead th {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom-width: 0.5px;
+  background: var(--bg) !important;
+}
+.t-scandi table tbody td {
+  font-size: 12px;
+  border-bottom-width: 0.5px;
+}
+.t-scandi table tbody tr:hover {
+  background: transparent !important;
+  border-left-color: var(--text) !important;
+  box-shadow: none !important;
+}
+.t-scandi table tbody tr:nth-child(even) {
+  background: transparent !important;
+}
+/* Pagination: square buttons */
+.t-scandi .rounded-md {
+  border-radius: 0 !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
