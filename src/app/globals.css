@@ -534,11 +534,11 @@
   --elevation-3: 0 12px 40px rgba(26,39,68,0.10), 0 4px 8px rgba(26,39,68,0.05);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  /* Pipeline tracks */
-  --track-prep-done: rgba(43,80,120,0.10);   --track-prep-current: #2B5078;
-  --track-exp-done: rgba(194,59,59,0.09);    --track-exp-current: #C23B3B;
-  --track-nego-done: rgba(196,170,120,0.10); --track-nego-current: #C4AA78;
-  --track-proj-done: rgba(74,122,90,0.10);   --track-proj-current: #4A7A5A;
+  /* Pipeline tracks — Fuji palette */
+  --track-prep-done: rgba(43,80,120,0.10);   --track-prep-current: #2B5078;   /* 藍 bero-ai */
+  --track-exp-done: rgba(196,170,120,0.10);  --track-exp-current: #C4AA78;    /* 砂 suna gold */
+  --track-nego-done: rgba(74,122,158,0.10);  --track-nego-current: #4A7A9E;   /* fuji-light */
+  --track-proj-done: rgba(74,122,90,0.10);   --track-proj-current: #4A7A5A;   /* 松 matsu */
 }
 
 /* Fuji: font override */
@@ -642,6 +642,80 @@
 .t-fuji button.bg-accent > *,
 .t-fuji a.bg-accent > * { position: relative; z-index: 1; }
 
+/* ── Fuji: Sidebar active marker — diagonal L-corners ↙↗ ── */
+.t-fuji aside .nav-active::before,
+.t-fuji aside .nav-active::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  border-color: rgba(196,170,120,0.55);
+  border-style: solid;
+  border-width: 0;
+}
+/* Bottom-left corner ↙ */
+.t-fuji aside .nav-active::before {
+  bottom: 0; left: 0;
+  border-left-width: 1.5px;
+  border-bottom-width: 1.5px;
+  border-radius: 0 0 0 3px;
+}
+/* Top-right corner ↗ */
+.t-fuji aside .nav-active::after {
+  top: 0; right: 0;
+  border-right-width: 1.5px;
+  border-top-width: 1.5px;
+  border-radius: 0 3px 0 0;
+}
+.t-fuji aside nav { padding-left: 4px; padding-right: 4px; }
+
+/* ── Fuji: Bleed — L-frame shadow bleeding onto content ── */
+.t-fuji aside { position: relative; }
+.t-fuji aside::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -12px; bottom: 0;
+  width: 12px;
+  background: linear-gradient(90deg, rgba(26,39,68,0.08), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+.t-fuji header { position: relative; }
+.t-fuji header::after {
+  content: '';
+  position: absolute;
+  bottom: -10px; left: 0; right: 0;
+  height: 10px;
+  background: linear-gradient(180deg, rgba(26,39,68,0.07), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Fuji: Wave animation — bottom of content zone ── */
+@keyframes fujiWave1 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3%); } }
+@keyframes fujiWave2 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-2.5%); } }
+@keyframes fujiWave3 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2%); } }
+.t-fuji .fuji-waves {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 160px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.t-fuji .fuji-wave {
+  position: absolute;
+  bottom: 0; left: -50%;
+  width: 200%; height: 100%;
+}
+.t-fuji .fuji-wave-1 { animation: fujiWave1 12s ease-in-out infinite; opacity: 0.045; }
+.t-fuji .fuji-wave-2 { animation: fujiWave2 16s ease-in-out infinite; opacity: 0.035; }
+.t-fuji .fuji-wave-3 { animation: fujiWave3 20s ease-in-out infinite; opacity: 0.025; }
+@media (prefers-reduced-motion: reduce) {
+  .t-fuji .fuji-wave { animation: none !important; }
+}
+
 /* ── Fuji: Task section lane colors ── */
 .t-fuji .text-accent { color: #C23B3B; }
 .t-fuji .bg-accent-l { background: rgba(194,59,59,0.10); }
@@ -653,6 +727,15 @@
   box-shadow: 0 0 0 3px rgba(196,170,120,0.15) !important;
 }
 .t-fuji .border-green.bg-green { background: var(--accent) !important; border-color: var(--accent) !important; }
+
+/* ── Fuji: Kanban pipeline column body — subtle kinu tint ── */
+.t-fuji .grid.grid-cols-4 > div {
+  background: linear-gradient(180deg, var(--surface) 0%, rgba(221,213,197,0.06) 100%);
+}
+.t-fuji .grid.grid-cols-4 > div .flex-1.space-y-2 {
+  background: rgba(221,213,197,0.08);
+  border-radius: 0 0 4px 4px;
+}
 
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
