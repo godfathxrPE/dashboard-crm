@@ -10,6 +10,7 @@ import { StatusBeacon } from '@/components/shared/StatusBeacon';
 import { useAlerts } from '@/lib/hooks/use-alerts';
 
 const THEME_META: Record<Theme, { label: string; swatch: string }> = {
+  't-scandi':    { label: 'Scandinavian', swatch: 'bg-[#000000]' },
   't-claude': { label: 'Claude', swatch: 'bg-[#b5622a]' },
   't-frost':  { label: 'Frost',  swatch: 'bg-[#5b8aff]' },
   't-paper':  { label: 'Paper',  swatch: 'bg-[#8b3a1a]' },

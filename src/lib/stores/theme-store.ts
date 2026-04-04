@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const THEMES = ['t-claude', 't-frost', 't-paper', 't-sand', 't-aurora', 't-tidal', 't-quartz', 't-keyswitch', 't-nvg8', 't-washi', 't-fuji'] as const;
+const THEMES = ['t-scandi', 't-claude', 't-frost', 't-paper', 't-sand', 't-aurora', 't-tidal', 't-quartz', 't-keyswitch', 't-nvg8', 't-washi', 't-fuji'] as const;
 export type Theme = (typeof THEMES)[number];
 
 interface ThemeState {
@@ -13,7 +13,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: 't-claude',
+      theme: 't-scandi',
       setTheme: (theme) => set({ theme }),
       cycleTheme: () => {
         const current = get().theme;

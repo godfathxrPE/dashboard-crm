@@ -5,6 +5,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 
 const THEMES = [
+  { id: 't-scandi', label: 'Scandinavian', color: '#000000' },
   { id: 't-claude', label: 'Claude', color: '#c27a3a' },
   { id: 't-frost', label: 'Frost', color: '#6ba3be' },
   { id: 't-paper', label: 'Paper', color: '#8b7355' },

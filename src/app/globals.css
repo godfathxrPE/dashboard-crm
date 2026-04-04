@@ -779,6 +779,92 @@
   border-radius: 0 0 4px 4px;
 }
 
+/* ═══ Scandinavian (monochrome, zero-radius) ═══ */
+.t-scandi {
+  --bg: #ffffff;  --surface: #ffffff;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
+  --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
+  --text: #000000;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.35);
+  --sidebar-indicator: transparent;  --sidebar-active-text: #000000;
+  --accent: #000000;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
+  --green: rgba(0,0,0,0.7);  --green-l: rgba(0,0,0,0.05);
+  --red: rgba(0,0,0,0.8);  --red-l: rgba(0,0,0,0.05);
+  --blue: rgba(0,0,0,0.65);  --blue-l: rgba(0,0,0,0.05);
+  --yellow: rgba(0,0,0,0.6);  --yellow-l: rgba(0,0,0,0.04);
+  --purple: rgba(0,0,0,0.6);  --purple-l: rgba(0,0,0,0.04);
+  --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
+  --shadow-xs: none;  --shadow-sm: none;  --shadow-md: none;  --shadow-lg: none;
+  --shadow-card: none;  --shadow-card-hover: none;
+  --glass-bg: #ffffff;  --glass-border: rgba(0,0,0,0.2);  --glass-blur: none;  --glass-inset: none;
+  --elevation-0: none;  --elevation-1: none;  --elevation-2: none;  --elevation-3: none;
+  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.16,1,0.3,1);
+  --duration-fast: 0.12s;  --duration-normal: 0.2s;
+  --track-prep-done: rgba(0,0,0,0.06); --track-prep-current: rgba(0,0,0,0.7);
+  --track-exp-done: rgba(0,0,0,0.06);  --track-exp-current: rgba(0,0,0,0.55);
+  --track-nego-done: rgba(0,0,0,0.04); --track-nego-current: rgba(0,0,0,0.45);
+  --track-proj-done: rgba(0,0,0,0.04); --track-proj-current: rgba(0,0,0,0.35);
+}
+
+/* Scandinavian dark mode */
+@media (prefers-color-scheme: dark) {
+  .t-scandi {
+    --bg: #111111;  --surface: #111111;  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);
+    --text: #ffffff;  --text-dim: rgba(255,255,255,0.55);  --text-mute: rgba(255,255,255,0.35);
+    --sidebar-active-text: #ffffff;
+    --accent: #ffffff;  --accent-l: rgba(255,255,255,0.06);  --accent-l2: rgba(255,255,255,0.12);
+    --green: rgba(255,255,255,0.7);  --green-l: rgba(255,255,255,0.05);
+    --red: rgba(255,255,255,0.8);  --red-l: rgba(255,255,255,0.05);
+    --blue: rgba(255,255,255,0.65);  --blue-l: rgba(255,255,255,0.05);
+    --yellow: rgba(255,255,255,0.6);  --yellow-l: rgba(255,255,255,0.04);
+    --purple: rgba(255,255,255,0.6);  --purple-l: rgba(255,255,255,0.04);
+    --glass-bg: #111111;  --glass-border: rgba(255,255,255,0.2);
+    --track-prep-current: rgba(255,255,255,0.7);  --track-prep-done: rgba(255,255,255,0.06);
+    --track-exp-current: rgba(255,255,255,0.55);  --track-exp-done: rgba(255,255,255,0.06);
+    --track-nego-current: rgba(255,255,255,0.45); --track-nego-done: rgba(255,255,255,0.04);
+    --track-proj-current: rgba(255,255,255,0.35); --track-proj-done: rgba(255,255,255,0.04);
+  }
+}
+
+/* ── Scandi: global geometry — zero radius, no shadows, thin borders ── */
+.t-scandi * { border-radius: 0 !important; }
+.t-scandi .logo-icon { border-radius: 6px !important; }
+.t-scandi .rounded-full.h-2.w-2,
+.t-scandi .rounded-full.h-1\.5.w-1\.5,
+.t-scandi span.rounded-full[class*="bg-"] { border-radius: 50% !important; }
+.t-scandi { border-width: 0.5px; }
+.t-scandi .border,
+.t-scandi .border-r,
+.t-scandi .border-b,
+.t-scandi .border-t,
+.t-scandi .border-l { border-width: 0.5px; }
+.t-scandi .card:hover { transform: none; }
+
+/* ── Scandi: sidebar — text only when expanded, icons when collapsed ── */
+.t-scandi aside[class*="w-56"] .nav-item svg { display: none; }
+.t-scandi aside[class*="w-56"] .nav-item { gap: 0; }
+.t-scandi aside .nav-active {
+  background: transparent !important;
+  border-left: none !important;
+  font-weight: 500;
+  color: var(--text) !important;
+}
+/* Active indicator — 2px left bar */
+.t-scandi aside .nav-active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  background: var(--text);
+  border-radius: 0 !important;
+}
+.t-scandi aside .nav-active::after { display: none; }
+/* Badges — monochrome */
+.t-scandi aside .rounded-full.bg-accent,
+.t-scandi aside .rounded-full.bg-red {
+  background: var(--text) !important;
+  border-radius: 50% !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
