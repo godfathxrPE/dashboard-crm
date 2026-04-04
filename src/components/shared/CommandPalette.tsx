@@ -190,10 +190,10 @@ export function CommandPalette() {
   let currentSection = '';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50 backdrop-blur-sm"
+    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50"
       onClick={() => setOpen(false)}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface shadow-2xl ring-1 ring-border overflow-hidden"
-        onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface elevation-3 ring-1 ring-border overflow-hidden"
+        role="dialog" aria-modal="true" aria-label="Палитра команд" onClick={(e) => e.stopPropagation()}>
 
         {/* Search input */}
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -201,6 +201,7 @@ export function CommandPalette() {
           <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Поиск по задачам, проектам, контактам..."
+            aria-label="Поиск по задачам, проектам, контактам"
             className="flex-1 bg-transparent text-sm text-text-main placeholder:text-text-mute focus:outline-none" />
           <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-mute">ESC</kbd>
         </div>

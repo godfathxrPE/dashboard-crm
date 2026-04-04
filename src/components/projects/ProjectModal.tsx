@@ -133,12 +133,12 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-border"
-        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
+        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
@@ -147,6 +147,7 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
           </h2>
           <button
             onClick={onClose}
+            aria-label="Закрыть"
             className="rounded-lg p-1 text-text-mute transition-colors hover:bg-surface-hover"
           >
             <X size={18} />

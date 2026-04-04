@@ -141,7 +141,7 @@ function FocusWidget() {
   );
 
   return (
-    <div className="rounded-lg bg-surface p-4 elevation-1 focus-day-card">
+    <div className="rounded-lg bg-surface p-4 focus-day-card">
       <div className="mb-2 flex items-center gap-2">
         <Target size={12} className="text-yellow" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-yellow">

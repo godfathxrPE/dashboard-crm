@@ -98,12 +98,12 @@ export function Hotkeys() {
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm" onClick={() => setShowHelp(false)} />
+      <div className="fixed inset-0 z-[60] bg-black/40" onClick={() => setShowHelp(false)} />
       <div className="fixed left-1/2 top-1/2 z-[60] w-80 -translate-x-1/2 -translate-y-1/2
-                      rounded-xl border border-border bg-surface p-5 shadow-lg">
+                      rounded-xl border border-border bg-surface p-5 elevation-3">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-main">Клавиатурные сокращения</h3>
-          <button onClick={() => setShowHelp(false)} className="rounded p-1 text-text-mute hover:text-text-main">
+          <button onClick={() => setShowHelp(false)} aria-label="Закрыть" className="rounded p-1 text-text-mute hover:text-text-main">
             <X size={14} />
           </button>
         </div>

@@ -62,9 +62,9 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 shadow-2xl ring-1 ring-border"
-        onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
+        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
 
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">

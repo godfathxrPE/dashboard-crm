@@ -884,14 +884,18 @@ input[type="checkbox"]:indeterminate {
 }
 /* Keyswitch active nav handled via --sidebar-indicator (#1A1A1E) + --sidebar-active-text (section-keycap) */
 
-/* Focus day card — glow instead of side border */
+/* Focus day card — accent glow */
 .focus-day-card {
-  border: 1px solid var(--yellow-l);
-  box-shadow: 0 0 16px -4px var(--yellow-l), 0 0 6px -2px var(--yellow-l);
-}
-.t-keyswitch .focus-day-card {
   border: 1px solid var(--accent-l2);
-  box-shadow: 0 0 16px -4px var(--accent-l2), 0 0 6px -2px var(--accent-l);
+  box-shadow: 0 0 20px var(--accent-l), 0 0 40px var(--accent-l);
+  animation: focus-glow 3s ease-in-out infinite;
+}
+@keyframes focus-glow {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-l), 0 0 40px var(--accent-l); }
+  50% { box-shadow: 0 0 24px var(--accent-l2), 0 0 48px var(--accent-l); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus-day-card { animation: none; }
 }
 
 /* Keyswitch: pipeline phase borders → track palette */
