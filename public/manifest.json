@@ -1,6 +1,6 @@
 {
-  "name": "Dashboard CRM — БИТ.IIOT",
-  "short_name": "Dashboard",
+  "name": "Torii CRM",
+  "short_name": "Torii",
   "description": "PM + CRM + Аналитика",
   "start_url": "/",
   "display": "standalone",

@@ -95,7 +95,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <p className="text-center text-[11px] text-text-mute">
-        БИТ.IIOT · v4.0
+        Torii CRM · v4.0
       </p>
     </div>
   );

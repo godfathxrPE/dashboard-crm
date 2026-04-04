@@ -4,8 +4,8 @@ import { QueryProvider } from '@/components/layout/QueryProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Dashboard CRM — БИТ.IIOT',
-  description: 'PM + CRM + Аналитика для команды маркировки',
+  title: 'Torii CRM',
+  description: 'PM + CRM + Аналитика',
   manifest: '/manifest.json',
 };
 

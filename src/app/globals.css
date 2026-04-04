@@ -670,53 +670,30 @@
 }
 .t-fuji aside nav { padding-left: 4px; padding-right: 4px; }
 
-/* ── Fuji: Bleed — L-frame shadow bleeding onto content ── */
+/* ── Fuji: Bleed — box-shadow from L-frame onto content ── */
 .t-fuji aside::after {
   content: '';
   position: absolute;
-  top: 0; right: -12px; bottom: 0;
-  width: 12px;
-  background: linear-gradient(90deg, rgba(26,39,68,0.08), transparent);
+  top: 0; right: 0; bottom: 0;
+  width: 0;
+  box-shadow: 8px 0 16px rgba(26,39,68,0.12), 3px 0 6px rgba(26,39,68,0.08);
+  z-index: 20;
   pointer-events: none;
-  z-index: 1;
 }
 .t-fuji header::after {
   content: '';
   position: absolute;
-  bottom: -10px; left: 0; right: 0;
-  height: 10px;
-  background: linear-gradient(180deg, rgba(26,39,68,0.07), transparent);
+  left: 0; right: 0; bottom: 0;
+  height: 0;
+  box-shadow: 0 8px 16px rgba(26,39,68,0.10), 0 3px 6px rgba(26,39,68,0.06);
+  z-index: 20;
   pointer-events: none;
-  z-index: 1;
 }
 
-/* ── Fuji: Wave animation — bottom of content zone ── */
-@keyframes fujiWave1 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(3%); } }
-@keyframes fujiWave2 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-2.5%); } }
-@keyframes fujiWave3 { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2%); } }
-.t-fuji .fuji-waves {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: 160px;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1;
-}
-/* Ensure all main content sits above waves */
-.t-fuji main > *:not(.fuji-waves) {
-  position: relative;
-  z-index: 2;
-}
-.t-fuji .fuji-wave {
-  position: absolute;
-  bottom: 0; left: -50%;
-  width: 200%; height: 100%;
-}
-.t-fuji .fuji-wave-1 { animation: fujiWave1 12s ease-in-out infinite; opacity: 0.045; }
-.t-fuji .fuji-wave-2 { animation: fujiWave2 16s ease-in-out infinite; opacity: 0.035; }
-.t-fuji .fuji-wave-3 { animation: fujiWave3 20s ease-in-out infinite; opacity: 0.025; }
-@media (prefers-reduced-motion: reduce) {
-  .t-fuji .fuji-wave { animation: none !important; }
+/* ── Fuji: Logo — suna gold gradient ── */
+.t-fuji .logo-icon {
+  background: linear-gradient(135deg, #C4AA78, #A68B5B) !important;
+  color: #1A2744 !important;
 }
 
 /* ── Fuji: Task section lane colors ── */
