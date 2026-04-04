@@ -865,6 +865,86 @@
   border-radius: 50% !important;
 }
 
+/* ── Scandi: CTA buttons — outline-fill animation ── */
+.t-scandi .cta-btn-bg {
+  background: var(--text);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.t-scandi .cta-btn-label {
+  color: var(--text);
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.t-scandi .cta-btn:hover .cta-btn-bg { transform: scaleX(1); }
+.t-scandi .cta-btn:hover .cta-btn-label { color: #fff; }
+/* Also restyle inline Tailwind CTA buttons (bg-accent pattern) */
+.t-scandi button.bg-accent,
+.t-scandi a.bg-accent {
+  background: transparent !important;
+  color: var(--text) !important;
+  border: 0.5px solid var(--border) !important;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.t-scandi button.bg-accent::before,
+.t-scandi a.bg-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--text);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 0;
+}
+.t-scandi button.bg-accent:hover::before,
+.t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
+.t-scandi button.bg-accent:hover,
+.t-scandi a.bg-accent:hover {
+  color: #fff !important;
+  opacity: 1 !important;
+  filter: none;
+}
+.t-scandi button.bg-accent > *,
+.t-scandi a.bg-accent > * { position: relative; z-index: 1; }
+
+/* ── Scandi: Chip filters — square, thin border ── */
+.t-scandi [class*="chip"],
+.t-scandi [class*="filter-chip"],
+.t-scandi .rounded-full[class*="border"][class*="px-"] {
+  border-radius: 0 !important;
+  border-width: 0.5px;
+  padding: 4px 12px;
+  font-size: 11px;
+}
+.t-scandi [class*="chip"]:hover,
+.t-scandi [class*="filter-chip"]:hover {
+  border-color: var(--border2);
+}
+
+/* ── Scandi: Inputs — bottom border only ── */
+.t-scandi input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.t-scandi textarea,
+.t-scandi select {
+  border: none !important;
+  border-bottom: 0.5px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-shadow: none !important;
+}
+.t-scandi input:focus,
+.t-scandi textarea:focus,
+.t-scandi select:focus {
+  border-bottom-color: var(--text) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  ring: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
