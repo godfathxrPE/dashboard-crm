@@ -109,12 +109,12 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
   );
 }
 
-const WASHI_KPI_META: Record<string, { kanji: string; color: string }> = {
-  'Активные проекты': { kanji: '案', color: '#2B5F8A' },
-  'Сумма pipeline':   { kanji: '額', color: '#2B5F8A' },
-  'Задачи на сегодня': { kanji: '務', color: '#4E6A2E' },
-  'Звонки за неделю': { kanji: '電', color: '#C23B3B' },
-  'Конверсия':        { kanji: '率', color: '#8B6914' },
+const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: string }> = {
+  'Активные проекты':  { kanji: '案', color: '#2B5F8A', short: 'Проекты' },
+  'Сумма pipeline':    { kanji: '額', color: '#2B5F8A', short: 'Pipeline' },
+  'Задачи на сегодня': { kanji: '務', color: '#4E6A2E', short: 'Задачи' },
+  'Звонки за неделю':  { kanji: '電', color: '#C23B3B', short: 'Звонки' },
+  'Конверсия':         { kanji: '率', color: '#8B6914', short: 'Конверсия' },
 };
 
 function KpiCards() {
@@ -265,8 +265,10 @@ function KpiCards() {
                 className={`text-2xl font-extrabold leading-tight block
                             ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
               />
-              <div className="text-[11px] text-text-mute leading-tight mt-0.5">{c.label}</div>
-              {c.sub && <div className="text-[9px] text-text-dim">{c.sub}</div>}
+              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm ? c.label : undefined}>
+                {wm ? wm.short : c.label}
+              </div>
+              {c.sub && !wm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
               {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
             </div>
           </a>

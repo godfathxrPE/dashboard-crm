@@ -348,7 +348,7 @@
 
 /* Washi: sidebar — clean, transparent active with bracket markers */
 .t-washi aside { background: var(--surface) !important; }
-.t-washi aside nav { padding-left: 6px; }
+.t-washi aside nav { padding-left: 6px; padding-right: 6px; }
 .t-washi header { background: var(--surface); }
 .t-washi aside .nav-active {
   background: transparent !important;
@@ -358,30 +358,36 @@
 .t-washi aside .nav-active, .t-washi aside .nav-active > * { color: var(--accent) !important; }
 .t-washi aside .nav-item svg { opacity: 0.45; }
 .t-washi aside .nav-active svg { opacity: 0.8; color: var(--accent) !important; }
-/* Bracket corner markers on active item */
+/* Bracket markers 「  」 — thin corners on both sides of active item */
 .t-washi aside .nav-active::before,
 .t-washi aside .nav-active::after {
   content: '';
   position: absolute;
-  left: -2px;
-  width: 8px;
-  height: 8px;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  pointer-events: none;
   border-color: var(--accent);
   border-style: solid;
   border-width: 0;
-  pointer-events: none;
 }
+/* Left bracket 「 */
 .t-washi aside .nav-active::before {
-  top: 0;
-  border-top-width: 2px;
-  border-left-width: 2px;
-  border-top-left-radius: 4px;
+  left: -3px;
+  border-top-width: 1.5px;
+  border-left-width: 1.5px;
+  border-bottom-width: 1.5px;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
 }
+/* Right bracket  」 */
 .t-washi aside .nav-active::after {
-  bottom: 0;
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-bottom-left-radius: 4px;
+  right: -3px;
+  border-top-width: 1.5px;
+  border-right-width: 1.5px;
+  border-bottom-width: 1.5px;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
 }
 /* Washi: badges — torii circle */
 .t-washi aside .nav-item .rounded-full.bg-accent {

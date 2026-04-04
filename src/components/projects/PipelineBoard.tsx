@@ -46,20 +46,21 @@ import {
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
+import { useThemeStore } from '@/lib/stores/theme-store';
 
 // Phase tint colors for column backgrounds (inline style, works with all themes)
 const PHASE_TINT_COLOR: Record<Phase, string> = {
-  attract: 'var(--blue)',
-  develop: 'var(--accent)',
-  negotiate: 'var(--yellow)',
-  close: 'var(--green)',
+  attract: 'var(--track-prep-current)',
+  develop: 'var(--track-exp-current)',
+  negotiate: 'var(--track-nego-current, var(--track-exp-current))',
+  close: 'var(--track-proj-current)',
 };
 
-const PHASE_HEADER_TEXT: Record<Phase, string> = {
-  attract: 'text-accent',
-  develop: 'text-accent',
-  negotiate: 'text-yellow',
-  close: 'text-green',
+const PHASE_HEADER_COLOR: Record<Phase, string> = {
+  attract: 'var(--track-prep-current)',
+  develop: 'var(--track-exp-current)',
+  negotiate: 'var(--track-nego-current, var(--track-exp-current))',
+  close: 'var(--track-proj-current)',
 };
 
 // ═══════════════════════════════════════════════════════
@@ -106,6 +107,13 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
   );
 }
 
+const WASHI_PHASE_KANJI: Record<Phase, { kanji: string; color: string }> = {
+  attract:   { kanji: '集', color: '#2B5F8A' },
+  develop:   { kanji: '探', color: '#C23B3B' },
+  negotiate: { kanji: '合', color: '#D4993A' },
+  close:     { kanji: '結', color: '#5E7A3A' },
+};
+
 // ═══════════════════════════════════════════════════════
 // Droppable Phase Column — tinted
 // ═══════════════════════════════════════════════════════
@@ -131,12 +139,14 @@ function PhaseColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: phase });
   const config = PHASE_CONFIG[phase];
+  const isWashi = useThemeStore((s) => s.theme) === 't-washi';
+  const wk = isWashi ? WASHI_PHASE_KANJI[phase] : null;
 
   return (
     <div
       ref={setNodeRef}
       className={`
-        flex min-h-[200px] flex-1 flex-col transition-colors
+        relative flex min-h-[200px] flex-1 flex-col transition-colors overflow-hidden
         ${!isLast ? 'border-r border-border/50' : ''}
         ${isOver ? 'bg-accent-l/20' : ''}
       `}
@@ -146,10 +156,29 @@ function PhaseColumn({
           : `linear-gradient(180deg, color-mix(in srgb, ${PHASE_TINT_COLOR[phase]} 8%, transparent) 0%, transparent 100%)`,
       }}
     >
+      {/* Washi: kanji watermark */}
+      {wk && (
+        <span
+          className="absolute select-none pointer-events-none"
+          aria-hidden="true"
+          style={{
+            right: 10,
+            top: 44,
+            fontSize: '90px',
+            lineHeight: 1,
+            fontFamily: "'Noto Sans JP', sans-serif",
+            fontWeight: 400,
+            color: wk.color,
+            opacity: 0.045,
+          }}
+        >
+          {wk.kanji}
+        </span>
+      )}
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${config.dotColor}`} />
-        <span className={`text-xs font-bold uppercase tracking-[0.06em] ${PHASE_HEADER_TEXT[phase]}`}>
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PHASE_HEADER_COLOR[phase] }} />
+        <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: PHASE_HEADER_COLOR[phase] }}>
           {config.label}
         </span>
         <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
@@ -290,14 +319,29 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
     const project = projects?.find((p) => p.id === active.id as string);
     if (!project) return;
     const currentPhase = getPhaseForStage(project.stage);
-    const targetPhase = over.id as Phase;
-    if (currentPhase === targetPhase) return;
+
+    // over.id can be a phase (droppable) or a project id (sortable card)
+    let targetPhase: Phase | undefined;
+    if (phases.includes(over.id as Phase)) {
+      targetPhase = over.id as Phase;
+    } else {
+      // Dropped on a card — find which phase it belongs to
+      for (const ph of phases) {
+        if (grouped[ph].some((p) => p.id === over.id)) {
+          targetPhase = ph;
+          break;
+        }
+      }
+    }
+
+    if (!targetPhase || currentPhase === targetPhase) return;
     moveToStage(active.id as string, PHASE_CONFIG[targetPhase].stages[0]);
   }
 
   function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
   function handleDelete(id: string) {
-    if (confirm('Удалить проект?')) deleteProject.mutate(id);
+    const name = projects?.find((p) => p.id === id)?.name ?? 'проект';
+    if (confirm(`Удалить «${name}»? Это действие нельзя отменить.`)) deleteProject.mutate(id);
   }
   function handleAdvance(id: string) {
     const p = projects?.find((pr) => pr.id === id);
@@ -337,9 +381,14 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
         </div>
         <div className="flex items-center gap-2">
           {onSwitchView && (
-            <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
-              Доска
-            </button>
+            <>
+              <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+                Доска
+              </button>
+              <a href="/projects?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+                Таблица
+              </a>
+            </>
           )}
           <div className="flex items-center gap-1 rounded border border-border px-2 py-1">
             <ArrowUpDown size={12} className="text-text-mute" />
@@ -361,7 +410,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       {/* Pipeline columns in single card */}
       <DndContext sensors={sensors} collisionDetection={closestCenter}
         onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="rounded border border-border overflow-hidden shadow-card grid grid-cols-4">
+        <div className="rounded border border-border overflow-hidden elevation-1 grid grid-cols-4 animate-appear stagger-2">
           {phases.map((phase, i) => (
             <PhaseColumn
               key={phase}
@@ -379,7 +428,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
 
         <DragOverlay>
           {activeProject ? (
-            <div className="rounded bg-surface p-3 shadow-lg opacity-90 rotate-2 max-w-[250px]">
+            <div className="rounded bg-surface p-3 elevation-3 opacity-90 rotate-2 max-w-[250px]">
               <p className="text-sm font-medium text-text-main">{activeProject.name}</p>
               <p className="mt-0.5 text-[10px] text-text-mute">{STAGE_CONFIG[activeProject.stage].label}</p>
             </div>
