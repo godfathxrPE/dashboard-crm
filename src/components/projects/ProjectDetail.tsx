@@ -18,6 +18,7 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Clock,
   MapPin,
   MessageSquare,
@@ -39,8 +40,12 @@ import {
   getNextStage,
   getPrevStage,
   formatBudget,
+  parseBudgetInput,
   type DealStage,
 } from '@/lib/validators/project';
+import { StackedPipeline } from './StackedPipeline';
+import { ProjectFiles } from './ProjectFiles';
+import { InlineEdit } from '@/components/ui/InlineEdit';
 import { LANE_CONFIG, PRIORITY_CONFIG } from '@/lib/validators/task';
 import { CALL_STATUS_CONFIG, formatDuration } from '@/lib/validators/call';
 import { ProjectModal } from './ProjectModal';
@@ -51,6 +56,55 @@ import { useActivityLog, useLogActivity } from '@/lib/hooks/use-activity-log';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Task, ActivityLog } from '@/types/entities';
+
+// ═══════════════════════════════════════════════════════
+// Data Completeness
+// ═══════════════════════════════════════════════════════
+
+function getProjectCompleteness(project: Project) {
+  const fields = [
+    { key: 'name', label: 'Название', filled: !!project.name },
+    { key: 'company_id', label: 'Компания', filled: !!project.company_id },
+    { key: 'contact_id', label: 'Контакт', filled: !!project.contact_id },
+    { key: 'budget', label: 'Бюджет', filled: !!project.budget && project.budget > 0 },
+    { key: 'deadline', label: 'Дедлайн', filled: !!project.deadline },
+    { key: 'stage', label: 'Стадия', filled: !!project.stage },
+    { key: 'next_step', label: 'Следующий шаг', filled: !!project.next_step },
+  ];
+  const filled = fields.filter((f) => f.filled).length;
+  return { filled, total: fields.length, fields };
+}
+
+function CompletenessBadge({ project }: { project: Project }) {
+  const { filled, total, fields } = getProjectCompleteness(project);
+  const [open, setOpen] = useState(false);
+  const missing = fields.filter((f) => !f.filled);
+
+  const colorClass = filled === total
+    ? 'bg-green-l text-green'
+    : filled >= 4
+    ? 'bg-yellow-l text-yellow'
+    : 'bg-red-l text-red';
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${colorClass}`}
+      >
+        {filled}/{total}
+      </button>
+      {open && missing.length > 0 && (
+        <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-surface p-2 elevation-2">
+          <p className="mb-1 text-[10px] font-medium text-text-mute">Не заполнено:</p>
+          {missing.map((f) => (
+            <div key={f.key} className="text-xs text-text-dim py-0.5">{f.label}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════
 // Stage Progress Bar
@@ -76,7 +130,7 @@ function StageProgress({ currentStage }: { currentStage: DealStage }) {
               }`}
             />
             <span
-              className={`mt-1 block text-[8px] leading-tight ${
+              className={`mt-1 block text-xs leading-tight ${
                 isCurrent ? 'font-semibold text-accent' : isPast ? 'text-green' : 'text-text-mute'
               }`}
             >
@@ -100,7 +154,7 @@ function TaskMiniCard({ task }: { task: Task }) {
   return (
     <div className={`rounded-lg border border-border/50 bg-bg px-3 py-2 ${prio.badge}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className={`text-sm ${task.lane === 'done' ? 'line-through text-text-mute' : 'text-text-main'}`}>
+        <span className={`text-[14px] ${task.lane === 'done' ? 'line-through text-text-mute' : 'text-text-main'}`}>
           {task.text}
         </span>
         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${lane.bg} ${lane.color}`}>
@@ -415,7 +469,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   function handleDelete() {
     if (!project) return;
-    if (confirm('Удалить проект? Связанные задачи сохранятся (project_id станет null).')) {
+    if (confirm('Удалить проект? Связанные задачи сохранятся. Это действие нельзя отменить.')) {
       deleteProject.mutate(project.id, {
         onSuccess: () => router.push('/projects'),
       });
@@ -438,8 +492,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-text-main">{project.name}</h1>
+            <h1 className="text-2xl font-semibold text-text-main">{project.name}</h1>
             <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
+            <CompletenessBadge project={project} />
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageConfig.probability > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
@@ -452,28 +507,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
 
         <div className="flex items-center gap-1">
-          {prevStage && project.stage !== 'won' && project.stage !== 'lost' && (
-            <button
-              onClick={handleRevert}
-              className="rounded-lg border border-border px-2.5 py-1.5 text-xs
-                         text-text-dim transition-colors hover:bg-surface-hover"
-              title={`← ${STAGE_CONFIG[prevStage].shortLabel}`}
-            >
-              ← {STAGE_CONFIG[prevStage].shortLabel}
-            </button>
-          )}
-          {nextStage && project.stage !== 'won' && project.stage !== 'lost' && (
-            <button
-              onClick={handleAdvance}
-              className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5
-                         text-xs font-medium text-white transition-opacity hover:opacity-90"
-            >
-              {STAGE_CONFIG[nextStage].shortLabel}
-              <ArrowRight size={12} />
-            </button>
-          )}
           <button
             onClick={() => setModalOpen(true)}
+            aria-label="Редактировать"
             className="rounded-lg border border-border p-1.5 text-text-mute
                        transition-colors hover:bg-surface-hover hover:text-text-main"
           >
@@ -481,6 +517,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
           <button
             onClick={handleDelete}
+            aria-label="Удалить"
             className="rounded-lg border border-border p-1.5 text-text-mute
                        transition-colors hover:bg-red/10 hover:text-red"
           >
@@ -489,41 +526,78 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* Stage progress bar */}
+      {/* 3-Track Pipeline */}
       <div className="mb-6">
-        <StageProgress currentStage={project.stage} />
+        <StackedPipeline
+          currentStage={project.stage}
+          onStageClick={(stage) => {
+            const targetOrder = STAGE_CONFIG[stage].order;
+            const currentOrder = STAGE_CONFIG[project.stage].order;
+            if (targetOrder < currentOrder) {
+              if (!confirm(`Вернуть на стадию «${STAGE_CONFIG[stage].label}»?`)) return;
+            }
+            updateProject.mutate({ id: project.id, stage });
+          }}
+        />
       </div>
 
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <InfoCard
-          icon={Building2}
-          label="Компания"
-          value={project.company?.name ?? '—'}
-        />
-        <InfoCard
-          icon={User}
-          label="Контакт"
-          value={project.contact ? `${project.contact.first_name} ${project.contact.last_name}` : '—'}
-        />
-        <InfoCard
-          icon={Banknote}
-          label="Бюджет"
-          value={formatBudget(project.budget)}
-        />
-        <InfoCard
-          icon={Calendar}
-          label="Дедлайн"
-          value={
-            project.deadline
-              ? new Date(project.deadline).toLocaleDateString('ru-RU', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })
-              : '—'
-          }
-        />
+        {/* Company — clickable */}
+        <div
+          className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+          onClick={() => project.company_id && router.push(`/companies/${project.company_id}`)}
+        >
+          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Building2 size={11} /> Компания</div>
+          <div className={`text-[15px] font-medium ${project.company ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+            {project.company?.name ?? '—'}
+          </div>
+        </div>
+
+        {/* Contact — clickable */}
+        <div
+          className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+          onClick={() => project.contact_id && router.push(`/contacts/${project.contact_id}`)}
+        >
+          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><User size={11} /> Контакт</div>
+          <div className={`text-[15px] font-medium ${project.contact ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+            {project.contact ? `${project.contact.first_name} ${project.contact.last_name}` : '—'}
+          </div>
+        </div>
+
+        {/* Budget — inline edit */}
+        <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Banknote size={11} /> Бюджет</div>
+          <InlineEdit
+            value={project.budget ? String(project.budget) : ''}
+            type="number"
+            placeholder="Указать"
+            formatDisplay={(v) => formatBudget(Number(v))}
+            onSave={async (val) => {
+              updateProject.mutate({ id: project.id, budget: val ? Number(val) : null });
+            }}
+            className="text-[15px] font-medium"
+          />
+        </div>
+
+        {/* Deadline — inline edit */}
+        <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Calendar size={11} /> Дедлайн</div>
+          <InlineEdit
+            value={project.deadline ?? ''}
+            type="date"
+            placeholder="Установить"
+            formatDisplay={(v) => {
+              try {
+                return new Date(v).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+              } catch { return v; }
+            }}
+            onSave={async (val) => {
+              updateProject.mutate({ id: project.id, deadline: val || null });
+            }}
+            className="text-[15px] font-medium"
+          />
+        </div>
       </div>
 
       {/* Next step */}
@@ -533,7 +607,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             <ChevronRight size={12} />
             Следующий шаг
           </div>
-          <p className="text-sm text-text-main">{project.next_step}</p>
+          <p className="text-[15px] text-text-main">{project.next_step}</p>
         </div>
       )}
 
@@ -633,6 +707,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         )}
       </div>
 
+      {/* ═══ Files ═══ */}
+      <ProjectFiles projectId={projectId} />
+
       {/* ═══ Activity Timeline ═══ */}
       <ActivityTimeline projectId={projectId} />
 
@@ -679,11 +756,11 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-      <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
-        <Icon size={10} />
+      <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim">
+        <Icon size={11} />
         {label}
       </div>
-      <div className="text-sm font-medium text-text-main">{value}</div>
+      <div className="text-[15px] font-medium text-text-main">{value}</div>
     </div>
   );
 }

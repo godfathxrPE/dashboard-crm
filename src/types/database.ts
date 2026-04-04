@@ -257,6 +257,27 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['activity_log']['Insert']>;
       };
+      project_files: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          file_name: string;
+          file_size: number | null;
+          file_type: string | null;
+          storage_path: string;
+          created_at: string;
+        };
+        Insert: {
+          project_id: string;
+          user_id: string;
+          file_name: string;
+          file_size?: number | null;
+          file_type?: string | null;
+          storage_path: string;
+        };
+        Update: Partial<Database['public']['Tables']['project_files']['Insert']>;
+      };
       user_settings: {
         Row: {
           profile_id: string;
