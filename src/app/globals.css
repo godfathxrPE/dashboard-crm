@@ -1047,6 +1047,49 @@
   border-radius: 0 !important;
 }
 
+/* ── Scandi: Calls — monochrome status, thin cards ── */
+.t-scandi .pill-done,
+.t-scandi .pill-pending,
+.t-scandi .pill-cancelled {
+  background: transparent !important;
+  color: var(--text) !important;
+  opacity: 0.5;
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+/* Call cards: no colored ring, thin separator */
+.t-scandi .rounded-xl.bg-surface {
+  border-width: 0.5px;
+}
+/* Call tabs: monochrome active */
+.t-scandi .border-b-2.border-accent {
+  border-color: var(--text) !important;
+  border-width: 1.5px;
+}
+
+/* ── Scandi: Meetings — square date blocks ── */
+.t-scandi .rounded-lg.bg-accent {
+  border-radius: 0 !important;
+  border: 0.5px solid var(--border);
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+/* ── Scandi: Analytics — monochrome charts ── */
+.t-scandi .recharts-pie-sector path,
+.t-scandi .recharts-sector {
+  opacity: 0.15;
+}
+.t-scandi .recharts-bar-rectangle rect {
+  fill: var(--text) !important;
+}
+/* Chart containers: no chrome */
+.t-scandi .rounded-lg.bg-surface.p-4.elevation-hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
