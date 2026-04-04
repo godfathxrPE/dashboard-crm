@@ -8,6 +8,7 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { CallModal } from '@/components/calls/CallModal';
+import { useThemeStore } from '@/lib/stores/theme-store';
 import type { Call } from '@/lib/hooks/use-calls';
 
 // ═══════════════════════════════════════════════════════
@@ -38,7 +39,7 @@ function ClockWidget() {
   const weekNum = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
 
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-card">
+    <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="text-[2.5rem] font-extrabold leading-none text-text-main tabular-nums">
         {time}
       </div>
@@ -64,7 +65,7 @@ function PlannedCalls() {
     .slice(0, 5);
 
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-card">
+    <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-green">
@@ -140,7 +141,7 @@ function FocusWidget() {
   );
 
   return (
-    <div className="rounded-lg border-l-[3px] border-yellow bg-surface p-4 shadow-card">
+    <div className="rounded-lg bg-surface p-4 elevation-1 focus-day-card">
       <div className="mb-2 flex items-center gap-2">
         <Target size={12} className="text-yellow" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-yellow">
@@ -162,11 +163,20 @@ function FocusWidget() {
 // Mini KPI Grid
 // ═══════════════════════════════════════════════════════
 
+const WASHI_KPI = [
+  { key: 'projects', label: 'проектов',    kanji: '案', color: '#2B5F8A' },
+  { key: 'calls',    label: 'звонков / нед', kanji: '電', color: '#C23B3B' },
+  { key: 'tasks',    label: 'задачи',       kanji: '務', color: '#4E6A2E' },
+  { key: 'meetings', label: 'встреч',       kanji: '会', color: '#8B6914' },
+] as const;
+
 function MiniKpi() {
   const { data: projects } = useProjects();
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
   const { data: meetings } = useMeetings();
+  const theme = useThemeStore((s) => s.theme);
+  const isWashi = theme === 't-washi';
 
   const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
@@ -175,6 +185,10 @@ function MiniKpi() {
   const dueTasks = (tasks ?? []).filter((t) => t.lane !== 'done' && t.deadline && t.deadline.slice(0, 10) <= todayStr).length;
   const upMeetings = (meetings ?? []).filter((m) => m.date >= todayStr).length;
 
+  const values: Record<string, number> = {
+    projects: active, calls: weekCalls, tasks: dueTasks, meetings: upMeetings,
+  };
+
   const items = [
     { value: active, label: 'Проектов', color: 'text-accent' },
     { value: weekCalls, label: 'Звонков/нед', color: 'text-green' },
@@ -182,8 +196,49 @@ function MiniKpi() {
     { value: upMeetings, label: 'Встреч', color: 'text-yellow' },
   ];
 
+  if (isWashi) {
+    return (
+      <div className="rounded-lg bg-surface p-4 elevation-1">
+        <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-accent">
+          Сейчас в работе
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {WASHI_KPI.map((it) => (
+            <div
+              key={it.key}
+              className="relative overflow-hidden rounded-lg border border-border bg-surface p-3"
+            >
+              {/* Kanji watermark */}
+              <span
+                className="absolute -top-1 -right-1 select-none pointer-events-none"
+                style={{
+                  fontSize: '56px',
+                  lineHeight: 1,
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  fontWeight: 400,
+                  color: it.color,
+                  opacity: 0.055,
+                }}
+              >
+                {it.kanji}
+              </span>
+              {/* Value */}
+              <AnimatedNumber
+                value={values[it.key]}
+                className="text-[32px] font-bold tabular-nums block leading-none"
+                style={{ color: it.color }}
+              />
+              {/* Label */}
+              <div className="mt-1 text-[11px] text-text-mute">{it.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-card">
+    <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-accent">
         Сейчас в работе
       </div>

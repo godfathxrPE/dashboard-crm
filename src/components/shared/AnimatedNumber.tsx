@@ -7,6 +7,7 @@ interface AnimatedNumberProps {
   duration?: number;
   formatFn?: (n: number) => string;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 function easeOutExpo(t: number): number {
@@ -18,6 +19,7 @@ export function AnimatedNumber({
   duration = 600,
   formatFn = (n) => Math.round(n).toLocaleString('ru-RU'),
   className,
+  style,
 }: AnimatedNumberProps) {
   const [display, setDisplay] = useState('0');
   const hasAnimated = useRef(false);
@@ -48,5 +50,5 @@ export function AnimatedNumber({
     requestAnimationFrame(tick);
   }, [value, duration, formatFn]);
 
-  return <span className={className}>{display}</span>;
+  return <span className={className} style={style}>{display}</span>;
 }
