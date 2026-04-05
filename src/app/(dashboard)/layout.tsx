@@ -37,7 +37,7 @@ export default function DashboardLayout({
       <div
         className={cn(
           'transition-all duration-200',
-          isScandi ? 'ml-[232px]' : sidebarOpen ? 'ml-56' : 'ml-16',
+          isScandi ? (sidebarOpen ? 'ml-[232px]' : 'ml-14') : sidebarOpen ? 'ml-56' : 'ml-16',
         )}
       >
         {!isScandi && <Header />}

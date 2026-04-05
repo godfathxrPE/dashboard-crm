@@ -916,7 +916,13 @@
   filter: none;
 }
 .t-scandi button.bg-accent > *,
-.t-scandi a.bg-accent > * { position: relative; z-index: 1; }
+.t-scandi a.bg-accent > *,
+.t-scandi button.bg-accent svg,
+.t-scandi a.bg-accent svg { position: relative; z-index: 2; }
+.t-scandi button.bg-accent:hover > *,
+.t-scandi a.bg-accent:hover > *,
+.t-scandi button.bg-accent:hover svg,
+.t-scandi a.bg-accent:hover svg { color: #fff !important; }
 
 /* ── Scandi: Chip filters — square, thin border ── */
 .t-scandi [class*="chip"],

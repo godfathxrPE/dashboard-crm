@@ -1,13 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useThemeStore } from '@/lib/stores/theme-store';
 
 export function CallsChart() {
   const { data: calls } = useCalls();
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!calls) return [];
@@ -38,7 +41,11 @@ export function CallsChart() {
   }, [calls]);
 
   return (
-    <div className="rounded-lg bg-surface p-4 shadow-card transition-shadow duration-fast hover:shadow-card-hover">
+    <div
+      className="rounded-lg bg-surface p-4 elevation-hover"
+      onMouseEnter={isScandi ? () => setHovered(true) : undefined}
+      onMouseLeave={isScandi ? () => setHovered(false) : undefined}
+    >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Звонки по неделям</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
@@ -53,9 +60,12 @@ export function CallsChart() {
                 boxShadow: 'var(--shadow-md)',
                 fontSize: 11,
               }}
+              labelStyle={{ color: 'var(--text)' }}
+              itemStyle={{ color: 'var(--text-dim)' }}
+              cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
             />
-            <Bar dataKey="done" name="Выполнено" fill="var(--green)" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="pending" name="Запланировано" fill="var(--blue)" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="done" name="Выполнено" fill={isScandi && hovered ? '#0652DD' : 'var(--green)'} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="pending" name="Запланировано" fill={isScandi && hovered ? '#36d1dc' : 'var(--blue)'} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
