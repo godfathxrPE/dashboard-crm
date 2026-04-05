@@ -10,15 +10,15 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 
 const NAV_ITEMS = [
-  { href: '/',          label: 'Дашборд' },
-  { href: '/tasks',     label: 'Задачи',    badgeKey: 'tasks' as const },
-  { href: '/projects',  label: 'Проекты' },
-  { href: '/contacts',  label: 'Контакты' },
-  { href: '/companies', label: 'Компании' },
-  { href: '/calls',     label: 'Звонки',    badgeKey: 'calls' as const },
-  { href: '/meetings',  label: 'Встречи' },
-  { href: '/analytics', label: 'Аналитика' },
-  { href: '/settings',  label: 'Настройки' },
+  { href: '/',          label: 'Дашборд',    short: 'Да' },
+  { href: '/tasks',     label: 'Задачи',     short: 'Зд', badgeKey: 'tasks' as const },
+  { href: '/projects',  label: 'Проекты',    short: 'Пр' },
+  { href: '/contacts',  label: 'Контакты',   short: 'Кн' },
+  { href: '/companies', label: 'Компании',   short: 'Км' },
+  { href: '/calls',     label: 'Звонки',     short: 'Зв', badgeKey: 'calls' as const },
+  { href: '/meetings',  label: 'Встречи',    short: 'Вс' },
+  { href: '/analytics', label: 'Аналитика',  short: 'Ан' },
+  { href: '/settings',  label: 'Настройки',  short: 'На' },
 ] as const;
 
 // ═══════════════════════════════════════════════════════
@@ -116,7 +116,7 @@ export function ScandiSidebar() {
                   {badge > 0 && <span className="text-[10px] text-text-mute">{badge}</span>}
                 </>
               ) : (
-                <span className="text-[11px]">{item.label.charAt(0)}</span>
+                <span className="text-[11px] font-medium">{item.short}</span>
               )}
             </Link>
           );

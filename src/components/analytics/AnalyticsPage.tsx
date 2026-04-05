@@ -8,26 +8,6 @@ import { TasksDistribution, PipelineChart } from './Charts';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/Watermark';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
-import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
-
-const SCANDI_ANALYTICS_WM = {
-  calls:  { text: 'Звонки',    colors: WATERMARK_GRADIENTS.tidal },
-  tasks:  { text: 'Задачи',    colors: WATERMARK_GRADIENTS.sunset },
-  phases: { text: 'Фазы',      colors: WATERMARK_GRADIENTS.aurora },
-  export: { text: 'Экспорт',   colors: WATERMARK_GRADIENTS.frost },
-};
-
-function ScandiChartWrap({ children, wm }: { children: React.ReactNode; wm: { text: string; colors: readonly string[] } }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
-  return (
-    <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <Watermark text={wm.text} colors={wm.colors} size="lg" isActive={isActive} className="mb-2 block" />
-      {children}
-    </div>
-  );
-}
 
 export function AnalyticsPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -49,31 +29,12 @@ export function AnalyticsPage() {
       {/* Charts */}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          {isScandi ? (
-            <>
-              <ScandiChartWrap wm={SCANDI_ANALYTICS_WM.calls}><CallsChart /></ScandiChartWrap>
-              <ScandiChartWrap wm={SCANDI_ANALYTICS_WM.tasks}><TasksDistribution /></ScandiChartWrap>
-            </>
-          ) : (
-            <>
-              <CallsChart />
-              <TasksDistribution />
-            </>
-          )}
+          <CallsChart />
+          <TasksDistribution />
         </div>
-
         <div className="grid gap-4 md:grid-cols-2">
-          {isScandi ? (
-            <>
-              <ScandiChartWrap wm={SCANDI_ANALYTICS_WM.phases}><PipelineChart /></ScandiChartWrap>
-              <ScandiChartWrap wm={SCANDI_ANALYTICS_WM.export}><ExportPanel /></ScandiChartWrap>
-            </>
-          ) : (
-            <>
-              <PipelineChart />
-              <ExportPanel />
-            </>
-          )}
+          <PipelineChart />
+          <ExportPanel />
         </div>
       </div>
 

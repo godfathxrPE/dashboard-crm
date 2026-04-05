@@ -222,12 +222,6 @@ function PhaseColumn({
           {wk.kanji}
         </span>
       )}
-      {/* Scandi: watermark column name */}
-      {sw && (
-        <div className="px-3.5 pt-2">
-          <Watermark text={sw.text} colors={sw.colors} size="md" isActive={swActive} />
-        </div>
-      )}
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PHASE_HEADER_COLOR[phase] }} />
