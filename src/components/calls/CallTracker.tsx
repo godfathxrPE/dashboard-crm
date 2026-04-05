@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Phone, TrendingUp } from 'lucide-react';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { CTAButton } from '@/components/ui/CTAButton';
 
 interface CallTrackerProps {
   dailyGoal?: number;
@@ -73,14 +74,9 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
             </div>
           </div>
 
-          <button
-            onClick={onQuickLog}
-            className="flex w-full items-center justify-center gap-1 rounded-lg bg-accent px-3 py-1.5
-                       text-xs font-medium text-white transition-opacity hover:opacity-90"
-          >
-            <Phone size={12} />
-            Записать звонок
-          </button>
+          <CTAButton size="sm" onClick={onQuickLog} className="w-full justify-center">
+            <Phone size={12} /> Записать звонок
+          </CTAButton>
         </div>
       </div>
     </div>

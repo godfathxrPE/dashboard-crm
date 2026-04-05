@@ -50,6 +50,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { Watermark } from '@/components/ui/Watermark';
 import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 
 // Phase tint colors for column backgrounds (inline style, works with all themes)
 const PHASE_TINT_COLOR: Record<Phase, string> = {
@@ -428,9 +429,15 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       {/* Toolbar */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {!isScandi && <FolderKanban size={18} className="text-accent" />}
-          <h1 className="text-lg font-semibold text-text-main">Воронка проектов</h1>
-          <span className={isScandi ? 'text-xs text-text-mute' : 'rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent'}>{activeCount} активн.</span>
+          {isScandi ? (
+            <Watermark text="Проекты" colors={WATERMARK_GRADIENTS.iridescent} size="lg" className="block" />
+          ) : (
+            <>
+              <FolderKanban size={18} className="text-accent" />
+              <h1 className="text-lg font-semibold text-text-main">Воронка проектов</h1>
+              <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {onSwitchView && (

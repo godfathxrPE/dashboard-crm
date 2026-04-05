@@ -799,7 +799,7 @@
   --elevation-1: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
   --elevation-2: 0 2px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
   --elevation-3: 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.12);
-  --backdrop-color: rgba(0,0,0,0.45);
+  --backdrop-color: rgba(0,0,0,0.55);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.16,1,0.3,1);
   --duration-fast: 0.12s;  --duration-normal: 0.2s;
   --track-prep-done: rgba(0,0,0,0.06); --track-prep-current: rgba(0,0,0,0.7);
@@ -1065,8 +1065,8 @@
 /* ── Scandi: Modal elevation + backdrop ── */
 .t-scandi .fixed.inset-0.z-50 {
   background-color: var(--backdrop-color) !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .t-scandi .fixed.inset-0.z-50 > [role="dialog"],
 .t-scandi .fixed.inset-0.z-50 > div:not([role]) {
