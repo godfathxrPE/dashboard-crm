@@ -875,34 +875,38 @@
   border-radius: 50% !important;
 }
 
-/* ── Scandi: CTA buttons — filled dark style ── */
-/* Primary CTA — filled dark button */
+/* ── Scandi: CTA buttons — outline with scaleX wipe fill ── */
 .t-scandi button.bg-accent,
 .t-scandi a.bg-accent {
-  background-color: #1a1a1a !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  border: none !important;
-  font-weight: 500;
-  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  background: transparent !important;
+  color: var(--text) !important;
+  border: 0.5px solid var(--border) !important;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.t-scandi button.bg-accent *,
-.t-scandi a.bg-accent * {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+.t-scandi button.bg-accent::before,
+.t-scandi a.bg-accent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--text);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: -1;
 }
+.t-scandi button.bg-accent:hover::before,
+.t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
 .t-scandi button.bg-accent:hover,
-.t-scandi a.bg-accent:hover {
-  background-color: #000000 !important;
-  transform: translateY(-1px);
-  box-shadow: var(--elevation-2);
+.t-scandi a.bg-accent:hover,
+.t-scandi button.bg-accent:hover *,
+.t-scandi a.bg-accent:hover * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
   filter: none;
-}
-.t-scandi button.bg-accent:active,
-.t-scandi a.bg-accent:active {
-  transform: translateY(0);
-  box-shadow: none;
 }
 
 /* ── Scandi: Chip filters — square, thin border ── */
