@@ -781,19 +781,21 @@
 
 /* ═══ Scandinavian (monochrome, zero-radius) ═══ */
 .t-scandi {
-  --bg: #ffffff;  --surface: #ffffff;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
+  --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
   --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
-  --text: #000000;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.35);
-  --sidebar-indicator: transparent;  --sidebar-active-text: #000000;
-  --accent: #000000;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
+  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.35);
+  --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
+  --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
+  font-family: 'Inter', 'Manrope', system-ui, sans-serif;
+  letter-spacing: -0.011em;
   --green: rgba(0,0,0,0.7);  --green-l: rgba(0,0,0,0.05);
   --red: rgba(0,0,0,0.8);  --red-l: rgba(0,0,0,0.05);
   --blue: rgba(0,0,0,0.65);  --blue-l: rgba(0,0,0,0.05);
   --yellow: rgba(0,0,0,0.6);  --yellow-l: rgba(0,0,0,0.04);
   --purple: rgba(0,0,0,0.6);  --purple-l: rgba(0,0,0,0.04);
   --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
-  --shadow-xs: none;  --shadow-sm: none;  --shadow-md: none;  --shadow-lg: none;
-  --shadow-card: none;  --shadow-card-hover: none;
+  --shadow-xs: none;  --shadow-sm: var(--elevation-1);  --shadow-md: var(--elevation-2);  --shadow-lg: var(--elevation-3);
+  --shadow-card: var(--elevation-1);  --shadow-card-hover: var(--elevation-2);
   --glass-bg: #ffffff;  --glass-border: rgba(0,0,0,0.2);  --glass-blur: none;  --glass-inset: none;
   --elevation-0: none;
   --elevation-1: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
@@ -873,51 +875,34 @@
   border-radius: 50% !important;
 }
 
-/* ── Scandi: CTA buttons — outline-fill animation ── */
-.t-scandi .cta-btn-bg {
-  background: var(--text);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.t-scandi .cta-btn-label {
-  color: var(--text);
-  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.t-scandi .cta-btn:hover .cta-btn-bg { transform: scaleX(1); }
-.t-scandi .cta-btn:hover .cta-btn-label { color: #fff; }
-/* Also restyle inline Tailwind CTA buttons (bg-accent pattern) */
+/* ── Scandi: CTA buttons — filled dark style ── */
+/* Primary CTA — filled dark button */
 .t-scandi button.bg-accent,
 .t-scandi a.bg-accent {
-  background: transparent !important;
-  color: var(--text) !important;
-  border: 0.5px solid var(--border) !important;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.t-scandi button.bg-accent::before,
-.t-scandi a.bg-accent::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--text);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: -1;
-}
-.t-scandi button.bg-accent:hover::before,
-.t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
-.t-scandi button.bg-accent:hover,
-.t-scandi a.bg-accent:hover,
-.t-scandi button.bg-accent:hover *,
-.t-scandi a.bg-accent:hover * {
+  background-color: #1a1a1a !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+  border: none !important;
+  font-weight: 500;
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+.t-scandi button.bg-accent *,
+.t-scandi a.bg-accent * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.t-scandi button.bg-accent:hover,
+.t-scandi a.bg-accent:hover {
+  background-color: #000000 !important;
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2);
   opacity: 1 !important;
   filter: none;
+}
+.t-scandi button.bg-accent:active,
+.t-scandi a.bg-accent:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* ── Scandi: Chip filters — square, thin border ── */

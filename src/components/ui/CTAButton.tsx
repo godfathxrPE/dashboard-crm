@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import type { ReactNode, MouseEventHandler } from 'react';
@@ -22,68 +21,45 @@ export function CTAButton({
   type = 'button',
   disabled,
 }: CTAButtonProps) {
-  const [hovered, setHovered] = useState(false);
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
-  // Non-scandi: render standard accent button
-  if (!isScandi) {
+  // Scandi: filled dark button with hover lift
+  if (isScandi) {
     return (
       <button
         type={type}
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          'flex items-center gap-1.5 rounded-lg bg-accent font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50',
-          size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm',
+          'inline-flex items-center gap-1.5 font-medium text-white disabled:opacity-50',
+          'transition-all duration-200',
+          size === 'sm' ? 'px-3.5 py-1.5 text-xs' : 'px-4 py-2 text-sm',
           className,
         )}
+        style={{
+          backgroundColor: '#1a1a1a',
+          border: 'none',
+          cursor: 'pointer',
+        }}
       >
         {children}
       </button>
     );
   }
 
-  // Scandi: outline button with scaleX fill animation via React state
+  // Other themes: standard accent button
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={cn('disabled:opacity-50', className)}
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'transparent',
-        border: '0.5px solid var(--border)',
-        padding: size === 'sm' ? '6px 14px' : '8px 16px',
-        fontSize: size === 'sm' ? '11px' : '13px',
-        fontWeight: 500,
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        color: hovered ? '#ffffff' : 'var(--text)',
-        transition: 'color 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
+      className={cn(
+        'flex items-center gap-1.5 rounded-lg bg-accent font-medium text-white hover:opacity-90 transition-opacity disabled:opacity-50',
+        size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm',
+        className,
+      )}
     >
-      {/* Fill background */}
-      <span
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'var(--text)',
-          transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
-          transformOrigin: 'left center',
-          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          zIndex: 0,
-        }}
-      />
-      {/* Content — above fill */}
-      <span style={{ position: 'relative', zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'inherit' }}>
-        {children}
-      </span>
+      {children}
     </button>
   );
 }
