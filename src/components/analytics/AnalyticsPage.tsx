@@ -62,7 +62,7 @@ export function AnalyticsPage() {
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[1fr_300px]">
+        <div className="grid gap-4 md:grid-cols-2">
           {isScandi ? (
             <>
               <ScandiChartWrap wm={SCANDI_ANALYTICS_WM.phases}><PipelineChart /></ScandiChartWrap>
