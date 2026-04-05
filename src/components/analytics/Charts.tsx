@@ -71,7 +71,7 @@ export function TasksDistribution() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={chartData} cx="50%" cy="50%" innerRadius={40} outerRadius={70}
-              paddingAngle={3} dataKey="value" nameKey="name" stroke="var(--bg)" strokeWidth={1}>
+              paddingAngle={3} dataKey="value" nameKey="name" stroke="var(--bg)" strokeWidth={1} isAnimationActive={false}>
               {chartData.map((entry, i) => {
                 const lane = Object.entries(LANE_LABELS).find(([, v]) => v === entry.name)?.[0] ?? '';
                 const vividColor = VIVID_LANE[lane] ?? VIVID_TASK_BY_INDEX[i % VIVID_TASK_BY_INDEX.length];
