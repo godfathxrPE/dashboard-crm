@@ -57,10 +57,10 @@ export function Watermark({
           data-color={l.color}
           style={{
             color: isActive ? l.color : 'inherit',
-            opacity: isActive ? 0.4 : 0.04,
+            opacity: isActive ? 0.85 : 0.04,
             transition: isActive
               ? 'color 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
-              : 'color 0.6s ease, opacity 0.6s ease',
+              : 'color 0.3s ease, opacity 0.3s ease',
             display: 'inline',
           }}
         >

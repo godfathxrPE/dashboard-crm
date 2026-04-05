@@ -432,12 +432,15 @@ function ScandiWidgetWrap({ children, text, colors, className }: {
   );
 }
 
+const VIVID_FUNNEL = ['#00dc82', '#36d1dc', '#c44cff', '#9b59b6', '#0652DD', '#1dd1a1'];
+
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
   const themeVal = useThemeStore((s) => s.theme);
   const isFuji = themeVal === 't-fuji';
   const isScandi = themeVal === 't-scandi';
   const [drillStage, setDrillStage] = useState<string | null>(null);
+  const [chartHovered, setChartHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!projects) return [];
@@ -463,7 +466,11 @@ function PipelineFunnelChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}>
+    <div
+      className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
+      onMouseEnter={isScandi ? () => setChartHovered(true) : undefined}
+      onMouseLeave={isScandi ? () => setChartHovered(false) : undefined}
+    >
       {isScandi ? null : isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
       )}
@@ -494,6 +501,9 @@ function PipelineFunnelChart() {
             }}
           >
             {chartData.map((entry, idx) => {
+              if (isScandi && chartHovered) {
+                return <Cell key={idx} fill={VIVID_FUNNEL[idx % VIVID_FUNNEL.length]} />;
+              }
               const fills: Record<string, string> = {
                 attract: 'var(--track-prep-current)',
                 develop: 'var(--track-exp-current)',
@@ -550,6 +560,7 @@ function CallsRecentChart() {
   const isFuji = themeVal2 === 't-fuji';
   const isScandi = themeVal2 === 't-scandi';
   const dayCount = isFuji ? 7 : 14;
+  const [callsHovered, setCallsHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!calls) return [];
@@ -577,7 +588,11 @@ function CallsRecentChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}>
+    <div
+      className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
+      onMouseEnter={isScandi ? () => setCallsHovered(true) : undefined}
+      onMouseLeave={isScandi ? () => setCallsHovered(false) : undefined}
+    >
       {isScandi ? null : isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>
       )}
@@ -597,9 +612,9 @@ function CallsRecentChart() {
             itemStyle={{ color: 'var(--text-dim)' }}
             cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
           />
-          <Bar dataKey="done" stackId="calls" fill="var(--green)" name="Выполнено" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="pending" stackId="calls" fill="var(--blue)" name="Запланир." radius={[0, 0, 0, 0]} />
-          <Bar dataKey="cancelled" stackId="calls" fill="var(--red)" name="Отменено" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="done" stackId="calls" fill={isScandi && callsHovered ? '#0652DD' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="pending" stackId="calls" fill={isScandi && callsHovered ? '#36d1dc' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
+          <Bar dataKey="cancelled" stackId="calls" fill={isScandi && callsHovered ? '#c44cff' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

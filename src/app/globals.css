@@ -795,7 +795,11 @@
   --shadow-xs: none;  --shadow-sm: none;  --shadow-md: none;  --shadow-lg: none;
   --shadow-card: none;  --shadow-card-hover: none;
   --glass-bg: #ffffff;  --glass-border: rgba(0,0,0,0.2);  --glass-blur: none;  --glass-inset: none;
-  --elevation-0: none;  --elevation-1: none;  --elevation-2: none;  --elevation-3: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --elevation-2: 0 2px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
+  --elevation-3: 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.12);
+  --backdrop-color: rgba(0,0,0,0.3);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.16,1,0.3,1);
   --duration-fast: 0.12s;  --duration-normal: 0.2s;
   --track-prep-done: rgba(0,0,0,0.06); --track-prep-current: rgba(0,0,0,0.7);
@@ -822,6 +826,10 @@
     --track-exp-current: rgba(255,255,255,0.55);  --track-exp-done: rgba(255,255,255,0.06);
     --track-nego-current: rgba(255,255,255,0.45); --track-nego-done: rgba(255,255,255,0.04);
     --track-proj-current: rgba(255,255,255,0.35); --track-proj-done: rgba(255,255,255,0.04);
+    --elevation-1: 0 1px 3px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2);
+    --elevation-2: 0 2px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.3);
+    --elevation-3: 0 4px 16px rgba(0,0,0,0.2), 0 16px 48px rgba(0,0,0,0.4);
+    --backdrop-color: rgba(0,0,0,0.5);
   }
 }
 
@@ -1045,6 +1053,41 @@
 /* Pagination: square buttons */
 .t-scandi .rounded-md {
   border-radius: 0 !important;
+}
+
+/* ── Scandi: Modal elevation + backdrop ── */
+.t-scandi .fixed.inset-0.z-50 {
+  background-color: var(--backdrop-color) !important;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.t-scandi .fixed.inset-0.z-50 > [role="dialog"],
+.t-scandi .fixed.inset-0.z-50 > div:not([role]) {
+  box-shadow: var(--elevation-2);
+  border: 0.5px solid var(--border) !important;
+}
+/* Dropdown / popover elevation */
+.t-scandi .absolute.right-0.top-full,
+.t-scandi .absolute.z-\[9999\] {
+  box-shadow: var(--elevation-1) !important;
+  border: 0.5px solid var(--border) !important;
+}
+/* Command palette */
+.t-scandi .fixed.inset-0.z-\[60\] {
+  background-color: rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+/* Modal animation */
+@keyframes scandiSlideUp {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.t-scandi [role="dialog"] {
+  animation: scandiSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-scandi [role="dialog"] { animation: none; }
 }
 
 /* ── Scandi: Calls — monochrome status, thin cards ── */
