@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Building2, Loader2, Trash2, Download } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -156,18 +158,14 @@ export function CompaniesTable() {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Building2 size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Компании</h1>
-          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
-            {companies?.length ?? 0}
-          </span>
-        </div>
-        <CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}>
-          <Plus size={14} /> Компания
-        </CTAButton>
-      </div>
+      <PageHeader
+        title="Компании"
+        wmText="Компании"
+        wmColors={WATERMARK_GRADIENTS.aurora}
+        count={companies?.length ?? 0}
+        icon={<Building2 size={18} className="text-accent" />}
+        action={<CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}><Plus size={14} /> Компания</CTAButton>}
+      />
 
       {/* Chip filters */}
       <div className="mb-3">

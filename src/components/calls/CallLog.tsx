@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import { Phone, Pencil, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCalls, useDeleteCall, type Call } from '@/lib/hooks/use-calls';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { staggerClass } from '@/lib/utils/stagger';
@@ -76,16 +78,13 @@ export function CallLog() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Phone size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Звонки</h1>
-        </div>
-        <CTAButton size="sm" onClick={() => { setEditCall(null); setModalOpen(true); }}>
-          <Plus size={14} /> Звонок
-        </CTAButton>
-      </div>
+      <PageHeader
+        title="Звонки"
+        wmText="Звонки"
+        wmColors={WATERMARK_GRADIENTS.tidal}
+        icon={<Phone size={18} className="text-accent" />}
+        action={<CTAButton size="sm" onClick={() => { setEditCall(null); setModalOpen(true); }}><Plus size={14} /> Звонок</CTAButton>}
+      />
 
       {/* Layout: tracker + scheduled | call log */}
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">

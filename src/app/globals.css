@@ -1097,6 +1097,17 @@
   .t-scandi [role="dialog"] { animation: none; }
 }
 
+/* ── Scandi: Badges — plain text, no background ── */
+.t-scandi .rounded-full.bg-accent-l,
+.t-scandi .rounded-full.bg-yellow-l,
+.t-scandi .rounded-full.bg-green-l,
+.t-scandi .rounded-full.bg-blue-l {
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--text-mute) !important;
+  font-weight: 400;
+}
+
 /* ── Scandi: Calls — monochrome status, thin cards ── */
 .t-scandi .pill-done,
 .t-scandi .pill-pending,

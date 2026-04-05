@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import { CalendarDays, Plus, Pencil, Trash2, MapPin, FolderKanban, Clock, Loader2 } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useMeetings, useDeleteMeeting, type Meeting } from '@/lib/hooks/use-meetings';
 import { staggerClass } from '@/lib/utils/stagger';
 import { MeetingModal } from './MeetingModal';
@@ -48,18 +50,14 @@ export function MeetingsList() {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Встречи</h1>
-          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
-            {meetings?.length ?? 0}
-          </span>
-        </div>
-        <CTAButton size="sm" onClick={() => { setEditMeeting(null); setModalOpen(true); }}>
-          <Plus size={14} /> Встреча
-        </CTAButton>
-      </div>
+      <PageHeader
+        title="Встречи"
+        wmText="Встречи"
+        wmColors={WATERMARK_GRADIENTS.frost}
+        count={meetings?.length ?? 0}
+        icon={<CalendarDays size={18} className="text-accent" />}
+        action={<CTAButton size="sm" onClick={() => { setEditMeeting(null); setModalOpen(true); }}><Plus size={14} /> Встреча</CTAButton>}
+      />
 
       {/* Upcoming */}
       {upcoming.length > 0 && (

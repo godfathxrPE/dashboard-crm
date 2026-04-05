@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users, Loader2, Building2, Trash2, Download } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
@@ -150,16 +152,14 @@ export function ContactsTable() {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Контакты</h1>
-          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{contacts?.length ?? 0}</span>
-        </div>
-        <CTAButton size="sm" onClick={() => { setEditContact(null); setModalOpen(true); }}>
-          <Plus size={14} /> Контакт
-        </CTAButton>
-      </div>
+      <PageHeader
+        title="Контакты"
+        wmText="Контакты"
+        wmColors={WATERMARK_GRADIENTS.oilSlick}
+        count={contacts?.length ?? 0}
+        icon={<Users size={18} className="text-accent" />}
+        action={<CTAButton size="sm" onClick={() => { setEditContact(null); setModalOpen(true); }}><Plus size={14} /> Контакт</CTAButton>}
+      />
 
       {/* Chip filters */}
       <div className="mb-3">

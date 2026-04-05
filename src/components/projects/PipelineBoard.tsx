@@ -319,6 +319,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
   const { data: projects, isLoading, error } = useProjects();
   const { moveToStage } = useMoveProject();
   const deleteProject = useDeleteProject();
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -427,9 +428,9 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       {/* Toolbar */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FolderKanban size={18} className="text-accent" />
+          {!isScandi && <FolderKanban size={18} className="text-accent" />}
           <h1 className="text-lg font-semibold text-text-main">Воронка проектов</h1>
-          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
+          <span className={isScandi ? 'text-xs text-text-mute' : 'rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent'}>{activeCount} активн.</span>
         </div>
         <div className="flex items-center gap-2">
           {onSwitchView && (
