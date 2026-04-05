@@ -1070,8 +1070,15 @@
 }
 .t-scandi .fixed.inset-0.z-50 > [role="dialog"],
 .t-scandi .fixed.inset-0.z-50 > div:not([role]) {
+  background: var(--bg) !important;
+  border: 1px solid var(--text) !important;
   box-shadow: var(--elevation-2);
-  border: 0.5px solid var(--border2) !important;
+}
+/* Command palette + hotkeys content */
+.t-scandi .fixed.inset-0.z-\[60\] > [role="dialog"],
+.t-scandi .fixed.inset-0.z-\[60\] > div:not([role]) {
+  background: var(--bg) !important;
+  border: 1px solid var(--text) !important;
 }
 /* Dropdown / popover elevation */
 .t-scandi .absolute.right-0.top-full,
