@@ -1076,7 +1076,9 @@
 }
 /* Command palette + hotkeys content */
 .t-scandi .fixed.inset-0.z-\[60\] > [role="dialog"],
-.t-scandi .fixed.inset-0.z-\[60\] > div:not([role]) {
+.t-scandi .fixed.inset-0.z-\[60\] > div:not([role]),
+.t-scandi .fixed.z-\[60\].rounded-xl,
+.t-scandi .fixed.z-\[60\].border {
   background: var(--bg) !important;
   border: 1px solid var(--text) !important;
 }
