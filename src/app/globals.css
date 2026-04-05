@@ -894,6 +894,7 @@
   border: 0.5px solid var(--border) !important;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .t-scandi button.bg-accent::before,
@@ -905,24 +906,18 @@
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 0;
+  z-index: -1;
 }
 .t-scandi button.bg-accent:hover::before,
 .t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
 .t-scandi button.bg-accent:hover,
-.t-scandi a.bg-accent:hover {
-  color: #ffffff !important;
-  opacity: 1 !important;
-  filter: none;
-}
-.t-scandi button.bg-accent > *,
-.t-scandi a.bg-accent > * { position: relative; z-index: 2; }
-.t-scandi button.bg-accent:hover,
-.t-scandi button.bg-accent:hover *,
 .t-scandi a.bg-accent:hover,
+.t-scandi button.bg-accent:hover *,
 .t-scandi a.bg-accent:hover * {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none;
 }
 
 /* ── Scandi: Chip filters — square, thin border ── */
