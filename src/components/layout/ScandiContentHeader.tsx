@@ -1,6 +1,7 @@
 'use client';
 
-import { Search, LogOut, Sun, Moon } from 'lucide-react';
+import { Search, LogOut, Sun, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { usePathname } from 'next/navigation';
 import { useThemeStore, THEMES, type Theme } from '@/lib/stores/theme-store';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -42,6 +43,19 @@ const THEME_SWATCHES: Record<Theme, string> = {
   't-washi': '#C23B3B',
   't-fuji': '#2B5078',
 };
+
+function DrawerToggle() {
+  const { isOpen, toggle } = useDrawerStore();
+  return (
+    <button
+      onClick={toggle}
+      className="p-2 text-text-dim hover:text-text-main transition-colors"
+      title={isOpen ? 'Скрыть панель' : 'Показать панель'}
+    >
+      {isOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+    </button>
+  );
+}
 
 export function ScandiContentHeader() {
   const pathname = usePathname();
@@ -110,7 +124,10 @@ export function ScandiContentHeader() {
           )}
         </div>
 
-        {/* Avatar / Sign out */}
+        {/* Drawer toggle */}
+        <DrawerToggle />
+
+        {/* Sign out */}
         <button
           onClick={signOut}
           className="flex h-7 w-7 items-center justify-center text-[10px] font-medium text-text-dim hover:text-text-main transition-colors"
