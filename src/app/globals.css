@@ -1158,20 +1158,24 @@
 /* Companies: raise contrast of "+ добавить" */
 .t-scandi td .text-text-mute.hover\:text-accent { color: var(--text-dim) !important; opacity: 0.7; }
 .t-scandi td .text-text-mute.hover\:text-accent:hover { color: var(--text) !important; opacity: 1; }
-/* Contact 360: dashed border for empty highlights */
-.t-scandi .highlight-card { box-shadow: var(--shadow-card); }
-.t-scandi .highlight-card .text-text-mute:only-child { border-style: dashed; }
-/* Contact 360: remove colored left-border */
+/* Contact 360: remove colored left-border, flat highlights */
+.t-scandi .highlight-card { box-shadow: none !important; }
 .t-scandi .highlight-card [class*="border-l-"] { border-left-color: var(--border) !important; }
-.t-scandi .highlight-card.filled { border-color: var(--border) !important; box-shadow: var(--shadow-card) !important; }
+.t-scandi .highlight-card.filled { border-color: var(--border) !important; box-shadow: none !important; }
 /* Meetings: dim past meetings */
 .t-scandi [data-meetings-past] .space-y-2 > div { opacity: 0.55; transition: opacity 0.2s ease; }
 .t-scandi [data-meetings-past] .space-y-2 > div:hover { opacity: 0.85; }
 /* ProjectDetail: progress bar thinner */
 .t-scandi .h-1\.5.rounded-full { height: 4px !important; }
-.t-scandi .h-1\.5.rounded-full [class*="bg-"] { border-radius: 2px !important; }
-/* ProjectDetail: info cards shadow */
-.t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="px-3"] { box-shadow: var(--shadow-card); }
+/* ProjectDetail + ContactDetail: info cards flat (no shadow) */
+.t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="px-3"],
+.t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="py-2"] { box-shadow: none !important; }
+/* ProjectDetail: timeline scroll — 5 visible events */
+.t-scandi .space-y-0 { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.t-scandi .space-y-0::-webkit-scrollbar { width: 4px; }
+.t-scandi .space-y-0::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* ContactDetail: activity list scroll — 4 visible events */
+.t-scandi .max-h-\[480px\] { max-height: 280px !important; }
 
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
