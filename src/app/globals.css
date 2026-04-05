@@ -1051,6 +1051,7 @@
   background-color: var(--backdrop-color) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  z-index: 200 !important;
 }
 .t-scandi .fixed.inset-0.z-50 > [role="dialog"],
 .t-scandi .fixed.inset-0.z-50 > div:not([role]) {
