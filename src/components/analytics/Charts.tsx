@@ -52,6 +52,7 @@ export function TasksDistribution() {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
+              key={`pie-${active}`}
               data={chartData}
               cx="50%" cy="50%"
               innerRadius={40} outerRadius={70}
