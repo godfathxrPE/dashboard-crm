@@ -6,6 +6,7 @@ import { ScandiSidebar } from '@/components/layout/ScandiSidebar';
 import { ScandiContentHeader } from '@/components/layout/ScandiContentHeader';
 import { Header } from '@/components/layout/Header';
 import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
+import { EventReminder } from '@/components/layout/EventReminder';
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useThemeStore } from '@/lib/stores/theme-store';
@@ -79,6 +80,7 @@ export default function DashboardLayout({
         </main>
       </div>
       <ActivityDrawer />
+      <EventReminder />
       {isScandi && <QuickActionModals />}
       <CommandPalette />
       <Hotkeys />

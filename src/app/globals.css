@@ -1225,6 +1225,10 @@
 .t-scandi .border-accent\/30.bg-accent-l\/30:hover * {
   color: #fff !important; -webkit-text-fill-color: #fff !important;
 }
+/* Reminder toast: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [style*="translateX"] { transform: none !important; transition: opacity 0.1s !important; }
+}
 
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
