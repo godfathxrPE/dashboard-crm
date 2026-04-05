@@ -468,8 +468,8 @@ function PipelineFunnelChart() {
   return (
     <div
       className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
-      onMouseEnter={isScandi ? () => setChartHovered(true) : undefined}
-      onMouseLeave={isScandi ? () => setChartHovered(false) : undefined}
+      onMouseEnter={() => setChartHovered(true)}
+      onMouseLeave={() => setChartHovered(false)}
     >
       {isScandi ? null : isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
@@ -590,8 +590,8 @@ function CallsRecentChart() {
   return (
     <div
       className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
-      onMouseEnter={isScandi ? () => setCallsHovered(true) : undefined}
-      onMouseLeave={isScandi ? () => setCallsHovered(false) : undefined}
+      onMouseEnter={() => setCallsHovered(true)}
+      onMouseLeave={() => setCallsHovered(false)}
     >
       {isScandi ? null : isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>

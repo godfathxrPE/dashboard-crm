@@ -60,8 +60,8 @@ export function TasksDistribution() {
   return (
     <div
       className="rounded-lg bg-surface p-4 elevation-hover"
-      onMouseEnter={isScandi ? () => setHovered(true) : undefined}
-      onMouseLeave={isScandi ? () => setHovered(false) : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
       <div className="h-48">
@@ -117,8 +117,8 @@ export function PipelineChart() {
   return (
     <div
       className="rounded-lg bg-surface p-4 elevation-hover min-w-0 overflow-hidden"
-      onMouseEnter={isScandi2 ? () => setHovered2(true) : undefined}
-      onMouseLeave={isScandi2 ? () => setHovered2(false) : undefined}
+      onMouseEnter={() => setHovered2(true)}
+      onMouseLeave={() => setHovered2(false)}
     >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Проекты по фазам</h3>
       <div className="h-48">
