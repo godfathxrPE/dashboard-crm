@@ -89,10 +89,11 @@ export function TasksDistribution() {
           return (
             <div key={d.lane} className="flex items-center gap-1.5 text-[10px]">
               <span className="w-2.5 h-2.5 inline-block shrink-0" style={{
-                background: shape === 'filled-sq' || shape === 'filled-circle' ? color : 'transparent',
-                border: shape === 'empty-sq' ? `1.5px solid ${color}` : shape === 'half-circle' ? `1.5px solid ${color}` : 'none',
+                background: shape === 'half-circle'
+                  ? `linear-gradient(90deg, ${color} 50%, transparent 50%)`
+                  : (shape === 'filled-sq' || shape === 'filled-circle') ? color : 'transparent',
+                border: shape === 'empty-sq' || shape === 'half-circle' ? `1.5px solid ${color}` : 'none',
                 borderRadius: shape.includes('circle') ? '50%' : '1px',
-                backgroundImage: shape === 'half-circle' ? `linear-gradient(90deg, ${color} 50%, transparent 50%)` : undefined,
                 transition: 'background 0.5s ease, border-color 0.5s ease',
               }} />
               <span style={{ color: 'var(--text-dim)' }}>{d.name}</span>
@@ -129,7 +130,7 @@ export function PipelineChart() {
     >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Проекты по фазам</h3>
       <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={chartData} layout="vertical" barSize={16}>
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
