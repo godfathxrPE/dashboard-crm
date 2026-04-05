@@ -2,10 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import { Phone, Pencil, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { useCalls, useDeleteCall, type Call } from '@/lib/hooks/use-calls';
+import { useCreateTask } from '@/lib/hooks/use-tasks';
+import { staggerClass } from '@/lib/utils/stagger';
 import { CALL_STATUS_CONFIG, formatDuration, type CallStatus } from '@/lib/validators/call';
 import { CallModal } from './CallModal';
 import { CallTracker } from './CallTracker';
+import { CheckSquare } from 'lucide-react';
 
 type TabFilter = 'all' | CallStatus;
 
@@ -13,9 +17,23 @@ export function CallLog() {
   const { data: calls, isLoading, error } = useCalls();
   const deleteCall = useDeleteCall();
 
+  const createTask = useCreateTask();
   const [modalOpen, setModalOpen] = useState(false);
   const [editCall, setEditCall] = useState<Call | null>(null);
   const [tab, setTab] = useState<TabFilter>('all');
+  const [taskSuggestion, setTaskSuggestion] = useState<{ text: string; projectId: string | null } | null>(null);
+
+  function handleCallSaved(values: { next_step?: string | null; project_id?: string | null }) {
+    if (values.next_step?.trim() && !editCall) {
+      setTaskSuggestion({ text: values.next_step.trim(), projectId: values.project_id ?? null });
+    }
+  }
+
+  function handleCreateTask() {
+    if (!taskSuggestion) return;
+    createTask.mutate({ text: taskSuggestion.text, lane: 'now', project_id: taskSuggestion.projectId });
+    setTaskSuggestion(null);
+  }
 
   const filtered = useMemo(() => {
     if (!calls) return [];
@@ -64,10 +82,9 @@ export function CallLog() {
           <Phone size={18} className="text-accent" />
           <h1 className="text-lg font-semibold text-text-main">Звонки</h1>
         </div>
-        <button onClick={() => { setEditCall(null); setModalOpen(true); }}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+        <CTAButton size="sm" onClick={() => { setEditCall(null); setModalOpen(true); }}>
           <Plus size={14} /> Звонок
-        </button>
+        </CTAButton>
       </div>
 
       {/* Layout: tracker + scheduled | call log */}
@@ -126,20 +143,26 @@ export function CallLog() {
             <div className="py-12 text-center text-xs text-text-mute">Нет звонков</div>
           ) : (
             <div className="space-y-2">
-              {filtered.map((call) => (
+              {filtered.map((call, i) => {
+                const isOverdue = call.status === 'pending' && new Date(call.date) < new Date(new Date().toDateString());
+                const statusBg = isOverdue ? 'bg-red/10' : CALL_STATUS_CONFIG[call.status].bg;
+                const statusColor = isOverdue ? 'text-red' : CALL_STATUS_CONFIG[call.status].color;
+                const statusLabel = isOverdue ? 'Просрочен' : CALL_STATUS_CONFIG[call.status].label;
+
+                return (
                 <div key={call.id}
-                  className="group flex items-start gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3 transition-colors hover:border-border">
+                  className={`group flex items-start gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3 transition-colors hover:border-border ${staggerClass(i)}`}>
 
                   {/* Status dot */}
-                  <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${CALL_STATUS_CONFIG[call.status].bg}`}>
-                    <Phone size={11} className={CALL_STATUS_CONFIG[call.status].color} />
+                  <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${statusBg}`}>
+                    <Phone size={11} className={statusColor} />
                   </div>
 
                   {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${CALL_STATUS_CONFIG[call.status].bg} ${CALL_STATUS_CONFIG[call.status].color}`}>
-                        {CALL_STATUS_CONFIG[call.status].label}
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBg} ${statusColor}`}>
+                        {statusLabel}
                       </span>
                       <span className="text-[10px] text-text-dim">
                         {new Date(call.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -182,22 +205,48 @@ export function CallLog() {
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                     <button onClick={() => { setEditCall(call); setModalOpen(true); }}
+                      aria-label="Редактировать"
                       className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
                       <Pencil size={12} />
                     </button>
                     <button onClick={() => handleDelete(call.id)}
+                      aria-label="Удалить"
                       className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
                       <Trash2 size={12} />
                     </button>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      <CallModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditCall(null); }} editCall={editCall} />
+      <CallModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditCall(null); }} editCall={editCall} onSaved={handleCallSaved} />
+
+      {/* Task suggestion toast */}
+      {taskSuggestion && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-surface p-4 elevation-3">
+          <div className="mb-1 flex items-center gap-2">
+            <CheckSquare size={14} className="text-accent" />
+            <span className="text-sm font-medium text-text-main">Создать задачу?</span>
+          </div>
+          <p className="mb-3 text-xs text-text-dim">
+            По звонку: «{taskSuggestion.text}»
+          </p>
+          <div className="flex gap-2">
+            <button onClick={handleCreateTask}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity">
+              Создать
+            </button>
+            <button onClick={() => setTaskSuggestion(null)}
+              className="rounded-lg px-3 py-1.5 text-xs text-text-dim hover:text-text-main transition-colors">
+              Пропустить
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users, Loader2, Building2, Trash2, Download } from 'lucide-react';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
+import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
+import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { ContactModal } from './ContactModal';
+
+const CHIP_FILTERS: Record<string, (c: Contact) => boolean> = {
+  has_email: (c) => !!c.email,
+  has_phone: (c) => !!c.phone,
+};
 
 export function ContactsTable() {
   const router = useRouter();
@@ -17,18 +25,47 @@ export function ContactsTable() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
 
+  // Dynamic position chips (top 5)
+  const positionFilters = useMemo(() => {
+    const freq: Record<string, number> = {};
+    (contacts ?? []).forEach((c) => {
+      if (c.position) freq[c.position] = (freq[c.position] || 0) + 1;
+    });
+    return Object.entries(freq)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .reduce<Record<string, (c: Contact) => boolean>>((acc, [pos]) => {
+        acc[`pos_${pos}`] = (c) => c.position === pos;
+        return acc;
+      }, {});
+  }, [contacts]);
+
+  const allFilters = useMemo(() => ({ ...CHIP_FILTERS, ...positionFilters }), [positionFilters]);
+  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(contacts ?? [], allFilters);
+
+  const chipOptions: ChipOption[] = useMemo(() => [
+    { label: 'Есть email', value: 'has_email', count: counts.has_email },
+    { label: 'Есть телефон', value: 'has_phone', count: counts.has_phone },
+    ...Object.keys(positionFilters).map((key) => ({
+      label: key.replace('pos_', ''),
+      value: key,
+      count: counts[key],
+    })),
+  ], [counts, positionFilters]);
+
+  function openEdit(contact: Contact) {
+    setEditContact(contact);
+    setModalOpen(true);
+  }
+
   const columns: Column<Contact>[] = [
     {
       key: 'last_name',
       label: 'Контакт',
-      sortable: true,
       render: (c) => (
-        <div>
-          <span className="font-medium text-text-main">{c.first_name} {c.last_name}</span>
-          {c.position && <span className="ml-2 text-xs text-text-dim">{c.position}</span>}
-        </div>
+        <span className="font-medium text-text-main">{c.first_name} {c.last_name}</span>
       ),
-      searchValue: (c) => `${c.first_name} ${c.last_name} ${c.position ?? ''}`,
+      searchValue: (c) => `${c.first_name} ${c.last_name}`,
     },
     {
       key: 'companies',
@@ -40,7 +77,7 @@ export function ContactsTable() {
           <div className="flex flex-wrap gap-1">
             {comps.map((cc) => (
               <span key={cc.company_id}
-                className="inline-flex items-center gap-0.5 rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+                className="inline-flex items-center gap-0.5 rounded bg-surface2 border border-border px-1.5 py-0.5 text-[10px] text-text-dim">
                 <Building2 size={9} />
                 {cc.company?.name ?? 'N/A'}
                 {cc.role && <span className="text-text-mute"> · {cc.role}</span>}
@@ -54,25 +91,35 @@ export function ContactsTable() {
     {
       key: 'phone',
       label: 'Телефон',
-      render: (c) => (
+      render: (c) => c.phone ? (
         <EditableCell
-          value={c.phone ?? ''}
+          value={c.phone}
           type="tel"
           className="text-text-dim"
           onSave={(val) => updateContact.mutateAsync({ id: c.id, phone: val || null })}
         />
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+          className="text-text-mute hover:text-accent text-sm transition-colors">
+          + добавить
+        </button>
       ),
     },
     {
       key: 'email',
       label: 'Email',
-      render: (c) => (
+      render: (c) => c.email ? (
         <EditableCell
-          value={c.email ?? ''}
+          value={c.email}
           type="email"
           className="text-accent"
           onSave={(val) => updateContact.mutateAsync({ id: c.id, email: val || null })}
         />
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+          className="text-text-mute hover:text-accent text-sm transition-colors">
+          + добавить
+        </button>
       ),
     },
     {
@@ -109,16 +156,18 @@ export function ContactsTable() {
           <h1 className="text-lg font-semibold text-text-main">Контакты</h1>
           <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{contacts?.length ?? 0}</span>
         </div>
-        <button
-          onClick={() => { setEditContact(null); setModalOpen(true); }}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
-        >
+        <CTAButton size="sm" onClick={() => { setEditContact(null); setModalOpen(true); }}>
           <Plus size={14} /> Контакт
-        </button>
+        </CTAButton>
+      </div>
+
+      {/* Chip filters */}
+      <div className="mb-3">
+        <ChipFilter options={chipOptions} selected={activeFilters} onToggle={toggle} onReset={reset} />
       </div>
 
       <DataTable
-        data={contacts ?? []}
+        data={filtered}
         columns={columns}
         keyField="id"
         onRowClick={(c) => router.push(`/contacts/${c.id}`)}

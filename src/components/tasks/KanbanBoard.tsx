@@ -21,6 +21,7 @@ import { staggerClass } from '@/lib/utils/stagger';
 import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { Watermark } from '@/components/ui/Watermark';
 import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
@@ -46,13 +47,10 @@ function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
           </>
         )}
       </div>
-      <button
-        onClick={onAdd}
-        className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-      >
+      <CTAButton onClick={onAdd}>
         <Plus size={16} />
         Задача
-      </button>
+      </CTAButton>
     </div>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { CalendarDays, Plus, Pencil, Trash2, MapPin, FolderKanban, Clock, Loader2 } from 'lucide-react';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { useMeetings, useDeleteMeeting, type Meeting } from '@/lib/hooks/use-meetings';
+import { staggerClass } from '@/lib/utils/stagger';
 import { MeetingModal } from './MeetingModal';
 
 export function MeetingsList() {
@@ -54,10 +56,9 @@ export function MeetingsList() {
             {meetings?.length ?? 0}
           </span>
         </div>
-        <button onClick={() => { setEditMeeting(null); setModalOpen(true); }}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+        <CTAButton size="sm" onClick={() => { setEditMeeting(null); setModalOpen(true); }}>
           <Plus size={14} /> Встреча
-        </button>
+        </CTAButton>
       </div>
 
       {/* Upcoming */}
@@ -68,12 +69,14 @@ export function MeetingsList() {
             <span className="rounded-full bg-yellow-l px-2 py-0.5 text-xs font-medium text-yellow">{upcoming.length}</span>
           </h2>
           <div className="space-y-2">
-            {upcoming.map((m) => (
-              <MeetingCard key={m.id} meeting={m}
-                onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
-                onDelete={() => handleDelete(m.id)}
-                isUpcoming
-              />
+            {upcoming.map((m, i) => (
+              <div key={m.id} className={staggerClass(i)}>
+                <MeetingCard meeting={m}
+                  onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
+                  onDelete={() => handleDelete(m.id)}
+                  isUpcoming
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -89,11 +92,13 @@ export function MeetingsList() {
           <div className="py-8 text-center text-xs text-text-mute">Нет прошедших встреч</div>
         ) : (
           <div className="space-y-2">
-            {past.map((m) => (
-              <MeetingCard key={m.id} meeting={m}
-                onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
-                onDelete={() => handleDelete(m.id)}
-              />
+            {past.map((m, i) => (
+              <div key={m.id} className={staggerClass(i)}>
+                <MeetingCard meeting={m}
+                  onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
+                  onDelete={() => handleDelete(m.id)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -164,10 +169,10 @@ function MeetingCard({
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <button onClick={onEdit} className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
+        <button onClick={onEdit} aria-label="Редактировать" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
           <Pencil size={12} />
         </button>
-        <button onClick={onDelete} className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
+        <button onClick={onDelete} aria-label="Удалить" className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
           <Trash2 size={12} />
         </button>
       </div>

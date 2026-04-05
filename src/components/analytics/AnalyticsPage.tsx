@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { CallsChart } from './CallsChart';
 import { TasksDistribution, PipelineChart } from './Charts';
 import { WeeklyReview } from './WeeklyReview';
@@ -40,10 +41,9 @@ export function AnalyticsPage() {
           {!isScandi && <BarChart3 size={18} className="text-accent" />}
           <h1 className="text-lg font-semibold text-text-main">Аналитика</h1>
         </div>
-        <button onClick={() => setReviewOpen(true)}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+        <CTAButton size="sm" onClick={() => setReviewOpen(true)}>
           <TrendingUp size={14} /> Итоги недели
-        </button>
+        </CTAButton>
       </div>
 
       {/* Charts */}

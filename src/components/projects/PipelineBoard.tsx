@@ -47,6 +47,7 @@ import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { Watermark } from '@/components/ui/Watermark';
 import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
 
@@ -448,10 +449,9 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
               {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-          <button onClick={() => { setEditProject(null); setModalOpen(true); }}
-            className="flex items-center gap-1 rounded bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
+          <CTAButton size="sm" onClick={() => { setEditProject(null); setModalOpen(true); }}>
             <Plus size={14} /> Проект
-          </button>
+          </CTAButton>
         </div>
       </div>
 

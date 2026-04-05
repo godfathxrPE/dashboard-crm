@@ -1,22 +1,68 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, Loader2 } from 'lucide-react';
-import { Trash2, Download } from 'lucide-react';
+import { Plus, Building2, Loader2, Trash2, Download } from 'lucide-react';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
+import { useContacts } from '@/lib/hooks/use-contacts';
+import { useProjects } from '@/lib/hooks/use-projects';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
+import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
+import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { CompanyModal } from './CompanyModal';
 
 export function CompaniesTable() {
   const router = useRouter();
   const { data: companies, isLoading, error } = useCompanies();
+  const { data: allContacts } = useContacts();
+  const { data: allProjects } = useProjects();
   const updateCompany = useUpdateCompany();
   const deleteCompany = useDeleteCompany();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
+
+  // Build lookup maps for chip filters
+  const companyContactCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    (allContacts ?? []).forEach((c) => {
+      (c.companies ?? []).forEach((cc) => {
+        map[cc.company_id] = (map[cc.company_id] || 0) + 1;
+      });
+    });
+    return map;
+  }, [allContacts]);
+
+  const companyProjectCount = useMemo(() => {
+    const map: Record<string, number> = {};
+    (allProjects ?? []).forEach((p) => {
+      if (p.company_id) map[p.company_id] = (map[p.company_id] || 0) + 1;
+    });
+    return map;
+  }, [allProjects]);
+
+  const sevenDaysAgo = useMemo(() => new Date(Date.now() - 7 * 86400000).toISOString(), []);
+
+  const chipFilters = useMemo<Record<string, (c: Company) => boolean>>(() => ({
+    has_projects: (c) => (companyProjectCount[c.id] ?? 0) > 0,
+    has_contacts: (c) => (companyContactCount[c.id] ?? 0) > 0,
+    recent: (c) => c.created_at >= sevenDaysAgo,
+  }), [companyProjectCount, companyContactCount, sevenDaysAgo]);
+
+  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(companies ?? [], chipFilters);
+
+  const chipOptions: ChipOption[] = useMemo(() => [
+    { label: 'Есть проекты', value: 'has_projects', count: counts.has_projects },
+    { label: 'Есть контакты', value: 'has_contacts', count: counts.has_contacts },
+    { label: 'За 7 дней', value: 'recent', count: counts.recent },
+  ], [counts]);
+
+  function openEdit(company: Company) {
+    setEditCompany(company);
+    setModalOpen(true);
+  }
 
   const columns: Column<Company>[] = [
     {
@@ -25,7 +71,7 @@ export function CompaniesTable() {
       sortable: true,
       render: (c) => (
         <div>
-          <span className="font-medium text-text-main">{c.name}</span>
+          <span className="text-sm text-text-main">{c.name}</span>
           {c.inn && <span className="ml-2 text-xs text-text-dim">ИНН {c.inn}</span>}
         </div>
       ),
@@ -35,36 +81,51 @@ export function CompaniesTable() {
       key: 'industry',
       label: 'Отрасль',
       sortable: true,
-      render: (c) => (
+      render: (c) => c.industry ? (
         <EditableCell
-          value={c.industry ?? ''}
+          value={c.industry}
           className="text-text-dim"
           onSave={(val) => updateCompany.mutateAsync({ id: c.id, industry: val || null })}
         />
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+          className="text-text-mute hover:text-accent text-sm transition-colors">
+          + добавить
+        </button>
       ),
     },
     {
       key: 'phone',
       label: 'Телефон',
-      render: (c) => (
+      render: (c) => c.phone ? (
         <EditableCell
-          value={c.phone ?? ''}
+          value={c.phone}
           type="tel"
           className="text-text-dim"
           onSave={(val) => updateCompany.mutateAsync({ id: c.id, phone: val || null })}
         />
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+          className="text-text-mute hover:text-accent text-sm transition-colors">
+          + добавить
+        </button>
       ),
     },
     {
       key: 'email',
       label: 'Email',
-      render: (c) => (
+      render: (c) => c.email ? (
         <EditableCell
-          value={c.email ?? ''}
+          value={c.email}
           type="email"
           className="text-accent"
           onSave={(val) => updateCompany.mutateAsync({ id: c.id, email: val || null })}
         />
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+          className="text-text-mute hover:text-accent text-sm transition-colors">
+          + добавить
+        </button>
       ),
     },
     {
@@ -103,16 +164,18 @@ export function CompaniesTable() {
             {companies?.length ?? 0}
           </span>
         </div>
-        <button
-          onClick={() => { setEditCompany(null); setModalOpen(true); }}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
-        >
+        <CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}>
           <Plus size={14} /> Компания
-        </button>
+        </CTAButton>
+      </div>
+
+      {/* Chip filters */}
+      <div className="mb-3">
+        <ChipFilter options={chipOptions} selected={activeFilters} onToggle={toggle} onReset={reset} />
       </div>
 
       <DataTable
-        data={companies ?? []}
+        data={filtered}
         columns={columns}
         keyField="id"
         onRowClick={(c) => router.push(`/companies/${c.id}`)}

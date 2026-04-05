@@ -11,6 +11,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { PHASE_CONFIG, phases, getPhaseForStage, formatBudget } from '@/lib/validators/project';
 
 const VIVID_LANE: Record<string, string> = { now: '#000000', next: '#d500f9', wait: '#2979ff', done: '#00c853' };
+const VIVID_TASK_BY_INDEX = ['#00c853', '#d500f9', '#2979ff', '#000000'];
 const VIVID_PHASE: Record<string, string> = { attract: '#00b874', develop: '#c44cff', negotiate: '#e09030', close: '#0652DD' };
 
 const LANE_COLORS: Record<string, string> = {
@@ -70,7 +71,8 @@ export function TasksDistribution() {
               paddingAngle={3} dataKey="value" nameKey="name" stroke="var(--bg)" strokeWidth={1}>
               {chartData.map((entry, i) => {
                 const lane = Object.entries(LANE_LABELS).find(([, v]) => v === entry.name)?.[0] ?? '';
-                return <Cell key={i} fill={isScandi && hovered ? (VIVID_LANE[lane] ?? entry.color) : entry.color} fillOpacity={1} />;
+                const vividColor = VIVID_LANE[lane] ?? VIVID_TASK_BY_INDEX[i % VIVID_TASK_BY_INDEX.length];
+                return <Cell key={`${i}-${hovered}`} fill={isScandi && hovered ? vividColor : entry.color} fillOpacity={1} />;
               })}
             </Pie>
             <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={TOOLTIP_CURSOR} />
