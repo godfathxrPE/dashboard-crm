@@ -1197,6 +1197,34 @@
 /* Calls ring: softer stroke */
 .t-scandi circle[stroke="var(--accent)"] { stroke: #444 !important; }
 .t-scandi circle[stroke="var(--border)"] { stroke: #e8e8e8 !important; }
+/* Export panel: no border, thin separators */
+.t-scandi .rounded-xl.border.bg-surface.p-4:has(.text-accent) {
+  border: none !important;
+  box-shadow: none !important;
+}
+/* Backup button: outline wipe */
+.t-scandi .border-accent\/30.bg-accent-l\/30 {
+  background: transparent !important;
+  border: 0.5px solid var(--border2) !important;
+  color: var(--text) !important;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.t-scandi .border-accent\/30.bg-accent-l\/30::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--text);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  z-index: -1;
+}
+.t-scandi .border-accent\/30.bg-accent-l\/30:hover::before { transform: scaleX(1); }
+.t-scandi .border-accent\/30.bg-accent-l\/30:hover,
+.t-scandi .border-accent\/30.bg-accent-l\/30:hover * {
+  color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
 
 /* ═══════════════════════════════════════════════════════
    BASE STYLES

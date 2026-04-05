@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare } from 'lucide-react';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
@@ -21,6 +21,7 @@ const FULL_DAYS = ['Воскресенье','Понедельник','Вторн
 const FULL_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 
 export function CalendarView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
 
@@ -156,7 +157,7 @@ export function CalendarView() {
         )}
 
         {dayEvents.map((ev) => (
-          <div key={ev.id} style={{
+          <div key={ev.id} onClick={() => router.push(`/${ev.type === 'call' ? 'calls' : ev.type === 'meeting' ? 'meetings' : 'tasks'}`)} style={{
             padding: '10px 12px', border: '0.5px solid var(--border)', marginBottom: 8, cursor: 'pointer',
             transition: 'background 0.15s',
           }}
