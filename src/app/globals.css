@@ -1176,6 +1176,12 @@
 .t-scandi .space-y-0::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 /* ContactDetail: activity list scroll — 4 visible events */
 .t-scandi .max-h-\[480px\] { max-height: 280px !important; }
+/* Calls: soften overdue badge — dot + dim text instead of red */
+.t-scandi .text-red.font-semibold,
+.t-scandi span.text-red { color: var(--text-dim) !important; }
+/* Calls ring: softer stroke */
+.t-scandi circle[stroke="var(--accent)"] { stroke: #444 !important; }
+.t-scandi circle[stroke="var(--border)"] { stroke: #e8e8e8 !important; }
 
 /* ═══════════════════════════════════════════════════════
    BASE STYLES

@@ -13,7 +13,8 @@ import { PHASE_CONFIG, phases, getPhaseForStage } from '@/lib/validators/project
 /* ── Цвета ── */
 const LANE_LABELS: Record<string, string> = { now: 'Сейчас', next: 'Следующие', wait: 'Отложено', done: 'Выполнено' };
 const LANE_COLORS: Record<string, string> = { now: 'var(--accent)', next: 'var(--blue)', wait: 'var(--yellow)', done: 'var(--green)' };
-const VIVID_LANE: Record<string, string> = { now: '#000000', next: '#d500f9', wait: '#2979ff', done: '#00c853' };
+const SCANDI_MONO_LANE: Record<string, string> = { done: '#2a2a2a', wait: '#666666', now: '#444444', next: '#999999' };
+const VIVID_LANE: Record<string, string> = { now: '#3b82f6', next: '#8b5cf6', wait: '#f59e0b', done: '#10b981' };
 const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
 const VIVID_PHASE: Record<string, string> = { attract: '#00b874', develop: '#c44cff', negotiate: '#e09030', close: '#0652DD' };
 
@@ -74,22 +75,30 @@ export function TasksDistribution() {
             <path
               key={arc.lane}
               d={arcPath(arc.startAngle - 90, arc.endAngle - 90, outer, inner)}
-              fill={active ? (VIVID_LANE[arc.lane] ?? '#888') : (LANE_COLORS[arc.lane] ?? '#888')}
+              fill={active ? (VIVID_LANE[arc.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[arc.lane] ?? '#888') : (LANE_COLORS[arc.lane] ?? '#888')}
               style={{ transition: 'fill 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}
             />
           ))}
         </svg>
       </div>
       <div className="flex justify-center gap-4 mt-2">
-        {chartData.map((d) => (
-          <div key={d.lane} className="flex items-center gap-1.5 text-[10px]">
-            <span className="w-2 h-2 inline-block" style={{
-              background: active ? (VIVID_LANE[d.lane] ?? '#888') : (LANE_COLORS[d.lane] ?? '#888'),
-              transition: 'background 0.5s ease',
-            }} />
-            <span style={{ color: 'var(--text-dim)' }}>{d.name}</span>
-          </div>
-        ))}
+        {chartData.map((d, i) => {
+          const color = active ? (VIVID_LANE[d.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[d.lane] ?? '#888') : (LANE_COLORS[d.lane] ?? '#888');
+          const shapes = ['filled-sq', 'empty-sq', 'filled-circle', 'half-circle'] as const;
+          const shape = isScandi ? shapes[i % shapes.length] : 'filled-sq';
+          return (
+            <div key={d.lane} className="flex items-center gap-1.5 text-[10px]">
+              <span className="w-2.5 h-2.5 inline-block shrink-0" style={{
+                background: shape === 'filled-sq' || shape === 'filled-circle' ? color : 'transparent',
+                border: shape === 'empty-sq' ? `1.5px solid ${color}` : shape === 'half-circle' ? `1.5px solid ${color}` : 'none',
+                borderRadius: shape.includes('circle') ? '50%' : '1px',
+                backgroundImage: shape === 'half-circle' ? `linear-gradient(90deg, ${color} 50%, transparent 50%)` : undefined,
+                transition: 'background 0.5s ease, border-color 0.5s ease',
+              }} />
+              <span style={{ color: 'var(--text-dim)' }}>{d.name}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -125,7 +134,8 @@ export function PipelineChart() {
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
-            <Bar dataKey="count" name="Проектов" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+            <Bar dataKey="count" name="Проектов" radius={[0, 4, 4, 0]} isAnimationActive={false}
+              activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
               {chartData.map((entry) => (
                 <Cell
                   key={`bar-${entry.phase}-${active}`}
