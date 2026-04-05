@@ -8,6 +8,8 @@ import { TasksDistribution, PipelineChart } from './Charts';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { Watermark } from '@/components/ui/Watermark';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 
 export function AnalyticsPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -18,8 +20,14 @@ export function AnalyticsPage() {
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {!isScandi && <BarChart3 size={18} className="text-accent" />}
-          <h1 className="text-lg font-semibold text-text-main">Аналитика</h1>
+          {isScandi ? (
+            <Watermark text="Аналитика" colors={WATERMARK_GRADIENTS.sunset} size="lg" className="block" />
+          ) : (
+            <>
+              <BarChart3 size={18} className="text-accent" />
+              <h1 className="text-lg font-semibold text-text-main">Аналитика</h1>
+            </>
+          )}
         </div>
         <CTAButton size="sm" onClick={() => setReviewOpen(true)}>
           <TrendingUp size={14} /> Итоги недели
