@@ -81,7 +81,7 @@ export function MeetingsList() {
       )}
 
       {/* Past */}
-      <div>
+      <div data-meetings-past>
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-dim">
           Прошедшие
           <span className="rounded-full bg-green-l px-2 py-0.5 text-xs font-medium text-green">{past.length}</span>
