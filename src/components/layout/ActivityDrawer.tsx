@@ -158,12 +158,21 @@ function PlannedCallsWidget() {
 
 function CalendarWidget() {
   const { selectedDate, setSelectedDate, setPendingAction } = useDrawerStore();
+  const { data: calls = [] } = useCalls();
+  const { data: meetings = [] } = useMeetings();
+  const { data: tasks = [] } = useTasks();
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const todayStr = new Date().toISOString().slice(0, 10);
   const offset = (() => { const d = new Date(month.y, month.m, 1).getDay(); return d === 0 ? 6 : d - 1; })();
   const days = new Date(month.y, month.m + 1, 0).getDate();
   const mNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
   const dNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+  // Build set of dates with events
+  const markedDates = new Set<string>();
+  calls.forEach((c) => { if (c.status === 'pending' && c.date) markedDates.add(c.date.slice(0, 10)); });
+  meetings.forEach((m) => { if (m.date) markedDates.add(m.date.slice(0, 10)); });
+  tasks.forEach((t) => { if (t.lane !== 'done' && t.deadline) markedDates.add(t.deadline.slice(0, 10)); });
 
   const handleDay = (day: number) => {
     const ds = `${month.y}-${String(month.m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -185,6 +194,7 @@ function CalendarWidget() {
           const ds = `${month.y}-${String(month.m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isToday = ds === todayStr;
           const isSel = ds === selectedDate;
+          const hasEv = markedDates.has(ds);
           return (
             <div key={day} onClick={() => handleDay(day)} style={{
               fontSize: 12, padding: '5px 0', cursor: 'pointer',
@@ -192,7 +202,15 @@ function CalendarWidget() {
               color: isSel ? '#fff' : isToday ? 'var(--text)' : 'var(--text-dim)',
               background: isSel ? '#1a1a1a' : 'transparent',
               transition: 'background 0.15s, color 0.15s',
-            }}>{day}</div>
+              position: 'relative', textAlign: 'center',
+            }}>
+              {day}
+              {hasEv && <span style={{
+                position: 'absolute', bottom: 2, right: 2, width: 0, height: 0,
+                borderLeft: '4px solid transparent',
+                borderBottom: `4px solid ${isSel ? '#fff' : '#1a1a1a'}`,
+              }} />}
+            </div>
           );
         })}
       </div>

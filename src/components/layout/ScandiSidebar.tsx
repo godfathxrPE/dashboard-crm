@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/companies', label: 'Компании',   short: 'Км' },
   { href: '/calls',     label: 'Звонки',     short: 'Зв', badgeKey: 'calls' as const },
   { href: '/meetings',  label: 'Встречи',    short: 'Вс' },
+  { href: '/calendar',  label: 'Календарь',  short: 'Кл' },
   { href: '/analytics', label: 'Аналитика',  short: 'Ан' },
   { href: '/settings',  label: 'Настройки',  short: 'На' },
 ] as const;

@@ -17,6 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/companies': 'Компании',
   '/calls': 'Звонки',
   '/meetings': 'Встречи',
+  '/calendar': 'Календарь',
   '/analytics': 'Аналитика',
   '/settings': 'Настройки',
 };

@@ -22,6 +22,7 @@ const MAIN_NAV = [
   { href: '/companies', label: 'Компании',   jpLabel: '企業一覧',       icon: Building2,       badgeKey: null,               sectionColor: '#22C55E' },
   { href: '/calls',     label: 'Звонки',     jpLabel: '通話記録',       icon: Phone,           badgeKey: 'calls' as const,   sectionColor: '#F59E0B' },
   { href: '/meetings',  label: 'Встречи',    jpLabel: '会議予定',       icon: CalendarDays,    badgeKey: null,               sectionColor: '#F43F5E' },
+  { href: '/calendar',  label: 'Календарь',  jpLabel: 'カレンダー',     icon: CalendarDays,    badgeKey: null,               sectionColor: '#6366F1' },
 ] as const;
 
 const UTIL_NAV = [
