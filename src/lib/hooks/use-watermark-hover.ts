@@ -6,7 +6,7 @@ import { useState, useRef, useCallback } from 'react';
  * Hook for delayed watermark color activation on hover.
  * After `delay` ms of hovering, isActive becomes true and letters colorize.
  */
-export function useWatermarkHover(delay: number = 2000) {
+export function useWatermarkHover(delay: number = 1000) {
   const [isActive, setIsActive] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

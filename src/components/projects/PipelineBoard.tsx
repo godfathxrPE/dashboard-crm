@@ -75,7 +75,7 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
   label: string; fmt: string; value: number; color: string;
   wmColors?: readonly string[]; isScandi: boolean;
 }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   if (isScandi && wmColors) {
     return (
       <div className="py-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
@@ -185,7 +185,7 @@ function PhaseColumn({
   const isScandi = themeVal === 't-scandi';
   const wk = isWashi ? WASHI_PHASE_KANJI[phase] : null;
   const sw = isScandi ? SCANDI_PHASE_WM[phase] : null;
-  const { isActive: swActive, onMouseEnter: swEnter, onMouseLeave: swLeave } = useWatermarkHover(2000);
+  const { isActive: swActive, onMouseEnter: swEnter, onMouseLeave: swLeave } = useWatermarkHover(1000);
 
   return (
     <div

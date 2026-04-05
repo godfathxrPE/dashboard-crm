@@ -1117,6 +1117,14 @@
   font-weight: 400;
 }
 
+/* ── Scandi: Search — hide magnifying glass, remove left padding ── */
+.t-scandi .relative.flex-1 > svg.absolute {
+  display: none !important;
+}
+.t-scandi [data-search-input] {
+  padding-left: 0 !important;
+}
+
 /* ── Scandi: Calls — monochrome status, thin cards ── */
 .t-scandi .pill-done,
 .t-scandi .pill-pending,

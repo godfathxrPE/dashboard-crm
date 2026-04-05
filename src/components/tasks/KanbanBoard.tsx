@@ -30,7 +30,7 @@ import type { TaskLane } from '@/types/database';
 
 function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
 
   return (
     <div className="flex items-center justify-between mb-4">

@@ -16,7 +16,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, wmText, wmColors, count, icon, action }: PageHeaderProps) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
 
   if (isScandi) {
     return (

@@ -166,7 +166,7 @@ function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: 
   href: string; value: number; fmt: (n: number) => string;
   label: string; colors: readonly string[]; trend?: number; staggerIdx: number;
 }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
     <a
       href={href}
@@ -423,7 +423,7 @@ function KpiCards() {
 function ScandiWidgetWrap({ children, text, colors, className }: {
   children: React.ReactNode; text: string; colors: readonly string[]; className?: string;
 }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
     <div className={cn('relative', className)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <Watermark text={text} colors={colors} size="xl" isActive={isActive} className="mb-2 block" />

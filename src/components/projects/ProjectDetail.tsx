@@ -69,7 +69,7 @@ const SCANDI_SECTION_WM: Record<string, { colors: readonly string[] }> = {
 };
 
 function ScandiSectionHeader({ title, colors }: { title: string; colors: readonly string[] }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
     <div className="mb-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <Watermark text={title} colors={colors} size="md" isActive={isActive} />

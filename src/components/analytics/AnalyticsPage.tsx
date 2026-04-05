@@ -20,7 +20,7 @@ const SCANDI_ANALYTICS_WM = {
 };
 
 function ScandiChartWrap({ children, wm }: { children: React.ReactNode; wm: { text: string; colors: readonly string[] } }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
     <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <Watermark text={wm.text} colors={wm.colors} size="lg" isActive={isActive} className="mb-2 block" />
