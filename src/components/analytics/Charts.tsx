@@ -62,8 +62,11 @@ export function TasksDistribution() {
       className="rounded-lg bg-surface p-4 elevation-hover"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={hovered && isScandi ? { outline: '1px solid var(--accent)', outlineOffset: -1 } : undefined}
     >
-      <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
+      <h3 className="mb-3 text-xs font-semibold text-text-dim">
+        Задачи по статусу {isScandi && hovered ? '●' : ''}
+      </h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
