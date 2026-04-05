@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -11,15 +11,51 @@ import {
   rectIntersection,
   type DragEndEvent,
   type DragStartEvent,
+  type DragOverEvent,
 } from '@dnd-kit/core';
 import { useTasksByLane, useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
 import { taskLanes } from '@/lib/validators/task';
-import { LaneColumn } from './LaneColumn';
+import { AccordionLane } from './AccordionLane';
 import { TaskModal } from './TaskModal';
+import { staggerClass } from '@/lib/utils/stagger';
 import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
+import { useThemeStore } from '@/lib/stores/theme-store';
+import { Watermark } from '@/components/ui/Watermark';
+import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
+
+function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(2000);
+
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <div onMouseEnter={isScandi ? onMouseEnter : undefined} onMouseLeave={isScandi ? onMouseLeave : undefined}>
+        {isScandi ? (
+          <>
+            <Watermark text="Задачи" colors={WATERMARK_GRADIENTS.sunset} size="lg" isActive={isActive} className="block" />
+            <p className="text-[13px] text-text-mute mt-1">Перетаскивай задачи между секциями</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-semibold text-text-main">Задачи</h1>
+            <p className="text-xs text-text-mute mt-0.5">Перетаскивай задачи между секциями</p>
+          </>
+        )}
+      </div>
+      <button
+        onClick={onAdd}
+        className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+      >
+        <Plus size={16} />
+        Задача
+      </button>
+    </div>
+  );
+}
 
 export function KanbanBoard() {
   const { lanes, isLoading, isError, error } = useTasksByLane();
@@ -29,11 +65,22 @@ export function KanbanBoard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [openLanes, setOpenLanes] = useState<Set<TaskLane>>(new Set(['now']));
+  const dragExpandTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
   );
+
+  const toggleLane = useCallback((lane: TaskLane) => {
+    setOpenLanes((prev) => {
+      const next = new Set(prev);
+      if (next.has(lane)) next.delete(lane);
+      else next.add(lane);
+      return next;
+    });
+  }, []);
 
   const handleEdit = useCallback((task: Task) => {
     setEditTask(task);
@@ -59,9 +106,42 @@ export function KanbanBoard() {
     [lanes],
   );
 
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const overId = event.over?.id as string | undefined;
+      if (!overId) {
+        clearTimeout(dragExpandTimer.current);
+        return;
+      }
+
+      // Check if hovering over a lane droppable
+      const isLane = taskLanes.includes(overId as TaskLane);
+      let targetLane: TaskLane | null = isLane ? (overId as TaskLane) : null;
+
+      // If hovering over a task, find its lane
+      if (!targetLane) {
+        for (const lane of taskLanes) {
+          if (lanes[lane].some((t) => t.id === overId)) {
+            targetLane = lane;
+            break;
+          }
+        }
+      }
+
+      if (targetLane && !openLanes.has(targetLane)) {
+        clearTimeout(dragExpandTimer.current);
+        dragExpandTimer.current = setTimeout(() => {
+          setOpenLanes((prev) => new Set([...prev, targetLane]));
+        }, 500);
+      }
+    },
+    [lanes, openLanes],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveTask(null);
+      clearTimeout(dragExpandTimer.current);
       const { active, over } = event;
       if (!over) return;
 
@@ -113,47 +193,36 @@ export function KanbanBoard() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-semibold text-text-main">Задачи</h1>
-          <p className="text-xs text-text-mute mt-0.5">
-            Перетаскивай карточки между колонками
-          </p>
-        </div>
-        <button
-          onClick={() => { setEditTask(null); setModalOpen(true); }}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-        >
-          <Plus size={16} />
-          Задача
-        </button>
-      </div>
+      <TasksPageHeader onAdd={() => { setEditTask(null); setModalOpen(true); }} />
 
       <div className="flex gap-6">
-        {/* Main kanban */}
+        {/* Accordion kanban */}
         <div className="flex-1 min-w-0">
           <DndContext
             sensors={sensors}
             collisionDetection={rectIntersection}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <div className="rounded-lg bg-surface shadow-card overflow-hidden
-                        grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {taskLanes.map((lane) => (
-                <LaneColumn
-                  key={lane}
-                  lane={lane}
-                  tasks={lanes[lane]}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
+            <div className="flex flex-col gap-2">
+              {taskLanes.map((lane, i) => (
+                <div key={lane} className={staggerClass(i)}>
+                  <AccordionLane
+                    lane={lane}
+                    tasks={lanes[lane]}
+                    isOpen={openLanes.has(lane)}
+                    onToggle={() => toggleLane(lane)}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))}
             </div>
 
             <DragOverlay>
               {activeTask ? (
-                <div className="rounded-lg border border-accent/50 bg-surface p-3 shadow-lg opacity-90 rotate-2 max-w-[280px]">
+                <div className="rounded-lg border border-accent/50 bg-surface p-3 elevation-3 opacity-90 rotate-2 max-w-[280px]">
                   <p className="text-sm text-text-main">{activeTask.text}</p>
                 </div>
               ) : null}

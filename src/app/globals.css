@@ -799,7 +799,7 @@
   --elevation-1: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
   --elevation-2: 0 2px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
   --elevation-3: 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.12);
-  --backdrop-color: rgba(0,0,0,0.3);
+  --backdrop-color: rgba(0,0,0,0.45);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.16,1,0.3,1);
   --duration-fast: 0.12s;  --duration-normal: 0.2s;
   --track-prep-done: rgba(0,0,0,0.06); --track-prep-current: rgba(0,0,0,0.7);
@@ -829,7 +829,7 @@
     --elevation-1: 0 1px 3px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2);
     --elevation-2: 0 2px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.3);
     --elevation-3: 0 4px 16px rgba(0,0,0,0.2), 0 16px 48px rgba(0,0,0,0.4);
-    --backdrop-color: rgba(0,0,0,0.5);
+    --backdrop-color: rgba(0,0,0,0.6);
   }
 }
 
@@ -911,18 +911,19 @@
 .t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
 .t-scandi button.bg-accent:hover,
 .t-scandi a.bg-accent:hover {
-  color: #fff !important;
+  color: #ffffff !important;
   opacity: 1 !important;
   filter: none;
 }
 .t-scandi button.bg-accent > *,
-.t-scandi a.bg-accent > *,
-.t-scandi button.bg-accent svg,
-.t-scandi a.bg-accent svg { position: relative; z-index: 2; }
-.t-scandi button.bg-accent:hover > *,
-.t-scandi a.bg-accent:hover > *,
-.t-scandi button.bg-accent:hover svg,
-.t-scandi a.bg-accent:hover svg { color: #fff !important; }
+.t-scandi a.bg-accent > * { position: relative; z-index: 2; }
+.t-scandi button.bg-accent:hover,
+.t-scandi button.bg-accent:hover *,
+.t-scandi a.bg-accent:hover,
+.t-scandi a.bg-accent:hover * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
 
 /* ── Scandi: Chip filters — square, thin border ── */
 .t-scandi [class*="chip"],
@@ -1064,13 +1065,13 @@
 /* ── Scandi: Modal elevation + backdrop ── */
 .t-scandi .fixed.inset-0.z-50 {
   background-color: var(--backdrop-color) !important;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .t-scandi .fixed.inset-0.z-50 > [role="dialog"],
 .t-scandi .fixed.inset-0.z-50 > div:not([role]) {
   box-shadow: var(--elevation-2);
-  border: 0.5px solid var(--border) !important;
+  border: 0.5px solid var(--border2) !important;
 }
 /* Dropdown / popover elevation */
 .t-scandi .absolute.right-0.top-full,
