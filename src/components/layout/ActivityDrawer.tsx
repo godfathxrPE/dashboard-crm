@@ -34,7 +34,7 @@ export function ActivityDrawer() {
         top: 0,
         overflowY: 'auto',
         background: 'var(--bg)',
-        zIndex: 20,
+        zIndex: 10,
         scrollbarWidth: 'thin',
         scrollbarColor: 'var(--border) transparent',
       }}
@@ -143,6 +143,7 @@ function PlannedCallsWidget() {
             </span>
             <span style={{ color: 'var(--text-mute)', fontSize: 11 }}>
               {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+              {' '}{new Date(c.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         ))
@@ -156,7 +157,7 @@ function PlannedCallsWidget() {
 // ═══════════════════════════════════════════════════════
 
 function CalendarWidget() {
-  const { selectedDate, setSelectedDate } = useDrawerStore();
+  const { selectedDate, setSelectedDate, setPendingAction } = useDrawerStore();
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const todayStr = new Date().toISOString().slice(0, 10);
   const offset = (() => { const d = new Date(month.y, month.m, 1).getDay(); return d === 0 ? 6 : d - 1; })();
@@ -197,8 +198,12 @@ function CalendarWidget() {
       </div>
       {/* Quick actions */}
       <div style={{ display: 'flex', gap: 6, marginTop: 10, opacity: selectedDate ? 1 : 0.3, pointerEvents: selectedDate ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
-        {[{ icon: <Phone size={13} />, label: 'Звонок' }, { icon: <Calendar size={13} />, label: 'Встреча' }, { icon: <CheckSquare size={13} />, label: 'Задача' }].map((a) => (
-          <button key={a.label} style={{
+        {([
+          { icon: <Phone size={13} />, label: 'Звонок', type: 'call' as const },
+          { icon: <Calendar size={13} />, label: 'Встреча', type: 'meeting' as const },
+          { icon: <CheckSquare size={13} />, label: 'Задача', type: 'task' as const },
+        ]).map((a) => (
+          <button key={a.label} onClick={() => selectedDate && setPendingAction({ type: a.type, date: selectedDate })} style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
             padding: '6px 0', fontSize: 11, fontWeight: 500, color: 'var(--text-dim)',
             background: 'transparent', border: '0.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit',
