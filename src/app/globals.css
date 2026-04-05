@@ -1176,6 +1176,20 @@
 .t-scandi .space-y-0::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 /* ContactDetail: activity list scroll — 4 visible events */
 .t-scandi .max-h-\[480px\] { max-height: 280px !important; }
+/* Kanban: empty column — dashed placeholder */
+.t-scandi .flex.h-20.items-center.justify-center {
+  border: 1.5px dashed var(--border2);
+  min-height: 80px;
+  margin: 4px;
+}
+/* Kanban: card hover — subtle lift */
+.t-scandi .glass-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+/* Kanban: hide corner notch in scandi */
+.t-scandi .glass-card .absolute.top-0.right-0 { display: none; }
 /* Calls: soften overdue badge — dot + dim text instead of red */
 .t-scandi .text-red.font-semibold,
 .t-scandi span.text-red { color: var(--text-dim) !important; }

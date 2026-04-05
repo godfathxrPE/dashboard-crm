@@ -2,18 +2,19 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, ArrowRight } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { STAGE_CONFIG, formatBudget, getNextStage } from '@/lib/validators/project';
+import { useThemeStore } from '@/lib/stores/theme-store';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
 
-// Phase colors for notch, glow, progress bar
+// Phase colors for notch, glow, progress bar — uses track palette
 const PHASE_COLOR: Record<string, string> = {
-  attract: 'var(--blue)',
-  develop: 'var(--accent)',
-  negotiate: 'var(--yellow)',
-  close: 'var(--green)',
+  attract: 'var(--track-prep-current)',
+  develop: 'var(--track-exp-current)',
+  negotiate: 'var(--track-nego-current, var(--track-exp-current))',
+  close: 'var(--track-proj-current)',
 };
 
 const TOTAL_ACTIVE = 12;
@@ -78,11 +79,14 @@ export function ProjectCard({
     transition,
   };
 
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const stageConfig = STAGE_CONFIG[project.stage];
   const nextStage = getNextStage(project.stage);
   const phaseColor = PHASE_COLOR[stageConfig.phase] ?? 'var(--accent)';
   const progress = Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE) * 100);
   const health = calculateDealHealth(project);
+  // Scandi: visual weight based on progress
+  const scandiWeight = progress >= 70 ? 3 : progress >= 40 ? 2 : 1;
 
   return (
     <div
@@ -90,12 +94,13 @@ export function ProjectCard({
       style={{
         ...style,
         '--phase-color': phaseColor,
+        borderLeft: isScandi ? `${scandiWeight}px solid var(--text)` : undefined,
       } as React.CSSProperties}
       className={`
         group relative overflow-hidden rounded-md bg-surface p-3 glass-card
-        shadow-card transition-all duration-fast
-        hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--phase-color)_20%,transparent),0_4px_12px_color-mix(in_srgb,var(--phase-color)_8%,transparent)]
-        ${isDragging ? 'opacity-50 shadow-lg rotate-1' : ''}
+        elevation-hover
+        hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--phase-color)_20%,transparent),var(--elevation-2)]
+        ${isDragging ? 'opacity-50 elevation-2 rotate-1' : ''}
       `}
     >
       {/* Corner notch */}
@@ -141,8 +146,8 @@ export function ProjectCard({
         {/* Name */}
         <button
           onClick={() => onOpen(project.id)}
-          className="mb-1.5 block text-left text-sm font-medium text-text-main
-                     transition-colors hover:text-accent"
+          className="mb-1.5 block text-left text-sm text-text-main transition-colors hover:text-accent"
+          style={{ fontWeight: isScandi ? (scandiWeight >= 3 ? 600 : scandiWeight >= 2 ? 500 : 400) : 500 }}
         >
           {project.name}
         </button>
@@ -164,9 +169,14 @@ export function ProjectCard({
         )}
 
         {/* Budget */}
-        {project.budget != null && project.budget > 0 && (
+        {project.budget != null && project.budget > 0 ? (
           <div className="mt-1 text-sm font-medium text-text-main tabular-nums">
             {formatBudget(project.budget)}
+          </div>
+        ) : (
+          <div className="mt-1 flex items-center gap-1 text-yellow" title="Бюджет не указан">
+            <AlertTriangle size={11} />
+            <span className="text-[10px]">Бюджет</span>
           </div>
         )}
 
@@ -217,12 +227,14 @@ export function ProjectCard({
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={() => onEdit(project)}
+              aria-label="Редактировать"
               className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
             >
               <Pencil size={12} />
             </button>
             <button
               onClick={() => onDelete(project.id)}
+              aria-label="Удалить"
               className="rounded p-1 text-text-mute transition-colors hover:bg-red/10 hover:text-red"
             >
               <Trash2 size={12} />
