@@ -96,6 +96,9 @@ export function ScandiContentHeader() {
           </kbd>
         </button>
 
+        {/* Drawer toggle */}
+        <DrawerToggle />
+
         {/* Theme */}
         <div className="relative" ref={menuRef}>
           <button
@@ -125,9 +128,6 @@ export function ScandiContentHeader() {
             </div>
           )}
         </div>
-
-        {/* Drawer toggle */}
-        <DrawerToggle />
 
         {/* Sign out */}
         <button

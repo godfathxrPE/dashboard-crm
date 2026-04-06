@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare } from 'lucide-
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
+import { useThemeStore } from '@/lib/stores/theme-store';
+import { Watermark } from '@/components/ui/WatermarkNew';
 
 interface CalEvent {
   id: string;
@@ -93,7 +95,11 @@ export function CalendarView() {
   };
   const typeLabel = (type: string) => type === 'call' ? 'Звонок' : type === 'meeting' ? 'Встреча' : 'Задача';
 
+  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+
   return (
+    <div>
+      {isScandi && <Watermark text="КАЛЕНДАРЬ" size="section" />}
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
       {/* Grid */}
       <div>
@@ -176,6 +182,7 @@ export function CalendarView() {
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 }
