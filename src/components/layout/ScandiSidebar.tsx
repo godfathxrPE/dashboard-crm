@@ -117,7 +117,10 @@ export function ScandiSidebar() {
                   {badge > 0 && <span className="text-[10px] text-text-mute">{badge}</span>}
                 </>
               ) : (
-                <span className="text-[11px] font-medium">{item.short}</span>
+                <span
+                  className="text-[9px] tracking-wider lowercase"
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+                >{item.label}</span>
               )}
             </Link>
           );
