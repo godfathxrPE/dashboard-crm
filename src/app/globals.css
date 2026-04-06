@@ -1805,3 +1805,83 @@ header {
   }
 }
 
+/* === Watermark animation === */
+.watermark {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  background-image: linear-gradient(90deg, #C8CED2, #C8CED2);
+  background-size: 100% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.watermark-page {
+  font-size: 52px;
+  line-height: 0.9;
+  margin-bottom: 24px;
+}
+
+.watermark-section {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+
+.watermark.animate {
+  animation: wm-colorize 2.2s cubic-bezier(0.4, 0, 0.2, 1) 1s forwards;
+}
+
+.watermark.alive {
+  background-size: 200% 100%;
+  background-image: linear-gradient(90deg,
+    #2D3E4A 0%, #4A6275 12%,
+    #2D3E4A 25%, #3A5565 37%,
+    #4A6275 50%, #2D3E4A 62%,
+    #3A5565 75%, #4A6275 87%,
+    #2D3E4A 100%);
+  animation: wm-drift 8s linear infinite;
+}
+
+@keyframes wm-colorize {
+  0%   { background-image: linear-gradient(90deg, #C8CED2, #C8CED2); background-size: 100% 100%; }
+  35%  { background-image: linear-gradient(90deg, #7A95A5, #8AA5B5, #7A95A5); background-size: 100% 100%; }
+  75%  { background-image: linear-gradient(90deg, #3A5565, #4A6275, #3A5565, #4A6275); background-size: 150% 100%; }
+  100% { background-image: linear-gradient(90deg, #2D3E4A, #4A6275, #2D3E4A, #3A5565, #4A6275, #2D3E4A); background-size: 200% 100%; }
+}
+
+@keyframes wm-drift {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* === Bracket corners === */
+.bracket {
+  position: relative;
+}
+
+.bracket::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-left: 1px solid #DDD5E2;
+  border-top: 1px solid #DDD5E2;
+  pointer-events: none;
+}
+
+.bracket::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid #DDD5E2;
+  border-bottom: 1px solid #DDD5E2;
+  pointer-events: none;
+}
+
