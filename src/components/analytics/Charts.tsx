@@ -13,10 +13,10 @@ import { PHASE_CONFIG, phases, getPhaseForStage } from '@/lib/validators/project
 /* ── Цвета ── */
 const LANE_LABELS: Record<string, string> = { now: 'Сейчас', next: 'Следующие', wait: 'Отложено', done: 'Выполнено' };
 const LANE_COLORS: Record<string, string> = { now: 'var(--accent)', next: 'var(--blue)', wait: 'var(--yellow)', done: 'var(--green)' };
-const SCANDI_MONO_LANE: Record<string, string> = { done: '#2a2a2a', wait: '#666666', now: '#444444', next: '#999999' };
-const VIVID_LANE: Record<string, string> = { now: '#3b82f6', next: '#8b5cf6', wait: '#f59e0b', done: '#10b981' };
+const SCANDI_MONO_LANE: Record<string, string> = { done: '#3E6B58', wait: '#6D5D7B', now: '#5B5EA6', next: '#3D6B7E' };
+const VIVID_LANE: Record<string, string> = { now: '#5B5EA6', next: '#3D6B7E', wait: '#6D5D7B', done: '#3E6B58' };
 const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
-const VIVID_PHASE: Record<string, string> = { attract: '#00b874', develop: '#c44cff', negotiate: '#e09030', close: '#0652DD' };
+const VIVID_PHASE: Record<string, string> = { attract: '#3D6B7E', develop: '#4A5E8A', negotiate: '#5B5EA6', close: '#6D5D7B' };
 
 const TT: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', fontSize: 11 };
 const TT_L: React.CSSProperties = { color: 'var(--text)' };

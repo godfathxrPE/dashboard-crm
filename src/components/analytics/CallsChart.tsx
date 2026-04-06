@@ -64,8 +64,8 @@ export function CallsChart() {
               itemStyle={{ color: 'var(--text-dim)' }}
               cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
             />
-            <Bar dataKey="done" name="Выполнено" fill={isScandi && hovered ? '#0652DD' : 'var(--green)'} radius={[3, 3, 0, 0]} />
-            <Bar dataKey="pending" name="Запланировано" fill={isScandi && hovered ? '#36d1dc' : 'var(--blue)'} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="done" name="Выполнено" fill={isScandi ? '#4A5E8A' : 'var(--green)'} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="pending" name="Запланировано" fill={isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

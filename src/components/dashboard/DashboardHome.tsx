@@ -418,7 +418,7 @@ function KpiCards() {
 // Pipeline Funnel Chart (horizontal bars)
 // ═══════════════════════════════════════════════════════
 
-const VIVID_FUNNEL = ['#00dc82', '#36d1dc', '#c44cff', '#9b59b6', '#0652DD', '#1dd1a1'];
+const VIVID_FUNNEL = ['#3D6B7E', '#4A5E8A', '#5B5EA6', '#6D5D7B', '#3E6B58', '#2D5043'];
 
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
@@ -598,9 +598,9 @@ function CallsRecentChart() {
             itemStyle={{ color: 'var(--text-dim)' }}
             cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
           />
-          <Bar dataKey="done" stackId="calls" fill={isScandi && callsHovered ? '#0652DD' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="pending" stackId="calls" fill={isScandi && callsHovered ? '#36d1dc' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
-          <Bar dataKey="cancelled" stackId="calls" fill={isScandi && callsHovered ? '#c44cff' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="done" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="pending" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
+          <Bar dataKey="cancelled" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
