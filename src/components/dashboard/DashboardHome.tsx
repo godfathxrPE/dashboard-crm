@@ -18,7 +18,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/Watermark';
+import { Watermark as OldWatermark } from '@/components/ui/Watermark';
+import { Watermark as NewWatermark } from '@/components/ui/WatermarkNew';
 import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import {
@@ -141,7 +142,7 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
 
 const SCANDI_KPI_META: Record<string, { label: string; colors: readonly string[] }> = {
   'Активные проекты':  { label: 'Проекты',  colors: ['#00dc82', '#36d1dc', '#9b59b6'] },
-  'Сумма pipeline':    { label: 'Pipeline',  colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393', '#fd79a8'] },
+  'Сумма pipeline':    { label: 'Пайплайн',  colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393', '#fd79a8'] },
   'Задачи на сегодня': { label: 'Задачи',    colors: ['#ff9a56', '#ff6b81', '#c44cff'] },
   'Звонки за неделю':  { label: 'Звонки',    colors: ['#0652DD', '#1dd1a1', '#00d2d3'] },
 };
@@ -175,7 +176,7 @@ function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: 
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <Watermark text={label} colors={colors} size="sm" isActive={isActive} className="mb-1 block" />
+      <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{label}</span>
       <AnimatedNumber value={value} formatFn={fmt} className="text-[24px] font-medium leading-none block text-text-main" />
       {trend != null && trend !== 0 && (
         <div className="mt-1"><TrendBadge delta={trend} /></div>
@@ -790,7 +791,7 @@ function RecentActivityList() {
 
   return (
     <div className={cn('relative overflow-hidden rounded-xl p-4', !isScandi && 'bg-surface elevation-hover')}>
-      {isScandi ? null : isFuji ? <FujiWatermark text="ACTIVITY" /> : (
+      {isScandi ? null : isFuji ? <FujiWatermark text="АКТИВНОСТЬ" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Clock size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-dim">Последние действия</span>
@@ -874,6 +875,9 @@ export function DashboardHome() {
 
   return (
     <div className="space-y-4">
+      {/* Page watermark (scandi only) */}
+      {isScandi && <NewWatermark text="ДАШБОРД" size="page" />}
+
       {/* Row 1: KPI cards */}
       <KpiCards />
 
@@ -881,16 +885,18 @@ export function DashboardHome() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="animate-appear stagger-6">
           {isScandi ? (
-            <ScandiWidgetWrap text="Воронка" colors={WATERMARK_GRADIENTS.aurora}>
+            <div>
+              <NewWatermark text="ВОРОНКА" size="section" delay={0.3} />
               {funnelWidget}
-            </ScandiWidgetWrap>
+            </div>
           ) : funnelWidget}
         </div>
         <div className="animate-appear stagger-7">
           {isScandi ? (
-            <ScandiWidgetWrap text="Звонки" colors={WATERMARK_GRADIENTS.tidal}>
+            <div>
+              <NewWatermark text="ЗВОНКИ" size="section" delay={0.6} />
               {callsWidget}
-            </ScandiWidgetWrap>
+            </div>
           ) : callsWidget}
         </div>
       </div>
@@ -898,14 +904,16 @@ export function DashboardHome() {
       {/* Row 3: Lists */}
       <div className="grid gap-4 md:grid-cols-2">
         {isScandi ? (
-          <ScandiWidgetWrap text="Дедлайны" colors={WATERMARK_GRADIENTS.frost}>
+          <div>
+            <NewWatermark text="ДЕДЛАЙНЫ" size="section" delay={0.9} />
             {deadlinesWidget}
-          </ScandiWidgetWrap>
+          </div>
         ) : deadlinesWidget}
         {isScandi ? (
-          <ScandiWidgetWrap text="Activity" colors={WATERMARK_GRADIENTS.oilSlick}>
+          <div>
+            <NewWatermark text="АКТИВНОСТЬ" size="section" delay={1.2} />
             {activityWidget}
-          </ScandiWidgetWrap>
+          </div>
         ) : activityWidget}
       </div>
     </div>
