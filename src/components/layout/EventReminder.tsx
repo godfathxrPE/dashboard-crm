@@ -83,7 +83,11 @@ export function EventReminder() {
       });
     }
 
-    setReminders(upcoming);
+    setReminders(prev => {
+      if (prev.length === upcoming.length &&
+          JSON.stringify(prev) === JSON.stringify(upcoming)) return prev;
+      return upcoming;
+    });
   }, [calls, meetings, tasks]);
 
   useEffect(() => {
