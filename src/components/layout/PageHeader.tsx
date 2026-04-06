@@ -2,8 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/Watermark';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { Watermark } from '@/components/ui/WatermarkNew';
 
 interface PageHeaderProps {
   title: string;
@@ -16,13 +15,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, wmText, wmColors, count, icon, action }: PageHeaderProps) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
-
   if (isScandi) {
     return (
       <div className="mb-4 flex items-center justify-between">
-        <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-          <Watermark text={wmText} colors={wmColors} size="lg" isActive={isActive} className="block" />
+        <div>
+          <Watermark text={wmText} size="section" />
           {count != null && (
             <span className="text-[11px] text-text-mute mt-1 block">{count}</span>
           )}

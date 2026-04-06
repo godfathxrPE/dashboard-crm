@@ -8,8 +8,7 @@ import { TasksDistribution, PipelineChart } from './Charts';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/Watermark';
-import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
+import { Watermark } from '@/components/ui/WatermarkNew';
 
 export function AnalyticsPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -21,7 +20,7 @@ export function AnalyticsPage() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isScandi ? (
-            <Watermark text="Аналитика" colors={WATERMARK_GRADIENTS.sunset} size="lg" className="block" />
+            <Watermark text="АНАЛИТИКА" size="section" />
           ) : (
             <>
               <BarChart3 size={18} className="text-accent" />

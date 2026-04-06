@@ -18,11 +18,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark as OldWatermark } from '@/components/ui/Watermark';
 import { Watermark as NewWatermark } from '@/components/ui/WatermarkNew';
 import { Bracket } from '@/components/ui/Bracket';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
-import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import {
   BarChart,
   Bar,
@@ -168,14 +165,11 @@ function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: 
   href: string; value: number; fmt: (n: number) => string;
   label: string; colors: readonly string[]; trend?: number; staggerIdx: number;
 }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
     <a
       href={href}
       data-kpi
       className={`group relative block py-4 ${staggerClass(staggerIdx)}`}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
       <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{label}</span>
       <AnimatedNumber value={value} formatFn={fmt} className="text-[24px] font-medium leading-none block text-text-main" />
@@ -423,18 +417,6 @@ function KpiCards() {
 // ═══════════════════════════════════════════════════════
 // Pipeline Funnel Chart (horizontal bars)
 // ═══════════════════════════════════════════════════════
-
-function ScandiWidgetWrap({ children, text, colors, className }: {
-  children: React.ReactNode; text: string; colors: readonly string[]; className?: string;
-}) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
-  return (
-    <div className={cn('relative', className)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <Watermark text={text} colors={colors} size="xl" isActive={isActive} className="mb-2 block" />
-      {children}
-    </div>
-  );
-}
 
 const VIVID_FUNNEL = ['#00dc82', '#36d1dc', '#c44cff', '#9b59b6', '#0652DD', '#1dd1a1'];
 

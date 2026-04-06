@@ -48,9 +48,7 @@ import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
-import { Watermark } from '@/components/ui/Watermark';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
-import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
+import { Watermark } from '@/components/ui/WatermarkNew';
 
 // Phase tint colors for column backgrounds (inline style, works with all themes)
 const PHASE_TINT_COLOR: Record<Phase, string> = {
@@ -75,11 +73,10 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
   label: string; fmt: string; value: number; color: string;
   wmColors?: readonly string[]; isScandi: boolean;
 }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   if (isScandi && wmColors) {
     return (
-      <div className="py-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-        <Watermark text={label} colors={wmColors} size="sm" isActive={isActive} className="mb-1 block" />
+      <div className="py-3">
+        <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{label}</span>
         <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
           {fmt}
         </div>
@@ -185,13 +182,9 @@ function PhaseColumn({
   const isScandi = themeVal === 't-scandi';
   const wk = isWashi ? WASHI_PHASE_KANJI[phase] : null;
   const sw = isScandi ? SCANDI_PHASE_WM[phase] : null;
-  const { isActive: swActive, onMouseEnter: swEnter, onMouseLeave: swLeave } = useWatermarkHover(1000);
-
   return (
     <div
       ref={setNodeRef}
-      onMouseEnter={sw ? swEnter : undefined}
-      onMouseLeave={sw ? swLeave : undefined}
       className={`
         relative flex min-h-[200px] flex-1 flex-col transition-colors overflow-hidden
         ${!isLast ? 'border-r border-border/50' : ''}
@@ -424,7 +417,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isScandi ? (
-            <Watermark text="Проекты" colors={WATERMARK_GRADIENTS.iridescent} size="lg" className="block" />
+            <Watermark text="ПРОЕКТЫ" size="section" />
           ) : (
             <>
               <FolderKanban size={18} className="text-accent" />

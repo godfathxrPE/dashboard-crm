@@ -22,22 +22,18 @@ import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
-import { Watermark } from '@/components/ui/Watermark';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
-import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
+import { Watermark } from '@/components/ui/WatermarkNew';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
 
 function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
-
   return (
     <div className="flex items-center justify-between mb-4">
-      <div onMouseEnter={isScandi ? onMouseEnter : undefined} onMouseLeave={isScandi ? onMouseLeave : undefined}>
+      <div>
         {isScandi ? (
           <>
-            <Watermark text="Задачи" colors={WATERMARK_GRADIENTS.sunset} size="lg" isActive={isActive} className="block" />
+            <Watermark text="ЗАДАЧИ" size="section" />
             <p className="text-[13px] text-text-mute mt-1">Перетаскивай задачи между секциями</p>
           </>
         ) : (

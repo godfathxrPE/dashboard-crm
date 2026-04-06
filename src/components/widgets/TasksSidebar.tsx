@@ -9,8 +9,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { CallModal } from '@/components/calls/CallModal';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/Watermark';
-import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
+import { Watermark } from '@/components/ui/WatermarkNew';
 import type { Call } from '@/lib/hooks/use-calls';
 
 const SCANDI_SIDEBAR_WM = {
@@ -268,10 +267,9 @@ function MiniKpi() {
 // ═══════════════════════════════════════════════════════
 
 function ScandiWidgetWrap({ children, wm }: { children: React.ReactNode; wm: { text: string; colors: readonly string[] } }) {
-  const { isActive, onMouseEnter, onMouseLeave } = useWatermarkHover(1000);
   return (
-    <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-      <Watermark text={wm.text} colors={wm.colors} size="sm" isActive={isActive} className="mb-1 block" />
+    <div>
+      <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{wm.text}</span>
       {children}
     </div>
   );

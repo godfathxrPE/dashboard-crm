@@ -34,6 +34,13 @@ const config: Config = {
         'yellow-l': 'var(--yellow-l)',
         purple: 'var(--purple)',
         'purple-l': 'var(--purple-l)',
+        chart: {
+          fjord: '#5B5EA6',
+          granit: '#6D5D7B',
+          skog: '#3E6B58',
+          is: '#3D6B7E',
+          stal: '#4A5E8A',
+        },
       },
       borderRadius: {
         DEFAULT: 'var(--radius)',
