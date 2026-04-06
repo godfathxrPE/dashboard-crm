@@ -20,6 +20,7 @@ import {
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { Watermark as OldWatermark } from '@/components/ui/Watermark';
 import { Watermark as NewWatermark } from '@/components/ui/WatermarkNew';
+import { Bracket } from '@/components/ui/Bracket';
 import { useWatermarkHover } from '@/lib/hooks/use-watermark-hover';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import {
@@ -292,7 +293,7 @@ function KpiCards() {
   const visibleCards = (isFuji || isScandi) ? cards.filter((c) => c.label !== 'Конверсия') : cards;
   const gridCols = (isFuji || isScandi) ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
 
-  return (
+  const kpiGrid = (
     <div className={`grid ${gridCols}`}>
       {visibleCards.map((c, i) => {
         const isEmpty = c.num === 0;
@@ -415,6 +416,8 @@ function KpiCards() {
       })}
     </div>
   );
+
+  return isScandi ? <Bracket>{kpiGrid}</Bracket> : kpiGrid;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -468,7 +471,7 @@ function PipelineFunnelChart() {
 
   return (
     <div
-      className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
+      className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
       onMouseEnter={() => setChartHovered(true)}
       onMouseLeave={() => setChartHovered(false)}
     >
@@ -590,7 +593,7 @@ function CallsRecentChart() {
 
   return (
     <div
-      className={cn('relative overflow-hidden rounded-lg p-4', !isScandi && 'bg-surface elevation-hover')}
+      className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
       onMouseEnter={() => setCallsHovered(true)}
       onMouseLeave={() => setCallsHovered(false)}
     >
@@ -652,7 +655,7 @@ function UpcomingDeadlines() {
   }
 
   return (
-    <div className={cn('relative overflow-hidden rounded-xl p-4', !isScandi && 'bg-surface elevation-hover')}>
+    <div className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-xl bg-surface elevation-hover')}>
       {isScandi ? null : isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Calendar size={14} className="text-yellow" />
@@ -790,7 +793,7 @@ function RecentActivityList() {
   }
 
   return (
-    <div className={cn('relative overflow-hidden rounded-xl p-4', !isScandi && 'bg-surface elevation-hover')}>
+    <div className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-xl bg-surface elevation-hover')}>
       {isScandi ? null : isFuji ? <FujiWatermark text="АКТИВНОСТЬ" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Clock size={14} className="text-text-dim" />
@@ -885,18 +888,18 @@ export function DashboardHome() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="animate-appear stagger-6">
           {isScandi ? (
-            <div>
+            <Bracket>
               <NewWatermark text="ВОРОНКА" size="section" delay={0.3} />
               {funnelWidget}
-            </div>
+            </Bracket>
           ) : funnelWidget}
         </div>
         <div className="animate-appear stagger-7">
           {isScandi ? (
-            <div>
+            <Bracket>
               <NewWatermark text="ЗВОНКИ" size="section" delay={0.6} />
               {callsWidget}
-            </div>
+            </Bracket>
           ) : callsWidget}
         </div>
       </div>
@@ -904,16 +907,16 @@ export function DashboardHome() {
       {/* Row 3: Lists */}
       <div className="grid gap-4 md:grid-cols-2">
         {isScandi ? (
-          <div>
+          <Bracket>
             <NewWatermark text="ДЕДЛАЙНЫ" size="section" delay={0.9} />
             {deadlinesWidget}
-          </div>
+          </Bracket>
         ) : deadlinesWidget}
         {isScandi ? (
-          <div>
+          <Bracket>
             <NewWatermark text="АКТИВНОСТЬ" size="section" delay={1.2} />
             {activityWidget}
-          </div>
+          </Bracket>
         ) : activityWidget}
       </div>
     </div>
