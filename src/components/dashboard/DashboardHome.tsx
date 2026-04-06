@@ -295,19 +295,20 @@ function KpiCards() {
         const fm = isFuji ? FUJI_KPI_META[c.label] : null;
         const sm = isScandi ? SCANDI_KPI_META[c.label] : null;
 
-        // Scandi: minimal card with watermark label
+        // Scandi: minimal card with watermark label + individual Bracket
         if (sm) {
           return (
-            <ScandiStatCard
-              key={c.label}
-              href={c.href}
-              value={c.num}
-              fmt={c.fmt}
-              label={sm.label}
-              colors={sm.colors}
-              trend={'trend' in c ? (c.trend as number | undefined) : undefined}
-              staggerIdx={i}
-            />
+            <Bracket key={c.label}>
+              <ScandiStatCard
+                href={c.href}
+                value={c.num}
+                fmt={c.fmt}
+                label={sm.label}
+                colors={sm.colors}
+                trend={'trend' in c ? (c.trend as number | undefined) : undefined}
+                staggerIdx={i}
+              />
+            </Bracket>
           );
         }
 
@@ -411,7 +412,7 @@ function KpiCards() {
     </div>
   );
 
-  return isScandi ? <Bracket>{kpiGrid}</Bracket> : kpiGrid;
+  return kpiGrid;
 }
 
 // ═══════════════════════════════════════════════════════

@@ -9,6 +9,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
+import { Bracket } from '@/components/ui/Bracket';
 
 // ═══════════════════════════════════════════════════════
 // Main Drawer
@@ -45,12 +46,12 @@ export function ActivityDrawer() {
         transition: 'opacity 0.2s',
         minWidth: 280,
       }}>
-        <TimeWidget />
-        <FocusWidget />
-        <PlannedCallsWidget />
-        <CalendarWidget />
-        <StatsWidget />
-        <ActivityWidget />
+        <Bracket className="mb-4"><TimeWidget /></Bracket>
+        <Bracket className="mb-4"><FocusWidget /></Bracket>
+        <Bracket className="mb-4"><PlannedCallsWidget /></Bracket>
+        <Bracket className="mb-4"><CalendarWidget /></Bracket>
+        <Bracket className="mb-4"><StatsWidget /></Bracket>
+        <Bracket className="mb-4"><ActivityWidget /></Bracket>
       </div>
     </aside>
   );
