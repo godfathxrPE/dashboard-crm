@@ -84,7 +84,7 @@ export function AccordionLane({
         )}
       >
         <div className="overflow-hidden">
-          <div className="border-t border-border px-3 py-2">
+          <div className="px-3 py-2">
             <SortableContext
               items={tasks.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
@@ -107,7 +107,7 @@ export function AccordionLane({
             </SortableContext>
 
             {lane !== 'done' && (
-              <div className="mt-1 pt-1 border-t border-border/40">
+              <div className="mt-1 pt-1">
                 <TaskQuickAdd lane={lane} />
               </div>
             )}

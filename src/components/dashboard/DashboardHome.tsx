@@ -862,7 +862,7 @@ export function DashboardHome() {
   return (
     <div className="space-y-4">
       {/* Page watermark (scandi only) */}
-      {isScandi && <NewWatermark text="ДАШБОРД" size="page" />}
+      {isScandi && <NewWatermark text="ДАШБОРД" size="section" />}
 
       {/* Row 1: KPI cards */}
       <KpiCards />
@@ -872,7 +872,7 @@ export function DashboardHome() {
         <div className="animate-appear stagger-6">
           {isScandi ? (
             <Bracket>
-              <NewWatermark text="ВОРОНКА" size="section" delay={0.3} />
+              <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Воронка</span>
               {funnelWidget}
             </Bracket>
           ) : funnelWidget}
@@ -880,7 +880,7 @@ export function DashboardHome() {
         <div className="animate-appear stagger-7">
           {isScandi ? (
             <Bracket>
-              <NewWatermark text="ЗВОНКИ" size="section" delay={0.6} />
+              <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Звонки</span>
               {callsWidget}
             </Bracket>
           ) : callsWidget}
@@ -891,13 +891,13 @@ export function DashboardHome() {
       <div className="grid gap-4 md:grid-cols-2">
         {isScandi ? (
           <Bracket>
-            <NewWatermark text="ДЕДЛАЙНЫ" size="section" delay={0.9} />
+            <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Дедлайны</span>
             {deadlinesWidget}
           </Bracket>
         ) : deadlinesWidget}
         {isScandi ? (
           <Bracket>
-            <NewWatermark text="АКТИВНОСТЬ" size="section" delay={1.2} />
+            <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Активность</span>
             {activityWidget}
           </Bracket>
         ) : activityWidget}

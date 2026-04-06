@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Phone, Calendar, CheckSquare } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
@@ -16,10 +17,12 @@ import { Bracket } from '@/components/ui/Bracket';
 // ═══════════════════════════════════════════════════════
 
 export function ActivityDrawer() {
+  const pathname = usePathname();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const isOpen = useDrawerStore((s) => s.isOpen);
 
   if (!isScandi) return null;
+  if (pathname === '/tasks') return null;
 
   return (
     <aside
