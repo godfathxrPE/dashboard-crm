@@ -71,7 +71,7 @@ export default function DashboardLayout({
           'transition-all duration-200',
           isScandi ? (sidebarOpen ? 'ml-[232px]' : 'ml-14') : sidebarOpen ? 'ml-56' : 'ml-16',
         )}
-        style={isScandi && drawerOpen && pathname !== '/tasks' ? { marginRight: 280 } : undefined}
+        style={isScandi && drawerOpen ? { marginRight: 280 } : undefined}
       >
         {!isScandi && <Header />}
         <main id="main-content" className="p-4 md:p-6">
