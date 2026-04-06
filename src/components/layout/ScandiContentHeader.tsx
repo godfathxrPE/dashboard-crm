@@ -80,7 +80,8 @@ export function ScandiContentHeader() {
 
   return (
     <div className="mb-6 flex items-center justify-between relative z-[100]">
-      {pathname !== '/' && <h1 className="text-[22px] font-medium text-text-main">{title}</h1>}
+      {/* h1 removed — each page renders its own Watermark header */}
+      <div />
       <div className="flex items-center gap-2">
         {/* Search */}
         <button
