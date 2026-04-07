@@ -23,9 +23,11 @@ interface TaskModalProps {
   onClose: () => void;
   editTask: Task | null;
   defaultProjectId?: string | null;
+  defaultContactId?: string | null;
+  defaultCompanyId?: string | null;
 }
 
-export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { data: companies } = useCompanies();
@@ -73,13 +75,13 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId }: TaskM
         lane: 'now',
         priority: 'normal',
         project_id: defaultProjectId ?? null,
-        company_id: null,
-        contact_id: null,
+        company_id: defaultCompanyId ?? null,
+        contact_id: defaultContactId ?? null,
         deadline: null,
         remind_min: null,
       });
     }
-  }, [editTask, defaultProjectId, reset]);
+  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, reset]);
 
   function onSubmit(values: TaskFormValues) {
     if (editTask) {

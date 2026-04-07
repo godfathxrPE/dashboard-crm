@@ -15,6 +15,8 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
+import { MeetingModal } from '@/components/meetings/MeetingModal';
+import { TaskModal } from '@/components/tasks/TaskModal';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 
 // ═══════════════════════════════════════════════════════
@@ -152,6 +154,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkCompanyId, setLinkCompanyId] = useState('');
@@ -323,12 +327,12 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               <PillAction
                 icon={<Calendar size={15} className="text-text-dim" />}
                 label="Встреча"
-                onClick={() => router.push('/meetings')}
+                onClick={() => setMeetingModalOpen(true)}
               />
               <PillAction
                 icon={<CheckSquare size={15} className="text-text-dim" />}
                 label="Задача"
-                onClick={() => router.push('/tasks')}
+                onClick={() => setTaskModalOpen(true)}
               />
             </div>
 
@@ -573,6 +577,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       {/* Modals */}
       <ContactModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editContact={contact} />
       <CallModal isOpen={callModalOpen} onClose={() => setCallModalOpen(false)} editCall={null} defaultContactId={contactId} />
+      <MeetingModal isOpen={meetingModalOpen} onClose={() => setMeetingModalOpen(false)} editMeeting={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
+      <TaskModal isOpen={taskModalOpen} onClose={() => setTaskModalOpen(false)} editTask={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
     </>
   );
 }

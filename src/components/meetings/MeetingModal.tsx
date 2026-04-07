@@ -15,9 +15,11 @@ interface MeetingModalProps {
   onClose: () => void;
   editMeeting: Meeting | null;
   defaultProjectId?: string | null;
+  defaultContactId?: string | null;
+  defaultCompanyId?: string | null;
 }
 
-export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId }: MeetingModalProps) {
+export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, defaultContactId, defaultCompanyId }: MeetingModalProps) {
   const create = useCreateMeeting();
   const update = useUpdateMeeting();
   const { data: projects } = useProjects();
@@ -47,10 +49,10 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId }:
       reset({
         title: '', date: now.toISOString().slice(0, 10),
         time: defaultTime, location: null, project_id: defaultProjectId ?? null,
-        company_id: null, contact_id: null, notes: null,
+        company_id: defaultCompanyId ?? null, contact_id: defaultContactId ?? null, notes: null,
       });
     }
-  }, [editMeeting, defaultProjectId, reset]);
+  }, [editMeeting, defaultProjectId, defaultContactId, defaultCompanyId, reset]);
 
   const onSubmit = async (values: MeetingFormValues) => {
     try {
