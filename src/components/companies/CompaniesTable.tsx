@@ -14,6 +14,7 @@ import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { CompanyModal } from './CompanyModal';
+import { ExcelImportButton } from './ExcelImport';
 
 export function CompaniesTable() {
   const router = useRouter();
@@ -164,7 +165,12 @@ export function CompaniesTable() {
         wmColors={WATERMARK_GRADIENTS.aurora}
         count={companies?.length ?? 0}
         icon={<Building2 size={18} className="text-accent" />}
-        action={<CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}><Plus size={14} /> Компания</CTAButton>}
+        action={
+          <div className="flex items-center gap-2">
+            <ExcelImportButton />
+            <CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}><Plus size={14} /> Компания</CTAButton>
+          </div>
+        }
       />
 
       {/* Chip filters */}
