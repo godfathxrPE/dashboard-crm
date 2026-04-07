@@ -28,9 +28,10 @@ interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   editProject: Project | null;
+  defaultCompanyId?: string | null;
 }
 
-export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps) {
+export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }: ProjectModalProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const { data: companies = [] } = useCompanies();
@@ -100,7 +101,7 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
       reset({
         name: '',
         stage: 'new_lead',
-        company_id: null,
+        company_id: defaultCompanyId ?? null,
         contact_id: null,
         budget: null,
         deadline: null,
@@ -109,7 +110,7 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
         loss_detail: null,
       });
     }
-  }, [editProject, reset]);
+  }, [editProject, defaultCompanyId, reset]);
 
   const onSubmit = async (values: ProjectFormValues) => {
     try {

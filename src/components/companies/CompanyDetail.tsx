@@ -10,7 +10,9 @@ import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects, type Project } from '@/lib/hooks/use-projects';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { Bracket } from '@/components/ui/Bracket';
 import { CompanyModal } from './CompanyModal';
+import { ProjectModal } from '@/components/projects/ProjectModal';
 
 interface CompanyDetailProps { companyId: string; }
 
@@ -21,6 +23,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: allProjects } = useProjects();
   const deleteCompany = useDeleteCompany();
   const [modalOpen, setModalOpen] = useState(false);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
 
@@ -89,12 +92,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {infoFields.filter((f) => f.value).map((f) => (
-          <div key={f.label} className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <Bracket key={f.label} className="px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
               <f.icon size={10} /> {f.label}
             </div>
             <div className="text-sm text-text-main">{f.value}</div>
-          </div>
+          </Bracket>
         ))}
       </div>
 
@@ -109,7 +112,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
       {/* Linked contacts & projects */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Contacts */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <Bracket className="p-4">
           <div className="mb-3 flex items-center gap-2">
             <Users size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Контакты</span>
@@ -132,14 +135,18 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               })}
             </div>
           )}
-        </div>
+        </Bracket>
 
         {/* Projects */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <Bracket className="p-4">
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Проекты</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedProjects.length}</span>
+            <button onClick={() => setProjectModalOpen(true)}
+              className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
+              + Проект
+            </button>
           </div>
           {linkedProjects.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет проектов. Привяжи компанию при создании проекта.</p>
@@ -157,10 +164,11 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               ))}
             </div>
           )}
-        </div>
+        </Bracket>
       </div>
 
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />
+      <ProjectModal isOpen={projectModalOpen} onClose={() => setProjectModalOpen(false)} editProject={null} defaultCompanyId={companyId} />
     </>
   );
 }
