@@ -22,6 +22,7 @@ const THEME_META: Record<Theme, { label: string; swatch: string }> = {
   't-nvg8':      { label: 'NVG8',      swatch: 'bg-[#FF6633]' },
   't-washi':     { label: '和紙 Washi', swatch: 'bg-[#C23B3B]' },
   't-fuji':      { label: '富士 Fuji', swatch: 'bg-[#2B5078]' },
+  't-cupertino': { label: 'Cupertino', swatch: 'bg-[#e88d3f]' },
 };
 
 export function Header() {

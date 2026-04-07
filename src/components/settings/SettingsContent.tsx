@@ -17,6 +17,7 @@ const THEMES = [
   { id: 't-nvg8', label: 'NVG8', color: '#FF6633' },
   { id: 't-washi', label: '和紙 Washi', color: '#C23B3B' },
   { id: 't-fuji', label: '富士 Fuji', color: '#2B5078' },
+  { id: 't-cupertino', label: 'Cupertino', color: '#e88d3f' },
 ] as const;
 
 interface SettingsContentProps {
