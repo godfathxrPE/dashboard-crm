@@ -2290,6 +2290,92 @@ header {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ═══ Fluid Drag — kanban tilt + elevated shadow ═══ */
+.t-cupertino [class*="DragOverlay"] > *,
+.t-cupertino [class*="drag-overlay"] > * {
+  transform: rotate(2deg) scale(1.03) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 14px;
+  transition: box-shadow 0.2s ease;
+}
+
+/* ═══ Content Unfold — stagger items in accordion lanes ═══ */
+@keyframes cupertinoSlideUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(1) { animation: cupertinoFadeIn 0.3s ease 0.06s both; }
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(2) { animation: cupertinoFadeIn 0.3s ease 0.11s both; }
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(3) { animation: cupertinoFadeIn 0.3s ease 0.16s both; }
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(4) { animation: cupertinoFadeIn 0.3s ease 0.21s both; }
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(5) { animation: cupertinoFadeIn 0.3s ease 0.26s both; }
+.t-cupertino .grid-rows-\[1fr\] > * > *:nth-child(n+6) { animation: cupertinoFadeIn 0.3s ease 0.31s both; }
+
+/* ═══ Fluid Reflow — table rows cascade ═══ */
+.t-cupertino table tbody tr {
+  animation: cupertinoSlideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.t-cupertino table tbody tr:nth-child(1) { animation-delay: 0.02s; }
+.t-cupertino table tbody tr:nth-child(2) { animation-delay: 0.04s; }
+.t-cupertino table tbody tr:nth-child(3) { animation-delay: 0.06s; }
+.t-cupertino table tbody tr:nth-child(4) { animation-delay: 0.08s; }
+.t-cupertino table tbody tr:nth-child(5) { animation-delay: 0.10s; }
+.t-cupertino table tbody tr:nth-child(n+6) { animation-delay: 0.12s; }
+
+/* ═══ Ambient Border — conic gradient on hover ═══ */
+@property --cupertino-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes cupertinoAmbient {
+  to { --cupertino-angle: 360deg; }
+}
+
+.t-cupertino .glass-card,
+.t-cupertino [data-kpi] {
+  position: relative;
+  overflow: hidden;
+}
+
+.t-cupertino .glass-card::before,
+.t-cupertino [data-kpi]::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--cupertino-angle, 0deg),
+    transparent 40%,
+    rgba(232, 141, 63, 0.3) 50%,
+    transparent 60%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.t-cupertino .glass-card:hover::before,
+.t-cupertino [data-kpi]:hover::before {
+  opacity: 1;
+  animation: cupertinoAmbient 2.5s linear infinite;
+}
+
+/* ═══ Unified hover elevation ═══ */
+.t-cupertino .glass-card:hover,
+.t-cupertino [data-kpi]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
 /* Reduced motion — ОБЯЗАТЕЛЬНО */
 @media (prefers-reduced-motion: reduce) {
   .t-cupertino *,
