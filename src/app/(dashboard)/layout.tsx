@@ -51,6 +51,7 @@ export default function DashboardLayout({
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const theme = useThemeStore((s) => s.theme);
   const isScandi = theme === 't-scandi';
+  const isCupertino = theme === 't-cupertino';
   const drawerOpen = useDrawerStore((s) => s.isOpen);
   const pathname = usePathname();
   const section = getSectionFromPath(pathname);
@@ -73,7 +74,7 @@ export default function DashboardLayout({
         )}
         style={isScandi && drawerOpen ? { marginRight: 280 } : undefined}
       >
-        {!isScandi && <Header />}
+        {!isScandi && !isCupertino && <Header />}
         <main id="main-content" className="p-4 md:p-6">
           {isScandi && <ScandiContentHeader />}
           {children}

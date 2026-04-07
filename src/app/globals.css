@@ -2179,6 +2179,63 @@ header {
   opacity: 0.9;
 }
 
+/* Sidebar layout — flex column for bottom-pinned controls */
+.t-cupertino aside {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Search button in sidebar */
+.t-cupertino .cupertino-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text-mute);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.t-cupertino .cupertino-search-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-dim);
+}
+.t-cupertino .cupertino-search-btn kbd {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+
+/* Bottom controls */
+.t-cupertino .cupertino-sidebar-bottom {
+  display: flex;
+  gap: 4px;
+  padding: 12px;
+  margin-top: auto;
+  border-top: 0.5px solid var(--border);
+}
+.t-cupertino .cupertino-bottom-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-mute);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.t-cupertino .cupertino-bottom-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-dim);
+}
+
 /* ═══ CUPERTINO ANIMATIONS ═══ */
 
 @keyframes cupertinoFadeIn {
