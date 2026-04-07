@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { ContactDetail } from '@/components/contacts/ContactDetail';
+import { ContactDetailHub as ContactDetail } from '@/components/contacts/ContactDetailHub';
 
 interface PageProps { params: Promise<{ id: string }>; }
 
