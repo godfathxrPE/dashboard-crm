@@ -1257,6 +1257,30 @@
 /* Calls ring: softer stroke */
 .t-scandi circle[stroke="var(--accent)"] { stroke: #444 !important; }
 .t-scandi circle[stroke="var(--border)"] { stroke: #e8e8e8 !important; }
+/* Calls page: bracket corners on call cards + tracker + scheduled */
+.t-scandi .rounded-xl.border.border-border\/50.bg-surface,
+.t-scandi .rounded-lg.border.border-border\/50.bg-bg {
+  border-color: transparent !important;
+  position: relative;
+}
+.t-scandi .rounded-xl.border.border-border\/50.bg-surface::before,
+.t-scandi .rounded-lg.border.border-border\/50.bg-bg::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 10px; height: 10px;
+  border-left: 1px solid #DDD5E2;
+  border-top: 1px solid #DDD5E2;
+  pointer-events: none;
+}
+.t-scandi .rounded-xl.border.border-border\/50.bg-surface::after,
+.t-scandi .rounded-lg.border.border-border\/50.bg-bg::after {
+  content: '';
+  position: absolute; bottom: 0; right: 0;
+  width: 10px; height: 10px;
+  border-right: 1px solid #DDD5E2;
+  border-bottom: 1px solid #DDD5E2;
+  pointer-events: none;
+}
 /* Export panel: no border, thin separators */
 .t-scandi .rounded-xl.border.bg-surface.p-4:has(.text-accent) {
   border: none !important;
