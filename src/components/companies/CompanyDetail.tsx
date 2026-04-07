@@ -117,6 +117,10 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <Users size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Контакты</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedContacts.length}</span>
+            <button onClick={() => router.push('/contacts')}
+              className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
+              + Контакт
+            </button>
           </div>
           {linkedContacts.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет привязанных контактов. Привяжи контакт на его странице.</p>
