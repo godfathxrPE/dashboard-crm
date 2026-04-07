@@ -189,8 +189,8 @@ export function ExcelImportButton() {
 
       {/* Preview Modal */}
       {preview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !importing && setPreview(null)}>
-          <div className="w-full max-w-2xl rounded-xl border border-border bg-surface p-6 elevation-3" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !importing && setPreview(null)}>
+          <div className="relative z-[1000] w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-surface p-6 elevation-3" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-text-main">Импорт из Excel</h2>
               {!importing && (
