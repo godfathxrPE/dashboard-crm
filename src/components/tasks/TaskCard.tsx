@@ -2,6 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useRouter } from 'next/navigation';
 import { Pencil, Trash2, Calendar, Check } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
@@ -23,6 +24,7 @@ function deadlineUrgency(deadline: string, lane: string): { cls: string; label: 
 }
 
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
+  const router = useRouter();
   const updateTask = useUpdateTask();
 
   const {
@@ -87,7 +89,7 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         </p>
 
         {/* Meta */}
-        {(task.deadline || task.project_id) && (
+        {(task.deadline || task.project_id || task.company_id) && (
           <div className="mt-0.5 flex items-center gap-2 flex-wrap">
             {task.deadline && (() => {
               const urg = deadlineUrgency(task.deadline, task.lane);
@@ -99,9 +101,22 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
               );
             })()}
             {task.project_id && (
-              <span className="rounded bg-accent-l px-1 py-0.5 text-[0.625rem] text-accent truncate max-w-[100px]">
-                проект
-              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/projects/${task.project_id}`); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="rounded bg-accent-l px-1 py-0.5 text-[0.625rem] text-accent truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+              >
+                {task.project?.name ?? 'проект'}
+              </button>
+            )}
+            {task.company_id && (
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/companies/${task.company_id}`); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="rounded bg-purple-l px-1 py-0.5 text-[0.625rem] text-purple truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+              >
+                {task.company?.name ?? 'компания'}
+              </button>
             )}
           </div>
         )}

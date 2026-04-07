@@ -24,7 +24,7 @@ export function useTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select('*, project:projects(id, name), company:companies(id, name)')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
