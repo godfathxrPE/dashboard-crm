@@ -1169,10 +1169,60 @@
 /* Companies: raise contrast of "+ добавить" */
 .t-scandi td .text-text-mute.hover\:text-accent { color: var(--text-dim) !important; opacity: 0.7; }
 .t-scandi td .text-text-mute.hover\:text-accent:hover { color: var(--text) !important; opacity: 1; }
-/* Contact 360: remove colored left-border, flat highlights */
-.t-scandi .highlight-card { box-shadow: none !important; }
+/* Contact 360: bracket corners on highlight cards */
+.t-scandi .highlight-card {
+  box-shadow: none !important;
+  border-color: transparent !important;
+  position: relative;
+}
+.t-scandi .highlight-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 10px; height: 10px;
+  border-left: 1px solid #DDD5E2;
+  border-top: 1px solid #DDD5E2;
+  pointer-events: none;
+}
+.t-scandi .highlight-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 10px; height: 10px;
+  border-right: 1px solid #DDD5E2;
+  border-bottom: 1px solid #DDD5E2;
+  pointer-events: none;
+}
 .t-scandi .highlight-card [class*="border-l-"] { border-left-color: var(--border) !important; }
-.t-scandi .highlight-card.filled { border-color: var(--border) !important; box-shadow: none !important; }
+.t-scandi .highlight-card.filled { border-color: transparent !important; box-shadow: none !important; }
+.t-scandi .highlight-card.filled::before,
+.t-scandi .highlight-card.filled::after {
+  border-color: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-l));
+}
+/* Contact 360: bracket corners on profile card + activity */
+.t-scandi .contact-profile-card {
+  border-color: transparent !important;
+  position: relative;
+}
+.t-scandi .contact-profile-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 10px; height: 10px;
+  border-left: 1px solid #DDD5E2;
+  border-top: 1px solid #DDD5E2;
+  pointer-events: none;
+}
+.t-scandi .contact-profile-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 10px; height: 10px;
+  border-right: 1px solid #DDD5E2;
+  border-bottom: 1px solid #DDD5E2;
+  pointer-events: none;
+}
 /* Meetings: dim past meetings */
 .t-scandi [data-meetings-past] .space-y-2 > div { opacity: 0.55; transition: opacity 0.2s ease; }
 .t-scandi [data-meetings-past] .space-y-2 > div:hover { opacity: 0.85; }

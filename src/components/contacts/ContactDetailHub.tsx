@@ -272,7 +272,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       <div className="flex flex-col gap-6 md:flex-row">
         {/* ═══ LEFT COLUMN — Profile (sticky) ═══ */}
         <div className="w-full flex-shrink-0 md:w-[340px] md:self-start md:sticky md:top-6">
-          <div className="rounded-xl border border-border bg-surface p-5">
+          <div className="contact-profile-card rounded-xl border border-border bg-surface p-5">
             {/* Avatar + Name */}
             <div className="flex items-start gap-4">
               <div
