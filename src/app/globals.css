@@ -1197,8 +1197,8 @@
 .t-scandi .highlight-card.filled { border-color: transparent !important; box-shadow: none !important; }
 .t-scandi .highlight-card.filled::before,
 .t-scandi .highlight-card.filled::after {
-  border-color: var(--accent);
-  filter: drop-shadow(0 0 4px var(--accent-l));
+  border-color: #DDD5E2;
+  filter: none;
 }
 /* Contact 360: bracket corners on profile card + activity */
 .t-scandi .contact-profile-card {

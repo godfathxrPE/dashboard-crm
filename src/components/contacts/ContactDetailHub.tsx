@@ -272,7 +272,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       <div className="flex flex-col gap-6 md:flex-row">
         {/* ═══ LEFT COLUMN — Profile (sticky) ═══ */}
         <div className="w-full flex-shrink-0 md:w-[340px] md:self-start md:sticky md:top-6">
-          <div className="contact-profile-card rounded-xl border border-border bg-surface p-5">
+          <div className="contact-profile-card rounded-xl bg-surface p-5">
             {/* Avatar + Name */}
             <div className="flex items-start gap-4">
               <div
@@ -333,7 +333,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
             </div>
 
             {/* Collapsible Details */}
-            <div className="mt-4 border-t border-border pt-3">
+            <div className="mt-4 pt-3">
               <button
                 onClick={() => setDetailsOpen(!detailsOpen)}
                 className="flex w-full items-center gap-2 text-xs font-medium text-text-dim hover:text-text-main transition-colors"
@@ -530,10 +530,10 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
           )}
 
           {/* ═══ Activity Timeline ═══ */}
-          <div className="border-t border-border pt-4">
+          <div className="pt-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-text-dim">
               <Activity size={14} />
-              Activity
+              Активность
             </div>
 
             {timeline.length === 0 ? (

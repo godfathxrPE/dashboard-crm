@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
@@ -9,6 +9,37 @@ import { useCreateCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+
+function DetailsSection({ register }: { register: any }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <>
+      <div className="modal-section-divider">
+        <span>Детали</span>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="ml-auto p-0.5 text-text-mute hover:text-text-main transition-colors"
+          aria-label={expanded ? 'Свернуть' : 'Развернуть'}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {expanded ? (
+              <><path d="M4 2L8 6L12 2" /><path d="M4 14L8 10L12 14" /></>
+            ) : (
+              <><path d="M4 6L8 2L12 6" /><path d="M4 10L8 14L12 10" /></>
+            )}
+          </svg>
+        </button>
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-text-dim">Что обсуждали / договорённости</label>
+        <textarea {...register('agreements')} rows={5} placeholder="Обсудили цены, договорились о КП..."
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          style={{ minHeight: expanded ? '50vh' : '120px', resize: 'vertical', transition: 'min-height 200ms ease' }} />
+      </div>
+    </>
+  );
+}
 
 interface CallModalProps {
   isOpen: boolean;
@@ -134,16 +165,9 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
             </select>
           </div>
 
-          {/* Section divider */}
-          <div className="modal-section-divider"><span>Детали</span></div>
+          {/* Section divider with expand toggle */}
+          <DetailsSection register={register} />
 
-          {/* Agreements */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">Что обсуждали / договорённости</label>
-            <textarea {...register('agreements')} rows={5} placeholder="Обсудили цены, договорились о КП..."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              style={{ minHeight: '120px', resize: 'vertical' }} />
-          </div>
 
           {/* Next step */}
           <div>
