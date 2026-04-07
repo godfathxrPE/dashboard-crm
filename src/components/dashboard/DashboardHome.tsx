@@ -43,6 +43,8 @@ import {
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { cn } from '@/lib/utils/cn';
 import { staggerClass } from '@/lib/utils/stagger';
+import { useCursorSpotlight } from '@/lib/hooks/use-cursor-spotlight';
+import { useMorphNumber } from '@/lib/hooks/use-morph-number';
 import type { ActivityLog } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -180,6 +182,41 @@ function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: 
   );
 }
 
+function CupertinoKpiCard({ href, icon: Icon, label, num, fmt, iconBg, sub, trend, delay }: {
+  href: string; icon: React.ElementType; label: string; num: number;
+  fmt: (n: number) => string; iconBg: string; sub?: string; trend?: number; delay: number;
+}) {
+  const spotlight = useCursorSpotlight<HTMLAnchorElement>();
+  const morphed = useMorphNumber(num, 900, delay);
+
+  return (
+    <a
+      href={href}
+      data-kpi
+      className="group relative overflow-hidden flex items-center gap-3 rounded-lg bg-surface px-4 py-4
+                 elevation-hover border border-border"
+      ref={spotlight.ref}
+      onMouseMove={spotlight.onMouseMove}
+      onMouseLeave={spotlight.onMouseLeave}
+      style={spotlight.spotlightStyle}
+    >
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                      ${num === 0 ? 'bg-surface2 text-text-mute opacity-50' : iconBg}`}>
+        <Icon size={18} />
+      </div>
+      <div className="min-w-0">
+        <span className={`text-2xl font-extrabold leading-tight block
+                          ${num === 0 ? 'text-text-mute opacity-50' : 'text-text-main'}`}>
+          {fmt(morphed)}
+        </span>
+        <div className="text-[11px] text-text-mute leading-tight mt-0.5">{label}</div>
+        {sub && <div className="text-[9px] text-text-dim">{sub}</div>}
+        {trend != null && <TrendBadge delta={trend} />}
+      </div>
+    </a>
+  );
+}
+
 function KpiCards() {
   const { data: projects, isLoading: loadingP } = useProjects();
   const { data: tasks, isLoading: loadingT } = useTasks();
@@ -188,6 +225,7 @@ function KpiCards() {
   const isWashi = theme === 't-washi';
   const isFuji = theme === 't-fuji';
   const isScandi = theme === 't-scandi';
+  const isCupertino = theme === 't-cupertino';
 
   const kpi = useMemo(() => {
     const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost');
@@ -309,6 +347,24 @@ function KpiCards() {
                 staggerIdx={i}
               />
             </Bracket>
+          );
+        }
+
+        // Cupertino: spotlight + morph numbers
+        if (isCupertino) {
+          return (
+            <CupertinoKpiCard
+              key={c.label}
+              href={c.href}
+              icon={c.icon}
+              label={c.label}
+              num={c.num}
+              fmt={c.fmt}
+              iconBg={c.iconBg}
+              sub={c.sub}
+              trend={'trend' in c ? (c.trend as number | undefined) : undefined}
+              delay={300 + i * 100}
+            />
           );
         }
 
