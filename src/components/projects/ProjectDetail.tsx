@@ -666,9 +666,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
         </div>
         {projectCalls.length === 0 ? (
-          <p className="text-xs text-text-mute italic">
-            Нет связанных звонков
-          </p>
+          <div>
+            <p className="text-xs text-text-mute italic">Нет связанных звонков</p>
+            <button onClick={() => setCallModalOpen(true)} className="empty-state-action">+ Записать первый звонок</button>
+          </div>
         ) : (
           <div className="space-y-1.5">
             {projectCalls.map((c) => (
@@ -698,9 +699,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
         </div>
         {projectMeetings.length === 0 ? (
-          <p className="text-xs text-text-mute italic">
-            Нет запланированных встреч
-          </p>
+          <div>
+            <p className="text-xs text-text-mute italic">Нет запланированных встреч</p>
+            <button onClick={() => setMeetingModalOpen(true)} className="empty-state-action">+ Запланировать встречу</button>
+          </div>
         ) : (
           <div className="space-y-1.5">
             {projectMeetings.map((m) => (

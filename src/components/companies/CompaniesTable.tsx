@@ -91,7 +91,7 @@ export function CompaniesTable() {
         />
       ) : (
         <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-          className="text-text-mute hover:text-accent text-sm transition-colors">
+          className="add-on-hover text-sm transition-colors hover:text-accent">
           + добавить
         </button>
       ),
@@ -108,7 +108,7 @@ export function CompaniesTable() {
         />
       ) : (
         <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-          className="text-text-mute hover:text-accent text-sm transition-colors">
+          className="add-on-hover text-sm transition-colors hover:text-accent">
           + добавить
         </button>
       ),
@@ -125,7 +125,7 @@ export function CompaniesTable() {
         />
       ) : (
         <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-          className="text-text-mute hover:text-accent text-sm transition-colors">
+          className="add-on-hover text-sm transition-colors hover:text-accent">
           + добавить
         </button>
       ),

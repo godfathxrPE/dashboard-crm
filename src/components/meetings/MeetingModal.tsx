@@ -41,9 +41,12 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId }:
         notes: editMeeting.notes,
       });
     } else {
+      const now = new Date();
+      const mins = Math.round(now.getMinutes() / 5) * 5;
+      const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
       reset({
-        title: '', date: new Date().toISOString().slice(0, 10),
-        time: null, location: null, project_id: defaultProjectId ?? null,
+        title: '', date: now.toISOString().slice(0, 10),
+        time: defaultTime, location: null, project_id: defaultProjectId ?? null,
         company_id: null, contact_id: null, notes: null,
       });
     }
@@ -114,6 +117,9 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId }:
               ))}
             </select>
           </div>
+
+          {/* Section divider */}
+          <div className="modal-section-divider"><span>Связи</span></div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

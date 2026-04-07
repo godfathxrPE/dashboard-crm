@@ -284,6 +284,9 @@ export function ProjectModal({ isOpen, onClose, editProject }: ProjectModalProps
             </div>
           )}
 
+          {/* Section divider */}
+          <div className="modal-section-divider"><span>Связи</span></div>
+
           {/* Company */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">

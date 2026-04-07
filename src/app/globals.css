@@ -793,7 +793,7 @@
 .t-scandi {
   --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
   --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
-  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.35);
+  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.45);
   --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
   --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
   font-family: 'Inter', 'Manrope', system-ui, sans-serif;
@@ -1238,6 +1238,50 @@
 /* Reminder toast: reduced motion */
 @media (prefers-reduced-motion: reduce) {
   [style*="translateX"] { transform: none !important; transition: opacity 0.1s !important; }
+}
+
+/* ═══ Scandi: hover-only "+ добавить" in tables ═══ */
+.t-scandi .add-on-hover {
+  color: transparent;
+  transition: color 150ms ease;
+}
+.t-scandi tr:hover .add-on-hover {
+  color: var(--text-mute);
+  cursor: pointer;
+}
+
+/* ═══ Scandi: empty state CTA ═══ */
+.t-scandi .empty-state-action {
+  color: var(--text-mute);
+  font-size: 0.8125rem;
+  border: 1px dashed var(--border);
+  padding: 6px 12px;
+  margin-top: 8px;
+  transition: color 150ms ease, border-color 150ms ease;
+  background: transparent;
+  cursor: pointer;
+}
+.t-scandi .empty-state-action:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+/* ═══ Scandi: modal section dividers ═══ */
+.t-scandi .modal-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 12px;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-mute);
+}
+.t-scandi .modal-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--border);
 }
 
 /* ═══════════════════════════════════════════════════════
