@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, Loader2, AlertTriangle, Check } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
@@ -187,10 +188,10 @@ export function ExcelImportButton() {
       </button>
       <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
 
-      {/* Preview Modal */}
-      {preview && (
+      {/* Preview Modal — portaled to body */}
+      {preview && createPortal(
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !importing && setPreview(null)}>
-          <div className="relative z-[1000] w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-surface p-6 elevation-3" onClick={(e) => e.stopPropagation()}>
+          <div className="relative z-[1000] w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border border-border bg-surface p-6 elevation-3" style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-text-main">Импорт из Excel</h2>
               {!importing && (
@@ -272,7 +273,8 @@ export function ExcelImportButton() {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
