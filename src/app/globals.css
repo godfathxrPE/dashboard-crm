@@ -2035,7 +2035,7 @@ header {
   --bg: #f5f5f7;  --surface: rgba(255, 255, 255, 0.72);  --surface2: rgba(0,0,0,0.02);  --surface3: rgba(0,0,0,0.04);
   --border: rgba(0,0,0,0.06);  --border2: rgba(0,0,0,0.12);
   --text: #1d1d1f;  --text-dim: #86868b;  --text-mute: #aeaeb2;
-  --sidebar-indicator: transparent;  --sidebar-active-text: #e88d3f;
+  --sidebar-indicator: transparent;  --sidebar-active-text: #1d1d1f;
   --accent: #e88d3f;  --accent-l: rgba(232, 141, 63, 0.12);  --accent-l2: rgba(232, 141, 63, 0.20);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
   letter-spacing: -0.01em;
@@ -2136,19 +2136,47 @@ header {
   display: none !important;
 }
 
-/* Активный пункт sidebar — amber tint */
-.t-cupertino aside .nav-active {
-  background: var(--accent-l) !important;
+/* Sidebar nav items — transition-ready */
+.t-cupertino aside .nav-item {
+  position: relative;
   border-radius: 10px;
-  color: var(--accent) !important;
+  font-size: 13.5px;
+  color: var(--text-dim);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0.5px solid transparent;
+  box-shadow: none;
+  transition:
+    background 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    backdrop-filter 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    color 0.2s ease;
+}
+
+/* Hover — subtle hint */
+.t-cupertino aside .nav-item:hover:not(.nav-active) {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Active — frost glass */
+.t-cupertino aside .nav-active {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  color: var(--text) !important;
+  font-weight: 600;
 }
 .t-cupertino aside .nav-active > *,
 .t-cupertino aside .nav-active span {
-  color: var(--accent) !important;
+  color: var(--text) !important;
 }
 .t-cupertino aside .nav-active svg {
-  color: var(--accent) !important;
-  opacity: 0.85;
+  color: var(--text) !important;
+  opacity: 0.9;
 }
 
 /* ═══ CUPERTINO ANIMATIONS ═══ */
