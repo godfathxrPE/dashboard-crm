@@ -38,12 +38,10 @@ const THEME_SWATCHES: Record<Theme, string> = {
   't-sand': '#c05828',
   't-aurora': '#a060ff',
   't-tidal': '#48b890',
-  't-quartz': '#0D9488',
   't-keyswitch': '#6366f1',
   't-nvg8': '#FF6633',
   't-washi': '#C23B3B',
   't-fuji': '#2B5078',
-  't-cupertino': '#e88d3f',
 };
 
 function DrawerToggle() {

@@ -15,6 +15,7 @@ import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { cn } from '@/lib/utils/cn';
+import PageTransition from '@/components/layout/PageTransition';
 import { CommandPalette } from '@/components/shared/CommandPalette';
 import { Hotkeys } from '@/components/shared/Hotkeys';
 import { getSectionFromPath } from '@/lib/section-colors';
@@ -51,7 +52,6 @@ export default function DashboardLayout({
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const theme = useThemeStore((s) => s.theme);
   const isScandi = theme === 't-scandi';
-  const isCupertino = theme === 't-cupertino';
   const drawerOpen = useDrawerStore((s) => s.isOpen);
   const pathname = usePathname();
   const section = getSectionFromPath(pathname);
@@ -74,10 +74,12 @@ export default function DashboardLayout({
         )}
         style={isScandi && drawerOpen ? { marginRight: 280 } : undefined}
       >
-        {!isScandi && !isCupertino && <Header />}
+        {!isScandi && <Header />}
         <main id="main-content" className="p-4 md:p-6">
           {isScandi && <ScandiContentHeader />}
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
       </div>
       <ActivityDrawer />

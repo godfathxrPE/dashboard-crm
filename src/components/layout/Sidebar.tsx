@@ -12,9 +12,7 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { useTextScramble } from '@/lib/hooks/use-text-scramble';
-import { Search, PanelRight, Settings as SettingsIcon } from 'lucide-react';
 
 const MAIN_NAV = [
   { href: '/',          label: 'Дашборд',    jpLabel: 'ダッシュボード', icon: LayoutDashboard, badgeKey: null,               sectionColor: '#94A3B8' },
@@ -63,9 +61,6 @@ export function Sidebar() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
-  const isCupertino = theme === 't-cupertino';
-  const { toggleCommandPalette } = useUiStore();
-  const toggleDrawer = useDrawerStore((s) => s.toggle);
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
   const navRef = useRef<HTMLElement>(null);
@@ -134,27 +129,6 @@ export function Sidebar() {
           </div>
         )}
       </div>
-
-      {/* Cupertino: search button */}
-      {isCupertino && sidebarOpen && (
-        <button
-          onClick={toggleCommandPalette}
-          className="cupertino-search-btn mx-3 mt-3"
-        >
-          <Search size={14} />
-          <span>Поиск</span>
-          <kbd>⌘K</kbd>
-        </button>
-      )}
-      {isCupertino && !sidebarOpen && (
-        <button
-          onClick={toggleCommandPalette}
-          className="cupertino-search-btn mx-2 mt-3 !justify-center !px-0"
-          title="Поиск (⌘K)"
-        >
-          <Search size={14} />
-        </button>
-      )}
 
       {/* Navigation */}
       <nav ref={navRef} className="relative flex flex-col gap-0.5 p-2 mt-2">
@@ -236,27 +210,6 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Cupertino: bottom controls */}
-      {isCupertino && (
-        <div className="cupertino-sidebar-bottom">
-          <button
-            onClick={toggleDrawer}
-            className="cupertino-bottom-btn"
-            aria-label="Панель активности"
-            title="Панель активности"
-          >
-            <PanelRight size={16} />
-          </button>
-          <Link
-            href="/settings"
-            className="cupertino-bottom-btn"
-            aria-label="Настройки"
-            title="Настройки"
-          >
-            <SettingsIcon size={16} />
-          </Link>
-        </div>
-      )}
     </aside>
   );
 }
