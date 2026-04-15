@@ -3,22 +3,26 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
-import { STAGE_CONFIG, formatBudget, getNextStage } from '@/lib/validators/project';
+import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { Badge } from '@/components/ui/Badge';
 
-// Phase colors for notch, glow, progress bar — uses track palette
+// Phase group → color (keyed by phase_group from pipeline_stages)
 const PHASE_COLOR: Record<string, string> = {
   attract: 'var(--track-prep-current)',
   develop: 'var(--track-exp-current)',
   negotiate: 'var(--track-nego-current, var(--track-exp-current))',
   close: 'var(--track-proj-current)',
+  // pipeline_stages phase_group values
+  attraction: 'var(--track-prep-current)',
+  working: 'var(--track-exp-current)',
+  approval: 'var(--track-nego-current, var(--track-exp-current))',
+  closing: 'var(--track-proj-current)',
 };
-
-const TOTAL_ACTIVE = 12;
 
 // Inline SVG icons (no emoji, no img)
 function IconCalendar() {
@@ -81,11 +85,30 @@ export function ProjectCard({
   };
 
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
-  const nextStage = project.stage ? getNextStage(project.stage) : null;
-  const phaseColor = stageConfig ? (PHASE_COLOR[stageConfig.phase] ?? 'var(--accent)') : 'var(--accent)';
-  const progress = stageConfig ? Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE) * 100) : 0;
+  const { data: allPipelineStages } = usePipelineStages();
   const health = calculateDealHealth(project);
+
+  // Resolve stage info from pipeline_stages (primary) or legacy STAGE_CONFIG (fallback)
+  const pipelineStage = allPipelineStages?.find((s) => s.id === project.stage_id);
+  const pipelineSiblings = allPipelineStages?.filter((s) => s.pipeline_id === project.pipeline_id && !s.is_won && !s.is_lost) ?? [];
+  const totalActive = pipelineSiblings.length || 12;
+
+  const stageLabel = pipelineStage?.name
+    ?? (project.stage ? STAGE_CONFIG[project.stage]?.shortLabel : null)
+    ?? '—';
+  const stageProbability = pipelineStage?.probability
+    ?? (project.stage ? STAGE_CONFIG[project.stage]?.probability : null)
+    ?? 0;
+  const phaseColor = PHASE_COLOR[pipelineStage?.phase_group ?? '']
+    ?? (project.stage ? PHASE_COLOR[STAGE_CONFIG[project.stage]?.phase ?? ''] : null)
+    ?? 'var(--accent)';
+  const progress = pipelineStage
+    ? Math.round((pipelineStage.order_index / totalActive) * 100)
+    : project.stage ? Math.round(((STAGE_CONFIG[project.stage]?.order ?? 0) + 1) / 12 * 100) : 0;
+
+  const isTerminal = pipelineStage?.is_won || pipelineStage?.is_lost
+    || project.status === 'won' || project.status === 'lost';
+
   // Scandi: visual weight based on progress
   const scandiWeight = progress >= 70 ? 3 : progress >= 40 ? 2 : 1;
 
@@ -136,11 +159,11 @@ export function ProjectCard({
             style={{ backgroundColor: phaseColor }}
           />
           <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
-            {stageConfig?.shortLabel ?? '—'}
+            {stageLabel}
           </span>
           <span className="ml-auto flex items-center gap-1.5">
             <HealthDot level={health.level} score={health.total} />
-            <span className="text-[10px] text-text-mute">{stageConfig?.probability ?? 0}%</span>
+            <span className="text-[10px] text-text-mute">{stageProbability}%</span>
           </span>
         </div>
 
@@ -220,16 +243,22 @@ export function ProjectCard({
         {/* Actions — hover only */}
         <div className="mt-2 flex items-center gap-1 border-t border-border/50 pt-1.5
                         opacity-0 transition-opacity group-hover:opacity-100">
-          {nextStage && project.stage !== 'won' && project.stage !== 'lost' && (
-            <button
-              onClick={() => onAdvance(project.id)}
-              className="flex items-center gap-0.5 rounded px-1.5 py-0.5
-                         text-[10px] font-medium text-accent transition-colors hover:bg-accent-l"
-            >
-              <ArrowRight size={10} />
-              {STAGE_CONFIG[nextStage].shortLabel}
-            </button>
-          )}
+          {!isTerminal && (() => {
+            const next = pipelineStage
+              ? pipelineSiblings.find((s) => s.order_index === pipelineStage.order_index + 1)
+              : null;
+            if (!next) return null;
+            return (
+              <button
+                onClick={() => onAdvance(project.id)}
+                className="flex items-center gap-0.5 rounded px-1.5 py-0.5
+                           text-[10px] font-medium text-accent transition-colors hover:bg-accent-l"
+              >
+                <ArrowRight size={10} />
+                {next.name}
+              </button>
+            );
+          })()}
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={() => onEdit(project)}
@@ -250,7 +279,7 @@ export function ProjectCard({
       </div>
 
       {/* Progress bar */}
-      {project.stage !== 'won' && project.stage !== 'lost' && (
+      {!isTerminal && (
         <div
           className="stage-progress mt-2"
           style={{
