@@ -293,6 +293,7 @@ export function useMoveProject() {
 
   return {
     ...update,
+    /** Legacy: move by DealStage enum (used by old StageBoard) */
     moveToStage: (id: string, stage: DealStage) => {
       const extra: Partial<ProjectInsert> =
         stage === 'lost'
@@ -302,6 +303,14 @@ export function useMoveProject() {
             : { stage };
 
       update.mutate({ id, ...extra });
+    },
+    /** Sprint 1.5: move by stage_id + optional legacy stage for backward compat */
+    moveToStageId: (id: string, stageId: string, legacyStage?: DealStage | null) => {
+      update.mutate({
+        id,
+        stage_id: stageId,
+        ...(legacyStage !== undefined ? { stage: legacyStage } : {}),
+      });
     },
   };
 }

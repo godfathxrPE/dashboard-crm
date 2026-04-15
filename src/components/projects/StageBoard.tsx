@@ -33,20 +33,33 @@ import {
   useDeleteProject,
   type Project,
 } from '@/lib/hooks/use-projects';
-import {
-  STAGE_CONFIG,
-  PHASE_CONFIG,
-  dealStages,
-  getActiveStages,
-  getNextStage,
-  formatBudget,
-  type DealStage,
-} from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
+import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { Badge } from '@/components/ui/Badge';
+import type { PipelineStage, Direction } from '@/types/database';
+
+// ═══════════════════════════════════════════════════════
+// Phase group colors for column header tint
+// ═══════════════════════════════════════════════════════
+
+const PHASE_DOT_COLOR: Record<string, string> = {
+  attraction: 'var(--track-prep-current)',
+  working: 'var(--track-exp-current)',
+  approval: 'var(--track-nego-current, var(--track-exp-current))',
+  closing: 'var(--track-proj-current)',
+};
+
+const PHASE_BG_CLASS: Record<string, string> = {
+  attraction: 'bg-blue-l',
+  working: 'bg-accent-l',
+  approval: 'bg-yellow-l',
+  closing: 'bg-green-l',
+};
 
 // ═══════════════════════════════════════════════════════
 // Deadline urgency color
@@ -64,14 +77,18 @@ function deadlineColor(deadline: string | null): string {
 }
 
 // ═══════════════════════════════════════════════════════
-// Board Card — compact, stage-specific
+// Board Card
 // ═══════════════════════════════════════════════════════
 
 function BoardCard({
   project,
+  stageOrder,
+  totalStages,
   onOpen,
 }: {
   project: Project;
+  stageOrder: number;
+  totalStages: number;
   onOpen: (id: string) => void;
 }) {
   const {
@@ -87,6 +104,8 @@ function BoardCard({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const progress = totalStages > 0 ? Math.round((stageOrder / totalStages) * 100) : 0;
 
   return (
     <div
@@ -136,14 +155,9 @@ function BoardCard({
           </span>
         )}
         {project.deadline && (
-          <span
-            className={`flex items-center gap-0.5 text-[10px] ${deadlineColor(project.deadline)}`}
-          >
+          <span className={`flex items-center gap-0.5 text-[10px] ${deadlineColor(project.deadline)}`}>
             <Calendar size={9} />
-            {new Date(project.deadline).toLocaleDateString('ru-RU', {
-              day: 'numeric',
-              month: 'short',
-            })}
+            {new Date(project.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
           </span>
         )}
       </div>
@@ -152,7 +166,7 @@ function BoardCard({
       <div
         className="stage-progress mt-2 -mx-2.5 -mb-2.5"
         style={{
-          background: `linear-gradient(to right, var(--accent) ${Math.round(((project.stage ? STAGE_CONFIG[project.stage]?.order ?? 0 : 0) + 1) / 12 * 100)}%, var(--border) 0%)`,
+          background: `linear-gradient(to right, var(--accent) ${progress}%, var(--border) 0%)`,
         }}
       />
     </div>
@@ -160,24 +174,25 @@ function BoardCard({
 }
 
 // ═══════════════════════════════════════════════════════
-// Stage Column
+// Stage Column — one per pipeline_stage
 // ═══════════════════════════════════════════════════════
 
 function StageColumn({
   stage,
   projects,
+  totalStages,
   onOpen,
 }: {
-  stage: DealStage;
+  stage: PipelineStage;
   projects: Project[];
+  totalStages: number;
   onOpen: (id: string) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage });
-  const config = STAGE_CONFIG[stage];
-  const phaseConfig = PHASE_CONFIG[config.phase];
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const totalBudget = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
-
   const isEmpty = projects.length === 0;
+  const dotColor = PHASE_DOT_COLOR[stage.phase_group ?? ''] ?? 'var(--accent)';
+  const bgClass = PHASE_BG_CLASS[stage.phase_group ?? ''] ?? 'bg-accent-l';
 
   return (
     <div
@@ -191,11 +206,11 @@ function StageColumn({
       `}
     >
       {/* Header */}
-      <div className={`border-b border-border/50 px-2.5 py-2 rounded-t-xl ${phaseConfig.bgColor}`}>
+      <div className={`border-b border-border/50 px-2.5 py-2 rounded-t-xl ${bgClass}`}>
         <div className="flex items-center gap-1.5">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${phaseConfig.dotColor}`} />
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor }} />
           <span className="truncate text-[11px] font-semibold text-text-main">
-            {config.shortLabel}
+            {stage.name}
           </span>
           <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
             {projects.length}
@@ -215,7 +230,13 @@ function StageColumn({
           strategy={verticalListSortingStrategy}
         >
           {projects.map((project) => (
-            <BoardCard key={project.id} project={project} onOpen={onOpen} />
+            <BoardCard
+              key={project.id}
+              project={project}
+              stageOrder={stage.order_index}
+              totalStages={totalStages}
+              onOpen={onOpen}
+            />
           ))}
         </SortableContext>
 
@@ -264,12 +285,10 @@ interface StageBoardProps {
 }
 
 export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoardProps) {
-  const { data: rawProjects, isLoading, error } = useProjects();
-  const projects = useMemo(
-    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
-    [rawProjects, directionFilter],
-  );
-  const { moveToStage } = useMoveProject();
+  const { data: rawProjects, isLoading: loadingProjects, error } = useProjects();
+  const { data: pipelines } = usePipelines();
+  const { data: allStages } = usePipelineStages();
+  const { moveToStageId } = useMoveProject();
   const deleteProject = useDeleteProject();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -281,25 +300,52 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
     useSensor(KeyboardSensor),
   );
 
-  const activeStages = getActiveStages();
+  // Direction-filtered projects
+  const projects = useMemo(
+    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
+    [rawProjects, directionFilter],
+  );
 
-  // Group by stage
+  // Active pipeline
+  const effectiveDirection: Direction = directionFilter === 'all' ? 'iiot' : directionFilter;
+  const activePipeline = useMemo(
+    () => pipelines?.find((p) => p.direction === effectiveDirection && p.entity_type === 'deal' && p.is_default),
+    [pipelines, effectiveDirection],
+  );
+
+  // Pipeline stages (active only — no won/lost)
+  const pipelineStages = useMemo(
+    () => allStages?.filter((s) => s.pipeline_id === activePipeline?.id).sort((a, b) => a.order_index - b.order_index) ?? [],
+    [allStages, activePipeline],
+  );
+  const activeStages = useMemo(
+    () => pipelineStages.filter((s) => !s.is_won && !s.is_lost),
+    [pipelineStages],
+  );
+  const wonStageIds = useMemo(() => new Set(pipelineStages.filter((s) => s.is_won).map((s) => s.id)), [pipelineStages]);
+  const lostStageIds = useMemo(() => new Set(pipelineStages.filter((s) => s.is_lost).map((s) => s.id)), [pipelineStages]);
+  const totalActiveStages = activeStages.length;
+
+  // Group projects by stage_id
   const grouped = useMemo(() => {
-    const result: Record<string, Project[]> = {};
-    for (const s of dealStages) result[s] = [];
-    if (!projects) return result;
+    const result: Record<string, Project[]> = { won: [], lost: [] };
+    for (const s of activeStages) result[s.id] = [];
 
+    if (!projects) return result;
     for (const p of projects) {
-      if (p.stage) result[p.stage].push(p);
+      if (wonStageIds.has(p.stage_id)) { result.won.push(p); continue; }
+      if (lostStageIds.has(p.stage_id)) { result.lost.push(p); continue; }
+      if (result[p.stage_id]) {
+        result[p.stage_id].push(p);
+      }
+      // Projects from other pipeline (e.g. ERP when showing IIoT) — skip
     }
-    // Sort within each stage by created_at desc
+    // Sort within each stage
     for (const key of Object.keys(result)) {
-      result[key].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
+      result[key].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     return result;
-  }, [projects]);
+  }, [projects, activeStages, wonStageIds, lostStageIds]);
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === activeId) ?? null,
@@ -319,20 +365,24 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
     const project = projects?.find((p) => p.id === projectId);
     if (!project) return;
 
-    // over.id can be a stage (droppable) or another project id (sortable)
-    let targetStage: DealStage;
-    if (activeStages.includes(over.id as DealStage)) {
-      targetStage = over.id as DealStage;
+    // Determine target stage_id
+    let targetStageId: string | undefined;
+
+    // Check if dropped on a stage column (droppable id = stage.id)
+    const stageIds = new Set(activeStages.map((s) => s.id));
+    if (stageIds.has(over.id as string)) {
+      targetStageId = over.id as string;
     } else {
-      // Dropped on a card — find its stage
+      // Dropped on a card — find which stage it belongs to
       const targetProject = projects?.find((p) => p.id === over.id);
-      if (!targetProject) return;
-      if (!targetProject.stage) return;
-      targetStage = targetProject.stage;
+      if (targetProject) targetStageId = targetProject.stage_id;
     }
 
-    if (project.stage === targetStage) return;
-    moveToStage(projectId, targetStage);
+    if (!targetStageId || project.stage_id === targetStageId) return;
+
+    const targetStage = pipelineStages.find((s) => s.id === targetStageId);
+    const legacyStage = targetStage ? mapToLegacyStage(targetStage, project.direction) : null;
+    moveToStageId(projectId, targetStageId, legacyStage);
   }
 
   function handleOpen(id: string) {
@@ -340,12 +390,18 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
   }
 
   function handleRestore(id: string) {
-    moveToStage(id, 'new_lead');
+    const firstStage = activeStages[0];
+    if (!firstStage) return;
+    const project = projects?.find((p) => p.id === id);
+    const legacyStage = project ? mapToLegacyStage(firstStage, project.direction) : null;
+    moveToStageId(id, firstStage.id, legacyStage);
   }
 
   function handleDelete(id: string) {
     if (confirm('Удалить проект?')) deleteProject.mutate(id);
   }
+
+  const isLoading = loadingProjects || !pipelines || !allStages;
 
   if (isLoading) {
     return (
@@ -363,11 +419,14 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
     );
   }
 
-  const activeCount = (projects ?? []).filter(
-    (p) => p.stage !== 'won' && p.stage !== 'lost',
-  ).length;
-
+  const activeCount = Object.entries(grouped)
+    .filter(([k]) => k !== 'won' && k !== 'lost')
+    .reduce((sum, [, arr]) => sum + arr.length, 0);
   const totalProjects = projects?.length ?? 0;
+
+  const activeProjectStageName = activeProject
+    ? (allStages?.find((s) => s.id === activeProject.stage_id)?.name ?? '—')
+    : '—';
 
   return (
     <>
@@ -384,7 +443,6 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <button
             onClick={onSwitchView}
             className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim
@@ -394,10 +452,7 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
           </button>
 
           <button
-            onClick={() => {
-              setEditProject(null);
-              setModalOpen(true);
-            }}
+            onClick={() => { setEditProject(null); setModalOpen(true); }}
             className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5
                        text-xs font-medium text-white transition-opacity hover:opacity-90"
           >
@@ -413,10 +468,7 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
           <FolderKanban size={32} className="text-text-mute" />
           <p className="mt-3 text-sm text-text-mute">Пока нет проектов</p>
           <button
-            onClick={() => {
-              setEditProject(null);
-              setModalOpen(true);
-            }}
+            onClick={() => { setEditProject(null); setModalOpen(true); }}
             className="mt-4 flex items-center gap-1 rounded-lg bg-accent px-4 py-2
                        text-sm font-medium text-white hover:opacity-90"
           >
@@ -427,22 +479,20 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
       )}
 
       {/* Stage Kanban */}
-      {totalProjects > 0 && (
+      {totalProjects > 0 && activeStages.length > 0 && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div
-            className="flex gap-2.5 overflow-x-auto pb-4 snap-x snap-mandatory
-                       md:snap-none"
-          >
+          <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none">
             {activeStages.map((stage) => (
               <StageColumn
-                key={stage}
+                key={stage.id}
                 stage={stage}
-                projects={grouped[stage]}
+                projects={grouped[stage.id] ?? []}
+                totalStages={totalActiveStages}
                 onOpen={handleOpen}
               />
             ))}
@@ -455,7 +505,7 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
                   {activeProject.name}
                 </p>
                 <p className="mt-0.5 text-[10px] text-text-mute">
-                  {activeProject.stage ? STAGE_CONFIG[activeProject.stage].label : '—'}
+                  {activeProjectStageName}
                 </p>
               </div>
             ) : null}
@@ -471,19 +521,13 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
         projects={grouped.lost ?? []}
         onRestore={handleRestore}
         onDelete={handleDelete}
-        onEdit={(p) => {
-          setEditProject(p);
-          setModalOpen(true);
-        }}
+        onEdit={(p) => { setEditProject(p); setModalOpen(true); }}
       />
 
       {/* Modal */}
       <ProjectModal
         isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditProject(null);
-        }}
+        onClose={() => { setModalOpen(false); setEditProject(null); }}
         editProject={editProject}
       />
     </>
