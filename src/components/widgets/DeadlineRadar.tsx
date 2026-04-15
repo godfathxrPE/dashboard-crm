@@ -44,7 +44,7 @@ export function DeadlineRadar() {
           title: p.name,
           date: new Date(p.deadline),
           type: 'project',
-          meta: STAGE_CONFIG[p.stage].shortLabel,
+          meta: p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—',
           href: `/projects/${p.id}`,
         });
       }

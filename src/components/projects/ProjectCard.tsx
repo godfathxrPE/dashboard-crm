@@ -8,6 +8,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
+import { Badge } from '@/components/ui/Badge';
 
 // Phase colors for notch, glow, progress bar — uses track palette
 const PHASE_COLOR: Record<string, string> = {
@@ -80,10 +81,10 @@ export function ProjectCard({
   };
 
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  const stageConfig = STAGE_CONFIG[project.stage];
-  const nextStage = getNextStage(project.stage);
-  const phaseColor = PHASE_COLOR[stageConfig.phase] ?? 'var(--accent)';
-  const progress = Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE) * 100);
+  const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
+  const nextStage = project.stage ? getNextStage(project.stage) : null;
+  const phaseColor = stageConfig ? (PHASE_COLOR[stageConfig.phase] ?? 'var(--accent)') : 'var(--accent)';
+  const progress = stageConfig ? Math.round(((stageConfig.order + 1) / TOTAL_ACTIVE) * 100) : 0;
   const health = calculateDealHealth(project);
   // Scandi: visual weight based on progress
   const scandiWeight = progress >= 70 ? 3 : progress >= 40 ? 2 : 1;
@@ -135,22 +136,27 @@ export function ProjectCard({
             style={{ backgroundColor: phaseColor }}
           />
           <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
-            {stageConfig.shortLabel}
+            {stageConfig?.shortLabel ?? '—'}
           </span>
           <span className="ml-auto flex items-center gap-1.5">
             <HealthDot level={health.level} score={health.total} />
-            <span className="text-[10px] text-text-mute">{stageConfig.probability}%</span>
+            <span className="text-[10px] text-text-mute">{stageConfig?.probability ?? 0}%</span>
           </span>
         </div>
 
-        {/* Name */}
-        <button
-          onClick={() => onOpen(project.id)}
-          className="mb-1.5 block text-left text-sm text-text-main transition-colors hover:text-accent"
-          style={{ fontWeight: isScandi ? (scandiWeight >= 3 ? 600 : scandiWeight >= 2 ? 500 : 400) : 500 }}
-        >
-          {project.name}
-        </button>
+        {/* Name + direction badge */}
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <button
+            onClick={() => onOpen(project.id)}
+            className="block text-left text-sm text-text-main transition-colors hover:text-accent truncate"
+            style={{ fontWeight: isScandi ? (scandiWeight >= 3 ? 600 : scandiWeight >= 2 ? 500 : 400) : 500 }}
+          >
+            {project.name}
+          </button>
+          <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+            {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+          </Badge>
+        </div>
 
         {/* Company */}
         {project.company?.name && (

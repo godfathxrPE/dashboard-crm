@@ -162,9 +162,13 @@ export type SortOption = (typeof sortOptions)[number]['value'];
 
 export const projectFormSchema = z.object({
   name: z.string().min(1, 'Введи название проекта'),
+  direction: z.enum(['erp', 'iiot']),
+  pipeline_id: z.string().uuid(),
+  stage_id: z.string().uuid(),
   company_id: z.string().uuid().nullable().default(null),
   contact_id: z.string().uuid().nullable().default(null),
-  stage: z.enum(dealStages).default('new_lead'),
+  // Legacy — kept for backward compat, auto-filled from stage_id mapping
+  stage: z.enum(dealStages).nullable().default(null),
   budget: z.number().int().nonnegative().nullable().default(null),
   deadline: z.string().nullable().default(null),
   next_step: z.string().nullable().default(null),

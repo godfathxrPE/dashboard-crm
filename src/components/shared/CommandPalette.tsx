@@ -91,7 +91,7 @@ export function CommandPalette() {
       items.push({
         id: `proj-${p.id}`,
         label: p.name,
-        sub: p.stage,
+        sub: p.stage ?? undefined,
         icon: FolderKanban,
         href: `/projects/${p.id}`,
         section: 'Проекты',

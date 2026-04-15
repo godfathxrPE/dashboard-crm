@@ -56,6 +56,8 @@ import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { useActivityLog, useLogActivity } from '@/lib/hooks/use-activity-log';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
+import { Badge } from '@/components/ui/Badge';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import type { Task, ActivityLog } from '@/types/entities';
 
 
@@ -400,6 +402,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: allTasks = [] } = useTasks();
   const { data: allCalls = [] } = useCalls();
   const { data: allMeetings = [] } = useMeetings();
+  const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -452,9 +455,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     );
   }
 
-  const stageConfig = STAGE_CONFIG[project.stage];
-  const nextStage = getNextStage(project.stage);
-  const prevStage = getPrevStage(project.stage);
+  const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
+  const nextStage = project.stage ? getNextStage(project.stage) : null;
+  const prevStage = project.stage ? getPrevStage(project.stage) : null;
 
   function handleAdvance() {
     if (!project) return;
@@ -496,12 +499,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold text-text-main">{project.name}</h1>
+            <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+              {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+            </Badge>
             <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
             <CompletenessBadge project={project} />
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageConfig.probability > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
-              {stageConfig.label} · {stageConfig.probability}%
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageConfig && stageConfig.probability > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
+              {(() => {
+                const pStage = allPipelineStages?.find((s) => s.id === project.stage_id);
+                if (pStage) return `${pStage.name} · ${pStage.probability ?? 0}%`;
+                if (stageConfig) return `${stageConfig.label} · ${stageConfig.probability}%`;
+                return '—';
+              })()}
             </span>
             <span>
               Создан {new Date(project.created_at).toLocaleDateString('ru-RU')}
@@ -531,17 +542,17 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* 3-Track Pipeline */}
       <div className="mb-6">
-        <StackedPipeline
+        {project.stage && <StackedPipeline
           currentStage={project.stage}
           onStageClick={(stage) => {
             const targetOrder = STAGE_CONFIG[stage].order;
-            const currentOrder = STAGE_CONFIG[project.stage].order;
+            const currentOrder = STAGE_CONFIG[project.stage!].order;
             if (targetOrder < currentOrder) {
               if (!confirm(`Вернуть на стадию «${STAGE_CONFIG[stage].label}»?`)) return;
             }
             updateProject.mutate({ id: project.id, stage });
           }}
-        />
+        />}
       </div>
 
       {/* Info grid */}

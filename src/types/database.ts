@@ -15,6 +15,32 @@ export type DealStage =
   | 'trilateral_meeting' | 'experiment_setup' | 'contract_review'
   | 'contract_signing' | 'won' | 'lost';
 
+// ═══ Sprint 1: Pipelines & Directions ═══
+
+export type Direction = 'erp' | 'iiot';
+export type PipelineEntityType = 'deal' | 'project';
+export type DealStatus = 'open' | 'won' | 'lost' | 'on_hold';
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  direction: Direction;
+  entity_type: PipelineEntityType;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface PipelineStage {
+  id: string;
+  pipeline_id: string;
+  name: string;
+  order_index: number;
+  probability: number | null;
+  phase_group: string | null;
+  is_won: boolean;
+  is_lost: boolean;
+}
+
 export type TaskLane = 'now' | 'next' | 'wait' | 'done';
 export type TaskPriority = 'normal' | 'important' | 'critical';
 export type CallStatus = 'done' | 'pending' | 'cancelled';
@@ -106,7 +132,7 @@ export interface Database {
           name: string;
           company_id: string | null;
           contact_id: string | null;
-          stage: DealStage;
+          stage: DealStage | null;
           budget: number | null;
           deadline: string | null;
           next_step: string | null;
@@ -116,20 +142,45 @@ export interface Database {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          // Sprint 1: pipelines & directions
+          direction: Direction;
+          pipeline_id: string;
+          stage_id: string;
+          probability: number | null;
+          status: DealStatus;
+          lost_reason: string | null;
+          actual_close_date: string | null;
         };
         Insert: {
           name: string;
           company_id?: string | null;
           contact_id?: string | null;
-          stage?: DealStage;
+          stage?: DealStage | null;
           budget?: number | null;
           deadline?: string | null;
           next_step?: string | null;
           owner_id?: string | null;
           loss_reason?: string | null;
           loss_detail?: string | null;
+          // Sprint 1
+          direction: Direction;
+          pipeline_id: string;
+          stage_id: string;
+          status?: DealStatus;
+          lost_reason?: string | null;
+          actual_close_date?: string | null;
         };
         Update: Partial<Database['public']['Tables']['projects']['Insert']>;
+      };
+      pipelines: {
+        Row: Pipeline;
+        Insert: Omit<Pipeline, 'id' | 'created_at'> & { id?: string; created_at?: string };
+        Update: Partial<Omit<Pipeline, 'id' | 'created_at'>>;
+      };
+      pipeline_stages: {
+        Row: PipelineStage;
+        Insert: Omit<PipelineStage, 'id'> & { id?: string };
+        Update: Partial<Omit<PipelineStage, 'id'>>;
       };
       tasks: {
         Row: {

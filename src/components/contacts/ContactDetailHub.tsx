@@ -202,7 +202,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
         type: 'project',
         title: `Проект: ${p.name}`,
         date: p.created_at,
-        detail: STAGE_CONFIG[p.stage]?.shortLabel,
+        detail: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : undefined,
       });
     });
 
@@ -489,7 +489,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                   </button>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] font-medium text-accent">
-                      {STAGE_CONFIG[activeProject.stage]?.shortLabel}
+                      {activeProject.stage ? STAGE_CONFIG[activeProject.stage]?.shortLabel : '—'}
                     </span>
                     {activeProject.budget != null && (
                       <span className="text-xs text-text-dim">{formatBudget(activeProject.budget)}</span>

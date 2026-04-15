@@ -16,7 +16,7 @@ export interface Project {
   name: string;
   company_id: string | null;
   contact_id: string | null;
-  stage: DealStage;
+  stage: DealStage | null;
   budget: number | null;
   deadline: string | null;
   next_step: string | null;
@@ -26,6 +26,14 @@ export interface Project {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // Sprint 1: pipelines & directions
+  direction: 'erp' | 'iiot';
+  pipeline_id: string;
+  stage_id: string;
+  probability: number | null;
+  status: 'open' | 'won' | 'lost' | 'on_hold';
+  lost_reason: string | null;
+  actual_close_date: string | null;
   // Joined data (optional, from select with joins)
   company?: { id: string; name: string } | null;
   contact?: { id: string; first_name: string; last_name: string } | null;
@@ -35,12 +43,16 @@ export interface ProjectInsert {
   name: string;
   company_id?: string | null;
   contact_id?: string | null;
-  stage?: DealStage;
+  stage?: DealStage | null;
   budget?: number | null;
   deadline?: string | null;
   next_step?: string | null;
   loss_reason?: string | null;
   loss_detail?: string | null;
+  // Sprint 1
+  direction: 'erp' | 'iiot';
+  pipeline_id: string;
+  stage_id: string;
 }
 
 export interface ProjectUpdate extends Partial<ProjectInsert> {
@@ -170,7 +182,7 @@ export function useCreateProject() {
         name: newProject.name,
         company_id: newProject.company_id ?? null,
         contact_id: newProject.contact_id ?? null,
-        stage: newProject.stage ?? 'new_lead',
+        stage: newProject.stage ?? null,
         budget: newProject.budget ?? null,
         deadline: newProject.deadline ?? null,
         next_step: newProject.next_step ?? null,
@@ -180,6 +192,14 @@ export function useCreateProject() {
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // Sprint 1
+        direction: newProject.direction,
+        pipeline_id: newProject.pipeline_id,
+        stage_id: newProject.stage_id,
+        probability: null,
+        status: 'open',
+        lost_reason: null,
+        actual_close_date: null,
       };
 
       qc.setQueryData<Project[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);

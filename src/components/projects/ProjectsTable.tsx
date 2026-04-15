@@ -1,20 +1,22 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FolderKanban, Loader2, Trash2, Download, Plus, AlertTriangle,
 } from 'lucide-react';
 import { useProjects, useDeleteProject, type Project } from '@/lib/hooks/use-projects';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
+import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { ProjectModal } from './ProjectModal';
-import { useState } from 'react';
+import type { PipelineStage } from '@/types/database';
 
-// Track mapping for the 3-track pipeline
+// Track mapping for the 3-track pipeline (IIoT only — legacy stage)
 function getTrack(stage: string): string {
   const order = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG]?.order ?? 0;
   if (order <= 5) return 'Подготовка';
@@ -22,28 +24,54 @@ function getTrack(stage: string): string {
   return 'Проект';
 }
 
-interface ProjectsTableProps {
-  onSwitchView?: (view: string) => void;
+// Resolve stage display name: prefer pipeline_stages, fallback to legacy STAGE_CONFIG
+function getStageName(p: Project, stagesMap: Map<string, PipelineStage>): string {
+  const pipelineStage = stagesMap.get(p.stage_id);
+  if (pipelineStage) return pipelineStage.name;
+  if (p.stage) return STAGE_CONFIG[p.stage]?.shortLabel ?? p.stage;
+  return '—';
 }
 
-export function ProjectsTable({ onSwitchView }: ProjectsTableProps) {
+type ViewMode = 'pipeline' | 'board' | 'table';
+
+interface ProjectsTableProps {
+  directionFilter?: 'all' | 'erp' | 'iiot';
+  onSwitchView?: (view: ViewMode) => void;
+}
+
+export function ProjectsTable({ directionFilter = 'all', onSwitchView }: ProjectsTableProps) {
   const router = useRouter();
-  const { data: projects, isLoading, error } = useProjects();
+  const { data: rawProjects, isLoading, error } = useProjects();
+  const { data: allStages } = usePipelineStages();
   const deleteProject = useDeleteProject();
   const [modalOpen, setModalOpen] = useState(false);
+
+  const stagesMap = useMemo(() => {
+    const map = new Map<string, PipelineStage>();
+    allStages?.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [allStages]);
+
+  const projects = useMemo(
+    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
+    [rawProjects, directionFilter],
+  );
 
   const today = useMemo(() => new Date(new Date().toDateString()), []);
 
   const chipFilters = useMemo<Record<string, (p: Project) => boolean>>(() => ({
-    track_prep: (p) => getTrack(p.stage) === 'Подготовка',
-    track_exp: (p) => getTrack(p.stage) === 'Эксперимент',
-    track_proj: (p) => getTrack(p.stage) === 'Проект',
+    track_prep: (p) => !!p.stage && getTrack(p.stage) === 'Подготовка',
+    track_exp: (p) => !!p.stage && getTrack(p.stage) === 'Эксперимент',
+    track_proj: (p) => !!p.stage && getTrack(p.stage) === 'Проект',
+    dir_iiot: (p) => p.direction === 'iiot',
+    dir_erp: (p) => p.direction === 'erp',
     has_budget: (p) => !!p.budget && p.budget > 0,
     overdue: (p) => !!p.deadline && new Date(p.deadline) < today,
   }), [today]);
 
+  // Show all non-closed deals (won/lost filtering uses status now, stage can be null for ERP)
   const activeProjects = useMemo(
-    () => (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost'),
+    () => (projects ?? []).filter((p) => p.status !== 'won' && p.status !== 'lost'),
     [projects],
   );
 
@@ -63,7 +91,12 @@ export function ProjectsTable({ onSwitchView }: ProjectsTableProps) {
       label: 'Проект',
       sortable: true,
       render: (p) => (
-        <span className="font-medium text-text-main">{p.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-text-main">{p.name}</span>
+          <Badge color={p.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+            {p.direction === 'iiot' ? 'IIoT' : 'ERP'}
+          </Badge>
+        </div>
       ),
       searchValue: (p) => p.name,
     },
@@ -71,21 +104,18 @@ export function ProjectsTable({ onSwitchView }: ProjectsTableProps) {
       key: 'stage',
       label: 'Стадия',
       sortable: true,
-      render: (p) => {
-        const cfg = STAGE_CONFIG[p.stage];
-        return (
-          <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
-            {cfg.shortLabel}
-          </span>
-        );
-      },
+      render: (p) => (
+        <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
+          {getStageName(p, stagesMap)}
+        </span>
+      ),
     },
     {
       key: 'track',
       label: 'Трек',
       sortable: false,
       render: (p) => (
-        <span className="text-xs text-text-dim">{getTrack(p.stage)}</span>
+        <span className="text-xs text-text-dim">{p.stage ? getTrack(p.stage) : '—'}</span>
       ),
     },
     {
@@ -229,8 +259,9 @@ export function ProjectsTable({ onSwitchView }: ProjectsTableProps) {
               exportToCSV(
                 sel.map((p) => ({
                   name: p.name,
-                  stage: STAGE_CONFIG[p.stage].label,
-                  track: getTrack(p.stage),
+                  direction: p.direction === 'iiot' ? 'IIoT' : 'ERP',
+                  stage: getStageName(p, stagesMap),
+                  track: p.stage ? getTrack(p.stage) : '',
                   company: p.company?.name ?? '',
                   contact: p.contact ? `${p.contact.first_name} ${p.contact.last_name}` : '',
                   budget: p.budget ? formatBudget(p.budget) : '',
@@ -240,6 +271,7 @@ export function ProjectsTable({ onSwitchView }: ProjectsTableProps) {
                 'projects',
                 [
                   { key: 'name', label: 'Проект' },
+                  { key: 'direction', label: 'Направление' },
                   { key: 'stage', label: 'Стадия' },
                   { key: 'track', label: 'Трек' },
                   { key: 'company', label: 'Компания' },

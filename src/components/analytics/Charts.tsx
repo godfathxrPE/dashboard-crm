@@ -113,9 +113,9 @@ export function PipelineChart() {
 
   const chartData = useMemo(() => {
     if (!projects) return [];
-    const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost');
+    const active = projects.filter((p) => p.stage && p.stage !== 'won' && p.stage !== 'lost');
     return phases.map((phase) => {
-      const items = active.filter((p) => getPhaseForStage(p.stage) === phase);
+      const items = active.filter((p) => p.stage && getPhaseForStage(p.stage) === phase);
       return { phase, name: PHASE_CONFIG[phase].label, count: items.length };
     });
   }, [projects]);

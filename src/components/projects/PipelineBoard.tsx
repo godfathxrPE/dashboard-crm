@@ -300,11 +300,16 @@ function WonDeals({ projects }: { projects: Project[] }) {
 // ═══════════════════════════════════════════════════════
 
 interface PipelineBoardProps {
+  directionFilter?: 'all' | 'erp' | 'iiot';
   onSwitchView?: () => void;
 }
 
-export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
-  const { data: projects, isLoading, error } = useProjects();
+export function PipelineBoard({ directionFilter = 'all', onSwitchView }: PipelineBoardProps = {}) {
+  const { data: rawProjects, isLoading, error } = useProjects();
+  const projects = useMemo(
+    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
+    [rawProjects, directionFilter],
+  );
   const { moveToStage } = useMoveProject();
   const deleteProject = useDeleteProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
@@ -330,7 +335,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
         case 'budget':
           return (b.budget ?? 0) - (a.budget ?? 0);
         case 'stage':
-          return STAGE_CONFIG[a.stage].order - STAGE_CONFIG[b.stage].order;
+          return (a.stage ? STAGE_CONFIG[a.stage].order : -1) - (b.stage ? STAGE_CONFIG[b.stage].order : -1);
         default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
@@ -340,6 +345,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
       attract: [], develop: [], negotiate: [], close: [], won: [], lost: [],
     };
     for (const p of sorted) {
+      if (!p.stage) continue;
       if (p.stage === 'won') result.won.push(p);
       else if (p.stage === 'lost') result.lost.push(p);
       else result[getPhaseForStage(p.stage)].push(p);
@@ -359,6 +365,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
     if (!over) return;
     const project = projects?.find((p) => p.id === active.id as string);
     if (!project) return;
+    if (!project.stage) return;
     const currentPhase = getPhaseForStage(project.stage);
 
     // over.id can be a phase (droppable) or a project id (sortable card)
@@ -386,7 +393,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
   }
   function handleAdvance(id: string) {
     const p = projects?.find((pr) => pr.id === id);
-    if (p) { const n = getNextStage(p.stage); if (n) moveToStage(id, n); }
+    if (p && p.stage) { const n = getNextStage(p.stage); if (n) moveToStage(id, n); }
   }
   function handleOpen(id: string) { window.location.href = `/projects/${id}`; }
   function handleRestore(id: string) { moveToStage(id, 'new_lead'); }
@@ -476,7 +483,7 @@ export function PipelineBoard({ onSwitchView }: PipelineBoardProps = {}) {
           {activeProject ? (
             <div className="rounded bg-surface p-3 elevation-3 opacity-90 rotate-2 max-w-[250px]">
               <p className="text-sm font-medium text-text-main">{activeProject.name}</p>
-              <p className="mt-0.5 text-[10px] text-text-mute">{STAGE_CONFIG[activeProject.stage].label}</p>
+              <p className="mt-0.5 text-[10px] text-text-mute">{activeProject.stage ? STAGE_CONFIG[activeProject.stage].label : '—'}</p>
             </div>
           ) : null}
         </DragOverlay>

@@ -9,10 +9,10 @@ export function FunnelWidget() {
 
   const funnel = useMemo(() => {
     if (!projects) return [];
-    const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost');
+    const active = projects.filter((p) => p.stage && p.stage !== 'won' && p.stage !== 'lost');
 
     return phases.map((phase) => {
-      const items = active.filter((p) => getPhaseForStage(p.stage) === phase);
+      const items = active.filter((p) => p.stage && getPhaseForStage(p.stage) === phase);
       const budget = items.reduce((sum, p) => sum + (p.budget ?? 0), 0);
       return { phase, count: items.length, budget };
     });

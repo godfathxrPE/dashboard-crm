@@ -53,7 +53,7 @@ export function ExportPanel() {
         case 'projects':
           csv = toCSV(
             ['ID', 'Название', 'Стадия', 'Бюджет', 'Дедлайн', 'След.шаг', 'Создано'],
-            (projects ?? []).map((p) => [p.id, p.name, p.stage, String(p.budget ?? ''), p.deadline ?? '', p.next_step ?? '', p.created_at])
+            (projects ?? []).map((p) => [p.id, p.name, p.stage ?? '', String(p.budget ?? ''), p.deadline ?? '', p.next_step ?? '', p.created_at])
           );
           downloadFile(csv, `projects-${date}.csv`, 'text/csv;charset=utf-8');
           break;

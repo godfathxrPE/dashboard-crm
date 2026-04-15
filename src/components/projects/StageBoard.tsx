@@ -46,6 +46,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
+import { Badge } from '@/components/ui/Badge';
 
 // ═══════════════════════════════════════════════════════
 // Deadline urgency color
@@ -101,9 +102,14 @@ function BoardCard({
         ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}
       `}
     >
-      <p className="text-xs font-semibold text-text-main leading-tight">
-        {project.name}
-      </p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-xs font-semibold text-text-main leading-tight truncate">
+          {project.name}
+        </p>
+        <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+          {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+        </Badge>
+      </div>
 
       <div className="mt-1.5 flex flex-col gap-0.5">
         {project.company?.name && (
@@ -146,7 +152,7 @@ function BoardCard({
       <div
         className="stage-progress mt-2 -mx-2.5 -mb-2.5"
         style={{
-          background: `linear-gradient(to right, var(--accent) ${Math.round(((STAGE_CONFIG[project.stage]?.order ?? 0) + 1) / 12 * 100)}%, var(--border) 0%)`,
+          background: `linear-gradient(to right, var(--accent) ${Math.round(((project.stage ? STAGE_CONFIG[project.stage]?.order ?? 0 : 0) + 1) / 12 * 100)}%, var(--border) 0%)`,
         }}
       />
     </div>
@@ -253,11 +259,16 @@ function WonDeals({ projects }: { projects: Project[] }) {
 // ═══════════════════════════════════════════════════════
 
 interface StageBoardProps {
+  directionFilter?: 'all' | 'erp' | 'iiot';
   onSwitchView: () => void;
 }
 
-export function StageBoard({ onSwitchView }: StageBoardProps) {
-  const { data: projects, isLoading, error } = useProjects();
+export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoardProps) {
+  const { data: rawProjects, isLoading, error } = useProjects();
+  const projects = useMemo(
+    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
+    [rawProjects, directionFilter],
+  );
   const { moveToStage } = useMoveProject();
   const deleteProject = useDeleteProject();
 
@@ -279,7 +290,7 @@ export function StageBoard({ onSwitchView }: StageBoardProps) {
     if (!projects) return result;
 
     for (const p of projects) {
-      result[p.stage].push(p);
+      if (p.stage) result[p.stage].push(p);
     }
     // Sort within each stage by created_at desc
     for (const key of Object.keys(result)) {
@@ -316,6 +327,7 @@ export function StageBoard({ onSwitchView }: StageBoardProps) {
       // Dropped on a card — find its stage
       const targetProject = projects?.find((p) => p.id === over.id);
       if (!targetProject) return;
+      if (!targetProject.stage) return;
       targetStage = targetProject.stage;
     }
 
@@ -443,7 +455,7 @@ export function StageBoard({ onSwitchView }: StageBoardProps) {
                   {activeProject.name}
                 </p>
                 <p className="mt-0.5 text-[10px] text-text-mute">
-                  {STAGE_CONFIG[activeProject.stage].label}
+                  {activeProject.stage ? STAGE_CONFIG[activeProject.stage].label : '—'}
                 </p>
               </div>
             ) : null}
