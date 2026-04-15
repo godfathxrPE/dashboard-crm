@@ -544,8 +544,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* Deal Progress Bar — universal, from pipeline_stages */}
-      {project.pipeline_id && project.stage_id && (
+      {/* Deal Progress Bar — ERP only (IIoT uses StackedPipeline below) */}
+      {project.direction === 'erp' && project.pipeline_id && project.stage_id && (
         <div className="mb-4">
           <DealProgressBar
             pipelineId={project.pipeline_id}
