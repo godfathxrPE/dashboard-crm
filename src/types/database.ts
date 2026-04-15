@@ -41,6 +41,50 @@ export interface PipelineStage {
   is_lost: boolean;
 }
 
+// ═══ Sprint 2: Leads ═══
+
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';
+export type LeadSource = 'call' | 'website' | 'referral' | 'cold' | 'inbound' | 'event';
+
+export interface Lead {
+  id: string;
+  user_id: string;
+  title: string;
+  source: LeadSource | null;
+  status: LeadStatus;
+  direction: Direction | null;
+  company_name_raw: string | null;
+  contact_name_raw: string | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  disqualify_reason: string | null;
+  converted_deal_id: string | null;
+  converted_company_id: string | null;
+  converted_contact_id: string | null;
+  converted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadInsert {
+  title: string;
+  source?: LeadSource | null;
+  status?: LeadStatus;
+  direction?: Direction | null;
+  company_name_raw?: string | null;
+  contact_name_raw?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  notes?: string | null;
+}
+
+export interface LeadConversionResult {
+  company_id: string;
+  contact_id: string;
+  deal_id: string;
+}
+
 export type TaskLane = 'now' | 'next' | 'wait' | 'done';
 export type TaskPriority = 'normal' | 'important' | 'critical';
 export type CallStatus = 'done' | 'pending' | 'cancelled';

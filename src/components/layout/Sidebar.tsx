@@ -5,18 +5,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, CheckSquare, FolderKanban, Phone,
-  Users, Building2, CalendarDays, BarChart3, Settings,
+  Users, Building2, CalendarDays, BarChart3, Settings, Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useLeads } from '@/lib/hooks/use-leads';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 
 const MAIN_NAV = [
   { href: '/',          label: 'Дашборд',    jpLabel: 'ダッシュボード', icon: LayoutDashboard, badgeKey: null,               sectionColor: '#94A3B8' },
   { href: '/tasks',     label: 'Задачи',     jpLabel: 'タスク管理',     icon: CheckSquare,     badgeKey: 'tasks' as const,   sectionColor: '#8B7CF6' },
+  { href: '/leads',     label: 'Лиды',       jpLabel: 'リード',         icon: Target,          badgeKey: 'leads' as const,   sectionColor: '#F97316' },
   { href: '/projects',  label: 'Проекты',    jpLabel: '案件管理',       icon: FolderKanban,    badgeKey: null,               sectionColor: '#FF6633' },
   { href: '/contacts',  label: 'Контакты',   jpLabel: '連絡先',         icon: Users,           badgeKey: null,               sectionColor: '#06B6D4' },
   { href: '/companies', label: 'Компании',   jpLabel: '企業一覧',       icon: Building2,       badgeKey: null,               sectionColor: '#22C55E' },
@@ -63,6 +65,7 @@ export function Sidebar() {
   const isWashi = theme === 't-washi';
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
+  const { data: leads } = useLeads();
   const navRef = useRef<HTMLElement>(null);
   const [indicator, setIndicator] = useState<{ top: number; height: number; opacity: number }>({ top: 0, height: 0, opacity: 0 });
   const [mounted, setMounted] = useState(false);
@@ -72,10 +75,12 @@ export function Sidebar() {
   const activeTasks = (tasks ?? []).filter((t) => t.lane === 'now' || t.lane === 'next').length;
   const overdueCalls = (calls ?? []).filter((c) => c.status === 'pending' && new Date(c.date) < today).length;
   const pendingCalls = (calls ?? []).filter((c) => c.status === 'pending').length;
+  const activeLeads = (leads ?? []).filter((l) => l.status === 'new' || l.status === 'contacted').length;
 
   const badges: Record<string, number> = {
     tasks: overdueTasks || activeTasks,
     calls: overdueCalls || pendingCalls,
+    leads: activeLeads,
   };
   const badgeUrgent: Record<string, boolean> = {
     tasks: overdueTasks > 0,
