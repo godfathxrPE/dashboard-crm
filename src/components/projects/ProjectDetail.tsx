@@ -29,8 +29,10 @@ import {
   useProject,
   useUpdateProject,
   useDeleteProject,
+  useMoveProject,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
@@ -44,6 +46,7 @@ import {
   type DealStage,
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
+import { DealProgressBar } from './DealProgressBar';
 import { ProjectFiles } from './ProjectFiles';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
@@ -397,6 +400,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: project, isLoading, error } = useProject(projectId);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const { moveToStageId } = useMoveProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
   const { data: allTasks = [] } = useTasks();
@@ -540,20 +544,48 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* 3-Track Pipeline */}
-      <div className="mb-6">
-        {project.stage && <StackedPipeline
-          currentStage={project.stage}
-          onStageClick={(stage) => {
-            const targetOrder = STAGE_CONFIG[stage].order;
-            const currentOrder = STAGE_CONFIG[project.stage!].order;
-            if (targetOrder < currentOrder) {
-              if (!confirm(`Вернуть на стадию «${STAGE_CONFIG[stage].label}»?`)) return;
-            }
-            updateProject.mutate({ id: project.id, stage });
-          }}
-        />}
-      </div>
+      {/* Deal Progress Bar — universal, from pipeline_stages */}
+      {project.pipeline_id && project.stage_id && (
+        <div className="mb-4">
+          <DealProgressBar
+            pipelineId={project.pipeline_id}
+            currentStageId={project.stage_id}
+            readOnly={project.status === 'won' || project.status === 'lost'}
+            onStageClick={(newStageId) => {
+              if (!allPipelineStages) return;
+              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
+              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
+              if (!currentStageObj || !targetStageObj) return;
+              if (targetStageObj.order_index === currentStageObj.order_index) return;
+
+              // Confirm on backward move
+              if (targetStageObj.order_index < currentStageObj.order_index) {
+                if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
+              }
+
+              const legacyStage = mapToLegacyStage(targetStageObj, project.direction);
+              moveToStageId(project.id, newStageId, legacyStage);
+            }}
+          />
+        </div>
+      )}
+
+      {/* 3-Track Pipeline — IIoT only (legacy sub-detail view) */}
+      {project.direction === 'iiot' && project.stage && (
+        <div className="mb-6">
+          <StackedPipeline
+            currentStage={project.stage}
+            onStageClick={(stage) => {
+              const targetOrder = STAGE_CONFIG[stage].order;
+              const currentOrder = STAGE_CONFIG[project.stage!].order;
+              if (targetOrder < currentOrder) {
+                if (!confirm(`Вернуть на стадию «${STAGE_CONFIG[stage].label}»?`)) return;
+              }
+              updateProject.mutate({ id: project.id, stage });
+            }}
+          />
+        </div>
+      )}
 
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
