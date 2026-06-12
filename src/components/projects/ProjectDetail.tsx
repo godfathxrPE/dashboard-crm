@@ -159,7 +159,7 @@ function TaskMiniCard({ task }: { task: Task }) {
   const prio = PRIORITY_CONFIG[task.priority];
 
   return (
-    <div className={`rounded-lg border border-border/50 bg-bg px-3 py-2 ${prio.badge}`}>
+    <div data-card className={`rounded-lg border border-border/50 bg-bg px-3 py-2 ${prio.badge}`}>
       <div className="flex items-center justify-between gap-2">
         <span className={`text-[14px] ${task.lane === 'done' ? 'line-through text-text-mute' : 'text-text-main'}`}>
           {task.text}
@@ -182,7 +182,7 @@ function CallMiniCard({ call }: { call: Call }) {
   const status = CALL_STATUS_CONFIG[call.status];
 
   return (
-    <div className="rounded-lg border border-border/50 bg-bg px-3 py-2">
+    <div data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Phone size={11} className="text-text-mute" />
@@ -211,7 +211,7 @@ function CallMiniCard({ call }: { call: Call }) {
 
 function MeetingMiniCard({ meeting }: { meeting: Meeting }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-bg px-3 py-2">
+    <div data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Users size={11} className="text-text-mute" />
@@ -354,7 +354,7 @@ function ActivityTimeline({ projectId }: { projectId: string }) {
       {entries.length === 0 ? (
         <p className="text-xs text-text-mute italic">Пока нет событий</p>
       ) : (
-        <div className="space-y-0">
+        <div data-timeline-scroll className="space-y-0">
           {entries.map((entry, idx) => {
             const Icon = EVENT_ICON[entry.event_type] ?? MessageSquare;
             const color = EVENT_COLOR[entry.event_type] ?? 'text-text-mute';
@@ -588,7 +588,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       )}
 
       {/* Info grid */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {/* Company — clickable */}
         <div
           className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"

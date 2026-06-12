@@ -103,12 +103,13 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
 
   return (
     <div
+      data-modal-overlay
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 elevation-3" role="dialog" aria-modal="true">
+      <div data-modal className="w-full max-w-md rounded-xl border border-border bg-surface p-5 elevation-3" role="dialog" aria-modal="true">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-text-main">

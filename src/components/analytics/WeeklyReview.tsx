@@ -62,8 +62,8 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
+    <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div data-modal className="w-full max-w-xl rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
         role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
 
         <div className="mb-5 flex items-center justify-between">
@@ -79,7 +79,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
         {/* Stats grid */}
         <div className="mb-5 grid grid-cols-2 gap-3">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-lg border border-border/50 bg-bg px-3 py-2.5 text-center">
+            <div key={s.label} data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2.5 text-center">
               <s.icon size={16} className={`mx-auto mb-1 ${s.color}`} />
               <div className="text-xl font-bold text-text-main">{s.value}</div>
               <div className="text-xs text-text-dim">{s.label}</div>

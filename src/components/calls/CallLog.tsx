@@ -101,7 +101,7 @@ export function CallLog() {
               </div>
               <div className="space-y-2">
                 {scheduledCalls.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-border/50 bg-bg px-2.5 py-2">
+                  <div key={c.id} data-card className="rounded-lg border border-border/50 bg-bg px-2.5 py-2">
                     <div className="flex items-center gap-1 text-[10px] text-blue">
                       <Calendar size={9} />
                       {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -149,7 +149,7 @@ export function CallLog() {
                 const statusLabel = isOverdue ? 'Просрочен' : CALL_STATUS_CONFIG[call.status].label;
 
                 return (
-                <div key={call.id}
+                <div key={call.id} data-card
                   className={`group flex items-start gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3 transition-colors hover:border-border ${staggerClass(i)}`}>
 
                   {/* Status dot */}

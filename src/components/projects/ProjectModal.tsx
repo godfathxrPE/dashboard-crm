@@ -197,10 +197,12 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }:
 
   return (
     <div
+      data-modal-overlay
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
     >
       <div
+        data-modal
         className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
         role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
       >

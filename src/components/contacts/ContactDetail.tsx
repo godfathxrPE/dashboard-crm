@@ -180,7 +180,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                     className="flex-1 text-left text-sm text-text-main hover:text-accent">
                     {cc.company?.name ?? 'N/A'}
                   </button>
-                  {cc.role && <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">{cc.role}</span>}
+                  {cc.role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">{cc.role}</span>}
                   <button onClick={() => handleUnlink(cc.company_id)}
                     className="rounded p-0.5 text-text-mute opacity-0 transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100"
                     title="Убрать связь">
@@ -207,7 +207,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                 <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                   <span className="text-sm text-text-main">{p.name}</span>
-                  <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+                  <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
                     {p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—'}
                   </span>
                   {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}

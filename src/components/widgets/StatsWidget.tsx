@@ -20,7 +20,7 @@ interface StatCardProps {
 
 function StatCard({ icon: Icon, label, value, sub, color, href }: StatCardProps) {
   return (
-    <a href={href}
+    <a href={href} data-card
       className="group flex items-center gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3
                  transition-all hover:border-border hover:shadow-sm">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}`}>

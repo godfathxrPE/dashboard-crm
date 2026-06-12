@@ -19,13 +19,13 @@
 :root, .t-claude {
   --bg: #f5f4ef;  --surface: #ffffff;  --surface2: #f0efe9;  --surface3: #e5e3dc;
   --border: #e5e3dc;  --border2: #d4d2ca;
-  --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #a8a59e;
+  --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #6f6d68;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #b5622a;  --accent-l: rgba(181,98,42,0.08);  --accent-l2: rgba(181,98,42,0.16);
   --green: #2e7d52;  --green-l: rgba(46,125,82,0.09);
   --red: #c0392b;  --red-l: rgba(192,57,43,0.09);
   --blue: #2d6ab4;  --blue-l: rgba(45,106,180,0.09);
-  --yellow: #a07020;  --yellow-l: rgba(160,112,32,0.09);
+  --yellow: #a07020;  --yellow-l: rgba(160,112,32,0.09);  --yellow-text: #92661d;
   --purple: #7c3aed;  --purple-l: rgba(124,58,237,0.09);
   --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 16px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
@@ -79,11 +79,90 @@
   --track-proj-done: #500724; --track-proj-current: #db2777;
 }
 
+/* ═══ Cupertino (dark, full glassmorphism) ═══ */
+.t-cupertino {
+  --bg: #05070d;  --surface: rgba(255,255,255,0.08);  --surface2: rgba(255,255,255,0.05);  --surface3: rgba(255,255,255,0.12);
+  --border: rgba(255,255,255,0.14);  --border2: rgba(255,255,255,0.26);
+  --text: #f2f5fa;  --text-dim: #9fa8bd;  --text-mute: #788299;
+  --sidebar-indicator: rgba(255,255,255,0.12);  --sidebar-active-text: var(--accent);
+  --accent: #0a84ff;  --accent-l: rgba(10,132,255,0.16);  --accent-l2: rgba(10,132,255,0.28);
+  --green: #30d158;  --green-l: rgba(48,209,88,0.14);
+  --red: #ff453a;  --red-l: rgba(255,69,58,0.14);
+  --blue: #64d2ff;  --blue-l: rgba(100,210,255,0.14);
+  --yellow: #ffd60a;  --yellow-l: rgba(255,214,10,0.14);
+  --purple: #bf5af2;  --purple-l: rgba(191,90,242,0.14);
+  --radius: 14px;  --radius-s: 9px;  --radius-m: 14px;  --radius-l: 20px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.35);
+  --shadow-md: 0 6px 20px rgba(0,0,0,0.4);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+  --shadow-card: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.06);
+  --shadow-card-hover: 0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.24), inset 0 0 0 0.5px rgba(255,255,255,0.10);
+  --glass-bg: rgba(255,255,255,0.08);  --glass-border: rgba(255,255,255,0.14);
+  --glass-blur: blur(24px) saturate(180%);  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.18);
+  --elevation-0: none;
+  --elevation-1: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
+  --elevation-2: 0 8px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
+  --elevation-3: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;  --duration-normal: 0.25s;
+  --track-prep-done: #14532d; --track-prep-current: #30d158;
+  --track-exp-done: #3b0764;  --track-exp-current: #bf5af2;
+  --track-nego-done: #78350f; --track-nego-current: #ffd60a;
+  --track-proj-done: #500724; --track-proj-current: #ff375f;
+}
+
+/* Cupertino: mesh-gradient backdrop — стекло требует цветного фона под blur */
+.t-cupertino div[data-section] {
+  background:
+    radial-gradient(56rem 40rem at 12% -8%, rgba(10,132,255,0.20), transparent 62%),
+    radial-gradient(48rem 36rem at 96% 6%, rgba(191,90,242,0.16), transparent 60%),
+    radial-gradient(50rem 42rem at 72% 105%, rgba(94,92,230,0.16), transparent 65%),
+    radial-gradient(38rem 30rem at -4% 78%, rgba(100,210,255,0.10), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Cupertino: стеклянные поверхности — карточки, sidebar, header, dropdowns */
+.t-cupertino .card,
+.t-cupertino .glass-card,
+.t-cupertino .bg-surface,
+.t-cupertino aside,
+.t-cupertino header {
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+.t-cupertino .card,
+.t-cupertino .bg-surface {
+  box-shadow: var(--shadow-card);
+}
+.t-cupertino .card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border2);
+  transform: translateY(-2px);
+}
+
+/* Cupertino: glass pill для активного пункта навигации */
+.t-cupertino .nav-active {
+  border-left: 3px solid var(--accent);
+  background: rgba(255,255,255,0.10);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+/* Cupertino: липкие заголовки таблиц — стекло вместо глухого фона */
+.t-cupertino table thead th {
+  background: rgba(5,7,13,0.62);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
 /* ═══ Paper (light, editorial) ═══ */
 .t-paper {
   --bg: #f5f0e0;  --surface: #fdf8ec;  --surface2: #ede8d4;  --surface3: #dfd8c2;
   --border: #c8bfa0;  --border2: #a89878;
-  --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #a89070;
+  --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #7b6952;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #8b3a1a;  --accent-l: rgba(139,58,26,0.08);  --accent-l2: rgba(139,58,26,0.15);
   --green: #2e6b3a;  --green-l: rgba(46,107,58,0.09);
@@ -114,7 +193,7 @@
 .t-sand {
   --bg: #f0e8d8;  --surface: #faf5ea;  --surface2: #e8dfc8;  --surface3: #dad0b8;
   --border: #c0a880;  --border2: #a08860;
-  --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #b09070;
+  --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #79634d;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #c05828;  --accent-l: rgba(192,88,40,0.08);  --accent-l2: rgba(192,88,40,0.16);
   --green: #3a6820;  --green-l: rgba(58,104,32,0.09);
@@ -212,13 +291,13 @@
 .t-keyswitch {
   --bg: #F8F8FA;  --surface: #FFFFFF;  --surface2: #F1F1F5;  --surface3: #E3E3E9;
   --border: #E3E3E9;  --border2: #CCCCD6;
-  --text: #1A1A1E;  --text-dim: #53535E;  --text-mute: #85858F;
+  --text: #1A1A1E;  --text-dim: #53535E;  --text-mute: #707078;
   --sidebar-indicator: #1A1A1E;  --sidebar-active-text: var(--section-keycap, #94A3B8);
   --accent: var(--section-base, #64748B);  --accent-l: var(--section-light, rgba(100,116,139,0.06));  --accent-l2: var(--section-medium, rgba(100,116,139,0.12));
-  --green: #059669;  --green-l: rgba(5,150,105,0.08);
+  --green: #059669;  --green-l: rgba(5,150,105,0.08);  --green-text: #04815a;
   --red: #DC2626;  --red-l: rgba(220,38,38,0.08);
   --blue: #2563EB;  --blue-l: rgba(37,99,235,0.08);
-  --yellow: #D97706;  --yellow-l: rgba(217,119,6,0.08);
+  --yellow: #D97706;  --yellow-l: rgba(217,119,6,0.08);  --yellow-text: #a95d05;
   --purple: #7C3AED;  --purple-l: rgba(124,58,237,0.08);
   --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 14px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
@@ -254,7 +333,7 @@
 .t-nvg8 {
   --bg: #FBF6EE;  --surface: #FFFFFF;  --surface2: #F0EBE1;  --surface3: #E0D9CC;
   --border: #E8E0D2;  --border2: #D4CBC0;
-  --text: #1A1714;  --text-dim: #6B6258;  --text-mute: #857E72;
+  --text: #1A1714;  --text-dim: #6B6258;  --text-mute: #756f64;
   --sidebar-indicator: transparent;  --sidebar-active-text: var(--text);
   --accent: #FF6633;  --accent-text: #C04718;
   --accent-l: rgba(255,102,51,0.08);  --accent-l2: rgba(255,102,51,0.16);
@@ -303,13 +382,13 @@
   --sidebar-text-dim: rgba(232,226,216,0.5);
   --sidebar-border: rgba(232,226,216,0.06);
   --sidebar-hover: rgba(232,226,216,0.05);
-  --text: #2C2C2C;  --text-dim: #6B6560;  --text-mute: #867F79;
+  --text: #2C2C2C;  --text-dim: #6B6560;  --text-mute: #716b66;
   --sidebar-indicator: transparent;  --sidebar-active-text: var(--accent);
   --accent: #C23B3B;  --accent-l: rgba(194,59,59,0.10);  --accent-l2: rgba(194,59,59,0.25);
   --green: #5E7A3A;  --green-l: rgba(94,122,58,0.12);  --green-text: #4E6A2E;
   --red: #C23B3B;  --red-l: rgba(194,59,59,0.10);  --red-text: #C23B3B;
   --blue: #2B5F8A;  --blue-l: rgba(43,95,138,0.12);  --blue-text: #2B5F8A;
-  --yellow: #D4993A;  --yellow-l: rgba(212,153,58,0.12);  --yellow-text: #8B6914;
+  --yellow: #D4993A;  --yellow-l: rgba(212,153,58,0.12);  --yellow-text: #826112;
   --purple: #7B68A8;  --purple-l: rgba(123,104,168,0.12);  --purple-text: #7B68A8;
   --radius: 4px;  --radius-s: 2px;  --radius-m: 4px;  --radius-l: 8px;
   --shadow-xs: 0 1px 2px rgba(44,44,44,0.04);
@@ -481,11 +560,11 @@
 .t-fuji {
   --bg: #EDE8DF;  --surface: #FDFCF8;  --surface2: #F0EBE2;  --surface3: #E3DDD2;
   --border: #DDD5C5;  --border2: #C8C0B0;
-  --text: #1A2744;  --text-dim: #5A6A78;  --text-mute: #7A828A;
+  --text: #1A2744;  --text-dim: #5A6A78;  --text-mute: #62686e;
   --sidebar-indicator: transparent;  --sidebar-active-text: #C4AA78;
   --accent: #2B5078;  --accent-l: rgba(43,80,120,0.08);  --accent-l2: rgba(43,80,120,0.16);
   --green: #4A7A5A;  --green-l: rgba(74,122,90,0.10);  --green-text: #3A6248;
-  --red: #C23B3B;  --red-l: rgba(194,59,59,0.09);  --red-text: #C23B3B;
+  --red: #C23B3B;  --red-l: rgba(194,59,59,0.09);  --red-text: #ba3939;
   --blue: #2B5078;  --blue-l: rgba(43,80,120,0.08);  --blue-text: #2B5078;
   --yellow: #C4AA78;  --yellow-l: rgba(196,170,120,0.12);  --yellow-text: #7A6538;
   --purple: #6A5A8E;  --purple-l: rgba(106,90,142,0.09);  --purple-text: #6A5A8E;
@@ -522,7 +601,7 @@
 
 /* Fuji: font override */
 .t-fuji body,
-.t-fuji { font-family: 'IBM Plex Sans', 'Noto Sans JP', 'Manrope', system-ui, sans-serif; }
+.t-fuji { font-family: var(--font-plex, 'IBM Plex Sans'), var(--font-manrope, 'Manrope'), system-ui, sans-serif; }
 
 /* ── Fuji: Indigo L-frame (sidebar + header) ── */
 .t-fuji aside {
@@ -762,10 +841,12 @@
 .t-scandi {
   --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
   --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
-  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.55);  --text-mute: rgba(0,0,0,0.45);
+  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.56);
+  --bracket-color: #DDD5E2;  --ring-active: #444444;  --ring-track: #e8e8e8;
+  accent-color: var(--text);
   --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
   --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
-  font-family: 'Inter', 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-inter, 'Inter'), var(--font-manrope, 'Manrope'), system-ui, sans-serif;
   letter-spacing: -0.011em;
   --green: rgba(0,0,0,0.7);  --green-l: rgba(0,0,0,0.05);
   --red: rgba(0,0,0,0.8);  --red-l: rgba(0,0,0,0.05);
@@ -794,7 +875,8 @@
   .t-scandi {
     --bg: #111111;  --surface: #111111;  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.08);
     --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);
-    --text: #ffffff;  --text-dim: rgba(255,255,255,0.55);  --text-mute: rgba(255,255,255,0.35);
+    --text: #ffffff;  --text-dim: rgba(255,255,255,0.65);  --text-mute: rgba(255,255,255,0.55);
+    --bracket-color: rgba(255,255,255,0.22);  --ring-active: rgba(255,255,255,0.7);  --ring-track: rgba(255,255,255,0.12);
     --sidebar-active-text: #ffffff;
     --accent: #ffffff;  --accent-l: rgba(255,255,255,0.06);  --accent-l2: rgba(255,255,255,0.12);
     --green: rgba(255,255,255,0.7);  --green-l: rgba(255,255,255,0.05);
@@ -882,8 +964,8 @@
 .t-scandi a.bg-accent:hover,
 .t-scandi button.bg-accent:hover *,
 .t-scandi a.bg-accent:hover * {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  color: var(--bg) !important;
+  -webkit-text-fill-color: var(--bg) !important;
   opacity: 1 !important;
   filter: none;
 }
@@ -921,6 +1003,11 @@
   outline: none !important;
   box-shadow: none !important;
 }
+.t-scandi input:focus-visible,
+.t-scandi textarea:focus-visible,
+.t-scandi select:focus-visible {
+  border-bottom-width: 1.5px !important;
+}
 
 /* ── Scandi: Dashboard — monochrome charts, no card chrome ── */
 .t-scandi [data-kpi] {
@@ -937,10 +1024,12 @@
 }
 /* Funnel bars: thin, monochrome */
 .t-scandi .recharts-bar-rectangle rect {
-  opacity: 0.12;
+  opacity: 0.25;
   rx: 0;
   ry: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
+.t-scandi .recharts-bar-rectangle:hover rect { opacity: 0.7; }
 /* Activity & deadline items: thin separators */
 .t-scandi .hover\:bg-surface-hover {
   border-bottom: 0.5px solid var(--border);
@@ -949,21 +1038,10 @@
   border-bottom: none;
 }
 
-/* ── Scandi: Pipeline kanban — flat columns ── */
-.t-scandi .grid.grid-cols-4 {
-  border: 0.5px solid var(--border) !important;
-  box-shadow: none !important;
-}
-.t-scandi .grid.grid-cols-4 > div {
-  background: transparent !important;
-}
-/* Project cards in kanban */
-.t-scandi .grid.grid-cols-4 .space-y-2 > div {
-  border: 0.5px solid var(--border) !important;
-}
-.t-scandi .grid.grid-cols-4 .space-y-2 > div:hover {
-  border-color: var(--border2) !important;
-}
+/* ── Scandi: KPI stats grids помечены [data-stats-grid] ──
+   Легаси-правила .grid.grid-cols-4 (flat kanban) удалены: после перехода
+   kanban на динамические колонки (sprint 1.5) селектор не матчил ни один
+   элемент. Новые стили для KPI-сеток вешать на [data-stats-grid]. */
 /* Progress bars: monochrome */
 .t-scandi .stage-progress {
   height: 3px;
@@ -978,17 +1056,18 @@
   border-width: 0.5px;
 }
 /* Task checkbox: slightly rounded exception */
-.t-scandi .rounded-\[4px\] { border-radius: 3px !important; }
+.t-scandi .rounded-\[4px\] { border-radius: 0 !important; }
+/* Единственное исключение из zero-radius — logo-icon (бренд-знак) и круглые точки-индикаторы */
 /* Overdue dates: not colored, just bold */
 .t-scandi .text-red.font-semibold {
   color: var(--text) !important;
   font-weight: 500;
 }
 /* Project tag: square */
-.t-scandi .rounded.bg-accent-l {
+.t-scandi [data-tag] {
   border: 0.5px solid var(--border);
   background: transparent !important;
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
 }
 /* Task sidebar widgets: no chrome */
@@ -1001,7 +1080,7 @@
 
 /* ── Scandi: Tables (Contacts, Companies) — thin, clean ── */
 .t-scandi table thead th {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1011,6 +1090,7 @@
 .t-scandi table tbody td {
   font-size: 12px;
   border-bottom-width: 0.5px;
+  font-variant-numeric: tabular-nums;
 }
 .t-scandi table tbody tr:hover {
   background: transparent !important;
@@ -1026,25 +1106,15 @@
 }
 
 /* ── Scandi: Modal elevation + backdrop ── */
-.t-scandi .fixed.inset-0.z-50 {
+.t-scandi [data-modal-overlay] {
   background-color: var(--backdrop-color) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  z-index: 200 !important;
 }
-.t-scandi .fixed.inset-0.z-50 > [role="dialog"],
-.t-scandi .fixed.inset-0.z-50 > div:not([role]) {
+.t-scandi [data-modal] {
   background: var(--bg) !important;
   border: 1px solid var(--text) !important;
   box-shadow: var(--elevation-2);
-}
-/* Command palette + hotkeys content */
-.t-scandi .fixed.inset-0.z-\[60\] > [role="dialog"],
-.t-scandi .fixed.inset-0.z-\[60\] > div:not([role]),
-.t-scandi .fixed.z-\[60\].rounded-xl,
-.t-scandi .fixed.z-\[60\].border {
-  background: var(--bg) !important;
-  border: 1px solid var(--text) !important;
 }
 /* Dropdown / popover elevation */
 .t-scandi .absolute.right-0.top-full,
@@ -1052,22 +1122,28 @@
   box-shadow: var(--elevation-1) !important;
   border: 0.5px solid var(--border) !important;
 }
-/* Command palette */
-.t-scandi .fixed.inset-0.z-\[60\] {
+/* Command palette + hotkeys: darker backdrop, lighter blur */
+.t-scandi [data-modal-overlay="palette"] {
   background-color: rgba(0,0,0,0.5) !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+/* Z-index hierarchy (все темы): sidebar 20 < drawer 30 < headers 35-40 <
+   dropdowns 50 < overlay 999 < modal 1000. Перебивает Tailwind z-50/z-[60]
+   на тех же элементах (равная специфичность, правило ниже по файлу). */
+[data-modal-overlay] { z-index: 999; }
+[data-modal] { z-index: 1000; }
+
 /* Modal animation */
-@keyframes scandiSlideUp {
+@keyframes modalIn {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.t-scandi [role="dialog"] {
-  animation: scandiSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+[role="dialog"] {
+  animation: modalIn 0.3s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }
 @media (prefers-reduced-motion: reduce) {
-  .t-scandi [role="dialog"] { animation: none; }
+  [role="dialog"] { animation: none; }
 }
 
 /* ── Scandi: Badges — plain text, no background ── */
@@ -1095,10 +1171,30 @@
 .t-scandi .pill-cancelled {
   background: transparent !important;
   color: var(--text) !important;
-  opacity: 0.5;
-  font-size: 9px;
+  opacity: 0.6;
+  font-size: 11px;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   font-weight: 500;
+}
+/* Статусы различаются формой маркера, не цветом: ● done, ○ pending, − cancelled */
+.t-scandi .pill-done::before,
+.t-scandi .pill-pending::before,
+.t-scandi .pill-cancelled::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+.t-scandi .pill-done::before { background: var(--text); }
+.t-scandi .pill-pending::before { border: 1px solid var(--text); }
+.t-scandi .pill-cancelled::before {
+  height: 1.5px;
+  border-radius: 0;
+  background: var(--text);
+  vertical-align: 3px;
 }
 /* Call cards: no colored ring, thin separator */
 .t-scandi .rounded-xl.bg-surface {
@@ -1121,7 +1217,12 @@
 /* ── Scandi: Analytics — monochrome charts ── */
 .t-scandi .recharts-pie-sector path,
 .t-scandi .recharts-sector {
-  opacity: 0.15;
+  opacity: 0.3;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.t-scandi .recharts-pie-sector:hover path,
+.t-scandi .recharts-sector:hover {
+  opacity: 0.65;
 }
 .t-scandi .recharts-bar-rectangle rect {
   fill: var(--text) !important;
@@ -1149,8 +1250,8 @@
   position: absolute;
   top: 0; left: 0;
   width: 10px; height: 10px;
-  border-left: 1px solid #DDD5E2;
-  border-top: 1px solid #DDD5E2;
+  border-left: 1px solid var(--bracket-color, #DDD5E2);
+  border-top: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 .t-scandi .highlight-card::after {
@@ -1158,15 +1259,15 @@
   position: absolute;
   bottom: 0; right: 0;
   width: 10px; height: 10px;
-  border-right: 1px solid #DDD5E2;
-  border-bottom: 1px solid #DDD5E2;
+  border-right: 1px solid var(--bracket-color, #DDD5E2);
+  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 .t-scandi .highlight-card [class*="border-l-"] { border-left-color: var(--border) !important; }
 .t-scandi .highlight-card.filled { border-color: transparent !important; box-shadow: none !important; }
 .t-scandi .highlight-card.filled::before,
 .t-scandi .highlight-card.filled::after {
-  border-color: #DDD5E2;
+  border-color: var(--bracket-color, #DDD5E2);
   filter: none;
 }
 /* Contact 360: bracket corners on profile card + activity */
@@ -1179,8 +1280,8 @@
   position: absolute;
   top: 0; left: 0;
   width: 10px; height: 10px;
-  border-left: 1px solid #DDD5E2;
-  border-top: 1px solid #DDD5E2;
+  border-left: 1px solid var(--bracket-color, #DDD5E2);
+  border-top: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 .t-scandi .contact-profile-card::after {
@@ -1188,8 +1289,8 @@
   position: absolute;
   bottom: 0; right: 0;
   width: 10px; height: 10px;
-  border-right: 1px solid #DDD5E2;
-  border-bottom: 1px solid #DDD5E2;
+  border-right: 1px solid var(--bracket-color, #DDD5E2);
+  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 /* Meetings: dim past meetings */
@@ -1200,23 +1301,24 @@
 /* ProjectDetail + ContactDetail: info cards flat (no shadow) */
 .t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="px-3"],
 .t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="py-2"] { box-shadow: none !important; }
-/* ProjectDetail: timeline scroll — 5 visible events */
-.t-scandi .space-y-0 { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-.t-scandi .space-y-0::-webkit-scrollbar { width: 4px; }
-.t-scandi .space-y-0::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-/* ContactDetail: activity list scroll — 4 visible events */
-.t-scandi .max-h-\[480px\] { max-height: 280px !important; }
+/* Timeline scroll zones: ProjectDetail — 5 visible events */
+.t-scandi [data-timeline-scroll] { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.t-scandi [data-timeline-scroll]::-webkit-scrollbar { width: 4px; }
+.t-scandi [data-timeline-scroll]::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+/* Dashboard activity feed: компактнее — 4 visible events */
+.t-scandi [data-timeline-scroll="compact"] { max-height: 280px !important; }
 /* Kanban: empty column — dashed placeholder */
-.t-scandi .flex.h-20.items-center.justify-center {
+.t-scandi [data-kanban-empty] {
   border: 1.5px dashed var(--border2);
   min-height: 80px;
   margin: 4px;
 }
 /* Kanban: card hover — subtle lift */
 .t-scandi .glass-card:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: var(--border2) !important;
+  transition: border-color 0.2s ease;
 }
 /* Kanban: hide corner notch in scandi */
 .t-scandi .glass-card .absolute.top-0.right-0 { display: none; }
@@ -1224,30 +1326,27 @@
 .t-scandi .text-red.font-semibold,
 .t-scandi span.text-red { color: var(--text-dim) !important; }
 /* Calls ring: softer stroke */
-.t-scandi circle[stroke="var(--accent)"] { stroke: #444 !important; }
-.t-scandi circle[stroke="var(--border)"] { stroke: #e8e8e8 !important; }
-/* Calls page: bracket corners on call cards + tracker + scheduled */
-.t-scandi .rounded-xl.border.border-border\/50.bg-surface,
-.t-scandi .rounded-lg.border.border-border\/50.bg-bg {
+.t-scandi circle[stroke="var(--accent)"] { stroke: var(--ring-active) !important; }
+.t-scandi circle[stroke="var(--border)"] { stroke: var(--ring-track) !important; }
+/* Bracket corners: call cards + tracker + scheduled, info cards (Project detail) */
+.t-scandi [data-card] {
   border-color: transparent !important;
   position: relative;
 }
-.t-scandi .rounded-xl.border.border-border\/50.bg-surface::before,
-.t-scandi .rounded-lg.border.border-border\/50.bg-bg::before {
+.t-scandi [data-card]::before {
   content: '';
   position: absolute; top: 0; left: 0;
   width: 10px; height: 10px;
-  border-left: 1px solid #DDD5E2;
-  border-top: 1px solid #DDD5E2;
+  border-left: 1px solid var(--bracket-color, #DDD5E2);
+  border-top: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
-.t-scandi .rounded-xl.border.border-border\/50.bg-surface::after,
-.t-scandi .rounded-lg.border.border-border\/50.bg-bg::after {
+.t-scandi [data-card]::after {
   content: '';
   position: absolute; bottom: 0; right: 0;
   width: 10px; height: 10px;
-  border-right: 1px solid #DDD5E2;
-  border-bottom: 1px solid #DDD5E2;
+  border-right: 1px solid var(--bracket-color, #DDD5E2);
+  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 /* Export panel: no border, thin separators */
@@ -1276,7 +1375,7 @@
 .t-scandi .border-accent\/30.bg-accent-l\/30:hover::before { transform: scaleX(1); }
 .t-scandi .border-accent\/30.bg-accent-l\/30:hover,
 .t-scandi .border-accent\/30.bg-accent-l\/30:hover * {
-  color: #fff !important; -webkit-text-fill-color: #fff !important;
+  color: var(--bg) !important; -webkit-text-fill-color: var(--bg) !important;
 }
 /* Reminder toast: reduced motion */
 @media (prefers-reduced-motion: reduce) {
@@ -1330,7 +1429,7 @@
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
 body {
-  font-family: 'Manrope', system-ui, sans-serif;
+  font-family: var(--font-manrope, 'Manrope'), system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -1493,6 +1592,12 @@ input[type="checkbox"]:indeterminate {
 }
 @media (prefers-reduced-motion: reduce) {
   .focus-day-card { animation: none; }
+}
+/* Scandi: тихая тема — без перманентной пульсации */
+.t-scandi .focus-day-card {
+  animation: none;
+  box-shadow: none;
+  border: 1px solid var(--border2);
 }
 
 /* Keyswitch: pipeline phase borders → track palette */
@@ -1768,9 +1873,9 @@ input[type="checkbox"]:indeterminate {
 }
 
 /* Dark-theme glassmorphism on elevated elements */
-.t-frost .shadow-card, .t-aurora .shadow-card, .t-tidal .shadow-card,
-.t-frost .elevation-1, .t-aurora .elevation-1, .t-tidal .elevation-1,
-.t-frost .elevation-hover, .t-aurora .elevation-hover, .t-tidal .elevation-hover {
+.t-frost .shadow-card, .t-aurora .shadow-card, .t-tidal .shadow-card, .t-cupertino .shadow-card,
+.t-frost .elevation-1, .t-aurora .elevation-1, .t-tidal .elevation-1, .t-cupertino .elevation-1,
+.t-frost .elevation-hover, .t-aurora .elevation-hover, .t-tidal .elevation-hover, .t-cupertino .elevation-hover {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-color: var(--glass-border);
@@ -1779,14 +1884,26 @@ input[type="checkbox"]:indeterminate {
 /* ═══ DARK THEME BORDER SAFETY NET ═══
    Force all borders to use theme variables.
    Catches any Tailwind `border` without explicit color. */
-.t-frost *, .t-aurora *, .t-tidal * {
+.t-frost *, .t-aurora *, .t-tidal *, .t-cupertino * {
   border-color: var(--border);
 }
 .t-frost *::before, .t-frost *::after,
 .t-aurora *::before, .t-aurora *::after,
-.t-tidal *::before, .t-tidal *::after {
+.t-tidal *::before, .t-tidal *::after,
+.t-cupertino *::before, .t-cupertino *::after {
   border-color: var(--border);
 }
+
+/* ═══ A11Y TEXT TOKENS ═══
+   Статусные цвета как текст используют читаемый вариант (*-text),
+   если тема его определяет; иначе fallback на базовый цвет.
+   Контраст-матрица: см. аудит (WCAG 2.2 AA, 4.5:1). */
+.text-accent { color: var(--accent-text, var(--accent)); }
+.text-green  { color: var(--green-text, var(--green)); }
+.text-red    { color: var(--red-text, var(--red)); }
+.text-blue   { color: var(--blue-text, var(--blue)); }
+.text-yellow { color: var(--yellow-text, var(--yellow)); }
+.text-purple { color: var(--purple-text, var(--purple)); }
 
 /* ═══ VIEW TRANSITIONS — Page Navigation ═══ */
 ::view-transition-old(root) {
@@ -1916,8 +2033,8 @@ header {
   left: 0;
   width: 10px;
   height: 10px;
-  border-left: 1px solid #DDD5E2;
-  border-top: 1px solid #DDD5E2;
+  border-left: 1px solid var(--bracket-color, #DDD5E2);
+  border-top: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 
@@ -1928,8 +2045,8 @@ header {
   right: 0;
   width: 10px;
   height: 10px;
-  border-right: 1px solid #DDD5E2;
-  border-bottom: 1px solid #DDD5E2;
+  border-right: 1px solid var(--bracket-color, #DDD5E2);
+  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
   pointer-events: none;
 }
 

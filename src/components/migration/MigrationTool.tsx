@@ -242,7 +242,7 @@ export function MigrationTool() {
           <h2 className="mb-3 text-xs font-semibold text-text-dim">Прогресс</h2>
           <div className="space-y-2">
             {logs.map((log) => (
-              <div key={log.entity}
+              <div key={log.entity} data-card
                 className="flex items-center gap-3 rounded-lg border border-border/50 bg-bg px-3 py-2">
                 {statusIcon(log.status)}
                 <span className="flex-1 text-xs font-medium capitalize text-text-main">{log.entity}</span>

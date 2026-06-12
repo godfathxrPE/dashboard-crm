@@ -132,7 +132,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                   <button key={c.id} onClick={() => router.push(`/contacts/${c.id}`)}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                     <span className="text-sm text-text-main">{c.first_name} {c.last_name}</span>
-                    {role && <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">{role}</span>}
+                    {role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">{role}</span>}
                     {c.position && <span className="ml-auto text-xs text-text-dim">{c.position}</span>}
                   </button>
                 );
@@ -160,7 +160,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                 <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                   <span className="text-sm text-text-main">{p.name}</span>
-                  <span className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+                  <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
                     {p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—'}
                   </span>
                   {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}

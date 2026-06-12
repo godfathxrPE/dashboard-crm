@@ -91,7 +91,7 @@ export function DeadlineRadar() {
                 }
                 <span className="min-w-0 flex-1 truncate text-xs text-text-main">{item.title}</span>
                 {item.meta && (
-                  <span className="shrink-0 rounded bg-accent-l px-1 py-0.5 text-[9px] text-accent">{item.meta}</span>
+                  <span data-tag className="shrink-0 rounded bg-accent-l px-1 py-0.5 text-[9px] text-accent">{item.meta}</span>
                 )}
                 <span className={`shrink-0 text-[10px] font-medium ${urgency.color}`}>{urgency.label}</span>
               </a>

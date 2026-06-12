@@ -378,7 +378,7 @@ export function LeadsView() {
                     />
                   ))}
                   {items.length === 0 && (
-                    <div className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border/50">
+                    <div data-kanban-empty className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border/50">
                       <span className="text-xs text-text-mute">Пусто</span>
                     </div>
                   )}

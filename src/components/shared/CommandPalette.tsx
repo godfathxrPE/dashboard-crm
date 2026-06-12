@@ -190,9 +190,9 @@ export function CommandPalette() {
   let currentSection = '';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50"
+    <div data-modal-overlay="palette" className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50"
       onClick={() => setOpen(false)}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface elevation-3 ring-1 ring-border overflow-hidden"
+      <div data-modal className="w-full max-w-md rounded-xl border border-border bg-surface elevation-3 ring-1 ring-border overflow-hidden"
         role="dialog" aria-modal="true" aria-label="Палитра команд" onClick={(e) => e.stopPropagation()}>
 
         {/* Search input */}

@@ -288,7 +288,7 @@ function KpiCards() {
   const gridCols = (isFuji || isScandi) ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
 
   const kpiGrid = (
-    <div className={`grid ${gridCols}`}>
+    <div data-stats-grid className={`grid ${gridCols}`}>
       {visibleCards.map((c, i) => {
         const isEmpty = c.num === 0;
         const wm = isWashi ? WASHI_KPI_META[c.label] : null;
@@ -808,7 +808,7 @@ function RecentActivityList() {
           <a href="/projects" className="mt-2 text-xs text-accent hover:underline">Создать проект →</a>
         </div>
       ) : (
-        <div className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">
+        <div data-timeline-scroll="compact" className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">
           {entries.filter(ACTIVITY_TABS.find((t) => t.key === activeTab)?.filter ?? (() => true)).map((entry) => {
             const Icon = EVENT_ICON[entry.event_type] ?? MessageSquare;
             const color = EVENT_COLOR[entry.event_type] ?? 'text-text-mute';

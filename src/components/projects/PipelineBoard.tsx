@@ -143,7 +143,7 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <div data-stats-grid className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {metrics.map((m, idx) => {
         const sw = isScandi ? SCANDI_HERO_WM[idx] : null;
         return (
@@ -262,7 +262,7 @@ function PhaseColumn({
         </SortableContext>
 
         {projects.length === 0 && (
-          <div className="flex h-20 items-center justify-center">
+          <div data-kanban-empty className="flex h-20 items-center justify-center">
             <span className="text-xs text-text-mute">Перетащи проект сюда</span>
           </div>
         )}
