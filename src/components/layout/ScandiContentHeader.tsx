@@ -32,16 +32,14 @@ function getPageTitle(pathname: string): string {
 
 const THEME_SWATCHES: Record<Theme, string> = {
   't-scandi': '#000000',
-  't-claude': '#b5622a',
   't-frost': '#5b8aff',
   't-paper': '#8b3a1a',
   't-sand': '#c05828',
   't-aurora': '#a060ff',
   't-tidal': '#48b890',
-  't-keyswitch': '#6366f1',
-  't-nvg8': '#FF6633',
   't-washi': '#C23B3B',
   't-fuji': '#2B5078',
+  't-aura': '#E0A03A',
 };
 
 function DrawerToggle() {

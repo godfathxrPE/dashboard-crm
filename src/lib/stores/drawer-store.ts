@@ -18,7 +18,9 @@ interface DrawerStore {
 export const useDrawerStore = create<DrawerStore>()(
   persist(
     (set) => ({
-      isOpen: true,
+      // Закрыт по умолчанию: открытый drawer сжимал доску и дублировал
+      // виджеты (СЕЙЧАС В РАБОТЕ, звонки). Открывается кнопкой в хедере.
+      isOpen: false,
       toggle: () => set((s) => ({ isOpen: !s.isOpen })),
       selectedDate: null,
       setSelectedDate: (date) => set({ selectedDate: date }),

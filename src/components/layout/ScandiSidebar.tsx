@@ -6,12 +6,15 @@ import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
+import { useThemeStore } from '@/lib/stores/theme-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useLeads } from '@/lib/hooks/use-leads';
 
 const NAV_ITEMS = [
   { href: '/',          label: 'Дашборд',    short: 'Да' },
   { href: '/tasks',     label: 'Задачи',     short: 'Зд', badgeKey: 'tasks' as const },
+  { href: '/leads',     label: 'Лиды',       short: 'Лд', badgeKey: 'leads' as const },
   { href: '/projects',  label: 'Проекты',    short: 'Пр' },
   { href: '/contacts',  label: 'Контакты',   short: 'Кн' },
   { href: '/companies', label: 'Компании',   short: 'Км' },
@@ -30,8 +33,11 @@ export function ScandiSidebar() {
   const pathname = usePathname();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  // Aura: активный пункт — полупрозрачная пилюля (не линия). Помечаем data-active.
+  const isAura = useThemeStore((s) => s.theme === 't-aura');
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
+  const { data: leads } = useLeads();
 
   // Keyboard shortcut: Cmd+\ to toggle
   useEffect(() => {
@@ -51,9 +57,12 @@ export function ScandiSidebar() {
   const overdueCalls = (calls ?? []).filter((c) => c.status === 'pending' && new Date(c.date) < today).length;
   const pendingCalls = (calls ?? []).filter((c) => c.status === 'pending').length;
 
+  const activeLeads = (leads ?? []).filter((l) => l.status === 'new' || l.status === 'contacted').length;
+
   const badges: Record<string, number> = {
     tasks: overdueTasks || activeTasks,
     calls: overdueCalls || pendingCalls,
+    leads: activeLeads,
   };
 
   function isActive(href: string) {
@@ -94,6 +103,8 @@ export function ScandiSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              data-active={active ? '' : undefined}
+              data-nav-item=""
               className={cn(
                 'relative flex items-center text-[13px] transition-colors',
                 active
@@ -104,8 +115,8 @@ export function ScandiSidebar() {
               style={{ padding: sidebarOpen ? '7px 20px' : '7px 0' }}
               title={!sidebarOpen ? item.label : undefined}
             >
-              {/* Active indicator */}
-              {active && (
+              {/* Active indicator — линия (не в Aura; там пилюля через CSS) */}
+              {active && !isAura && (
                 <span
                   className="absolute left-0 top-1 bottom-1"
                   style={{ width: 2, background: 'var(--text)' }}

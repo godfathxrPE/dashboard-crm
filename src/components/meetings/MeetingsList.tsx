@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useMeetings, useDeleteMeeting, type Meeting } from '@/lib/hooks/use-meetings';
 import { staggerClass } from '@/lib/utils/stagger';
+import { useThemeStore } from '@/lib/stores/theme-store';
+import { cn } from '@/lib/utils/cn';
 import { MeetingModal } from './MeetingModal';
 
 export function MeetingsList() {
@@ -120,6 +122,8 @@ function MeetingCard({
   onDelete: () => void;
   isUpcoming?: boolean;
 }) {
+  // Aura: статус встречи — НЕ палка сбоку, а цвет date-бейджа + data-атрибут
+  const isAura = useThemeStore((s) => s.theme === 't-aura');
   const dateStr = new Date(meeting.date).toLocaleDateString('ru-RU', {
     weekday: 'short',
     day: 'numeric',
@@ -128,8 +132,14 @@ function MeetingCard({
 
   return (
     <div
-      className={`group flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-border
-        ${isUpcoming ? 'border-yellow/30 bg-surface border-l-2 border-l-yellow' : 'border-border/50 bg-surface border-l-2 border-l-green'}`}
+      data-meeting-status={isAura ? (isUpcoming ? 'upcoming' : 'past') : undefined}
+      className={cn(
+        'group flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-border bg-surface',
+        // Палки border-l — только НЕ в Aura
+        !isAura && isUpcoming && 'border-yellow/30 border-l-2 border-l-yellow',
+        !isAura && !isUpcoming && 'border-border/50 border-l-2 border-l-green',
+        isAura && 'border-border/60',
+      )}
     >
       {/* Date badge */}
       <div className="mt-0.5 flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-accent text-white">

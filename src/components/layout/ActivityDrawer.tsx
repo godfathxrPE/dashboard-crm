@@ -16,10 +16,14 @@ import { Bracket } from '@/components/ui/Bracket';
 // ═══════════════════════════════════════════════════════
 
 export function ActivityDrawer() {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  // Aura использует тот же shell, что Scandi → drawer тоже рендерим.
+  // Раньше: if(!isScandi) return null — а layout всё равно резервировал
+  // marginRight:280 для isTextNav, из-за чего в Aura доска сжималась до 150px.
+  const theme = useThemeStore((s) => s.theme);
+  const isTextNav = theme === 't-scandi' || theme === 't-aura';
   const isOpen = useDrawerStore((s) => s.isOpen);
 
-  if (!isScandi) return null;
+  if (!isTextNav) return null;
 
 
   return (
@@ -63,11 +67,28 @@ export function ActivityDrawer() {
 // ═══════════════════════════════════════════════════════
 
 function TimeWidget() {
-  const [time, setTime] = useState(new Date());
+  // mounted-guard: время инициализируется на клиенте, иначе SSR-mismatch
+  // (сервер рендерит одну минуту, клиент — другую → hydration error).
+  const [mounted, setMounted] = useState(false);
+  const [time, setTime] = useState(() => new Date());
   useEffect(() => {
+    setMounted(true);
+    setTime(new Date());
     const id = setInterval(() => setTime(new Date()), 60000);
     return () => clearInterval(id);
   }, []);
+
+  // До монтирования — стабильный placeholder (совпадает на сервере и клиенте)
+  if (!mounted) {
+    return (
+      <div style={{ textAlign: 'center', padding: '6px 0 16px' }}>
+        <div style={{ fontSize: 42, fontWeight: 300, letterSpacing: '-0.02em', color: 'var(--text)' }}>
+          --:--
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>&nbsp;</div>
+      </div>
+    );
+  }
 
   const h = String(time.getHours()).padStart(2, '0');
   const m = String(time.getMinutes()).padStart(2, '0');

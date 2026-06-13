@@ -1,9 +1,44 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
+import { Inter, Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const manrope = Manrope({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-manrope',
+  display: 'swap',
+});
+
+const plexSans = IBM_Plex_Sans({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600'],
+  variable: '--font-plex',
+  display: 'swap',
+});
+
+// Aura theme: Onest for UI (русский гротеск), Unbounded for KPI-цифр и заголовков
+const onest = Onest({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-onest',
+  display: 'swap',
+});
+
+const unbounded = Unbounded({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['600', '700'],
+  variable: '--font-unbounded',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Torii CRM',
@@ -17,15 +52,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru" className={`t-scandi ${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html
+      lang="ru"
+      className={`t-scandi ${GeistSans.variable} ${GeistMono.variable} ${inter.variable} ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         <QueryProvider>
           <ThemeProvider>

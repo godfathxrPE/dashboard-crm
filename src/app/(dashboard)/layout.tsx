@@ -7,6 +7,7 @@ import { ScandiContentHeader } from '@/components/layout/ScandiContentHeader';
 import { Header } from '@/components/layout/Header';
 import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
 import { EventReminder } from '@/components/layout/EventReminder';
+import { AuraOrbs } from '@/components/layout/AuraOrbs';
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useThemeStore } from '@/lib/stores/theme-store';
@@ -51,13 +52,15 @@ export default function DashboardLayout({
 }) {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const theme = useThemeStore((s) => s.theme);
-  const isScandi = theme === 't-scandi';
+  // Scandi и Aura используют один shell: вертикальное текстовое меню + ScandiContentHeader
+  const isTextNav = theme === 't-scandi' || theme === 't-aura';
   const drawerOpen = useDrawerStore((s) => s.isOpen);
   const pathname = usePathname();
   const section = getSectionFromPath(pathname);
 
   return (
     <div className="min-h-screen bg-bg" data-section={section}>
+      <AuraOrbs />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg focus:text-sm focus:font-medium"
@@ -65,18 +68,18 @@ export default function DashboardLayout({
         Перейти к содержимому
       </a>
 
-      {isScandi ? <ScandiSidebar /> : <Sidebar />}
+      {isTextNav ? <ScandiSidebar /> : <Sidebar />}
 
       <div
         className={cn(
           'transition-all duration-200',
-          isScandi ? (sidebarOpen ? 'ml-[232px]' : 'ml-14') : sidebarOpen ? 'ml-56' : 'ml-16',
+          isTextNav ? (sidebarOpen ? 'ml-[232px]' : 'ml-14') : sidebarOpen ? 'ml-56' : 'ml-16',
         )}
-        style={isScandi && drawerOpen ? { marginRight: 280 } : undefined}
+        style={isTextNav && drawerOpen ? { marginRight: 280 } : undefined}
       >
-        {!isScandi && <Header />}
+        {!isTextNav && <Header />}
         <main id="main-content" className="p-4 md:p-6">
-          {isScandi && <ScandiContentHeader />}
+          {isTextNav && <ScandiContentHeader />}
           <PageTransition>
             {children}
           </PageTransition>
@@ -84,7 +87,7 @@ export default function DashboardLayout({
       </div>
       <ActivityDrawer />
       <EventReminder />
-      {isScandi && <QuickActionModals />}
+      {isTextNav && <QuickActionModals />}
       <CommandPalette />
       <Hotkeys />
     </div>

@@ -11,16 +11,14 @@ import { useAlerts } from '@/lib/hooks/use-alerts';
 
 const THEME_META: Record<Theme, { label: string; swatch: string }> = {
   't-scandi':    { label: 'Scandinavian', swatch: 'bg-[#000000]' },
-  't-claude': { label: 'Claude', swatch: 'bg-[#b5622a]' },
   't-frost':  { label: 'Frost',  swatch: 'bg-[#5b8aff]' },
   't-paper':  { label: 'Paper',  swatch: 'bg-[#8b3a1a]' },
   't-sand':   { label: 'Sand',   swatch: 'bg-[#c05828]' },
   't-aurora': { label: 'Aurora', swatch: 'bg-[#a060ff]' },
   't-tidal':  { label: 'Tidal',  swatch: 'bg-[#48b890]' },
-  't-keyswitch': { label: 'Keyswitch', swatch: 'bg-[#6366f1]' },
-  't-nvg8':      { label: 'NVG8',      swatch: 'bg-[#FF6633]' },
   't-washi':     { label: '和紙 Washi', swatch: 'bg-[#C23B3B]' },
   't-fuji':      { label: '富士 Fuji', swatch: 'bg-[#2B5078]' },
+  't-aura':      { label: 'Аура', swatch: 'bg-[#E0A03A]' },
 };
 
 export function Header() {

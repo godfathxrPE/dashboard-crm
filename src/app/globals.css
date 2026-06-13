@@ -16,7 +16,7 @@
    ═══════════════════════════════════════════════════════ */
 
 /* ═══ Claude (default, light) ═══ */
-:root, .t-claude {
+:root {
   --bg: #f5f4ef;  --surface: #ffffff;  --surface2: #f0efe9;  --surface3: #e5e3dc;
   --border: #e5e3dc;  --border2: #d4d2ca;
   --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #6f6d68;
@@ -78,86 +78,6 @@
   --track-nego-done: #78350f; --track-nego-current: #F0C45E;
   --track-proj-done: #500724; --track-proj-current: #db2777;
 }
-
-/* ═══ Cupertino (dark, full glassmorphism) ═══ */
-.t-cupertino {
-  --bg: #05070d;  --surface: rgba(255,255,255,0.08);  --surface2: rgba(255,255,255,0.05);  --surface3: rgba(255,255,255,0.12);
-  --border: rgba(255,255,255,0.14);  --border2: rgba(255,255,255,0.26);
-  --text: #f2f5fa;  --text-dim: #9fa8bd;  --text-mute: #788299;
-  --sidebar-indicator: rgba(255,255,255,0.12);  --sidebar-active-text: var(--accent);
-  --accent: #0a84ff;  --accent-l: rgba(10,132,255,0.16);  --accent-l2: rgba(10,132,255,0.28);
-  --green: #30d158;  --green-l: rgba(48,209,88,0.14);
-  --red: #ff453a;  --red-l: rgba(255,69,58,0.14);
-  --blue: #64d2ff;  --blue-l: rgba(100,210,255,0.14);
-  --yellow: #ffd60a;  --yellow-l: rgba(255,214,10,0.14);
-  --purple: #bf5af2;  --purple-l: rgba(191,90,242,0.14);
-  --radius: 14px;  --radius-s: 9px;  --radius-m: 14px;  --radius-l: 20px;
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.35);
-  --shadow-md: 0 6px 20px rgba(0,0,0,0.4);
-  --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
-  --shadow-card: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.06);
-  --shadow-card-hover: 0 16px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.24), inset 0 0 0 0.5px rgba(255,255,255,0.10);
-  --glass-bg: rgba(255,255,255,0.08);  --glass-border: rgba(255,255,255,0.14);
-  --glass-blur: blur(24px) saturate(180%);  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.18);
-  --elevation-0: none;
-  --elevation-1: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
-  --elevation-2: 0 8px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
-  --elevation-3: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
-  --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #14532d; --track-prep-current: #30d158;
-  --track-exp-done: #3b0764;  --track-exp-current: #bf5af2;
-  --track-nego-done: #78350f; --track-nego-current: #ffd60a;
-  --track-proj-done: #500724; --track-proj-current: #ff375f;
-}
-
-/* Cupertino: mesh-gradient backdrop — стекло требует цветного фона под blur */
-.t-cupertino div[data-section] {
-  background:
-    radial-gradient(56rem 40rem at 12% -8%, rgba(10,132,255,0.20), transparent 62%),
-    radial-gradient(48rem 36rem at 96% 6%, rgba(191,90,242,0.16), transparent 60%),
-    radial-gradient(50rem 42rem at 72% 105%, rgba(94,92,230,0.16), transparent 65%),
-    radial-gradient(38rem 30rem at -4% 78%, rgba(100,210,255,0.10), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
-}
-
-/* Cupertino: стеклянные поверхности — карточки, sidebar, header, dropdowns */
-.t-cupertino .card,
-.t-cupertino .glass-card,
-.t-cupertino .bg-surface,
-.t-cupertino aside,
-.t-cupertino header {
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-}
-.t-cupertino .card,
-.t-cupertino .bg-surface {
-  box-shadow: var(--shadow-card);
-}
-.t-cupertino .card:hover {
-  box-shadow: var(--shadow-card-hover);
-  border-color: var(--border2);
-  transform: translateY(-2px);
-}
-
-/* Cupertino: glass pill для активного пункта навигации */
-.t-cupertino .nav-active {
-  border-left: 3px solid var(--accent);
-  background: rgba(255,255,255,0.10);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
-}
-
-/* Cupertino: липкие заголовки таблиц — стекло вместо глухого фона */
-.t-cupertino table thead th {
-  background: rgba(5,7,13,0.62);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-}
-
 /* ═══ Paper (light, editorial) ═══ */
 .t-paper {
   --bg: #f5f0e0;  --surface: #fdf8ec;  --surface2: #ede8d4;  --surface3: #dfd8c2;
@@ -286,91 +206,46 @@
   --track-proj-done: #500724; --track-proj-current: #db2777;
 }
 
-
-/* ═══ Keyswitch (light, multi-accent) ═══ */
-.t-keyswitch {
-  --bg: #F8F8FA;  --surface: #FFFFFF;  --surface2: #F1F1F5;  --surface3: #E3E3E9;
-  --border: #E3E3E9;  --border2: #CCCCD6;
-  --text: #1A1A1E;  --text-dim: #53535E;  --text-mute: #707078;
-  --sidebar-indicator: #1A1A1E;  --sidebar-active-text: var(--section-keycap, #94A3B8);
-  --accent: var(--section-base, #64748B);  --accent-l: var(--section-light, rgba(100,116,139,0.06));  --accent-l2: var(--section-medium, rgba(100,116,139,0.12));
-  --green: #059669;  --green-l: rgba(5,150,105,0.08);  --green-text: #04815a;
-  --red: #DC2626;  --red-l: rgba(220,38,38,0.08);
-  --blue: #2563EB;  --blue-l: rgba(37,99,235,0.08);
-  --yellow: #D97706;  --yellow-l: rgba(217,119,6,0.08);  --yellow-text: #a95d05;
-  --purple: #7C3AED;  --purple-l: rgba(124,58,237,0.08);
-  --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 14px;
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03);
-  --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.03);
+/* ═══ Аура (light, цветная атмосфера / Linear-Stripe light) ═══ */
+/* Орбы живут по краям viewport (body::before/::after внизу файла),       */
+/* центр остаётся белым, карточки непрозрачны. Атмосфера реагирует на      */
+/* раздел через [data-section]. Шрифт — Onest (UI) + Unbounded (KPI/H1).   */
+.t-aura {
+  /* Контраст: сероватый фон страницы + чисто-белые виджеты сверху */
+  --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
+  --border: #E2E2EC;  --border2: #D2D2DE;
+  --text: #16161D;  --text-dim: #65657A;  --text-mute: #8A8A9C;
+  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
+  /* Янтарь — базовый бренд-акцент (раздел "Дашборд"); смещается per-section */
+  --accent: #C77A1E;  --accent-l: rgba(199,122,30,0.09);  --accent-l2: rgba(199,122,30,0.16);
+  --green: #2F8F5B;  --green-l: rgba(47,143,91,0.10);
+  --red: #D14343;  --red-l: rgba(209,67,67,0.10);
+  --blue: #3B7FD4;  --blue-l: rgba(59,127,212,0.10);
+  --yellow: #B0810F;  --yellow-l: rgba(176,129,15,0.10);  --yellow-text: #946C0D;
+  --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.10);
+  --radius: 12px;  --radius-s: 8px;  --radius-m: 12px;  --radius-l: 18px;
+  --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md: 0 4px 14px rgba(20,20,40,0.07), 0 1px 3px rgba(20,20,40,0.04);
+  --shadow-lg: 0 12px 36px rgba(20,20,40,0.10), 0 2px 8px rgba(20,20,40,0.05);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
+  /* Не glass: карточки непрозрачны, орбы просвечивают только в зазорах */
   --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --elevation-0: none;
-  --elevation-1: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-  --elevation-2: 0 4px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.03);
-  --elevation-3: 0 12px 40px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+  --elevation-1: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --elevation-2: 0 4px 14px rgba(20,20,40,0.08), 0 2px 4px rgba(20,20,40,0.04);
+  --elevation-3: 0 14px 44px rgba(20,20,40,0.13), 0 4px 10px rgba(20,20,40,0.06);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #EEF2FF;  --track-prep-current: #6366F1;
-  --track-exp-done: #FFF7ED;   --track-exp-current: #F97316;
-  --track-nego-done: #FFF1F2;  --track-nego-current: #E11D48;
-  --track-proj-done: #ECFDF5;  --track-proj-current: #059669;
+  /* Pipeline-треки: пастельная заливка + насыщенный current */
+  --track-prep-done: #FCEBD4; --track-prep-current: #C77A1E;
+  --track-exp-done: #E9E2FB;  --track-exp-current: #7C5CD4;
+  --track-nego-done: #FDF1CC; --track-nego-current: #B0810F;
+  --track-proj-done: #D7EAFB; --track-proj-current: #3B7FD4;
+
+  font-family: var(--font-onest, 'Onest'), var(--font-manrope, 'Manrope'), system-ui, sans-serif;
+  letter-spacing: -0.006em;
 }
-
-/* ── Keyswitch section color overrides ── */
-.t-keyswitch [data-section="dashboard"]  { --accent: #64748B; --accent-l: rgba(100,116,139,0.06); --accent-l2: rgba(100,116,139,0.12); --section-keycap: #94A3B8; }
-.t-keyswitch [data-section="tasks"]      { --accent: #4F46E5; --accent-l: rgba(79,70,229,0.06);   --accent-l2: rgba(79,70,229,0.12);   --section-keycap: #818CF8; }
-.t-keyswitch [data-section="projects"]   { --accent: #7C3AED; --accent-l: rgba(124,58,237,0.06);  --accent-l2: rgba(124,58,237,0.12);  --section-keycap: #A78BFA; }
-.t-keyswitch [data-section="contacts"]   { --accent: #0891B2; --accent-l: rgba(8,145,178,0.06);   --accent-l2: rgba(8,145,178,0.12);   --section-keycap: #22D3EE; }
-.t-keyswitch [data-section="companies"]  { --accent: #059669; --accent-l: rgba(5,150,105,0.06);   --accent-l2: rgba(5,150,105,0.12);   --section-keycap: #34D399; }
-.t-keyswitch [data-section="calls"]      { --accent: #EA580C; --accent-l: rgba(234,88,12,0.06);   --accent-l2: rgba(234,88,12,0.12);   --section-keycap: #FB923C; }
-.t-keyswitch [data-section="meetings"]   { --accent: #E11D48; --accent-l: rgba(225,29,72,0.06);   --accent-l2: rgba(225,29,72,0.12);   --section-keycap: #FB7185; }
-.t-keyswitch [data-section="analytics"]  { --accent: #2563EB; --accent-l: rgba(37,99,235,0.06);   --accent-l2: rgba(37,99,235,0.12);   --section-keycap: #60A5FA; }
-.t-keyswitch [data-section="settings"]   { --accent: #6B7280; --accent-l: rgba(107,114,128,0.06); --accent-l2: rgba(107,114,128,0.12); --section-keycap: #9CA3AF; }
-
-/* ═══ NVG8 (light, bold — nvg8.io inspired) ═══ */
-.t-nvg8 {
-  --bg: #FBF6EE;  --surface: #FFFFFF;  --surface2: #F0EBE1;  --surface3: #E0D9CC;
-  --border: #E8E0D2;  --border2: #D4CBC0;
-  --text: #1A1714;  --text-dim: #6B6258;  --text-mute: #756f64;
-  --sidebar-indicator: transparent;  --sidebar-active-text: var(--text);
-  --accent: #FF6633;  --accent-text: #C04718;
-  --accent-l: rgba(255,102,51,0.08);  --accent-l2: rgba(255,102,51,0.16);
-  --green: #22C55E;  --green-l: rgba(34,197,94,0.09);  --green-text: #15803D;
-  --red: #EF4444;  --red-l: rgba(239,68,68,0.09);  --red-text: #B91C1C;
-  --blue: #3B82F6;  --blue-l: rgba(59,130,246,0.09);  --blue-text: #1D4ED8;
-  --yellow: #F59E0B;  --yellow-l: rgba(245,158,11,0.09);  --yellow-text: #92400E;
-  --purple: #8B7CF6;  --purple-l: rgba(139,124,246,0.09);  --purple-text: #6D28D9;
-  --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 14px;
-  --shadow-xs: 0 1px 2px rgba(26,23,20,0.06);
-  --shadow-sm: 0 1px 3px rgba(26,23,20,0.08), 0 1px 2px rgba(26,23,20,0.04);
-  --shadow-md: 0 4px 12px rgba(26,23,20,0.08), 0 1px 3px rgba(26,23,20,0.04);
-  --shadow-lg: 0 12px 36px rgba(26,23,20,0.10), 0 2px 8px rgba(26,23,20,0.04);
-  --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
-  --elevation-0: none;
-  --elevation-1: 0 1px 3px rgba(26,23,20,0.08), 0 1px 2px rgba(26,23,20,0.04);
-  --elevation-2: 0 4px 12px rgba(26,23,20,0.10), 0 2px 4px rgba(26,23,20,0.04);
-  --elevation-3: 0 12px 36px rgba(26,23,20,0.12), 0 4px 8px rgba(26,23,20,0.05);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
-  --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #DBEAFE;  --track-prep-current: #3B82F6;
-  --track-exp-done: #FEE2E2;   --track-exp-current: #FF6633;
-  --track-nego-done: #FEF3C7;  --track-nego-current: #F59E0B;
-  --track-proj-done: #EDE9FE;   --track-proj-current: #8B7CF6;
-}
-
-/* ── NVG8 section accent overrides ── */
-.t-nvg8 [data-section="dashboard"] { --accent: #94A3B8; --accent-l: rgba(148,163,184,0.08); --accent-l2: rgba(148,163,184,0.16); }
-.t-nvg8 [data-section="tasks"]     { --accent: #8B7CF6; --accent-l: rgba(139,124,246,0.08); --accent-l2: rgba(139,124,246,0.16); }
-.t-nvg8 [data-section="projects"]  { --accent: #FF6633; --accent-l: rgba(255,102,51,0.08);  --accent-l2: rgba(255,102,51,0.16); }
-.t-nvg8 [data-section="contacts"]  { --accent: #06B6D4; --accent-l: rgba(6,182,212,0.08);   --accent-l2: rgba(6,182,212,0.16); }
-.t-nvg8 [data-section="companies"] { --accent: #22C55E; --accent-l: rgba(34,197,94,0.08);   --accent-l2: rgba(34,197,94,0.16); }
-.t-nvg8 [data-section="calls"]     { --accent: #F59E0B; --accent-l: rgba(245,158,11,0.08);  --accent-l2: rgba(245,158,11,0.16); }
-.t-nvg8 [data-section="meetings"]  { --accent: #F43F5E; --accent-l: rgba(244,63,94,0.08);   --accent-l2: rgba(244,63,94,0.16); }
-.t-nvg8 [data-section="analytics"] { --accent: #3B82F6; --accent-l: rgba(59,130,246,0.08);  --accent-l2: rgba(59,130,246,0.16); }
-.t-nvg8 [data-section="settings"]  { --accent: #94A3B8; --accent-l: rgba(148,163,184,0.08); --accent-l2: rgba(148,163,184,0.16); }
 
 /* ═══ Washi 和紙 (light, Japanese minimalism) ═══ */
 .t-washi {
@@ -843,6 +718,7 @@
   --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
   --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.56);
   --bracket-color: #DDD5E2;  --ring-active: #444444;  --ring-track: #e8e8e8;
+  --frost-bg: rgba(250,250,250,0.78);  --frost-blur: blur(20px) saturate(120%);
   accent-color: var(--text);
   --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
   --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
@@ -877,6 +753,7 @@
     --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);
     --text: #ffffff;  --text-dim: rgba(255,255,255,0.65);  --text-mute: rgba(255,255,255,0.55);
     --bracket-color: rgba(255,255,255,0.22);  --ring-active: rgba(255,255,255,0.7);  --ring-track: rgba(255,255,255,0.12);
+    --frost-bg: rgba(17,17,17,0.72);
     --sidebar-active-text: #ffffff;
     --accent: #ffffff;  --accent-l: rgba(255,255,255,0.06);  --accent-l2: rgba(255,255,255,0.12);
     --green: rgba(255,255,255,0.7);  --green-l: rgba(255,255,255,0.05);
@@ -1085,7 +962,9 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border-bottom-width: 0.5px;
-  background: var(--bg) !important;
+  background: var(--frost-bg, var(--bg)) !important;
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
 }
 .t-scandi table tbody td {
   font-size: 12px;
@@ -1111,14 +990,20 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
+/* Модалка — непрозрачная: frost-эффект остаётся только на dropdown'ах
+   и sticky thead. ВАЖНО: не вешать backdrop-filter на [data-modal] —
+   вложенный в фильтрованный оверлей, он ломает сэмплинг в Chromium. */
 .t-scandi [data-modal] {
   background: var(--bg) !important;
   border: 1px solid var(--text) !important;
   box-shadow: var(--elevation-2);
 }
-/* Dropdown / popover elevation */
+/* Dropdown / popover — морозное стекло, контент проезжает под плавающими слоями */
 .t-scandi .absolute.right-0.top-full,
 .t-scandi .absolute.z-\[9999\] {
+  background: var(--frost-bg, var(--bg)) !important;
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
   box-shadow: var(--elevation-1) !important;
   border: 0.5px solid var(--border) !important;
 }
@@ -1383,11 +1268,13 @@
 }
 
 /* ═══ Scandi: hover-only "+ добавить" in tables ═══ */
-.t-scandi .add-on-hover {
+.t-scandi .add-on-hover,
+.t-aura .add-on-hover {
   color: transparent;
   transition: color 150ms ease;
 }
-.t-scandi tr:hover .add-on-hover {
+.t-scandi tr:hover .add-on-hover,
+.t-aura tr:hover .add-on-hover {
   color: var(--text-mute);
   cursor: pointer;
 }
@@ -1466,13 +1353,9 @@ body {
   from { opacity: 0; transform: translateY(4px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.beacon-panel-in { animation: beaconPanelIn 0.15s ease-out both; }
-
-/* Pipeline track colors are defined per-theme inside each theme block.
-   See: :root (.t-claude), .t-frost/.t-aurora/.t-tidal, .t-keyswitch */
-
-/* Thin scrollbar utility */
-.thin-scrollbar::-webkit-scrollbar { width: 4px; }
+.beacon-panel-in { animation: beaconPanelIn 0.15s ease-out both; }/* Pipeline track colors are defined per-theme inside each theme block.
+   See: :root,
+.t-frost/.t-aurora/.t-tidal { width: 4px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
@@ -1569,16 +1452,6 @@ input[type="checkbox"]:indeterminate {
    THEME-SPECIFIC DECORATIONS
    ═══════════════════════════════════════════════════════ */
 
-/* Keyswitch: keycap nav + section-colored accent */
-.t-keyswitch aside {
-  background: #EDEDF2;
-  box-shadow: inset -1px 0 0 var(--neutral-200, #E3E3E9), 2px 0 12px -4px rgba(0,0,0,0.06);
-}
-.t-keyswitch header {
-  background: var(--surface);
-  box-shadow: 0 1px 0 var(--neutral-200, #E3E3E9), 0 2px 8px -2px rgba(0,0,0,0.04);
-}
-/* Keyswitch active nav handled via --sidebar-indicator (#1A1A1E) + --sidebar-active-text (section-keycap) */
 
 /* Focus day card — accent glow */
 .focus-day-card {
@@ -1600,91 +1473,6 @@ input[type="checkbox"]:indeterminate {
   border: 1px solid var(--border2);
 }
 
-/* Keyswitch: pipeline phase borders → track palette */
-.t-keyswitch .phase-attract  { border-left-color: var(--track-prep-current); background: rgba(99,102,241,0.04); }
-.t-keyswitch .phase-develop  { border-left-color: var(--track-exp-current); background: rgba(249,115,22,0.04); }
-.t-keyswitch .phase-negotiate { border-left-color: var(--track-nego-current); background: rgba(225,29,72,0.04); }
-.t-keyswitch .phase-close    { border-left-color: var(--track-proj-current); background: rgba(5,150,105,0.04); }
-
-/* Keyswitch: card hover glow in section color */
-.t-keyswitch .card:hover,
-.t-keyswitch .glass-card:hover {
-  box-shadow: 0 4px 16px -4px var(--accent-l2), 0 1px 3px rgba(0,0,0,0.05);
-}
-
-/* Keyswitch: highlight-card filled — section-colored glow (inherits base transition) */
-.t-keyswitch .highlight-card.filled {
-  border-color: var(--accent);
-  box-shadow: 0 0 12px -2px var(--accent-l2);
-}
-.t-keyswitch .highlight-card.filled:hover {
-  box-shadow: 0 0 16px -2px var(--accent-l2), var(--shadow-xs);
-}
-
-/* Keyswitch: highlight-card icons + links in section color */
-.t-keyswitch .highlight-card svg { color: var(--accent); }
-
-/* Keyswitch: contact avatar in section color */
-.t-keyswitch .contact-avatar {
-  background: var(--accent-l2) !important;
-  color: var(--accent) !important;
-}
-
-/* Keyswitch: action pill buttons hover */
-.t-keyswitch .group\/pill:hover { background: var(--accent-l); }
-.t-keyswitch .group\/pill:hover svg { color: var(--accent); }
-
-/* Keyswitch: Meeting cards — glow instead of left border */
-.t-keyswitch .border-l-yellow,
-.t-keyswitch .border-l-green {
-  border-left-color: transparent !important;
-}
-.t-keyswitch .border-l-yellow {
-  box-shadow: 0 0 12px -4px var(--accent-l2), 0 0 4px -2px var(--accent-l);
-}
-.t-keyswitch .border-l-green {
-  box-shadow: 0 0 10px -4px rgba(100,116,139,0.12);
-}
-
-
-/* NVG8: black sidebar + stencil buttons + bold type */
-.t-nvg8 aside { background: #111 !important; }
-.t-nvg8 header { background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-xs); }
-.t-nvg8 .btn-primary {
-  position: relative; background: var(--text); color: #fff; font-weight: 600; overflow: hidden;
-}
-.t-nvg8 .btn-primary::before {
-  content: ''; position: absolute; left: 0; top: 0; width: 0; height: 100%;
-  background: var(--accent); transition: width 0.4s cubic-bezier(0.16,1,0.3,1); z-index: 0;
-}
-.t-nvg8 .btn-primary:hover::before { width: 100%; }
-.t-nvg8 .btn-primary:hover { box-shadow: 0 4px 16px rgba(255,102,51,0.25); }
-.t-nvg8 .btn-primary > * { position: relative; z-index: 1; }
-.t-nvg8 .highlight-card.filled {
-  box-shadow: 0 0 20px -4px rgba(255,102,51,0.20), 0 0 8px -2px rgba(255,102,51,0.10);
-  border-color: rgba(255,102,51,0.25);
-}
-.t-nvg8 ::-webkit-scrollbar-thumb { background: rgba(26,23,20,0.15); }
-.t-nvg8 ::-webkit-scrollbar-thumb:hover { background: rgba(26,23,20,0.30); }
-.t-nvg8 .contact-avatar { background: var(--text) !important; color: #fff !important; }
-/* NVG8 sidebar: bold uppercase, hidden icons, chevron animations */
-.t-nvg8 aside .nav-item {
-  font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;
-  color: rgba(255,255,255,0.7); overflow: hidden;
-}
-.t-nvg8 aside .nav-item svg { display: none; }
-.t-nvg8 aside .nav-item::before {
-  content: ''; position: absolute; left: 0; top: 0; width: 8px; height: 100%;
-  background: var(--section-color, #94A3B8); z-index: 0;
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%);
-  transition: width 0.35s cubic-bezier(0.16,1,0.3,1);
-}
-.t-nvg8 aside .nav-item:hover::before { width: calc(100% + 10px); }
-.t-nvg8 aside .nav-item:hover { color: var(--text) !important; }
-.t-nvg8 aside .nav-item:hover > * { position: relative; z-index: 1; }
-.t-nvg8 aside .nav-active { background: transparent !important; }
-.t-nvg8 aside .nav-active::before { width: calc(100% + 10px) !important; }
-.t-nvg8 aside .nav-active, .t-nvg8 aside .nav-active > * { color: var(--text) !important; z-index: 1; position: relative; }
 
 /* Paper: editorial ruling */
 .t-paper body::before {
@@ -1737,6 +1525,263 @@ input[type="checkbox"]:indeterminate {
   0% { transform: translate(0, 0) scale(1); }
   100% { transform: translate(-20px, 15px) scale(1.05); }
 }
+
+/* Aura donut: прорисовка сегментов при появлении */
+@keyframes donutIn {
+  0% { opacity: 0; transform: scale(0.82) rotate(-12deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   АУРА — цветные орбы по краям + section-реактивная атмосфера
+   Орбы у углов viewport, центр белый, данные на белом.
+   Цвет смещается по разделу через [data-section] → --aura-orb-1/2.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Дефолт (Дашборд) — янтарь. Два RGB-канала, чтобы менять только цвет.
+   ВАЖНО: орбы рендерятся на [data-section] (а не на body), потому что
+   section-переменные живут на этом же элементе — кастом-свойства
+   наследуются вниз по дереву, body::before их бы не увидел. */
+.t-aura [data-section] {
+  --aura-orb-1: 199, 122, 30;   /* верхний-правый орб (амбер) */
+  --aura-orb-2: 124, 92, 212;   /* нижний-левый орб (фиолет, второй акцент) */
+  --aura-orb-a1: 0.18;          /* интенсивность — заметно, но не грязнит */
+  --aura-orb-a2: 0.14;
+}
+
+/* Орб 1 — верх: правый угол + лёгкий левый-верхний намёк */
+.t-aura [data-section]::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(48% 42% at 100% 0%,
+      rgba(var(--aura-orb-1), var(--aura-orb-a1)) 0%, transparent 70%),
+    radial-gradient(34% 32% at 0% 4%,
+      rgba(var(--aura-orb-1), calc(var(--aura-orb-a1) * 0.55)) 0%, transparent 68%);
+  transition: background 0.8s var(--ease-out);
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+/* Орб 2 — низ: левый угол + правый-нижний баланс */
+.t-aura [data-section]::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(46% 40% at 0% 100%,
+      rgba(var(--aura-orb-2), var(--aura-orb-a2)) 0%, transparent 70%),
+    radial-gradient(30% 30% at 100% 96%,
+      rgba(var(--aura-orb-2), calc(var(--aura-orb-a2) * 0.5)) 0%, transparent 66%);
+  transition: background 0.8s var(--ease-out);
+  animation: drift 28s ease-in-out infinite alternate-reverse;
+}
+
+/* ── Section-реактивная атмосфера ──────────────────────────────────── */
+/* Сделки/лиды/проекты — янтарь (деньги, воронка) */
+.t-aura [data-section="leads"],
+.t-aura [data-section="projects"] {
+  --aura-orb-1: 199, 122, 30;  --aura-orb-2: 224, 160, 58;
+}
+/* Задачи/календарь/встречи — фиолетовый */
+.t-aura [data-section="tasks"],
+.t-aura [data-section="calendar"],
+.t-aura [data-section="meetings"] {
+  --aura-orb-1: 124, 92, 212;  --aura-orb-2: 160, 120, 224;
+}
+/* Аналитика — голубой */
+.t-aura [data-section="analytics"] {
+  --aura-orb-1: 59, 127, 212;  --aura-orb-2: 90, 168, 224;
+}
+/* Контакты/компании/звонки — бирюзово-зелёный (коммуникации) */
+.t-aura [data-section="contacts"],
+.t-aura [data-section="companies"],
+.t-aura [data-section="calls"] {
+  --aura-orb-1: 38, 166, 154;  --aura-orb-2: 47, 143, 91;
+}
+/* Настройки — нейтрально-приглушённый */
+.t-aura [data-section="settings"] {
+  --aura-orb-1: 130, 130, 150;  --aura-orb-2: 150, 150, 168;
+  --aura-orb-a1: 0.09;  --aura-orb-a2: 0.07;
+}
+
+/* ── Unbounded только для KPI-цифр и заголовков страниц ─────────────── */
+.t-aura h1,
+.t-aura .aura-display,
+.t-aura .kpi-value,
+.t-aura [data-kpi-value] {
+  font-family: var(--font-unbounded, 'Unbounded'), var(--font-onest, 'Onest'), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* ── Sidebar Aura: вертикальный КАПС + пилюля активного в цвет раздела ──
+   ScandiSidebar помечает пункты data-nav-item и активный data-active
+   (выставляется в JS при theme==='t-aura'). Никаких [style*=] и :has() —
+   надёжные атрибутные селекторы.                                        */
+.t-aura aside {
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+/* Текст пунктов — капс, межбуквенный интервал (и вертикальный, и обычный) */
+.t-aura aside nav a[data-nav-item] > span {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+/* Активный пункт — полупрозрачная ПИЛЮЛЯ цвета орба раздела.
+   --aura-orb-1 наследуется от [data-section] выше по дереву. */
+.t-aura aside nav a[data-active] {
+  background: rgba(var(--aura-orb-1, 199,122,30), 0.14);
+  border-radius: 999px;
+  margin: 2px 6px;
+}
+.t-aura aside nav a[data-active] > span {
+  color: rgb(var(--aura-orb-1, 199,122,30)) !important;
+  font-weight: 600;
+}
+
+/* Hover неактивных */
+.t-aura aside nav a:hover > span[style*="vertical"] { color: var(--text); }
+
+/* ── Header (ScandiContentHeader): чистый, орбы видны сквозь зазоры ──── */
+.t-aura main { position: relative; z-index: 1; }
+
+/* ── Уголки-брекеты 「 」 — фича Scandi, НЕ Aura. Глобальный .bracket
+   протекает во все темы; в Aura гасим уголки во всех местах.          */
+.t-aura .bracket::before,
+.t-aura .bracket::after {
+  display: none !important;
+}
+
+/* Контраст вместо уголков: белые виджеты на сероватом фоне (--bg серее).
+   Карточки-виджеты получают чистую белую поверхность + границу + тень.
+   Лейн-аккордионы (.bracket в доске) — только теряют уголки, не боксируются.
+   Виджеты в drawer'е (.bracket внутри aside) — наоборот, скруглённые карточки. */
+.t-aura [data-card],
+.t-aura .highlight-card,
+.t-aura .contact-profile-card,
+.t-aura aside .bracket {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Сам drawer (aside справа) — скруглить левые углы. Отличаем от сайдбара:
+   у сайдбара aria-label="Основная навигация", у drawer'а его нет.        */
+.t-aura aside:not([aria-label]) {
+  border-top-left-radius: var(--radius-l);
+  border-bottom-left-radius: var(--radius-l);
+}
+
+/* ── Карточки/таблицы непрозрачны — орбы не «грязнят» данные ─────────── */
+.t-aura table thead th {
+  background: var(--surface);
+}
+
+/* DataTable-контейнер (overflow-x-auto.rounded-xl) — острые углы thead
+   торчат, т.к. overflow-x не клипает скруглённые углы. В Aura клипаем,
+   чтобы белая шапка таблицы повторяла радиус контейнера.              */
+.t-aura .overflow-x-auto.rounded-xl,
+.t-aura .overflow-x-auto.rounded-lg {
+  overflow: hidden;
+}
+/* Скруглённые углы шапки на случай если контейнер всё же не клипает */
+.t-aura table thead tr:first-child th:first-child { border-top-left-radius: var(--radius); }
+.t-aura table thead tr:first-child th:last-child  { border-top-right-radius: var(--radius); }
+
+/* ── Приоритет задач в Aura: цветной чекбокс + тон строки ──────────────
+   TaskCard ставит data-priority="important|critical" на корневой div
+   ТОЛЬКО в Aura (палки border-l там отключены в JS). Маркер живёт в
+   самом чекбоксе — никаких полос/точек сбоку.                          */
+
+/* Чекбокс (первый button внутри карточки) красится в цвет приоритета */
+.t-aura [data-priority="important"] > button:first-of-type {
+  border-color: var(--yellow) !important;
+  box-shadow: 0 0 0 3px var(--yellow-l);
+}
+.t-aura [data-priority="critical"] > button:first-of-type {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px var(--red-l);
+}
+
+/* Текст задачи — чуть насыщеннее для приоритетных (не кричит, но видно) */
+.t-aura [data-priority="important"] p:first-of-type,
+.t-aura [data-priority="critical"] p:first-of-type {
+  font-weight: 600;
+}
+
+/* Очень лёгкий тёплый/тревожный тон всей строки (без границ сбоку) */
+.t-aura [data-priority="important"] { background: rgba(var(--aura-orb-1, 199,122,30), 0.035); border-radius: var(--radius-s); }
+.t-aura [data-priority="critical"]  { background: rgba(209,67,67,0.045); border-radius: var(--radius-s); }
+
+/* ── Лейн-аккордионы (СЕЙЧАС/СЛЕДУЮЩИЕ…): скруглить hover-подсветку ─────
+   Заголовок лейна — button с hover:bg-surface2 без радиуса → прямоугольник.
+   Скругляем сам button → его hover-фон становится со скруглёнными углами. */
+.t-aura .bracket button {
+  border-radius: var(--radius);
+}
+
+/* ── Календарь в Aura: живые дни вместо плоской сетки ──────────────────
+   CalendarView рендерит inline-стили → нужен !important для override.
+   Раздел calendar = фиолетовая атмосфера, дни откликаются той же гаммой. */
+.t-aura .cal-day {
+  border-radius: var(--radius) !important;
+  transition: background 0.18s var(--ease-out), transform 0.12s var(--ease-out) !important;
+}
+/* Hover любого дня — мягкая подсветка */
+.t-aura .cal-day:hover {
+  background: var(--surface2) !important;
+}
+/* Сегодня — кольцо цвета акцента раздела (не плоская заливка) */
+.t-aura .cal-day[data-today]:not([data-selected]) {
+  background: rgba(124,92,212,0.10) !important;
+  box-shadow: inset 0 0 0 1.5px var(--purple);
+  color: var(--purple) !important;
+  font-weight: 600 !important;
+}
+/* Выбранный день — фиолетовая пилюля (скруглённая, не чёрный квадрат) */
+.t-aura .cal-day[data-selected] {
+  background: var(--purple) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(124,92,212,0.35);
+}
+/* День с событием — чистая точка-индикатор вместо уголка-треугольника */
+.t-aura .cal-day-dot {
+  width: 5px !important; height: 5px !important;
+  border: none !important;
+  border-radius: 50% !important;
+  background: var(--purple) !important;
+  bottom: 5px !important; right: 50% !important;
+  transform: translateX(50%);
+}
+.t-aura .cal-day[data-selected] .cal-day-dot {
+  background: #fff !important;
+}
+   MeetingCard ставит data-meeting-status (палки border-l отключены в JS).
+   Предстоящая — янтарный бейдж, прошедшая — приглушённый.              */
+.t-aura [data-meeting-status="upcoming"] > div:first-child {
+  background: var(--yellow) !important;
+}
+.t-aura [data-meeting-status="past"] > div:first-child {
+  background: var(--text-mute) !important;
+}
+/* Лёгкий тон строки предстоящей встречи (мягкий акцент внимания) */
+.t-aura [data-meeting-status="upcoming"] {
+  background: rgba(var(--aura-orb-1, 199,122,30), 0.03);
+}
+
+/* prefers-reduced-motion: глушим дрейф */
+@media (prefers-reduced-motion: reduce) {
+  .t-aura [data-section]::before,
+  .t-aura [data-section]::after { animation: none; }
+}
+
+/* CSS-орбы — независимый базовый слой. WebGL-канвас (AuraOrbs) рисует
+   ПОВЕРХ них; если WebGL недоступен, CSS-орбы остаются и атмосфера не
+   исчезает. Дублирования нет: оба сдержанные, складываются мягко.     */
 
 /* Frost/Aurora header glass */
 .t-frost header, .t-aurora header {
@@ -1870,27 +1915,32 @@ input[type="checkbox"]:indeterminate {
     box-shadow: var(--elevation-2);
     transform: translateY(-1px);
   }
-}
-
-/* Dark-theme glassmorphism on elevated elements */
-.t-frost .shadow-card, .t-aurora .shadow-card, .t-tidal .shadow-card, .t-cupertino .shadow-card,
-.t-frost .elevation-1, .t-aurora .elevation-1, .t-tidal .elevation-1, .t-cupertino .elevation-1,
-.t-frost .elevation-hover, .t-aurora .elevation-hover, .t-tidal .elevation-hover, .t-cupertino .elevation-hover {
+}/* Dark-theme glassmorphism on elevated elements */
+.t-frost .shadow-card,
+.t-aurora .shadow-card,
+.t-tidal .shadow-card,
+.t-frost .elevation-1,
+.t-aurora .elevation-1,
+.t-tidal .elevation-1,
+.t-frost .elevation-hover,
+.t-aurora .elevation-hover,
+.t-tidal .elevation-hover {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-color: var(--glass-border);
-}
-
-/* ═══ DARK THEME BORDER SAFETY NET ═══
+}/* ═══ DARK THEME BORDER SAFETY NET ═══
    Force all borders to use theme variables.
    Catches any Tailwind `border` without explicit color. */
-.t-frost *, .t-aurora *, .t-tidal *, .t-cupertino * {
+.t-frost *,
+.t-aurora *,
+.t-tidal * {
   border-color: var(--border);
-}
-.t-frost *::before, .t-frost *::after,
-.t-aurora *::before, .t-aurora *::after,
-.t-tidal *::before, .t-tidal *::after,
-.t-cupertino *::before, .t-cupertino *::after {
+}.t-frost *::before,
+.t-frost *::after,
+.t-aurora *::before,
+.t-aurora *::after,
+.t-tidal *::before,
+.t-tidal *::after {
   border-color: var(--border);
 }
 

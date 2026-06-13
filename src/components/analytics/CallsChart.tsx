@@ -7,9 +7,15 @@ import {
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useThemeStore } from '@/lib/stores/theme-store';
 
+// Aura: сочные градиенты для баров [насыщенный, светлее]
+const AURA_DONE: [string, string] = ['#2F8F5B', '#7FD4A6'];
+const AURA_PENDING: [string, string] = ['#3B7FD4', '#85C2F0'];
+
 export function CallsChart() {
   const { data: calls } = useCalls();
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const theme = useThemeStore((s) => s.theme);
+  const isScandi = theme === 't-scandi';
+  const isAura = theme === 't-aura';
   const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
@@ -50,6 +56,21 @@ export function CallsChart() {
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barGap={2}>
+            {isAura && (
+              <defs>
+                <linearGradient id="calls-done" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={AURA_DONE[0]} />
+                  <stop offset="100%" stopColor={AURA_DONE[1]} stopOpacity={0.55} />
+                </linearGradient>
+                <linearGradient id="calls-pending" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={AURA_PENDING[0]} />
+                  <stop offset="100%" stopColor={AURA_PENDING[1]} stopOpacity={0.55} />
+                </linearGradient>
+                <filter id="calls-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1a1a2e" floodOpacity="0.18" />
+                </filter>
+              </defs>
+            )}
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} width={24} axisLine={false} tickLine={false} />
             <Tooltip
@@ -64,8 +85,8 @@ export function CallsChart() {
               itemStyle={{ color: 'var(--text-dim)' }}
               cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
             />
-            <Bar dataKey="done" name="Выполнено" fill={isScandi ? '#4A5E8A' : 'var(--green)'} radius={[3, 3, 0, 0]} />
-            <Bar dataKey="pending" name="Запланировано" fill={isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="done" name="Выполнено" fill={isAura ? 'url(#calls-done)' : isScandi ? '#4A5E8A' : 'var(--green)'} radius={[4, 4, 0, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
+            <Bar dataKey="pending" name="Запланировано" fill={isAura ? 'url(#calls-pending)' : isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[4, 4, 0, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
           </BarChart>
         </ResponsiveContainer>
       </div>

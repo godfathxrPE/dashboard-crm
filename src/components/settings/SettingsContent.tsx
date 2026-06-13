@@ -6,16 +6,14 @@ import { VerificationPanel } from '@/components/migration/VerificationPanel';
 
 const THEMES = [
   { id: 't-scandi', label: 'Scandinavian', color: '#000000' },
-  { id: 't-claude', label: 'Claude', color: '#c27a3a' },
   { id: 't-frost', label: 'Frost', color: '#6ba3be' },
   { id: 't-paper', label: 'Paper', color: '#8b7355' },
   { id: 't-sand', label: 'Sand', color: '#b8956a' },
   { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
   { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
-  { id: 't-keyswitch', label: 'Keyswitch', color: '#6366f1' },
-  { id: 't-nvg8', label: 'NVG8', color: '#FF6633' },
   { id: 't-washi', label: '和紙 Washi', color: '#C23B3B' },
   { id: 't-fuji', label: '富士 Fuji', color: '#2B5078' },
+  { id: 't-aura', label: 'Аура', color: '#E0A03A' },
 ] as const;
 
 interface SettingsContentProps {

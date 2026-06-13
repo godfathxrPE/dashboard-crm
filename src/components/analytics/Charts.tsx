@@ -8,6 +8,7 @@ import {
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { cn } from '@/lib/utils/cn';
 import { PHASE_CONFIG, phases, getPhaseForStage } from '@/lib/validators/project';
 
 /* ── Цвета ── */
@@ -18,6 +19,14 @@ const VIVID_LANE: Record<string, string> = { now: '#5B5EA6', next: '#3D6B7E', wa
 const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
 const VIVID_PHASE: Record<string, string> = { attract: '#3D6B7E', develop: '#4A5E8A', negotiate: '#5B5EA6', close: '#6D5D7B' };
 
+/* Aura: сочные градиенты [насыщенный, светлее] per lane/phase для SVG defs */
+const AURA_DONUT: Record<string, [string, string]> = {
+  now: ['#C77A1E', '#E0A03A'], next: ['#3B7FD4', '#5DA8E8'], wait: ['#B0810F', '#D4A82A'], done: ['#2F8F5B', '#4FB87E'],
+};
+const AURA_PHASE: Record<string, [string, string]> = {
+  attract: ['#3B7FD4', '#5DA8E8'], develop: ['#C77A1E', '#E0A03A'], negotiate: ['#B0810F', '#D4A82A'], close: ['#2F8F5B', '#4FB87E'],
+};
+
 const TT: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', fontSize: 11 };
 const TT_L: React.CSSProperties = { color: 'var(--text)' };
 const TT_I: React.CSSProperties = { color: 'var(--text-dim)' };
@@ -26,7 +35,9 @@ const TT_C = { fill: 'var(--surface2)', opacity: 0.5 };
 /* ══ SVG Donut: Задачи по статусу ══ */
 export function TasksDistribution() {
   const { data: tasks } = useTasks();
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const theme = useThemeStore((s) => s.theme);
+  const isScandi = theme === 't-scandi';
+  const isAura = theme === 't-aura';
   const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
@@ -67,18 +78,55 @@ export function TasksDistribution() {
   }
 
   return (
-    <div className="p-4" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div
+      className={cn('p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
       <div className="h-48 flex items-center justify-center">
-        <svg viewBox="0 0 200 200" width="160" height="160">
-          {arcs.map((arc) => (
-            <path
-              key={arc.lane}
-              d={arcPath(arc.startAngle - 90, arc.endAngle - 90, outer, inner)}
-              fill={active ? (VIVID_LANE[arc.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[arc.lane] ?? '#888') : (LANE_COLORS[arc.lane] ?? '#888')}
-              style={{ transition: 'fill 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}
-            />
-          ))}
+        <svg viewBox="0 0 200 200" width="160" height="160" style={isAura ? { overflow: 'visible' } : undefined}>
+          {isAura && (
+            <defs>
+              {/* Градиенты на сегмент: насыщенный → чуть светлее по дуге */}
+              {Object.entries(AURA_DONUT).map(([lane, [c1, c2]]) => (
+                <linearGradient key={lane} id={`donut-${lane}`} x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor={c1} />
+                  <stop offset="100%" stopColor={c2} />
+                </linearGradient>
+              ))}
+              {/* Мягкий glow под кольцом */}
+              <filter id="donut-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#1a1a2e" floodOpacity="0.16" />
+              </filter>
+            </defs>
+          )}
+          <g filter={isAura ? 'url(#donut-glow)' : undefined}>
+            {arcs.map((arc) => {
+              const auraFill = `url(#donut-${arc.lane})`;
+              const fill = isAura
+                ? auraFill
+                : active ? (VIVID_LANE[arc.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[arc.lane] ?? '#888') : (LANE_COLORS[arc.lane] ?? '#888');
+              return (
+                <path
+                  key={arc.lane}
+                  d={arcPath(arc.startAngle - 90, arc.endAngle - 90, outer, inner)}
+                  fill={fill}
+                  style={{
+                    transition: 'fill 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                    ...(isAura ? { animation: 'donutIn 0.7s cubic-bezier(0.16,1,0.3,1) both', transformOrigin: '100px 100px' } : {}),
+                  }}
+                />
+              );
+            })}
+          </g>
+          {/* Центр: общая цифра (только Aura) */}
+          {isAura && total > 0 && (
+            <text x="100" y="100" textAnchor="middle" dominantBaseline="central"
+              style={{ fontSize: 30, fontWeight: 700, fill: 'var(--text)', fontFamily: 'var(--font-unbounded, sans-serif)' }}>
+              {total}
+            </text>
+          )}
         </svg>
       </div>
       <div className="flex justify-center gap-4 mt-2">
@@ -108,7 +156,9 @@ export function TasksDistribution() {
 /* ══ Pipeline: Проекты по фазам ══ */
 export function PipelineChart() {
   const { data: projects } = useProjects();
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const theme = useThemeStore((s) => s.theme);
+  const isScandi = theme === 't-scandi';
+  const isAura = theme === 't-aura';
   const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
@@ -124,23 +174,37 @@ export function PipelineChart() {
 
   return (
     <div
-      className="p-4 min-w-0 overflow-hidden"
+      className={cn('p-4 min-w-0 overflow-hidden', !isScandi && 'rounded-lg bg-surface elevation-hover')}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Проекты по фазам</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-          <BarChart data={chartData} layout="vertical" barSize={16}>
+          <BarChart data={chartData} layout="vertical" barSize={18}>
+            {isAura && (
+              <defs>
+                {Object.entries(AURA_PHASE).map(([phase, [c1, c2]]) => (
+                  <linearGradient key={phase} id={`phase-${phase}`} x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor={c1} />
+                    <stop offset="100%" stopColor={c2} />
+                  </linearGradient>
+                ))}
+                <filter id="phase-shadow" x="-20%" y="-50%" width="140%" height="200%">
+                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1a1a2e" floodOpacity="0.18" />
+                </filter>
+              </defs>
+            )}
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
-            <Bar dataKey="count" name="Проектов" radius={[0, 4, 4, 0]} isAnimationActive={false}
+            <Bar dataKey="count" name="Проектов" radius={[0, 6, 6, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out"
+              style={isAura ? { filter: 'url(#phase-shadow)' } : undefined}
               activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
               {chartData.map((entry) => (
                 <Cell
                   key={`bar-${entry.phase}-${active}`}
-                  fill={active ? (VIVID_PHASE[entry.phase] ?? '#888') : (PHASE_COLORS[entry.phase] ?? '#888')}
+                  fill={isAura ? `url(#phase-${entry.phase})` : active ? (VIVID_PHASE[entry.phase] ?? '#888') : (PHASE_COLORS[entry.phase] ?? '#888')}
                   style={{ transition: 'fill 0.5s ease' }}
                 />
               ))}

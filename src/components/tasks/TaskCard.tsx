@@ -7,6 +7,7 @@ import { Pencil, Trash2, Calendar, Check } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useThemeStore } from '@/lib/stores/theme-store';
 import type { Task } from '@/types/entities';
 
 interface TaskCardProps {
@@ -26,6 +27,8 @@ function deadlineUrgency(deadline: string, lane: string): { cls: string; label: 
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const router = useRouter();
   const updateTask = useUpdateTask();
+  // Aura: приоритет — НЕ палка сбоку, а цветной чекбокс + тон строки (через data-priority)
+  const isAura = useThemeStore((s) => s.theme === 't-aura');
 
   const {
     attributes,
@@ -53,14 +56,16 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
+      data-priority={isAura && !isDone ? task.priority : undefined}
       className={cn(
         'group flex items-start gap-2 rounded-sm px-2 py-[7px] text-left',
         'cursor-grab transition-all duration-fast',
         'hover:bg-surface2 active:scale-[0.99]',
         isDragging && 'opacity-40 rotate-1 bg-accent-l',
         isDone && 'opacity-45',
-        task.priority === 'important' && 'border-l-[3px] border-yellow bg-yellow/[0.06]',
-        task.priority === 'critical' && 'border-l-[3px] border-red bg-red/[0.06]',
+        // Палки-маркеры — только НЕ в Aura (Aura показывает приоритет иначе)
+        !isAura && task.priority === 'important' && 'border-l-[3px] border-yellow bg-yellow/[0.06]',
+        !isAura && task.priority === 'critical' && 'border-l-[3px] border-red bg-red/[0.06]',
       )}
     >
       {/* Checkbox */}

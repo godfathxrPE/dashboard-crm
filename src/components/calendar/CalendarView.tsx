@@ -131,16 +131,24 @@ export function CalendarView() {
             const evCount = eventsMap[ds]?.length ?? 0;
 
             return (
-              <div key={day} onClick={() => setSelectedDate(ds)} style={{
-                padding: '10px 4px', cursor: 'pointer', textAlign: 'center',
-                position: 'relative', minHeight: 44, fontSize: 14,
-                background: isSel ? '#1a1a1a' : isToday ? 'var(--surface)' : 'transparent',
-                color: isSel ? '#fff' : 'var(--text)',
-                fontWeight: isToday ? 500 : 400,
-                transition: 'background 0.15s',
-              }}>
+              <div
+                key={day}
+                onClick={() => setSelectedDate(ds)}
+                className="cal-day"
+                data-today={isToday ? '' : undefined}
+                data-selected={isSel ? '' : undefined}
+                data-has-event={hasEv ? '' : undefined}
+                style={{
+                  padding: '10px 4px', cursor: 'pointer', textAlign: 'center',
+                  position: 'relative', minHeight: 44, fontSize: 14,
+                  background: isSel ? '#1a1a1a' : isToday ? 'var(--surface)' : 'transparent',
+                  color: isSel ? '#fff' : 'var(--text)',
+                  fontWeight: isToday ? 500 : 400,
+                  transition: 'background 0.15s',
+                }}
+              >
                 {day}
-                {hasEv && <span style={{
+                {hasEv && <span className="cal-day-dot" style={{
                   position: 'absolute', bottom: 3, right: 3, width: 0, height: 0,
                   borderLeft: '5px solid transparent',
                   borderBottom: `5px solid ${isSel ? '#fff' : '#1a1a1a'}`,
