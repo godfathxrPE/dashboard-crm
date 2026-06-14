@@ -65,7 +65,7 @@ export function CTAButton({
         display: 'inline-flex',
         alignItems: 'center',
         gap: '6px',
-        color: hovered ? '#ffffff' : 'var(--text)',
+        color: hovered ? 'var(--bg)' : 'var(--text)',
         transition: 'color 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >

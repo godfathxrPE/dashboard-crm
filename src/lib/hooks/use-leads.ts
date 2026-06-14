@@ -28,9 +28,12 @@ async function fetchLeads(): Promise<Lead[]> {
 
 async function createLead(lead: LeadInsert): Promise<Lead> {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
   const { data, error } = await supabase
     .from('leads')
-    .insert(lead)
+    .insert({ ...lead, user_id: user.id })
     .select('*')
     .single();
 
