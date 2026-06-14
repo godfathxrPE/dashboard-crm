@@ -35,3 +35,11 @@ next-env.d.ts
 token.json
 backup.json
 migrate.mjs
+
+# testing
+tests/e2e/.auth/
+test-results/
+playwright-report/
+
+# scratch / verification scripts (Aura theme work — safe to delete)
+_*.mjs
