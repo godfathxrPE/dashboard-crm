@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Pipeline, PipelineStage, Direction, PipelineEntityType } from '@/types/database';
 
@@ -50,6 +51,23 @@ export function useStagesForPipeline(pipelineId: string | null | undefined) {
   const { data: stages } = usePipelineStages();
   if (!pipelineId || !stages) return [];
   return stages.filter((s) => s.pipeline_id === pipelineId);
+}
+
+/**
+ * Predicate factory: is a project active (not won/lost)?
+ * Источник истины — stage_id → pipeline_stages.is_won/is_lost, без legacy enum `stage`.
+ * Fallback (пока стадии грузятся / нет совпадения) — поле `status`.
+ */
+export function useIsProjectActive() {
+  const { data: stages } = usePipelineStages();
+  return useMemo(() => {
+    const byId = new Map((stages ?? []).map((s) => [s.id, s] as const));
+    return (project: { stage_id: string; status?: string | null }) => {
+      const st = byId.get(project.stage_id);
+      if (st) return !st.is_won && !st.is_lost;
+      return project.status !== 'won' && project.status !== 'lost';
+    };
+  }, [stages]);
 }
 
 /**

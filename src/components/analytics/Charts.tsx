@@ -7,9 +7,9 @@ import {
 } from 'recharts';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { cn } from '@/lib/utils/cn';
-import { PHASE_CONFIG, phases, getPhaseForStage } from '@/lib/validators/project';
 
 /* ── Цвета ── */
 const LANE_LABELS: Record<string, string> = { now: 'Сейчас', next: 'Следующие', wait: 'Отложено', done: 'Выполнено' };
@@ -17,6 +17,16 @@ const LANE_COLORS: Record<string, string> = { now: 'var(--accent)', next: 'var(-
 const SCANDI_MONO_LANE: Record<string, string> = { done: '#3E6B58', wait: '#6D5D7B', now: '#5B5EA6', next: '#3D6B7E' };
 const VIVID_LANE: Record<string, string> = { now: '#5B5EA6', next: '#3D6B7E', wait: '#6D5D7B', done: '#3E6B58' };
 const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
+
+/* phase_group (источник истины — pipeline_stages) → label + ключ цвета (legacy phase-палитра выше).
+   Аналитика группирует по stage_id → phase_group, без legacy enum `stage`. */
+const PHASE_GROUP_ORDER = ['attraction', 'working', 'approval', 'closing'] as const;
+const PHASE_GROUP_LABEL: Record<string, string> = {
+  attraction: 'Привлечение', working: 'Проработка', approval: 'Согласование', closing: 'Закрытие',
+};
+const PHASE_GROUP_COLOR_KEY: Record<string, string> = {
+  attraction: 'attract', working: 'develop', approval: 'negotiate', closing: 'close',
+};
 const VIVID_PHASE: Record<string, string> = { attract: '#3D6B7E', develop: '#4A5E8A', negotiate: '#5B5EA6', close: '#6D5D7B' };
 
 /* Aura: сочные градиенты [насыщенный, светлее] per lane/phase для SVG defs */
@@ -156,6 +166,7 @@ export function TasksDistribution() {
 /* ══ Pipeline: Проекты по фазам ══ */
 export function PipelineChart() {
   const { data: projects } = useProjects();
+  const { data: pipelineStages } = usePipelineStages();
   const theme = useThemeStore((s) => s.theme);
   const isScandi = theme === 't-scandi';
   const isAura = theme === 't-aura';
@@ -163,12 +174,18 @@ export function PipelineChart() {
 
   const chartData = useMemo(() => {
     if (!projects) return [];
-    const active = projects.filter((p) => p.stage && p.stage !== 'won' && p.stage !== 'lost');
-    return phases.map((phase) => {
-      const items = active.filter((p) => p.stage && getPhaseForStage(p.stage) === phase);
-      return { phase, name: PHASE_CONFIG[phase].label, count: items.length };
+    const byId = new Map((pipelineStages ?? []).map((s) => [s.id, s] as const));
+    // Источник истины — stage_id → pipeline_stages.phase_group; legacy `stage` не используется.
+    const active = projects.filter((p) => {
+      const st = byId.get(p.stage_id);
+      return st && !st.is_won && !st.is_lost;
     });
-  }, [projects]);
+    return PHASE_GROUP_ORDER.map((pg) => ({
+      phase: PHASE_GROUP_COLOR_KEY[pg],
+      name: PHASE_GROUP_LABEL[pg],
+      count: active.filter((p) => byId.get(p.stage_id)?.phase_group === pg).length,
+    }));
+  }, [projects, pipelineStages]);
 
   const active = isScandi && hovered;
 

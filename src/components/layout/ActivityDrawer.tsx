@@ -8,6 +8,7 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { Bracket } from '@/components/ui/Bracket';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -275,9 +276,10 @@ function StatsWidget() {
   const { data: calls = [] } = useCalls();
   const { data: meetings = [] } = useMeetings();
   const { data: projects = [] } = useProjects();
+  const isProjectActive = useIsProjectActive();
 
   const todayStr = localDateKey();
-  const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
+  const active = projects.filter(isProjectActive).length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const weekCalls = calls.filter((c) => c.date >= weekAgo).length;
   const nowTasks = tasks.filter((t) => t.lane === 'now' || t.lane === 'next').length;

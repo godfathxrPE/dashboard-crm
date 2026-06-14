@@ -9,6 +9,7 @@ import { useCreateCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -56,6 +57,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
   const { data: projects } = useProjects();
+  const isProjectActive = useIsProjectActive();
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),
@@ -159,7 +161,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
             <select {...register('project_id')}
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
               <option value="">— не указан —</option>
-              {(projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').map((p) => (
+              {(projects ?? []).filter(isProjectActive).map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
