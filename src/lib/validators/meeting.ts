@@ -6,6 +6,8 @@ export const meetingFormSchema = z.object({
   time: z.string().nullable().default(null),
   location: z.string().nullable().default(null),
   project_id: z.string().uuid().nullable().default(null),
+  company_id: z.string().uuid().nullable().default(null),
+  contact_id: z.string().uuid().nullable().default(null),
   notes: z.string().nullable().default(null),
 });
 

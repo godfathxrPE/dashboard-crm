@@ -9,6 +9,7 @@ import { useCreateMeeting, useUpdateMeeting, type Meeting } from '@/lib/hooks/us
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
       const mins = Math.round(now.getMinutes() / 5) * 5;
       const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
       reset({
-        title: '', date: now.toISOString().slice(0, 10),
+        title: '', date: localDateKey(now),
         time: defaultTime, location: null, project_id: defaultProjectId ?? null,
         company_id: defaultCompanyId ?? null, contact_id: defaultContactId ?? null, notes: null,
       });

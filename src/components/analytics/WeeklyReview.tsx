@@ -7,6 +7,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface WeeklyReviewProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
 
     const tasksDone = (tasks ?? []).filter((t) => t.lane === 'done' && inWeek(t.updated_at));
     const callsDone = (calls ?? []).filter((c) => c.status === 'done' && inWeek(c.date));
-    const meetingsHeld = (meetings ?? []).filter((m) => m.date >= weekStart.toISOString().slice(0, 10) && m.date <= now.toISOString().slice(0, 10));
+    const meetingsHeld = (meetings ?? []).filter((m) => m.date >= localDateKey(weekStart) && m.date <= localDateKey(now));
 
     // Projects that moved stage this week
     const projectsMoved = (projects ?? []).filter((p) => inWeek(p.updated_at) && p.stage !== 'new_lead');

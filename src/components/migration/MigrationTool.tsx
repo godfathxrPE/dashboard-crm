@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Upload, CheckCircle, AlertCircle, Loader2, Database, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 /**
  * Data Migration Tool
@@ -157,7 +158,7 @@ export function MigrationTool() {
         try {
           const rows = data.meetings.map((m: Record<string, unknown>) => ({
             title: m.title ?? 'Встреча',
-            date: m.date ? String(m.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+            date: m.date ? String(m.date).slice(0, 10) : localDateKey(),
             time: m.time ? String(m.time) : null,
             location: m.location ?? null,
             notes: m.notes ?? null,

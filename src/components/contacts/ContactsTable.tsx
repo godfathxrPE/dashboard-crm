@@ -12,6 +12,7 @@ import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { ContactModal } from './ContactModal';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 const CHIP_FILTERS: Record<string, (c: Contact) => boolean> = {
   has_email: (c) => !!c.email,
@@ -196,7 +197,7 @@ export function ContactsTable() {
               ].join('\n');
               const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-              a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+              a.download = `contacts-${localDateKey()}.csv`; a.click();
             },
           },
         ]}

@@ -10,6 +10,7 @@ import { staggerClass } from '@/lib/utils/stagger';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { cn } from '@/lib/utils/cn';
 import { MeetingModal } from './MeetingModal';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 export function MeetingsList() {
   const { data: meetings, isLoading, error } = useMeetings();
@@ -20,7 +21,7 @@ export function MeetingsList() {
 
   const { upcoming, past } = useMemo(() => {
     if (!meetings) return { upcoming: [], past: [] };
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     const up: Meeting[] = [];
     const pa: Meeting[] = [];
     for (const m of meetings) {

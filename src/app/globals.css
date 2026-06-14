@@ -12,6 +12,7 @@
   --chart-stal: #4A5E8A;
 }
 
+/* ═══════════════════════════════════════════════════════
    THEMES — exact values from legacy index.html
    ═══════════════════════════════════════════════════════ */
 
@@ -214,15 +215,26 @@
   /* Контраст: сероватый фон страницы + чисто-белые виджеты сверху */
   --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
   --border: #E2E2EC;  --border2: #D2D2DE;
-  --text: #16161D;  --text-dim: #65657A;  --text-mute: #8A8A9C;
-  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
-  /* Янтарь — базовый бренд-акцент (раздел "Дашборд"); смещается per-section */
+  /* text-dim/mute затемнены до AA на белом И на сером --bg (см. аудит WCAG 2.2) */
+  --text: #16161D;  --text-dim: #59596D;  --text-mute: #6A6A82;
+  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
+  /* Янтарь — базовый бренд-акцент (раздел "Дашборд"); смещается per-section.
+     Заливки (bg-accent, орбы, кнопки) — яркие; текст (.text-accent) — *-text. */
   --accent: #C77A1E;  --accent-l: rgba(199,122,30,0.09);  --accent-l2: rgba(199,122,30,0.16);
   --green: #2F8F5B;  --green-l: rgba(47,143,91,0.10);
   --red: #D14343;  --red-l: rgba(209,67,67,0.10);
   --blue: #3B7FD4;  --blue-l: rgba(59,127,212,0.10);
-  --yellow: #B0810F;  --yellow-l: rgba(176,129,15,0.10);  --yellow-text: #946C0D;
+  --yellow: #B0810F;  --yellow-l: rgba(176,129,15,0.10);
   --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.10);
+  /* ── A11Y *-text токены: тёмные варианты для текста/иконок на светлом фоне.
+     Все ≥4.5:1 на #FFFFFF и на #EFEFF3 (проверено scripts/contrast.py). ── */
+  --accent-text: #935A00;  /* H69  5.67:1 / 4.94:1 */
+  --green-text:  #1F7C41;  /* H151 5.23:1 / 4.56:1 */
+  --red-text:    #C02B2D;  /* H26  5.79:1 / 5.05:1 */
+  --blue-text:   #1D68BC;  /* H255 5.59:1 / 4.87:1 */
+  --yellow-text: #846300;  /* H87  5.58:1 / 4.86:1 */
+  --purple-text: #6F4BC8;  /* H292 5.97:1 / 5.21:1 */
+  --teal-text:   #007B6A;  /* H179 5.20:1 / 4.53:1 — active-nav «коммуникации» */
   --radius: 12px;  --radius-s: 8px;  --radius-m: 12px;  --radius-l: 18px;
   --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
   --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
@@ -246,6 +258,21 @@
   font-family: var(--font-onest, 'Onest'), var(--font-manrope, 'Manrope'), system-ui, sans-serif;
   letter-spacing: -0.006em;
 }
+
+/* ── Aura A11Y: СПЛОШНЫЕ заливки с белым текстом (кнопки/badges) ──────────
+   .bg-accent/.bg-green/.bg-blue с text-white давали 3.37–4.06:1 (провал AA).
+   Затемняем ТОЛЬКО сплошной fill до --*-text → белый текст ≥4.5:1.
+   НЕ трогаем: .bg-*-l тинты (9–16%), орбы (--aura-orb-*), pipeline-треки —
+   атмосфера и пастель остаются яркими. Tailwind: .bg-accent{bg-color:var(--accent)}
+   и .bg-accent-l — РАЗНЫЕ классы, поэтому тинты не задеты.
+   white-on-fill: accent 5.67 / green 5.23 / blue 5.59 / red 5.79 / purple 5.97. */
+.t-aura .bg-accent  { background-color: var(--accent-text) !important; }
+.t-aura .bg-green   { background-color: var(--green-text) !important; }
+.t-aura .bg-blue    { background-color: var(--blue-text) !important; }
+.t-aura .bg-red     { background-color: var(--red-text) !important; }
+.t-aura .bg-purple  { background-color: var(--purple-text) !important; }
+/* focus-ring и ghost-кнопка (text-accent) уже идут через --accent-text */
+.t-aura { --tw-ring-color: var(--accent-text); }
 
 /* ═══ Washi 和紙 (light, Japanese minimalism) ═══ */
 .t-washi {
@@ -1313,6 +1340,7 @@
   background: var(--border);
 }
 
+/* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
 body {
@@ -1353,9 +1381,8 @@ body {
   from { opacity: 0; transform: translateY(4px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.beacon-panel-in { animation: beaconPanelIn 0.15s ease-out both; }/* Pipeline track colors are defined per-theme inside each theme block.
-   See: :root,
-.t-frost/.t-aurora/.t-tidal { width: 4px; }
+.beacon-panel-in { animation: beaconPanelIn 0.15s ease-out both; }
+.thin-scrollbar::-webkit-scrollbar { width: 4px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .thin-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-mute); }
@@ -1449,6 +1476,7 @@ input[type="checkbox"]:indeterminate {
   font-variant-numeric: tabular-nums;
 }
 
+/* ═══════════════════════════════════════════════════════
    THEME-SPECIFIC DECORATIONS
    ═══════════════════════════════════════════════════════ */
 
@@ -1547,6 +1575,7 @@ input[type="checkbox"]:indeterminate {
   --aura-orb-2: 124, 92, 212;   /* нижний-левый орб (фиолет, второй акцент) */
   --aura-orb-a1: 0.18;          /* интенсивность — заметно, но не грязнит */
   --aura-orb-a2: 0.14;
+  --aura-pill-text: var(--accent-text);  /* дефолт (Дашборд) — янтарный текст */
 }
 
 /* Орб 1 — верх: правый угол + лёгкий левый-верхний намёк */
@@ -1576,31 +1605,40 @@ input[type="checkbox"]:indeterminate {
 }
 
 /* ── Section-реактивная атмосфера ──────────────────────────────────── */
+/* --aura-orb-* красят атмосферу (орбы, подложку пилюли).
+   --aura-pill-text — ОТДЕЛЬНЫЙ тёмный цвет для ТЕКСТА активного пункта:
+   яркий орб на 14%-подложке давал текст 3.0–3.4:1 (провал AA). Эти
+   значения ≥4.5:1 на белом сайдбаре (проверено scripts/contrast.py). */
 /* Сделки/лиды/проекты — янтарь (деньги, воронка) */
 .t-aura [data-section="leads"],
 .t-aura [data-section="projects"] {
   --aura-orb-1: 199, 122, 30;  --aura-orb-2: 224, 160, 58;
+  --aura-pill-text: var(--accent-text);   /* #935A00 */
 }
 /* Задачи/календарь/встречи — фиолетовый */
 .t-aura [data-section="tasks"],
 .t-aura [data-section="calendar"],
 .t-aura [data-section="meetings"] {
   --aura-orb-1: 124, 92, 212;  --aura-orb-2: 160, 120, 224;
+  --aura-pill-text: var(--purple-text);   /* #6F4BC8 */
 }
 /* Аналитика — голубой */
 .t-aura [data-section="analytics"] {
   --aura-orb-1: 59, 127, 212;  --aura-orb-2: 90, 168, 224;
+  --aura-pill-text: var(--blue-text);     /* #1D68BC */
 }
 /* Контакты/компании/звонки — бирюзово-зелёный (коммуникации) */
 .t-aura [data-section="contacts"],
 .t-aura [data-section="companies"],
 .t-aura [data-section="calls"] {
   --aura-orb-1: 38, 166, 154;  --aura-orb-2: 47, 143, 91;
+  --aura-pill-text: var(--teal-text);     /* #007B6A */
 }
 /* Настройки — нейтрально-приглушённый */
 .t-aura [data-section="settings"] {
   --aura-orb-1: 130, 130, 150;  --aura-orb-2: 150, 150, 168;
   --aura-orb-a1: 0.09;  --aura-orb-a2: 0.07;
+  --aura-pill-text: #4F4F63;              /* нейтральный, 7.2:1 */
 }
 
 /* ── Unbounded только для KPI-цифр и заголовков страниц ─────────────── */
@@ -1638,7 +1676,7 @@ input[type="checkbox"]:indeterminate {
   margin: 2px 6px;
 }
 .t-aura aside nav a[data-active] > span {
-  color: rgb(var(--aura-orb-1, 199,122,30)) !important;
+  color: var(--aura-pill-text, var(--accent-text)) !important;
   font-weight: 600;
 }
 
@@ -1760,7 +1798,7 @@ input[type="checkbox"]:indeterminate {
 .t-aura .cal-day[data-selected] .cal-day-dot {
   background: #fff !important;
 }
-   MeetingCard ставит data-meeting-status (палки border-l отключены в JS).
+/* MeetingCard ставит data-meeting-status (палки border-l отключены в JS).
    Предстоящая — янтарный бейдж, прошедшая — приглушённый.              */
 .t-aura [data-meeting-status="upcoming"] > div:first-child {
   background: var(--yellow) !important;
@@ -1812,6 +1850,7 @@ input[type="checkbox"]:indeterminate {
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* ═══════════════════════════════════════════════════════
    COMPONENT LAYER
    ═══════════════════════════════════════════════════════ */
 @layer components {

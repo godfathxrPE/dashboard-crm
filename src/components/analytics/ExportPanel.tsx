@@ -8,6 +8,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useMeetings } from '@/lib/hooks/use-meetings';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 function downloadFile(content: string, filename: string, type: string) {
   const blob = new Blob([content], { type });
@@ -39,7 +40,7 @@ export function ExportPanel() {
     setExporting(entity);
     try {
       let csv = '';
-      const date = new Date().toISOString().slice(0, 10);
+      const date = localDateKey();
 
       switch (entity) {
         case 'tasks':
@@ -105,7 +106,7 @@ export function ExportPanel() {
         meetings: meetings ?? [],
       };
       const json = JSON.stringify(backup, null, 2);
-      const date = new Date().toISOString().slice(0, 10);
+      const date = localDateKey();
       downloadFile(json, `crm-backup-${date}.json`, 'application/json');
     } finally {
       setExporting(null);

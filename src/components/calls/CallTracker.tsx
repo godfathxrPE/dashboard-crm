@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Phone, TrendingUp } from 'lucide-react';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface CallTrackerProps {
   dailyGoal?: number;
@@ -15,7 +16,7 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
 
   const todayCalls = useMemo(() => {
     if (!calls) return 0;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     return calls.filter(
       (c) => c.status === 'done' && c.date.slice(0, 10) === today
     ).length;

@@ -11,6 +11,7 @@ import { CallModal } from '@/components/calls/CallModal';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { Watermark } from '@/components/ui/WatermarkNew';
 import type { Call } from '@/lib/hooks/use-calls';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 const SCANDI_SIDEBAR_WM = {
   clock:  { text: 'Часы',    colors: ['#74b9ff', '#a29bfe', '#6c5ce7'] as readonly string[] },
@@ -129,7 +130,7 @@ function PlannedCalls() {
 // ═══════════════════════════════════════════════════════
 
 function FocusWidget() {
-  const todayKey = `focus-day-${new Date().toISOString().slice(0, 10)}`;
+  const todayKey = `focus-day-${localDateKey()}`;
   const [text, setText] = useState('');
 
   useEffect(() => {
@@ -189,7 +190,7 @@ function MiniKpi() {
   const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const weekCalls = (calls ?? []).filter((c) => c.date >= weekAgo).length;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey();
   const dueTasks = (tasks ?? []).filter((t) => t.lane !== 'done' && t.deadline && t.deadline.slice(0, 10) <= todayStr).length;
   const upMeetings = (meetings ?? []).filter((m) => m.date >= todayStr).length;
 

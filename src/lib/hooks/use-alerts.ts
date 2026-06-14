@@ -5,6 +5,7 @@ import { useTasks } from './use-tasks';
 import { useProjects } from './use-projects';
 import { useCalls } from './use-calls';
 import type { AlertItem } from '@/components/shared/StatusBeacon';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 export function useAlerts(): AlertItem[] {
   const { data: tasks } = useTasks();
@@ -13,7 +14,7 @@ export function useAlerts(): AlertItem[] {
 
   return useMemo(() => {
     const alerts: AlertItem[] = [];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDateKey();
 
     // Просроченные задачи
     const overdue = (tasks ?? []).filter(

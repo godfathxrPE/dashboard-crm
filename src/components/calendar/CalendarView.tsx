@@ -8,6 +8,7 @@ import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { Watermark } from '@/components/ui/WatermarkNew';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface CalEvent {
   id: string;
@@ -39,7 +40,7 @@ export function CalendarView() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const offset = firstDay === 0 ? 6 : firstDay - 1;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey();
 
   // Build events map for the month
   const eventsMap = useMemo(() => {
@@ -141,8 +142,8 @@ export function CalendarView() {
                 style={{
                   padding: '10px 4px', cursor: 'pointer', textAlign: 'center',
                   position: 'relative', minHeight: 44, fontSize: 14,
-                  background: isSel ? '#1a1a1a' : isToday ? 'var(--surface)' : 'transparent',
-                  color: isSel ? '#fff' : 'var(--text)',
+                  background: isSel ? 'var(--accent)' : isToday ? 'var(--surface)' : 'transparent',
+                  color: isSel ? 'var(--surface)' : 'var(--text)',
                   fontWeight: isToday ? 500 : 400,
                   transition: 'background 0.15s',
                 }}
@@ -151,7 +152,7 @@ export function CalendarView() {
                 {hasEv && <span className="cal-day-dot" style={{
                   position: 'absolute', bottom: 3, right: 3, width: 0, height: 0,
                   borderLeft: '5px solid transparent',
-                  borderBottom: `5px solid ${isSel ? '#fff' : '#1a1a1a'}`,
+                  borderBottom: `5px solid ${isSel ? 'var(--surface)' : 'var(--accent)'}`,
                 }} />}
                 {evCount > 0 && <div style={{ fontSize: 9, color: isSel ? 'rgba(255,255,255,0.6)' : 'var(--text-mute)', marginTop: 2 }}>{evCount}</div>}
               </div>

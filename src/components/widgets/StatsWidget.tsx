@@ -8,6 +8,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { formatBudget } from '@/lib/validators/project';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface StatCardProps {
   icon: typeof FolderKanban;
@@ -50,7 +51,7 @@ export function StatsWidget() {
     const activeTasks = (tasks ?? []).filter((t) => t.lane !== 'done');
     const doneTasks = (tasks ?? []).filter((t) => t.lane === 'done');
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateKey();
     const todayCalls = (calls ?? []).filter((c) => c.status === 'done' && c.date.slice(0, 10) === today);
 
     const upcomingMeetings = (meetings ?? []).filter((m) => m.date >= today);

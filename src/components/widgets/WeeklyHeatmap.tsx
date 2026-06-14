@@ -5,6 +5,7 @@ import { Activity } from 'lucide-react';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useMeetings } from '@/lib/hooks/use-meetings';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -22,7 +23,7 @@ export function WeeklyHeatmap() {
     return DAYS.map((day, i) => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
-      const dateStr = date.toISOString().slice(0, 10);
+      const dateStr = localDateKey(date);
 
       const callCount = (calls ?? []).filter(
         (c) => c.status === 'done' && c.date.slice(0, 10) === dateStr
@@ -37,7 +38,7 @@ export function WeeklyHeatmap() {
       ).length;
 
       const total = callCount + taskCount + meetingCount;
-      const isToday = dateStr === now.toISOString().slice(0, 10);
+      const isToday = dateStr === localDateKey(now);
       const isFuture = date > now;
 
       return { day, total, callCount, taskCount, meetingCount, isToday, isFuture };

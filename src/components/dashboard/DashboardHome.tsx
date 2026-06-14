@@ -44,6 +44,7 @@ import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { cn } from '@/lib/utils/cn';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 // ═══════════════════════════════════════════════════════
 // Fuji watermark helper
@@ -196,7 +197,7 @@ function KpiCards() {
     const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
 
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = localDateKey(today);
 
     const urgentTasks = (tasks ?? []).filter((t) => {
       if (t.lane === 'done' || !t.deadline) return false;
@@ -557,7 +558,7 @@ function CallsRecentChart() {
     for (let i = dayCount - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = localDateKey(d);
       const label = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 
       const dayCalls = calls.filter((c) => c.date.slice(0, 10) === dateStr);

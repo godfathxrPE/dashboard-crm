@@ -85,8 +85,8 @@ export function CallsChart() {
               itemStyle={{ color: 'var(--text-dim)' }}
               cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
             />
-            <Bar dataKey="done" name="Выполнено" fill={isAura ? 'url(#calls-done)' : isScandi ? '#4A5E8A' : 'var(--green)'} radius={[4, 4, 0, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
-            <Bar dataKey="pending" name="Запланировано" fill={isAura ? 'url(#calls-pending)' : isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[4, 4, 0, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
+            <Bar dataKey="done" name="Выполнено" fill={isAura ? 'url(#calls-done)' : isScandi ? '#4A5E8A' : 'var(--green)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
+            <Bar dataKey="pending" name="Запланировано" fill={isAura ? 'url(#calls-pending)' : isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -12,6 +12,8 @@ export interface Meeting {
   time: string | null;
   location: string | null;
   project_id: string | null;
+  company_id: string | null;
+  contact_id: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -26,6 +28,8 @@ export interface MeetingInsert {
   time?: string | null;
   location?: string | null;
   project_id?: string | null;
+  company_id?: string | null;
+  contact_id?: string | null;
   notes?: string | null;
 }
 
@@ -98,6 +102,8 @@ export function useCreateMeeting() {
         time: newItem.time ?? null,
         location: newItem.location ?? null,
         project_id: newItem.project_id ?? null,
+        company_id: newItem.company_id ?? null,
+        contact_id: newItem.contact_id ?? null,
         notes: newItem.notes ?? null,
         created_by: null,
         created_at: new Date().toISOString(),

@@ -6,6 +6,7 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useUiStore } from '@/lib/stores/ui-store';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface Alert {
   id: string;
@@ -26,7 +27,7 @@ export function SmartAlerts() {
 
   const alerts = useMemo(() => {
     const result: Alert[] = [];
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDateKey();
 
     const overdue = (tasks ?? []).filter(
       (t) => t.lane !== 'done' && t.deadline && t.deadline.slice(0, 10) < todayStr,

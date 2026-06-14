@@ -198,7 +198,7 @@ export function PipelineChart() {
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
-            <Bar dataKey="count" name="Проектов" radius={[0, 6, 6, 0]} isAnimationActive={isAura} animationDuration={700} animationEasing="ease-out"
+            <Bar dataKey="count" name="Проектов" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out"
               style={isAura ? { filter: 'url(#phase-shadow)' } : undefined}
               activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
               {chartData.map((entry) => (

@@ -10,6 +10,7 @@ import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { Bracket } from '@/components/ui/Bracket';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 // ═══════════════════════════════════════════════════════
 // Main Drawer
@@ -117,12 +118,12 @@ function TimeWidget() {
 function FocusWidget() {
   const [text, setText] = useState('');
   useEffect(() => {
-    const key = `focus-${new Date().toISOString().slice(0, 10)}`;
+    const key = `focus-${localDateKey()}`;
     setText(localStorage.getItem(key) ?? '');
   }, []);
   const save = (val: string) => {
     setText(val);
-    const key = `focus-${new Date().toISOString().slice(0, 10)}`;
+    const key = `focus-${localDateKey()}`;
     if (val.trim()) localStorage.setItem(key, val); else localStorage.removeItem(key);
   };
 
@@ -185,7 +186,7 @@ function CalendarWidget() {
   const { data: meetings = [] } = useMeetings();
   const { data: tasks = [] } = useTasks();
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey();
   const offset = (() => { const d = new Date(month.y, month.m, 1).getDay(); return d === 0 ? 6 : d - 1; })();
   const days = new Date(month.y, month.m + 1, 0).getDate();
   const mNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
@@ -222,8 +223,8 @@ function CalendarWidget() {
             <div key={day} onClick={() => handleDay(day)} style={{
               fontSize: 12, padding: '5px 0', cursor: 'pointer',
               fontWeight: isToday ? 500 : 400,
-              color: isSel ? '#fff' : isToday ? 'var(--text)' : 'var(--text-dim)',
-              background: isSel ? '#1a1a1a' : 'transparent',
+              color: isSel ? 'var(--surface)' : isToday ? 'var(--text)' : 'var(--text-dim)',
+              background: isSel ? 'var(--accent)' : 'transparent',
               transition: 'background 0.15s, color 0.15s',
               position: 'relative', textAlign: 'center',
             }}>
@@ -231,7 +232,7 @@ function CalendarWidget() {
               {hasEv && <span style={{
                 position: 'absolute', bottom: 2, right: 2, width: 0, height: 0,
                 borderLeft: '4px solid transparent',
-                borderBottom: `4px solid ${isSel ? '#fff' : '#1a1a1a'}`,
+                borderBottom: `4px solid ${isSel ? 'var(--surface)' : 'var(--accent)'}`,
               }} />}
             </div>
           );
@@ -275,7 +276,7 @@ function StatsWidget() {
   const { data: meetings = [] } = useMeetings();
   const { data: projects = [] } = useProjects();
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey();
   const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const weekCalls = calls.filter((c) => c.date >= weekAgo).length;

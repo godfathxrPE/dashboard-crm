@@ -1,3 +1,4 @@
+import { localDateKey } from '@/lib/utils/date-helpers';
 export function exportToCSV(
   data: Record<string, unknown>[],
   filename: string,
@@ -20,7 +21,7 @@ export function exportToCSV(
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `${filename}_${localDateKey()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

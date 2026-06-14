@@ -15,6 +15,7 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { CompanyModal } from './CompanyModal';
 import { ExcelImportButton } from './ExcelImport';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 export function CompaniesTable() {
   const router = useRouter();
@@ -208,7 +209,7 @@ export function CompaniesTable() {
               ].join('\n');
               const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-              a.download = `companies-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+              a.download = `companies-${localDateKey()}.csv`; a.click();
             },
           },
         ]}

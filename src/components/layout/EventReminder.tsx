@@ -7,6 +7,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
+import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface Reminder {
   id: string;
@@ -66,7 +67,7 @@ export function EventReminder() {
     });
 
     // Tasks due today (show once in morning 9-10)
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDateKey();
     const hour = new Date().getHours();
     if (hour >= 9 && hour < 10) {
       tasks.forEach((t) => {
