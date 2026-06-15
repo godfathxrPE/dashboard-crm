@@ -195,7 +195,7 @@ export function ProjectsTable({ directionFilter = 'all', onSwitchView }: Project
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FolderKanban size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Проекты</h1>
+          <h1 className="aura-page-title text-text-main">Проекты</h1>
           <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
             {activeProjects.length}
           </span>

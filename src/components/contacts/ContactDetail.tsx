@@ -89,7 +89,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
         <div>
           <div className="flex items-center gap-2">
             <User size={20} className="text-accent" />
-            <h1 className="text-xl font-bold text-text-main">{fullName}</h1>
+            <h1 className="aura-page-title text-text-main">{fullName}</h1>
           </div>
           {contact.position && <p className="mt-1 text-sm text-text-dim">{contact.position}</p>}
         </div>

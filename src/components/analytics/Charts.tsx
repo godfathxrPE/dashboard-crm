@@ -124,7 +124,7 @@ export function TasksDistribution() {
                   fill={fill}
                   style={{
                     transition: 'fill 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                    ...(isAura ? { animation: 'donutIn 0.7s cubic-bezier(0.16,1,0.3,1) both', transformOrigin: '100px 100px' } : {}),
+                    ...(isAura ? { animation: 'donutIn 0.7s cubic-bezier(0.16,1,0.3,1)', opacity: 1, transformOrigin: '100px 100px' } : {}),
                   }}
                 />
               );
@@ -207,16 +207,12 @@ export function PipelineChart() {
                     <stop offset="100%" stopColor={c2} />
                   </linearGradient>
                 ))}
-                <filter id="phase-shadow" x="-20%" y="-50%" width="140%" height="200%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1a1a2e" floodOpacity="0.18" />
-                </filter>
               </defs>
             )}
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
             <Bar dataKey="count" name="Проектов" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out"
-              style={isAura ? { filter: 'url(#phase-shadow)' } : undefined}
               activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
               {chartData.map((entry) => (
                 <Cell

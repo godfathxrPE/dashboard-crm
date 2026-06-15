@@ -73,7 +73,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         <div>
           <div className="flex items-center gap-2">
             <Building2 size={20} className="text-accent" />
-            <h1 className="text-xl font-bold text-text-main">{company.name}</h1>
+            <h1 className="aura-page-title text-text-main">{company.name}</h1>
           </div>
           {company.industry && <p className="mt-1 text-sm text-text-dim">{company.industry}</p>}
         </div>

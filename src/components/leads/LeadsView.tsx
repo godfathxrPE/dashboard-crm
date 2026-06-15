@@ -308,7 +308,7 @@ export function LeadsView() {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Target size={18} className="text-accent" />
-          <h1 className="text-lg font-semibold text-text-main">Лиды</h1>
+          <h1 className="aura-page-title text-text-main">Лиды</h1>
           <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
             {filtered.length}
           </span>

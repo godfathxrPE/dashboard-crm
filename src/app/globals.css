@@ -1641,14 +1641,19 @@ input[type="checkbox"]:indeterminate {
   --aura-pill-text: #4F4F63;              /* нейтральный, 7.2:1 */
 }
 
-/* ── Unbounded только для KPI-цифр и заголовков страниц ─────────────── */
+/* ── Единая шкала заголовков разделов (глобально, все темы) ─────────── */
+.aura-page-title {
+  font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* ── Unbounded для заголовков страниц (лёгкий «дорогой» дисплей) ─────── */
 .t-aura h1,
-.t-aura .aura-display,
-.t-aura .kpi-value,
-.t-aura [data-kpi-value] {
+.t-aura .aura-page-title {
   font-family: var(--font-unbounded, 'Unbounded'), var(--font-onest, 'Onest'), system-ui, sans-serif;
   letter-spacing: -0.02em;
-  font-weight: 700;
+  font-weight: 400;   /* было 700 — концепт aura_light_orbs на тонком Unbounded */
 }
 
 /* ── Sidebar Aura: вертикальный КАПС + пилюля активного в цвет раздела ──

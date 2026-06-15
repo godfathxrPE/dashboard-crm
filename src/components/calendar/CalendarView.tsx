@@ -167,6 +167,12 @@ export function CalendarView() {
           {selectedDate ? `${FULL_DAYS[new Date(selectedDate).getDay()]}, ${new Date(selectedDate).getDate()} ${FULL_MONTHS[new Date(selectedDate).getMonth()]}` : 'Выберите дату'}
         </div>
 
+        {!selectedDate && (
+          <div style={{ fontSize: 12, color: 'var(--text-mute)', padding: '40px 16px', textAlign: 'center', maxWidth: 220, margin: '0 auto' }}>
+            Выбери день в календаре слева, чтобы увидеть звонки, встречи и задачи.
+          </div>
+        )}
+
         {dayEvents.length === 0 && selectedDate && (
           <div style={{ fontSize: 12, color: 'var(--text-mute)', padding: '20px 0', textAlign: 'center' }}>Нет событий</div>
         )}

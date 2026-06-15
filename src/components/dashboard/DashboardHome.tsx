@@ -480,6 +480,7 @@ function PipelineFunnelChart() {
           />
           <Bar
             dataKey="count"
+            isAnimationActive={false}
             radius={[0, 4, 4, 0]}
             barSize={16}
             className="cursor-pointer"
@@ -575,6 +576,8 @@ function CallsRecentChart() {
 
   if (isLoading) return <SkeletonChart />;
 
+  const hasCalls = chartData.some((d) => d.done + d.pending + d.cancelled > 0);
+
   return (
     <div
       className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
@@ -584,6 +587,11 @@ function CallsRecentChart() {
       {isScandi ? null : isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>
       )}
+      {!hasCalls ? (
+        <div className="flex items-center justify-center text-xs text-text-mute" style={{ height: 260 }}>
+          Нет звонков за период
+        </div>
+      ) : (
       <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
         <BarChart data={chartData} margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
           <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-mute)' }} interval={1} axisLine={false} tickLine={false} />
@@ -600,11 +608,12 @@ function CallsRecentChart() {
             itemStyle={{ color: 'var(--text-dim)' }}
             cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
           />
-          <Bar dataKey="done" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="pending" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
-          <Bar dataKey="cancelled" stackId="calls" fill={isScandi ? '#4A5E8A' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="done" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="pending" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
+          <Bar dataKey="cancelled" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+      )}
     </div>
   );
 }

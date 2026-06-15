@@ -24,7 +24,7 @@ export function AnalyticsPage() {
           ) : (
             <>
               <BarChart3 size={18} className="text-accent" />
-              <h1 className="text-lg font-semibold text-text-main">Аналитика</h1>
+              <h1 className="aura-page-title text-text-main">Аналитика</h1>
             </>
           )}
         </div>

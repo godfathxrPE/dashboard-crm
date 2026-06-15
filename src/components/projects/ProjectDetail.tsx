@@ -502,7 +502,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-text-main">{project.name}</h1>
+            <h1 className="aura-page-title text-text-main">{project.name}</h1>
             <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
               {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
             </Badge>

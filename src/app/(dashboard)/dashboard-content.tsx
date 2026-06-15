@@ -86,7 +86,7 @@ export function DashboardContent({ userId }: Props) {
     <div className="space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-xl font-semibold text-text-main">
+        <h1 className="aura-page-title text-text-main">
           {getGreeting()} 👋
         </h1>
         <p className="text-sm text-text-mute capitalize">{formatDate()}</p>

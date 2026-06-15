@@ -183,7 +183,7 @@ export function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-3 py-2 text-left"
+                  className="px-3 py-2 text-left text-[11px] uppercase tracking-wide text-text-mute font-medium"
                   style={col.width ? { width: col.width } : undefined}
                 >
                   {col.sortable ? (

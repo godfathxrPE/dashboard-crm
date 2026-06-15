@@ -17,7 +17,8 @@ interface Track {
   id: string;
   label: string;
   stages: TrackStage[];
-  dot: string;         // CSS var for dot + header text + done text color
+  dot: string;         // CSS var for dot + header text (насыщенный, не на пастели)
+  doneText: string;    // CSS var for done-text цвет (AA на doneBg/пастели, тон трека)
   doneBg: string;      // CSS var for solid done background
   currentBg: string;   // CSS var for solid current background
 }
@@ -26,7 +27,8 @@ const TRACKS: Track[] = [
   {
     id: 'prep',
     label: 'Подготовка',
-    dot: 'var(--green)',
+    dot: 'var(--accent)',
+    doneText: 'var(--accent-text)',
     doneBg: 'var(--track-prep-done)',
     currentBg: 'var(--track-prep-current)',
     stages: [
@@ -40,6 +42,7 @@ const TRACKS: Track[] = [
     id: 'exp',
     label: 'Эксперимент',
     dot: 'var(--purple)',
+    doneText: 'var(--purple-text)',
     doneBg: 'var(--track-exp-done)',
     currentBg: 'var(--track-exp-current)',
     stages: [
@@ -52,7 +55,8 @@ const TRACKS: Track[] = [
   {
     id: 'proj',
     label: 'Проект',
-    dot: 'var(--accent)',
+    dot: 'var(--blue)',
+    doneText: 'var(--blue-text)',
     doneBg: 'var(--track-proj-done)',
     currentBg: 'var(--track-proj-current)',
     stages: [
@@ -110,7 +114,7 @@ export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineP
               {trackState === 'active' && currentLabel && (
                 <span
                   className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                  style={{ background: track.doneBg, color: track.dot }}
+                  style={{ background: track.doneBg, color: track.doneText }}
                 >
                   {currentLabel}
                 </span>
@@ -140,7 +144,7 @@ export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineP
                 const bg = state === 'done' ? track.doneBg
                   : state === 'current' ? track.currentBg
                   : 'var(--surface2)';
-                const color = state === 'done' ? track.dot
+                const color = state === 'done' ? track.doneText
                   : state === 'current' ? 'white'
                   : 'var(--text-mute)';
 

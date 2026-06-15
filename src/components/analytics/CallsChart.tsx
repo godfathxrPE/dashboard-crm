@@ -46,6 +46,8 @@ export function CallsChart() {
     return weeks;
   }, [calls]);
 
+  const hasCalls = chartData.some((w) => w.done + w.pending + w.cancelled > 0);
+
   return (
     <div
       className="rounded-lg bg-surface p-4 elevation-hover"
@@ -54,6 +56,11 @@ export function CallsChart() {
     >
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Звонки по неделям</h3>
       <div className="h-48">
+        {!hasCalls ? (
+          <div className="flex h-full items-center justify-center text-xs text-text-mute">
+            Нет звонков за период
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barGap={2}>
             {isAura && (
@@ -66,9 +73,6 @@ export function CallsChart() {
                   <stop offset="0%" stopColor={AURA_PENDING[0]} />
                   <stop offset="100%" stopColor={AURA_PENDING[1]} stopOpacity={0.55} />
                 </linearGradient>
-                <filter id="calls-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#1a1a2e" floodOpacity="0.18" />
-                </filter>
               </defs>
             )}
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
@@ -85,10 +89,11 @@ export function CallsChart() {
               itemStyle={{ color: 'var(--text-dim)' }}
               cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
             />
-            <Bar dataKey="done" name="Выполнено" fill={isAura ? 'url(#calls-done)' : isScandi ? '#4A5E8A' : 'var(--green)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
-            <Bar dataKey="pending" name="Запланировано" fill={isAura ? 'url(#calls-pending)' : isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" style={isAura ? { filter: 'url(#calls-shadow)' } : undefined} />
+            <Bar dataKey="done" name="Выполнено" fill={isAura ? 'url(#calls-done)' : isScandi ? '#4A5E8A' : 'var(--green)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" />
+            <Bar dataKey="pending" name="Запланировано" fill={isAura ? 'url(#calls-pending)' : isScandi ? '#4A5E8A' : 'var(--blue)'} radius={[4, 4, 0, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out" />
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

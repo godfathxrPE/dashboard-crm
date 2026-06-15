@@ -38,7 +38,7 @@ function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
           </>
         ) : (
           <>
-            <h1 className="text-xl font-semibold text-text-main">Задачи</h1>
+            <h1 className="aura-page-title text-text-main">Задачи</h1>
             <p className="text-xs text-text-mute mt-0.5">Перетаскивай задачи между секциями</p>
           </>
         )}

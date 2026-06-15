@@ -266,7 +266,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   // ═══════════════════════════════════════════════════════
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-6xl">
       {/* Back */}
       <button onClick={() => router.push('/contacts')}
         className="mb-4 flex items-center gap-1 text-xs text-text-mute transition-colors hover:text-accent">
@@ -286,7 +286,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg font-semibold text-text-main break-words">{fullName}</h1>
+                <h1 className="aura-page-title text-text-main break-words">{fullName}</h1>
                 {contact.position && (
                   <p className="text-sm text-text-dim truncate">{contact.position}</p>
                 )}
@@ -579,6 +579,6 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       <CallModal isOpen={callModalOpen} onClose={() => setCallModalOpen(false)} editCall={null} defaultContactId={contactId} />
       <MeetingModal isOpen={meetingModalOpen} onClose={() => setMeetingModalOpen(false)} editMeeting={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
       <TaskModal isOpen={taskModalOpen} onClose={() => setTaskModalOpen(false)} editTask={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
-    </>
+    </div>
   );
 }

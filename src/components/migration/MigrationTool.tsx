@@ -195,7 +195,7 @@ export function MigrationTool() {
     <div className="mx-auto max-w-lg">
       <div className="mb-6 text-center">
         <Database size={32} className="mx-auto mb-2 text-accent" />
-        <h1 className="text-xl font-bold text-text-main">Миграция данных</h1>
+        <h1 className="aura-page-title text-text-main">Миграция данных</h1>
         <p className="mt-1 text-sm text-text-mute">
           Импорт из старого Dashboard (localStorage JSON) в Supabase
         </p>

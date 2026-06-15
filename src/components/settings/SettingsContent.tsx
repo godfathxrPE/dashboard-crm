@@ -27,7 +27,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-2">
         <Settings size={18} className="text-accent" />
-        <h1 className="text-lg font-semibold text-text-main">Настройки</h1>
+        <h1 className="aura-page-title text-text-main">Настройки</h1>
       </div>
 
       <div className="space-y-4">

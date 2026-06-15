@@ -295,12 +295,15 @@ function StatsWidget() {
   return (
     <Section title="СЕЙЧАС В РАБОТЕ">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {items.map((it) => (
-          <div key={it.label} style={{ textAlign: 'center', padding: '6px 0' }}>
-            <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text)' }}>{it.value}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-mute)' }}>{it.label}</div>
-          </div>
-        ))}
+        {items.map((it) => {
+          const isZero = it.value === 0;
+          return (
+            <div key={it.label} style={{ textAlign: 'center', padding: '6px 0' }}>
+              <div style={{ fontSize: 22, fontWeight: isZero ? 400 : 500, color: isZero ? 'var(--text-mute)' : 'var(--text)' }}>{it.value}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-mute)' }}>{it.label}</div>
+            </div>
+          );
+        })}
       </div>
     </Section>
   );
