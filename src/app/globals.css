@@ -220,7 +220,7 @@
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
   /* Янтарь — базовый бренд-акцент (раздел "Дашборд"); смещается per-section.
      Заливки (bg-accent, орбы, кнопки) — яркие; текст (.text-accent) — *-text. */
-  --accent: #C77A1E;  --accent-l: rgba(199,122,30,0.09);  --accent-l2: rgba(199,122,30,0.16);
+  --accent: #484D57;  --accent-l: rgba(72,77,87,0.09);  --accent-l2: rgba(72,77,87,0.16);
   --green: #2F8F5B;  --green-l: rgba(47,143,91,0.10);
   --red: #D14343;  --red-l: rgba(209,67,67,0.10);
   --blue: #3B7FD4;  --blue-l: rgba(59,127,212,0.10);
@@ -228,7 +228,7 @@
   --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.10);
   /* ── A11Y *-text токены: тёмные варианты для текста/иконок на светлом фоне.
      Все ≥4.5:1 на #FFFFFF и на #EFEFF3 (проверено scripts/contrast.py). ── */
-  --accent-text: #935A00;  /* H69  5.67:1 / 4.94:1 */
+  --accent-text: #343840;  /* графит H265 C0.015 — text/бел 11.76:1, text/page 10.25:1 */
   --green-text:  #1F7C41;  /* H151 5.23:1 / 4.56:1 */
   --red-text:    #C02B2D;  /* H26  5.79:1 / 5.05:1 */
   --blue-text:   #1D68BC;  /* H255 5.59:1 / 4.87:1 */
@@ -250,7 +250,7 @@
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
   /* Pipeline-треки: пастельная заливка + насыщенный current */
-  --track-prep-done: #FCEBD4; --track-prep-current: #C77A1E;
+  --track-prep-done: #EBEDF1; --track-prep-current: #484D57;
   --track-exp-done: #E9E2FB;  --track-exp-current: #7C5CD4;
   --track-nego-done: #FDF1CC; --track-nego-current: #B0810F;
   --track-proj-done: #D7EAFB; --track-proj-current: #3B7FD4;
@@ -1575,7 +1575,7 @@ input[type="checkbox"]:indeterminate {
   --aura-orb-2: 124, 92, 212;   /* нижний-левый орб (фиолет, второй акцент) */
   --aura-orb-a1: 0.18;          /* интенсивность — заметно, но не грязнит */
   --aura-orb-a2: 0.14;
-  --aura-pill-text: var(--accent-text);  /* дефолт (Дашборд) — янтарный текст */
+  --aura-pill-text: var(--accent-text);  /* дефолт (Дашборд) — графитовый текст #343840 */
 }
 
 /* Орб 1 — верх: правый угол + лёгкий левый-верхний намёк */
@@ -1613,7 +1613,7 @@ input[type="checkbox"]:indeterminate {
 .t-aura [data-section="leads"],
 .t-aura [data-section="projects"] {
   --aura-orb-1: 199, 122, 30;  --aura-orb-2: 224, 160, 58;
-  --aura-pill-text: var(--accent-text);   /* #935A00 */
+  --aura-pill-text: var(--accent-text);   /* графит #343840 на янтарной пилюле — 10.09:1 */
 }
 /* Задачи/календарь/встречи — фиолетовый */
 .t-aura [data-section="tasks"],
