@@ -29,9 +29,11 @@ interface ProjectModalProps {
   onClose: () => void;
   editProject: Project | null;
   defaultCompanyId?: string | null;
+  /** Sprint W1a: открыть модалку с фокусом на «Дата следующего шага» (prompt после переноса стадии) */
+  focusNextAction?: boolean;
 }
 
-export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }: ProjectModalProps) {
+export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, focusNextAction }: ProjectModalProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const { data: companies = [] } = useCompanies();
@@ -60,6 +62,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }:
       budget: null,
       deadline: null,
       next_step: null,
+      next_action_date: null,
       loss_reason: null,
       loss_detail: null,
     },
@@ -137,6 +140,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }:
         budget: editProject.budget,
         deadline: editProject.deadline,
         next_step: editProject.next_step,
+        next_action_date: editProject.next_action_date,
         loss_reason: editProject.loss_reason,
         loss_detail: editProject.loss_detail,
       });
@@ -157,11 +161,19 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }:
         budget: null,
         deadline: null,
         next_step: null,
+        next_action_date: null,
         loss_reason: null,
         loss_detail: null,
       });
     }
   }, [editProject, defaultCompanyId, reset, pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sprint W1a: фокус на «Дата шага», когда модалку открыли из prompt после переноса стадии
+  useEffect(() => {
+    if (!isOpen || !focusNextAction) return;
+    const t = setTimeout(() => document.getElementById('project-next-action-date')?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [isOpen, focusNextAction, editProject]);
 
   const onDirectionChange = (dir: Direction) => {
     setValue('direction', dir);
@@ -330,18 +342,33 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId }:
             />
           </div>
 
-          {/* Next Step */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">
-              Следующий шаг
-            </label>
-            <input
-              {...register('next_step')}
-              placeholder="Отправить КП до пятницы"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
-                         text-sm text-text-main placeholder:text-text-mute
-                         focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            />
+          {/* Next Step + next action date */}
+          <div className="grid grid-cols-[1fr,auto] gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Следующий шаг
+              </label>
+              <input
+                {...register('next_step')}
+                placeholder="Отправить КП до пятницы"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                           text-sm text-text-main placeholder:text-text-mute
+                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Дата шага
+              </label>
+              <input
+                {...register('next_action_date')}
+                id="project-next-action-date"
+                type="date"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                           text-sm text-text-main
+                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+            </div>
           </div>
 
           {/* Loss reason — only for lost stage */}

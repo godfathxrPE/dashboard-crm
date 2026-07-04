@@ -1,3 +1,5 @@
+import type { DealStatus } from '@/types/database';
+
 export type HealthLevel = 'green' | 'yellow' | 'red';
 
 export interface HealthScore {
@@ -50,4 +52,38 @@ export function calculateDealHealth(project: ProjectForHealth): HealthScore {
   const level: HealthLevel = total >= 6 ? 'green' : total >= 3 ? 'yellow' : 'red';
 
   return { total, level, factors: { lastContact, nextStep, deadline, completeness } };
+}
+
+// ═══════════════════════════════════════════════════════
+// Sprint W1a: Always Next Action / rotting indicator
+// Паттерн Pipedrive «activity-based selling»: у активной сделки всегда
+// должен быть следующий шаг с датой. Нет шага/даты или дата в прошлом = «гниёт».
+// ═══════════════════════════════════════════════════════
+
+export type DealHealth = 'ok' | 'no-action' | 'overdue-action';
+
+interface ProjectForNextAction {
+  status?: DealStatus | null;
+  next_step?: string | null;
+  next_action_date?: string | null;
+}
+
+/**
+ * «Гниёт» только активная сделка (status === 'open').
+ * won/lost — закрыты; on_hold — намеренно на паузе → не нагружаем напоминанием.
+ */
+export function getDealHealth(project: ProjectForNextAction): DealHealth {
+  if (project.status !== 'open') return 'ok';
+  if (!project.next_step?.trim()) return 'no-action';
+  if (!project.next_action_date) return 'no-action';
+  const today = new Date(new Date().toDateString());
+  if (new Date(project.next_action_date) < today) return 'overdue-action';
+  return 'ok';
+}
+
+/** Насколько дней просрочена дата следующего шага (>= 0). */
+export function getNextActionOverdueDays(nextActionDate: string): number {
+  const today = new Date(new Date().toDateString());
+  const diff = today.getTime() - new Date(nextActionDate).getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
 }

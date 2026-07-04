@@ -180,6 +180,8 @@ export interface Database {
           budget: number | null;
           deadline: string | null;
           next_step: string | null;
+          next_action_date: string | null;
+          pinned_note: string | null;
           owner_id: string | null;
           loss_reason: string | null;
           loss_detail: string | null;
@@ -203,6 +205,8 @@ export interface Database {
           budget?: number | null;
           deadline?: string | null;
           next_step?: string | null;
+          next_action_date?: string | null;
+          pinned_note?: string | null;
           owner_id?: string | null;
           loss_reason?: string | null;
           loss_detail?: string | null;

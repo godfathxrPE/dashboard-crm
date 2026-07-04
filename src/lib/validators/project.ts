@@ -172,6 +172,7 @@ export const projectFormSchema = z.object({
   budget: z.number().int().nonnegative().nullable().default(null),
   deadline: z.string().nullable().default(null),
   next_step: z.string().nullable().default(null),
+  next_action_date: z.string().nullable().default(null),
   loss_reason: z.string().nullable().default(null),
   loss_detail: z.string().nullable().default(null),
 });

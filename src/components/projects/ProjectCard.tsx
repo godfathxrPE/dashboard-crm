@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { calculateDealHealth } from '@/lib/utils/deal-health';
+import { calculateDealHealth, getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
@@ -233,12 +233,51 @@ export function ProjectCard({
           );
         })()}
 
-        {/* Next step */}
-        {project.next_step && (
-          <p className="mt-1 line-clamp-1 text-xs text-text-mute">
-            → {project.next_step}
-          </p>
-        )}
+        {/* Next step + rotting indicator (Sprint W1a) */}
+        {(() => {
+          const dh = getDealHealth(project);
+          if (dh === 'no-action') {
+            return (
+              <div
+                className="mt-1 flex items-center gap-1.5"
+                style={{ color: 'var(--yellow-text, var(--yellow))' }}
+              >
+                {/* контурная точка — «нет действия» */}
+                <span className="inline-block h-[6px] w-[6px] shrink-0 rounded-full border border-current" />
+                <span className="text-xs">
+                  {project.next_step?.trim() ? 'нет даты шага' : 'нет следующего шага'}
+                </span>
+              </div>
+            );
+          }
+          if (dh === 'overdue-action') {
+            const days = getNextActionOverdueDays(project.next_action_date!);
+            return (
+              <div
+                className="mt-1 flex items-center gap-1.5"
+                style={{ color: 'var(--red-text, var(--red))' }}
+              >
+                {/* заполненная точка — «просрочено» */}
+                <span className="inline-block h-[6px] w-[6px] shrink-0 rounded-full bg-current" />
+                <span className="text-xs">шаг просрочен {days} дн.</span>
+              </div>
+            );
+          }
+          // ok — как раньше, плюс дата шага мелким
+          if (!project.next_step) return null;
+          return (
+            <div className="mt-1">
+              <p className="line-clamp-1 text-xs text-text-mute">→ {project.next_step}</p>
+              {project.next_action_date && (
+                <p className="text-[10px] tabular-nums text-text-mute">
+                  {new Date(project.next_action_date).toLocaleDateString('ru-RU', {
+                    day: 'numeric', month: 'short',
+                  })}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Actions — hover only */}
         <div className="mt-2 flex items-center gap-1 border-t border-border/50 pt-1.5

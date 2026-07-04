@@ -13,6 +13,7 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
+import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { ProjectModal } from './ProjectModal';
 import type { PipelineStage } from '@/types/database';
 
@@ -172,9 +173,38 @@ export function ProjectsTable({ directionFilter = 'all', onSwitchView }: Project
     {
       key: 'next_step',
       label: 'Следующий шаг',
-      render: (p) => p.next_step ? (
-        <span className="text-xs text-text-dim truncate block max-w-[200px]">{p.next_step}</span>
-      ) : <span className="text-text-mute">—</span>,
+      render: (p) => {
+        const dh = getDealHealth(p);
+        const marker = dh === 'overdue-action'
+          ? {
+              filled: true,
+              color: 'var(--red-text, var(--red))',
+              title: `Шаг просрочен ${getNextActionOverdueDays(p.next_action_date!)} дн.`,
+            }
+          : dh === 'no-action'
+          ? {
+              filled: false,
+              color: 'var(--yellow-text, var(--yellow))',
+              title: p.next_step?.trim() ? 'Нет даты следующего шага' : 'Нет следующего шага',
+            }
+          : null;
+        return (
+          <div className="flex items-center gap-1.5">
+            {marker && (
+              <span
+                title={marker.title}
+                className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
+                style={marker.filled
+                  ? { backgroundColor: marker.color }
+                  : { border: `1px solid ${marker.color}` }}
+              />
+            )}
+            {p.next_step ? (
+              <span className="block max-w-[200px] truncate text-xs text-text-dim">{p.next_step}</span>
+            ) : <span className="text-text-mute">—</span>}
+          </div>
+        );
+      },
     },
   ];
 

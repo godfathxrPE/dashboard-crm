@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +23,7 @@ import {
   ArrowUpDown,
   Loader2,
   FolderKanban,
+  X,
 } from 'lucide-react';
 import {
   useProjects,
@@ -326,8 +327,17 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
+  const [focusNextAction, setFocusNextAction] = useState(false);
+  const [nextActionPrompt, setNextActionPrompt] = useState<Project | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('created_at');
+
+  // Sprint W1a: авто-скрытие мягкой подсказки «запланируй шаг»
+  useEffect(() => {
+    if (!nextActionPrompt) return;
+    const t = setTimeout(() => setNextActionPrompt(null), 8000);
+    return () => clearTimeout(t);
+  }, [nextActionPrompt]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -476,6 +486,13 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
 
     const legacyStage = mapToLegacyStage(targetStage, project.direction);
     moveToStageId(project.id, targetStage.id, legacyStage);
+
+    // Sprint W1a: мягкая подсказка запланировать следующий шаг после переноса,
+    // если дата шага пустая или в прошлом (drop-target — всегда активная фаза).
+    const today = new Date(new Date().toDateString());
+    if (!project.next_action_date || new Date(project.next_action_date) < today) {
+      setNextActionPrompt(project);
+    }
   }
 
   function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
@@ -617,7 +634,48 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
       <WonDeals projects={grouped.won ?? []} />
       <LostDeals projects={grouped.lost ?? []} onRestore={handleRestore} onDelete={handleDelete} onEdit={handleEdit} />
 
-      <ProjectModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditProject(null); }} editProject={editProject} />
+      <ProjectModal
+        isOpen={modalOpen}
+        onClose={() => { setModalOpen(false); setEditProject(null); setFocusNextAction(false); }}
+        editProject={editProject}
+        focusNextAction={focusNextAction}
+      />
+
+      {/* Sprint W1a: мягкая (не блокирующая) подсказка запланировать следующий шаг */}
+      {nextActionPrompt && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 animate-appear
+                     flex items-center gap-3 rounded-lg border border-border bg-surface
+                     px-4 py-2.5 elevation-3"
+        >
+          <span
+            className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
+            style={{ backgroundColor: 'var(--yellow-text, var(--yellow))' }}
+          />
+          <span className="text-sm text-text-main">
+            Запланируй следующий шаг для «{nextActionPrompt.name}»
+          </span>
+          <button
+            onClick={() => {
+              setEditProject(nextActionPrompt);
+              setFocusNextAction(true);
+              setModalOpen(true);
+              setNextActionPrompt(null);
+            }}
+            className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+          >
+            Запланировать
+          </button>
+          <button
+            onClick={() => setNextActionPrompt(null)}
+            aria-label="Скрыть"
+            className="rounded p-0.5 text-text-mute transition-colors hover:bg-surface2"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </>
   );
 }

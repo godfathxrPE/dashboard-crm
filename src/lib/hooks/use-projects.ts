@@ -20,6 +20,8 @@ export interface Project {
   budget: number | null;
   deadline: string | null;
   next_step: string | null;
+  next_action_date: string | null;
+  pinned_note: string | null;
   owner_id: string | null;
   loss_reason: string | null;
   loss_detail: string | null;
@@ -47,6 +49,8 @@ export interface ProjectInsert {
   budget?: number | null;
   deadline?: string | null;
   next_step?: string | null;
+  next_action_date?: string | null;
+  pinned_note?: string | null;
   loss_reason?: string | null;
   loss_detail?: string | null;
   // Sprint 1
@@ -186,6 +190,8 @@ export function useCreateProject() {
         budget: newProject.budget ?? null,
         deadline: newProject.deadline ?? null,
         next_step: newProject.next_step ?? null,
+        next_action_date: newProject.next_action_date ?? null,
+        pinned_note: newProject.pinned_note ?? null,
         owner_id: null,
         loss_reason: newProject.loss_reason ?? null,
         loss_detail: newProject.loss_detail ?? null,
