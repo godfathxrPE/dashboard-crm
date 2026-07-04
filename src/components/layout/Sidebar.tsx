@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, CheckSquare, FolderKanban, Phone,
-  Users, Building2, CalendarDays, BarChart3, Settings, Target,
+  Users, Building2, CalendarDays, BarChart3, Settings, Target, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -16,7 +16,8 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 
 const MAIN_NAV = [
-  { href: '/',          label: 'Дашборд',    jpLabel: 'ダッシュボード', icon: LayoutDashboard, badgeKey: null,               sectionColor: '#94A3B8' },
+  { href: '/',          label: 'Сегодня',    jpLabel: '今日',           icon: Sun,             badgeKey: null,               sectionColor: '#94A3B8' },
+  { href: '/overview',  label: 'Обзор',      jpLabel: 'ダッシュボード', icon: LayoutDashboard, badgeKey: null,               sectionColor: '#94A3B8' },
   { href: '/tasks',     label: 'Задачи',     jpLabel: 'タスク管理',     icon: CheckSquare,     badgeKey: 'tasks' as const,   sectionColor: '#8B7CF6' },
   { href: '/leads',     label: 'Лиды',       jpLabel: 'リード',         icon: Target,          badgeKey: 'leads' as const,   sectionColor: '#F97316' },
   { href: '/projects',  label: 'Проекты',    jpLabel: '案件管理',       icon: FolderKanban,    badgeKey: null,               sectionColor: '#FF6633' },

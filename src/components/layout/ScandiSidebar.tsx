@@ -12,7 +12,8 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useLeads } from '@/lib/hooks/use-leads';
 
 const NAV_ITEMS = [
-  { href: '/',          label: 'Дашборд',    short: 'Да' },
+  { href: '/',          label: 'Сегодня',    short: 'Сг' },
+  { href: '/overview',  label: 'Обзор',      short: 'Об' },
   { href: '/tasks',     label: 'Задачи',     short: 'Зд', badgeKey: 'tasks' as const },
   { href: '/leads',     label: 'Лиды',       short: 'Лд', badgeKey: 'leads' as const },
   { href: '/projects',  label: 'Проекты',    short: 'Пр' },

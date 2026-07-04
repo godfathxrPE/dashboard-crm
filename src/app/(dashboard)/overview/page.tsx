@@ -1,10 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { TodayView } from '@/components/today/TodayView';
+import { DashboardHome } from '@/components/dashboard/DashboardHome';
 
-export default async function TodayPage() {
+export default async function OverviewPage() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
-  return <TodayView />;
+  return <DashboardHome />;
 }

@@ -54,8 +54,6 @@ export function ActivityDrawer() {
         minWidth: 280,
       }}>
         <Bracket className="mb-4"><TimeWidget /></Bracket>
-        <Bracket className="mb-4"><FocusWidget /></Bracket>
-        <Bracket className="mb-4"><PlannedCallsWidget /></Bracket>
         <Bracket className="mb-4"><CalendarWidget /></Bracket>
         <Bracket className="mb-4"><StatsWidget /></Bracket>
         <Bracket className="mb-4"><ActivityWidget /></Bracket>
@@ -113,72 +111,8 @@ function TimeWidget() {
 }
 
 // ═══════════════════════════════════════════════════════
-// 2. Focus
-// ═══════════════════════════════════════════════════════
-
-function FocusWidget() {
-  const [text, setText] = useState('');
-  useEffect(() => {
-    const key = `focus-${localDateKey()}`;
-    setText(localStorage.getItem(key) ?? '');
-  }, []);
-  const save = (val: string) => {
-    setText(val);
-    const key = `focus-${localDateKey()}`;
-    if (val.trim()) localStorage.setItem(key, val); else localStorage.removeItem(key);
-  };
-
-  return (
-    <Section title="ФОКУС ДНЯ">
-      <input
-        value={text}
-        onChange={(e) => save(e.target.value)}
-        placeholder="Одно главное дело на сегодня..."
-        style={{
-          width: '100%', background: 'transparent',
-          border: 'none', borderBottom: '0.5px solid var(--border)',
-          padding: '6px 0', fontSize: 12, color: 'var(--text)',
-          fontFamily: 'inherit', outline: 'none',
-        }}
-      />
-    </Section>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// 3. Planned Calls
-// ═══════════════════════════════════════════════════════
-
-function PlannedCallsWidget() {
-  const { data: calls = [] } = useCalls();
-  const pending = calls
-    .filter((c) => c.status === 'pending')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5);
-
-  return (
-    <Section title="ЗАПЛАНИРОВАННЫЕ ЗВОНКИ" count={pending.length}>
-      {pending.length === 0 ? (
-        <div style={{ fontSize: 11, color: 'var(--text-mute)', padding: '4px 0' }}>Нет запланированных</div>
-      ) : (
-        pending.map((c) => (
-          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
-            <span style={{ color: 'var(--text)' }}>
-              {c.contact ? `${c.contact.first_name} ${c.contact.last_name}` : c.company?.name ?? 'Звонок'}
-            </span>
-            <span style={{ color: 'var(--text-mute)', fontSize: 11 }}>
-              {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-              {' '}{new Date(c.date).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        ))
-      )}
-    </Section>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// 4. Calendar
+// 2. Calendar
+// (Фокус дня и запланированные звонки переехали на экран «Сегодня» — Sprint W1b)
 // ═══════════════════════════════════════════════════════
 
 function CalendarWidget() {

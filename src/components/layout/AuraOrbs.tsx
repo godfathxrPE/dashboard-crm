@@ -17,6 +17,7 @@ import { getSectionFromPath } from '@/lib/section-colors';
 // RGB 0..1 палитра орбов по разделам (синхронно с [data-section] в globals.css)
 const SECTION_COLORS: Record<string, [[number, number, number], [number, number, number]]> = {
   dashboard: [[0.78, 0.48, 0.12], [0.49, 0.36, 0.83]], // янтарь + фиолет
+  today:     [[0.78, 0.48, 0.12], [0.49, 0.36, 0.83]], // Сегодня — как Дашборд
   leads:     [[0.78, 0.48, 0.12], [0.88, 0.63, 0.23]], // янтарь
   projects:  [[0.78, 0.48, 0.12], [0.88, 0.63, 0.23]],
   tasks:     [[0.49, 0.36, 0.83], [0.63, 0.47, 0.88]], // фиолет
