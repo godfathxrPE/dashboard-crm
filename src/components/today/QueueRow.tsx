@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils/cn';
 
 export interface RowMarker {
   /** заполненная точка = срочно/просрочено; контурная = ожидает */
@@ -19,6 +20,9 @@ interface QueueRowProps {
   onOpen: () => void;
   primary?: { label: string; onClick: () => void };
   secondary?: { label: string; onClick: () => void };
+  /** Позиция в плоской очереди для j/k (Sprint W2d) */
+  kbdIndex?: number;
+  focused?: boolean;
 }
 
 /**
@@ -26,15 +30,19 @@ interface QueueRowProps {
  * secondary (напр. «на завтра»), primary (главное действие).
  * Действия останавливают всплытие, чтобы не триггерить переход.
  */
-export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secondary }: QueueRowProps) {
+export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secondary, kbdIndex, focused }: QueueRowProps) {
   return (
     <div
       role="button"
       tabIndex={0}
+      data-row-index={kbdIndex}
+      aria-selected={focused}
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
-      className="group flex cursor-pointer items-center gap-3 border-b border-border/60 py-2.5
-                 transition-colors hover:bg-surface-hover"
+      className={cn(
+        'group flex cursor-pointer items-center gap-3 border-b border-border/60 py-2.5 transition-colors',
+        focused ? 'kbd-focus-row' : 'hover:bg-surface-hover',
+      )}
     >
       {marker && (
         <span
@@ -55,8 +63,10 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
         {secondary && (
           <button
             onClick={(e) => { e.stopPropagation(); secondary.onClick(); }}
-            className="rounded px-2 py-1 text-xs text-text-mute opacity-0 transition
-                       hover:text-text-main group-hover:opacity-100"
+            className={cn(
+              'rounded px-2 py-1 text-xs text-text-mute transition hover:text-text-main group-hover:opacity-100',
+              focused ? 'opacity-100' : 'opacity-0',
+            )}
           >
             {secondary.label}
           </button>

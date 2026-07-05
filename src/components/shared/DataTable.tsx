@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useStagger } from '@/lib/hooks/use-stagger';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
+import { PeekPanel } from './PeekPanel';
+
+// Арбитраж j/k между несколькими таблицами на странице: nav у той,
+// над которой был последний hover (первая смонтированная — по умолчанию)
+let activeKbdTable: string | null = null;
 
 export interface Column<T> {
   key: string;
@@ -23,6 +28,12 @@ export interface BulkAction {
   variant?: 'default' | 'danger';
 }
 
+export interface PeekConfig {
+  title: string;
+  href: string;
+  content: React.ReactNode;
+}
+
 interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
@@ -34,6 +45,8 @@ interface DataTableProps<T> {
   emptyIcon?: React.ReactNode;
   selectable?: boolean;
   bulkActions?: BulkAction[];
+  /** Space на focused-строке / клик при открытой панели — предпросмотр записи */
+  peek?: (item: T) => PeekConfig;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -49,13 +62,17 @@ export function DataTable<T>({
   emptyIcon,
   selectable,
   bulkActions,
+  peek,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [peekId, setPeekId] = useState<string | null>(null);
   const lastClickedIdx = useRef<number | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const tableId = useId();
   const tbodyRef = useStagger<HTMLTableSectionElement>(30);
 
   // ─── Search ───
@@ -97,15 +114,51 @@ export function DataTable<T>({
     setPage(0);
   }
 
-  // ─── Keyboard nav (J/K/Enter) ───
-  const { activeIndex } = useKeyboardNav({
+  const getId = useCallback((item: T) => String(item[keyField]), [keyField]);
+
+  // ─── Keyboard nav (J/K/Enter/Space/Escape) ───
+  useEffect(() => {
+    if (activeKbdTable === null) activeKbdTable = tableId;
+    return () => { if (activeKbdTable === tableId) activeKbdTable = null; };
+  }, [tableId]);
+
+  const { activeIndex, setActiveIndex } = useKeyboardNav({
     itemCount: paged.length,
     onSelect: onRowClick ? (idx) => onRowClick(paged[idx]) : undefined,
-    enabled: !!onRowClick,
+    onPeek: peek
+      ? (idx) => {
+          const id = getId(paged[idx]);
+          setPeekId((cur) => (cur === id ? null : id));
+        }
+      : undefined,
+    onEscape: () => setPeekId(null),
+    isActive: () =>
+      activeKbdTable === tableId &&
+      !!rootRef.current && rootRef.current.offsetParent !== null,
+    containerRef: rootRef,
+    enabled: !!onRowClick || !!peek,
   });
 
+  // Открытый peek следует за фокусом (j/k при открытой панели)
+  const lastFollowedIdx = useRef(-1);
+  useEffect(() => {
+    if (activeIndex === lastFollowedIdx.current) return;
+    lastFollowedIdx.current = activeIndex;
+    if (activeIndex < 0) return;
+    setPeekId((cur) => {
+      if (cur === null) return cur;
+      const item = paged[activeIndex];
+      return item ? getId(item) : cur;
+    });
+  }, [activeIndex, paged, getId]);
+
+  const peekItem = useMemo(
+    () => (peek && peekId !== null ? sorted.find((i) => getId(i) === peekId) ?? null : null),
+    [peek, peekId, sorted, getId],
+  );
+  const peekConfig = peek && peekItem ? peek(peekItem) : null;
+
   // ─── Selection ───
-  const getId = useCallback((item: T) => String(item[keyField]), [keyField]);
 
   const toggleOne = useCallback(
     (id: string, index: number, shiftKey: boolean) => {
@@ -143,7 +196,11 @@ export function DataTable<T>({
   const colSpan = columns.length + (selectable ? 1 : 0);
 
   return (
-    <div>
+    <div
+      ref={rootRef}
+      data-kbd-active={activeKbdTable === tableId || undefined}
+      onMouseEnter={() => { activeKbdTable = tableId; }}
+    >
       {/* Search bar */}
       <div className="mb-3 flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
@@ -219,11 +276,21 @@ export function DataTable<T>({
                   <tr
                     key={id}
                     data-row-index={idx}
-                    onClick={() => onRowClick?.(item)}
+                    data-kbd-focused={idx === activeIndex || undefined}
+                    aria-selected={idx === activeIndex}
+                    onClick={() => {
+                      setActiveIndex(idx);
+                      // При открытой панели клик по строке — смена содержимого peek, не переход
+                      if (peek && peekId !== null) {
+                        setPeekId(id);
+                        return;
+                      }
+                      onRowClick?.(item);
+                    }}
                     className={cn(
                       'border-b border-border/50 transition-colors duration-150',
                       onRowClick && 'cursor-pointer',
-                      isSelected ? 'bg-accent-l' : idx === activeIndex ? 'ring-2 ring-inset ring-accent bg-accent-l/30' : onRowClick ? 'hover:bg-accent-l' : '',
+                      isSelected ? 'bg-accent-l' : onRowClick ? 'hover:bg-accent-l' : '',
                     )}
                   >
                     {selectable && (
@@ -310,6 +377,17 @@ export function DataTable<T>({
           </button>
         </div>,
         document.body,
+      )}
+
+      {/* Peek panel (Sprint W2d) */}
+      {peekConfig && (
+        <PeekPanel
+          title={peekConfig.title}
+          href={peekConfig.href}
+          onClose={() => setPeekId(null)}
+        >
+          {peekConfig.content}
+        </PeekPanel>
       )}
     </div>
   );

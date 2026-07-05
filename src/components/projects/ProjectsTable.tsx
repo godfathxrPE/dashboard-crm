@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { ProjectModal } from './ProjectModal';
+import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage } from '@/types/database';
 
 // Track mapping for the 3-track pipeline (IIoT only — legacy stage)
@@ -267,6 +268,11 @@ export function ProjectsTable({ directionFilter = 'all', onSwitchView }: Project
         columns={columns}
         keyField="id"
         onRowClick={(p) => router.push(`/projects/${p.id}`)}
+        peek={(p) => ({
+          title: p.name,
+          href: `/projects/${p.id}`,
+          content: <ProjectPeekContent project={p} />,
+        })}
         searchPlaceholder="Поиск по названию, компании..."
         emptyMessage="Нет активных проектов"
         emptyIcon={<FolderKanban size={32} className="text-text-mute" />}

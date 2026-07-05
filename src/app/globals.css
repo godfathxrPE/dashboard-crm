@@ -2159,3 +2159,42 @@ header {
     animation: none;
   }
 }
+
+/* ═══ Keyboard nav + Peek (Sprint W2d) ═══ */
+
+/* Фокус-строка j/k в таблицах: язык hover-строк (bg accent-l + левая метка 2px).
+   Вне @layer — перекрывает layered-правила таблиц. */
+table tbody tr[data-kbd-focused] {
+  background: var(--accent-l);
+  border-left-color: var(--accent);
+}
+/* Scandi: hover-строки прозрачные с border-left — фокус в том же языке, метка акцентом */
+.t-scandi table tbody tr[data-kbd-focused] {
+  background: transparent !important;
+  border-left-color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+/* Фокус-строка вне <table> (очередь «Сегодня») */
+.kbd-focus-row {
+  background: var(--accent-l);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.t-scandi .kbd-focus-row {
+  background: transparent;
+}
+
+/* Peek-панель: слайд справа; z-40 — между drawer (30) и dropdown (50) */
+.peek-panel {
+  animation: peek-slide-in var(--duration-normal) var(--ease-out) both;
+}
+@keyframes peek-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.t-scandi .peek-panel {
+  background: var(--bg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .peek-panel { animation: none; }
+}

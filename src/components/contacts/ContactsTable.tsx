@@ -14,6 +14,7 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { ContactModal } from './ContactModal';
+import { ContactPeekContent } from './ContactPeekContent';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
 type ContactRow = Contact & { last_touch: string | null };
@@ -207,6 +208,11 @@ export function ContactsTable() {
         columns={columns}
         keyField="id"
         onRowClick={(c) => router.push(`/contacts/${c.id}`)}
+        peek={(c) => ({
+          title: `${c.first_name} ${c.last_name}`,
+          href: `/contacts/${c.id}`,
+          content: <ContactPeekContent contact={c} />,
+        })}
         searchPlaceholder="Поиск по имени, компании..."
         emptyMessage="Нет контактов. Создай первый!"
         emptyIcon={<Users size={32} className="text-text-mute" />}

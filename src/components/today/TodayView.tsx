@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
 import { useUiStore } from '@/lib/stores/ui-store';
+import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { ProjectModal } from '@/components/projects/ProjectModal';
@@ -115,6 +116,52 @@ export function TodayView() {
 
   const openDeal = (p: Project) => { setEditProject(p); setModalOpen(true); };
 
+  // ─── Keyboard nav (Sprint W2d): j/k по плоской очереди, Enter — открыть, d — primary ───
+  const coolingSlice = useMemo(() => coolingContacts.slice(0, 5), [coolingContacts]);
+  const queueRef = useRef<HTMLDivElement>(null);
+
+  // Порядок совпадает с порядком секций в JSX; смещения — для kbdIndex строк
+  const flatRows: { open: () => void; primary?: () => void }[] = [
+    ...overdueCalls.map((c) => ({
+      open: () => router.push('/calls'),
+      primary: () => updateCall.mutate({ id: c.id, status: 'done' as const }),
+    })),
+    ...todayCalls.map((c) => ({
+      open: () => router.push('/calls'),
+      primary: () => updateCall.mutate({ id: c.id, status: 'done' as const }),
+    })),
+    ...nowTasks.map((t) => ({
+      open: () => router.push('/tasks'),
+      primary: () => updateTask.mutate({ id: t.id, lane: 'done' as const }),
+    })),
+    ...rottingDeals.map((p) => ({
+      open: () => router.push(`/projects/${p.id}`),
+      primary: () => openDeal(p),
+    })),
+    ...coolingSlice.map(({ contact: c }) => ({
+      open: () => router.push(`/contacts/${c.id}`),
+      primary: () => openModal('call', undefined, { contactId: c.id }),
+    })),
+    ...todayMeetings.map(() => ({
+      open: () => router.push('/meetings'),
+    })),
+  ];
+  const offTodayCalls = overdueCalls.length;
+  const offTasks = offTodayCalls + todayCalls.length;
+  const offDeals = offTasks + nowTasks.length;
+  const offCooling = offDeals + rottingDeals.length;
+  const offMeetings = offCooling + coolingSlice.length;
+
+  const { activeIndex } = useKeyboardNav({
+    itemCount: flatRows.length,
+    onSelect: (i) => flatRows[i]?.open(),
+    onAction: (i) => flatRows[i]?.primary?.(),
+    // ProjectModal здесь локальный (не в ui-store) — глушим nav отдельно
+    isActive: () => !modalOpen,
+    containerRef: queueRef,
+    enabled: mounted && flatRows.length > 0,
+  });
+
   const callName = (c: typeof calls[number]) =>
     c.contact ? `${c.contact.first_name} ${c.contact.last_name}` : c.company?.name ?? 'Звонок';
 
@@ -142,12 +189,14 @@ export function TodayView() {
       {mounted && total === 0 ? (
         <EmptyState />
       ) : (
-        <>
+        <div ref={queueRef}>
           {/* 2. Просроченные звонки */}
           <Section title="Просроченные звонки" count={overdueCalls.length} icon={<Phone size={13} />}>
-            {overdueCalls.map((c) => (
+            {overdueCalls.map((c, i) => (
               <QueueRow
                 key={c.id}
+                kbdIndex={i}
+                focused={activeIndex === i}
                 marker={{ filled: true, color: RED, title: 'Просрочен' }}
                 title={callName(c)}
                 subtitle={c.contact ? c.company?.name ?? undefined : undefined}
@@ -161,9 +210,11 @@ export function TodayView() {
 
           {/* 3. Звонки на сегодня */}
           <Section title="Звонки на сегодня" count={todayCalls.length} icon={<PhoneOutgoing size={13} />}>
-            {todayCalls.map((c) => (
+            {todayCalls.map((c, i) => (
               <QueueRow
                 key={c.id}
+                kbdIndex={offTodayCalls + i}
+                focused={activeIndex === offTodayCalls + i}
                 marker={{ filled: false, color: 'var(--accent)', title: 'Сегодня' }}
                 title={callName(c)}
                 subtitle={c.contact ? c.company?.name ?? undefined : undefined}
@@ -177,11 +228,13 @@ export function TodayView() {
 
           {/* 4. Задачи в работе */}
           <Section title="Задачи в работе" count={nowTasks.length} icon={<CheckSquare size={13} />}>
-            {nowTasks.map((t) => {
+            {nowTasks.map((t, i) => {
               const overdue = !!t.deadline && t.deadline < todayKey;
               return (
                 <QueueRow
                   key={t.id}
+                  kbdIndex={offTasks + i}
+                  focused={activeIndex === offTasks + i}
                   marker={overdue
                     ? { filled: true, color: RED, title: 'Просрочена' }
                     : { filled: false, color: 'var(--text-mute)' }}
@@ -200,12 +253,14 @@ export function TodayView() {
 
           {/* 5. Сделки без шага */}
           <Section title="Сделки без шага" count={rottingDeals.length} icon={<Briefcase size={13} />}>
-            {rottingDeals.map((p) => {
+            {rottingDeals.map((p, i) => {
               const dh = getDealHealth(p);
               const overdue = dh === 'overdue-action';
               return (
                 <QueueRow
                   key={p.id}
+                  kbdIndex={offDeals + i}
+                  focused={activeIndex === offDeals + i}
                   marker={overdue
                     ? { filled: true, color: RED }
                     : { filled: false, color: YELLOW }}
@@ -229,13 +284,15 @@ export function TodayView() {
 
           {/* 6. Остывают (reconnect) */}
           <Section title="Остывают" count={coolingContacts.length} icon={<Snowflake size={13} />}>
-            {coolingContacts.slice(0, 5).map(({ contact: c, days }) => {
+            {coolingSlice.map(({ contact: c, days }, i) => {
               const company = (c.companies ?? [])[0]?.company?.name;
               const cold = touchLevel(days) === 'cold';
               const color = cold ? RED : YELLOW;
               return (
                 <QueueRow
                   key={c.id}
+                  kbdIndex={offCooling + i}
+                  focused={activeIndex === offCooling + i}
                   marker={{ filled: cold, color }}
                   title={`${c.first_name} ${c.last_name}`}
                   subtitle={company}
@@ -256,9 +313,11 @@ export function TodayView() {
 
           {/* 7. Встречи сегодня */}
           <Section title="Встречи сегодня" count={todayMeetings.length} icon={<CalendarDays size={13} />}>
-            {todayMeetings.map((m) => (
+            {todayMeetings.map((m, i) => (
               <QueueRow
                 key={m.id}
+                kbdIndex={offMeetings + i}
+                focused={activeIndex === offMeetings + i}
                 marker={{ filled: false, color: 'var(--accent)' }}
                 title={m.title}
                 subtitle={m.project?.name ?? undefined}
@@ -267,7 +326,7 @@ export function TodayView() {
               />
             ))}
           </Section>
-        </>
+        </div>
       )}
 
       <ProjectModal

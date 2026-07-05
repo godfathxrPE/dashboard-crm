@@ -20,6 +20,8 @@ const GO_ROUTES: Record<string, string> = {
 const SHORTCUTS = [
   { keys: 'J / K', label: 'Навигация по строкам' },
   { keys: 'Enter', label: 'Открыть' },
+  { keys: 'Space', label: 'Предпросмотр (peek)' },
+  { keys: 'D', label: 'Действие строки (Сегодня)' },
   { keys: 'Esc', label: 'Закрыть / Сбросить' },
   { keys: '⌘K', label: 'Поиск' },
   { keys: '/', label: 'Фокус на поиск' },

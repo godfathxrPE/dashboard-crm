@@ -314,12 +314,14 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-1.5 border-t border-border px-4 py-2 text-[10px] text-text-mute">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-2 text-[10px] text-text-mute">
           <span>↑↓ — навигация</span>
           <span className="text-text-dim">·</span>
           <span>Enter — выбрать</span>
           <span className="text-text-dim">·</span>
           <span>Esc — закрыть</span>
+          <span className="text-text-dim">·</span>
+          <span>в списках: j/k, Space — предпросмотр, d — действие (Сегодня)</span>
         </div>
       </div>
     </div>

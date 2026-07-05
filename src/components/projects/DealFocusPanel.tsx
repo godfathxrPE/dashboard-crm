@@ -25,7 +25,7 @@ function formatActionDate(value: string): string {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
-export function DealFocusPanel({ project }: { project: Project }) {
+export function DealFocusPanel({ project, compact }: { project: Project; compact?: boolean }) {
   const updateProject = useUpdateProject();
   const { data: entries = [] } = useActivityLog(project.id);
 
@@ -50,7 +50,11 @@ export function DealFocusPanel({ project }: { project: Project }) {
   return (
     <div
       data-card
-      className="mb-6 grid grid-cols-1 gap-x-6 gap-y-4 border-y border-border py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)_auto]"
+      className={cn(
+        'mb-6 grid grid-cols-1 gap-x-6 gap-y-4 border-y border-border py-4',
+        // compact — одна колонка (peek-панель 440px)
+        !compact && 'md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)_auto]',
+      )}
     >
       {/* ─── Зона 1: Следующий шаг (доминирует) ─── */}
       <div
@@ -123,8 +127,8 @@ export function DealFocusPanel({ project }: { project: Project }) {
       </div>
 
       {/* ─── Зона 3: Здоровье ─── */}
-      <div className="flex flex-row items-start gap-4 md:flex-col md:items-end md:gap-1">
-        <div className="mb-0 flex items-center gap-1 text-xs font-semibold text-text-dim md:mb-1.5">
+      <div className={cn('flex flex-row items-start gap-4', !compact && 'md:flex-col md:items-end md:gap-1')}>
+        <div className={cn('mb-0 flex items-center gap-1 text-xs font-semibold text-text-dim', !compact && 'md:mb-1.5')}>
           Здоровье
         </div>
         <HealthDot level={dealHealth.level} score={dealHealth.total} size="md" showLabel />
