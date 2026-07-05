@@ -6,13 +6,21 @@ type ModalId =
   | 'contact' | 'company' | 'export' | 'review'
   | 'command-palette' | null;
 
+/** Контекст-préfill для модалок, открываемых из палитры/очереди (Sprint W2b) */
+export interface ModalContext {
+  contactId?: string;
+  companyId?: string;
+  projectId?: string;
+}
+
 interface UiState {
   sidebarOpen: boolean;
   toggleSidebar: () => void;
 
   activeModal: ModalId;
   editingId: string | null;
-  openModal: (modal: ModalId, editId?: string) => void;
+  modalContext: ModalContext | null;
+  openModal: (modal: ModalId, editId?: string, context?: ModalContext) => void;
   closeModal: () => void;
 
   commandPaletteOpen: boolean;
@@ -31,9 +39,10 @@ export const useUiStore = create<UiState>()(
 
       activeModal: null,
       editingId: null,
-      openModal: (modal, editId) =>
-        set({ activeModal: modal, editingId: editId ?? null }),
-      closeModal: () => set({ activeModal: null, editingId: null }),
+      modalContext: null,
+      openModal: (modal, editId, context) =>
+        set({ activeModal: modal, editingId: editId ?? null, modalContext: context ?? null }),
+      closeModal: () => set({ activeModal: null, editingId: null, modalContext: null }),
 
       commandPaletteOpen: false,
       paletteActionsOnly: false,

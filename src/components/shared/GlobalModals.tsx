@@ -18,6 +18,7 @@ import { CompanyModal } from '@/components/companies/CompanyModal';
 export function GlobalModals() {
   const activeModal = useUiStore((s) => s.activeModal);
   const closeModal = useUiStore((s) => s.closeModal);
+  const ctx = useUiStore((s) => s.modalContext);
 
   // Esc закрывает открытую из палитры модалку (сами модалки Escape не слушают)
   useEffect(() => {
@@ -31,10 +32,27 @@ export function GlobalModals() {
 
   return (
     <>
-      <TaskModal isOpen={activeModal === 'task'} onClose={closeModal} editTask={null} />
-      <ProjectModal isOpen={activeModal === 'project'} onClose={closeModal} editProject={null} />
-      <CallModal isOpen={activeModal === 'call'} onClose={closeModal} editCall={null} />
-      <MeetingModal isOpen={activeModal === 'meeting'} onClose={closeModal} editMeeting={null} />
+      <TaskModal
+        isOpen={activeModal === 'task'} onClose={closeModal} editTask={null}
+        defaultContactId={ctx?.contactId ?? null}
+        defaultCompanyId={ctx?.companyId ?? null}
+        defaultProjectId={ctx?.projectId ?? null}
+      />
+      <ProjectModal
+        isOpen={activeModal === 'project'} onClose={closeModal} editProject={null}
+        defaultCompanyId={ctx?.companyId ?? null}
+      />
+      <CallModal
+        isOpen={activeModal === 'call'} onClose={closeModal} editCall={null}
+        defaultContactId={ctx?.contactId ?? null}
+        defaultProjectId={ctx?.projectId ?? null}
+      />
+      <MeetingModal
+        isOpen={activeModal === 'meeting'} onClose={closeModal} editMeeting={null}
+        defaultContactId={ctx?.contactId ?? null}
+        defaultCompanyId={ctx?.companyId ?? null}
+        defaultProjectId={ctx?.projectId ?? null}
+      />
       <ContactModal isOpen={activeModal === 'contact'} onClose={closeModal} editContact={null} />
       <CompanyModal isOpen={activeModal === 'company'} onClose={closeModal} editCompany={null} />
     </>

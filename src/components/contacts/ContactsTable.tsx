@@ -7,14 +7,17 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
-import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
+import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { DataTable, type Column } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { ContactModal } from './ContactModal';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
-const CHIP_FILTERS: Record<string, (c: Contact) => boolean> = {
+type ContactRow = Contact & { last_touch: string | null };
+
+const CHIP_FILTERS: Record<string, (c: ContactRow) => boolean> = {
   has_email: (c) => !!c.email,
   has_phone: (c) => !!c.phone,
 };
@@ -22,8 +25,15 @@ const CHIP_FILTERS: Record<string, (c: Contact) => boolean> = {
 export function ContactsTable() {
   const router = useRouter();
   const { data: contacts, isLoading, error } = useContacts();
+  const lastTouch = useLastTouchMap();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
+
+  // Обогащаем строки датой последнего касания (для колонки + сортировки)
+  const rows = useMemo<ContactRow[]>(
+    () => (contacts ?? []).map((c) => ({ ...c, last_touch: lastTouch.get(c.id)?.date ?? null })),
+    [contacts, lastTouch],
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
@@ -37,14 +47,14 @@ export function ContactsTable() {
     return Object.entries(freq)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
-      .reduce<Record<string, (c: Contact) => boolean>>((acc, [pos]) => {
+      .reduce<Record<string, (c: ContactRow) => boolean>>((acc, [pos]) => {
         acc[`pos_${pos}`] = (c) => c.position === pos;
         return acc;
       }, {});
   }, [contacts]);
 
   const allFilters = useMemo(() => ({ ...CHIP_FILTERS, ...positionFilters }), [positionFilters]);
-  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(contacts ?? [], allFilters);
+  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(rows, allFilters);
 
   const chipOptions: ChipOption[] = useMemo(() => [
     { label: 'Есть email', value: 'has_email', count: counts.has_email },
@@ -61,7 +71,7 @@ export function ContactsTable() {
     setModalOpen(true);
   }
 
-  const columns: Column<Contact>[] = [
+  const columns: Column<ContactRow>[] = [
     {
       key: 'last_name',
       label: 'Контакт',
@@ -124,6 +134,29 @@ export function ContactsTable() {
           + добавить
         </button>
       ),
+    },
+    {
+      key: 'last_touch',
+      label: 'Касание',
+      sortable: true,
+      width: '110px',
+      render: (c) => {
+        if (!c.last_touch) return <span className="text-xs text-text-mute">—</span>;
+        const days = daysSince(c.last_touch);
+        const level = touchLevel(days);
+        if (level === 'ok') {
+          return (
+            <span className="text-xs text-text-dim">
+              {new Date(c.last_touch).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+            </span>
+          );
+        }
+        return (
+          <span className={`text-xs ${level === 'cold' ? 'text-red' : 'text-yellow'}`}>
+            {days} дн.
+          </span>
+        );
+      },
     },
     {
       key: 'created_at',

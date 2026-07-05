@@ -5,12 +5,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays } from 'lucide-react';
+import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake } from 'lucide-react';
 import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects, type Project } from '@/lib/hooks/use-projects';
+import { useContacts } from '@/lib/hooks/use-contacts';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
+import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
+import { useUiStore } from '@/lib/stores/ui-store';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { ProjectModal } from '@/components/projects/ProjectModal';
@@ -38,7 +42,10 @@ export function TodayView() {
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
   const { data: projects = [] } = useProjects();
+  const { data: contacts = [] } = useContacts();
   const isProjectActive = useIsProjectActive();
+  const lastTouch = useLastTouchMap();
+  const openModal = useUiStore((s) => s.openModal);
   const updateCall = useUpdateCall();
   const updateTask = useUpdateTask();
 
@@ -77,8 +84,28 @@ export function TodayView() {
     [meetings, todayKey],
   );
 
+  // «Остывают»: контакты активных сделок / компаний с активными сделками,
+  // у которых последнее касание старше порога или его вовсе не было.
+  const coolingContacts = useMemo(() => {
+    const activeProjects = projects.filter((p) => isProjectActive(p));
+    const activeContactIds = new Set(activeProjects.map((p) => p.contact_id).filter(Boolean) as string[]);
+    const activeCompanyIds = new Set(activeProjects.map((p) => p.company_id).filter(Boolean) as string[]);
+
+    return contacts
+      .filter((c) =>
+        activeContactIds.has(c.id) ||
+        (c.companies ?? []).some((cc) => activeCompanyIds.has(cc.company_id)),
+      )
+      .map((c) => {
+        const touch = lastTouch.get(c.id) ?? null;
+        return { contact: c, days: touch ? daysSince(touch.date) : null };
+      })
+      .filter((r) => r.days === null || r.days > RECONNECT_THRESHOLD_DAYS)
+      .sort((a, b) => (b.days ?? Infinity) - (a.days ?? Infinity)); // холоднее сверху
+  }, [contacts, projects, isProjectActive, lastTouch]);
+
   const total = overdueCalls.length + todayCalls.length + nowTasks.length
-    + rottingDeals.length + todayMeetings.length;
+    + rottingDeals.length + todayMeetings.length + coolingContacts.length;
 
   const bumpCall = (id: string, iso: string) => {
     const d = new Date(iso);
@@ -200,7 +227,34 @@ export function TodayView() {
             })}
           </Section>
 
-          {/* 6. Встречи сегодня */}
+          {/* 6. Остывают (reconnect) */}
+          <Section title="Остывают" count={coolingContacts.length} icon={<Snowflake size={13} />}>
+            {coolingContacts.slice(0, 5).map(({ contact: c, days }) => {
+              const company = (c.companies ?? [])[0]?.company?.name;
+              const cold = touchLevel(days) === 'cold';
+              const color = cold ? RED : YELLOW;
+              return (
+                <QueueRow
+                  key={c.id}
+                  marker={{ filled: cold, color }}
+                  title={`${c.first_name} ${c.last_name}`}
+                  subtitle={company}
+                  meta={
+                    <span style={{ color }}>
+                      {days === null ? 'касаний не было' : `${days} дн. без касания`}
+                    </span>
+                  }
+                  onOpen={() => router.push(`/contacts/${c.id}`)}
+                  primary={{
+                    label: 'Запланировать звонок',
+                    onClick: () => openModal('call', undefined, { contactId: c.id }),
+                  }}
+                />
+              );
+            })}
+          </Section>
+
+          {/* 7. Встречи сегодня */}
           <Section title="Встречи сегодня" count={todayMeetings.length} icon={<CalendarDays size={13} />}>
             {todayMeetings.map((m) => (
               <QueueRow

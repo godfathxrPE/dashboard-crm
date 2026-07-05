@@ -12,6 +12,7 @@ import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, 
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
@@ -147,6 +148,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const { data: allCompanies } = useCompanies();
   const { data: allProjects } = useProjects();
   const { data: allCalls } = useCalls();
+  const lastTouch = useLastTouchMap();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
   const linkCompany = useLinkContactCompany();
@@ -236,6 +238,13 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const linkedCompanyIds = new Set((contact.companies ?? []).map((cc) => cc.company_id));
   const availableCompanies = (allCompanies ?? []).filter((c) => !linkedCompanyIds.has(c.id));
 
+  // Reconnect-индикатор: дней с последнего касания (тот же язык, что «Здоровье» в DealFocusPanel)
+  const touch = lastTouch.get(contactId) ?? null;
+  const touchDays = touch ? daysSince(touch.date) : null;
+  const touchLvl = touchLevel(touchDays);
+  const touchDot = touchLvl === 'cold' ? 'bg-red' : touchLvl === 'cooling' ? 'bg-yellow' : 'bg-text-mute';
+  const touchText = touchLvl === 'cold' ? 'text-red' : touchLvl === 'cooling' ? 'text-yellow' : 'text-text-mute';
+
   function handleDelete() {
     if (confirm(`Удалить «${fullName}»? Это действие нельзя отменить.`)) {
       deleteContact.mutate(contactId, { onSuccess: () => router.push('/contacts') });
@@ -298,6 +307,17 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                     {primaryCompany.company?.name}
                   </button>
                 )}
+                {/* Reconnect indicator */}
+                <div className="mt-1.5 flex items-center gap-1.5" title="Последнее касание">
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', touchDot)} />
+                  <span className={cn('text-xs', touchText)}>
+                    {touchDays === null
+                      ? 'касаний не было'
+                      : touchLvl === 'ok'
+                        ? `касание ${touchDays} дн. назад`
+                        : `${touchDays} дн. без касания`}
+                  </span>
+                </div>
               </div>
               {/* Edit / Delete */}
               <div className="flex gap-1 shrink-0">
