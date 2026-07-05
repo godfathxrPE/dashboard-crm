@@ -5,7 +5,7 @@ import { Phone, Pencil, Trash2, Building2, User, FolderKanban, Calendar, Loader2
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
-import { useCalls, useDeleteCall, type Call } from '@/lib/hooks/use-calls';
+import { useCalls, useDeleteCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { staggerClass } from '@/lib/utils/stagger';
 import { CALL_STATUS_CONFIG, formatDuration, type CallStatus } from '@/lib/validators/call';
@@ -18,6 +18,7 @@ type TabFilter = 'all' | CallStatus;
 export function CallLog() {
   const { data: calls, isLoading, error } = useCalls();
   const deleteCall = useDeleteCall();
+  const updateCall = useUpdateCall();
 
   const createTask = useCreateTask();
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,8 +41,17 @@ export function CallLog() {
   const filtered = useMemo(() => {
     if (!calls) return [];
     if (tab === 'all') return calls;
-    return calls.filter((c) => c.status === tab);
+    const byTab = calls.filter((c) => c.status === tab);
+    // Запланированные: просроченные и ближайшие сверху (иначе тонут в хронологии)
+    if (tab === 'pending') return [...byTab].sort((a, b) => a.date.localeCompare(b.date));
+    return byTab;
   }, [calls, tab]);
+
+  function bumpCall(c: Call) {
+    const d = new Date(c.date);
+    d.setDate(d.getDate() + 1);
+    updateCall.mutate({ id: c.id, date: d.toISOString() });
+  }
 
   // Upcoming (pending) calls for the sidebar
   const scheduledCalls = useMemo(() => {
@@ -200,6 +210,25 @@ export function CallLog() {
                       <p className="mt-0.5 text-[10px] text-accent">→ {call.next_step}</p>
                     )}
                   </div>
+
+                  {/* Quick actions для запланированных — всегда видимы */}
+                  {call.status === 'pending' && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => bumpCall(call)}
+                        className="rounded px-2 py-1 text-xs text-text-mute transition-colors hover:text-text-main"
+                      >
+                        На завтра
+                      </button>
+                      <button
+                        onClick={() => updateCall.mutate({ id: call.id, status: 'done' })}
+                        className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-text-dim
+                                   transition-colors hover:border-accent hover:bg-accent-l hover:text-accent"
+                      >
+                        Выполнен
+                      </button>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

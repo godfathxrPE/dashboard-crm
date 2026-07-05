@@ -1883,6 +1883,10 @@ input[type="checkbox"]:indeterminate {
 
   .bg-surface-hover { background: var(--surface2); }
 
+  /* Hover строк очереди «Сегодня» (QueueRow): полупрозрачный, как zebra таблиц —
+     не спорит с атмосферным фоном Aura (opaque --surface2 давал белый прямоугольник) */
+  .queue-row-hover:hover { background: color-mix(in srgb, var(--surface2) 55%, transparent); }
+
   /* Tables */
   table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface2) 50%, transparent); }
   table tbody tr:nth-child(odd) { background: transparent; }

@@ -15,6 +15,8 @@ export interface Meeting {
   company_id: string | null;
   contact_id: string | null;
   notes: string | null;
+  /** Миграция 020: следующий шаг по итогам встречи */
+  next_step: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -31,6 +33,7 @@ export interface MeetingInsert {
   company_id?: string | null;
   contact_id?: string | null;
   notes?: string | null;
+  next_step?: string | null;
 }
 
 export interface MeetingUpdate extends Partial<MeetingInsert> {
@@ -105,6 +108,7 @@ export function useCreateMeeting() {
         company_id: newItem.company_id ?? null,
         contact_id: newItem.contact_id ?? null,
         notes: newItem.notes ?? null,
+        next_step: newItem.next_step ?? null,
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

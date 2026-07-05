@@ -43,6 +43,8 @@ import {
   getPrevStage,
   formatBudget,
   parseBudgetInput,
+  lossReasons,
+  LOSS_REASON_CONFIG,
   type DealStage,
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
@@ -371,6 +373,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
+  // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
+  const [losing, setLosing] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
@@ -483,10 +487,81 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             <span>
               Создан {new Date(project.created_at).toLocaleDateString('ru-RU')}
             </span>
+            {project.status === 'open' && project.stage_entered_at && (() => {
+              const d = Math.floor((Date.now() - new Date(project.stage_entered_at).getTime()) / 86400000);
+              if (d < 1) return null;
+              return (
+                <span style={d > 30 ? { color: 'var(--red-text, var(--red))' } : undefined}>
+                  · {d} дн. в стадии
+                </span>
+              );
+            })()}
           </div>
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Терминальные действия — одним кликом из карточки */}
+          {(project.status === 'open' || project.status === 'on_hold') && (() => {
+            const pipeStages = allPipelineStages?.filter((s) => s.pipeline_id === project.pipeline_id) ?? [];
+            const wonStage = pipeStages.find((s) => s.is_won);
+            const lostStage = pipeStages.find((s) => s.is_lost);
+            return (
+              <>
+                {wonStage && (
+                  <button
+                    onClick={() => {
+                      if (!confirm(`Отметить «${project.name}» выигранной?`)) return;
+                      moveToStageId(project.id, wonStage.id, mapToLegacyStage(wonStage, project.direction));
+                    }}
+                    className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
+                               transition-colors hover:bg-green-l"
+                  >
+                    Выиграна
+                  </button>
+                )}
+                {lostStage && (
+                  <button
+                    onClick={() => setLosing((v) => !v)}
+                    className="rounded-lg border border-red/40 px-2.5 py-1.5 text-xs font-medium text-red
+                               transition-colors hover:bg-red-l"
+                  >
+                    Проиграна
+                  </button>
+                )}
+              </>
+            );
+          })()}
+          {(project.status === 'won' || project.status === 'lost') && (
+            <>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                project.status === 'won' ? 'bg-green-l text-green' : 'bg-red-l text-red'
+              }`}>
+                {project.status === 'won' ? 'Выиграна' : 'Проиграна'}
+                {project.actual_close_date &&
+                  ` · ${new Date(project.actual_close_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`}
+              </span>
+              <button
+                onClick={() => {
+                  const firstStage = allPipelineStages
+                    ?.filter((s) => s.pipeline_id === project.pipeline_id && !s.is_won && !s.is_lost)
+                    .sort((a, b) => a.order_index - b.order_index)[0];
+                  if (!firstStage) return;
+                  if (!confirm('Вернуть сделку в работу (первая стадия)?')) return;
+                  updateProject.mutate({
+                    id: project.id,
+                    stage_id: firstStage.id,
+                    stage: mapToLegacyStage(firstStage, project.direction),
+                    loss_reason: null,
+                    loss_detail: null,
+                  });
+                }}
+                className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim
+                           transition-colors hover:bg-surface-hover hover:text-text-main"
+              >
+                Вернуть в работу
+              </button>
+            </>
+          )}
           <button
             onClick={() => setModalOpen(true)}
             aria-label="Редактировать"
@@ -505,6 +580,41 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
         </div>
       </div>
+
+      {/* «Проиграна» — выбор причины (обязателен, паттерн отказа лидов) */}
+      {losing && (project.status === 'open' || project.status === 'on_hold') && (() => {
+        const lostStage = allPipelineStages?.find((s) => s.pipeline_id === project.pipeline_id && s.is_lost);
+        if (!lostStage) return null;
+        return (
+          <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-red/30 bg-red-l/40 px-3 py-2">
+            <span className="mr-1 text-xs text-text-dim">Причина проигрыша:</span>
+            {lossReasons.map((r) => (
+              <button
+                key={r}
+                onClick={() => {
+                  updateProject.mutate({
+                    id: project.id,
+                    stage_id: lostStage.id,
+                    stage: mapToLegacyStage(lostStage, project.direction),
+                    loss_reason: r,
+                  });
+                  setLosing(false);
+                }}
+                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
+                           transition-colors hover:border-red hover:text-red"
+              >
+                {LOSS_REASON_CONFIG[r].label}
+              </button>
+            ))}
+            <button
+              onClick={() => setLosing(false)}
+              className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
+            >
+              Отмена
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Deal Progress Bar — ERP only (IIoT uses StackedPipeline below) */}
       {project.direction === 'erp' && project.pipeline_id && project.stage_id && (

@@ -2,17 +2,20 @@
 
 import { useState, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare } from 'lucide-react';
-import { useCalls } from '@/lib/hooks/use-calls';
-import { useMeetings } from '@/lib/hooks/use-meetings';
+import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus } from 'lucide-react';
+import { useCalls, type Call } from '@/lib/hooks/use-calls';
+import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
+import { useProjects } from '@/lib/hooks/use-projects';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { Watermark } from '@/components/ui/WatermarkNew';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { CallModal } from '@/components/calls/CallModal';
+import { MeetingModal } from '@/components/meetings/MeetingModal';
 
 interface CalEvent {
   id: string;
-  type: 'call' | 'meeting' | 'task';
+  type: 'call' | 'meeting' | 'task' | 'deal-step' | 'deal-deadline';
   title: string;
   time?: string;
   sub?: string;
@@ -34,6 +37,13 @@ export function CalendarView() {
   const { data: calls = [] } = useCalls();
   const { data: meetings = [] } = useMeetings();
   const { data: tasks = [] } = useTasks();
+  const { data: projects = [] } = useProjects();
+
+  // Модалки: редактирование события и создание на выбранный день
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [editCall, setEditCall] = useState<Call | null>(null);
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -80,8 +90,27 @@ export function CalendarView() {
       }
     });
 
+    // Сделки: шаг (next_action_date) и дедлайн — главные даты CRM после W1a
+    projects.forEach((p) => {
+      if (p.status === 'won' || p.status === 'lost') return;
+      if (p.next_action_date) {
+        add(p.next_action_date.slice(0, 10), {
+          id: p.id, type: 'deal-step',
+          title: p.name,
+          sub: p.next_step ?? 'шаг по сделке',
+        });
+      }
+      if (p.deadline) {
+        add(p.deadline.slice(0, 10), {
+          id: p.id, type: 'deal-deadline',
+          title: p.name,
+          sub: 'дедлайн сделки',
+        });
+      }
+    });
+
     return map;
-  }, [calls, meetings, tasks]);
+  }, [calls, meetings, tasks, projects]);
 
   const dayEvents = selectedDate ? (eventsMap[selectedDate] ?? []) : [];
 
@@ -92,9 +121,35 @@ export function CalendarView() {
   const typeIcon = (type: string) => {
     if (type === 'call') return <Phone size={14} strokeWidth={1.5} />;
     if (type === 'meeting') return <Calendar size={14} strokeWidth={1.5} />;
+    if (type === 'deal-step') return <Briefcase size={14} strokeWidth={1.5} />;
+    if (type === 'deal-deadline') return <Flag size={14} strokeWidth={1.5} />;
     return <CheckSquare size={14} strokeWidth={1.5} />;
   };
-  const typeLabel = (type: string) => type === 'call' ? 'Звонок' : type === 'meeting' ? 'Встреча' : 'Задача';
+  const typeLabel = (type: string) =>
+    type === 'call' ? 'Звонок'
+    : type === 'meeting' ? 'Встреча'
+    : type === 'deal-step' ? 'Шаг по сделке'
+    : type === 'deal-deadline' ? 'Дедлайн сделки'
+    : 'Задача';
+
+  // Клик по событию: звонок/встреча — модалка редактирования; сделка — карточка; задача — доска
+  function openEvent(ev: CalEvent) {
+    if (ev.type === 'call') {
+      const call = calls.find((c) => c.id === ev.id);
+      if (call) { setEditCall(call); setCallModalOpen(true); }
+      return;
+    }
+    if (ev.type === 'meeting') {
+      const meeting = meetings.find((m) => m.id === ev.id);
+      if (meeting) { setEditMeeting(meeting); setMeetingModalOpen(true); }
+      return;
+    }
+    if (ev.type === 'deal-step' || ev.type === 'deal-deadline') {
+      router.push(`/projects/${ev.id}`);
+      return;
+    }
+    router.push('/tasks');
+  }
 
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
@@ -167,6 +222,26 @@ export function CalendarView() {
           {selectedDate ? `${FULL_DAYS[new Date(selectedDate).getDay()]}, ${new Date(selectedDate).getDate()} ${FULL_MONTHS[new Date(selectedDate).getMonth()]}` : 'Выберите дату'}
         </div>
 
+        {/* Создание на выбранный день */}
+        {selectedDate && (
+          <div className="mb-3 flex gap-1.5">
+            <button
+              onClick={() => { setEditCall(null); setCallModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]
+                         text-text-dim transition-colors hover:border-accent hover:text-accent"
+            >
+              <Plus size={11} /> Звонок
+            </button>
+            <button
+              onClick={() => { setEditMeeting(null); setMeetingModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]
+                         text-text-dim transition-colors hover:border-accent hover:text-accent"
+            >
+              <Plus size={11} /> Встреча
+            </button>
+          </div>
+        )}
+
         {!selectedDate && (
           <div style={{ fontSize: 12, color: 'var(--text-mute)', padding: '40px 16px', textAlign: 'center', maxWidth: 220, margin: '0 auto' }}>
             Выбери день в календаре слева, чтобы увидеть звонки, встречи и задачи.
@@ -178,7 +253,7 @@ export function CalendarView() {
         )}
 
         {dayEvents.map((ev) => (
-          <div key={ev.id} onClick={() => router.push(`/${ev.type === 'call' ? 'calls' : ev.type === 'meeting' ? 'meetings' : 'tasks'}`)} style={{
+          <div key={`${ev.type}-${ev.id}`} onClick={() => openEvent(ev)} style={{
             padding: '10px 12px', border: '0.5px solid var(--border)', marginBottom: 8, cursor: 'pointer',
             transition: 'background 0.15s',
           }}
@@ -198,6 +273,19 @@ export function CalendarView() {
         ))}
       </div>
     </div>
+
+    <CallModal
+      isOpen={callModalOpen}
+      onClose={() => { setCallModalOpen(false); setEditCall(null); }}
+      editCall={editCall}
+      defaultDate={selectedDate}
+    />
+    <MeetingModal
+      isOpen={meetingModalOpen}
+      onClose={() => { setMeetingModalOpen(false); setEditMeeting(null); }}
+      editMeeting={editMeeting}
+      defaultDate={selectedDate}
+    />
     </div>
   );
 }

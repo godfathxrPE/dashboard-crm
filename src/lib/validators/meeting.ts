@@ -9,6 +9,7 @@ export const meetingFormSchema = z.object({
   company_id: z.string().uuid().nullable().default(null),
   contact_id: z.string().uuid().nullable().default(null),
   notes: z.string().nullable().default(null),
+  next_step: z.string().nullable().default(null),
 });
 
 export type MeetingFormValues = z.infer<typeof meetingFormSchema>;

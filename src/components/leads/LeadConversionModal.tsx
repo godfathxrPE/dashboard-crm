@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,11 @@ import {
   type LeadConversionFormData,
 } from '@/lib/validators/lead';
 import { useConvertLead } from '@/lib/hooks/use-leads';
+import { useCompanies } from '@/lib/hooks/use-companies';
+import { useContacts } from '@/lib/hooks/use-contacts';
 import { parseBudgetInput, formatBudget } from '@/lib/validators/project';
+import { Combobox } from '@/components/shared/Combobox';
+import { normalizePhone } from '@/lib/utils/phone';
 import type { Lead } from '@/types/database';
 
 interface LeadConversionModalProps {
@@ -22,6 +26,21 @@ interface LeadConversionModalProps {
 export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionModalProps) {
   const router = useRouter();
   const convertLead = useConvertLead();
+  const { data: companies = [] } = useCompanies();
+  const { data: contacts = [] } = useContacts();
+
+  const companyOptions = useMemo(
+    () => companies.map((c) => ({ value: c.id, label: c.name })),
+    [companies],
+  );
+  const contactOptions = useMemo(
+    () => contacts.map((c) => ({
+      value: c.id,
+      label: `${c.first_name} ${c.last_name ?? ''}`.trim(),
+      sub: c.phone ?? c.email ?? undefined,
+    })),
+    [contacts],
+  );
 
   const {
     register,
@@ -34,7 +53,9 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
   } = useForm<LeadConversionFormData>({
     resolver: zodResolver(leadConversionSchema),
     defaultValues: {
+      company_id: null,
       company_name: '',
+      contact_id: null,
       contact_first_name: '',
       contact_last_name: null,
       contact_phone: null,
@@ -45,7 +66,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
     },
   });
 
-  // Pre-fill from lead data
+  // Pre-fill from lead data + автоподбор существующих компании/контакта
   useEffect(() => {
     if (!lead) return;
 
@@ -54,8 +75,24 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
     const firstName = nameParts[0] ?? '';
     const lastName = nameParts.slice(1).join(' ') || null;
 
+    // Компания: точное совпадение имени (без регистра)
+    const rawName = (lead.company_name_raw ?? '').trim().toLowerCase();
+    const matchedCompany = rawName
+      ? companies.find((c) => c.name.trim().toLowerCase() === rawName)
+      : undefined;
+
+    // Контакт: совпадение телефона или email
+    const leadPhone = lead.phone ? normalizePhone(lead.phone) : null;
+    const leadEmail = lead.email?.trim().toLowerCase() || null;
+    const matchedContact = contacts.find((c) =>
+      (leadPhone && c.phone && normalizePhone(c.phone) === leadPhone) ||
+      (leadEmail && c.email && c.email.trim().toLowerCase() === leadEmail),
+    );
+
     reset({
+      company_id: matchedCompany?.id ?? null,
       company_name: lead.company_name_raw ?? '',
+      contact_id: matchedContact?.id ?? null,
       contact_first_name: firstName,
       contact_last_name: lastName,
       contact_phone: lead.phone,
@@ -64,14 +101,16 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
       deal_title: lead.title,
       deal_amount: null,
     });
-  }, [lead, reset]);
+  }, [lead, reset, companies, contacts]);
 
   const onSubmit = async (values: LeadConversionFormData) => {
     try {
       const result = await convertLead.mutateAsync({
         leadId: lead.id,
-        companyName: values.company_name,
-        contactFirstName: values.contact_first_name,
+        companyId: values.company_id ?? undefined,
+        companyName: values.company_id ? undefined : values.company_name ?? undefined,
+        contactId: values.contact_id ?? undefined,
+        contactFirstName: values.contact_id ? undefined : values.contact_first_name ?? undefined,
         contactLastName: values.contact_last_name ?? undefined,
         contactPhone: values.contact_phone ?? undefined,
         contactEmail: values.contact_email ?? undefined,
@@ -85,6 +124,9 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
       console.error('Lead conversion error:', err);
     }
   };
+
+  const selectedCompanyId = watch('company_id');
+  const selectedContactId = watch('contact_id');
 
   if (!isOpen) return null;
 
@@ -110,7 +152,13 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               Конвертировать лид
             </h2>
             <p className="mt-0.5 text-xs text-text-mute">
-              Будут созданы: Компания + Контакт + Сделка
+              {selectedCompanyId && selectedContactId
+                ? 'Будет создана: Сделка (компания и контакт — существующие)'
+                : selectedCompanyId
+                  ? 'Будут созданы: Контакт + Сделка'
+                  : selectedContactId
+                    ? 'Будут созданы: Компания + Сделка'
+                    : 'Будут созданы: Компания + Контакт + Сделка'}
             </p>
           </div>
           <button
@@ -154,23 +202,62 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
-              Название компании *
+              Существующая компания
             </label>
-            <input
-              {...register('company_name')}
-              placeholder="ООО «Коралл»"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
-                         text-sm text-text-main placeholder:text-text-mute
-                         focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            <Controller
+              name="company_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox
+                  options={companyOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Не выбрана — будет создана новая"
+                />
+              )}
             />
-            {errors.company_name && (
-              <p className="mt-1 text-xs text-red">{errors.company_name.message}</p>
-            )}
           </div>
+
+          {!selectedCompanyId && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Название новой компании *
+              </label>
+              <input
+                {...register('company_name')}
+                placeholder="ООО «Коралл»"
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                           text-sm text-text-main placeholder:text-text-mute
+                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              {errors.company_name && (
+                <p className="mt-1 text-xs text-red">{errors.company_name.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Section: Contact */}
           <div className="modal-section-divider"><span>Контакт</span></div>
 
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">
+              Существующий контакт
+            </label>
+            <Controller
+              name="contact_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox
+                  options={contactOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Не выбран — будет создан новый"
+                />
+              )}
+            />
+          </div>
+
+          {!selectedContactId && (<>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">
@@ -229,6 +316,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               />
             </div>
           </div>
+          </>)}
 
           {/* Section: Deal */}
           <div className="modal-section-divider"><span>Сделка</span></div>

@@ -77,6 +77,7 @@ export interface LeadInsert {
   phone?: string | null;
   email?: string | null;
   notes?: string | null;
+  disqualify_reason?: string | null;
 }
 
 export interface LeadConversionResult {

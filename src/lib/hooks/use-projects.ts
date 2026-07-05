@@ -36,6 +36,8 @@ export interface Project {
   status: 'open' | 'won' | 'lost' | 'on_hold';
   lost_reason: string | null;
   actual_close_date: string | null;
+  /** Миграция 019: когда сделка вошла в текущую стадию (ведёт триггер) */
+  stage_entered_at: string | null;
   // Joined data (optional, from select with joins)
   company?: { id: string; name: string } | null;
   contact?: { id: string; first_name: string; last_name: string } | null;
@@ -206,6 +208,7 @@ export function useCreateProject() {
         status: 'open',
         lost_reason: null,
         actual_close_date: null,
+        stage_entered_at: new Date().toISOString(),
       };
 
       qc.setQueryData<Project[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);

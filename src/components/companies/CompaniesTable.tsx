@@ -9,6 +9,9 @@ import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
+import { formatBudget } from '@/lib/validators/project';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
@@ -18,11 +21,19 @@ import { CompanyModal } from './CompanyModal';
 import { ExcelImportButton } from './ExcelImport';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
+type CompanyRow = Company & {
+  contacts_count: number;
+  projects_count: number;
+  pipeline_budget: number;
+  last_touch: string | null;
+};
+
 export function CompaniesTable() {
   const router = useRouter();
   const { data: companies, isLoading, error } = useCompanies();
   const { data: allContacts } = useContacts();
   const { data: allProjects } = useProjects();
+  const lastTouch = useLastTouchMap();
   const updateCompany = useUpdateCompany();
   const deleteCompany = useDeleteCompany();
 
@@ -50,18 +61,49 @@ export function CompaniesTable() {
 
   const sevenDaysAgo = useMemo(() => new Date(Date.now() - 7 * 86400000).toISOString(), []);
 
-  const chipFilters = useMemo<Record<string, (c: Company) => boolean>>(() => ({
-    has_projects: (c) => (companyProjectCount[c.id] ?? 0) > 0,
-    has_contacts: (c) => (companyContactCount[c.id] ?? 0) > 0,
-    recent: (c) => c.created_at >= sevenDaysAgo,
-  }), [companyProjectCount, companyContactCount, sevenDaysAgo]);
+  // Обогащение строк: связи, pipeline открытых сделок, касание = max по контактам компании
+  const rows = useMemo<CompanyRow[]>(() => {
+    const pipelineByCompany: Record<string, number> = {};
+    (allProjects ?? []).forEach((p) => {
+      if (p.company_id && p.status !== 'won' && p.status !== 'lost') {
+        pipelineByCompany[p.company_id] = (pipelineByCompany[p.company_id] ?? 0) + (p.budget ?? 0);
+      }
+    });
 
-  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(companies ?? [], chipFilters);
+    const touchByCompany: Record<string, string> = {};
+    (allContacts ?? []).forEach((c) => {
+      const t = lastTouch.get(c.id)?.date;
+      if (!t) return;
+      (c.companies ?? []).forEach((cc) => {
+        if (!touchByCompany[cc.company_id] || t > touchByCompany[cc.company_id]) {
+          touchByCompany[cc.company_id] = t;
+        }
+      });
+    });
+
+    return (companies ?? []).map((c) => ({
+      ...c,
+      contacts_count: companyContactCount[c.id] ?? 0,
+      projects_count: companyProjectCount[c.id] ?? 0,
+      pipeline_budget: pipelineByCompany[c.id] ?? 0,
+      last_touch: touchByCompany[c.id] ?? null,
+    }));
+  }, [companies, allContacts, allProjects, lastTouch, companyContactCount, companyProjectCount]);
+
+  const chipFilters = useMemo<Record<string, (c: CompanyRow) => boolean>>(() => ({
+    has_projects: (c) => c.projects_count > 0,
+    has_contacts: (c) => c.contacts_count > 0,
+    recent: (c) => c.created_at >= sevenDaysAgo,
+    cooling: (c) => !c.last_touch || daysSince(c.last_touch) > RECONNECT_THRESHOLD_DAYS,
+  }), [sevenDaysAgo]);
+
+  const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(rows, chipFilters);
 
   const chipOptions: ChipOption[] = useMemo(() => [
     { label: 'Есть проекты', value: 'has_projects', count: counts.has_projects },
     { label: 'Есть контакты', value: 'has_contacts', count: counts.has_contacts },
     { label: 'За 7 дней', value: 'recent', count: counts.recent },
+    { label: 'Остывают', value: 'cooling', count: counts.cooling },
   ], [counts]);
 
   function openEdit(company: Company) {
@@ -69,7 +111,7 @@ export function CompaniesTable() {
     setModalOpen(true);
   }
 
-  const columns: Column<Company>[] = [
+  const columns: Column<CompanyRow>[] = [
     {
       key: 'name',
       label: 'Компания',
@@ -132,6 +174,56 @@ export function CompaniesTable() {
           + добавить
         </button>
       ),
+    },
+    {
+      key: 'contacts_count',
+      label: 'Контакты',
+      sortable: true,
+      width: '90px',
+      render: (c) => c.contacts_count > 0
+        ? <span className="text-sm tabular-nums text-text-dim">{c.contacts_count}</span>
+        : <span className="text-text-mute">—</span>,
+    },
+    {
+      key: 'projects_count',
+      label: 'Сделки',
+      sortable: true,
+      width: '80px',
+      render: (c) => c.projects_count > 0
+        ? <span className="text-sm tabular-nums text-text-dim">{c.projects_count}</span>
+        : <span className="text-text-mute">—</span>,
+    },
+    {
+      key: 'pipeline_budget',
+      label: 'Pipeline',
+      sortable: true,
+      width: '100px',
+      render: (c) => c.pipeline_budget > 0
+        ? <span className="text-sm tabular-nums font-medium text-text-main">{formatBudget(c.pipeline_budget)}</span>
+        : <span className="text-text-mute">—</span>,
+    },
+    {
+      key: 'last_touch',
+      label: 'Касание',
+      sortable: true,
+      width: '100px',
+      render: (c) => {
+        if (!c.last_touch) return <span className="text-xs text-text-mute">—</span>;
+        const days = daysSince(c.last_touch);
+        const level = touchLevel(days);
+        if (level === 'ok') {
+          return (
+            <span className="text-xs text-text-dim">
+              {new Date(c.last_touch).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+            </span>
+          );
+        }
+        return (
+          <span className={`text-xs ${level === 'cold' ? 'text-red' : 'text-yellow'}`}>
+            {days} дн.
+          </span>
+        );
+      },
     },
     {
       key: 'created_at',

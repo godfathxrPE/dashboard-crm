@@ -8,6 +8,7 @@ import { StageBoard } from './StageBoard';
 import { ProjectsTable } from './ProjectsTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
+import { applyProjectQuickFilter, isQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import type { Direction } from '@/types/database';
 
 type ViewMode = 'pipeline' | 'board' | 'table';
@@ -31,6 +32,19 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
   const view: ViewMode = rawView === 'board' ? 'board' : rawView === 'table' ? 'table' : initialView;
 
   const directionFilter = (searchParams.get('direction') ?? 'all') as DirectionFilter;
+
+  const rawQuick = searchParams.get('q');
+  const quickFilter: ProjectQuickFilter | null = isQuickFilter(rawQuick) ? rawQuick : null;
+
+  const setQuick = useCallback(
+    (q: ProjectQuickFilter | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (q) params.set('q', q); else params.delete('q');
+      const qs = params.toString();
+      router.push(`/projects${qs ? `?${qs}` : ''}`);
+    },
+    [router, searchParams],
+  );
 
   const switchTo = useCallback(
     (target: ViewMode) => {
@@ -70,6 +84,17 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
     }));
   }, [allProjects]);
 
+  // Быстрые пресеты: гниющие / без бюджета (в рамках выбранного направления)
+  const quickOptions: ChipOption[] = useMemo(() => {
+    const all = (allProjects ?? []).filter(
+      (p) => directionFilter === 'all' || p.direction === directionFilter,
+    );
+    return [
+      { label: 'Требуют внимания', value: 'attention', count: applyProjectQuickFilter(all, 'attention').length },
+      { label: 'Без бюджета', value: 'nobudget', count: applyProjectQuickFilter(all, 'nobudget').length },
+    ];
+  }, [allProjects, directionFilter]);
+
   return (
     <div>
       {/* Direction filter — above view content */}
@@ -80,15 +105,22 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
           onToggle={(val) => setDirection(val === directionFilter ? 'all' : val as DirectionFilter)}
           onReset={() => setDirection('all')}
         />
+        <span className="h-4 w-px bg-border" />
+        <ChipFilter
+          options={quickOptions}
+          selected={quickFilter ? [quickFilter] : []}
+          onToggle={(val) => setQuick(val === quickFilter ? null : val as ProjectQuickFilter)}
+          onReset={() => setQuick(null)}
+        />
         <SavedViewChips />
       </div>
 
       {view === 'table' ? (
-        <ProjectsTable directionFilter={directionFilter} onSwitchView={switchTo} />
+        <ProjectsTable directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={switchTo} />
       ) : view === 'board' ? (
-        <StageBoard directionFilter={directionFilter} onSwitchView={() => switchTo('pipeline')} />
+        <StageBoard directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={() => switchTo('pipeline')} />
       ) : (
-        <PipelineBoard directionFilter={directionFilter} onSwitchView={() => switchTo('board')} />
+        <PipelineBoard directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={() => switchTo('board')} />
       )}
     </div>
   );

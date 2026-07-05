@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Users, Loader2, Building2, Trash2, Download } from 'lucide-react';
+import { Plus, Users, Loader2, Building2, Trash2, Download, Phone } from 'lucide-react';
+import { useUiStore } from '@/lib/stores/ui-store';
+import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
@@ -22,10 +24,13 @@ type ContactRow = Contact & { last_touch: string | null };
 const CHIP_FILTERS: Record<string, (c: ContactRow) => boolean> = {
   has_email: (c) => !!c.email,
   has_phone: (c) => !!c.phone,
+  // Порог как в «Сегодня → Остывают» (lib/constants/reconnect)
+  cooling: (c) => !c.last_touch || daysSince(c.last_touch) > RECONNECT_THRESHOLD_DAYS,
 };
 
 export function ContactsTable() {
   const router = useRouter();
+  const openModal = useUiStore((s) => s.openModal);
   const { data: contacts, isLoading, error } = useContacts();
   const lastTouch = useLastTouchMap();
   const updateContact = useUpdateContact();
@@ -61,6 +66,7 @@ export function ContactsTable() {
   const chipOptions: ChipOption[] = useMemo(() => [
     { label: 'Есть email', value: 'has_email', count: counts.has_email },
     { label: 'Есть телефон', value: 'has_phone', count: counts.has_phone },
+    { label: 'Остывают', value: 'cooling', count: counts.cooling },
     ...Object.keys(positionFilters).map((key) => ({
       label: key.replace('pos_', ''),
       value: key,
@@ -169,6 +175,28 @@ export function ContactsTable() {
         <span className="text-xs text-text-dim">
           {new Date(c.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
+      ),
+    },
+    {
+      key: 'row_actions',
+      label: '',
+      width: '44px',
+      render: (c) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            openModal('call', undefined, {
+              contactId: c.id,
+              companyId: (c.companies ?? [])[0]?.company_id,
+            });
+          }}
+          title="Запланировать звонок"
+          aria-label="Запланировать звонок"
+          className="rounded p-1.5 text-text-mute opacity-0 transition-opacity
+                     group-hover:opacity-100 hover:bg-accent-l hover:text-accent"
+        >
+          <Phone size={13} />
+        </button>
       ),
     },
   ];

@@ -161,6 +161,20 @@ export function ProjectCard({
           <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
             {stageLabel}
           </span>
+          {/* Возраст в стадии (stage_entered_at, миграция 019) — сигнал застревания */}
+          {!isTerminal && project.stage_entered_at && (() => {
+            const d = Math.floor((Date.now() - new Date(project.stage_entered_at).getTime()) / 86400000);
+            if (d < 1) return null;
+            return (
+              <span
+                className="text-[10px] tabular-nums"
+                style={d > 30 ? { color: 'var(--red-text, var(--red))' } : { color: 'var(--text-mute)' }}
+                title="Дней в текущей стадии"
+              >
+                · {d} дн.
+              </span>
+            );
+          })()}
           <span className="ml-auto flex items-center gap-1.5">
             <HealthDot level={health.level} score={health.total} />
             <span className="text-[10px] text-text-mute">{stageProbability}%</span>

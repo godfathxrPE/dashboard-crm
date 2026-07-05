@@ -14,6 +14,7 @@ import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage } from '@/types/database';
@@ -38,10 +39,11 @@ type ViewMode = 'pipeline' | 'board' | 'table';
 
 interface ProjectsTableProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
+  quickFilter?: ProjectQuickFilter | null;
   onSwitchView?: (view: ViewMode) => void;
 }
 
-export function ProjectsTable({ directionFilter = 'all', onSwitchView }: ProjectsTableProps) {
+export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onSwitchView }: ProjectsTableProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading, error } = useProjects();
   const { data: allStages } = usePipelineStages();
@@ -55,8 +57,11 @@ export function ProjectsTable({ directionFilter = 'all', onSwitchView }: Project
   }, [allStages]);
 
   const projects = useMemo(
-    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
-    [rawProjects, directionFilter],
+    () => applyProjectQuickFilter(
+      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+      quickFilter,
+    ),
+    [rawProjects, directionFilter, quickFilter],
   );
 
   const today = useMemo(() => new Date(new Date().toDateString()), []);

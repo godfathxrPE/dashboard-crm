@@ -51,7 +51,9 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
     <div
       data-card
       className={cn(
-        'mb-6 grid grid-cols-1 gap-x-6 gap-y-4 border-y border-border py-4',
+        // px обязателен: в Aura [data-card] делает панель карточкой,
+        // без горизонтальных отступов контент прилипал к её краям
+        'mb-6 grid grid-cols-1 gap-x-8 gap-y-4 border-y border-border px-5 py-4',
         // compact — одна колонка (peek-панель 440px)
         !compact && 'md:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)_auto]',
       )}

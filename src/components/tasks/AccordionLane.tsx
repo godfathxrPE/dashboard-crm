@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { localDateKey } from '@/lib/utils/date-helpers';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -38,6 +39,22 @@ export function AccordionLane({
   const { setNodeRef, isOver } = useDroppable({ id: lane });
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // Просрочка видна и в свёрнутом лейне
+  const overdueCount = useMemo(() => {
+    if (lane === 'done') return 0;
+    const today = localDateKey();
+    return tasks.filter((t) => t.deadline && t.deadline < today).length;
+  }, [tasks, lane]);
+
+  // Done: по умолчанию только последние 7 дней (лейн не превращается в свалку)
+  const [showAllDone, setShowAllDone] = useState(false);
+  const visibleTasks = useMemo(() => {
+    if (lane !== 'done' || showAllDone) return tasks;
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    return tasks.filter((t) => (t.updated_at ?? t.created_at) >= weekAgo);
+  }, [tasks, lane, showAllDone]);
+  const hiddenDone = tasks.length - visibleTasks.length;
+
   return (
     <Bracket
       className={cn(
@@ -64,14 +81,21 @@ export function AccordionLane({
         <span className={cn('text-xs font-bold uppercase tracking-[0.06em]', config.color)}>
           {config.label}
         </span>
-        <span
-          className={cn(
-            'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold',
-            config.bg,
-            config.color,
+        <span className="ml-auto flex items-center gap-1.5">
+          {overdueCount > 0 && (
+            <span className="flex h-5 items-center rounded-full bg-red-l px-1.5 text-[10px] font-semibold text-red">
+              {overdueCount} просроч.
+            </span>
           )}
-        >
-          {tasks.length}
+          <span
+            className={cn(
+              'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold',
+              config.bg,
+              config.color,
+            )}
+          >
+            {tasks.length}
+          </span>
         </span>
       </button>
 
@@ -86,16 +110,16 @@ export function AccordionLane({
         <div className="overflow-hidden">
           <div className="px-3 py-2">
             <SortableContext
-              items={tasks.map((t) => t.id)}
+              items={visibleTasks.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
             >
               <div className="flex flex-col">
-                {tasks.length === 0 && (
+                {visibleTasks.length === 0 && (
                   <div className="flex items-center justify-center py-4">
                     <span className="text-xs text-text-mute">Пусто</span>
                   </div>
                 )}
-                {tasks.map((task) => (
+                {visibleTasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -105,6 +129,16 @@ export function AccordionLane({
                 ))}
               </div>
             </SortableContext>
+
+            {lane === 'done' && hiddenDone > 0 && (
+              <button
+                onClick={() => setShowAllDone(true)}
+                className="mt-1 w-full rounded px-2 py-1.5 text-center text-xs text-text-mute
+                           transition-colors hover:bg-surface2 hover:text-text-dim"
+              >
+                Показать все {tasks.length}
+              </button>
+            )}
 
             {lane !== 'done' && (
               <div className="mt-1 pt-1">

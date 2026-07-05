@@ -40,8 +40,8 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className={cn(
-        'group flex cursor-pointer items-center gap-3 border-b border-border/60 py-2.5 transition-colors',
-        focused ? 'kbd-focus-row' : 'hover:bg-surface-hover',
+        'group -mx-2 flex cursor-pointer items-center gap-3 rounded-lg border-b border-border/60 px-2 py-2.5 transition-colors',
+        focused ? 'kbd-focus-row' : 'queue-row-hover',
       )}
     >
       {marker && (
@@ -61,12 +61,10 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
 
       <div className="flex shrink-0 items-center gap-1">
         {secondary && (
+          /* Шов W1b-5: secondary всегда видима (была только на hover — терялась) */
           <button
             onClick={(e) => { e.stopPropagation(); secondary.onClick(); }}
-            className={cn(
-              'rounded px-2 py-1 text-xs text-text-mute transition hover:text-text-main group-hover:opacity-100',
-              focused ? 'opacity-100' : 'opacity-0',
-            )}
+            className="rounded px-2 py-1 text-xs text-text-mute transition hover:text-text-main"
           >
             {secondary.label}
           </button>

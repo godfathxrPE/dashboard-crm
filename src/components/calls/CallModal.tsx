@@ -48,10 +48,13 @@ interface CallModalProps {
   editCall: Call | null;
   defaultProjectId?: string | null;
   defaultContactId?: string | null;
+  defaultCompanyId?: string | null;
+  /** Préfill даты при создании (из календаря), YYYY-MM-DD */
+  defaultDate?: string | null;
   onSaved?: (values: { next_step?: string | null; project_id?: string | null }) => void;
 }
 
-export function CallModal({ isOpen, onClose, editCall, defaultProjectId, defaultContactId, onSaved }: CallModalProps) {
+export function CallModal({ isOpen, onClose, editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultDate, onSaved }: CallModalProps) {
   const create = useCreateCall();
   const update = useUpdateCall();
   const { data: companies } = useCompanies();
@@ -77,12 +80,14 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
       });
     } else {
       reset({
-        company_id: null, contact_id: defaultContactId ?? null, project_id: defaultProjectId ?? null,
-        date: new Date().toISOString().slice(0, 16),
-        status: 'done', next_step: null, agreements: null, duration_s: null,
+        company_id: defaultCompanyId ?? null, contact_id: defaultContactId ?? null, project_id: defaultProjectId ?? null,
+        date: defaultDate ? `${defaultDate}T10:00` : new Date().toISOString().slice(0, 16),
+        // Звонок на будущую дату из календаря — это план, не факт
+        status: defaultDate && defaultDate > new Date().toISOString().slice(0, 10) ? 'pending' : 'done',
+        next_step: null, agreements: null, duration_s: null,
       });
     }
-  }, [editCall, defaultProjectId, defaultContactId, reset]);
+  }, [editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultDate, reset]);
 
   const onSubmit = async (values: CallFormValues) => {
     try {

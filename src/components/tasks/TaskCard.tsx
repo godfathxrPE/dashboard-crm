@@ -3,9 +3,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useRouter } from 'next/navigation';
-import { Pencil, Trash2, Calendar, Check } from 'lucide-react';
+import { Pencil, Trash2, Calendar, Check, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
+import { localDateKey } from '@/lib/utils/date-helpers';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import type { Task } from '@/types/entities';
@@ -45,6 +46,11 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   };
 
   const isDone = task.lane === 'done';
+
+  // «На завтра» — как в «Сегодня»: завтра от текущего дня, не от старого дедлайна
+  function bumpToTomorrow() {
+    updateTask.mutate({ id: task.id, deadline: localDateKey(new Date(Date.now() + 86400000)) });
+  }
 
   function toggleDone() {
     updateTask.mutate({ id: task.id, lane: isDone ? 'now' : 'done' });
@@ -130,6 +136,17 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
 
       {/* Actions — on hover */}
       <div className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {task.deadline && !isDone && (
+          <button
+            onClick={(e) => { e.stopPropagation(); bumpToTomorrow(); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            title="Перенести на завтра"
+            className="flex items-center gap-0.5 rounded p-0.5 text-text-mute hover:text-accent transition-colors"
+          >
+            <ArrowRight size={12} />
+            <Calendar size={11} />
+          </button>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(task); }}
           onPointerDown={(e) => e.stopPropagation()}

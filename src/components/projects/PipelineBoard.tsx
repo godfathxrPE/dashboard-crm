@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -35,6 +36,7 @@ import {
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
+import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
@@ -95,9 +97,9 @@ const WASHI_PHASE_KANJI: Record<string, { kanji: string; color: string }> = {
 // Hero KPI Row
 // ═══════════════════════════════════════════════════════
 
-function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
+function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi, sub }: {
   label: string; fmt: string; value: number; color: string;
-  wmColors?: readonly string[]; isScandi: boolean;
+  wmColors?: readonly string[]; isScandi: boolean; sub?: string;
 }) {
   if (isScandi && wmColors) {
     return (
@@ -106,6 +108,7 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
         <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
           {fmt}
         </div>
+        {sub && <div className="mt-1 text-[10px] tabular-nums text-text-mute">{sub}</div>}
       </div>
     );
   }
@@ -115,12 +118,14 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi }: {
       <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : color}`}>
         {fmt}
       </div>
+      {sub && <div className="mt-1 text-[10px] tabular-nums text-text-mute">{sub}</div>}
     </div>
   );
 }
 
 function HeroMetrics({ projects }: { projects: Project[] }) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const { data: allStages } = usePipelineStages();
   const active = projects.filter((p) => p.status !== 'won' && p.status !== 'lost');
   const won = projects.filter((p) => p.status === 'won');
   const lost = projects.filter((p) => p.status === 'lost');
@@ -128,17 +133,28 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
   const closed = won.length + lost.length;
   const conversion = closed > 0 ? Math.round((won.length / closed) * 100) : 0;
 
+  // Weighted forecast: Σ budget × probability стадии
+  const weighted = active.reduce((s, p) => {
+    const prob = allStages?.find((st) => st.id === p.stage_id)?.probability ?? 0;
+    return s + (p.budget ?? 0) * prob / 100;
+  }, 0);
+
+  // Цикл: от создания до фактического закрытия (fallback — updated_at до миграции 019)
   const avgCycle = won.length > 0
     ? Math.round(
         won.reduce((s, p) => {
-          return s + (new Date(p.updated_at).getTime() - new Date(p.created_at).getTime()) / 86400000;
+          const closedAt = p.actual_close_date ?? p.updated_at;
+          return s + (new Date(closedAt).getTime() - new Date(p.created_at).getTime()) / 86400000;
         }, 0) / won.length,
       )
     : 0;
 
-  const metrics = [
+  const metrics: { label: string; value: number; fmt: string; color: string; sub?: string }[] = [
     { label: 'Активные', value: active.length, fmt: String(active.length), color: 'text-accent' },
-    { label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline), color: 'text-green' },
+    {
+      label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline), color: 'text-green',
+      sub: pipeline > 0 ? `взвеш. ${formatBudget(Math.round(weighted))}` : undefined,
+    },
     { label: 'Конверсия', value: conversion, fmt: `${conversion}%`, color: 'text-green' },
     { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—', color: 'text-text-main' },
   ];
@@ -149,7 +165,7 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
         const sw = isScandi ? SCANDI_HERO_WM[idx] : null;
         return (
           <ScandiHeroCard key={m.label} label={m.label} fmt={m.fmt} value={m.value}
-            color={m.color} wmColors={sw?.colors} isScandi={isScandi} />
+            color={m.color} wmColors={sw?.colors} isScandi={isScandi} sub={m.sub} />
         );
       })}
     </div>
@@ -167,6 +183,32 @@ interface PhaseColumnData {
 }
 
 // ═══════════════════════════════════════════════════════
+// Stage chip — дропзона конкретной стадии (внизу колонки)
+// ═══════════════════════════════════════════════════════
+
+function StageChip({ stage, count, dragging }: {
+  stage: PipelineStage; count: number; dragging: boolean;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage.id}` });
+  return (
+    <span
+      ref={setNodeRef}
+      title={stage.name}
+      className={`rounded px-1 py-0.5 text-[9px] transition-colors ${
+        isOver
+          ? 'border border-accent bg-accent-l text-accent'
+          : dragging
+            ? 'border border-dashed border-border2 text-text-dim'
+            : 'text-text-mute'
+      }`}
+    >
+      {stage.name}
+      {count > 0 && <span className="ml-0.5 font-medium text-text-dim">{count}</span>}
+    </span>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // Droppable Phase Column
 // ═══════════════════════════════════════════════════════
 
@@ -176,6 +218,7 @@ function PhaseColumn({
   allStages,
   totalBudget,
   isLast,
+  dragging,
   onEdit,
   onDelete,
   onAdvance,
@@ -186,6 +229,7 @@ function PhaseColumn({
   allStages: PipelineStage[];
   totalBudget: number;
   isLast: boolean;
+  dragging: boolean;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onAdvance: (id: string) => void;
@@ -269,18 +313,17 @@ function PhaseColumn({
         )}
       </div>
 
-      {/* Stages breakdown — dynamic from pipeline_stages */}
+      {/* Stages breakdown — дропзоны конкретных стадий при активном drag */}
       <div className="border-t border-border/30 px-3 py-1.5">
         <div className="flex flex-wrap gap-1">
-          {column.stages.map((stg) => {
-            const count = projects.filter((p) => p.stage_id === stg.id).length;
-            return (
-              <span key={stg.id} className="text-[9px] text-text-mute" title={stg.name}>
-                {stg.name}
-                {count > 0 && <span className="ml-0.5 font-medium text-text-dim">{count}</span>}
-              </span>
-            );
-          })}
+          {column.stages.map((stg) => (
+            <StageChip
+              key={stg.id}
+              stage={stg}
+              count={projects.filter((p) => p.stage_id === stg.id).length}
+              dragging={dragging}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -314,10 +357,12 @@ function WonDeals({ projects }: { projects: Project[] }) {
 
 interface PipelineBoardProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
+  quickFilter?: ProjectQuickFilter | null;
   onSwitchView?: () => void;
 }
 
-export function PipelineBoard({ directionFilter = 'all', onSwitchView }: PipelineBoardProps = {}) {
+export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: PipelineBoardProps = {}) {
+  const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects();
   const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
@@ -344,10 +389,13 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
     useSensor(KeyboardSensor),
   );
 
-  // Direction-filtered projects
+  // Direction-filtered projects + быстрые пресеты (?q=attention|nobudget)
   const projects = useMemo(
-    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
-    [rawProjects, directionFilter],
+    () => applyProjectQuickFilter(
+      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+      quickFilter,
+    ),
+    [rawProjects, directionFilter, quickFilter],
   );
 
   // Effective pipeline: when 'all', show IIoT pipeline
@@ -452,6 +500,19 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
     const project = projects?.find((p) => p.id === active.id as string);
     if (!project) return;
 
+    // Drop на чип конкретной стадии (внизу колонки)
+    if (String(over.id).startsWith('stage:')) {
+      const stageId = String(over.id).slice(6);
+      const targetStage = pipelineStages.find((s) => s.id === stageId);
+      if (!targetStage || project.stage_id === targetStage.id) return;
+      moveToStageId(project.id, targetStage.id, mapToLegacyStage(targetStage, project.direction));
+      const todayStage = new Date(new Date().toDateString());
+      if (!project.next_action_date || new Date(project.next_action_date) < todayStage) {
+        setNextActionPrompt(project);
+      }
+      return;
+    }
+
     // Find target phase
     let targetPhaseId: string | undefined;
     // Check if dropped on a phase column directly
@@ -510,7 +571,9 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
     const legacyStage = mapToLegacyStage(nextStage, p.direction);
     moveToStageId(id, nextStage.id, legacyStage);
   }
-  function handleOpen(id: string) { window.location.href = `/projects/${id}`; }
+  // Клиентская навигация: window.location.href давал полную перезагрузку
+  // (первый клик «обновлял» страницу, не переходя на сделку)
+  function handleOpen(id: string) { router.push(`/projects/${id}`); }
   function handleRestore(id: string) {
     // Move to first stage of the pipeline
     const firstStage = pipelineStages.find((s) => s.order_index === 1);
@@ -612,6 +675,7 @@ export function PipelineBoard({ directionFilter = 'all', onSwitchView }: Pipelin
                 allStages={pipelineStages}
                 totalBudget={phaseBudget(col.id)}
                 isLast={i === phaseColumns.length - 1}
+                dragging={activeId !== null}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onAdvance={handleAdvance}

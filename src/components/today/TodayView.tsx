@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake } from 'lucide-react';
+import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake, Target } from 'lucide-react';
 import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
+import { useLeads, useUpdateLead } from '@/lib/hooks/use-leads';
+import { leadStaleness } from '@/lib/constants/leads';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects, type Project } from '@/lib/hooks/use-projects';
@@ -40,6 +42,7 @@ export function TodayView() {
   useEffect(() => setMounted(true), []);
 
   const { data: calls = [] } = useCalls();
+  const { data: leads = [] } = useLeads();
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
   const { data: projects = [] } = useProjects();
@@ -49,6 +52,7 @@ export function TodayView() {
   const openModal = useUiStore((s) => s.openModal);
   const updateCall = useUpdateCall();
   const updateTask = useUpdateTask();
+  const updateLead = useUpdateLead();
 
   // ProjectModal (для «Запланировать шаг» из строки сделки — Sprint W1a)
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -66,6 +70,15 @@ export function TodayView() {
     () => calls.filter((c) => c.status === 'pending' && dayPart(c.date) === todayKey)
       .sort((a, b) => a.date.localeCompare(b.date)),
     [calls, todayKey],
+  );
+  // Лиды без реакции: new > 1 дн., contacted > 7 дн. (пороги в lib/constants/leads)
+  const staleLeads = useMemo(
+    () => leads
+      .filter((l) => l.status === 'new' || l.status === 'contacted')
+      .map((l) => ({ lead: l, s: leadStaleness(l) }))
+      .filter((r) => r.s.level !== 'ok')
+      .sort((a, b) => b.s.days - a.s.days),
+    [leads],
   );
   const nowTasks = useMemo(() => {
     const isOverdue = (t: typeof tasks[number]) => !!t.deadline && t.deadline < todayKey;
@@ -105,7 +118,7 @@ export function TodayView() {
       .sort((a, b) => (b.days ?? Infinity) - (a.days ?? Infinity)); // холоднее сверху
   }, [contacts, projects, isProjectActive, lastTouch]);
 
-  const total = overdueCalls.length + todayCalls.length + nowTasks.length
+  const total = overdueCalls.length + todayCalls.length + staleLeads.length + nowTasks.length
     + rottingDeals.length + todayMeetings.length + coolingContacts.length;
 
   const bumpCall = (id: string, iso: string) => {
@@ -130,6 +143,14 @@ export function TodayView() {
       open: () => router.push('/calls'),
       primary: () => updateCall.mutate({ id: c.id, status: 'done' as const }),
     })),
+    ...staleLeads.map(({ lead: l }) => ({
+      open: () => router.push('/leads'),
+      primary: () => updateLead.mutate(
+        l.status === 'new'
+          ? { id: l.id, status: 'contacted' as const }
+          : { id: l.id, status: 'qualified' as const },
+      ),
+    })),
     ...nowTasks.map((t) => ({
       open: () => router.push('/tasks'),
       primary: () => updateTask.mutate({ id: t.id, lane: 'done' as const }),
@@ -140,14 +161,19 @@ export function TodayView() {
     })),
     ...coolingSlice.map(({ contact: c }) => ({
       open: () => router.push(`/contacts/${c.id}`),
-      primary: () => openModal('call', undefined, { contactId: c.id }),
+      // Шов W2b-3: передаём и компанию, не только контакт
+      primary: () => openModal('call', undefined, {
+        contactId: c.id,
+        companyId: (c.companies ?? [])[0]?.company_id,
+      }),
     })),
     ...todayMeetings.map(() => ({
       open: () => router.push('/meetings'),
     })),
   ];
   const offTodayCalls = overdueCalls.length;
-  const offTasks = offTodayCalls + todayCalls.length;
+  const offLeads = offTodayCalls + todayCalls.length;
+  const offTasks = offLeads + staleLeads.length;
   const offDeals = offTasks + nowTasks.length;
   const offCooling = offDeals + rottingDeals.length;
   const offMeetings = offCooling + coolingSlice.length;
@@ -224,6 +250,32 @@ export function TodayView() {
                 secondary={{ label: 'На завтра', onClick: () => bumpCall(c.id, c.date) }}
               />
             ))}
+          </Section>
+
+          {/* 3.5. Лиды без реакции (скорость первого касания) */}
+          <Section title="Лиды без реакции" count={staleLeads.length} icon={<Target size={13} />}>
+            {staleLeads.map(({ lead: l, s }, i) => {
+              const color = s.level === 'cold' ? RED : YELLOW;
+              return (
+                <QueueRow
+                  key={l.id}
+                  kbdIndex={offLeads + i}
+                  focused={activeIndex === offLeads + i}
+                  marker={{ filled: s.level === 'cold', color }}
+                  title={l.title}
+                  subtitle={l.company_name_raw ?? l.contact_name_raw ?? undefined}
+                  meta={
+                    <span style={{ color }}>
+                      {s.days} дн. {l.status === 'new' ? 'в новых' : 'без движения'}
+                    </span>
+                  }
+                  onOpen={() => router.push('/leads')}
+                  primary={l.status === 'new'
+                    ? { label: 'Связаться', onClick: () => updateLead.mutate({ id: l.id, status: 'contacted' }) }
+                    : { label: 'Квалифицировать', onClick: () => updateLead.mutate({ id: l.id, status: 'qualified' }) }}
+                />
+              );
+            })}
           </Section>
 
           {/* 4. Задачи в работе */}
@@ -304,7 +356,10 @@ export function TodayView() {
                   onOpen={() => router.push(`/contacts/${c.id}`)}
                   primary={{
                     label: 'Запланировать звонок',
-                    onClick: () => openModal('call', undefined, { contactId: c.id }),
+                    onClick: () => openModal('call', undefined, {
+                      contactId: c.id,
+                      companyId: (c.companies ?? [])[0]?.company_id,
+                    }),
                   }}
                 />
               );

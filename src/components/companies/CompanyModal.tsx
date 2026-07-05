@@ -1,11 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { companyFormSchema, type CompanyFormValues } from '@/lib/validators/company';
-import { useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
+import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
+
+/** Нормализация названия для сравнения: без ОПФ, кавычек и регистра */
+function normalizeCompanyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[«»"'“”]/g, '')
+    .replace(/\b(ооо|ао|зао|пао|оао|нао|ип)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 interface CompanyModalProps {
   isOpen: boolean;
@@ -14,17 +25,35 @@ interface CompanyModalProps {
 }
 
 export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps) {
+  const router = useRouter();
   const create = useCreateCompany();
   const update = useUpdateCompany();
+  const { data: allCompanies = [] } = useCompanies();
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
   });
+
+  // Дубль по ИНН (точно) или названию (нормализованно) — предупреждение, не блок
+  const nameVal = watch('name');
+  const innVal = watch('inn');
+  const duplicate = useMemo(() => {
+    const inn = innVal?.trim() || null;
+    const norm = nameVal ? normalizeCompanyName(nameVal) : '';
+    if (!inn && norm.length < 3) return null;
+    return allCompanies.find((c) =>
+      c.id !== editCompany?.id && (
+        (inn && c.inn && c.inn.trim() === inn) ||
+        (norm.length >= 3 && normalizeCompanyName(c.name) === norm)
+      ),
+    ) ?? null;
+  }, [nameVal, innVal, allCompanies, editCompany]);
 
   useEffect(() => {
     if (editCompany) {
@@ -100,6 +129,25 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
               {errors[f.name] && <p className="mt-0.5 text-xs text-red">{errors[f.name]?.message}</p>}
             </div>
           ))}
+
+          {/* Дубль — предупреждение, не блокирует */}
+          {duplicate && (
+            <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l/40 px-3 py-2 text-xs">
+              <AlertTriangle size={13} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
+              <span className="text-text-dim">
+                Похоже на существующую компанию:{' '}
+                <span className="font-medium text-text-main">{duplicate.name}</span>
+                {duplicate.inn && <span className="text-text-mute"> · ИНН {duplicate.inn}</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() => { onClose(); router.push(`/companies/${duplicate.id}`); }}
+                className="ml-auto shrink-0 text-accent hover:underline"
+              >
+                Открыть
+              </button>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

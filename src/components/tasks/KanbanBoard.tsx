@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
   type DragOverEvent,
 } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useTasksByLane, useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
 import { taskLanes } from '@/lib/validators/task';
 import { AccordionLane } from './AccordionLane';
@@ -159,8 +160,31 @@ export function KanbanBoard() {
         }
       }
 
-      if (targetLane && task.lane !== targetLane) {
-        updateTask.mutate({ id: taskId, lane: targetLane });
+      if (!targetLane) return;
+
+      // Позиция в целевом лейне: на карточку — её индекс, на контейнер — в конец
+      const targetTasks = lanes[targetLane];
+      let targetIndex = targetTasks.length;
+      if (overId !== targetLane) {
+        const idx = targetTasks.findIndex((t) => t.id === overId);
+        if (idx !== -1) targetIndex = idx;
+      }
+
+      if (task.lane === targetLane) {
+        // Reorder внутри лейна — персистим sort_order (иначе порядок откатывается после F5)
+        const oldIndex = targetTasks.findIndex((t) => t.id === taskId);
+        if (oldIndex === -1 || oldIndex === targetIndex) return;
+        arrayMove(targetTasks, oldIndex, targetIndex).forEach((t, i) => {
+          if (t.sort_order !== i) updateTask.mutate({ id: t.id, sort_order: i });
+        });
+      } else {
+        // Перенос между лейнами с сохранением позиции drop'а
+        const without = targetTasks.filter((t) => t.id !== taskId);
+        const newList = [...without.slice(0, targetIndex), task, ...without.slice(targetIndex)];
+        newList.forEach((t, i) => {
+          if (t.id === taskId) updateTask.mutate({ id: t.id, lane: targetLane, sort_order: i });
+          else if (t.sort_order !== i) updateTask.mutate({ id: t.id, sort_order: i });
+        });
       }
     },
     [lanes, updateTask],

@@ -73,6 +73,25 @@ export function useLeads() {
   });
 }
 
+/** Converted leads — для полосы «Конвертированы» и конверсии по источникам */
+export function useConvertedLeads() {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'converted'],
+    queryFn: async (): Promise<Lead[]> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('status', 'converted')
+        .order('converted_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as Lead[];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 /** Create lead — optimistic */
 export function useCreateLead() {
   const qc = useQueryClient();
@@ -177,26 +196,31 @@ export function useConvertLead() {
   return useMutation({
     mutationFn: async (params: {
       leadId: string;
-      companyName: string;
-      contactFirstName: string;
+      companyName?: string;
+      contactFirstName?: string;
       contactLastName?: string;
       contactPhone?: string;
       contactEmail?: string;
       direction: Direction;
       dealTitle?: string;
       dealAmount?: number;
+      /** Миграция 018: существующие записи вместо создания дублей */
+      companyId?: string;
+      contactId?: string;
     }): Promise<LeadConversionResult> => {
       const supabase = createClient();
       const { data, error } = await supabase.rpc('convert_lead', {
         p_lead_id: params.leadId,
-        p_company_name: params.companyName,
-        p_contact_first_name: params.contactFirstName,
+        p_company_name: params.companyName ?? null,
+        p_contact_first_name: params.contactFirstName ?? null,
         p_contact_last_name: params.contactLastName ?? null,
         p_contact_phone: params.contactPhone ?? null,
         p_contact_email: params.contactEmail ?? null,
         p_direction: params.direction,
         p_deal_title: params.dealTitle ?? null,
         p_deal_amount: params.dealAmount ?? null,
+        p_company_id: params.companyId ?? null,
+        p_contact_id: params.contactId ?? null,
       });
       if (error) throw error;
       return data as LeadConversionResult;

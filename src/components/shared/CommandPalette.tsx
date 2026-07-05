@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
   Plus, Sun, Bookmark,
@@ -48,6 +48,7 @@ const ROUTE_LABELS: Record<string, string> = {
 
 export function CommandPalette() {
   const router = useRouter();
+  const pathname = usePathname();
   const open = useUiStore((s) => s.commandPaletteOpen);
   const actionsOnly = useUiStore((s) => s.paletteActionsOnly);
   const togglePalette = useUiStore((s) => s.toggleCommandPalette);
@@ -56,6 +57,13 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Шов W2a-4: гонка при route change — палитра, открытая в момент навигации,
+  // оставалась в подвешенном состоянии. Сбрасываем при смене маршрута.
+  useEffect(() => {
+    closePalette();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const { data: tasks } = useTasks();
   const { data: projects } = useProjects();
@@ -278,7 +286,8 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div className="max-h-72 overflow-y-auto p-1.5">
+        {/* pb-3: последний пункт не подрезается нижней кромкой (шов W2a-2) */}
+        <div className="max-h-72 overflow-y-auto p-1.5 pb-3">
           {filtered.length === 0 ? (
             <div className="py-6 text-center text-xs text-text-mute">Ничего не найдено</div>
           ) : (

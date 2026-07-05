@@ -288,7 +288,7 @@ export function DataTable<T>({
                       onRowClick?.(item);
                     }}
                     className={cn(
-                      'border-b border-border/50 transition-colors duration-150',
+                      'group border-b border-border/50 transition-colors duration-150',
                       onRowClick && 'cursor-pointer',
                       isSelected ? 'bg-accent-l' : onRowClick ? 'hover:bg-accent-l' : '',
                     )}

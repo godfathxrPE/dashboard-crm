@@ -45,6 +45,7 @@ export function GlobalModals() {
       <CallModal
         isOpen={activeModal === 'call'} onClose={closeModal} editCall={null}
         defaultContactId={ctx?.contactId ?? null}
+        defaultCompanyId={ctx?.companyId ?? null}
         defaultProjectId={ctx?.projectId ?? null}
       />
       <MeetingModal

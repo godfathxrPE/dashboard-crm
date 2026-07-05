@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CalendarDays, Plus, Pencil, Trash2, MapPin, FolderKanban, Clock, Loader2 } from 'lucide-react';
+import { CalendarDays, Plus, Pencil, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
+import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
@@ -18,6 +19,16 @@ export function MeetingsList() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
+
+  // Toast «создать задачу?» по следующему шагу — паттерн CallLog
+  const createTask = useCreateTask();
+  const [taskSuggestion, setTaskSuggestion] = useState<{ text: string; projectId: string | null } | null>(null);
+
+  function handleMeetingSaved(values: { next_step?: string | null; project_id?: string | null }) {
+    if (values.next_step?.trim() && !editMeeting) {
+      setTaskSuggestion({ text: values.next_step.trim(), projectId: values.project_id ?? null });
+    }
+  }
 
   const { upcoming, past } = useMemo(() => {
     if (!meetings) return { upcoming: [], past: [] };
@@ -105,7 +116,37 @@ export function MeetingsList() {
         )}
       </div>
 
-      <MeetingModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditMeeting(null); }} editMeeting={editMeeting} />
+      <MeetingModal
+        isOpen={modalOpen}
+        onClose={() => { setModalOpen(false); setEditMeeting(null); }}
+        editMeeting={editMeeting}
+        onSaved={handleMeetingSaved}
+      />
+
+      {/* Task suggestion toast (как в CallLog) */}
+      {taskSuggestion && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-surface p-4 elevation-3">
+          <div className="mb-1 flex items-center gap-2">
+            <CheckSquare size={14} className="text-accent" />
+            <span className="text-sm font-medium text-text-main">Создать задачу?</span>
+          </div>
+          <p className="mb-3 text-xs text-text-dim">По встрече: «{taskSuggestion.text}»</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                createTask.mutate({ text: taskSuggestion.text, lane: 'now', project_id: taskSuggestion.projectId });
+                setTaskSuggestion(null);
+              }}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity">
+              Создать
+            </button>
+            <button onClick={() => setTaskSuggestion(null)}
+              className="rounded-lg px-3 py-1.5 text-xs text-text-dim hover:text-text-main transition-colors">
+              Пропустить
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -173,6 +214,9 @@ function MeetingCard({
 
         {meeting.notes && (
           <p className="mt-1 line-clamp-2 text-xs text-text-dim">{meeting.notes}</p>
+        )}
+        {meeting.next_step && (
+          <p className="mt-0.5 text-[10px] text-accent">→ {meeting.next_step}</p>
         )}
       </div>
 

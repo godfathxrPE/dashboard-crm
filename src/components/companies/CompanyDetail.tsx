@@ -8,11 +8,14 @@ import {
 } from 'lucide-react';
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
-import { useProjects, type Project } from '@/lib/hooks/use-projects';
+import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { getDealHealth } from '@/lib/utils/deal-health';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { Bracket } from '@/components/ui/Bracket';
 import { CompanyModal } from './CompanyModal';
 import { ProjectModal } from '@/components/projects/ProjectModal';
+import { ContactModal } from '@/components/contacts/ContactModal';
 
 interface CompanyDetailProps { companyId: string; }
 
@@ -21,9 +24,11 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: company, isLoading, error } = useCompany(companyId);
   const { data: allContacts } = useContacts();
   const { data: allProjects } = useProjects();
+  const { data: allStages } = usePipelineStages();
   const deleteCompany = useDeleteCompany();
   const [modalOpen, setModalOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
 
@@ -117,13 +122,13 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <Users size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Контакты</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedContacts.length}</span>
-            <button onClick={() => router.push('/contacts')}
+            <button onClick={() => setContactModalOpen(true)}
               className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
               + Контакт
             </button>
           </div>
           {linkedContacts.length === 0 ? (
-            <p className="text-xs text-text-mute italic">Нет привязанных контактов. Привяжи контакт на его странице.</p>
+            <p className="text-xs text-text-mute italic">Нет привязанных контактов.</p>
           ) : (
             <div className="space-y-1.5">
               {linkedContacts.map((c) => {
@@ -156,16 +161,32 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <p className="text-xs text-text-mute italic">Нет проектов. Привяжи компанию при создании проекта.</p>
           ) : (
             <div className="space-y-1.5">
-              {linkedProjects.map((p) => (
-                <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
-                  <span className="text-sm text-text-main">{p.name}</span>
-                  <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
-                    {p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—'}
-                  </span>
-                  {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}
-                </button>
-              ))}
+              {linkedProjects.map((p) => {
+                // Стадия из pipeline_stages (legacy STAGE_CONFIG — только fallback)
+                const stageName = allStages?.find((s) => s.id === p.stage_id)?.name
+                  ?? (p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : null)
+                  ?? '—';
+                const dh = getDealHealth(p);
+                return (
+                  <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
+                    {dh !== 'ok' && (
+                      <span
+                        title={dh === 'overdue-action' ? 'Шаг просрочен' : 'Нет следующего шага'}
+                        className="inline-block h-[6px] w-[6px] shrink-0 rounded-full"
+                        style={dh === 'overdue-action'
+                          ? { backgroundColor: 'var(--red-text, var(--red))' }
+                          : { border: '1px solid var(--yellow-text, var(--yellow))' }}
+                      />
+                    )}
+                    <span className="text-sm text-text-main">{p.name}</span>
+                    <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+                      {stageName}
+                    </span>
+                    {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </Bracket>
@@ -173,6 +194,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
 
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />
       <ProjectModal isOpen={projectModalOpen} onClose={() => setProjectModalOpen(false)} editProject={null} defaultCompanyId={companyId} />
+      <ContactModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+        editContact={null}
+        defaultCompanyId={companyId}
+      />
     </>
   );
 }

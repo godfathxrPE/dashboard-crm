@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragOverlay,
@@ -36,6 +37,7 @@ import {
 import { formatBudget } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
+import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
@@ -281,10 +283,12 @@ function WonDeals({ projects }: { projects: Project[] }) {
 
 interface StageBoardProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
+  quickFilter?: ProjectQuickFilter | null;
   onSwitchView: () => void;
 }
 
-export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoardProps) {
+export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: StageBoardProps) {
+  const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects();
   const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
@@ -302,8 +306,11 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
 
   // Direction-filtered projects
   const projects = useMemo(
-    () => directionFilter === 'all' ? rawProjects : rawProjects?.filter((p) => p.direction === directionFilter),
-    [rawProjects, directionFilter],
+    () => applyProjectQuickFilter(
+      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+      quickFilter,
+    ),
+    [rawProjects, directionFilter, quickFilter],
   );
 
   // Active pipeline
@@ -386,7 +393,7 @@ export function StageBoard({ directionFilter = 'all', onSwitchView }: StageBoard
   }
 
   function handleOpen(id: string) {
-    window.location.href = `/projects/${id}`;
+    router.push(`/projects/${id}`);
   }
 
   function handleRestore(id: string) {
