@@ -49,6 +49,7 @@ export type LeadSource = 'call' | 'website' | 'referral' | 'cold' | 'inbound' | 
 export interface Lead {
   id: string;
   user_id: string;
+  org_id: string;
   title: string;
   source: LeadSource | null;
   status: LeadStatus;
@@ -69,6 +70,7 @@ export interface Lead {
 
 export interface LeadInsert {
   title: string;
+  org_id?: string;
   source?: LeadSource | null;
   status?: LeadStatus;
   direction?: Direction | null;
@@ -91,6 +93,26 @@ export type TaskPriority = 'normal' | 'important' | 'critical';
 export type CallStatus = 'done' | 'pending' | 'cancelled';
 export type ActivityType = 'call' | 'meeting' | 'email' | 'note' | 'task_completed' | 'stage_change' | 'kp_sent';
 export type UserRole = 'admin' | 'pm' | 'member' | 'viewer';
+
+// ═══ Sprint 23: Multitenancy ═══
+
+export type OrgRole = 'owner' | 'admin' | 'manager' | 'viewer';
+
+export interface Organization {
+  id: string;
+  name: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Membership {
+  id: string;
+  org_id: string;
+  profile_id: string;
+  role: OrgRole;
+  created_at: string;
+}
 
 export interface Database {
   public: {
@@ -131,6 +153,7 @@ export interface Database {
           notes: string | null;
           owner_id: string | null;
           created_by: string | null;
+          org_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -143,6 +166,7 @@ export interface Database {
           address?: string | null;
           notes?: string | null;
           owner_id?: string | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['companies']['Insert']>;
       };
@@ -157,6 +181,7 @@ export interface Database {
           notes: string | null;
           owner_id: string | null;
           created_by: string | null;
+          org_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -168,6 +193,7 @@ export interface Database {
           position?: string | null;
           notes?: string | null;
           owner_id?: string | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['contacts']['Insert']>;
       };
@@ -197,6 +223,7 @@ export interface Database {
           status: DealStatus;
           lost_reason: string | null;
           actual_close_date: string | null;
+          org_id: string;
         };
         Insert: {
           name: string;
@@ -218,6 +245,7 @@ export interface Database {
           status?: DealStatus;
           lost_reason?: string | null;
           actual_close_date?: string | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['projects']['Insert']>;
       };
@@ -245,6 +273,7 @@ export interface Database {
           sort_order: number;
           assigned_to: string | null;
           created_by: string | null;
+          org_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -259,6 +288,7 @@ export interface Database {
           remind_min?: number | null;
           sort_order?: number;
           assigned_to?: string | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>;
       };
@@ -274,6 +304,7 @@ export interface Database {
           agreements: string | null;
           duration_s: number | null;
           created_by: string | null;
+          org_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -286,6 +317,7 @@ export interface Database {
           next_step?: string | null;
           agreements?: string | null;
           duration_s?: number | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['calls']['Insert']>;
       };
@@ -301,6 +333,7 @@ export interface Database {
           contact_id: string | null;
           notes: string | null;
           created_by: string | null;
+          org_id: string;
           created_at: string;
           updated_at: string;
         };
@@ -313,6 +346,7 @@ export interface Database {
           company_id?: string | null;
           contact_id?: string | null;
           notes?: string | null;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['meetings']['Insert']>;
       };
@@ -327,6 +361,7 @@ export interface Database {
           project_id: string | null;
           metadata: Json;
           created_by: string | null;
+          org_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -337,6 +372,7 @@ export interface Database {
           contact_id?: string | null;
           project_id?: string | null;
           metadata?: Json;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['activities']['Insert']>;
       };
@@ -347,6 +383,7 @@ export interface Database {
           user_id: string;
           event_type: string;
           payload: Json;
+          org_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -354,6 +391,7 @@ export interface Database {
           user_id: string;
           event_type: string;
           payload?: Json;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['activity_log']['Insert']>;
       };
@@ -366,6 +404,7 @@ export interface Database {
           file_size: number | null;
           file_type: string | null;
           storage_path: string;
+          org_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -375,6 +414,7 @@ export interface Database {
           file_size?: number | null;
           file_type?: string | null;
           storage_path: string;
+          org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['project_files']['Insert']>;
       };
@@ -402,6 +442,25 @@ export interface Database {
           funnel_goals?: Json;
           plan_targets?: Json;
         };
+      };
+      organizations: {
+        Row: Organization;
+        Insert: Omit<Organization, 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['organizations']['Insert']>;
+      };
+      memberships: {
+        Row: Membership;
+        Insert: Omit<Membership, 'id' | 'created_at' | 'role'> & {
+          id?: string;
+          role?: OrgRole;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['memberships']['Insert']>;
       };
     };
   };

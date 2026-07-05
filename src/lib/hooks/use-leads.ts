@@ -105,6 +105,7 @@ export function useCreateLead() {
       const optimistic: Lead = {
         id: crypto.randomUUID(),
         user_id: '',
+        org_id: '',
         title: newLead.title,
         source: newLead.source ?? null,
         status: newLead.status ?? 'new',

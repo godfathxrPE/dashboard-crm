@@ -94,6 +94,7 @@ export function useCreateTask() {
         sort_order: input.sort_order ?? 0,
         assigned_to: input.assigned_to ?? null,
         created_by: null,
+        org_id: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
