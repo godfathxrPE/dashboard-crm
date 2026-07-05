@@ -25,30 +25,51 @@ CREATE TABLE IF NOT EXISTS public.memberships (
   UNIQUE(org_id, profile_id)
 );
 
--- 3. RLS на новые таблицы (минимальные политики; полный RBAC — Sprint 24/25)
-ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.memberships  ENABLE ROW LEVEL SECURITY;
+-- 3. Helpers — SECURITY DEFINER, объявлены ДО политик.
+--    ⚠️ Политики НЕ должны подзапрашивать memberships напрямую:
+--    self-referencing policy → "infinite recursion detected in policy" (42P17).
+--    RLS применяется и к подзапросам внутри политик — обход только через
+--    SECURITY DEFINER функцию.
 
-CREATE POLICY "org_select_member" ON public.organizations
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.memberships m
-            WHERE m.org_id = organizations.id AND m.profile_id = auth.uid())
-  );
-
-CREATE POLICY "membership_select_own_org" ON public.memberships
-  FOR SELECT USING (
-    profile_id = auth.uid()
-    OR EXISTS (SELECT 1 FROM public.memberships m2
-               WHERE m2.org_id = memberships.org_id AND m2.profile_id = auth.uid())
-  );
-
--- 4. Helper: организация текущего пользователя (пока у юзера одна org)
+-- Организация текущего пользователя (пока у юзера одна org)
 CREATE OR REPLACE FUNCTION public.current_org_id()
 RETURNS uuid AS $$
   SELECT org_id FROM public.memberships
   WHERE profile_id = auth.uid()
   ORDER BY created_at LIMIT 1;
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$ LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+-- Членство в организации (базовый кирпич для всех RLS-политик, включая Sprint 24)
+CREATE OR REPLACE FUNCTION public.is_org_member(p_org uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.memberships
+    WHERE org_id = p_org AND profile_id = auth.uid()
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public, pg_temp;
+
+-- ACL по hardening-конвенции БД (миграции 2026-06-14):
+-- PUBLIC/anon отозваны; authenticated нужен обеим — их вызывают RLS-политики
+-- и клиентские запросы под auth-контекстом.
+REVOKE EXECUTE ON FUNCTION public.current_org_id() FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.current_org_id() TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.is_org_member(uuid) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.is_org_member(uuid) TO authenticated, service_role;
+
+-- 4. RLS на новые таблицы (минимальные политики; полный RBAC — Sprint 24/25)
+ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memberships  ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "org_select_member" ON public.organizations
+  FOR SELECT USING (public.is_org_member(id));
+
+CREATE POLICY "membership_select_own_org" ON public.memberships
+  FOR SELECT USING (
+    profile_id = auth.uid()
+    OR public.is_org_member(org_id)
+  );
 
 -- 5. org_id на все tenant-таблицы (nullable на этом шаге)
 --    Список сверен с разведкой миграций 001–020: 14 tenant-таблиц.

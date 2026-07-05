@@ -49,7 +49,8 @@ END $$;
 --    есть во всех таблицах, куда вешаем триггер (грабли миграции 011
 --    касались колонок, существующих не везде).
 CREATE OR REPLACE FUNCTION public.set_org_id()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
 BEGIN
   IF NEW.org_id IS NULL THEN
     NEW.org_id := public.current_org_id();
@@ -57,6 +58,12 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- ACL по паттерну триггерных функций (log_delete_*): только postgres/service_role.
+-- Триггер срабатывает для любого юзера независимо от EXECUTE (проверка — при
+-- создании триггера, не при срабатывании).
+REVOKE EXECUTE ON FUNCTION public.set_org_id() FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION public.set_org_id() TO service_role;
 
 DO $$
 DECLARE t text;
