@@ -7,6 +7,7 @@ import { PipelineBoard } from './PipelineBoard';
 import { StageBoard } from './StageBoard';
 import { ProjectsTable } from './ProjectsTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
+import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import type { Direction } from '@/types/database';
 
 type ViewMode = 'pipeline' | 'board' | 'table';
@@ -72,13 +73,14 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
   return (
     <div>
       {/* Direction filter — above view content */}
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <ChipFilter
           options={directionOptions}
           selected={directionFilter === 'all' ? [] : [directionFilter]}
           onToggle={(val) => setDirection(val === directionFilter ? 'all' : val as DirectionFilter)}
           onReset={() => setDirection('all')}
         />
+        <SavedViewChips />
       </div>
 
       {view === 'table' ? (

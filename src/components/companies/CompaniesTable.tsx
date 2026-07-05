@@ -12,6 +12,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
+import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { CompanyModal } from './CompanyModal';
 import { ExcelImportButton } from './ExcelImport';
@@ -175,8 +176,9 @@ export function CompaniesTable() {
       />
 
       {/* Chip filters */}
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <ChipFilter options={chipOptions} selected={activeFilters} onToggle={toggle} onReset={reset} />
+        <SavedViewChips />
       </div>
 
       <DataTable

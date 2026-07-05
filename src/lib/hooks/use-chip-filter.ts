@@ -1,18 +1,39 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 export function useChipFilter<T>(
   data: T[],
   filters: Record<string, (item: T) => boolean>,
+  paramKey = 'f',
 ) {
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeFilters = useMemo(() => {
+    const raw = searchParams.get(paramKey);
+    return raw ? raw.split(',').filter(Boolean) : [];
+  }, [searchParams, paramKey]);
+
+  const setActiveFilters = useCallback(
+    (next: string[]) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next.length === 0) params.delete(paramKey);
+      else params.set(paramKey, next.join(','));
+      const qs = params.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [router, pathname, searchParams, paramKey],
+  );
 
   const filtered = useMemo(() => {
-    if (activeFilters.length === 0) return data;
-    return data.filter((item) =>
-      activeFilters.every((key) => filters[key]?.(item)),
-    );
+    // Ключи из URL, которых нет в filters (устаревший вид, ещё не загруженные
+    // динамические чипы), не должны обнулять выборку
+    const applicable = activeFilters.filter((key) => filters[key]);
+    if (applicable.length === 0) return data;
+    return data.filter((item) => applicable.every((key) => filters[key](item)));
   }, [data, activeFilters, filters]);
 
   const counts = useMemo(() => {
@@ -23,13 +44,18 @@ export function useChipFilter<T>(
     return result;
   }, [data, filters]);
 
-  const toggle = (key: string) => {
-    setActiveFilters((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  };
+  const toggle = useCallback(
+    (key: string) => {
+      setActiveFilters(
+        activeFilters.includes(key)
+          ? activeFilters.filter((k) => k !== key)
+          : [...activeFilters, key],
+      );
+    },
+    [activeFilters, setActiveFilters],
+  );
 
-  const reset = () => setActiveFilters([]);
+  const reset = useCallback(() => setActiveFilters([]), [setActiveFilters]);
 
   return { filtered, activeFilters, counts, toggle, reset };
 }

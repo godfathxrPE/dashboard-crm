@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun,
+  Plus, Sun, Bookmark,
 } from 'lucide-react';
 import { useUiStore } from '@/lib/stores/ui-store';
+import { useSavedViews } from '@/lib/hooks/use-saved-views';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -35,6 +36,16 @@ const QUICK_ACTIONS: Record<string, ModalAction> = {
   t: 'task', c: 'call', p: 'project', m: 'meeting',
 };
 
+/** Подписи маршрутов для сохранённых видов */
+const ROUTE_LABELS: Record<string, string> = {
+  '/projects': 'Проекты',
+  '/companies': 'Компании',
+  '/contacts': 'Контакты',
+  '/calls': 'Звонки',
+  '/tasks': 'Задачи',
+  '/meetings': 'Встречи',
+};
+
 export function CommandPalette() {
   const router = useRouter();
   const open = useUiStore((s) => s.commandPaletteOpen);
@@ -52,6 +63,7 @@ export function CommandPalette() {
   const { data: contacts } = useContacts();
   const { data: calls } = useCalls();
   const { data: meetings } = useMeetings();
+  const { views: savedViews } = useSavedViews();
 
   // Global keyboard shortcut: Cmd+K / Ctrl+K
   useEffect(() => {
@@ -88,6 +100,18 @@ export function CommandPalette() {
       { id: 'act-contact', label: 'Новый контакт', icon: Plus, action: 'contact', section: 'Действия' },
       { id: 'act-company', label: 'Новая компания', icon: Plus, action: 'company', section: 'Действия' },
     );
+
+    // Saved views (все страницы) — после действий
+    for (const v of savedViews) {
+      items.push({
+        id: `view-${v.id}`,
+        label: v.label,
+        sub: ROUTE_LABELS[v.route] ?? v.route,
+        icon: Bookmark,
+        href: v.route + v.query,
+        section: 'Виды',
+      });
+    }
 
     // Navigation
     items.push(
@@ -179,7 +203,7 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [tasks, projects, companies, contacts, calls, meetings]);
+  }, [tasks, projects, companies, contacts, calls, meetings, savedViews]);
 
   // Filter
   const filtered = useMemo(() => {
