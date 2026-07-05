@@ -215,9 +215,12 @@ BEGIN
   END IF;
 
   -- 1. Компания: существующая (с проверкой владельца — SECURITY DEFINER!) или новая
+  -- S25 fix: в живых таблицах нет user_id — владение через owner_id/created_by.
+  -- Живое тело ссылалось на несуществующую колонку → конверсия падала с 42703.
   IF p_company_id IS NOT NULL THEN
     SELECT id INTO v_company_id FROM companies
-      WHERE id = p_company_id AND user_id = v_user_id;
+      WHERE id = p_company_id
+        AND (owner_id = v_user_id OR created_by = v_user_id);
     IF v_company_id IS NULL THEN
       RAISE EXCEPTION 'Company not found or not owned by lead owner';
     END IF;
@@ -225,15 +228,16 @@ BEGIN
     IF p_company_name IS NULL OR btrim(p_company_name) = '' THEN
       RAISE EXCEPTION 'Either p_company_id or p_company_name is required';
     END IF;
-    INSERT INTO companies (user_id, name)
-    VALUES (v_user_id, p_company_name)
+    INSERT INTO companies (owner_id, created_by, name)
+    VALUES (v_user_id, v_user_id, p_company_name)
     RETURNING id INTO v_company_id;
   END IF;
 
   -- 2. Контакт: существующий (с проверкой владельца) или новый
   IF p_contact_id IS NOT NULL THEN
     SELECT id INTO v_contact_id FROM contacts
-      WHERE id = p_contact_id AND user_id = v_user_id;
+      WHERE id = p_contact_id
+        AND (owner_id = v_user_id OR created_by = v_user_id);
     IF v_contact_id IS NULL THEN
       RAISE EXCEPTION 'Contact not found or not owned by lead owner';
     END IF;
@@ -241,8 +245,8 @@ BEGIN
     IF p_contact_first_name IS NULL OR btrim(p_contact_first_name) = '' THEN
       RAISE EXCEPTION 'Either p_contact_id or p_contact_first_name is required';
     END IF;
-    INSERT INTO contacts (user_id, first_name, last_name, phone, email)
-    VALUES (v_user_id, p_contact_first_name, p_contact_last_name, p_contact_phone, p_contact_email)
+    INSERT INTO contacts (owner_id, created_by, first_name, last_name, phone, email)
+    VALUES (v_user_id, v_user_id, p_contact_first_name, p_contact_last_name, p_contact_phone, p_contact_email)
     RETURNING id INTO v_contact_id;
   END IF;
 
@@ -266,10 +270,11 @@ BEGIN
 
   -- 5. Сделка
   INSERT INTO projects (
-    user_id, name, direction, pipeline_id, stage_id,
+    owner_id, created_by, name, direction, pipeline_id, stage_id,
     company_id, contact_id, budget
   )
   VALUES (
+    v_user_id,
     v_user_id,
     COALESCE(p_deal_title, v_lead_title),
     p_direction::direction_t,
