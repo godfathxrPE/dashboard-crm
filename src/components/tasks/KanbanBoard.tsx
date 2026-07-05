@@ -23,11 +23,12 @@ import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { Watermark } from '@/components/ui/WatermarkNew';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
 
-function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
+function TasksPageHeader({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   return (
     <div className="flex items-center justify-between mb-4">
@@ -44,10 +45,12 @@ function TasksPageHeader({ onAdd }: { onAdd: () => void }) {
           </>
         )}
       </div>
-      <CTAButton onClick={onAdd}>
-        <Plus size={16} />
-        Задача
-      </CTAButton>
+      {canAdd && (
+        <CTAButton onClick={onAdd}>
+          <Plus size={16} />
+          Задача
+        </CTAButton>
+      )}
     </div>
   );
 }
@@ -56,6 +59,8 @@ export function KanbanBoard() {
   const { lanes, isLoading, isError, error } = useTasksByLane();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const { data: role } = useOrgRole();
+  const canEdit = role !== 'viewer';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
@@ -211,7 +216,7 @@ export function KanbanBoard() {
 
   return (
     <>
-      <TasksPageHeader onAdd={() => { setEditTask(null); setModalOpen(true); }} />
+      <TasksPageHeader onAdd={() => { setEditTask(null); setModalOpen(true); }} canAdd={canEdit} />
 
       <div className="flex gap-6">
         {/* Accordion kanban */}

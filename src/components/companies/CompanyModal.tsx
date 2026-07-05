@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { X, AlertTriangle } from 'lucide-react';
 import { companyFormSchema, type CompanyFormValues } from '@/lib/validators/company';
 import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
+import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 
 /** Нормализация названия для сравнения: без ОПФ, кавычек и регистра */
 function normalizeCompanyName(name: string): string {
@@ -35,6 +36,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
@@ -66,9 +68,10 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         email: editCompany.email,
         address: editCompany.address,
         notes: editCompany.notes,
+        owner_id: editCompany.owner_id ?? null,
       });
     } else {
-      reset({ name: '', inn: null, industry: null, website: null, phone: null, email: null, address: null, notes: null });
+      reset({ name: '', inn: null, industry: null, website: null, phone: null, email: null, address: null, notes: null, owner_id: null });
     }
   }, [editCompany, reset]);
 
@@ -161,6 +164,13 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
+
+          {/* Owner */}
+          <AssigneeSelect
+            label="Ответственный"
+            value={watch('owner_id') ?? null}
+            onChange={(v) => setValue('owner_id', v)}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose}

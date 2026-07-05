@@ -92,7 +92,6 @@ export type TaskLane = 'now' | 'next' | 'wait' | 'done';
 export type TaskPriority = 'normal' | 'important' | 'critical';
 export type CallStatus = 'done' | 'pending' | 'cancelled';
 export type ActivityType = 'call' | 'meeting' | 'email' | 'note' | 'task_completed' | 'stage_change' | 'kp_sent';
-export type UserRole = 'admin' | 'pm' | 'member' | 'viewer';
 
 // ═══ Sprint 23: Multitenancy ═══
 
@@ -122,7 +121,6 @@ export interface Database {
           id: string;
           full_name: string;
           avatar_url: string | null;
-          role: UserRole;
           settings: Json;
           created_at: string;
           updated_at: string;
@@ -131,13 +129,11 @@ export interface Database {
           id: string;
           full_name?: string;
           avatar_url?: string | null;
-          role?: UserRole;
           settings?: Json;
         };
         Update: {
           full_name?: string;
           avatar_url?: string | null;
-          role?: UserRole;
           settings?: Json;
         };
       };

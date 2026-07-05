@@ -21,6 +21,7 @@ import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
+import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import type { Direction } from '@/types/database';
 
@@ -65,6 +66,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
       next_action_date: null,
       loss_reason: null,
       loss_detail: null,
+      owner_id: null,
     },
   });
 
@@ -143,6 +145,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         next_action_date: editProject.next_action_date,
         loss_reason: editProject.loss_reason,
         loss_detail: editProject.loss_detail,
+        owner_id: editProject.owner_id ?? null,
       });
     } else {
       const defaultPipeline = getDefaultPipeline('iiot');
@@ -164,6 +167,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         next_action_date: null,
         loss_reason: null,
         loss_detail: null,
+        owner_id: null,
       });
     }
   }, [editProject, defaultCompanyId, reset, pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -451,6 +455,19 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               )}
             />
           </div>
+
+          {/* Owner */}
+          <Controller
+            name="owner_id"
+            control={control}
+            render={({ field }) => (
+              <AssigneeSelect
+                label="Ответственный"
+                value={field.value ?? null}
+                onChange={field.onChange}
+              />
+            )}
+          />
 
           {/* Submit */}
           <div className="flex justify-end gap-2 pt-2">

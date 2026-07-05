@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils/cn';
 import { useCreateTask, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
+import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import {
   taskFormSchema,
   type TaskFormValues,
@@ -51,6 +52,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
       contact_id: null,
       deadline: null,
       remind_min: null,
+      assigned_to: null,
     },
   });
 
@@ -68,6 +70,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         contact_id: editTask.contact_id ?? null,
         deadline: editTask.deadline?.slice(0, 16) ?? null,
         remind_min: editTask.remind_min,
+        assigned_to: editTask.assigned_to ?? null,
       });
     } else {
       reset({
@@ -79,6 +82,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         contact_id: defaultContactId ?? null,
         deadline: null,
         remind_min: null,
+        assigned_to: null,
       });
     }
   }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, reset]);
@@ -207,6 +211,13 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               </select>
             </div>
           </div>
+
+          {/* Assignee */}
+          <AssigneeSelect
+            label="Исполнитель"
+            value={watch('assigned_to') ?? null}
+            onChange={(v) => setValue('assigned_to', v)}
+          />
 
           {/* Deadline */}
           <div>

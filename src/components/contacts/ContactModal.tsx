@@ -15,6 +15,7 @@ import {
 } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { Combobox } from '@/components/shared/Combobox';
+import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { normalizePhone } from '@/lib/utils/phone';
 
 interface ContactModalProps {
@@ -46,6 +47,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -61,9 +63,10 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         phone: editContact.phone,
         position: editContact.position,
         notes: editContact.notes,
+        owner_id: editContact.owner_id ?? null,
       });
     } else {
-      reset({ first_name: '', last_name: '', email: null, phone: null, position: null, notes: null });
+      reset({ first_name: '', last_name: '', email: null, phone: null, position: null, notes: null, owner_id: null });
     }
   }, [editContact, reset, isOpen, defaultCompanyId]);
 
@@ -191,6 +194,13 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
             <textarea {...register('notes')} rows={2} placeholder="Дополнительная информация..."
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
+
+          {/* Owner */}
+          <AssigneeSelect
+            label="Ответственный"
+            value={watch('owner_id') ?? null}
+            onChange={(v) => setValue('owner_id', v)}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose}

@@ -35,6 +35,7 @@ import {
 } from '@/lib/hooks/use-projects';
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { ProjectCard } from './ProjectCard';
@@ -369,6 +370,8 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   const { moveToStageId } = useMoveProject();
   const deleteProject = useDeleteProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  const { data: role } = useOrgRole();
+  const canEdit = role !== 'viewer';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -645,9 +648,11 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
               {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-          <CTAButton size="sm" onClick={() => { setEditProject(null); setModalOpen(true); }}>
-            <Plus size={14} /> Проект
-          </CTAButton>
+          {canEdit && (
+            <CTAButton size="sm" onClick={() => { setEditProject(null); setModalOpen(true); }}>
+              <Plus size={14} /> Проект
+            </CTAButton>
+          )}
         </div>
       </div>
 

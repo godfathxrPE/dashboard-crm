@@ -175,6 +175,7 @@ export const projectFormSchema = z.object({
   next_action_date: z.string().nullable().default(null),
   loss_reason: z.string().nullable().default(null),
   loss_detail: z.string().nullable().default(null),
+  owner_id: z.string().uuid().nullable().optional(),
 });
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;

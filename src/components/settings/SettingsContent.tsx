@@ -3,6 +3,15 @@
 import { Settings, Palette, Database, Upload, ExternalLink } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
+import type { OrgRole } from '@/types/database';
+
+const ORG_ROLE_LABEL: Record<OrgRole, string> = {
+  owner: 'Владелец',
+  admin: 'Администратор',
+  manager: 'Менеджер',
+  viewer: 'Наблюдатель',
+};
 
 const THEMES = [
   { id: 't-scandi', label: 'Scandinavian', color: '#000000' },
@@ -22,6 +31,7 @@ interface SettingsContentProps {
 
 export function SettingsContent({ userEmail }: SettingsContentProps) {
   const { theme, setTheme } = useThemeStore();
+  const { data: role } = useOrgRole();
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -42,6 +52,11 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
               <p className="text-sm font-medium text-text-main">{userEmail}</p>
               <p className="text-[10px] text-text-mute">Supabase Auth · Magic Link</p>
             </div>
+            {role && (
+              <span className="ml-auto rounded-full border border-border bg-surface2 px-2.5 py-1 text-[11px] font-medium text-text-dim">
+                {ORG_ROLE_LABEL[role]}
+              </span>
+            )}
           </div>
         </div>
 

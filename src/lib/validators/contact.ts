@@ -7,6 +7,7 @@ export const contactFormSchema = z.object({
   phone: z.string().nullable().default(null),
   position: z.string().nullable().default(null),
   notes: z.string().nullable().default(null),
+  owner_id: z.string().uuid().nullable().optional(),
 });
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>;

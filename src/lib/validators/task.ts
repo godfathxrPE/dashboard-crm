@@ -12,6 +12,7 @@ export const taskFormSchema = z.object({
   contact_id: z.string().nullable().default(null),
   deadline: z.string().nullable().default(null),
   remind_min: z.number().nullable().default(null),
+  assigned_to: z.string().uuid().nullable().optional(),
 });
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;

@@ -9,6 +9,7 @@ export const companyFormSchema = z.object({
   email: z.string().email('Некорректный email').nullable().default(null),
   address: z.string().nullable().default(null),
   notes: z.string().nullable().default(null),
+  owner_id: z.string().uuid().nullable().optional(),
 });
 
 export type CompanyFormValues = z.infer<typeof companyFormSchema>;
