@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X } from 'lucide-react';
+import { useUiStore } from '@/lib/stores/ui-store';
 
 const GO_ROUTES: Record<string, string> = {
   d: '/',
@@ -32,11 +33,13 @@ const SHORTCUTS = [
   { keys: 'G M', label: 'Встречи' },
   { keys: 'G A', label: 'Аналитика' },
   null,
+  { keys: 'N', label: 'Быстрое создание' },
   { keys: '?', label: 'Показать подсказки' },
 ];
 
 export function Hotkeys() {
   const router = useRouter();
+  const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const gPressed = useRef(false);
   const gTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [showHelp, setShowHelp] = useState(false);
@@ -69,6 +72,13 @@ export function Hotkeys() {
         return;
       }
 
+      // N → палитра в режиме «Действия» (быстрое создание). Не перехватываем G-N.
+      if (key === 'n' && !gPressed.current) {
+        e.preventDefault();
+        openCommandPalette(true);
+        return;
+      }
+
       // G prefix
       if (key === 'g') {
         gPressed.current = true;
@@ -92,7 +102,7 @@ export function Hotkeys() {
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(gTimer.current);
     };
-  }, [router]);
+  }, [router, openCommandPalette]);
 
   if (!showHelp) return null;
 

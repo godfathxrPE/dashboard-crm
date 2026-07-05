@@ -18,6 +18,7 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { cn } from '@/lib/utils/cn';
 import PageTransition from '@/components/layout/PageTransition';
 import { CommandPalette } from '@/components/shared/CommandPalette';
+import { GlobalModals } from '@/components/shared/GlobalModals';
 import { Hotkeys } from '@/components/shared/Hotkeys';
 import { getSectionFromPath } from '@/lib/section-colors';
 
@@ -89,6 +90,7 @@ export default function DashboardLayout({
       <EventReminder />
       {isTextNav && <QuickActionModals />}
       <CommandPalette />
+      <GlobalModals />
       <Hotkeys />
     </div>
   );

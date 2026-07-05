@@ -16,7 +16,11 @@ interface UiState {
   closeModal: () => void;
 
   commandPaletteOpen: boolean;
+  /** Палитра открыта в режиме «только Действия» (глобальный хоткей N) */
+  paletteActionsOnly: boolean;
   toggleCommandPalette: () => void;
+  openCommandPalette: (actionsOnly?: boolean) => void;
+  closeCommandPalette: () => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -32,8 +36,13 @@ export const useUiStore = create<UiState>()(
       closeModal: () => set({ activeModal: null, editingId: null }),
 
       commandPaletteOpen: false,
+      paletteActionsOnly: false,
       toggleCommandPalette: () =>
-        set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+        set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen, paletteActionsOnly: false })),
+      openCommandPalette: (actionsOnly = false) =>
+        set({ commandPaletteOpen: true, paletteActionsOnly: actionsOnly }),
+      closeCommandPalette: () =>
+        set({ commandPaletteOpen: false, paletteActionsOnly: false }),
     }),
     {
       name: 'dashboard-ui',

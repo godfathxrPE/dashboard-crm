@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
+  Plus, Sun,
 } from 'lucide-react';
+import { useUiStore } from '@/lib/stores/ui-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -12,18 +14,34 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 
+type ModalAction = 'task' | 'project' | 'call' | 'meeting' | 'contact' | 'company';
+
 interface CmdItem {
   id: string;
   label: string;
   sub?: string;
   icon: typeof Search;
-  href: string;
   section: string;
+  /** Навигация: переход по маршруту */
+  href?: string;
+  /** Действие: открыть модалку создания */
+  action?: ModalAction;
+  /** Подсказка-shortcut (T/C/P/M), показывается справа */
+  kbd?: string;
 }
+
+/** Быстрые клавиши действий, активны только при пустом query */
+const QUICK_ACTIONS: Record<string, ModalAction> = {
+  t: 'task', c: 'call', p: 'project', m: 'meeting',
+};
 
 export function CommandPalette() {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const open = useUiStore((s) => s.commandPaletteOpen);
+  const actionsOnly = useUiStore((s) => s.paletteActionsOnly);
+  const togglePalette = useUiStore((s) => s.toggleCommandPalette);
+  const closePalette = useUiStore((s) => s.closeCommandPalette);
+  const openModal = useUiStore((s) => s.openModal);
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,13 +58,13 @@ export function CommandPalette() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setOpen((o) => !o);
+        togglePalette();
       }
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') closePalette();
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [togglePalette, closePalette]);
 
   // Focus input when opened
   useEffect(() => {
@@ -61,9 +79,20 @@ export function CommandPalette() {
   const allItems = useMemo<CmdItem[]>(() => {
     const items: CmdItem[] = [];
 
+    // Actions (создание сущностей) — всегда первыми
+    items.push(
+      { id: 'act-task', label: 'Новая задача', icon: Plus, action: 'task', kbd: 'T', section: 'Действия' },
+      { id: 'act-call', label: 'Новый звонок', icon: Plus, action: 'call', kbd: 'C', section: 'Действия' },
+      { id: 'act-project', label: 'Новая сделка', icon: Plus, action: 'project', kbd: 'P', section: 'Действия' },
+      { id: 'act-meeting', label: 'Новая встреча', icon: Plus, action: 'meeting', kbd: 'M', section: 'Действия' },
+      { id: 'act-contact', label: 'Новый контакт', icon: Plus, action: 'contact', section: 'Действия' },
+      { id: 'act-company', label: 'Новая компания', icon: Plus, action: 'company', section: 'Действия' },
+    );
+
     // Navigation
     items.push(
-      { id: 'nav-dashboard', label: 'Дашборд', icon: BarChart3, href: '/', section: 'Навигация' },
+      { id: 'nav-today', label: 'Сегодня', icon: Sun, href: '/', section: 'Навигация' },
+      { id: 'nav-overview', label: 'Обзор', icon: BarChart3, href: '/overview', section: 'Навигация' },
       { id: 'nav-tasks', label: 'Задачи', icon: CheckSquare, href: '/tasks', section: 'Навигация' },
       { id: 'nav-projects', label: 'Проекты', icon: FolderKanban, href: '/projects', section: 'Навигация' },
       { id: 'nav-companies', label: 'Компании', icon: Building2, href: '/companies', section: 'Навигация' },
@@ -154,25 +183,43 @@ export function CommandPalette() {
 
   // Filter
   const filtered = useMemo(() => {
-    if (!query.trim()) return allItems.slice(0, 15);
+    if (!query.trim()) {
+      // Режим «только Действия» (открыто по хоткею N)
+      const base = actionsOnly ? allItems.filter((i) => i.section === 'Действия') : allItems;
+      return base.slice(0, 15);
+    }
     const q = query.toLowerCase();
     return allItems.filter((item) =>
       item.label.toLowerCase().includes(q) ||
       item.sub?.toLowerCase().includes(q) ||
       item.section.toLowerCase().includes(q)
     ).slice(0, 15);
-  }, [allItems, query]);
+  }, [allItems, query, actionsOnly]);
 
   // Reset selection on filter change
   useEffect(() => setSelectedIdx(0), [filtered]);
 
   const handleSelect = useCallback((item: CmdItem) => {
-    setOpen(false);
-    router.push(item.href);
-  }, [router]);
+    closePalette();
+    if (item.action) {
+      openModal(item.action);
+    } else if (item.href) {
+      router.push(item.href);
+    }
+  }, [closePalette, openModal, router]);
 
   // Keyboard navigation
   function handleKeyDown(e: React.KeyboardEvent) {
+    // Быстрые клавиши действий — только при пустом query (иначе это ввод текста)
+    if (!query && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      const action = QUICK_ACTIONS[e.key.toLowerCase()];
+      if (action) {
+        e.preventDefault();
+        closePalette();
+        openModal(action);
+        return;
+      }
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIdx((i) => Math.min(filtered.length - 1, i + 1));
@@ -191,7 +238,7 @@ export function CommandPalette() {
 
   return (
     <div data-modal-overlay="palette" className="fixed inset-0 z-[60] flex items-start justify-center pt-[15vh] bg-black/50"
-      onClick={() => setOpen(false)}>
+      onClick={closePalette}>
       <div data-modal className="w-full max-w-md rounded-xl border border-border bg-surface elevation-3 ring-1 ring-border overflow-hidden"
         role="dialog" aria-modal="true" aria-label="Палитра команд" onClick={(e) => e.stopPropagation()}>
 
@@ -227,6 +274,11 @@ export function CommandPalette() {
                   >
                     <item.icon size={14} className={i === selectedIdx ? 'text-accent' : 'text-text-mute'} />
                     <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
+                    {item.kbd && (
+                      <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] font-mono text-text-mute">
+                        {item.kbd}
+                      </kbd>
+                    )}
                     {item.sub && (
                       <span className="shrink-0 text-xs text-text-dim">{item.sub}</span>
                     )}
@@ -238,10 +290,12 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 border-t border-border px-4 py-2 text-[10px] text-text-mute">
-          <span>↑↓ навигация</span>
-          <span>↵ выбрать</span>
-          <span>esc закрыть</span>
+        <div className="flex items-center gap-1.5 border-t border-border px-4 py-2 text-[10px] text-text-mute">
+          <span>↑↓ — навигация</span>
+          <span className="text-text-dim">·</span>
+          <span>Enter — выбрать</span>
+          <span className="text-text-dim">·</span>
+          <span>Esc — закрыть</span>
         </div>
       </div>
     </div>
