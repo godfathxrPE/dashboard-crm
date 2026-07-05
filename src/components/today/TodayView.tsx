@@ -188,7 +188,9 @@ export function TodayView() {
                     <span style={{ color: overdue ? RED : YELLOW }}>
                       {overdue
                         ? `шаг просрочен ${getNextActionOverdueDays(p.next_action_date!)} дн.`
-                        : 'нет шага'}
+                        : p.next_step?.trim()
+                          ? 'нет даты шага'
+                          : 'нет шага'}
                     </span>
                   }
                   onOpen={() => router.push(`/projects/${p.id}`)}

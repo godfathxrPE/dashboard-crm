@@ -10,13 +10,15 @@ interface InlineEditProps {
   placeholder?: string;
   formatDisplay?: (value: string) => string;
   className?: string;
+  /** 'textarea' renders a multiline editor; Enter inserts a newline, Cmd/Ctrl+Enter saves. */
+  as?: 'input' | 'textarea';
 }
 
-export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDisplay, className }: InlineEditProps) {
+export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDisplay, className, as = 'input' }: InlineEditProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -37,6 +39,7 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
         onClick={() => setEditing(true)}
         className={cn(
           'cursor-pointer hover:underline decoration-dashed underline-offset-2',
+          as === 'textarea' && 'whitespace-pre-wrap',
           value ? 'text-text-main' : 'text-text-mute',
           className,
         )}
@@ -46,9 +49,29 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
     );
   }
 
+  if (as === 'textarea') {
+    return (
+      <textarea
+        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
+          if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+        }}
+        disabled={saving}
+        rows={3}
+        aria-label={placeholder}
+        placeholder={placeholder}
+        className="text-sm w-full px-2 py-1 rounded bg-surface2 border border-border2 text-text-main focus:outline-none focus:border-accent resize-y"
+      />
+    );
+  }
+
   return (
     <input
-      ref={inputRef}
+      ref={inputRef as React.RefObject<HTMLInputElement>}
       type={type}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}

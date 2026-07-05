@@ -11,7 +11,6 @@ import {
   User,
   Calendar,
   Banknote,
-  ChevronRight,
   CheckSquare,
   Phone,
   Users,
@@ -47,6 +46,7 @@ import {
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
 import { DealProgressBar } from './DealProgressBar';
+import { DealFocusPanel } from './DealFocusPanel';
 import { ProjectFiles } from './ProjectFiles';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
@@ -77,6 +77,7 @@ function getProjectCompleteness(project: Project) {
     { key: 'deadline', label: 'Дедлайн', filled: !!project.deadline },
     { key: 'stage', label: 'Стадия', filled: !!project.stage },
     { key: 'next_step', label: 'Следующий шаг', filled: !!project.next_step },
+    { key: 'next_action_date', label: 'Дата шага', filled: !!project.next_action_date },
   ];
   const filled = fields.filter((f) => f.filled).length;
   return { filled, total: fields.length, fields };
@@ -587,6 +588,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       )}
 
+      {/* Focus panel — рабочая зона «что дальше»; только для активных сделок */}
+      {project.status === 'open' && <DealFocusPanel project={project} />}
+
       {/* Info grid */}
       <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {/* Company — clickable */}
@@ -645,17 +649,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           />
         </div>
       </div>
-
-      {/* Next step */}
-      {project.next_step && (
-        <div className="mb-6 rounded-xl border border-accent/20 bg-accent-l/30 px-4 py-3">
-          <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-accent">
-            <ChevronRight size={12} />
-            Следующий шаг
-          </div>
-          <p className="text-[15px] text-text-main">{project.next_step}</p>
-        </div>
-      )}
 
       {/* ═══ Related: Tasks ═══ */}
       <div className="mb-4 rounded-xl border border-border bg-surface p-4">
