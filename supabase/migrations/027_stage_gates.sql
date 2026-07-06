@@ -104,7 +104,11 @@ BEGIN
     RAISE EXCEPTION 'stage_gate_check_denied: project not found'
       USING ERRCODE = '42501';
   END IF;
-  IF NOT public.is_org_member(v_project.org_id) THEN
+  -- Гард только для auth-контекста: защищает RPC-поверхность от чужих org.
+  -- Service-контекст (auth.uid() IS NULL: бэкфиллы, автоматизация, гейт-триггер
+  -- под служебными операциями) гард пропускает — требования всё равно проверяются
+  -- ниже. Без этого условия любой служебный UPDATE стадии падал бы 42501 (гейт S27).
+  IF auth.uid() IS NOT NULL AND NOT public.is_org_member(v_project.org_id) THEN
     RAISE EXCEPTION 'stage_gate_check_denied: not a member of project org'
       USING ERRCODE = '42501';
   END IF;
