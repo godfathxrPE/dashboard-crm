@@ -3,6 +3,7 @@
 import { Settings, Palette, Database, Upload, ExternalLink } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
+import { TeamSection } from '@/components/settings/TeamSection';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import type { OrgRole } from '@/types/database';
 
@@ -59,6 +60,9 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
             )}
           </div>
         </div>
+
+        {/* Team (owner/admin only) */}
+        <TeamSection />
 
         {/* Theme */}
         <div className="rounded-xl border border-border bg-surface p-4">

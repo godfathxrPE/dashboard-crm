@@ -113,6 +113,38 @@ export interface Membership {
   created_at: string;
 }
 
+// ═══ Sprint 26: Notifications & Invitations ═══
+
+export type NotificationType = 'task_assigned' | 'project_assigned';
+
+/** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
+export type InvitableRole = Exclude<OrgRole, 'owner'>;
+
+export interface Notification {
+  id: string;
+  org_id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  type: NotificationType;
+  entity_type: string;
+  entity_id: string;
+  payload: Json;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface Invitation {
+  id: string;
+  org_id: string;
+  email: string;
+  role: InvitableRole;
+  token: string;
+  invited_by: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -457,6 +489,27 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['memberships']['Insert']>;
+      };
+      notifications: {
+        Row: Notification;
+        Insert: Omit<Notification, 'id' | 'created_at' | 'read_at'> & {
+          id?: string;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Pick<Notification, 'read_at'>>;
+      };
+      invitations: {
+        Row: Invitation;
+        Insert: Omit<Invitation, 'id' | 'token' | 'expires_at' | 'accepted_at' | 'created_at'> & {
+          id?: string;
+          token?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['invitations']['Insert']>;
       };
     };
   };

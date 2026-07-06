@@ -7,6 +7,7 @@ import { useThemeStore, THEMES, type Theme } from '@/lib/stores/theme-store';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { cn } from '@/lib/utils/cn';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useState, useRef, useEffect } from 'react';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -92,6 +93,9 @@ export function ScandiContentHeader() {
             ⌘K
           </kbd>
         </button>
+
+        {/* Notifications */}
+        <NotificationBell />
 
         {/* Drawer toggle */}
         <DrawerToggle />

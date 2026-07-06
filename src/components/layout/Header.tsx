@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import { cn } from '@/lib/utils/cn';
 import { useState, useRef, useEffect } from 'react';
 import { StatusBeacon } from '@/components/shared/StatusBeacon';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { useAlerts } from '@/lib/hooks/use-alerts';
 
 const THEME_META: Record<Theme, { label: string; swatch: string }> = {
@@ -69,6 +70,9 @@ export function Header() {
             ⌘K
           </kbd>
         </button>
+
+        {/* Notifications */}
+        <NotificationBell />
 
         {/* Status beacon */}
         <StatusBeacon alerts={alerts} />
