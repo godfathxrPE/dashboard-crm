@@ -4,7 +4,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { DealStage } from '@/lib/validators/project';
+import type { UnmetRequirement } from '@/types/database';
 import { logActivity } from './use-activity-log';
+
+// ═══════════════════════════════════════════════════════
+// Sprint 27: разбор ошибки стадийного гейта
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Если мутация стадии упала на enforcement-триггере (миграция 027), достаём
+ * список незакрытых требований из DETAIL. Возвращает null для любой другой
+ * ошибки — вызывающий отличает «переход заблокирован» от прочих сбоев.
+ * Rollback optimistic-обновления делает onError самого хука — не ломаем.
+ */
+export function parseStageGateError(err: unknown): UnmetRequirement[] | null {
+  if (!err || typeof err !== 'object') return null;
+  const e = err as { message?: string; details?: string | null };
+  if (e.message !== 'stage_gate_failed') return null;
+  try {
+    const parsed = JSON.parse(e.details ?? '[]');
+    return Array.isArray(parsed) ? (parsed as UnmetRequirement[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // Types — маппинг на таблицу `projects` из Supabase
@@ -313,13 +336,25 @@ export function useMoveProject() {
 
       update.mutate({ id, ...extra });
     },
-    /** Sprint 1.5: move by stage_id + optional legacy stage for backward compat */
-    moveToStageId: (id: string, stageId: string, legacyStage?: DealStage | null) => {
-      update.mutate({
-        id,
-        stage_id: stageId,
-        ...(legacyStage !== undefined ? { stage: legacyStage } : {}),
-      });
+    /**
+     * Sprint 1.5: move by stage_id + optional legacy stage for backward compat.
+     * Sprint 27: options пробрасываются в mutate — вызывающий ловит отказ гейта
+     * (parseStageGateError) поверх встроенного optimistic-rollback хука.
+     */
+    moveToStageId: (
+      id: string,
+      stageId: string,
+      legacyStage?: DealStage | null,
+      options?: { onError?: (err: unknown) => void; onSuccess?: () => void },
+    ) => {
+      update.mutate(
+        {
+          id,
+          stage_id: stageId,
+          ...(legacyStage !== undefined ? { stage: legacyStage } : {}),
+        },
+        options,
+      );
     },
   };
 }

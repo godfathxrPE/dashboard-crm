@@ -25,14 +25,17 @@ import {
   Loader2,
   FolderKanban,
   X,
+  Lock,
 } from 'lucide-react';
 import {
   useProjects,
   useMoveProject,
   useDeleteProject,
   useUpdateProject,
+  parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
+import type { UnmetRequirement } from '@/types/database';
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -379,6 +382,8 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   const [nextActionPrompt, setNextActionPrompt] = useState<Project | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('created_at');
+  // Sprint 27: отказ стадийного гейта — блокирующий баннер со списком требований
+  const [gateBlock, setGateBlock] = useState<{ name: string; unmet: UnmetRequirement[] } | null>(null);
 
   // Sprint W1a: авто-скрытие мягкой подсказки «запланируй шаг»
   useEffect(() => {
@@ -386,6 +391,19 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     const t = setTimeout(() => setNextActionPrompt(null), 8000);
     return () => clearTimeout(t);
   }, [nextActionPrompt]);
+
+  // Sprint 27: авто-скрытие баннера блокировки (дольше — надо прочитать список)
+  useEffect(() => {
+    if (!gateBlock) return;
+    const t = setTimeout(() => setGateBlock(null), 10000);
+    return () => clearTimeout(t);
+  }, [gateBlock]);
+
+  // Sprint 27: onError для перемещений — «переход заблокирован» вместо тихого rollback
+  const onMoveError = (name: string) => (err: unknown) => {
+    const unmet = parseStageGateError(err);
+    if (unmet) setGateBlock({ name, unmet });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -508,7 +526,9 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
       const stageId = String(over.id).slice(6);
       const targetStage = pipelineStages.find((s) => s.id === stageId);
       if (!targetStage || project.stage_id === targetStage.id) return;
-      moveToStageId(project.id, targetStage.id, mapToLegacyStage(targetStage, project.direction));
+      moveToStageId(project.id, targetStage.id, mapToLegacyStage(targetStage, project.direction), {
+        onError: onMoveError(project.name),
+      });
       const todayStage = new Date(new Date().toDateString());
       if (!project.next_action_date || new Date(project.next_action_date) < todayStage) {
         setNextActionPrompt(project);
@@ -549,7 +569,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     const targetStage = targetCol.stages[0];
 
     const legacyStage = mapToLegacyStage(targetStage, project.direction);
-    moveToStageId(project.id, targetStage.id, legacyStage);
+    moveToStageId(project.id, targetStage.id, legacyStage, { onError: onMoveError(project.name) });
 
     // Sprint W1a: мягкая подсказка запланировать следующий шаг после переноса,
     // если дата шага пустая или в прошлом (drop-target — всегда активная фаза).
@@ -572,7 +592,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     const nextStage = pipelineStages.find((s) => s.order_index === currentStage.order_index + 1 && !s.is_won && !s.is_lost);
     if (!nextStage) return;
     const legacyStage = mapToLegacyStage(nextStage, p.direction);
-    moveToStageId(id, nextStage.id, legacyStage);
+    moveToStageId(id, nextStage.id, legacyStage, { onError: onMoveError(p.name) });
   }
   // Клиентская навигация: window.location.href давал полную перезагрузку
   // (первый клик «обновлял» страницу, не переходя на сделку)
@@ -743,6 +763,40 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
           >
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Sprint 27: блокирующий баннер стадийного гейта — карточка уже вернулась
+          на место (optimistic rollback хука), показываем «что доделать» */}
+      {gateBlock && (
+        <div
+          role="alert"
+          className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,26rem)] -translate-x-1/2 animate-appear
+                     rounded-lg border border-red/40 bg-surface px-4 py-3 elevation-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <Lock size={15} className="mt-0.5 shrink-0 text-red" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-text-main">
+                Переход заблокирован — «{gateBlock.name}»
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {gateBlock.unmet.map((r, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-[13px] text-text-dim">
+                    <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
+                    <span>{r.hint}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setGateBlock(null)}
+              aria-label="Скрыть"
+              className="rounded p-0.5 text-text-mute transition-colors hover:bg-surface2"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
     </>

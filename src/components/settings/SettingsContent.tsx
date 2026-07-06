@@ -4,6 +4,7 @@ import { Settings, Palette, Database, Upload, ExternalLink } from 'lucide-react'
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
+import { GatesSection } from '@/components/settings/GatesSection';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import type { OrgRole } from '@/types/database';
 
@@ -63,6 +64,9 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Team (owner/admin only) */}
         <TeamSection />
+
+        {/* Stage gates (owner/admin only) */}
+        <GatesSection />
 
         {/* Theme */}
         <div className="rounded-xl border border-border bg-surface p-4">

@@ -29,8 +29,10 @@ import {
   useUpdateProject,
   useDeleteProject,
   useMoveProject,
+  parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
+import type { UnmetRequirement } from '@/types/database';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
 import { useTasks } from '@/lib/hooks/use-tasks';
@@ -50,6 +52,7 @@ import {
 import { StackedPipeline } from './StackedPipeline';
 import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
+import { StageReadiness } from './StageReadiness';
 import { ProjectFiles } from './ProjectFiles';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
@@ -367,6 +370,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { moveToStageId } = useMoveProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
 
+  // Sprint 27: отказ стадийного гейта при переходе с детальной карточки
+  const [gateBlock, setGateBlock] = useState<UnmetRequirement[] | null>(null);
+  const onGateError = (err: unknown) => {
+    const unmet = parseStageGateError(err);
+    if (unmet) setGateBlock(unmet);
+  };
+
   const { data: allTasks = [] } = useTasks();
   const { data: allCalls = [] } = useCalls();
   const { data: allMeetings = [] } = useMeetings();
@@ -511,7 +521,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   <button
                     onClick={() => {
                       if (!confirm(`Отметить «${project.name}» выигранной?`)) return;
-                      moveToStageId(project.id, wonStage.id, mapToLegacyStage(wonStage, project.direction));
+                      moveToStageId(project.id, wonStage.id, mapToLegacyStage(wonStage, project.direction), { onError: onGateError });
                     }}
                     className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
                                transition-colors hover:bg-green-l"
@@ -636,7 +646,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               }
 
               const legacyStage = mapToLegacyStage(targetStageObj, project.direction);
-              moveToStageId(project.id, newStageId, legacyStage);
+              moveToStageId(project.id, newStageId, legacyStage, { onError: onGateError });
             }}
           />
         </div>
@@ -661,6 +671,36 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* Focus panel — рабочая зона «что дальше»; только для активных сделок */}
       {project.status === 'open' && <DealFocusPanel project={project} />}
+
+      {/* Sprint 27: отказ гейта при переходе стадии с детальной карточки */}
+      {gateBlock && (
+        <div role="alert" className="mb-4 rounded-lg border border-red/40 bg-red/5 p-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-text-main">Переход заблокирован</p>
+              <ul className="mt-1.5 space-y-1">
+                {gateBlock.map((r, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-[13px] text-text-dim">
+                    <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
+                    <span>{r.hint}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setGateBlock(null)}
+              aria-label="Скрыть"
+              className="rounded px-1 text-sm leading-none text-text-mute transition-colors hover:bg-surface2"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) */}
+      {project.status === 'open' && <StageReadiness project={project} />}
 
       {/* Info grid */}
       <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

@@ -41,6 +41,55 @@ export interface PipelineStage {
   is_lost: boolean;
 }
 
+// ═══ Sprint 27: Stage gates (Blueprint v1) ═══
+
+export type RequirementType = 'field' | 'file';
+
+/**
+ * Whitelisted deal columns for field-requirements.
+ * MUST stay in sync with the CASE whitelist in `check_stage_requirements()`
+ * (migration 027) and `GATE_FIELD_COLUMNS` (lib/constants/stage-gates.ts).
+ */
+export type GateFieldColumn =
+  | 'budget'
+  | 'company_id'
+  | 'contact_id'
+  | 'next_step'
+  | 'deadline'
+  | 'probability'
+  | 'direction'
+  | 'next_action_date';
+
+export interface StageRequirementFieldConfig {
+  column: GateFieldColumn;
+}
+
+export interface StageRequirementFileConfig {
+  min_count?: number;
+  label?: string;
+}
+
+export type StageRequirementConfig = StageRequirementFieldConfig | StageRequirementFileConfig;
+
+export interface StageRequirement {
+  id: string;
+  org_id: string;
+  pipeline_id: string;
+  stage_id: string;
+  requirement_type: RequirementType;
+  config: StageRequirementConfig;
+  error_hint: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** Один незакрытый пункт — элемент массива, который отдаёт check_stage_requirements(). */
+export interface UnmetRequirement {
+  type: RequirementType;
+  config: StageRequirementConfig;
+  hint: string;
+}
+
 // ═══ Sprint 2: Leads ═══
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';
@@ -510,6 +559,15 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['invitations']['Insert']>;
+      };
+      stage_requirements: {
+        Row: StageRequirement;
+        Insert: Omit<StageRequirement, 'id' | 'created_at'> & {
+          id?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['stage_requirements']['Insert']>;
       };
     };
   };
