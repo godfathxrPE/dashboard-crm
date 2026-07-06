@@ -5,6 +5,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { GatesSection } from '@/components/settings/GatesSection';
+import { AutomationsSection } from '@/components/settings/AutomationsSection';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import type { OrgRole } from '@/types/database';
 
@@ -67,6 +68,9 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Stage gates (owner/admin only) */}
         <GatesSection />
+
+        {/* Automations (owner/admin only) */}
+        <AutomationsSection />
 
         {/* Theme */}
         <div className="rounded-xl border border-border bg-surface p-4">

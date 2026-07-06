@@ -104,6 +104,55 @@ export interface UnmetRequirement {
   hint: string;
 }
 
+// ═══ Sprint 29: Automation v1 (триггер → действие) ═══
+
+/** v1: единственный триггер — вход в стадию. */
+export type AutomationTriggerType = 'stage_entered';
+/** v1: единственное действие — создать задачу. */
+export type AutomationActionType = 'create_task';
+/** Кому назначить создаваемую задачу. */
+export type AutomationAssignee = 'deal_owner' | 'deal_creator';
+
+export interface AutomationTriggerConfig {
+  pipeline_id: string;
+  stage_id: string;
+}
+
+/**
+ * Конфиг действия create_task. lane/priority/assignee — с whitelist на стороне
+ * SQL-функции run_stage_automations() (см. миграцию 029); значения вне списка
+ * там заменяются на дефолты 'now'/'normal'/deal_owner.
+ */
+export interface AutomationCreateTaskConfig {
+  task_text: string;           // поддерживает подстановку {deal} → имя сделки
+  assignee: AutomationAssignee;
+  lane: TaskLane;
+  priority: TaskPriority;
+  due_in_days: number;
+}
+
+export interface AutomationRule {
+  id: string;
+  org_id: string;
+  name: string;
+  trigger_type: AutomationTriggerType;
+  trigger_config: AutomationTriggerConfig;
+  action_type: AutomationActionType;
+  action_config: AutomationCreateTaskConfig;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  rule_id: string;
+  org_id: string;
+  project_id: string;
+  stage_id: string;
+  task_id: string | null;
+  fired_at: string;
+}
+
 // ═══ Sprint 2: Leads ═══
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';
@@ -588,6 +637,24 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['stage_requirements']['Insert']>;
+      };
+      automation_rules: {
+        Row: AutomationRule;
+        Insert: Omit<AutomationRule, 'id' | 'created_at'> & {
+          id?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['automation_rules']['Insert']>;
+      };
+      automation_runs: {
+        Row: AutomationRun;
+        Insert: Omit<AutomationRun, 'id' | 'fired_at' | 'task_id'> & {
+          id?: string;
+          task_id?: string | null;
+          fired_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['automation_runs']['Insert']>;
       };
     };
   };
