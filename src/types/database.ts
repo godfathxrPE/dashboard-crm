@@ -9,6 +9,20 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+// ═══ Sprint 28: AI-саммари звонков/встреч ═══
+// Пишется Edge Function `ai-summarize`. Рендерится ТОЛЬКО как текст (см. security-контур).
+export interface AiSummary {
+  summary: string;
+  key_points: string[];
+  risks: string[];
+  suggested_next_step: string;
+  meta: {
+    model: string;
+    generated_by: string;
+    input_chars: number;
+  };
+}
+
 export type DealStage =
   | 'new_lead' | 'qualification' | 'waiting_materials' | 'preparing_kp'
   | 'kp_sent' | 'kp_review' | 'preparing_docs' | 'cz_approval'
@@ -380,6 +394,8 @@ export interface Database {
           next_step: string | null;
           agreements: string | null;
           duration_s: number | null;
+          ai_summary: AiSummary | null;
+          ai_summary_at: string | null;
           created_by: string | null;
           org_id: string;
           created_at: string;
@@ -409,6 +425,9 @@ export interface Database {
           company_id: string | null;
           contact_id: string | null;
           notes: string | null;
+          next_step: string | null;
+          ai_summary: AiSummary | null;
+          ai_summary_at: string | null;
           created_by: string | null;
           org_id: string;
           created_at: string;
@@ -423,6 +442,7 @@ export interface Database {
           company_id?: string | null;
           contact_id?: string | null;
           notes?: string | null;
+          next_step?: string | null;
           org_id?: string;
         };
         Update: Partial<Database['public']['Tables']['meetings']['Insert']>;

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import { logActivity } from './use-activity-log';
+import type { AiSummary } from '@/types/database';
 
 export interface Meeting {
   id: string;
@@ -17,6 +18,9 @@ export interface Meeting {
   notes: string | null;
   /** Миграция 020: следующий шаг по итогам встречи */
   next_step: string | null;
+  /** Sprint 28: AI-резюме встречи */
+  ai_summary: AiSummary | null;
+  ai_summary_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -109,6 +113,8 @@ export function useCreateMeeting() {
         contact_id: newItem.contact_id ?? null,
         notes: newItem.notes ?? null,
         next_step: newItem.next_step ?? null,
+        ai_summary: null,
+        ai_summary_at: null,
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

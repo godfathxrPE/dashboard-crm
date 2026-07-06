@@ -10,6 +10,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { AiSummaryPanel } from '@/components/shared/AiSummaryPanel';
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<MeetingFormValues>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<MeetingFormValues>({
     resolver: zodResolver(meetingFormSchema),
   });
 
@@ -159,6 +160,18 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
             <textarea {...register('notes')} rows={3} placeholder="Заметки о встрече..."
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
+
+          {/* AI-резюме (только в режиме редактирования — нужен id сущности) */}
+          {editMeeting && (
+            <AiSummaryPanel
+              entityType="meeting"
+              entityId={editMeeting.id}
+              aiSummary={editMeeting.ai_summary}
+              aiSummaryAt={editMeeting.ai_summary_at}
+              hasNotes={!!watch('notes')?.trim()}
+              onApplyNextStep={(step) => setValue('next_step', step, { shouldDirty: true })}
+            />
+          )}
 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Следующий шаг</label>

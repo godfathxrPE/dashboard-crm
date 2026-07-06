@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { CallStatus } from '@/lib/validators/call';
 import { logActivity } from './use-activity-log';
+import type { AiSummary } from '@/types/database';
 
 export interface Call {
   id: string;
@@ -16,6 +17,9 @@ export interface Call {
   next_step: string | null;
   agreements: string | null;
   duration_s: number | null;
+  /** Sprint 28: AI-резюме звонка */
+  ai_summary: AiSummary | null;
+  ai_summary_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -113,6 +117,8 @@ export function useCreateCall() {
         next_step: newItem.next_step ?? null,
         agreements: newItem.agreements ?? null,
         duration_s: newItem.duration_s ?? null,
+        ai_summary: null,
+        ai_summary_at: null,
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

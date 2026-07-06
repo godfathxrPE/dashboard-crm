@@ -10,6 +10,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
+import { AiSummaryPanel } from '@/components/shared/AiSummaryPanel';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -62,7 +63,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   const { data: projects } = useProjects();
   const isProjectActive = useIsProjectActive();
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),
   });
 
@@ -175,6 +176,17 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
           {/* Section divider with expand toggle */}
           <DetailsSection register={register} />
 
+          {/* AI-резюме (только в режиме редактирования — нужен id сущности) */}
+          {editCall && (
+            <AiSummaryPanel
+              entityType="call"
+              entityId={editCall.id}
+              aiSummary={editCall.ai_summary}
+              aiSummaryAt={editCall.ai_summary_at}
+              hasNotes={!!watch('agreements')?.trim()}
+              onApplyNextStep={(step) => setValue('next_step', step, { shouldDirty: true })}
+            />
+          )}
 
           {/* Next step */}
           <div>

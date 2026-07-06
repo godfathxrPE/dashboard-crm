@@ -1,0 +1,8 @@
+# Supabase config — Sprint 28
+# Edge Function ai-summarize работает под JWT вызывающего юзера.
+# verify_jwt = true: шлюз отклоняет запросы без валидного JWT ещё до функции
+# (defense-in-depth); внутри функция дополнительно требует реального юзера
+# (auth.getUser) — анонимный ключ до записи не доходит.
+
+[functions.ai-summarize]
+verify_jwt = true
