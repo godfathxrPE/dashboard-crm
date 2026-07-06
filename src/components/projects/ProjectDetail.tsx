@@ -438,6 +438,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
   const nextStage = project.stage ? getNextStage(project.stage) : null;
   const prevStage = project.stage ? getPrevStage(project.stage) : null;
+  // S29.1: «живой» контур стадии — из stage_id (pipeline_stages), не legacy enum.
+  const headerStage = allPipelineStages?.find((s) => s.id === project.stage_id) ?? null;
+  const headerProb = headerStage?.probability ?? stageConfig?.probability ?? null;
 
   function handleAdvance() {
     if (!project) return;
@@ -486,10 +489,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             <CompletenessBadge project={project} />
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${stageConfig && stageConfig.probability > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${headerProb != null && headerProb > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
               {(() => {
-                const pStage = allPipelineStages?.find((s) => s.id === project.stage_id);
-                if (pStage) return `${pStage.name} · ${pStage.probability ?? 0}%`;
+                // S29.1: бейдж — из stage_id (живой контур); legacy STAGE_CONFIG только как fallback.
+                if (headerStage) return `${headerStage.name} · ${headerStage.probability ?? 0}%`;
                 if (stageConfig) return `${stageConfig.label} · ${stageConfig.probability}%`;
                 return '—';
               })()}
@@ -652,18 +655,28 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* 3-Track Pipeline — IIoT only (legacy sub-detail view) */}
-      {project.direction === 'iiot' && project.stage && (
+      {/* Multi-track Pipeline — IIoT only. S29.1: на stage_id, гейт-баннер переиспользован. */}
+      {project.direction === 'iiot' && project.pipeline_id && project.stage_id && (
         <div className="mb-6">
           <StackedPipeline
-            currentStage={project.stage}
-            onStageClick={(stage) => {
-              const targetOrder = STAGE_CONFIG[stage].order;
-              const currentOrder = STAGE_CONFIG[project.stage!].order;
-              if (targetOrder < currentOrder) {
-                if (!confirm(`Вернуть на стадию «${STAGE_CONFIG[stage].label}»?`)) return;
+            pipelineId={project.pipeline_id}
+            currentStageId={project.stage_id}
+            readOnly={project.status === 'won' || project.status === 'lost'}
+            onStageClick={(newStageId) => {
+              if (!allPipelineStages) return;
+              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
+              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
+              if (!currentStageObj || !targetStageObj) return;
+              if (targetStageObj.order_index === currentStageObj.order_index) return;
+
+              // Confirm on backward move
+              if (targetStageObj.order_index < currentStageObj.order_index) {
+                if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
               }
-              updateProject.mutate({ id: project.id, stage });
+
+              setGateBlock(null);
+              // S29.1: пишем ТОЛЬКО stage_id — legacy `stage` из чеврона больше не трогаем.
+              moveToStageId(project.id, newStageId, undefined, { onError: onGateError });
             }}
           />
         </div>

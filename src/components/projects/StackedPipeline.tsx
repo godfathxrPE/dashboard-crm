@@ -1,122 +1,136 @@
 'use client';
 
+import { useMemo } from 'react';
 import { cn } from '@/lib/utils/cn';
-import { STAGE_CONFIG, type DealStage } from '@/lib/validators/project';
+import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import type { PipelineStage } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
-// 3-Track Pipeline — 11 stages across 3 tracks
-// Uses inline styles for solid (non-transparent) backgrounds
+// Multi-track pipeline (детальная страница IIoT) — Sprint 29.1
+//
+// Источник истины — pipeline_stages текущей воронки сделки, а НЕ legacy enum.
+// Треки = phase_group (attraction/working/approval/closing), внутри трека —
+// order_index. Никакого хардкода названий стадий. Клик пишет stage_id (через
+// onStageClick → moveToStageId в родителе), legacy `stage` этим компонентом
+// больше не трогается.
 // ═══════════════════════════════════════════════════════
 
-interface TrackStage {
-  key: DealStage;
-  label: string;
-}
+const PHASE_LABELS: Record<string, string> = {
+  attraction: 'Привлечение',
+  working: 'Проработка',
+  approval: 'Согласование',
+  closing: 'Закрытие',
+};
 
-interface Track {
-  id: string;
-  label: string;
-  stages: TrackStage[];
-  dot: string;         // CSS var for dot + header text (насыщенный, не на пастели)
-  doneText: string;    // CSS var for done-text цвет (AA на doneBg/пастели, тон трека)
-  doneBg: string;      // CSS var for solid done background
-  currentBg: string;   // CSS var for solid current background
-}
-
-const TRACKS: Track[] = [
-  {
-    id: 'prep',
-    label: 'Подготовка',
-    dot: 'var(--accent)',
-    doneText: 'var(--accent-text)',
-    doneBg: 'var(--track-prep-done)',
-    currentBg: 'var(--track-prep-current)',
-    stages: [
-      { key: 'new_lead', label: 'Лид' },
-      { key: 'qualification', label: 'Квалификация' },
-      { key: 'waiting_materials', label: 'Материалы' },
-      { key: 'preparing_kp', label: 'Подготовка КП' },
-    ],
-  },
-  {
-    id: 'exp',
-    label: 'Эксперимент',
-    dot: 'var(--purple)',
-    doneText: 'var(--purple-text)',
-    doneBg: 'var(--track-exp-done)',
-    currentBg: 'var(--track-exp-current)',
-    stages: [
-      { key: 'preparing_docs', label: 'Документы' },
-      { key: 'cz_approval', label: 'Согласование ЧЗ' },
-      { key: 'trilateral_meeting', label: 'Встреча 3х' },
-      { key: 'experiment_setup', label: 'Эксперимент' },
-    ],
-  },
-  {
-    id: 'proj',
-    label: 'Проект',
-    dot: 'var(--blue)',
-    doneText: 'var(--blue-text)',
-    doneBg: 'var(--track-proj-done)',
-    currentBg: 'var(--track-proj-current)',
-    stages: [
-      { key: 'contract_review', label: 'Защита КП' },
-      { key: 'contract_signing', label: 'Договор' },
-      { key: 'won', label: 'Запуск проекта' },
-    ],
-  },
-];
-
-// All stage keys used in pipeline (11 total)
-const ALL_PIPELINE_STAGES = TRACKS.flatMap((t) => t.stages.map((s) => s.key));
-
-function getTrackState(track: Track, currentStage: DealStage): 'future' | 'active' | 'done' {
-  const currentOrder = STAGE_CONFIG[currentStage]?.order ?? -1;
-  const firstOrder = STAGE_CONFIG[track.stages[0].key].order;
-  const lastOrder = STAGE_CONFIG[track.stages[track.stages.length - 1].key].order;
-
-  if (currentStage === 'won') return 'done';
-  if (currentOrder > lastOrder) return 'done';
-  if (currentOrder >= firstOrder && currentOrder <= lastOrder) return 'active';
-  return 'future';
-}
+// Цвет трека — только для заголовка/точки (сегменты нейтральны, тема-безопасно,
+// как в DealProgressBar). Ключ — phase_group; fallback на accent.
+const PHASE_COLOR: Record<string, string> = {
+  attraction: 'var(--track-prep-current)',
+  working: 'var(--track-exp-current)',
+  approval: 'var(--track-nego-current, var(--track-exp-current))',
+  closing: 'var(--track-proj-current)',
+};
 
 interface StackedPipelineProps {
-  currentStage: DealStage;
-  onStageClick?: (stage: DealStage) => void;
+  pipelineId: string;
+  currentStageId: string;
+  readOnly?: boolean;
+  onStageClick?: (stageId: string) => void;
 }
 
-export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineProps) {
-  const currentOrder = STAGE_CONFIG[currentStage]?.order ?? 0;
-  const isTerminal = currentStage === 'won' || currentStage === 'lost';
+interface TrackGroup {
+  key: string;
+  label: string;
+  color: string;
+  stages: PipelineStage[];
+}
 
-  // Overall progress (11 stages)
-  const totalStages = ALL_PIPELINE_STAGES.length;
-  const completedStages = currentStage === 'won'
-    ? totalStages
-    : ALL_PIPELINE_STAGES.filter((s) => STAGE_CONFIG[s].order < currentOrder).length + 1;
-  const pct = Math.round((Math.min(completedStages, totalStages) / totalStages) * 100);
+export function StackedPipeline({
+  pipelineId,
+  currentStageId,
+  readOnly = false,
+  onStageClick,
+}: StackedPipelineProps) {
+  const allStages = useStagesForPipeline(pipelineId);
+
+  // Активные стадии (без терминалов won/lost), по order_index.
+  const stages = useMemo(
+    () =>
+      allStages
+        .filter((s) => !s.is_won && !s.is_lost)
+        .sort((a, b) => a.order_index - b.order_index),
+    [allStages],
+  );
+
+  // Треки — группы phase_group, идущие подряд по order_index (устойчиво к любым
+  // значениям phase_group; неизвестная группа получает свой label = raw-ключ).
+  const tracks = useMemo<TrackGroup[]>(() => {
+    const out: TrackGroup[] = [];
+    for (const s of stages) {
+      const key = s.phase_group ?? '—';
+      const last = out[out.length - 1];
+      if (last && last.key === key) {
+        last.stages.push(s);
+      } else {
+        out.push({
+          key,
+          label: PHASE_LABELS[key] ?? key,
+          color: PHASE_COLOR[key] ?? 'var(--accent)',
+          stages: [s],
+        });
+      }
+    }
+    return out;
+  }, [stages]);
+
+  const currentIndex = stages.findIndex((s) => s.id === currentStageId);
+  const isWon = allStages.some((s) => s.id === currentStageId && s.is_won);
+  const isLost = allStages.some((s) => s.id === currentStageId && s.is_lost);
+  const isTerminal = currentIndex === -1 && (isWon || isLost);
+
+  // Прогресс-бар — производная позиции stage_id (order_index среди активных
+  // стадий), НЕ legacy probability. Won → 100%, lost/неизвестно → 0%.
+  const pct = isWon
+    ? 100
+    : currentIndex >= 0
+      ? Math.round(((currentIndex + 1) / stages.length) * 100)
+      : 0;
+
+  if (stages.length === 0) return null;
+
+  const locked = readOnly || isTerminal;
 
   return (
     <div className="flex flex-col gap-3">
-      {TRACKS.map((track) => {
-        const trackState = getTrackState(track, currentStage);
-        const currentLabel = track.stages.find((s) => s.key === currentStage)?.label;
+      {tracks.map((track) => {
+        const trackHasCurrent = track.stages.some((s) => s.id === currentStageId);
+        const firstOrder = track.stages[0].order_index;
+        const lastOrder = track.stages[track.stages.length - 1].order_index;
+        const currentOrder = stages[currentIndex]?.order_index ?? -1;
+        // Состояние трека для приглушения будущих (относительно активной стадии).
+        const trackState: 'future' | 'active' | 'done' =
+          isWon || (currentOrder >= 0 && currentOrder > lastOrder)
+            ? 'done'
+            : trackHasCurrent
+              ? 'active'
+              : currentOrder >= 0 && currentOrder >= firstOrder
+                ? 'active'
+                : 'future';
 
         return (
-          <div key={track.id} className={trackState === 'future' ? 'opacity-50' : ''}>
-            {/* Track header */}
+          <div key={track.key} className={trackState === 'future' ? 'opacity-50' : ''}>
+            {/* Заголовок трека */}
             <div className="mb-1 flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: track.dot }} />
-              <span className="text-[11px] font-medium" style={{ color: track.dot }}>
+              <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
+              <span className="text-[11px] font-medium" style={{ color: track.color }}>
                 {track.label}
               </span>
-              {trackState === 'active' && currentLabel && (
+              {trackHasCurrent && !locked && (
                 <span
                   className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                  style={{ background: track.doneBg, color: track.doneText }}
+                  style={{ background: 'var(--accent-l)', color: 'var(--accent)' }}
                 >
-                  {currentLabel}
+                  {track.stages.find((s) => s.id === currentStageId)?.name}
                 </span>
               )}
               {trackState === 'done' && (
@@ -124,52 +138,34 @@ export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineP
               )}
             </div>
 
-            {/* Chevron bar */}
+            {/* Чеврон-бар трека */}
             <div className="flex h-9 overflow-hidden rounded-md">
               {track.stages.map((stage, i) => {
-                const stageOrder = STAGE_CONFIG[stage.key].order;
+                const globalIdx = stages.findIndex((s) => s.id === stage.id);
+                const isFirst = i === 0;
                 const isLast = i === track.stages.length - 1;
 
                 let state: 'done' | 'current' | 'future';
-                if (isTerminal && currentStage === 'won') {
+                if (locked) {
+                  state = isWon ? 'done' : 'future';
+                } else if (globalIdx < currentIndex) {
                   state = 'done';
-                } else if (stageOrder < currentOrder) {
-                  state = 'done';
-                } else if (stage.key === currentStage) {
+                } else if (globalIdx === currentIndex) {
                   state = 'current';
                 } else {
                   state = 'future';
                 }
 
-                const bg = state === 'done' ? track.doneBg
-                  : state === 'current' ? track.currentBg
-                  : 'var(--surface2)';
-                const color = state === 'done' ? track.doneText
-                  : state === 'current' ? 'white'
-                  : 'var(--text-mute)';
-
                 return (
-                  <div
-                    key={stage.key}
-                    onClick={() => !isTerminal && onStageClick?.(stage.key)}
-                    className={cn(
-                      'relative flex flex-1 items-center justify-center px-1 pl-3',
-                      'text-[11px] font-medium whitespace-nowrap',
-                      'transition-[filter] duration-150',
-                      !isTerminal && 'cursor-pointer hover:brightness-[0.92]',
-                    )}
-                    style={{ background: bg, color }}
-                  >
-                    <span className="overflow-hidden text-ellipsis">
-                      {stage.label}
-                    </span>
-                    {!isLast && (
-                      <div
-                        className="absolute -right-[7px] top-0 z-[1] h-0 w-0 border-y-[18px] border-l-[7px] border-y-transparent"
-                        style={{ borderLeftColor: bg }}
-                      />
-                    )}
-                  </div>
+                  <Segment
+                    key={stage.id}
+                    stage={stage}
+                    state={state}
+                    isFirst={isFirst}
+                    isLast={isLast}
+                    locked={locked}
+                    onClick={() => onStageClick?.(stage.id)}
+                  />
                 );
               })}
             </div>
@@ -177,7 +173,7 @@ export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineP
         );
       })}
 
-      {/* Overall progress bar */}
+      {/* Общий прогресс */}
       <div className="mt-1 flex items-center gap-3">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2">
           <div
@@ -187,6 +183,61 @@ export function StackedPipeline({ currentStage, onStageClick }: StackedPipelineP
         </div>
         <span className="text-xs font-medium text-text-dim">{pct}%</span>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Один сегмент-чеврон (нейтральная раскраска — тема-безопасно, как DealProgressBar)
+// ═══════════════════════════════════════════════════════
+
+function Segment({
+  stage,
+  state,
+  isFirst,
+  isLast,
+  locked,
+  onClick,
+}: {
+  stage: PipelineStage;
+  state: 'done' | 'current' | 'future';
+  isFirst: boolean;
+  isLast: boolean;
+  locked: boolean;
+  onClick: () => void;
+}) {
+  const arrow = 7; // px — глубина стрелки-выемки
+  const clip =
+    isFirst && isLast
+      ? undefined
+      : isFirst
+        ? `polygon(0 0, calc(100% - ${arrow}px) 0, 100% 50%, calc(100% - ${arrow}px) 100%, 0 100%)`
+        : isLast
+          ? `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${arrow}px 50%)`
+          : `polygon(0 0, calc(100% - ${arrow}px) 0, 100% 50%, calc(100% - ${arrow}px) 100%, 0 100%, ${arrow}px 50%)`;
+
+  return (
+    <div
+      onClick={locked ? undefined : onClick}
+      className={cn(
+        'relative flex flex-1 items-center justify-center px-1 text-[11px] font-medium whitespace-nowrap transition-[filter] duration-150',
+        isFirst ? 'pl-2' : 'pl-3',
+        locked ? 'cursor-default' : 'cursor-pointer hover:brightness-[0.92]',
+      )}
+      style={{
+        clipPath: clip,
+        backgroundColor:
+          state === 'current' ? 'var(--text)' :
+          state === 'done' ? 'var(--border2)' :
+          'var(--surface2)',
+        color:
+          state === 'current' ? 'var(--surface)' :
+          state === 'done' ? 'var(--text-dim)' :
+          'var(--text-mute)',
+      }}
+      title={`${stage.name}${stage.probability != null ? ` (${stage.probability}%)` : ''}`}
+    >
+      <span className="overflow-hidden text-ellipsis">{stage.name}</span>
     </div>
   );
 }

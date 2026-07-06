@@ -17,13 +17,31 @@
       гейт в цепочке) уже проверен при ручном применении.
 
 ## Технические хвосты
-- [ ] **S29.1 — чеврон детальной страницы IIoT → stage_id** (сужение скоупа):
-      legacy-колонку `stage` пишет **только** чеврон-переключатель стадии на
-      детальной странице сделки (`StackedPipeline` в ProjectDetail). **Канбан уже
-      на `stage_id`** — там гейт S27 и автоматизация S29 работают. Значит зазор
-      узкий: перевести один чеврон детальной страницы на `stage_id` — и обе
-      механики (гейт S27 + автоматизация S29, обе на `stage_id`) заработают и на
-      детальной. Реверс-маппинг `stage → stage_id` в БД сознательно не делаем.
+- [x] **S29.1 — чеврон детальной страницы IIoT → stage_id** (done): `StackedPipeline`
+      переписан на `stage_id` (треки из `phase_group` в `pipeline_stages`, без хардкода
+      названий), пишет только `stage_id`, гейт-баннер S27 переиспользован, бейдж
+      стадии/probability на детальной — из `stage_id`. Гейт S27 и автоматизация S29
+      теперь работают и на детальной IIoT. tsc/build чистые.
+
+- [ ] **Легаси-читатели `projects.stage` (переключить на stage_id, S30+)** — после
+      S29.1 чеврон IIoT больше не пишет legacy `stage`, поэтому у сделок, двигаемых
+      чевроном, legacy застывает. Читатели, которые ещё держатся за него (риск
+      застаревания UI-меток; не переключал вслепую — точечная работа):
+      - `ProjectsTable.tsx` — track-фильтры `track_prep/exp/proj` + колонка «трек»
+        через `getTrack(p.stage)` (legacy-only, треков 3 vs 4 phase_group в БД).
+      - `ContactDetailHub.tsx` — фильтр `p.stage !== 'lost'` + метки стадии
+        (`STAGE_CONFIG[p.stage]`).
+      - `CommandPalette.tsx` — sub-строка результата = `p.stage`.
+      - `ProjectCard.tsx` / `ProjectPeekContent.tsx` — метка/probability/цвет фазы
+        с **fallback** на legacy (primary уже stage_id — низкий приоритет).
+      - `ProjectDetail.tsx` — чек-лист готовности `{ key:'stage', filled:!!project.stage }`
+        (заменить на `!!project.stage_id`); dead `handleAdvance/handleRevert`
+        (пишут legacy `stage`, в рендере не вызываются — удалить при выносе).
+- [ ] **Полный вынос legacy `stage` + 3-track хардкода** (после переключения всех
+      читателей): убрать записи legacy из ERP-`DealProgressBar`/`ProjectModal`/
+      lost-handling (сейчас пишут `stage` в синхроне со `stage_id`), затем
+      DROP-кандидат колонки `projects.stage` + enum `deal_stage` + `STAGE_CONFIG`/
+      `stage-mapping` утиль. Реверс-маппинг `stage → stage_id` в БД не делаем.
 - [ ] **Meetings: description не попадает в AI-контекст** (S28, минорно —
       функция берёт только notes).
 - [ ] **Real e2e инвайта** (S26): пригласить реальный второй аккаунт через
