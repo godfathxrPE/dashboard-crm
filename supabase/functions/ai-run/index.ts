@@ -31,7 +31,7 @@ const MAX_OUTPUT_TOKENS = 4096;
 // Смена модели без редеплоя (как AI_SUMMARY_MODEL в S28).
 // Дефолты СВЕРИТЬ с актуальным списком моделей перед деплоем (гейт).
 const MODEL = {
-  sonnet: Deno.env.get('AI_RUN_MODEL_SONNET') ?? 'claude-sonnet-4-6',
+  sonnet: Deno.env.get('AI_RUN_MODEL_SONNET') ?? 'claude-sonnet-5', // сверено с docs 2026-07-07
   haiku: Deno.env.get('AI_RUN_MODEL_HAIKU') ?? 'claude-haiku-4-5-20251001',
 };
 
