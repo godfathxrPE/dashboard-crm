@@ -26,9 +26,13 @@ interface TaskModalProps {
   defaultProjectId?: string | null;
   defaultContactId?: string | null;
   defaultCompanyId?: string | null;
+  /** Préfill текста задачи при создании (напр. action item из AI-протокола) */
+  defaultText?: string | null;
+  /** Préfill дедлайна при создании, YYYY-MM-DDTHH:mm или ISO */
+  defaultDeadline?: string | null;
 }
 
-export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { data: companies } = useCompanies();
@@ -74,18 +78,18 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
       });
     } else {
       reset({
-        text: '',
+        text: defaultText ?? '',
         lane: 'now',
         priority: 'normal',
         project_id: defaultProjectId ?? null,
         company_id: defaultCompanyId ?? null,
         contact_id: defaultContactId ?? null,
-        deadline: null,
+        deadline: defaultDeadline?.slice(0, 16) ?? null,
         remind_min: null,
         assigned_to: null,
       });
     }
-  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, reset]);
+  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, reset]);
 
   function onSubmit(values: TaskFormValues) {
     if (editTask) {

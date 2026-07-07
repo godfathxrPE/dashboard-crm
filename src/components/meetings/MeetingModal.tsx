@@ -11,6 +11,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { AiSummaryPanel } from '@/components/shared/AiSummaryPanel';
+import { AiRunPanel } from '@/components/ai/AiRunPanel';
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -170,6 +171,17 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
               aiSummaryAt={editMeeting.ai_summary_at}
               hasNotes={!!watch('notes')?.trim()}
               onApplyNextStep={(step) => setValue('next_step', step, { shouldDirty: true })}
+            />
+          )}
+
+          {/* AI Hub: анализ по транскрипту (только в режиме редактирования — нужен id) */}
+          {editMeeting && (
+            <AiRunPanel
+              entityType="meeting"
+              entityId={editMeeting.id}
+              defaultCompanyId={editMeeting.company_id}
+              defaultContactId={editMeeting.contact_id}
+              defaultProjectId={editMeeting.project_id}
             />
           )}
 

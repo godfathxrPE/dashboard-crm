@@ -6,3 +6,9 @@
 
 [functions.ai-summarize]
 verify_jwt = true
+
+# Sprint AI-1: generic AI-прогон по транскрипту (ai-run). Тот же контур, что ai-summarize:
+# JWT вызывающего, RLS решает доступ, ключ Anthropic из secrets. Асинхронное исполнение
+# (EdgeRuntime.waitUntil) — статус прогона живёт в таблице ai_runs.
+[functions.ai-run]
+verify_jwt = true

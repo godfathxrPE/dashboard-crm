@@ -23,6 +23,78 @@ export interface AiSummary {
   };
 }
 
+// ═══ Sprint AI-1: AI Hub — transcripts + ai_runs ═══
+// Транскрипт как самостоятельная сущность; ai_runs — журнал прогонов пресетов.
+// result рендерится ТОЛЬКО как текст (тот же security-контур, что AiSummary).
+
+export type TranscriptRow = {
+  id: string;
+  org_id: string;
+  entity_type: 'call' | 'meeting';
+  entity_id: string;
+  source: 'paste' | 'file';
+  content: string | null;
+  storage_path: string | null;
+  char_count: number;
+  created_by: string;
+  created_at: string;
+};
+export type TranscriptInsert = Pick<TranscriptRow, 'entity_type' | 'entity_id' | 'content' | 'char_count'> &
+  Partial<Pick<TranscriptRow, 'source' | 'org_id' | 'created_by'>>;
+
+export type AiRunStatus = 'pending' | 'running' | 'done' | 'error';
+
+export type AiRunRow = {
+  id: string;
+  org_id: string;
+  preset_key: string;
+  entity_type: 'call' | 'meeting';
+  entity_id: string;
+  transcript_id: string;
+  status: AiRunStatus;
+  result: AiRunResult | null;
+  error: string | null;
+  model: string | null;
+  prompt_version: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  duration_ms: number | null;
+  rating: -1 | 1 | null;
+  feedback_note: string | null;
+  created_by: string;
+  created_at: string;
+  finished_at: string | null;
+};
+
+// Union результата по пресетам — renderer выбирается по preset_key прогона.
+export interface ProtocolResult {
+  participants: string[];
+  agenda: string[];
+  discussed: string[];
+  decisions: string[];
+  action_items: { what: string; who: string | null; due: string | null }[];
+  open_questions: string[];
+  meta?: { truncated?: boolean };
+}
+export interface AnalyticNoteResult {
+  client_situation: string;
+  needs: { claim: string; quote: string }[];        // анти-галлюцинация: каждая «боль» с цитатой-основанием
+  stakeholders: { name: string; role: string }[];
+  deal_risks: { claim: string; quote: string }[];   // то же для рисков
+  recommendations: string[];
+  kp_arguments: string[];
+  meta?: { truncated?: boolean };
+}
+export interface SpinReviewResult {
+  counts: { situation: number; problem: number; implication: number; need_payoff: number };
+  examples: { type: 'S' | 'P' | 'I' | 'N'; quote: string }[];
+  missed: string[];
+  next_questions: string[]; // ровно 3
+  score: { value: number; rationale: string };
+  meta?: { truncated?: boolean };
+}
+export type AiRunResult = ProtocolResult | AnalyticNoteResult | SpinReviewResult;
+
 export type DealStage =
   | 'new_lead' | 'qualification' | 'waiting_materials' | 'preparing_kp'
   | 'kp_sent' | 'kp_review' | 'preparing_docs' | 'cz_approval'
@@ -655,6 +727,20 @@ export interface Database {
           fired_at?: string;
         };
         Update: Partial<Database['public']['Tables']['automation_runs']['Insert']>;
+      };
+      transcripts: {
+        Row: TranscriptRow;
+        Insert: TranscriptInsert;
+        Update: Partial<TranscriptInsert>;
+      };
+      ai_runs: {
+        Row: AiRunRow;
+        Insert: Omit<AiRunRow, 'id' | 'created_at' | 'org_id'> & {
+          id?: string;
+          org_id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['ai_runs']['Insert']>;
       };
     };
   };

@@ -11,6 +11,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { AiSummaryPanel } from '@/components/shared/AiSummaryPanel';
+import { AiRunPanel } from '@/components/ai/AiRunPanel';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -185,6 +186,17 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
               aiSummaryAt={editCall.ai_summary_at}
               hasNotes={!!watch('agreements')?.trim()}
               onApplyNextStep={(step) => setValue('next_step', step, { shouldDirty: true })}
+            />
+          )}
+
+          {/* AI Hub: анализ по транскрипту (только в режиме редактирования — нужен id) */}
+          {editCall && (
+            <AiRunPanel
+              entityType="call"
+              entityId={editCall.id}
+              defaultCompanyId={editCall.company_id}
+              defaultContactId={editCall.contact_id}
+              defaultProjectId={editCall.project_id}
             />
           )}
 
