@@ -44,3 +44,4 @@ playwright-report/
 # scratch / verification scripts (Aura theme work — safe to delete)
 _*.mjs
 .~lock.*#
+.claude/
