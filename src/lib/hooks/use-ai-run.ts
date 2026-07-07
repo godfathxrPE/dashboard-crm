@@ -42,7 +42,9 @@ export function useEntityRuns(entityType: AiRunEntity, entityId: string | null) 
     refetchInterval: (query) => {
       const rows = query.state.data as AiRunRow[] | undefined;
       const hasActive = rows?.some((r) => r.status === 'pending' || r.status === 'running');
-      return hasActive ? 60_000 : false;
+      // 3с, пока прогон активен: прогон идёт ~30с, на 60с ощущалось как «зависло»
+      // (Realtime по ai_runs часто не доезжает — walrus не тянет EXISTS в SELECT-политике).
+      return hasActive ? 3_000 : false;
     },
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<AiRunRow[]> => {
