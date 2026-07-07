@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Pencil, Trash2, Mail, Phone, Calendar, CheckSquare,
   Building2, FolderKanban, Loader2, AlertCircle, Plus, X, Link2,
-  ChevronRight, LayoutGrid, Activity,
+  ChevronRight, LayoutGrid, Activity, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
@@ -17,6 +17,7 @@ import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
+import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 
@@ -157,6 +158,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
   const [editingCall, setEditingCall] = useState<typeof contactCalls[number] | null>(null);
+  const [aiCall, setAiCall] = useState<typeof contactCalls[number] | null>(null);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -584,18 +586,20 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                   };
 
                   return (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      onClick={handleOpen}
-                      className="relative -ml-1 flex w-full items-start gap-3 rounded-lg py-2 pl-1 pr-2 text-left transition-colors hover:bg-surface-hover"
+                      className="group/row relative -ml-1 flex items-start gap-3 rounded-lg py-2 pl-1 pr-2 transition-colors hover:bg-surface-hover"
                     >
                       <div
                         className={`absolute -left-[23px] top-[10px] flex h-[14px] w-[14px] items-center justify-center rounded-full bg-${color}-l`}
                       >
                         <Icon size={8} className={`text-${color}`} />
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={handleOpen}
+                        className="min-w-0 flex-1 text-left"
+                      >
                         <p className="text-sm text-text-main">
                           {item.title}
                           {item.detail && (
@@ -603,9 +607,22 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                           )}
                         </p>
                         <p className="mt-0.5 text-xs text-text-mute">{relativeTime(item.date)}</p>
-                      </div>
+                      </button>
+                      {isCall && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const call = contactCalls.find((c) => c.id === item.id);
+                            if (call) setAiCall(call);
+                          }}
+                          aria-label="AI-анализ"
+                          className="mt-0.5 shrink-0 rounded p-0.5 text-text-mute opacity-0 transition-opacity hover:text-accent group-hover/row:opacity-100"
+                        >
+                          <Sparkles size={14} />
+                        </button>
+                      )}
                       <ChevronRight size={14} className="mt-0.5 shrink-0 text-text-mute" />
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -619,6 +636,17 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       <CallModal isOpen={callModalOpen} onClose={() => { setCallModalOpen(false); setEditingCall(null); }} editCall={editingCall} defaultContactId={contactId} />
       <MeetingModal isOpen={meetingModalOpen} onClose={() => setMeetingModalOpen(false)} editMeeting={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
       <TaskModal isOpen={taskModalOpen} onClose={() => setTaskModalOpen(false)} editTask={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
+      {aiCall && (
+        <AiWorkspaceModal
+          isOpen={!!aiCall}
+          onClose={() => setAiCall(null)}
+          entityType="call"
+          entityId={aiCall.id}
+          projectId={aiCall.project_id}
+          companyId={aiCall.company_id}
+          contactId={aiCall.contact_id}
+        />
+      )}
     </div>
   );
 }

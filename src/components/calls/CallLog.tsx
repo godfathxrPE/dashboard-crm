@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Phone, Pencil, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Phone, Pencil, Sparkles, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
@@ -10,12 +11,14 @@ import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { staggerClass } from '@/lib/utils/stagger';
 import { CALL_STATUS_CONFIG, formatDuration, type CallStatus } from '@/lib/validators/call';
 import { CallModal } from './CallModal';
+import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { CallTracker } from './CallTracker';
 import { CheckSquare } from 'lucide-react';
 
 type TabFilter = 'all' | CallStatus;
 
 export function CallLog() {
+  const router = useRouter();
   const { data: calls, isLoading, error } = useCalls();
   const deleteCall = useDeleteCall();
   const updateCall = useUpdateCall();
@@ -23,6 +26,7 @@ export function CallLog() {
   const createTask = useCreateTask();
   const [modalOpen, setModalOpen] = useState(false);
   const [editCall, setEditCall] = useState<Call | null>(null);
+  const [aiCall, setAiCall] = useState<Call | null>(null);
   const [tab, setTab] = useState<TabFilter>('all');
   const [taskSuggestion, setTaskSuggestion] = useState<{ text: string; projectId: string | null } | null>(null);
 
@@ -183,20 +187,32 @@ export function CallLog() {
 
                     {/* Meta */}
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-                      {call.company?.name && (
-                        <span className="flex items-center gap-0.5 text-text-main">
+                      {call.company && (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/companies/${call.company!.id}`)}
+                          className="flex items-center gap-0.5 text-text-main hover:text-accent hover:underline"
+                        >
                           <Building2 size={10} /> {call.company.name}
-                        </span>
+                        </button>
                       )}
                       {call.contact && (
-                        <span className="flex items-center gap-0.5 text-text-dim">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/contacts/${call.contact!.id}`)}
+                          className="flex items-center gap-0.5 text-text-dim hover:text-accent hover:underline"
+                        >
                           <User size={10} /> {call.contact.first_name} {call.contact.last_name}
-                        </span>
+                        </button>
                       )}
-                      {call.project?.name && (
-                        <span className="flex items-center gap-0.5 text-text-dim">
+                      {call.project && (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/projects/${call.project!.id}`)}
+                          className="flex items-center gap-0.5 text-text-dim hover:text-accent hover:underline"
+                        >
                           <FolderKanban size={10} /> {call.project.name}
-                        </span>
+                        </button>
                       )}
                     </div>
 
@@ -232,6 +248,11 @@ export function CallLog() {
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button onClick={() => setAiCall(call)}
+                      aria-label="AI-анализ"
+                      className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+                      <Sparkles size={12} />
+                    </button>
                     <button onClick={() => { setEditCall(call); setModalOpen(true); }}
                       aria-label="Редактировать"
                       className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
@@ -252,6 +273,18 @@ export function CallLog() {
       </div>
 
       <CallModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditCall(null); }} editCall={editCall} onSaved={handleCallSaved} />
+
+      {aiCall && (
+        <AiWorkspaceModal
+          isOpen={!!aiCall}
+          onClose={() => setAiCall(null)}
+          entityType="call"
+          entityId={aiCall.id}
+          projectId={aiCall.project_id}
+          companyId={aiCall.company_id}
+          contactId={aiCall.contact_id}
+        />
+      )}
 
       {/* Task suggestion toast */}
       {taskSuggestion && (

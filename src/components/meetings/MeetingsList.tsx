@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CalendarDays, Plus, Pencil, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
+import { CalendarDays, Plus, Pencil, Sparkles, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -11,6 +11,7 @@ import { staggerClass } from '@/lib/utils/stagger';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { cn } from '@/lib/utils/cn';
 import { MeetingModal } from './MeetingModal';
+import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
 export function MeetingsList() {
@@ -19,6 +20,7 @@ export function MeetingsList() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
+  const [aiMeeting, setAiMeeting] = useState<Meeting | null>(null);
 
   // Toast «создать задачу?» по следующему шагу — паттерн CallLog
   const createTask = useCreateTask();
@@ -85,6 +87,7 @@ export function MeetingsList() {
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
                   onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
+                  onAi={() => setAiMeeting(m)}
                   onDelete={() => handleDelete(m.id)}
                   isUpcoming
                 />
@@ -108,6 +111,7 @@ export function MeetingsList() {
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
                   onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
+                  onAi={() => setAiMeeting(m)}
                   onDelete={() => handleDelete(m.id)}
                 />
               </div>
@@ -122,6 +126,18 @@ export function MeetingsList() {
         editMeeting={editMeeting}
         onSaved={handleMeetingSaved}
       />
+
+      {aiMeeting && (
+        <AiWorkspaceModal
+          isOpen={!!aiMeeting}
+          onClose={() => setAiMeeting(null)}
+          entityType="meeting"
+          entityId={aiMeeting.id}
+          projectId={aiMeeting.project_id}
+          companyId={aiMeeting.company_id}
+          contactId={aiMeeting.contact_id}
+        />
+      )}
 
       {/* Task suggestion toast (как в CallLog) */}
       {taskSuggestion && (
@@ -156,11 +172,13 @@ export function MeetingsList() {
 function MeetingCard({
   meeting,
   onEdit,
+  onAi,
   onDelete,
   isUpcoming = false,
 }: {
   meeting: Meeting;
   onEdit: () => void;
+  onAi: () => void;
   onDelete: () => void;
   isUpcoming?: boolean;
 }) {
@@ -222,6 +240,9 @@ function MeetingCard({
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <button onClick={onAi} aria-label="AI-анализ" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+          <Sparkles size={12} />
+        </button>
         <button onClick={onEdit} aria-label="Редактировать" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
           <Pencil size={12} />
         </button>

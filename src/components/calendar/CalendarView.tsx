@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus, Sparkles } from 'lucide-react';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
@@ -12,6 +12,7 @@ import { Watermark } from '@/components/ui/WatermarkNew';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
+import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 
 interface CalEvent {
   id: string;
@@ -44,6 +45,7 @@ export function CalendarView() {
   const [editCall, setEditCall] = useState<Call | null>(null);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
+  const [aiEvent, setAiEvent] = useState<{ type: 'call' | 'meeting'; id: string } | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -265,7 +267,17 @@ export function CalendarView() {
               <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-mute)', letterSpacing: '0.03em' }}>
                 {typeLabel(ev.type).toUpperCase()}
               </span>
-              {ev.time && <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 'auto' }}>{ev.time}</span>}
+              {(ev.type === 'call' || ev.type === 'meeting') && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setAiEvent({ type: ev.type as 'call' | 'meeting', id: ev.id }); }}
+                  aria-label="AI-анализ"
+                  style={{ marginLeft: 'auto', display: 'inline-flex', padding: 2, color: 'var(--text-mute)', cursor: 'pointer' }}
+                >
+                  <Sparkles size={13} />
+                </button>
+              )}
+              {ev.time && <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: (ev.type === 'call' || ev.type === 'meeting') ? 8 : 'auto' }}>{ev.time}</span>}
             </div>
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{ev.title}</div>
             {ev.sub && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{ev.sub}</div>}
@@ -286,6 +298,14 @@ export function CalendarView() {
       editMeeting={editMeeting}
       defaultDate={selectedDate}
     />
+    {aiEvent && (
+      <AiWorkspaceModal
+        isOpen={!!aiEvent}
+        onClose={() => setAiEvent(null)}
+        entityType={aiEvent.type}
+        entityId={aiEvent.id}
+      />
+    )}
     </div>
   );
 }
