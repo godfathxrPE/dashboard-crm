@@ -156,6 +156,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
+  const [editingCall, setEditingCall] = useState<typeof contactCalls[number] | null>(null);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -342,7 +343,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               <PillAction
                 icon={<Phone size={15} className="text-text-dim" />}
                 label="Звонок"
-                onClick={() => setCallModalOpen(true)}
+                onClick={() => { setEditingCall(null); setCallModalOpen(true); }}
               />
               <PillAction
                 icon={<Calendar size={15} className="text-text-dim" />}
@@ -475,7 +476,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               {upcomingCall ? (() => {
                 const badge = deadlineBadge(upcomingCall.date);
                 return (
-                  <div>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingCall(upcomingCall); setCallModalOpen(true); }}
+                    className="-m-1 rounded-lg p-1 text-left transition-colors hover:bg-surface-hover"
+                  >
                     <p className="text-sm text-text-main">Звонок запланирован</p>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-xs text-text-dim">
@@ -485,12 +490,12 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                         {badge.label}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })() : (
                 <div>
                   <p className="text-xs text-text-mute">Нет запланированных</p>
-                  <button onClick={() => setCallModalOpen(true)}
+                  <button onClick={() => { setEditingCall(null); setCallModalOpen(true); }}
                     className="mt-1.5 flex items-center gap-1 text-xs text-accent hover:underline">
                     <Plus size={10} /> Создать
                   </button>
@@ -569,8 +574,22 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                   const color = isCall ? 'blue' : 'accent';
                   const Icon = isCall ? Phone : FolderKanban;
 
+                  const handleOpen = () => {
+                    if (isCall) {
+                      const call = contactCalls.find((c) => c.id === item.id);
+                      if (call) { setEditingCall(call); setCallModalOpen(true); }
+                    } else {
+                      router.push(`/projects/${item.id}`);
+                    }
+                  };
+
                   return (
-                    <div key={item.id} className="relative flex items-start gap-3 py-2">
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={handleOpen}
+                      className="relative -ml-1 flex w-full items-start gap-3 rounded-lg py-2 pl-1 pr-2 text-left transition-colors hover:bg-surface-hover"
+                    >
                       <div
                         className={`absolute -left-[23px] top-[10px] flex h-[14px] w-[14px] items-center justify-center rounded-full bg-${color}-l`}
                       >
@@ -585,7 +604,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                         </p>
                         <p className="mt-0.5 text-xs text-text-mute">{relativeTime(item.date)}</p>
                       </div>
-                    </div>
+                      <ChevronRight size={14} className="mt-0.5 shrink-0 text-text-mute" />
+                    </button>
                   );
                 })}
               </div>
@@ -596,7 +616,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
       {/* Modals */}
       <ContactModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editContact={contact} />
-      <CallModal isOpen={callModalOpen} onClose={() => setCallModalOpen(false)} editCall={null} defaultContactId={contactId} />
+      <CallModal isOpen={callModalOpen} onClose={() => { setCallModalOpen(false); setEditingCall(null); }} editCall={editingCall} defaultContactId={contactId} />
       <MeetingModal isOpen={meetingModalOpen} onClose={() => setMeetingModalOpen(false)} editMeeting={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
       <TaskModal isOpen={taskModalOpen} onClose={() => setTaskModalOpen(false)} editTask={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
     </div>
