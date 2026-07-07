@@ -45,3 +45,4 @@ playwright-report/
 _*.mjs
 .~lock.*#
 .claude/
+.claude/
