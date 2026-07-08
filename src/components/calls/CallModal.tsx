@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
+import { deriveFromContact } from '@/lib/forms/derive-links';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -84,13 +85,18 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
     [projects, isProjectActive],
   );
 
-  // Автоподстановка компании при пользовательской смене контакта (не на reset):
-  // только если у контакта ровно одна компания И company_id сейчас пуст.
+  // Автоподстановка связей (компания/проект) из контакта — только пустые поля,
+  // не перетирая ручной выбор/явные defaults. Общая логика для onChange и open.
+  const applyDerived = (contactId: string | null | undefined) => {
+    const derived = deriveFromContact(contactId, { contacts, projects, isActiveProject: isProjectActive });
+    if (derived.company_id && !getValues('company_id')) setValue('company_id', derived.company_id, { shouldDirty: true });
+    if (derived.project_id && !getValues('project_id')) setValue('project_id', derived.project_id, { shouldDirty: true });
+  };
+
+  // Ручной выбор контакта (не на reset — onChange зовётся только пользователем).
   const handleContactChange = (val: string | null, onChange: (v: string | null) => void) => {
     onChange(val);
-    if (!val || getValues('company_id')) return;
-    const links = contacts?.find((c) => c.id === val)?.companies ?? [];
-    if (links.length === 1) setValue('company_id', links[0].company_id, { shouldDirty: true });
+    if (val) applyDerived(val);
   };
 
   useEffect(() => {
@@ -115,6 +121,20 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
       });
     }
   }, [editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultDate, reset]);
+
+  // Автоподстановка при ОТКРЫТИИ модалки с контактом (defaultContactId → reset,
+  // а reset onChange не триггерит). Только режим создания; один раз на открытие;
+  // ждём загрузки contacts/projects. applyDerived сам щадит непустые поля, поэтому
+  // явные defaultCompanyId/defaultProjectId не перетираются. Стоит ПОСЛЕ reset-эффекта,
+  // чтобы contact_id уже был проставлен.
+  const derivedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || editCall) { derivedForRef.current = null; return; }
+    const cid = getValues('contact_id');
+    if (!cid || derivedForRef.current === cid) return;
+    applyDerived(cid);
+    derivedForRef.current = cid;
+  }, [isOpen, editCall, contacts, projects, isProjectActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSubmit = async (values: CallFormValues) => {
     try {
