@@ -8,7 +8,6 @@ import {
   ChevronRight, LayoutGrid, Activity, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { createClient } from '@/lib/supabase/client';
 import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -22,6 +21,7 @@ import type { Meeting } from '@/lib/hooks/use-meetings';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 import type { Task } from '@/types/entities';
 import type { TimelineEvent } from '@/types/timeline';
@@ -239,31 +239,15 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
     }
   }
 
-  // Клик по событию ленты → нужная модалка по kind. Звонок/проект — из уже
-  // загруженных данных; встреча/задача — точечная выборка по id (не org-fetch).
-  async function handleOpenEvent(e: TimelineEvent) {
-    switch (e.kind) {
-      case 'call': {
-        const call = contactCalls.find((c) => c.id === e.sourceId);
-        if (call) { setEditingCall(call); setCallModalOpen(true); }
-        break;
-      }
-      case 'project':
-        router.push(`/projects/${e.sourceId}`);
-        break;
-      case 'meeting': {
-        const { data } = await createClient()
-          .from('meetings').select('*, project:projects(id, name)').eq('id', e.sourceId).single();
-        if (data) { setEditingMeeting(data as Meeting); setMeetingModalOpen(true); }
-        break;
-      }
-      case 'task': {
-        const { data } = await createClient()
-          .from('tasks').select('*, project:projects(id, name), company:companies(id, name)').eq('id', e.sourceId).single();
-        if (data) { setEditingTask(data as Task); setTaskModalOpen(true); }
-        break;
-      }
-    }
+  // Клик по событию ленты → общий маппинг kind→действие (openTimelineEvent),
+  // единый для contact/company/deal.
+  function handleOpenEvent(e: TimelineEvent) {
+    void openTimelineEvent(e, {
+      router,
+      onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
+      onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
+      onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+    });
   }
 
   // AI-анализ звонка прямо из ленты (иконка Sparkles) — держит EntityTimeline generic

@@ -1,27 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   ArrowLeft,
   Pencil,
   Trash2,
-  ArrowRight,
   Building2,
   User,
   Calendar,
   Banknote,
-  CheckSquare,
-  Phone,
-  Users,
   Plus,
   Loader2,
   AlertCircle,
   AlertTriangle,
   Clock,
-  MapPin,
-  MessageSquare,
-  ArrowRightLeft,
   Send,
 } from 'lucide-react';
 import {
@@ -34,10 +27,8 @@ import {
 } from '@/lib/hooks/use-projects';
 import type { UnmetRequirement } from '@/types/database';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
-import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
-import { useTasks } from '@/lib/hooks/use-tasks';
-import { useCalls, type Call } from '@/lib/hooks/use-calls';
-import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
+import type { Call } from '@/lib/hooks/use-calls';
+import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
   STAGE_CONFIG,
   dealStages,
@@ -56,18 +47,20 @@ import { StageReadiness } from './StageReadiness';
 import { ProjectFiles } from './ProjectFiles';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
-import { LANE_CONFIG, PRIORITY_CONFIG } from '@/lib/validators/task';
-import { CALL_STATUS_CONFIG, formatDuration } from '@/lib/validators/call';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
-import { useActivityLog, useLogActivity } from '@/lib/hooks/use-activity-log';
+import { useLogActivity } from '@/lib/hooks/use-activity-log';
+import { useQueryClient } from '@tanstack/react-query';
+import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { openTimelineEvent } from '@/lib/timeline/open-event';
+import type { TimelineEvent } from '@/types/timeline';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import type { Task, ActivityLog } from '@/types/entities';
+import type { Task } from '@/types/entities';
 
 
 // ═══════════════════════════════════════════════════════
@@ -158,120 +151,14 @@ function StageProgress({ currentStage }: { currentStage: DealStage }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// Compact cards for related entities
+// Activity Composer — только ВВОД заметки (read-часть теперь в <EntityTimeline>)
+// Комментарий пишется в activity_log; инвалидация ['timeline'] подтягивает
+// его в единую ленту сделки (includeSystem).
 // ═══════════════════════════════════════════════════════
 
-function TaskMiniCard({ task }: { task: Task }) {
-  const lane = LANE_CONFIG[task.lane];
-  const prio = PRIORITY_CONFIG[task.priority];
-
-  return (
-    <div data-card className={`rounded-lg border border-border/50 bg-bg px-3 py-2 ${prio.badge}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-[14px] ${task.lane === 'done' ? 'line-through text-text-mute' : 'text-text-main'}`}>
-          {task.text}
-        </span>
-        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${lane.bg} ${lane.color}`}>
-          {lane.label}
-        </span>
-      </div>
-      {task.deadline && (
-        <div className="mt-1 flex items-center gap-1 text-xs text-text-dim">
-          <Clock size={9} />
-          {new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CallMiniCard({ call }: { call: Call }) {
-  const status = CALL_STATUS_CONFIG[call.status];
-
-  return (
-    <div data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Phone size={11} className="text-text-mute" />
-          <span className="text-sm text-text-main">
-            {call.contact
-              ? `${call.contact.first_name} ${call.contact.last_name}`
-              : call.company?.name ?? 'Звонок'}
-          </span>
-        </div>
-        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${status.bg} ${status.color}`}>
-          {status.label}
-        </span>
-      </div>
-      <div className="mt-1 flex items-center gap-2 text-xs text-text-dim">
-        <span>{new Date(call.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-        {call.duration_s != null && call.duration_s > 0 && (
-          <span>{formatDuration(call.duration_s)}</span>
-        )}
-      </div>
-      {call.agreements && (
-        <p className="mt-1 line-clamp-1 text-xs text-text-dim">{call.agreements}</p>
-      )}
-    </div>
-  );
-}
-
-function MeetingMiniCard({ meeting }: { meeting: Meeting }) {
-  return (
-    <div data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Users size={11} className="text-text-mute" />
-          <span className="text-sm text-text-main">{meeting.title}</span>
-        </div>
-      </div>
-      <div className="mt-1 flex items-center gap-2 text-xs text-text-dim">
-        <span>
-          {new Date(meeting.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-        </span>
-        {meeting.time && <span>{meeting.time.slice(0, 5)}</span>}
-        {meeting.location && (
-          <span className="flex items-center gap-0.5">
-            <MapPin size={8} />
-            {meeting.location}
-          </span>
-        )}
-      </div>
-      {meeting.notes && (
-        <p className="mt-1 line-clamp-1 text-xs text-text-dim">{meeting.notes}</p>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Activity Timeline
-// ═══════════════════════════════════════════════════════
-
-const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
-  stage_change: ArrowRightLeft,
-  call_logged: Phone,
-  task_created: CheckSquare,
-  task_completed: CheckSquare,
-  meeting_scheduled: Calendar,
-  project_updated: Pencil,
-  comment_added: MessageSquare,
-};
-
-const EVENT_COLOR: Record<string, string> = {
-  stage_change: 'text-blue',
-  call_logged: 'text-green',
-  task_created: 'text-purple',
-  task_completed: 'text-purple',
-  meeting_scheduled: 'text-yellow',
-  project_updated: 'text-text-dim',
-  comment_added: 'text-text-mute',
-};
-
-
-function ActivityTimeline({ projectId }: { projectId: string }) {
-  const { data: entries = [] } = useActivityLog(projectId);
+function ActivityComposer({ projectId }: { projectId: string }) {
   const logMutation = useLogActivity();
+  const qc = useQueryClient();
   const [comment, setComment] = useState('');
 
   function handleAddComment() {
@@ -279,77 +166,38 @@ function ActivityTimeline({ projectId }: { projectId: string }) {
     if (!text) return;
     logMutation.mutate(
       { project_id: projectId, event_type: 'comment_added', payload: { text } },
-      { onSuccess: () => setComment('') },
+      {
+        onSuccess: () => {
+          setComment('');
+          qc.invalidateQueries({ queryKey: ['timeline'] });
+        },
+      },
     );
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Clock size={14} className="text-text-dim" />
-        <span className="text-xs font-semibold text-text-main">Хронология</span>
-        <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
-          {entries.length}
-        </span>
-      </div>
-
-      {/* Comment form */}
-      <div className="mb-4 flex gap-2">
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Добавить комментарий..."
-          rows={1}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
-          }}
-          className="flex-1 resize-none rounded-lg border border-border bg-bg px-3 py-1.5
-                     text-sm text-text-main placeholder:text-text-mute
-                     focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        />
-        <button
-          type="button"
-          onClick={handleAddComment}
-          disabled={!comment.trim() || logMutation.isPending}
-          className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white
-                     transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          <Send size={14} />
-        </button>
-      </div>
-
-      {entries.length === 0 ? (
-        <p className="text-xs text-text-mute italic">Пока нет событий</p>
-      ) : (
-        <div data-timeline-scroll className="space-y-0">
-          {entries.map((entry, idx) => {
-            const Icon = EVENT_ICON[entry.event_type] ?? MessageSquare;
-            const color = EVENT_COLOR[entry.event_type] ?? 'text-text-mute';
-            const isLast = idx === entries.length - 1;
-
-            return (
-              <div key={entry.id} className="flex gap-3">
-                {/* Vertical line + icon */}
-                <div className="flex flex-col items-center">
-                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-bg ${color}`}>
-                    <Icon size={12} />
-                  </div>
-                  {!isLast && <div className="w-px flex-1 bg-border" />}
-                </div>
-                {/* Content */}
-                <div className={`pb-4 ${isLast ? '' : ''}`}>
-                  <p className="text-xs text-text-dim leading-relaxed">
-                    {describeEvent(entry)}
-                  </p>
-                  <span className="text-xs text-text-mute">
-                    {relativeTime(entry.created_at)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="mb-4 flex gap-2">
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Добавить комментарий..."
+        rows={1}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
+        }}
+        className="flex-1 resize-none rounded-lg border border-border bg-bg px-3 py-1.5
+                   text-sm text-text-main placeholder:text-text-mute
+                   focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+      <button
+        type="button"
+        onClick={handleAddComment}
+        disabled={!comment.trim() || logMutation.isPending}
+        className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white
+                   transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        <Send size={14} />
+      </button>
     </div>
   );
 }
@@ -377,40 +225,27 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     if (unmet) setGateBlock(unmet);
   };
 
-  const { data: allTasks = [] } = useTasks();
-  const { data: allCalls = [] } = useCalls();
-  const { data: allMeetings = [] } = useMeetings();
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [callModalOpen, setCallModalOpen] = useState(false);
+  const [editingCall, setEditingCall] = useState<Call | null>(null);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
 
-  // Filter related entities
-  const projectTasks = useMemo(
-    () => allTasks.filter((t) => t.project_id === projectId)
-        .sort((a, b) => {
-          // Active first, then by created_at desc
-          if ((a.lane === 'done') !== (b.lane === 'done')) return a.lane === 'done' ? 1 : -1;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        }),
-    [allTasks, projectId],
-  );
-
-  const projectCalls = useMemo(
-    () => allCalls.filter((c) => c.project_id === projectId)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [allCalls, projectId],
-  );
-
-  const projectMeetings = useMemo(
-    () => allMeetings.filter((m) => m.project_id === projectId)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [allMeetings, projectId],
-  );
+  // Клик по событию единой ленты → общий маппинг kind→действие (тот же, что contact/company)
+  function handleOpenEvent(e: TimelineEvent) {
+    void openTimelineEvent(e, {
+      router,
+      onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
+      onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
+      onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+    });
+  }
 
   if (isLoading) {
     return (
@@ -774,109 +609,45 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* ═══ Related: Tasks ═══ */}
-      <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckSquare size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Задачи</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
-              {projectTasks.length}
-            </span>
-          </div>
-          <button
-            onClick={() => setTaskModalOpen(true)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                       text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-          >
-            <Plus size={12} />
-            Задача
-          </button>
-        </div>
-        {projectTasks.length === 0 ? (
-          <p className="text-xs text-text-mute italic">
-            Нет привязанных задач
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            {projectTasks.map((t) => (
-              <TaskMiniCard key={t.id} task={t} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ═══ Related: Calls ═══ */}
-      <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Phone size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Звонки</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
-              {projectCalls.length}
-            </span>
-          </div>
-          <button
-            onClick={() => setCallModalOpen(true)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                       text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-          >
-            <Plus size={12} />
-            Звонок
-          </button>
-        </div>
-        {projectCalls.length === 0 ? (
-          <div>
-            <p className="text-xs text-text-mute italic">Нет связанных звонков</p>
-            <button onClick={() => setCallModalOpen(true)} className="empty-state-action">+ Записать первый звонок</button>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {projectCalls.map((c) => (
-              <CallMiniCard key={c.id} call={c} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ═══ Related: Meetings ═══ */}
-      <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Встречи</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
-              {projectMeetings.length}
-            </span>
-          </div>
-          <button
-            onClick={() => setMeetingModalOpen(true)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                       text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-          >
-            <Plus size={12} />
-            Встреча
-          </button>
-        </div>
-        {projectMeetings.length === 0 ? (
-          <div>
-            <p className="text-xs text-text-mute italic">Нет запланированных встреч</p>
-            <button onClick={() => setMeetingModalOpen(true)} className="empty-state-action">+ Запланировать встречу</button>
-          </div>
-        ) : (
-          <div className="space-y-1.5">
-            {projectMeetings.map((m) => (
-              <MeetingMiniCard key={m.id} meeting={m} />
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* ═══ Files ═══ */}
       <ProjectFiles projectId={projectId} />
 
-      {/* ═══ Activity Timeline ═══ */}
-      <ActivityTimeline projectId={projectId} />
+      {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
+      <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-text-dim" />
+            <span className="text-xs font-semibold text-text-main">Активность</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => { setEditingTask(null); setTaskModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Plus size={12} /> Задача
+            </button>
+            <button
+              onClick={() => { setEditingCall(null); setCallModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Plus size={12} /> Звонок
+            </button>
+            <button
+              onClick={() => { setEditingMeeting(null); setMeetingModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Plus size={12} /> Встреча
+            </button>
+          </div>
+        </div>
+        <ActivityComposer projectId={projectId} />
+        <EntityTimeline
+          entityType="project"
+          entityId={projectId}
+          options={{ includeSystem: true }}
+          onOpenEvent={handleOpenEvent}
+        />
+      </div>
 
       {/* Modals */}
       <ProjectModal
@@ -886,20 +657,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       />
       <TaskModal
         isOpen={taskModalOpen}
-        onClose={() => setTaskModalOpen(false)}
-        editTask={null}
+        onClose={() => { setTaskModalOpen(false); setEditingTask(null); }}
+        editTask={editingTask}
         defaultProjectId={projectId}
       />
       <CallModal
         isOpen={callModalOpen}
-        onClose={() => setCallModalOpen(false)}
-        editCall={null}
+        onClose={() => { setCallModalOpen(false); setEditingCall(null); }}
+        editCall={editingCall}
         defaultProjectId={projectId}
       />
       <MeetingModal
         isOpen={meetingModalOpen}
-        onClose={() => setMeetingModalOpen(false)}
-        editMeeting={null}
+        onClose={() => { setMeetingModalOpen(false); setEditingMeeting(null); }}
+        editMeeting={editingMeeting}
         defaultProjectId={projectId}
       />
     </>

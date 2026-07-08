@@ -14,6 +14,8 @@ import {
   type ProjectEventRow,
 } from '@/lib/timeline/adapters';
 import type { TimelineEvent } from '@/types/timeline';
+import { describeEvent } from '@/lib/utils/activity-events';
+import type { ActivityLog } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
@@ -122,7 +124,7 @@ async function fetchActivity(
   const supabase = createClient();
   const { data, error } = await supabase
     .from('activity_log')
-    .select('id, event_type, created_at')
+    .select('id, event_type, payload, created_at')
     .in('project_id', projectIds)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -131,7 +133,8 @@ async function fetchActivity(
     id: `activity:${a.id}`,
     sourceId: a.id as string,
     kind: 'activity' as const,
-    title: `Событие: ${a.event_type}`,
+    // Человекочитаемый текст (стадия/комментарий/…) через общий describeEvent
+    title: describeEvent(a as unknown as ActivityLog),
     date: a.created_at as string,
     icon: 'activity' as const,
   }));

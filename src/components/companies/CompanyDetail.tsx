@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Pencil, Trash2, Building2, Phone, Mail, Globe, MapPin, FileText,
-  Users, FolderKanban, Loader2, AlertCircle, Plus,
+  Users, FolderKanban, Loader2, AlertCircle, Activity,
 } from 'lucide-react';
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
@@ -16,6 +16,15 @@ import { Bracket } from '@/components/ui/Bracket';
 import { CompanyModal } from './CompanyModal';
 import { ProjectModal } from '@/components/projects/ProjectModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
+import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { openTimelineEvent } from '@/lib/timeline/open-event';
+import { CallModal } from '@/components/calls/CallModal';
+import { MeetingModal } from '@/components/meetings/MeetingModal';
+import { TaskModal } from '@/components/tasks/TaskModal';
+import type { Call } from '@/lib/hooks/use-calls';
+import type { Meeting } from '@/lib/hooks/use-meetings';
+import type { Task } from '@/types/entities';
+import type { TimelineEvent } from '@/types/timeline';
 
 interface CompanyDetailProps { companyId: string; }
 
@@ -29,6 +38,22 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [editingCall, setEditingCall] = useState<Call | null>(null);
+  const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Клик по событию ленты → общий маппинг kind→действие (тот же, что в контакте/сделке)
+  function handleOpenEvent(e: TimelineEvent) {
+    void openTimelineEvent(e, {
+      router,
+      onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
+      onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
+      onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+    });
+  }
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
 
@@ -192,6 +217,15 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         </Bracket>
       </div>
 
+      {/* ═══ Активность компании (единая лента всех связанных событий) ═══ */}
+      <div className="mt-6">
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-text-dim">
+          <Activity size={14} />
+          Активность
+        </div>
+        <EntityTimeline entityType="company" entityId={companyId} onOpenEvent={handleOpenEvent} />
+      </div>
+
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />
       <ProjectModal isOpen={projectModalOpen} onClose={() => setProjectModalOpen(false)} editProject={null} defaultCompanyId={companyId} />
       <ContactModal
@@ -200,6 +234,9 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         editContact={null}
         defaultCompanyId={companyId}
       />
+      <CallModal isOpen={callModalOpen} onClose={() => { setCallModalOpen(false); setEditingCall(null); }} editCall={editingCall} defaultCompanyId={companyId} />
+      <MeetingModal isOpen={meetingModalOpen} onClose={() => { setMeetingModalOpen(false); setEditingMeeting(null); }} editMeeting={editingMeeting} defaultCompanyId={companyId} />
+      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} editTask={editingTask} defaultCompanyId={companyId} />
     </>
   );
 }
