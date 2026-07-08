@@ -8,6 +8,7 @@ import {
   ChevronRight, LayoutGrid, Activity, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { createClient } from '@/lib/supabase/client';
 import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -17,9 +18,13 @@ import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
+import type { Meeting } from '@/lib/hooks/use-meetings';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
+import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { BorderTrace } from '@/components/ui/BorderTrace';
+import type { Task } from '@/types/entities';
+import type { TimelineEvent } from '@/types/timeline';
 
 // ═══════════════════════════════════════════════════════
 // Helpers
@@ -39,18 +44,6 @@ function getAvatarColor(name: string): string {
 
 function getInitials(firstName: string, lastName?: string | null): string {
   return `${firstName.charAt(0)}${(lastName ?? '').charAt(0)}`.toUpperCase();
-}
-
-function relativeTime(date: string): string {
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'только что';
-  if (mins < 60) return `${mins}м назад`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}ч назад`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}д назад`;
-  return new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
 function deadlineBadge(date: string): { label: string; color: string } {
@@ -160,7 +153,9 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const [editingCall, setEditingCall] = useState<typeof contactCalls[number] | null>(null);
   const [aiCall, setAiCall] = useState<typeof contactCalls[number] | null>(null);
   const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkCompanyId, setLinkCompanyId] = useState('');
@@ -184,35 +179,6 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
     () => contactCalls.find((c) => c.status === 'pending' && new Date(c.date) >= new Date()),
     [contactCalls],
   );
-
-  const activeProject = linkedProjects[0] ?? null;
-
-  // Timeline: merge calls + projects
-  const timeline = useMemo(() => {
-    const items: { id: string; type: 'call' | 'project'; title: string; date: string; detail?: string }[] = [];
-
-    contactCalls.slice(0, 8).forEach((c) => {
-      items.push({
-        id: c.id,
-        type: 'call',
-        title: c.status === 'done' ? 'Звонок выполнен' : 'Звонок запланирован',
-        date: c.date,
-        detail: c.next_step ?? c.agreements ?? undefined,
-      });
-    });
-
-    linkedProjects.forEach((p) => {
-      items.push({
-        id: p.id,
-        type: 'project',
-        title: `Проект: ${p.name}`,
-        date: p.created_at,
-        detail: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : undefined,
-      });
-    });
-
-    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10);
-  }, [contactCalls, linkedProjects]);
 
   // ─── Loading / Error ───
 
@@ -271,6 +237,48 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
     if (confirm('Убрать связь с компанией?')) {
       unlinkCompany.mutate({ contactId, companyId });
     }
+  }
+
+  // Клик по событию ленты → нужная модалка по kind. Звонок/проект — из уже
+  // загруженных данных; встреча/задача — точечная выборка по id (не org-fetch).
+  async function handleOpenEvent(e: TimelineEvent) {
+    switch (e.kind) {
+      case 'call': {
+        const call = contactCalls.find((c) => c.id === e.sourceId);
+        if (call) { setEditingCall(call); setCallModalOpen(true); }
+        break;
+      }
+      case 'project':
+        router.push(`/projects/${e.sourceId}`);
+        break;
+      case 'meeting': {
+        const { data } = await createClient()
+          .from('meetings').select('*, project:projects(id, name)').eq('id', e.sourceId).single();
+        if (data) { setEditingMeeting(data as Meeting); setMeetingModalOpen(true); }
+        break;
+      }
+      case 'task': {
+        const { data } = await createClient()
+          .from('tasks').select('*, project:projects(id, name), company:companies(id, name)').eq('id', e.sourceId).single();
+        if (data) { setEditingTask(data as Task); setTaskModalOpen(true); }
+        break;
+      }
+    }
+  }
+
+  // AI-анализ звонка прямо из ленты (иконка Sparkles) — держит EntityTimeline generic
+  function renderTimelineAction(e: TimelineEvent) {
+    if (e.kind !== 'call') return null;
+    return (
+      <button
+        type="button"
+        onClick={() => { const call = contactCalls.find((c) => c.id === e.sourceId); if (call) setAiCall(call); }}
+        aria-label="AI-анализ"
+        className="mt-0.5 shrink-0 rounded p-0.5 text-text-mute opacity-0 transition-opacity hover:text-accent group-hover/row:opacity-100"
+      >
+        <Sparkles size={14} />
+      </button>
+    );
   }
 
   // ═══════════════════════════════════════════════════════
@@ -505,26 +513,33 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               )}
             </HighlightCard>
 
-            {/* Deal */}
-            <HighlightCard isFilled={Boolean(activeProject)}>
-              <CardLabel icon={FolderKanban} label="Сделка" />
-              {activeProject ? (
-                <div>
-                  <button onClick={() => router.push(`/projects/${activeProject.id}`)}
-                    className="text-sm text-accent hover:underline truncate block">
-                    {activeProject.name}
-                  </button>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] font-medium text-accent">
-                      {activeProject.stage ? STAGE_CONFIG[activeProject.stage]?.shortLabel : '—'}
-                    </span>
-                    {activeProject.budget != null && (
-                      <span className="text-xs text-text-dim">{formatBudget(activeProject.budget)}</span>
-                    )}
-                  </div>
-                </div>
+            {/* Deals — все сделки контакта (счётчик, стадия-чип, ссылка) */}
+            <HighlightCard isFilled={linkedProjects.length > 0}>
+              <CardLabel icon={FolderKanban} label={linkedProjects.length > 1 ? `Сделки · ${linkedProjects.length}` : 'Сделка'} />
+              {linkedProjects.length === 0 ? (
+                <p className="text-xs text-text-mute">Нет сделок</p>
               ) : (
-                <p className="text-xs text-text-mute">Нет активной сделки</p>
+                <div className="space-y-1.5">
+                  {linkedProjects.slice(0, 3).map((p) => (
+                    <div key={p.id}>
+                      <button onClick={() => router.push(`/projects/${p.id}`)}
+                        className="text-sm text-accent hover:underline truncate block">
+                        {p.name}
+                      </button>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                          {p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : '—'}
+                        </span>
+                        {p.budget != null && (
+                          <span className="text-xs text-text-dim">{formatBudget(p.budget)}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {linkedProjects.length > 3 && (
+                    <span className="text-[10px] text-text-mute">+ ещё {linkedProjects.length - 3}</span>
+                  )}
+                </div>
               )}
             </HighlightCard>
           </div>
@@ -567,66 +582,12 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               Активность
             </div>
 
-            {timeline.length === 0 ? (
-              <p className="py-6 text-center text-xs text-text-mute italic">Нет активности</p>
-            ) : (
-              <div className="relative ml-[7px] border-l border-border pl-5">
-                {timeline.map((item) => {
-                  const isCall = item.type === 'call';
-                  const color = isCall ? 'blue' : 'accent';
-                  const Icon = isCall ? Phone : FolderKanban;
-
-                  const handleOpen = () => {
-                    if (isCall) {
-                      const call = contactCalls.find((c) => c.id === item.id);
-                      if (call) { setEditingCall(call); setCallModalOpen(true); }
-                    } else {
-                      router.push(`/projects/${item.id}`);
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="group/row relative -ml-1 flex items-start gap-3 rounded-lg py-2 pl-1 pr-2 transition-colors hover:bg-surface-hover"
-                    >
-                      <div
-                        className={`absolute -left-[23px] top-[10px] flex h-[14px] w-[14px] items-center justify-center rounded-full bg-${color}-l`}
-                      >
-                        <Icon size={8} className={`text-${color}`} />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleOpen}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <p className="text-sm text-text-main">
-                          {item.title}
-                          {item.detail && (
-                            <span className="ml-1 text-text-dim">— {item.detail}</span>
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-text-mute">{relativeTime(item.date)}</p>
-                      </button>
-                      {isCall && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const call = contactCalls.find((c) => c.id === item.id);
-                            if (call) setAiCall(call);
-                          }}
-                          aria-label="AI-анализ"
-                          className="mt-0.5 shrink-0 rounded p-0.5 text-text-mute opacity-0 transition-opacity hover:text-accent group-hover/row:opacity-100"
-                        >
-                          <Sparkles size={14} />
-                        </button>
-                      )}
-                      <ChevronRight size={14} className="mt-0.5 shrink-0 text-text-mute" />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <EntityTimeline
+              entityType="contact"
+              entityId={contactId}
+              onOpenEvent={handleOpenEvent}
+              renderAction={renderTimelineAction}
+            />
           </div>
         </div>
       </div>
@@ -634,8 +595,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       {/* Modals */}
       <ContactModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editContact={contact} />
       <CallModal isOpen={callModalOpen} onClose={() => { setCallModalOpen(false); setEditingCall(null); }} editCall={editingCall} defaultContactId={contactId} />
-      <MeetingModal isOpen={meetingModalOpen} onClose={() => setMeetingModalOpen(false)} editMeeting={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
-      <TaskModal isOpen={taskModalOpen} onClose={() => setTaskModalOpen(false)} editTask={null} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
+      <MeetingModal isOpen={meetingModalOpen} onClose={() => { setMeetingModalOpen(false); setEditingMeeting(null); }} editMeeting={editingMeeting} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
+      <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} editTask={editingTask} defaultContactId={contactId} defaultCompanyId={primaryCompany?.company_id ?? null} />
       {aiCall && (
         <AiWorkspaceModal
           isOpen={!!aiCall}
