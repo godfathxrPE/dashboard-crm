@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { meetingFormSchema, type MeetingFormValues } from '@/lib/validators/meeting';
@@ -10,6 +10,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 
 interface MeetingModalProps {
   isOpen: boolean;
@@ -31,9 +32,35 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<MeetingFormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting } } = useForm<MeetingFormValues>({
     resolver: zodResolver(meetingFormSchema),
   });
+
+  const projectOptions: ComboboxOption[] = useMemo(
+    () => (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').map((p) => ({ value: p.id, label: p.name })),
+    [projects],
+  );
+  const companyOptions: ComboboxOption[] = useMemo(
+    () => (companies ?? []).map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
+    [companies],
+  );
+  const contactOptions: ComboboxOption[] = useMemo(
+    () => (contacts ?? []).map((c) => ({
+      value: c.id,
+      label: [c.first_name, c.last_name].filter(Boolean).join(' '),
+      sub: c.phone ?? c.companies?.[0]?.company.name ?? undefined,
+    })),
+    [contacts],
+  );
+
+  // Автоподстановка компании при пользовательской смене контакта (не на reset):
+  // только если у контакта ровно одна компания И company_id сейчас пуст.
+  const handleContactChange = (val: string | null, onChange: (v: string | null) => void) => {
+    onChange(val);
+    if (!val || getValues('company_id')) return;
+    const links = contacts?.find((c) => c.id === val)?.companies ?? [];
+    if (links.length === 1) setValue('company_id', links[0].company_id, { shouldDirty: true });
+  };
 
   useEffect(() => {
     if (editMeeting) {
@@ -119,13 +146,14 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Проект</label>
-            <select {...register('project_id')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-              <option value="">— не указан —</option>
-              {(projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <Controller
+              name="project_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox options={projectOptions} value={field.value ?? null} onChange={field.onChange}
+                  placeholder="— не указан —" />
+              )}
+            />
           </div>
 
           {/* Section divider */}
@@ -134,23 +162,26 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Компания</label>
-              <select {...register('company_id')}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">— не указана —</option>
-                {(companies ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <Controller
+                name="company_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox options={companyOptions} value={field.value ?? null} onChange={field.onChange}
+                    placeholder="— не указана —" />
+                )}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Контакт</label>
-              <select {...register('contact_id')}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-                <option value="">— не указан —</option>
-                {(contacts ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-                ))}
-              </select>
+              <Controller
+                name="contact_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox options={contactOptions} value={field.value ?? null}
+                    onChange={(val) => handleContactChange(val, field.onChange)}
+                    placeholder="— не указан —" />
+                )}
+              />
             </div>
           </div>
 

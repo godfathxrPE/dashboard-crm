@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { callFormSchema, callStatuses, CALL_STATUS_CONFIG, type CallFormValues } from '@/lib/validators/call';
@@ -10,6 +10,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
+import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -62,9 +63,35 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   const { data: projects } = useProjects();
   const isProjectActive = useIsProjectActive();
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),
   });
+
+  const companyOptions: ComboboxOption[] = useMemo(
+    () => (companies ?? []).map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
+    [companies],
+  );
+  const contactOptions: ComboboxOption[] = useMemo(
+    () => (contacts ?? []).map((c) => ({
+      value: c.id,
+      label: [c.first_name, c.last_name].filter(Boolean).join(' '),
+      sub: c.phone ?? c.companies?.[0]?.company.name ?? undefined,
+    })),
+    [contacts],
+  );
+  const projectOptions: ComboboxOption[] = useMemo(
+    () => (projects ?? []).filter(isProjectActive).map((p) => ({ value: p.id, label: p.name })),
+    [projects, isProjectActive],
+  );
+
+  // Автоподстановка компании при пользовательской смене контакта (не на reset):
+  // только если у контакта ровно одна компания И company_id сейчас пуст.
+  const handleContactChange = (val: string | null, onChange: (v: string | null) => void) => {
+    onChange(val);
+    if (!val || getValues('company_id')) return;
+    const links = contacts?.find((c) => c.id === val)?.companies ?? [];
+    if (links.length === 1) setValue('company_id', links[0].company_id, { shouldDirty: true });
+  };
 
   useEffect(() => {
     if (editCall) {
@@ -143,33 +170,41 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
           {/* Company */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Компания</label>
-            <select {...register('company_id')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-              <option value="">— не указана —</option>
-              {(companies ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Controller
+              name="company_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox options={companyOptions} value={field.value ?? null} onChange={field.onChange}
+                  placeholder="— не указана —" />
+              )}
+            />
           </div>
 
           {/* Contact */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Контакт</label>
-            <select {...register('contact_id')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-              <option value="">— не указан —</option>
-              {(contacts ?? []).map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-            </select>
+            <Controller
+              name="contact_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox options={contactOptions} value={field.value ?? null}
+                  onChange={(val) => handleContactChange(val, field.onChange)}
+                  placeholder="— не указан —" />
+              )}
+            />
           </div>
 
           {/* Project */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Проект</label>
-            <select {...register('project_id')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
-              <option value="">— не указан —</option>
-              {(projects ?? []).filter(isProjectActive).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <Controller
+              name="project_id"
+              control={control}
+              render={({ field }) => (
+                <Combobox options={projectOptions} value={field.value ?? null} onChange={field.onChange}
+                  placeholder="— не указан —" />
+              )}
+            />
           </div>
 
           {/* Section divider with expand toggle */}
