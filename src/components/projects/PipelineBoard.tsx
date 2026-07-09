@@ -482,6 +482,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     });
 
     for (const p of sorted) {
+      if (!p.stage_id) continue; // PCT-1: internal-проект вне воронки
       if (wonStageIds.has(p.stage_id)) { result.won.push(p); continue; }
       if (lostStageIds.has(p.stage_id)) { result.lost.push(p); continue; }
 
@@ -556,7 +557,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     // Find current phase of the project
     let currentPhaseId: string | undefined;
     for (const col of phaseColumns) {
-      if (phaseStageIds.get(col.id)?.has(project.stage_id)) {
+      if (project.stage_id && phaseStageIds.get(col.id)?.has(project.stage_id)) {
         currentPhaseId = col.id;
         break;
       }

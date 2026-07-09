@@ -13,6 +13,8 @@ export const taskFormSchema = z.object({
   deadline: z.string().nullable().default(null),
   remind_min: z.number().nullable().default(null),
   assigned_to: z.string().uuid().nullable().optional(),
+  // PCT-1: колонка проектной доски (для задач с project_id)
+  column_id: z.string().uuid().nullable().optional(),
 });
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;

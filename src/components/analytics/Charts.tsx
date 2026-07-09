@@ -177,13 +177,13 @@ export function PipelineChart() {
     const byId = new Map((pipelineStages ?? []).map((s) => [s.id, s] as const));
     // Источник истины — stage_id → pipeline_stages.phase_group; legacy `stage` не используется.
     const active = projects.filter((p) => {
-      const st = byId.get(p.stage_id);
+      const st = p.stage_id ? byId.get(p.stage_id) : undefined;
       return st && !st.is_won && !st.is_lost;
     });
     return PHASE_GROUP_ORDER.map((pg) => ({
       phase: PHASE_GROUP_COLOR_KEY[pg],
       name: PHASE_GROUP_LABEL[pg],
-      count: active.filter((p) => byId.get(p.stage_id)?.phase_group === pg).length,
+      count: active.filter((p) => (p.stage_id ? byId.get(p.stage_id)?.phase_group : undefined) === pg).length,
     }));
   }, [projects, pipelineStages]);
 

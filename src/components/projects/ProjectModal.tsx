@@ -23,7 +23,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
-import type { Direction } from '@/types/database';
+import type { Direction, DealStage } from '@/types/database';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -54,6 +54,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
       name: '',
+      type: 'client',
       direction: 'iiot',
       pipeline_id: '',
       stage_id: '',
@@ -70,6 +71,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     },
   });
 
+  const currentType = watch('type');
+  const isInternal = currentType === 'internal';
   const currentDirection = watch('direction');
   const currentPipelineId = watch('pipeline_id');
   const currentStageId = watch('stage_id');
@@ -96,6 +99,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
   useEffect(() => {
     if (!pipelines?.length || !allStages?.length) return;
     if (editProject) return; // edit mode handled separately
+    if (watch('type') === 'internal') return; // PCT-1: internal вне воронки
     if (watch('pipeline_id')) return; // already set
 
     const defaultPipeline = getDefaultPipeline('iiot');
@@ -133,7 +137,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     if (editProject) {
       reset({
         name: editProject.name,
-        direction: editProject.direction ?? 'iiot',
+        type: editProject.type,
+        direction: editProject.direction,
         pipeline_id: editProject.pipeline_id,
         stage_id: editProject.stage_id,
         company_id: editProject.company_id,
@@ -155,6 +160,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
 
       reset({
         name: '',
+        type: 'client',
         direction: 'iiot',
         pipeline_id: defaultPipeline?.id ?? '',
         stage_id: firstStage?.id ?? '',
@@ -191,11 +197,46 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     }
   };
 
+  // PCT-1: переключение типа (только режим создания). Internal — вне воронки:
+  // зануляем стадийные поля; при возврате к client восстанавливаем дефолт.
+  const onTypeChange = (t: 'client' | 'internal') => {
+    setValue('type', t);
+    if (t === 'internal') {
+      setValue('direction', null);
+      setValue('pipeline_id', null);
+      setValue('stage_id', null);
+    } else {
+      setValue('direction', 'iiot');
+      const defaultPipeline = getDefaultPipeline('iiot');
+      if (defaultPipeline) {
+        setValue('pipeline_id', defaultPipeline.id);
+        const firstStage = allStages?.find(
+          (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
+        );
+        setValue('stage_id', firstStage?.id ?? null);
+      }
+    }
+  };
+
   const onSubmit = async (values: ProjectFormValues) => {
-    // Auto-fill legacy stage from mapping
-    const pStage = allStages?.find((s) => s.id === values.stage_id);
-    const legacyStage = mapToLegacyStage(pStage, values.direction);
-    const payload = { ...values, stage: legacyStage };
+    let payload: ProjectFormValues & { stage: DealStage | null };
+    if (values.type === 'internal') {
+      // Internal — вне воронки: стадийные поля строго null (CHECK-инвариант БД).
+      payload = {
+        ...values,
+        direction: null,
+        pipeline_id: null,
+        stage_id: null,
+        stage: null,
+        loss_reason: null,
+        loss_detail: null,
+      };
+    } else {
+      // Auto-fill legacy stage from mapping
+      const pStage = allStages?.find((s) => s.id === values.stage_id);
+      const legacyStage = mapToLegacyStage(pStage, values.direction);
+      payload = { ...values, stage: legacyStage };
+    }
 
     try {
       if (editProject) {
@@ -255,50 +296,87 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
             )}
           </div>
 
-          {/* Direction — segmented control */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">
-              Направление
-            </label>
-            <div className="flex rounded-lg border border-border p-1">
-              {([
-                { value: 'iiot' as const, label: 'IIoT / Маркировка' },
-                { value: 'erp' as const, label: 'ERP' },
-              ]).map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onDirectionChange(opt.value)}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    currentDirection === opt.value
-                      ? 'bg-accent-l text-accent'
-                      : 'text-text-mute hover:text-text-main'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+          {/* PCT-1: Тип проекта — только при создании; тип существующего не меняем */}
+          {!editProject && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Тип проекта
+              </label>
+              <div className="flex rounded-lg border border-border p-1">
+                {([
+                  { value: 'client' as const, label: 'Клиентский' },
+                  { value: 'internal' as const, label: 'Внутренний' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onTypeChange(opt.value)}
+                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      currentType === opt.value
+                        ? 'bg-accent-l text-accent'
+                        : 'text-text-mute hover:text-text-main'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-text-mute">
+                {isInternal
+                  ? 'Внутренний проект — вне воронки продаж (без стадий и гейтов). Тип нельзя изменить после создания.'
+                  : 'Клиентский проект — сделка в воронке продаж.'}
+              </p>
             </div>
-          </div>
+          )}
 
-          {/* Stage — dynamic from pipeline */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">
-              Стадия
-            </label>
-            <select
-              {...register('stage_id')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
-                         text-sm text-text-main
-                         focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            >
-              {pipelineStages.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}{s.probability != null ? ` (${s.probability}%)` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Direction — segmented control (только client) */}
+          {!isInternal && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Направление
+              </label>
+              <div className="flex rounded-lg border border-border p-1">
+                {([
+                  { value: 'iiot' as const, label: 'IIoT / Маркировка' },
+                  { value: 'erp' as const, label: 'ERP' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onDirectionChange(opt.value)}
+                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      currentDirection === opt.value
+                        ? 'bg-accent-l text-accent'
+                        : 'text-text-mute hover:text-text-main'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stage — dynamic from pipeline (только client) */}
+          {!isInternal && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Стадия
+              </label>
+              <select
+                {...register('stage_id')}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                           text-sm text-text-main
+                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              >
+                {pipelineStages.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.probability != null ? ` (${s.probability}%)` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Budget */}
           <div>

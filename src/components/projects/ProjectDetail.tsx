@@ -49,6 +49,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
+import { ProjectBoard } from '@/components/tasks/ProjectBoard';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { useLogActivity } from '@/lib/hooks/use-activity-log';
@@ -74,7 +75,10 @@ function getProjectCompleteness(project: Project) {
     { key: 'contact_id', label: 'Контакт', filled: !!project.contact_id },
     { key: 'budget', label: 'Бюджет', filled: !!project.budget && project.budget > 0 },
     { key: 'deadline', label: 'Дедлайн', filled: !!project.deadline },
-    { key: 'stage', label: 'Стадия', filled: !!project.stage },
+    // PCT-1: «Стадия» — только для client (internal вне воронки)
+    ...(project.type === 'client'
+      ? [{ key: 'stage', label: 'Стадия', filled: !!project.stage }]
+      : []),
     { key: 'next_step', label: 'Следующий шаг', filled: !!project.next_step },
     { key: 'next_action_date', label: 'Дата шага', filled: !!project.next_action_date },
   ];
@@ -228,6 +232,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
+  // PCT-1: вкладки нижней секции — Активность / Доска задач
+  const [tab, setTab] = useState<'activity' | 'board'>('activity');
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -317,9 +323,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="aura-page-title text-text-main">{project.name}</h1>
-            <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
-              {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
-            </Badge>
+            {project.type === 'internal' ? (
+              <Badge color="accent" size="sm">Внутренний</Badge>
+            ) : (
+              <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+                {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+              </Badge>
+            )}
             <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
             <CompletenessBadge project={project} />
           </div>
@@ -348,8 +358,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Терминальные действия — одним кликом из карточки */}
-          {(project.status === 'open' || project.status === 'on_hold') && (() => {
+          {/* Терминальные действия — одним кликом из карточки (только client — воронка) */}
+          {project.type === 'client' && (project.status === 'open' || project.status === 'on_hold') && (() => {
             const pipeStages = allPipelineStages?.filter((s) => s.pipeline_id === project.pipeline_id) ?? [];
             const wonStage = pipeStages.find((s) => s.is_won);
             const lostStage = pipeStages.find((s) => s.is_lost);
@@ -517,8 +527,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Focus panel — рабочая зона «что дальше»; только для активных сделок */}
-      {project.status === 'open' && <DealFocusPanel project={project} />}
+      {/* Focus panel — рабочая зона «что дальше»; только для активных сделок (client) */}
+      {project.type === 'client' && project.status === 'open' && <DealFocusPanel project={project} />}
 
       {/* Sprint 27: отказ гейта при переходе стадии с детальной карточки */}
       {gateBlock && (
@@ -547,8 +557,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) */}
-      {project.status === 'open' && <StageReadiness project={project} />}
+      {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) — только client */}
+      {project.type === 'client' && project.status === 'open' && <StageReadiness project={project} />}
 
       {/* Info grid */}
       <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -612,8 +622,34 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       {/* ═══ Files ═══ */}
       <ProjectFiles projectId={projectId} />
 
+      {/* PCT-1: вкладки Активность / Доска задач */}
+      <div className="mb-3 flex gap-1 border-b border-border">
+        {([
+          { value: 'activity' as const, label: 'Активность' },
+          { value: 'board' as const, label: 'Доска задач' },
+        ]).map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={`-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+              tab === t.value
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-mute hover:text-text-main'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'board' && (
+        <div className="mb-4">
+          <ProjectBoard projectId={projectId} />
+        </div>
+      )}
+
       {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
-      <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+      <div className={`mb-4 rounded-xl border border-border bg-surface p-4 ${tab === 'activity' ? '' : 'hidden'}`}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-text-dim" />

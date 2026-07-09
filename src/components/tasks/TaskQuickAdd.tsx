@@ -6,10 +6,13 @@ import { useCreateTask } from '@/lib/hooks/use-tasks';
 import type { TaskLane } from '@/types/database';
 
 interface TaskQuickAddProps {
-  lane: TaskLane;
+  lane?: TaskLane;
+  /** PCT-1: добавление в колонку проектной доски */
+  projectId?: string;
+  columnId?: string;
 }
 
-export function TaskQuickAdd({ lane }: TaskQuickAddProps) {
+export function TaskQuickAdd({ lane, projectId, columnId }: TaskQuickAddProps) {
   const [text, setText] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,7 +22,14 @@ export function TaskQuickAdd({ lane }: TaskQuickAddProps) {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    createTask.mutate({ text: trimmed, lane });
+    // lane для проектной задачи выведет БД-триггер из колонки; передаём для
+    // мгновенного оптимистичного отображения, если он известен.
+    createTask.mutate({
+      text: trimmed,
+      ...(lane ? { lane } : {}),
+      ...(projectId ? { project_id: projectId } : {}),
+      ...(columnId ? { column_id: columnId } : {}),
+    });
     setText('');
     // Держим инпут открытым для серийного добавления
     inputRef.current?.focus();

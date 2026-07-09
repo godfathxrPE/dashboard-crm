@@ -160,23 +160,43 @@ export type SortOption = (typeof sortOptions)[number]['value'];
 // Zod Form Schema
 // ═══════════════════════════════════════════════════════
 
-export const projectFormSchema = z.object({
-  name: z.string().min(1, 'Введи название проекта'),
-  direction: z.enum(['erp', 'iiot']),
-  pipeline_id: z.string().uuid(),
-  stage_id: z.string().uuid(),
-  company_id: z.string().uuid().nullable().default(null),
-  contact_id: z.string().uuid().nullable().default(null),
-  // Legacy — kept for backward compat, auto-filled from stage_id mapping
-  stage: z.enum(dealStages).nullable().default(null),
-  budget: z.number().int().nonnegative().nullable().default(null),
-  deadline: z.string().nullable().default(null),
-  next_step: z.string().nullable().default(null),
-  next_action_date: z.string().nullable().default(null),
-  loss_reason: z.string().nullable().default(null),
-  loss_detail: z.string().nullable().default(null),
-  owner_id: z.string().uuid().nullable().optional(),
-});
+// PCT-1: client — сделка в воронке (direction/pipeline_id/stage_id обязательны);
+// internal — внутренний проект вне воронки (стадийные поля = null).
+//
+// Примечание: промпт просил z.discriminatedUnion('type', …). Union делает
+// ProjectFormValues union-типом и ломает плоский RHF-контракт формы
+// (register/watch/setValue('stage_id', …) по всем полям сразу). Эквивалентная
+// проверка сделана через superRefine поверх плоской схемы — тип остаётся плоским,
+// а инвариант «client требует стадийные поля» проверяется на submit.
+export const projectFormSchema = z
+  .object({
+    type: z.enum(['client', 'internal']).default('client'),
+    name: z.string().min(1, 'Введи название проекта'),
+    direction: z.enum(['erp', 'iiot']).nullable().default('iiot'),
+    pipeline_id: z.string().uuid().nullable().default(null),
+    stage_id: z.string().uuid().nullable().default(null),
+    company_id: z.string().uuid().nullable().default(null),
+    contact_id: z.string().uuid().nullable().default(null),
+    // Legacy — kept for backward compat, auto-filled from stage_id mapping
+    stage: z.enum(dealStages).nullable().default(null),
+    budget: z.number().int().nonnegative().nullable().default(null),
+    deadline: z.string().nullable().default(null),
+    next_step: z.string().nullable().default(null),
+    next_action_date: z.string().nullable().default(null),
+    loss_reason: z.string().nullable().default(null),
+    loss_detail: z.string().nullable().default(null),
+    owner_id: z.string().uuid().nullable().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.type === 'client') {
+      if (!val.direction)
+        ctx.addIssue({ path: ['direction'], code: z.ZodIssueCode.custom, message: 'Укажи направление' });
+      if (!val.pipeline_id)
+        ctx.addIssue({ path: ['pipeline_id'], code: z.ZodIssueCode.custom, message: 'Укажи воронку' });
+      if (!val.stage_id)
+        ctx.addIssue({ path: ['stage_id'], code: z.ZodIssueCode.custom, message: 'Укажи стадию' });
+    }
+  });
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;
 

@@ -29,7 +29,8 @@ function getTrack(stage: string): string {
 
 // Resolve stage display name: prefer pipeline_stages, fallback to legacy STAGE_CONFIG
 function getStageName(p: Project, stagesMap: Map<string, PipelineStage>): string {
-  const pipelineStage = stagesMap.get(p.stage_id);
+  if (p.type === 'internal') return 'Внутренний';
+  const pipelineStage = p.stage_id ? stagesMap.get(p.stage_id) : undefined;
   if (pipelineStage) return pipelineStage.name;
   if (p.stage) return STAGE_CONFIG[p.stage]?.shortLabel ?? p.stage;
   return '—';

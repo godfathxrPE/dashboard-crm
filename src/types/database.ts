@@ -105,7 +105,15 @@ export type DealStage =
 
 export type Direction = 'erp' | 'iiot';
 export type PipelineEntityType = 'deal' | 'project';
-export type DealStatus = 'open' | 'won' | 'lost' | 'on_hold';
+// PCT-1: 'completed' — терминал для internal-проектов (маппится в UI как «Завершён»)
+export type DealStatus = 'open' | 'won' | 'lost' | 'on_hold' | 'completed';
+
+// ═══ Sprint PCT-1: Project-centric Tasks ═══
+
+/** Тип проекта: client — сделка в воронке; internal — внутренний проект вне воронки */
+export type ProjectType = 'client' | 'internal';
+/** Нормализующий класс колонки канбана задач (биективен к TaskLane) */
+export type ColumnCategory = 'backlog' | 'started' | 'paused' | 'done';
 
 export interface Pipeline {
   id: string;
@@ -428,14 +436,17 @@ export interface Database {
           created_at: string;
           updated_at: string;
           // Sprint 1: pipelines & directions
-          direction: Direction;
-          pipeline_id: string;
-          stage_id: string;
+          // PCT-1: nullable для internal-проектов (вне воронки продаж)
+          direction: Direction | null;
+          pipeline_id: string | null;
+          stage_id: string | null;
           probability: number | null;
           status: DealStatus;
           lost_reason: string | null;
           actual_close_date: string | null;
           org_id: string;
+          // PCT-1
+          type: ProjectType;
         };
         Insert: {
           name: string;
@@ -450,16 +461,41 @@ export interface Database {
           owner_id?: string | null;
           loss_reason?: string | null;
           loss_detail?: string | null;
-          // Sprint 1
-          direction: Direction;
-          pipeline_id: string;
-          stage_id: string;
+          // Sprint 1 — PCT-1: nullable для internal
+          direction?: Direction | null;
+          pipeline_id?: string | null;
+          stage_id?: string | null;
           status?: DealStatus;
           lost_reason?: string | null;
           actual_close_date?: string | null;
           org_id?: string;
+          // PCT-1
+          type?: ProjectType;
         };
         Update: Partial<Database['public']['Tables']['projects']['Insert']>;
+      };
+      project_columns: {
+        Row: {
+          id: string;
+          org_id: string;
+          project_id: string;
+          name: string;
+          category: ColumnCategory;
+          position: number;
+          wip_limit: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          project_id: string;
+          name: string;
+          category: ColumnCategory;
+          position?: number;
+          wip_limit?: number | null;
+        };
+        Update: Partial<Database['public']['Tables']['project_columns']['Insert']>;
       };
       pipelines: {
         Row: Pipeline;
@@ -488,6 +524,8 @@ export interface Database {
           org_id: string;
           created_at: string;
           updated_at: string;
+          // PCT-1: колонка проектной доски (истина для задач с project_id)
+          column_id: string | null;
         };
         Insert: {
           text: string;
@@ -501,6 +539,8 @@ export interface Database {
           sort_order?: number;
           assigned_to?: string | null;
           org_id?: string;
+          // PCT-1
+          column_id?: string | null;
         };
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>;
       };

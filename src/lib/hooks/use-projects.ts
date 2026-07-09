@@ -51,12 +51,14 @@ export interface Project {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  // Sprint 1: pipelines & directions
-  direction: 'erp' | 'iiot';
-  pipeline_id: string;
-  stage_id: string;
+  // Sprint 1: pipelines & directions — PCT-1: nullable для internal-проектов
+  direction: 'erp' | 'iiot' | null;
+  pipeline_id: string | null;
+  stage_id: string | null;
   probability: number | null;
-  status: 'open' | 'won' | 'lost' | 'on_hold';
+  status: 'open' | 'won' | 'lost' | 'on_hold' | 'completed';
+  // PCT-1: тип проекта
+  type: 'client' | 'internal';
   lost_reason: string | null;
   actual_close_date: string | null;
   /** Миграция 019: когда сделка вошла в текущую стадию (ведёт триггер) */
@@ -78,10 +80,12 @@ export interface ProjectInsert {
   pinned_note?: string | null;
   loss_reason?: string | null;
   loss_detail?: string | null;
-  // Sprint 1
-  direction: 'erp' | 'iiot';
-  pipeline_id: string;
-  stage_id: string;
+  // Sprint 1 — PCT-1: nullable для internal
+  direction?: 'erp' | 'iiot' | null;
+  pipeline_id?: string | null;
+  stage_id?: string | null;
+  // PCT-1
+  type?: 'client' | 'internal';
 }
 
 export interface ProjectUpdate extends Partial<ProjectInsert> {
@@ -223,10 +227,11 @@ export function useCreateProject() {
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        // Sprint 1
-        direction: newProject.direction,
-        pipeline_id: newProject.pipeline_id,
-        stage_id: newProject.stage_id,
+        // Sprint 1 — PCT-1
+        direction: newProject.direction ?? null,
+        pipeline_id: newProject.pipeline_id ?? null,
+        stage_id: newProject.stage_id ?? null,
+        type: newProject.type ?? 'client',
         probability: null,
         status: 'open',
         lost_reason: null,

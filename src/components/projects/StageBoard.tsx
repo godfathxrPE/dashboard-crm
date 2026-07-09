@@ -340,6 +340,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
 
     if (!projects) return result;
     for (const p of projects) {
+      if (!p.stage_id) continue; // PCT-1: internal-проект вне воронки
       if (wonStageIds.has(p.stage_id)) { result.won.push(p); continue; }
       if (lostStageIds.has(p.stage_id)) { result.lost.push(p); continue; }
       if (result[p.stage_id]) {
@@ -382,7 +383,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
     } else {
       // Dropped on a card — find which stage it belongs to
       const targetProject = projects?.find((p) => p.id === over.id);
-      if (targetProject) targetStageId = targetProject.stage_id;
+      if (targetProject) targetStageId = targetProject.stage_id ?? undefined;
     }
 
     if (!targetStageId || project.stage_id === targetStageId) return;

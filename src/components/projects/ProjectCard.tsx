@@ -190,9 +190,13 @@ export function ProjectCard({
           >
             {project.name}
           </button>
-          <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
-            {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
-          </Badge>
+          {project.type === 'internal' ? (
+            <Badge color="accent" size="sm">Внутр.</Badge>
+          ) : (
+            <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+              {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+            </Badge>
+          )}
         </div>
 
         {/* Company */}

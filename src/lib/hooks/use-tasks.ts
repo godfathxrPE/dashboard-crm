@@ -59,6 +59,93 @@ export function useTasksByLane() {
 }
 
 /**
+ * PCT-1: задачи одного проекта, сгруппированные по колонкам доски.
+ * Ключ ['tasks', 'board', projectId] — префикс ['tasks'] ловится
+ * useRealtimeSync('tasks') и инвалидацией мутаций.
+ */
+export function useProjectBoard(projectId: string) {
+  const supabase = createClient();
+  useRealtimeSync('tasks');
+
+  const query = useQuery({
+    queryKey: ['tasks', 'board', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, project:projects(id, name), company:companies(id, name)')
+        .eq('project_id', projectId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as Task[];
+    },
+    enabled: !!projectId,
+  });
+
+  const tasksByColumn: Record<string, Task[]> = {};
+  for (const t of query.data ?? []) {
+    const key = t.column_id ?? '__unassigned__';
+    (tasksByColumn[key] ??= []).push(t);
+  }
+
+  return { ...query, tasks: query.data, tasksByColumn };
+}
+
+/**
+ * PCT-1: перенос задачи по проектной доске (column_id + sort_order).
+ * lane пересчитает БД-триггер → инвалидируем ['tasks'] целиком, чтобы личный
+ * борд не показал устаревший lane.
+ */
+export function useMoveTask() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      column_id,
+      sort_order,
+    }: {
+      id: string;
+      column_id: string;
+      sort_order: number;
+      project_id?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ column_id, sort_order })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Task;
+    },
+    onMutate: async (vars) => {
+      const key = vars.project_id ? ['tasks', 'board', vars.project_id] : null;
+      if (!key) return { previous: undefined as Task[] | undefined, key };
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Task[]>(key);
+      queryClient.setQueryData<Task[]>(key, (old) =>
+        (old ?? []).map((t) =>
+          t.id === vars.id ? { ...t, column_id: vars.column_id, sort_order: vars.sort_order } : t,
+        ),
+      );
+      return { previous, key };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && context.key) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+/**
  * Создание задачи с оптимистичным обновлением.
  */
 export function useCreateTask() {
@@ -87,6 +174,7 @@ export function useCreateTask() {
         lane: input.lane ?? 'now',
         priority: input.priority ?? 'normal',
         project_id: input.project_id ?? null,
+        column_id: input.column_id ?? null,
         company_id: input.company_id ?? null,
         contact_id: input.contact_id ?? null,
         deadline: input.deadline ?? null,

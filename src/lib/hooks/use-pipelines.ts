@@ -62,8 +62,9 @@ export function useIsProjectActive() {
   const { data: stages } = usePipelineStages();
   return useMemo(() => {
     const byId = new Map((stages ?? []).map((s) => [s.id, s] as const));
-    return (project: { stage_id: string; status?: string | null }) => {
-      const st = byId.get(project.stage_id);
+    return (project: { stage_id: string | null; status?: string | null }) => {
+      // PCT-1: internal-проект (stage_id=null) вне воронки → активность по status.
+      const st = project.stage_id ? byId.get(project.stage_id) : undefined;
       if (st) return !st.is_won && !st.is_lost;
       return project.status !== 'won' && project.status !== 'lost';
     };

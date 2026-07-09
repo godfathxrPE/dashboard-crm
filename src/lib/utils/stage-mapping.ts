@@ -38,8 +38,9 @@ const IIOT_STAGE_MAP: Record<number, DealStage> = {
  */
 export function mapToLegacyStage(
   pipelineStage: PipelineStage | undefined,
-  direction: 'erp' | 'iiot',
+  direction: 'erp' | 'iiot' | null,
 ): DealStage | null {
-  if (direction === 'erp' || !pipelineStage) return null;
+  // PCT-1: direction=null у internal-проектов — legacy-эквивалента нет.
+  if (direction === 'erp' || direction == null || !pipelineStage) return null;
   return IIOT_STAGE_MAP[pipelineStage.order_index] ?? null;
 }
