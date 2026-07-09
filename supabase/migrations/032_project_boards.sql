@@ -57,6 +57,27 @@ ALTER TABLE public.projects ADD CONSTRAINT projects_status_chk CHECK (
   status IN ('open','won','lost','on_hold','completed')
 );
 
+-- ─── 1.1b Страховка legacy `stage` для internal (добавлено на гейт-ревью) ─────
+-- DEFAULT 'new_lead' у `stage` сохранён ради convert_lead() (см. блок выше), поэтому
+-- любой БУДУЩИЙ писатель internal-проекта, опустивший `stage`, молча получил бы
+-- фантомную legacy-стадию у проекта вне воронки. Сегодня единственный писатель
+-- internal — ProjectModal (шлёт stage: null явно), но контракт держим на уровне БД,
+-- а не дисциплины кода: триггер тихо зануляет зеркало. INSERT OR UPDATE — на случай
+-- любых будущих правок internal-проектов.
+
+CREATE OR REPLACE FUNCTION public.null_internal_stage() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.type = 'internal' THEN
+    NEW.stage := NULL;
+  END IF;
+  RETURN NEW;
+END $$;
+
+DROP TRIGGER IF EXISTS trg_ab_null_internal_stage ON public.projects;
+CREATE TRIGGER trg_ab_null_internal_stage BEFORE INSERT OR UPDATE ON public.projects
+  FOR EACH ROW EXECUTE FUNCTION public.null_internal_stage();
+
 -- ─── 1.2 project_columns + tasks.column_id ───────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.project_columns (
