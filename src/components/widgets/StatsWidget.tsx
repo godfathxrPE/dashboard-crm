@@ -44,8 +44,8 @@ export function StatsWidget() {
   const { data: contacts } = useContacts();
 
   const stats = useMemo(() => {
-    const activeProjects = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost');
-    const wonProjects = (projects ?? []).filter((p) => p.stage === 'won');
+    const activeProjects = (projects ?? []).filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
+    const wonProjects = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won');
     const totalPipeline = activeProjects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
     const activeTasks = (tasks ?? []).filter((t) => t.lane !== 'done');

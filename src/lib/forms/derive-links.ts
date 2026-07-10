@@ -29,7 +29,7 @@ export interface DeriveLinksDeps<P extends ProjectLike> {
   /**
    * Предикат «проект активен» — совпадает с фильтром выпадающего списка проектов
    * в конкретной модалке, чтобы выведенный проект всегда был из числа выбираемых.
-   * По умолчанию — не выигранные и не проигранные по legacy-стадии.
+   * По умолчанию — не выигранные и не проигранные по status (internal-safe).
    */
   isActiveProject?: (project: P) => boolean;
 }
@@ -39,7 +39,7 @@ export interface DerivedLinks {
   project_id?: string;
 }
 
-export function deriveFromContact<P extends ProjectLike & { stage?: string | null }>(
+export function deriveFromContact<P extends ProjectLike & { status?: string | null }>(
   contactId: string | null | undefined,
   deps: DeriveLinksDeps<P>,
 ): DerivedLinks {
@@ -50,7 +50,7 @@ export function deriveFromContact<P extends ProjectLike & { stage?: string | nul
   if (links.length === 1) result.company_id = links[0].company_id;
 
   const isActive =
-    deps.isActiveProject ?? ((p: P) => p.stage !== 'won' && p.stage !== 'lost');
+    deps.isActiveProject ?? ((p: P) => p.status !== 'won' && p.status !== 'lost');
   const active = (deps.projects ?? []).filter(
     (p) => p.contact_id === contactId && isActive(p),
   );

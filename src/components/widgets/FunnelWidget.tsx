@@ -9,7 +9,7 @@ export function FunnelWidget() {
 
   const funnel = useMemo(() => {
     if (!projects) return [];
-    const active = projects.filter((p) => p.stage && p.stage !== 'won' && p.stage !== 'lost');
+    const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
 
     return phases.map((phase) => {
       const items = active.filter((p) => p.stage && getPhaseForStage(p.stage) === phase);
@@ -19,8 +19,8 @@ export function FunnelWidget() {
   }, [projects]);
 
   const maxCount = Math.max(1, ...funnel.map((f) => f.count));
-  const wonCount = (projects ?? []).filter((p) => p.stage === 'won').length;
-  const wonBudget = (projects ?? []).filter((p) => p.stage === 'won').reduce((s, p) => s + (p.budget ?? 0), 0);
+  const wonCount = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won').length;
+  const wonBudget = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won').reduce((s, p) => s + (p.budget ?? 0), 0);
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">

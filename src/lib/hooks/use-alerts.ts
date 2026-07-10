@@ -32,7 +32,7 @@ export function useAlerts(): AlertItem[] {
 
     // Проекты без контакта
     const noContact = (projects ?? []).filter(
-      (p) => p.stage !== 'won' && p.stage !== 'lost' && !p.contact_id,
+      (p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost' && !p.contact_id,
     );
     for (const p of noContact.slice(0, 2)) {
       alerts.push({
@@ -47,7 +47,7 @@ export function useAlerts(): AlertItem[] {
     // Проекты без свежих звонков (>5 дней)
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
     const active = (projects ?? []).filter(
-      (p) => p.stage !== 'won' && p.stage !== 'lost' && p.company_id,
+      (p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost' && p.company_id,
     );
     for (const p of active.slice(0, 3)) {
       const recentCall = (calls ?? []).find(

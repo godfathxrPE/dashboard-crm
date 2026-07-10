@@ -33,8 +33,8 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
     const meetingsHeld = (meetings ?? []).filter((m) => m.date >= localDateKey(weekStart) && m.date <= localDateKey(now));
 
     // Projects that moved stage this week
-    const projectsMoved = (projects ?? []).filter((p) => inWeek(p.updated_at) && p.stage !== 'new_lead');
-    const projectsWon = (projects ?? []).filter((p) => p.stage === 'won' && inWeek(p.updated_at));
+    const projectsMoved = (projects ?? []).filter((p) => p.type === 'client' && inWeek(p.updated_at) && p.stage !== 'new_lead');
+    const projectsWon = (projects ?? []).filter((p) => p.type === 'client' && p.stage === 'won' && inWeek(p.updated_at));
     const wonBudget = projectsWon.reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
     // Active tasks remaining

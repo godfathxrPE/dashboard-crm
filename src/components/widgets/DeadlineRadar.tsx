@@ -38,7 +38,7 @@ export function DeadlineRadar() {
 
     // Projects with deadlines
     for (const p of projects ?? []) {
-      if (p.deadline && p.stage !== 'won' && p.stage !== 'lost') {
+      if (p.deadline && p.status !== 'won' && p.status !== 'lost') {
         result.push({
           id: p.id,
           title: p.name,

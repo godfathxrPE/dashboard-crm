@@ -187,7 +187,7 @@ function MiniKpi() {
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
 
-  const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').length;
+  const active = (projects ?? []).filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost').length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const weekCalls = (calls ?? []).filter((c) => c.date >= weekAgo).length;
   const todayStr = localDateKey();

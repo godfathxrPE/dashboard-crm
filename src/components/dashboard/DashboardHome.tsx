@@ -631,7 +631,7 @@ function UpcomingDeadlines() {
   const items = useMemo(() => {
     if (!projects) return [];
     return projects
-      .filter((p) => p.deadline && p.stage !== 'won' && p.stage !== 'lost')
+      .filter((p) => p.deadline && p.status !== 'won' && p.status !== 'lost')
       .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
       .slice(0, 5);
   }, [projects]);

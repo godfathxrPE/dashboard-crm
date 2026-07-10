@@ -38,7 +38,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
   });
 
   const projectOptions: ComboboxOption[] = useMemo(
-    () => (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost').map((p) => ({ value: p.id, label: p.name })),
+    () => (projects ?? []).filter((p) => p.status !== 'won' && p.status !== 'lost').map((p) => ({ value: p.id, label: p.name })),
     [projects],
   );
   const companyOptions: ComboboxOption[] = useMemo(
