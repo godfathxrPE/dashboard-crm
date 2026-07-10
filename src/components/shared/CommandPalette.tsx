@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark,
+  Plus, Sun, Bookmark, UserPlus,
 } from 'lucide-react';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useSavedViews } from '@/lib/hooks/use-saved-views';
@@ -14,6 +14,10 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
+import { useLeads } from '@/lib/hooks/use-leads';
+import { STAGE_CONFIG } from '@/lib/validators/project';
+import { LANE_CONFIG } from '@/lib/validators/task';
+import { CALL_STATUS_CONFIG } from '@/lib/validators/call';
 
 type ModalAction = 'task' | 'project' | 'call' | 'meeting' | 'contact' | 'company';
 
@@ -44,7 +48,25 @@ const ROUTE_LABELS: Record<string, string> = {
   '/calls': 'Звонки',
   '/tasks': 'Задачи',
   '/meetings': 'Встречи',
+  '/leads': 'Лиды',
+  '/calendar': 'Календарь',
 };
+
+/**
+ * Скоринг релевантности при непустом query: точное > префикс > начало слова >
+ * подстрока в label > sub > секция. -1 = нет совпадения. Топ-N по убыванию score;
+ * при равенстве — стабильно исходный порядок (секционный приоритет действий/навигации).
+ */
+function scoreItem(item: CmdItem, q: string): number {
+  const label = item.label.toLowerCase();
+  if (label === q) return 100;
+  if (label.startsWith(q)) return 80;
+  if (label.split(/\s+/).some((w) => w.startsWith(q))) return 60;
+  if (label.includes(q)) return 40;
+  if (item.sub?.toLowerCase().includes(q)) return 20;
+  if (item.section.toLowerCase().includes(q)) return 10;
+  return -1;
+}
 
 export function CommandPalette() {
   const router = useRouter();
@@ -57,6 +79,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Шов W2a-4: гонка при route change — палитра, открытая в момент навигации,
   // оставалась в подвешенном состоянии. Сбрасываем при смене маршрута.
@@ -71,6 +94,7 @@ export function CommandPalette() {
   const { data: contacts } = useContacts();
   const { data: calls } = useCalls();
   const { data: meetings } = useMeetings();
+  const { data: leads } = useLeads();
   const { views: savedViews } = useSavedViews();
 
   // Global keyboard shortcut: Cmd+K / Ctrl+K
@@ -129,8 +153,10 @@ export function CommandPalette() {
       { id: 'nav-projects', label: 'Проекты', icon: FolderKanban, href: '/projects', section: 'Навигация' },
       { id: 'nav-companies', label: 'Компании', icon: Building2, href: '/companies', section: 'Навигация' },
       { id: 'nav-contacts', label: 'Контакты', icon: Users, href: '/contacts', section: 'Навигация' },
+      { id: 'nav-leads', label: 'Лиды', icon: UserPlus, href: '/leads', section: 'Навигация' },
       { id: 'nav-calls', label: 'Звонки', icon: Phone, href: '/calls', section: 'Навигация' },
       { id: 'nav-meetings', label: 'Встречи', icon: CalendarDays, href: '/meetings', section: 'Навигация' },
+      { id: 'nav-calendar', label: 'Календарь', icon: CalendarDays, href: '/calendar', section: 'Навигация' },
       { id: 'nav-analytics', label: 'Аналитика', icon: BarChart3, href: '/analytics', section: 'Навигация' },
       { id: 'nav-settings', label: 'Настройки', icon: Settings, href: '/settings', section: 'Навигация' },
     );
@@ -140,7 +166,7 @@ export function CommandPalette() {
       items.push({
         id: `task-${t.id}`,
         label: t.text,
-        sub: t.lane,
+        sub: LANE_CONFIG[t.lane]?.label ?? t.lane,
         icon: CheckSquare,
         href: '/tasks',
         section: 'Задачи',
@@ -152,7 +178,9 @@ export function CommandPalette() {
       items.push({
         id: `proj-${p.id}`,
         label: p.name,
-        sub: p.stage ?? undefined,
+        sub: p.type === 'internal'
+          ? 'Внутренний'
+          : (p.stage ? STAGE_CONFIG[p.stage]?.shortLabel ?? undefined : undefined),
         icon: FolderKanban,
         href: `/projects/${p.id}`,
         section: 'Проекты',
@@ -191,7 +219,7 @@ export function CommandPalette() {
       items.push({
         id: `call-${c.id}`,
         label: name,
-        sub: c.status,
+        sub: CALL_STATUS_CONFIG[c.status]?.label ?? c.status,
         icon: Phone,
         href: '/calls',
         section: 'Звонки',
@@ -210,8 +238,20 @@ export function CommandPalette() {
       });
     }
 
+    // Leads (персональные, под user_id-RLS через useLeads)
+    for (const l of leads ?? []) {
+      items.push({
+        id: `lead-${l.id}`,
+        label: l.title,
+        sub: l.company_name_raw ?? undefined,
+        icon: UserPlus,
+        href: '/leads',
+        section: 'Лиды',
+      });
+    }
+
     return items;
-  }, [tasks, projects, companies, contacts, calls, meetings, savedViews]);
+  }, [tasks, projects, companies, contacts, calls, meetings, leads, savedViews]);
 
   // Filter
   const filtered = useMemo(() => {
@@ -221,15 +261,22 @@ export function CommandPalette() {
       return base.slice(0, 15);
     }
     const q = query.toLowerCase();
-    return allItems.filter((item) =>
-      item.label.toLowerCase().includes(q) ||
-      item.sub?.toLowerCase().includes(q) ||
-      item.section.toLowerCase().includes(q)
-    ).slice(0, 15);
+    return allItems
+      .map((item, idx) => ({ item, idx, score: scoreItem(item, q) }))
+      .filter((x) => x.score >= 0)
+      .sort((a, b) => b.score - a.score || a.idx - b.idx) // score ↓, затем стабильно
+      .slice(0, 15)
+      .map((x) => x.item);
   }, [allItems, query, actionsOnly]);
 
   // Reset selection on filter change
   useEffect(() => setSelectedIdx(0), [filtered]);
+
+  // Держим выделенный пункт в видимой области (max-h-72 скроллится)
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-cmd-idx="${selectedIdx}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIdx]);
 
   const handleSelect = useCallback((item: CmdItem) => {
     closePalette();
@@ -287,12 +334,13 @@ export function CommandPalette() {
 
         {/* Results */}
         {/* pb-3: последний пункт не подрезается нижней кромкой (шов W2a-2) */}
-        <div className="max-h-72 overflow-y-auto p-1.5 pb-3">
+        <div ref={listRef} className="max-h-72 overflow-y-auto p-1.5 pb-3">
           {filtered.length === 0 ? (
             <div className="py-6 text-center text-xs text-text-mute">Ничего не найдено</div>
           ) : (
             filtered.map((item, i) => {
-              const showSection = item.section !== currentSection;
+              // При поиске порядок по релевантности (секции чередуются) — заголовки прячем.
+              const showSection = !query.trim() && item.section !== currentSection;
               if (showSection) currentSection = item.section;
 
               return (
@@ -301,6 +349,7 @@ export function CommandPalette() {
                     <div className="px-2 pb-1 pt-2 text-[10px] font-semibold text-text-mute">{item.section}</div>
                   )}
                   <button
+                    data-cmd-idx={i}
                     onClick={() => handleSelect(item)}
                     className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors
                       ${i === selectedIdx ? 'bg-accent-l text-accent' : 'text-text-main hover:bg-surface-hover'}`}
