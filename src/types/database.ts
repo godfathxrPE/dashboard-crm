@@ -110,8 +110,13 @@ export type DealStatus = 'open' | 'won' | 'lost' | 'on_hold' | 'completed';
 
 // ═══ Sprint PCT-1: Project-centric Tasks ═══
 
-/** Тип проекта: client — сделка в воронке; internal — внутренний проект вне воронки */
-export type ProjectType = 'client' | 'internal';
+/**
+ * Тип проекта: client — сделка в воронке; internal — внутренний проект вне
+ * воронки; delivery — проект внедрения (спавнится из won-сделки, миграция 035).
+ */
+export type ProjectType = 'client' | 'internal' | 'delivery';
+/** Шаблон проекта внедрения (миграция 035) */
+export type DeliveryKind = 'launch' | 'experiment';
 /** Нормализующий класс колонки канбана задач (биективен к TaskLane) */
 export type ColumnCategory = 'backlog' | 'started' | 'paused' | 'done';
 
@@ -447,6 +452,14 @@ export interface Database {
           org_id: string;
           // PCT-1
           type: ProjectType;
+          // Delivery P1 (миграция 035)
+          parent_deal_id: string | null;
+          delivery_kind: DeliveryKind | null;
+          do_url: string | null;
+          do_external_id: string | null;
+          do_synced_at: string | null;
+          progress_done: number;
+          progress_total: number;
         };
         Insert: {
           name: string;
@@ -471,6 +484,10 @@ export interface Database {
           org_id?: string;
           // PCT-1
           type?: ProjectType;
+          // Delivery P1 (миграция 035); delivery создаётся RPC spawn_delivery_project
+          parent_deal_id?: string | null;
+          delivery_kind?: DeliveryKind | null;
+          do_url?: string | null;
         };
         Update: Partial<Database['public']['Tables']['projects']['Insert']>;
       };

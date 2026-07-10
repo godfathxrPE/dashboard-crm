@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   Clock,
   Send,
+  Rocket,
+  ExternalLink,
+  Link2,
 } from 'lucide-react';
 import {
   useProject,
@@ -61,6 +64,8 @@ import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { createClient } from '@/lib/supabase/client';
+import { DELIVERY_PHASE_LABELS, DELIVERY_KIND_LABELS } from '@/lib/constants/delivery-phases';
 import type { Task } from '@/types/entities';
 
 
@@ -216,11 +221,43 @@ interface ProjectDetailProps {
 
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const router = useRouter();
+  const qc = useQueryClient();
   const { data: project, isLoading, error } = useProject(projectId);
+  // Delivery P1: родительская сделка (для ссылки на карточке внедрения)
+  const { data: parentDeal } = useProject(project?.parent_deal_id ?? '');
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const { moveToStageId } = useMoveProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+
+  // Delivery P1 (B4): диалог выбора шаблона внедрения на won-сделке
+  const [spawning, setSpawning] = useState(false);
+  const [spawnPending, setSpawnPending] = useState(false);
+  const [spawnError, setSpawnError] = useState<string | null>(null);
+
+  async function handleSpawn(kind: 'launch' | 'experiment') {
+    if (!project) return;
+    setSpawnPending(true);
+    setSpawnError(null);
+    const supabase = createClient();
+    const { data, error: rpcError } = await supabase.rpc('spawn_delivery_project', {
+      p_deal_id: project.id,
+      p_kind: kind,
+    });
+    setSpawnPending(false);
+    if (rpcError) {
+      // 42501 — доступ (org/ownership), P0001 — не won / нет пайплайна
+      setSpawnError(
+        rpcError.code === '42501'
+          ? 'Недостаточно прав: внедрение создаёт владелец сделки или админ организации'
+          : rpcError.message,
+      );
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ['projects'] });
+    setSpawning(false);
+    router.push(`/projects/${data as string}`);
+  }
 
   // Sprint 27: отказ стадийного гейта при переходе с детальной карточки
   const [gateBlock, setGateBlock] = useState<UnmetRequirement[] | null>(null);
@@ -279,6 +316,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // Routing-контракт P1: client живёт на /deals, delivery/internal — на /projects
   const backHref = project.type === 'client' ? '/deals' : '/projects';
   const backLabel = project.type === 'client' ? 'Воронка сделок' : 'Проекты';
+  const isDelivery = project.type === 'delivery';
 
   const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
   const nextStage = project.stage ? getNextStage(project.stage) : null;
@@ -303,7 +341,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   function handleDelete() {
     if (!project) return;
-    if (confirm(`Удалить ${project.type === 'internal' ? 'проект' : 'сделку'}? Связанные задачи сохранятся. Это действие нельзя отменить.`)) {
+    if (confirm(`Удалить ${project.type === 'client' ? 'сделку' : 'проект'}? Связанные задачи сохранятся. Это действие нельзя отменить.`)) {
       deleteProject.mutate(project.id, {
         onSuccess: () => router.push(backHref),
       });
@@ -334,14 +372,30 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
               </Badge>
             )}
+            {isDelivery && (
+              <>
+                <Badge color="green" size="sm">Внедрение</Badge>
+                {project.delivery_kind && (
+                  <span className="text-xs text-text-mute">
+                    {DELIVERY_KIND_LABELS[project.delivery_kind] ?? project.delivery_kind}
+                  </span>
+                )}
+              </>
+            )}
             {project.type === 'client' && (
               <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
             )}
-            <CompletenessBadge project={project} />
+            {/* Delivery — лёгкая карточка: чек-лист заполненности не показываем */}
+            {!isDelivery && <CompletenessBadge project={project} />}
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${headerProb != null && headerProb > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
               {(() => {
+                // Delivery: «Состояние · текущая фаза» (phase_group → лейбл, стадия = фаза СДР)
+                if (isDelivery && headerStage) {
+                  const phaseLabel = DELIVERY_PHASE_LABELS[headerStage.phase_group ?? ''] ?? headerStage.phase_group ?? '—';
+                  return `${phaseLabel} · ${headerStage.name}`;
+                }
                 // S29.1: бейдж — из stage_id (живой контур); legacy STAGE_CONFIG только как fallback.
                 if (headerStage) return `${headerStage.name} · ${headerStage.probability ?? 0}%`;
                 if (stageConfig) return `${stageConfig.label} · ${stageConfig.probability}%`;
@@ -395,6 +449,24 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </>
             );
           })()}
+          {/* Delivery P1: терминал delivery — «Завершить проект» (status open→completed) */}
+          {isDelivery && project.status === 'open' && (
+            <button
+              onClick={() => {
+                if (!confirm(`Завершить проект «${project.name}»?`)) return;
+                updateProject.mutate({ id: project.id, status: 'completed' });
+              }}
+              className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
+                         transition-colors hover:bg-green-l"
+            >
+              Завершить проект
+            </button>
+          )}
+          {isDelivery && project.status === 'completed' && (
+            <span className="rounded-full bg-green-l px-2.5 py-1 text-xs font-medium text-green">
+              Завершён
+            </span>
+          )}
           {(project.status === 'won' || project.status === 'lost') && (
             <>
               <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -404,6 +476,17 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 {project.actual_close_date &&
                   ` · ${new Date(project.actual_close_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`}
               </span>
+              {/* Delivery P1 (B4): spawn проекта внедрения из выигранной сделки.
+                  1 сделка → 1..N проектов — кнопка не блокируется после первого. */}
+              {project.type === 'client' && project.status === 'won' && (
+                <button
+                  onClick={() => { setSpawnError(null); setSpawning((v) => !v); }}
+                  className="flex items-center gap-1 rounded-lg border border-accent/40 px-2.5 py-1.5 text-xs
+                             font-medium text-accent transition-colors hover:bg-accent-l"
+                >
+                  <Rocket size={12} /> Создать проект внедрения
+                </button>
+              )}
               <button
                 onClick={() => {
                   const firstStage = allPipelineStages
@@ -426,14 +509,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </button>
             </>
           )}
-          <button
-            onClick={() => setModalOpen(true)}
-            aria-label="Редактировать"
-            className="rounded-lg border border-border p-1.5 text-text-mute
-                       transition-colors hover:bg-surface-hover hover:text-text-main"
-          >
-            <Pencil size={14} />
-          </button>
+          {/* Delivery — лёгкая карточка P1: правки инлайн (do_url), модалка форм
+              заточена под client/internal и delivery не редактирует */}
+          {!isDelivery && (
+            <button
+              onClick={() => setModalOpen(true)}
+              aria-label="Редактировать"
+              className="rounded-lg border border-border p-1.5 text-text-mute
+                         transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
           <button
             onClick={handleDelete}
             aria-label="Удалить"
@@ -444,6 +531,34 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
         </div>
       </div>
+
+      {/* Delivery P1 (B4): выбор шаблона внедрения (паттерн панели «Проиграна») */}
+      {spawning && project.type === 'client' && project.status === 'won' && (
+        <div className="mb-4 rounded-lg border border-accent/30 bg-accent-l/40 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs text-text-dim">Шаблон внедрения:</span>
+            {(['launch', 'experiment'] as const).map((kind) => (
+              <button
+                key={kind}
+                disabled={spawnPending}
+                onClick={() => handleSpawn(kind)}
+                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
+                           transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+              >
+                {DELIVERY_KIND_LABELS[kind]}
+              </button>
+            ))}
+            {spawnPending && <Loader2 size={12} className="animate-spin text-accent" />}
+            <button
+              onClick={() => setSpawning(false)}
+              className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
+            >
+              Отмена
+            </button>
+          </div>
+          {spawnError && <p className="mt-1.5 text-xs text-red">{spawnError}</p>}
+        </div>
+      )}
 
       {/* «Проиграна» — выбор причины (обязателен, паттерн отказа лидов) */}
       {losing && (project.status === 'open' || project.status === 'on_hold') && (() => {
@@ -480,8 +595,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         );
       })()}
 
-      {/* Deal Progress Bar — ERP only (IIoT uses StackedPipeline below) */}
-      {project.direction === 'erp' && project.pipeline_id && project.stage_id && (
+      {/* Deal Progress Bar — client ERP only (IIoT uses StackedPipeline below) */}
+      {project.type === 'client' && project.direction === 'erp' && project.pipeline_id && project.stage_id && (
         <div className="mb-4">
           <DealProgressBar
             pipelineId={project.pipeline_id}
@@ -506,8 +621,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Multi-track Pipeline — IIoT only. S29.1: на stage_id, гейт-баннер переиспользован. */}
-      {project.direction === 'iiot' && project.pipeline_id && project.stage_id && (
+      {/* Multi-track Pipeline — client IIoT only. S29.1: на stage_id, гейт-баннер переиспользован. */}
+      {project.type === 'client' && project.direction === 'iiot' && project.pipeline_id && project.stage_id && (
         <div className="mb-6">
           <StackedPipeline
             pipelineId={project.pipeline_id}
@@ -528,6 +643,34 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               setGateBlock(null);
               // S29.1: пишем ТОЛЬКО stage_id — legacy `stage` из чеврона больше не трогаем.
               moveToStageId(project.id, newStageId, undefined, { onError: onGateError });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Delivery P1 (B5): фазовый грид проекта внедрения — состояния (phase_group)
+          с фазами СДР внутри; StackedPipeline универсален по слагам (лейблы
+          delivery подмешаны из delivery-phases.ts). Legacy stage не пишем (B6). */}
+      {isDelivery && project.pipeline_id && project.stage_id && (
+        <div className="mb-6">
+          <StackedPipeline
+            pipelineId={project.pipeline_id}
+            currentStageId={project.stage_id}
+            readOnly={project.status === 'completed'}
+            onStageClick={(newStageId) => {
+              if (!allPipelineStages) return;
+              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
+              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
+              if (!currentStageObj || !targetStageObj) return;
+              if (targetStageObj.order_index === currentStageObj.order_index) return;
+
+              if (targetStageObj.order_index < currentStageObj.order_index) {
+                if (!confirm(`Вернуть проект на фазу «${targetStageObj.name}»?`)) return;
+              }
+
+              setGateBlock(null);
+              // B6: delivery живёт только на stage_id — legacy stage всегда null
+              moveToStageId(project.id, newStageId, null, { onError: onGateError });
             }}
           />
         </div>
@@ -590,20 +733,33 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </div>
         </div>
 
-        {/* Budget — inline edit */}
-        <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Banknote size={11} /> Бюджет</div>
-          <InlineEdit
-            value={project.budget ? String(project.budget) : ''}
-            type="number"
-            placeholder="Указать"
-            formatDisplay={(v) => formatBudget(Number(v))}
-            onSave={async (val) => {
-              updateProject.mutate({ id: project.id, budget: val ? Number(val) : null });
-            }}
-            className="text-[15px] font-medium"
-          />
-        </div>
+        {/* Delivery: родительская сделка вместо бюджета (лёгкая карточка) */}
+        {isDelivery ? (
+          <div
+            className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+            onClick={() => project.parent_deal_id && router.push(`/deals/${project.parent_deal_id}`)}
+          >
+            <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Rocket size={11} /> Сделка</div>
+            <div className={`truncate text-[15px] font-medium ${project.parent_deal_id ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+              {parentDeal?.name ?? (project.parent_deal_id ? '…' : '—')}
+            </div>
+          </div>
+        ) : (
+          /* Budget — inline edit */
+          <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+            <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Banknote size={11} /> Бюджет</div>
+            <InlineEdit
+              value={project.budget ? String(project.budget) : ''}
+              type="number"
+              placeholder="Указать"
+              formatDisplay={(v) => formatBudget(Number(v))}
+              onSave={async (val) => {
+                updateProject.mutate({ id: project.id, budget: val ? Number(val) : null });
+              }}
+              className="text-[15px] font-medium"
+            />
+          </div>
+        )}
 
         {/* Deadline — inline edit */}
         <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
@@ -624,6 +780,36 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           />
         </div>
       </div>
+
+      {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
+      {isDelivery && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <Link2 size={13} className="shrink-0 text-text-dim" />
+          <span className="shrink-0 text-[13px] text-text-dim">1С:ДО</span>
+          <div className="min-w-0 flex-1">
+            <InlineEdit
+              value={project.do_url ?? ''}
+              type="text"
+              placeholder="Вставить ссылку на проект в 1С:ДО"
+              onSave={async (val) => {
+                updateProject.mutate({ id: project.id, do_url: val.trim() || null });
+              }}
+              className="text-sm"
+            />
+          </div>
+          {project.do_url && (
+            <a
+              href={project.do_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть в 1С:ДО"
+              className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-accent"
+            >
+              <ExternalLink size={13} />
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ═══ Files ═══ */}
       <ProjectFiles projectId={projectId} />

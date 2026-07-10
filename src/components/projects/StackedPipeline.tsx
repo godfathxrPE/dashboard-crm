@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { DELIVERY_PHASE_LABELS, DELIVERY_PHASE_COLOR } from '@/lib/constants/delivery-phases';
 import type { PipelineStage } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -15,11 +16,15 @@ import type { PipelineStage } from '@/types/database';
 // больше не трогается.
 // ═══════════════════════════════════════════════════════
 
+// Delivery P1: компонент переиспользован фазовым гридом карточки внедрения —
+// подмешиваем delivery-слаги (initiated/…) из единого источника. Слаги deal и
+// delivery не пересекаются, deal-набор не тронут.
 const PHASE_LABELS: Record<string, string> = {
   attraction: 'Привлечение',
   working: 'Проработка',
   approval: 'Согласование',
   closing: 'Закрытие',
+  ...DELIVERY_PHASE_LABELS,
 };
 
 // Цвет трека — только для заголовка/точки (сегменты нейтральны, тема-безопасно,
@@ -29,6 +34,7 @@ const PHASE_COLOR: Record<string, string> = {
   working: 'var(--track-exp-current)',
   approval: 'var(--track-nego-current, var(--track-exp-current))',
   closing: 'var(--track-proj-current)',
+  ...DELIVERY_PHASE_COLOR,
 };
 
 interface StackedPipelineProps {

@@ -3,9 +3,10 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Rocket, Wrench } from 'lucide-react';
-import { useProjects, type Project } from '@/lib/hooks/use-projects';
+import { useDeliveryProjects, type Project } from '@/lib/hooks/use-projects';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { ProjectModal } from './ProjectModal';
+import { DeliveryPipelineBoard } from './DeliveryPipelineBoard';
 import { projectHref } from '@/lib/utils/project-href';
 
 // ═══════════════════════════════════════════════════════
@@ -25,7 +26,7 @@ const STATUS_LABELS: Record<Project['status'], string> = {
 
 function InternalProjectsList() {
   const router = useRouter();
-  const { data: rawProjects, isLoading, error } = useProjects();
+  const { data: rawProjects, isLoading, error } = useDeliveryProjects();
   const [modalOpen, setModalOpen] = useState(false);
 
   const internal = useMemo(
@@ -137,18 +138,7 @@ export function ProjectsSection() {
         ))}
       </div>
 
-      {tab === 'delivery' ? (
-        // B0: заглушка до delivery-фичи (канбан 4 состояний — следующий коммит)
-        <div className="rounded-xl border border-border bg-surface p-10 text-center">
-          <Rocket size={28} className="mx-auto text-text-mute" />
-          <p className="mt-3 text-sm text-text-dim">Пока нет проектов внедрения</p>
-          <p className="mt-1 text-xs text-text-mute">
-            Проект внедрения создаётся из выигранной сделки — кнопкой «Создать проект внедрения» на её карточке.
-          </p>
-        </div>
-      ) : (
-        <InternalProjectsList />
-      )}
+      {tab === 'delivery' ? <DeliveryPipelineBoard /> : <InternalProjectsList />}
     </div>
   );
 }

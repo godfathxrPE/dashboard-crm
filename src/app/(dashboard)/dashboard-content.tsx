@@ -29,10 +29,12 @@ function useStats() {
       const [tasks, projects, calls, meetings, contacts, companies] =
         await Promise.all([
           supabase.from('tasks').select('id', { count: 'exact', head: true }).neq('lane', 'done'),
-          // Активные проекты — источник истины stage_id → pipeline_stages.is_won/is_lost (не legacy `stage`).
+          // Активные сделки — источник истины stage_id → pipeline_stages.is_won/is_lost (не legacy `stage`).
+          // Delivery P1: только client — у delivery все стадии is_won/is_lost=false, без фильтра типов протекут.
           supabase
             .from('projects')
             .select('id, pipeline_stages!inner(is_won, is_lost)', { count: 'exact', head: true })
+            .eq('type', 'client')
             .eq('pipeline_stages.is_won', false)
             .eq('pipeline_stages.is_lost', false),
           supabase.from('calls').select('id', { count: 'exact', head: true }),

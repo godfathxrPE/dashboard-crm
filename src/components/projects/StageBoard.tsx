@@ -289,7 +289,7 @@ interface StageBoardProps {
 
 export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: StageBoardProps) {
   const router = useRouter();
-  const { data: rawProjects, isLoading: loadingProjects, error } = useProjects();
+  const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
   const { moveToStageId } = useMoveProject();

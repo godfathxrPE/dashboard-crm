@@ -194,7 +194,7 @@ export function CommandPalette() {
       items.push({
         id: `proj-${p.id}`,
         label: p.name,
-        sub: 'Внутренний',
+        sub: p.type === 'internal' ? 'Внутренний' : 'Внедрение',
         icon: Rocket,
         href: projectHref(p),
         section: 'Проекты',

@@ -57,12 +57,18 @@ export interface Project {
   stage_id: string | null;
   probability: number | null;
   status: 'open' | 'won' | 'lost' | 'on_hold' | 'completed';
-  // PCT-1: тип проекта
-  type: 'client' | 'internal';
+  // PCT-1: тип проекта; delivery — проект внедрения (миграция 035)
+  type: 'client' | 'internal' | 'delivery';
   lost_reason: string | null;
   actual_close_date: string | null;
   /** Миграция 019: когда сделка вошла в текущую стадию (ведёт триггер) */
   stage_entered_at: string | null;
+  // Delivery P1 (миграция 035)
+  parent_deal_id: string | null;
+  delivery_kind: 'launch' | 'experiment' | null;
+  do_url: string | null;
+  progress_done: number;
+  progress_total: number;
   // Joined data (optional, from select with joins)
   company?: { id: string; name: string } | null;
   contact?: { id: string; first_name: string; last_name: string } | null;
@@ -85,7 +91,10 @@ export interface ProjectInsert {
   pipeline_id?: string | null;
   stage_id?: string | null;
   // PCT-1
-  type?: 'client' | 'internal';
+  type?: 'client' | 'internal' | 'delivery';
+  // Delivery P1: статус меняет «Завершить проект»; delivery создаёт RPC
+  status?: Project['status'];
+  do_url?: string | null;
 }
 
 export interface ProjectUpdate extends Partial<ProjectInsert> {
@@ -94,24 +103,46 @@ export interface ProjectUpdate extends Partial<ProjectInsert> {
 
 const QUERY_KEY = ['projects'] as const;
 
+/**
+ * B7 (delivery P1): срез по типу на сервере, а не в каждом потребителе.
+ *  - 'deals'    → только client (раздел «Сделки», /deals)
+ *  - 'projects' → delivery + internal (раздел «Проекты», /projects)
+ *  - undefined  → все (кросс-секционные потребители: Cmd+K, модалки связей)
+ */
+export type ProjectScope = 'deals' | 'projects';
+
+const listKey = (scope?: ProjectScope) => [...QUERY_KEY, scope ?? 'all'] as const;
+
+// QUERY STRATEGY: явные колонки вместо select *
+const PROJECT_COLUMNS = `
+  id, name, company_id, contact_id, stage, budget, deadline, next_step,
+  next_action_date, pinned_note, owner_id, loss_reason, loss_detail,
+  created_by, created_at, updated_at, direction, pipeline_id, stage_id,
+  probability, status, type, lost_reason, actual_close_date, stage_entered_at,
+  parent_deal_id, delivery_kind, do_url, progress_done, progress_total,
+  company:companies(id, name),
+  contact:contacts(id, first_name, last_name)
+`;
+
 // ═══════════════════════════════════════════════════════
 // Queries
 // ═══════════════════════════════════════════════════════
 
-/** Загрузить все проекты с join на company и contact */
-async function fetchProjects(): Promise<Project[]> {
+/** Загрузить проекты среза с join на company и contact */
+async function fetchProjects(scope?: ProjectScope): Promise<Project[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('projects')
-    .select(`
-      *,
-      company:companies(id, name),
-      contact:contacts(id, first_name, last_name)
-    `)
+    .select(PROJECT_COLUMNS)
     .order('created_at', { ascending: false });
 
+  if (scope === 'deals') query = query.eq('type', 'client');
+  if (scope === 'projects') query = query.in('type', ['delivery', 'internal']);
+
+  const { data, error } = await query;
+
   if (error) throw error;
-  return (data ?? []) as Project[];
+  return (data ?? []) as unknown as Project[];
 }
 
 /** Загрузить один проект по ID с полными связями */
@@ -119,16 +150,12 @@ async function fetchProject(id: string): Promise<Project> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('projects')
-    .select(`
-      *,
-      company:companies(id, name),
-      contact:contacts(id, first_name, last_name)
-    `)
+    .select(PROJECT_COLUMNS)
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as Project;
+  return data as unknown as Project;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -140,15 +167,11 @@ async function createProject(project: ProjectInsert): Promise<Project> {
   const { data, error } = await supabase
     .from('projects')
     .insert(project)
-    .select(`
-      *,
-      company:companies(id, name),
-      contact:contacts(id, first_name, last_name)
-    `)
+    .select(PROJECT_COLUMNS)
     .single();
 
   if (error) throw error;
-  return data as Project;
+  return data as unknown as Project;
 }
 
 async function updateProject({ id, ...updates }: ProjectUpdate): Promise<Project> {
@@ -157,15 +180,11 @@ async function updateProject({ id, ...updates }: ProjectUpdate): Promise<Project
     .from('projects')
     .update(updates)
     .eq('id', id)
-    .select(`
-      *,
-      company:companies(id, name),
-      contact:contacts(id, first_name, last_name)
-    `)
+    .select(PROJECT_COLUMNS)
     .single();
 
   if (error) throw error;
-  return data as Project;
+  return data as unknown as Project;
 }
 
 async function deleteProject(id: string): Promise<void> {
@@ -178,16 +197,60 @@ async function deleteProject(id: string): Promise<void> {
 // Hooks
 // ═══════════════════════════════════════════════════════
 
-/** Все проекты + Realtime */
-export function useProjects() {
+/**
+ * Проекты среза + Realtime. Без аргумента — все типы (Cmd+K, модалки связей);
+ * 'deals' — только client; 'projects' — delivery+internal (см. ProjectScope).
+ */
+export function useProjects(scope?: ProjectScope) {
   // Realtime: инвалидируем кеш при изменениях из другого устройства
+  // (invalidateQueries по префиксу ['projects'] задевает все срезы)
   useRealtimeSync('projects', QUERY_KEY);
 
   return useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: fetchProjects,
+    queryKey: listKey(scope),
+    queryFn: () => fetchProjects(scope),
     staleTime: 1000 * 60, // 1 мин — Realtime подхватит изменения раньше
   });
+}
+
+/** Раздел «Сделки» (/deals): только client */
+export function useDeals() {
+  return useProjects('deals');
+}
+
+/** Раздел «Проекты» (/projects): delivery + internal */
+export function useDeliveryProjects() {
+  return useProjects('projects');
+}
+
+// ── Optimistic-хелперы: list-кешей теперь несколько (all/deals/projects) ──
+
+type ListSnapshot = [readonly unknown[], Project[] | undefined][];
+
+/** Снимок всех list-кешей проектов (single-кеши [projects, <uuid>] не трогаем) */
+function snapshotLists(qc: ReturnType<typeof useQueryClient>): ListSnapshot {
+  return qc
+    .getQueriesData<Project[]>({ queryKey: QUERY_KEY })
+    .filter(([, data]) => Array.isArray(data)) as ListSnapshot;
+}
+
+function restoreLists(qc: ReturnType<typeof useQueryClient>, snapshot: ListSnapshot) {
+  for (const [key, data] of snapshot) qc.setQueryData(key, data);
+}
+
+/** Применить преобразование ко всем list-кешам */
+function patchLists(qc: ReturnType<typeof useQueryClient>, fn: (old: Project[]) => Project[]) {
+  qc.setQueriesData<Project[]>({ queryKey: QUERY_KEY }, (old) =>
+    Array.isArray(old) ? fn(old) : old,
+  );
+}
+
+/** Срез кеша по его ключу совместим с типом проекта? */
+function scopeMatches(key: readonly unknown[], type: Project['type']): boolean {
+  const scope = key[1];
+  if (scope === 'deals') return type === 'client';
+  if (scope === 'projects') return type !== 'client';
+  return true; // 'all'
 }
 
 /** Один проект по ID */
@@ -207,7 +270,7 @@ export function useCreateProject() {
     mutationFn: createProject,
     onMutate: async (newProject) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
-      const prev = qc.getQueryData<Project[]>(QUERY_KEY);
+      const prev = snapshotLists(qc);
 
       // Оптимистичная вставка с временным ID
       const optimistic: Project = {
@@ -233,17 +296,26 @@ export function useCreateProject() {
         stage_id: newProject.stage_id ?? null,
         type: newProject.type ?? 'client',
         probability: null,
-        status: 'open',
+        status: newProject.status ?? 'open',
         lost_reason: null,
         actual_close_date: null,
         stage_entered_at: new Date().toISOString(),
+        parent_deal_id: null,
+        delivery_kind: null,
+        do_url: newProject.do_url ?? null,
+        progress_done: 0,
+        progress_total: 0,
       };
 
-      qc.setQueryData<Project[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);
+      // Вставляем только в совместимые по типу срезы (all + deals ИЛИ projects)
+      for (const [key, data] of prev) {
+        if (!scopeMatches(key, optimistic.type)) continue;
+        qc.setQueryData<Project[]>(key, [optimistic, ...(data ?? [])]);
+      }
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev);
+      if (ctx?.prev) restoreLists(qc, ctx.prev);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
@@ -259,10 +331,10 @@ export function useUpdateProject() {
     mutationFn: updateProject,
     onMutate: async (updated) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
-      const prev = qc.getQueryData<Project[]>(QUERY_KEY);
+      const prev = snapshotLists(qc);
 
-      qc.setQueryData<Project[]>(QUERY_KEY, (old) =>
-        (old ?? []).map((p) =>
+      patchLists(qc, (old) =>
+        old.map((p) =>
           p.id === updated.id
             ? { ...p, ...updated, updated_at: new Date().toISOString() }
             : p
@@ -277,11 +349,13 @@ export function useUpdateProject() {
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev);
+      if (ctx?.prev) restoreLists(qc, ctx.prev);
     },
     onSuccess: (result, vars, ctx) => {
       // Находим предыдущее состояние из сохранённого кеша (до оптимистичного обновления)
-      const oldProject = ctx?.prev?.find((p) => p.id === vars.id);
+      const oldProject = ctx?.prev
+        ?.flatMap(([, data]) => data ?? [])
+        .find((p) => p.id === vars.id);
 
       if (vars.stage && oldProject && vars.stage !== oldProject.stage) {
         logActivity(vars.id, 'stage_change', { from: oldProject.stage, to: vars.stage });
@@ -307,16 +381,14 @@ export function useDeleteProject() {
     mutationFn: deleteProject,
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
-      const prev = qc.getQueryData<Project[]>(QUERY_KEY);
+      const prev = snapshotLists(qc);
 
-      qc.setQueryData<Project[]>(QUERY_KEY, (old) =>
-        (old ?? []).filter((p) => p.id !== id)
-      );
+      patchLists(qc, (old) => old.filter((p) => p.id !== id));
 
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev);
+      if (ctx?.prev) restoreLists(qc, ctx.prev);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });

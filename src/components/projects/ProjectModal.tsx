@@ -231,6 +231,11 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         loss_reason: null,
         loss_detail: null,
       };
+    } else if (values.type === 'delivery') {
+      // Delivery P1 (защитная ветка): модалка delivery не создаёт и не редактирует
+      // (создание — RPC spawn_delivery_project), но если сюда попали — legacy
+      // stage строго null (B6), маппинг IIoT-сделок неприменим.
+      payload = { ...values, stage: null };
     } else {
       // Auto-fill legacy stage from mapping
       const pStage = allStages?.find((s) => s.id === values.stage_id);

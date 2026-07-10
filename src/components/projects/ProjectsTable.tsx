@@ -47,7 +47,7 @@ interface ProjectsTableProps {
 
 export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onSwitchView }: ProjectsTableProps) {
   const router = useRouter();
-  const { data: rawProjects, isLoading, error } = useProjects();
+  const { data: rawProjects, isLoading, error } = useProjects('deals');
   const { data: allStages } = usePipelineStages();
   const deleteProject = useDeleteProject();
   const [modalOpen, setModalOpen] = useState(false);

@@ -89,8 +89,9 @@ export function TodayView() {
       return (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999');
     });
   }, [tasks, todayKey]);
+  // Delivery P1: только client — delivery/internal без next_step не «гниющая сделка»
   const rottingDeals = useMemo(
-    () => projects.filter((p) => isProjectActive(p) && getDealHealth(p) !== 'ok'),
+    () => projects.filter((p) => p.type === 'client' && isProjectActive(p) && getDealHealth(p) !== 'ok'),
     [projects, isProjectActive],
   );
   const todayMeetings = useMemo(

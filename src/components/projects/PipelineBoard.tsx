@@ -367,7 +367,7 @@ interface PipelineBoardProps {
 
 export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: PipelineBoardProps = {}) {
   const router = useRouter();
-  const { data: rawProjects, isLoading: loadingProjects, error } = useProjects();
+  const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
   const { moveToStageId } = useMoveProject();

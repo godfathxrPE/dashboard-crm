@@ -75,7 +75,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
   );
 
   // Counts for chip badges
-  const { data: allProjects } = useProjects();
+  const { data: allProjects } = useProjects('deals');
   const directionOptions: ChipOption[] = useMemo(() => {
     const all = allProjects ?? [];
     return DIRECTION_OPTIONS.map((opt) => ({

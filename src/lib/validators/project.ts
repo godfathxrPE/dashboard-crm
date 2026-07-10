@@ -162,6 +162,9 @@ export type SortOption = (typeof sortOptions)[number]['value'];
 
 // PCT-1: client — сделка в воронке (direction/pipeline_id/stage_id обязательны);
 // internal — внутренний проект вне воронки (стадийные поля = null).
+// Delivery P1: delivery — проект внедрения; создаётся ТОЛЬКО RPC
+// spawn_delivery_project (форма не предлагает), ветка в superRefine зеркалит
+// CHECK projects_type_pipeline_chk (миграция 035).
 //
 // Примечание: промпт просил z.discriminatedUnion('type', …). Union делает
 // ProjectFormValues union-типом и ломает плоский RHF-контракт формы
@@ -170,7 +173,7 @@ export type SortOption = (typeof sortOptions)[number]['value'];
 // а инвариант «client требует стадийные поля» проверяется на submit.
 export const projectFormSchema = z
   .object({
-    type: z.enum(['client', 'internal']).default('client'),
+    type: z.enum(['client', 'internal', 'delivery']).default('client'),
     name: z.string().min(1, 'Введи название'),
     direction: z.enum(['erp', 'iiot']).nullable().default('iiot'),
     pipeline_id: z.string().uuid().nullable().default(null),
@@ -186,15 +189,25 @@ export const projectFormSchema = z
     loss_reason: z.string().nullable().default(null),
     loss_detail: z.string().nullable().default(null),
     owner_id: z.string().uuid().nullable().optional(),
+    // Delivery P1 (форма их не редактирует, кроме do_url на карточке)
+    parent_deal_id: z.string().uuid().nullable().default(null),
+    delivery_kind: z.enum(['launch', 'experiment']).nullable().default(null),
+    do_url: z.string().url('Некорректная ссылка').nullable().or(z.literal('').transform(() => null)).default(null),
   })
   .superRefine((val, ctx) => {
-    if (val.type === 'client') {
+    if (val.type === 'client' || val.type === 'delivery') {
       if (!val.direction)
         ctx.addIssue({ path: ['direction'], code: z.ZodIssueCode.custom, message: 'Укажи направление' });
       if (!val.pipeline_id)
         ctx.addIssue({ path: ['pipeline_id'], code: z.ZodIssueCode.custom, message: 'Укажи воронку' });
       if (!val.stage_id)
         ctx.addIssue({ path: ['stage_id'], code: z.ZodIssueCode.custom, message: 'Укажи стадию' });
+    }
+    if (val.type === 'delivery') {
+      if (!val.parent_deal_id)
+        ctx.addIssue({ path: ['parent_deal_id'], code: z.ZodIssueCode.custom, message: 'Нет родительской сделки' });
+      if (!val.delivery_kind)
+        ctx.addIssue({ path: ['delivery_kind'], code: z.ZodIssueCode.custom, message: 'Укажи шаблон внедрения' });
     }
   });
 
