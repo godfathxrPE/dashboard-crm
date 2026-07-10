@@ -27,6 +27,16 @@ function readViews(): SavedView[] {
   } catch {
     cache = [];
   }
+  // Routing-split P1: раздел сделок переехал /projects → /deals; сохранённые
+  // виды сделаны до переезда — разово переключаем ключ маршрута (виды раздела
+  // «Проекты» пользователи заведут уже с новым ключом).
+  if (cache.some((v) => v.route === '/projects')) {
+    const migrated = cache.map((v) => (v.route === '/projects' ? { ...v, route: '/deals' } : v));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    } catch { /* private mode — миграция живёт до перезагрузки */ }
+    cache = migrated;
+  }
   return cache;
 }
 

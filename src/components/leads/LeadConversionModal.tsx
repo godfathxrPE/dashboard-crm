@@ -119,7 +119,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
         dealAmount: values.deal_amount ?? undefined,
       });
       onClose();
-      router.push(`/projects/${result.deal_id}`);
+      router.push(`/deals/${result.deal_id}`);
     } catch (err) {
       console.error('Lead conversion error:', err);
     }

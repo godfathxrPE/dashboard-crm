@@ -394,7 +394,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
   }
 
   function handleOpen(id: string) {
-    router.push(`/projects/${id}`);
+    router.push(`/deals/${id}`);
   }
 
   function handleRestore(id: string) {

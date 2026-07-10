@@ -75,7 +75,7 @@ export function DashboardContent({ userId }: Props) {
 
   const stats: StatCard[] = [
     { label: 'Задач в работе',    icon: CheckSquare,   value: data?.activeTasks ?? 0,    color: 'text-blue bg-blue-l',     href: '/tasks' },
-    { label: 'Активных проектов', icon: FolderKanban,  value: data?.activeProjects ?? 0, color: 'text-green bg-green-l',   href: '/projects' },
+    { label: 'Активных сделок',   icon: FolderKanban,  value: data?.activeProjects ?? 0, color: 'text-green bg-green-l',   href: '/deals' },
     { label: 'Всего звонков',     icon: Phone,         value: data?.totalCalls ?? 0,     color: 'text-accent bg-accent-l', href: '/calls' },
     { label: 'Встреч',            icon: CalendarDays,  value: data?.totalMeetings ?? 0,  color: 'text-yellow bg-yellow-l', href: '/meetings' },
     { label: 'Контактов',         icon: Users,         value: data?.totalContacts ?? 0,  color: 'text-blue bg-blue-l',     href: '/contacts' },

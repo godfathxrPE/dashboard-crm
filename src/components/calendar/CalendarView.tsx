@@ -7,6 +7,7 @@ import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { Watermark } from '@/components/ui/WatermarkNew';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -147,7 +148,8 @@ export function CalendarView() {
       return;
     }
     if (ev.type === 'deal-step' || ev.type === 'deal-deadline') {
-      router.push(`/projects/${ev.id}`);
+      const project = projects.find((p) => p.id === ev.id);
+      router.push(project ? projectHref(project) : `/deals/${ev.id}`);
       return;
     }
     router.push('/tasks');

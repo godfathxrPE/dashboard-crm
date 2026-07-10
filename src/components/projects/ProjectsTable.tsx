@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
+import { projectHref } from '@/lib/utils/project-href';
 import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage } from '@/types/database';
@@ -273,10 +274,10 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
         data={filtered}
         columns={columns}
         keyField="id"
-        onRowClick={(p) => router.push(`/projects/${p.id}`)}
+        onRowClick={(p) => router.push(projectHref(p))}
         peek={(p) => ({
           title: p.name,
-          href: `/projects/${p.id}`,
+          href: projectHref(p),
           content: <ProjectPeekContent project={p} />,
         })}
         searchPlaceholder="Поиск по названию, компании..."

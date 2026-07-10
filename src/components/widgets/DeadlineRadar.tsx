@@ -5,6 +5,7 @@ import { AlertTriangle, Clock, CheckSquare, FolderKanban } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { STAGE_CONFIG } from '@/lib/validators/project';
+import { projectHref } from '@/lib/utils/project-href';
 
 interface DeadlineItem {
   id: string;
@@ -45,7 +46,7 @@ export function DeadlineRadar() {
           date: new Date(p.deadline),
           type: 'project',
           meta: p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—',
-          href: `/projects/${p.id}`,
+          href: projectHref(p),
         });
       }
     }

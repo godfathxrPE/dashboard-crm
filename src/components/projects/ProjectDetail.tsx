@@ -267,7 +267,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <AlertCircle size={24} className="mx-auto text-red" />
         <p className="mt-2 text-sm text-red">Сделка не найдена</p>
         <button
-          onClick={() => router.push('/projects')}
+          onClick={() => router.push('/deals')}
           className="mt-3 text-xs text-accent hover:underline"
         >
           ← Вернуться к воронке
@@ -275,6 +275,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       </div>
     );
   }
+
+  // Routing-контракт P1: client живёт на /deals, delivery/internal — на /projects
+  const backHref = project.type === 'client' ? '/deals' : '/projects';
+  const backLabel = project.type === 'client' ? 'Воронка сделок' : 'Проекты';
 
   const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
   const nextStage = project.stage ? getNextStage(project.stage) : null;
@@ -301,7 +305,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     if (!project) return;
     if (confirm(`Удалить ${project.type === 'internal' ? 'проект' : 'сделку'}? Связанные задачи сохранятся. Это действие нельзя отменить.`)) {
       deleteProject.mutate(project.id, {
-        onSuccess: () => router.push('/projects'),
+        onSuccess: () => router.push(backHref),
       });
     }
   }
@@ -310,12 +314,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     <>
       {/* Back navigation */}
       <button
-        onClick={() => router.push('/projects')}
+        onClick={() => router.push(backHref)}
         className="mb-4 flex items-center gap-1 text-xs text-text-mute
                    transition-colors hover:text-accent"
       >
         <ArrowLeft size={14} />
-        Воронка сделок
+        {backLabel}
       </button>
 
       {/* Header */}

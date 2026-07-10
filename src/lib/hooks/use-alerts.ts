@@ -40,7 +40,7 @@ export function useAlerts(): AlertItem[] {
         type: 'no_contact',
         severity: 'warning',
         title: `${p.name}: нет контакта`,
-        href: `/projects/${p.id}`,
+        href: `/deals/${p.id}`,
       });
     }
 
@@ -64,7 +64,7 @@ export function useAlerts(): AlertItem[] {
             type: 'stale',
             severity: 'warning',
             title: `${p.name}: ${days}д без контакта`,
-            href: `/projects/${p.id}`,
+            href: `/deals/${p.id}`,
           });
         }
       }

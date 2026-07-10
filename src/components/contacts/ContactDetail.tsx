@@ -9,6 +9,7 @@ import {
 import { useContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 
@@ -204,7 +205,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
           ) : (
             <div className="space-y-1.5">
               {linkedProjects.map((p) => (
-                <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
+                <button key={p.id} onClick={() => router.push(projectHref(p))}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                   <span className="text-sm text-text-main">{p.name}</span>
                   <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">

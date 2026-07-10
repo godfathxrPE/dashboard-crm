@@ -30,7 +30,9 @@ export async function openTimelineEvent(event: TimelineEvent, ctx: OpenTimelineE
   const supabase = createClient();
   switch (event.kind) {
     case 'project':
-      ctx.router.push(`/projects/${event.sourceId}`);
+      // Тип строки projects тут неизвестен — /deals/[id], серверный бэкстоп
+      // перенаправит delivery/internal на /projects/[id].
+      ctx.router.push(`/deals/${event.sourceId}`);
       return;
     case 'call': {
       if (!ctx.onCall) return;

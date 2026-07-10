@@ -208,7 +208,7 @@ export function CallLog() {
                       {call.project && (
                         <button
                           type="button"
-                          onClick={() => router.push(`/projects/${call.project!.id}`)}
+                          onClick={() => router.push(`/deals/${call.project!.id}`)}
                           className="flex items-center gap-0.5 text-text-dim hover:text-accent hover:underline"
                         >
                           <FolderKanban size={10} /> {call.project.name}

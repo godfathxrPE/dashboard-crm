@@ -12,6 +12,7 @@ import { leadStaleness } from '@/lib/constants/leads';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects, type Project } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
@@ -156,7 +157,7 @@ export function TodayView() {
       primary: () => updateTask.mutate({ id: t.id, lane: 'done' as const }),
     })),
     ...rottingDeals.map((p) => ({
-      open: () => router.push(`/projects/${p.id}`),
+      open: () => router.push(projectHref(p)),
       primary: () => openDeal(p),
     })),
     ...coolingSlice.map(({ contact: c }) => ({
@@ -327,7 +328,7 @@ export function TodayView() {
                           : 'нет шага'}
                     </span>
                   }
-                  onOpen={() => router.push(`/projects/${p.id}`)}
+                  onOpen={() => router.push(projectHref(p))}
                   primary={{ label: 'Запланировать шаг', onClick: () => openDeal(p) }}
                 />
               );

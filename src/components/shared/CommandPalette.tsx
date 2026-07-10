@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark, UserPlus,
+  Plus, Sun, Bookmark, UserPlus, Rocket,
 } from 'lucide-react';
+import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useSavedViews } from '@/lib/hooks/use-saved-views';
 import { useTasks } from '@/lib/hooks/use-tasks';
@@ -42,7 +43,8 @@ const QUICK_ACTIONS: Record<string, ModalAction> = {
 
 /** Подписи маршрутов для сохранённых видов */
 const ROUTE_LABELS: Record<string, string> = {
-  '/projects': 'Сделки',
+  '/deals': 'Сделки',
+  '/projects': 'Проекты',
   '/companies': 'Компании',
   '/contacts': 'Контакты',
   '/calls': 'Звонки',
@@ -150,7 +152,8 @@ export function CommandPalette() {
       { id: 'nav-today', label: 'Сегодня', icon: Sun, href: '/', section: 'Навигация' },
       { id: 'nav-overview', label: 'Обзор', icon: BarChart3, href: '/overview', section: 'Навигация' },
       { id: 'nav-tasks', label: 'Задачи', icon: CheckSquare, href: '/tasks', section: 'Навигация' },
-      { id: 'nav-projects', label: 'Сделки', icon: FolderKanban, href: '/projects', section: 'Навигация' },
+      { id: 'nav-deals', label: 'Сделки', icon: FolderKanban, href: '/deals', section: 'Навигация' },
+      { id: 'nav-projects', label: 'Проекты', icon: Rocket, href: '/projects', section: 'Навигация' },
       { id: 'nav-companies', label: 'Компании', icon: Building2, href: '/companies', section: 'Навигация' },
       { id: 'nav-contacts', label: 'Контакты', icon: Users, href: '/contacts', section: 'Навигация' },
       { id: 'nav-leads', label: 'Лиды', icon: UserPlus, href: '/leads', section: 'Навигация' },
@@ -173,17 +176,28 @@ export function CommandPalette() {
       });
     }
 
-    // Projects
-    for (const p of projects ?? []) {
+    // Projects — client в секцию «Сделки», delivery/internal в «Проекты».
+    // Сортируем по типу, чтобы секции шли подряд (заголовок печатается на смене).
+    const clientDeals = (projects ?? []).filter((p) => p.type === 'client');
+    const workProjects = (projects ?? []).filter((p) => p.type !== 'client');
+    for (const p of clientDeals) {
       items.push({
         id: `proj-${p.id}`,
         label: p.name,
-        sub: p.type === 'internal'
-          ? 'Внутренний'
-          : (p.stage ? STAGE_CONFIG[p.stage]?.shortLabel ?? undefined : undefined),
+        sub: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel ?? undefined : undefined,
         icon: FolderKanban,
-        href: `/projects/${p.id}`,
+        href: projectHref(p),
         section: 'Сделки',
+      });
+    }
+    for (const p of workProjects) {
+      items.push({
+        id: `proj-${p.id}`,
+        label: p.name,
+        sub: 'Внутренний',
+        icon: Rocket,
+        href: projectHref(p),
+        section: 'Проекты',
       });
     }
 

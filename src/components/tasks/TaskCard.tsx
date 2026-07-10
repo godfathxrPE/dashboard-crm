@@ -113,7 +113,7 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
             })()}
             {task.project_id && (
               <button
-                onClick={(e) => { e.stopPropagation(); router.push(`/projects/${task.project_id}`); }}
+                onClick={(e) => { e.stopPropagation(); router.push(`/deals/${task.project_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}
                 data-tag
                 className="rounded bg-accent-l px-1 py-0.5 text-[0.625rem] text-accent truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"

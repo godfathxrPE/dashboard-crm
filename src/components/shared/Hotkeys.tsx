@@ -8,6 +8,7 @@ import { useUiStore } from '@/lib/stores/ui-store';
 const GO_ROUTES: Record<string, string> = {
   d: '/',
   t: '/tasks',
+  l: '/deals',
   p: '/projects',
   c: '/calls',
   m: '/meetings',
@@ -28,7 +29,8 @@ const SHORTCUTS = [
   null,
   { keys: 'G D', label: 'Дашборд' },
   { keys: 'G T', label: 'Задачи' },
-  { keys: 'G P', label: 'Сделки' },
+  { keys: 'G L', label: 'Сделки' },
+  { keys: 'G P', label: 'Проекты' },
   { keys: 'G C', label: 'Звонки' },
   { keys: 'G N', label: 'Контакты' },
   { keys: 'G O', label: 'Компании' },

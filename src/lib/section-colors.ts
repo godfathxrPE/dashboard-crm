@@ -4,6 +4,7 @@ const SECTION_MAP: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/tasks': 'tasks',
   '/leads': 'leads',
+  '/deals': 'projects',
   '/projects': 'projects',
   '/contacts': 'contacts',
   '/companies': 'companies',

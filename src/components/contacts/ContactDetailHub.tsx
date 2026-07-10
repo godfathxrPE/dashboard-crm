@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils/cn';
 import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
@@ -506,7 +507,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                 <div className="space-y-1.5">
                   {linkedProjects.slice(0, 3).map((p) => (
                     <div key={p.id}>
-                      <button onClick={() => router.push(`/projects/${p.id}`)}
+                      <button onClick={() => router.push(projectHref(p))}
                         className="text-sm text-accent hover:underline truncate block">
                         {p.name}
                       </button>

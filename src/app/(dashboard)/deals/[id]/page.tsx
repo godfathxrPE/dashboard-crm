@@ -6,7 +6,7 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ProjectDetailPage({ params }: PageProps) {
+export default async function DealDetailPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -14,8 +14,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
   const { id } = await params;
 
-  // Бэкстоп routing-контракта: клиентские сделки живут на /deals/[id].
-  // Страхует старые закладки и пропущенные call-site после переезда раздела.
+  // Бэкстоп routing-контракта: delivery/internal живут на /projects/[id].
+  // Страхует deep-links без типа (уведомления, timeline) и старые закладки.
   const { data: project } = await supabase
     .from('projects')
     .select('type')
@@ -23,7 +23,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     .maybeSingle();
 
   const projectType = (project as { type?: string } | null)?.type;
-  if (projectType === 'client') redirect(`/deals/${id}`);
+  if (projectType && projectType !== 'client') redirect(`/projects/${id}`);
 
   return <ProjectDetail projectId={id} />;
 }

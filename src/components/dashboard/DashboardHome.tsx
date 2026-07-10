@@ -30,6 +30,7 @@ import {
   Cell,
 } from 'recharts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
@@ -244,7 +245,7 @@ function KpiCards() {
       num: kpi.activeProjects,
       fmt: (n: number) => String(Math.round(n)),
       iconBg: 'bg-accent-l text-accent',
-      href: '/projects',
+      href: '/deals',
       trend: kpi.trends.projects,
     },
     {
@@ -253,7 +254,7 @@ function KpiCards() {
       num: kpi.pipeline,
       fmt: (n: number) => formatBudget(Math.round(n)),
       iconBg: 'bg-accent-l text-accent',
-      href: '/projects',
+      href: '/deals',
     },
     {
       icon: CheckSquare,
@@ -520,7 +521,7 @@ function PipelineFunnelChart() {
             {drillProjects.map((p) => (
               <a
                 key={p.id}
-                href={`/projects/${p.id}`}
+                href={projectHref(p)}
                 className="group flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2"
               >
                 <div className="min-w-0">
@@ -665,7 +666,7 @@ function UpcomingDeadlines() {
             return (
               <a
                 key={p.id}
-                href={`/projects/${p.id}`}
+                href={projectHref(p)}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5
                            transition-colors hover:bg-surface-hover"
               >
@@ -815,7 +816,7 @@ function RecentActivityList() {
         <div className="flex flex-col items-center py-6 text-center">
           <Clock size={20} className="mb-2 text-text-mute" />
           <p className="text-xs text-text-dim">Нет активности</p>
-          <a href="/projects" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</a>
+          <a href="/deals" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</a>
         </div>
       ) : (
         <div data-timeline-scroll="compact" className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">
@@ -830,7 +831,7 @@ function RecentActivityList() {
             return (
               <Tag
                 key={entry.id}
-                {...(projectId ? { href: `/projects/${projectId}` } : {})}
+                {...(projectId ? { href: `/deals/${projectId}` } : {})}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5
                            transition-colors hover:bg-surface-hover"
               >

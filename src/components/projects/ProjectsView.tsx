@@ -41,7 +41,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
       const params = new URLSearchParams(searchParams.toString());
       if (q) params.set('q', q); else params.delete('q');
       const qs = params.toString();
-      router.push(`/projects${qs ? `?${qs}` : ''}`);
+      router.push(`/deals${qs ? `?${qs}` : ''}`);
     },
     [router, searchParams],
   );
@@ -55,7 +55,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
         params.set('view', target);
       }
       const qs = params.toString();
-      router.push(`/projects${qs ? `?${qs}` : ''}`);
+      router.push(`/deals${qs ? `?${qs}` : ''}`);
     },
     [router, searchParams],
   );
@@ -69,7 +69,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
         params.set('direction', dir);
       }
       const qs = params.toString();
-      router.push(`/projects${qs ? `?${qs}` : ''}`);
+      router.push(`/deals${qs ? `?${qs}` : ''}`);
     },
     [router, searchParams],
   );

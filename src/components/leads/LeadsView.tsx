@@ -277,7 +277,7 @@ function ConvertedLeads() {
               >
                 <div className="min-w-0 flex-1">
                   <button
-                    onClick={() => lead.converted_deal_id && router.push(`/projects/${lead.converted_deal_id}`)}
+                    onClick={() => lead.converted_deal_id && router.push(`/deals/${lead.converted_deal_id}`)}
                     className="block truncate text-sm text-text-main transition-colors hover:text-accent"
                   >
                     {lead.title}
@@ -303,7 +303,7 @@ function ConvertedLeads() {
                 </div>
                 {lead.converted_deal_id && (
                   <button
-                    onClick={() => router.push(`/projects/${lead.converted_deal_id}`)}
+                    onClick={() => router.push(`/deals/${lead.converted_deal_id}`)}
                     className="flex items-center gap-0.5 rounded px-2 py-1 text-[10px] font-medium text-accent
                                opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent-l"
                   >

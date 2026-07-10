@@ -597,7 +597,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   }
   // Клиентская навигация: window.location.href давал полную перезагрузку
   // (первый клик «обновлял» страницу, не переходя на сделку)
-  function handleOpen(id: string) { router.push(`/projects/${id}`); }
+  function handleOpen(id: string) { router.push(`/deals/${id}`); }
   function handleRestore(id: string) {
     // Move to first stage of the pipeline
     const firstStage = pipelineStages.find((s) => s.order_index === 1);
@@ -657,7 +657,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
               <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
                 Доска
               </button>
-              <a href="/projects?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+              <a href="/deals?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
                 Таблица
               </a>
             </>

@@ -12,9 +12,11 @@ import {
 } from '@/lib/hooks/use-notifications';
 import type { Notification, NotificationType } from '@/types/database';
 
-// Задачи — доска без detail-роута → /tasks. Сделки имеют /projects/[id].
+// Задачи — доска без detail-роута → /tasks. Сделки имеют /deals/[id];
+// тип сущности в уведомлении неизвестен — delivery/internal перенаправит
+// серверный бэкстоп deals/[id] → /projects/[id].
 function entityRoute(n: Notification): string {
-  if (n.type === 'project_assigned') return `/projects/${n.entity_id}`;
+  if (n.type === 'project_assigned') return `/deals/${n.entity_id}`;
   return '/tasks';
 }
 

@@ -9,6 +9,7 @@ import {
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { projectHref } from '@/lib/utils/project-href';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { getDealHealth } from '@/lib/utils/deal-health';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
@@ -193,7 +194,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                   ?? '—';
                 const dh = getDealHealth(p);
                 return (
-                  <button key={p.id} onClick={() => router.push(`/projects/${p.id}`)}
+                  <button key={p.id} onClick={() => router.push(projectHref(p))}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                     {dh !== 'ok' && (
                       <span
