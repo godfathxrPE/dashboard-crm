@@ -330,7 +330,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
               </Badge>
             )}
-            <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
+            {project.type === 'client' && (
+              <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
+            )}
             <CompletenessBadge project={project} />
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">

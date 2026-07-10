@@ -165,7 +165,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
   // Derived data
   const linkedProjects = useMemo(
-    () => (allProjects ?? []).filter((p) => p.contact_id === contactId && p.stage !== 'lost'),
+    () => (allProjects ?? []).filter((p) => p.contact_id === contactId && p.status !== 'lost'),
     [allProjects, contactId],
   );
 

@@ -191,9 +191,9 @@ function KpiCards() {
   const isScandi = theme === 't-scandi';
 
   const kpi = useMemo(() => {
-    const active = (projects ?? []).filter((p) => p.stage !== 'won' && p.stage !== 'lost');
-    const won = (projects ?? []).filter((p) => p.stage === 'won');
-    const lost = (projects ?? []).filter((p) => p.stage === 'lost');
+    const active = (projects ?? []).filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
+    const won = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won');
+    const lost = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'lost');
     const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
 
     const today = new Date();
@@ -432,7 +432,7 @@ function PipelineFunnelChart() {
 
   const chartData = useMemo(() => {
     if (!projects) return [];
-    const active = projects.filter((p) => p.stage !== 'won' && p.stage !== 'lost');
+    const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
 
     return getActiveStages().map((stage) => {
       const count = active.filter((p) => p.stage === stage).length;

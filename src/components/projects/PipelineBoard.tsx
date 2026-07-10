@@ -130,7 +130,7 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi, sub }: {
 function HeroMetrics({ projects }: { projects: Project[] }) {
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const { data: allStages } = usePipelineStages();
-  const active = projects.filter((p) => p.status !== 'won' && p.status !== 'lost');
+  const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
   const won = projects.filter((p) => p.status === 'won');
   const lost = projects.filter((p) => p.status === 'lost');
   const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
