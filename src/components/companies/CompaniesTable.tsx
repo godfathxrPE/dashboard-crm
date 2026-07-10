@@ -100,7 +100,7 @@ export function CompaniesTable() {
   const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(rows, chipFilters);
 
   const chipOptions: ChipOption[] = useMemo(() => [
-    { label: 'Есть проекты', value: 'has_projects', count: counts.has_projects },
+    { label: 'Есть сделки', value: 'has_projects', count: counts.has_projects },
     { label: 'Есть контакты', value: 'has_contacts', count: counts.has_contacts },
     { label: 'За 7 дней', value: 'recent', count: counts.recent },
     { label: 'Остывают', value: 'cooling', count: counts.cooling },

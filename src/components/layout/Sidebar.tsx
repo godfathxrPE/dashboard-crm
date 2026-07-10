@@ -20,7 +20,7 @@ const MAIN_NAV = [
   { href: '/overview',  label: 'Обзор',      jpLabel: 'ダッシュボード', icon: LayoutDashboard, badgeKey: null,               sectionColor: '#94A3B8' },
   { href: '/tasks',     label: 'Задачи',     jpLabel: 'タスク管理',     icon: CheckSquare,     badgeKey: 'tasks' as const,   sectionColor: '#8B7CF6' },
   { href: '/leads',     label: 'Лиды',       jpLabel: 'リード',         icon: Target,          badgeKey: 'leads' as const,   sectionColor: '#F97316' },
-  { href: '/projects',  label: 'Проекты',    jpLabel: '案件管理',       icon: FolderKanban,    badgeKey: null,               sectionColor: '#FF6633' },
+  { href: '/projects',  label: 'Сделки',    jpLabel: '案件管理',       icon: FolderKanban,    badgeKey: null,               sectionColor: '#FF6633' },
   { href: '/contacts',  label: 'Контакты',   jpLabel: '連絡先',         icon: Users,           badgeKey: null,               sectionColor: '#06B6D4' },
   { href: '/companies', label: 'Компании',   jpLabel: '企業一覧',       icon: Building2,       badgeKey: null,               sectionColor: '#22C55E' },
   { href: '/calls',     label: 'Звонки',     jpLabel: '通話記録',       icon: Phone,           badgeKey: 'calls' as const,   sectionColor: '#F59E0B' },

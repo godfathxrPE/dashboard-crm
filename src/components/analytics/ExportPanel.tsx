@@ -115,7 +115,7 @@ export function ExportPanel() {
 
   const csvItems = [
     { key: 'tasks', label: 'Задачи', count: tasks?.length ?? 0, iconColor: 'text-accent' },
-    { key: 'projects', label: 'Проекты', count: projects?.length ?? 0, iconColor: 'text-accent' },
+    { key: 'projects', label: 'Сделки', count: projects?.length ?? 0, iconColor: 'text-accent' },
     { key: 'calls', label: 'Звонки', count: calls?.length ?? 0, iconColor: 'text-green' },
     { key: 'contacts', label: 'Контакты', count: contacts?.length ?? 0, iconColor: 'text-yellow' },
     { key: 'companies', label: 'Компании', count: companies?.length ?? 0, iconColor: 'text-yellow' },

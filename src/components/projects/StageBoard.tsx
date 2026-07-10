@@ -244,7 +244,7 @@ function StageColumn({
 
         {projects.length === 0 && (
           <div className="flex h-16 items-center justify-center text-[10px] text-text-mute">
-            Перетащите проект сюда
+            Перетащите сделку сюда
           </div>
         )}
       </div>
@@ -406,7 +406,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
   }
 
   function handleDelete(id: string) {
-    if (confirm('Удалить проект?')) deleteProject.mutate(id);
+    if (confirm('Удалить сделку?')) deleteProject.mutate(id);
   }
 
   const isLoading = loadingProjects || !pipelines || !allStages;
@@ -422,7 +422,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
   if (error) {
     return (
       <div className="rounded-xl border border-red/30 bg-red/5 p-6 text-center">
-        <p className="text-sm text-red">Ошибка загрузки проектов</p>
+        <p className="text-sm text-red">Ошибка загрузки сделок</p>
       </div>
     );
   }
@@ -465,7 +465,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
                        text-xs font-medium text-white transition-opacity hover:opacity-90"
           >
             <Plus size={14} />
-            Проект
+            Сделка
           </button>
         </div>
       </div>
@@ -474,14 +474,14 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
       {totalProjects === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-bg py-16">
           <FolderKanban size={32} className="text-text-mute" />
-          <p className="mt-3 text-sm text-text-mute">Пока нет проектов</p>
+          <p className="mt-3 text-sm text-text-mute">Пока нет сделок</p>
           <button
             onClick={() => { setEditProject(null); setModalOpen(true); }}
             className="mt-4 flex items-center gap-1 rounded-lg bg-accent px-4 py-2
                        text-sm font-medium text-white hover:opacity-90"
           >
             <Plus size={14} />
-            Создать проект
+            Создать сделку
           </button>
         </div>
       )}

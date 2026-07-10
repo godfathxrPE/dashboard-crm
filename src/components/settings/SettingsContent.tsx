@@ -119,7 +119,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
               ['⌘K', 'Поиск (Command Palette)'],
               ['g → d', 'Дашборд'],
               ['g → t', 'Задачи'],
-              ['g → p', 'Проекты'],
+              ['g → p', 'Сделки'],
               ['g → c', 'Звонки'],
               ['g → m', 'Встречи'],
               ['g → o', 'Компании'],

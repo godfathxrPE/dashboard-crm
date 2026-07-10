@@ -28,7 +28,7 @@ const SHORTCUTS = [
   null,
   { keys: 'G D', label: 'Дашборд' },
   { keys: 'G T', label: 'Задачи' },
-  { keys: 'G P', label: 'Проекты' },
+  { keys: 'G P', label: 'Сделки' },
   { keys: 'G C', label: 'Звонки' },
   { keys: 'G N', label: 'Контакты' },
   { keys: 'G O', label: 'Компании' },

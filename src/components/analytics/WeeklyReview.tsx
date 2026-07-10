@@ -59,7 +59,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
     { icon: CheckSquare, label: 'Задач выполнено', value: review.tasksDone, color: 'text-green' },
     { icon: Phone, label: 'Звонков сделано', value: review.callsDone, color: 'text-blue' },
     { icon: CalendarDays, label: 'Встреч проведено', value: review.meetingsHeld, color: 'text-yellow' },
-    { icon: FolderKanban, label: 'Проектов продвинуто', value: review.projectsMoved, color: 'text-accent' },
+    { icon: FolderKanban, label: 'Сделок продвинуто', value: review.projectsMoved, color: 'text-accent' },
   ];
 
   return (
@@ -93,7 +93,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
           <div className="mb-4 rounded-lg border border-green/30 bg-green/5 px-4 py-3 text-center">
             <Award size={20} className="mx-auto mb-1 text-green" />
             <div className="text-sm font-semibold text-green">
-              Выиграно: {review.projectsWon} проект(ов) на {formatBudget(review.wonBudget)}
+              Выиграно: {review.projectsWon} сделок на {formatBudget(review.wonBudget)}
             </div>
           </div>
         )}

@@ -167,7 +167,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">Проект</label>
+            <label className="mb-1 block text-xs font-medium text-text-dim">Сделка</label>
             <Controller
               name="project_id"
               control={control}

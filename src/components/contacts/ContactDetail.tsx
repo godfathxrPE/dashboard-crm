@@ -196,11 +196,11 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Проекты</span>
+            <span className="text-xs font-semibold text-text-main">Сделки</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedProjects.length}</span>
           </div>
           {linkedProjects.length === 0 ? (
-            <p className="text-xs text-text-mute italic">Нет проектов с этим контактом</p>
+            <p className="text-xs text-text-mute italic">Нет сделок с этим контактом</p>
           ) : (
             <div className="space-y-1.5">
               {linkedProjects.map((p) => (

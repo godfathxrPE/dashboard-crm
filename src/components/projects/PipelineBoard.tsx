@@ -312,7 +312,7 @@ function PhaseColumn({
 
         {projects.length === 0 && (
           <div data-kanban-empty className="flex h-20 items-center justify-center">
-            <span className="text-xs text-text-mute">Перетащи проект сюда</span>
+            <span className="text-xs text-text-mute">Перетащи сделку сюда</span>
           </div>
         )}
       </div>
@@ -582,7 +582,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
 
   function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
   function handleDelete(id: string) {
-    const name = projects?.find((p) => p.id === id)?.name ?? 'проект';
+    const name = projects?.find((p) => p.id === id)?.name ?? 'сделка';
     if (confirm(`Удалить «${name}»? Это действие нельзя отменить.`)) deleteProject.mutate(id);
   }
   function handleAdvance(id: string) {
@@ -622,7 +622,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   if (error) {
     return (
       <div className="rounded border border-red/30 bg-red/5 p-6 text-center">
-        <p className="text-sm text-red">Ошибка загрузки проектов</p>
+        <p className="text-sm text-red">Ошибка загрузки сделок</p>
       </div>
     );
   }
@@ -642,11 +642,11 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isScandi ? (
-            <Watermark text="ПРОЕКТЫ" size="section" />
+            <Watermark text="СДЕЛКИ" size="section" />
           ) : (
             <>
               <FolderKanban size={18} className="text-accent" />
-              <h1 className="aura-page-title text-text-main">Воронка проектов</h1>
+              <h1 className="aura-page-title text-text-main">Воронка сделок</h1>
               <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
             </>
           )}
@@ -671,7 +671,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
           </div>
           {canEdit && (
             <CTAButton size="sm" onClick={() => { setEditProject(null); setModalOpen(true); }}>
-              <Plus size={14} /> Проект
+              <Plus size={14} /> Сделка
             </CTAButton>
           )}
         </div>

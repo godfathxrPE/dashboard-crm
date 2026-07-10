@@ -78,7 +78,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const linkedProjects = (allProjects ?? []).filter((p) => p.company_id === companyId);
 
   function handleDelete() {
-    if (confirm('Удалить компанию? Связанные контакты и проекты сохранятся.')) {
+    if (confirm('Удалить компанию? Связанные контакты и сделки сохранятся.')) {
       deleteCompany.mutate(companyId, { onSuccess: () => router.push('/companies') });
     }
   }
@@ -175,15 +175,15 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         <Bracket className="p-4">
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Проекты</span>
+            <span className="text-xs font-semibold text-text-main">Сделки</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedProjects.length}</span>
             <button onClick={() => setProjectModalOpen(true)}
               className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
-              + Проект
+              + Сделка
             </button>
           </div>
           {linkedProjects.length === 0 ? (
-            <p className="text-xs text-text-mute italic">Нет проектов. Привяжи компанию при создании проекта.</p>
+            <p className="text-xs text-text-mute italic">Нет сделок. Привяжи компанию при создании сделки.</p>
           ) : (
             <div className="space-y-1.5">
               {linkedProjects.map((p) => {

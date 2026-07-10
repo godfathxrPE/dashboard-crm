@@ -21,7 +21,7 @@ export function describeEvent(entry: ActivityLog): string {
       return `Встреча: ${p.title ?? ''} (${p.date ?? ''})`;
     case 'project_updated': {
       const fields = p.fields_changed as string[] | undefined;
-      return fields ? `Обновлено: ${fields.join(', ')}` : 'Проект обновлён';
+      return fields ? `Обновлено: ${fields.join(', ')}` : 'Сделка обновлена';
     }
     case 'comment_added':
       return (p.text as string) ?? 'Комментарий';

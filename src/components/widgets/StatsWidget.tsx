@@ -73,7 +73,7 @@ export function StatsWidget() {
     <div>
       <h2 className="mb-3 text-xs font-semibold text-text-dim">Ключевые метрики</h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard icon={FolderKanban} label="Активных проектов" value={stats.activeProjects}
+        <StatCard icon={FolderKanban} label="Активных сделок" value={stats.activeProjects}
           sub={`Воронка: ${stats.pipeline}`} color="bg-accent-l text-accent" href="/projects" />
         <StatCard icon={CheckSquare} label="Задач в работе" value={stats.activeTasks}
           sub={`Выполнено: ${stats.doneTasks}`} color="bg-blue/10 text-blue" href="/tasks" />

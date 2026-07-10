@@ -96,7 +96,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
   const columns: Column<Project>[] = [
     {
       key: 'name',
-      label: 'Проект',
+      label: 'Сделка',
       sortable: true,
       render: (p) => (
         <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
   if (error) {
     return (
       <div className="rounded-xl border border-red/30 bg-red/5 p-6 text-center">
-        <p className="text-sm text-red">Ошибка загрузки проектов</p>
+        <p className="text-sm text-red">Ошибка загрузки сделок</p>
       </div>
     );
   }
@@ -232,7 +232,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FolderKanban size={18} className="text-accent" />
-          <h1 className="aura-page-title text-text-main">Проекты</h1>
+          <h1 className="aura-page-title text-text-main">Сделки</h1>
           <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">
             {activeProjects.length}
           </span>
@@ -260,7 +260,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
           >
-            <Plus size={14} /> Проект
+            <Plus size={14} /> Сделка
           </button>
         </div>
       </div>
@@ -280,7 +280,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
           content: <ProjectPeekContent project={p} />,
         })}
         searchPlaceholder="Поиск по названию, компании..."
-        emptyMessage="Нет активных проектов"
+        emptyMessage="Нет активных сделок"
         emptyIcon={<FolderKanban size={32} className="text-text-mute" />}
         selectable
         bulkActions={[
@@ -289,7 +289,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
             icon: <Trash2 size={14} />,
             variant: 'danger',
             onClick: (ids) => {
-              if (!confirm(`Удалить ${ids.length} проектов?`)) return;
+              if (!confirm(`Удалить ${ids.length} сделок?`)) return;
               ids.forEach((id) => deleteProject.mutate(id));
             },
           },
@@ -312,7 +312,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
                 })),
                 'projects',
                 [
-                  { key: 'name', label: 'Проект' },
+                  { key: 'name', label: 'Сделка' },
                   { key: 'direction', label: 'Направление' },
                   { key: 'stage', label: 'Стадия' },
                   { key: 'track', label: 'Трек' },

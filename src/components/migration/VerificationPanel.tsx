@@ -14,7 +14,7 @@ interface TableCount {
 const TABLES = [
   { table: 'profiles', label: 'Профили' },
   { table: 'tasks', label: 'Задачи' },
-  { table: 'projects', label: 'Проекты' },
+  { table: 'projects', label: 'Сделки' },
   { table: 'companies', label: 'Компании' },
   { table: 'contacts', label: 'Контакты' },
   { table: 'contact_company', label: 'Связи контакт↔компания' },

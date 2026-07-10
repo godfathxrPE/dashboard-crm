@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════
 
 import type { TimelineEvent } from '@/types/timeline';
+import type { ProjectType } from '@/types/database';
 import type { CallStatus } from '@/lib/validators/call';
 import type { DealStage } from '@/lib/validators/project';
 import { STAGE_CONFIG } from '@/lib/validators/project';
@@ -39,6 +40,7 @@ export interface TaskEventRow {
 export interface ProjectEventRow {
   id: string;
   name: string;
+  type: ProjectType;
   stage: DealStage | null;
   created_at: string;
 }
@@ -105,7 +107,7 @@ export function projectToEvent(p: ProjectEventRow): TimelineEvent {
     id: `project:${p.id}`,
     sourceId: p.id,
     kind: 'project',
-    title: `Проект: ${p.name}`,
+    title: p.type === 'internal' ? `Проект: ${p.name}` : `Сделка: ${p.name}`,
     date: p.created_at,
     detail: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : undefined,
     icon: 'project',

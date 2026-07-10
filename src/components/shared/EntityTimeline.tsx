@@ -42,7 +42,7 @@ const FILTERS: { key: 'all' | TimelineKind; label: string }[] = [
   { key: 'call', label: 'Звонки' },
   { key: 'meeting', label: 'Встречи' },
   { key: 'task', label: 'Задачи' },
-  { key: 'project', label: 'Проекты' },
+  { key: 'project', label: 'Сделки' },
 ];
 
 function relativeTime(date: string): string {

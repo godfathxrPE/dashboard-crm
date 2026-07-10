@@ -195,7 +195,7 @@ export function PipelineChart() {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <h3 className="mb-3 text-xs font-semibold text-text-dim">Проекты по фазам</h3>
+      <h3 className="mb-3 text-xs font-semibold text-text-dim">Сделки по фазам</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={chartData} layout="vertical" barSize={18}>
@@ -212,7 +212,7 @@ export function PipelineChart() {
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
-            <Bar dataKey="count" name="Проектов" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out"
+            <Bar dataKey="count" name="Сделок" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out"
               activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
               {chartData.map((entry) => (
                 <Cell

@@ -5,7 +5,7 @@ import { Plus, Phone, CalendarDays, FolderKanban, CheckSquare, Building2, Users 
 
 const actions = [
   { icon: CheckSquare, label: 'Задача', href: '/tasks', color: 'bg-blue/10 text-blue hover:bg-blue/20' },
-  { icon: FolderKanban, label: 'Проект', href: '/projects', color: 'bg-accent-l text-accent hover:bg-accent/20' },
+  { icon: FolderKanban, label: 'Сделка', href: '/projects', color: 'bg-accent-l text-accent hover:bg-accent/20' },
   { icon: Phone, label: 'Звонок', href: '/calls', color: 'bg-green/10 text-green hover:bg-green/20' },
   { icon: CalendarDays, label: 'Встреча', href: '/meetings', color: 'bg-yellow/10 text-yellow hover:bg-yellow/20' },
   { icon: Building2, label: 'Компания', href: '/companies', color: 'bg-purple/10 text-purple hover:bg-purple/20' },

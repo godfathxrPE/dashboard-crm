@@ -91,7 +91,7 @@ async function fetchProjects(col: string, id: string): Promise<TimelineEvent[]> 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, stage, created_at')
+    .select('id, name, type, stage, created_at')
     .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);

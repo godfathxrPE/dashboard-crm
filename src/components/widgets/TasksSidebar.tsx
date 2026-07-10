@@ -173,7 +173,7 @@ function FocusWidget() {
 // ═══════════════════════════════════════════════════════
 
 const WASHI_KPI = [
-  { key: 'projects', label: 'проектов',    kanji: '案', color: '#2B5F8A' },
+  { key: 'projects', label: 'сделок',    kanji: '案', color: '#2B5F8A' },
   { key: 'calls',    label: 'звонков / нед', kanji: '電', color: '#C23B3B' },
   { key: 'tasks',    label: 'задачи',       kanji: '務', color: '#4E6A2E' },
   { key: 'meetings', label: 'встреч',       kanji: '会', color: '#8B6914' },
@@ -199,7 +199,7 @@ function MiniKpi() {
   };
 
   const items = [
-    { value: active, label: 'Проектов', color: 'text-accent' },
+    { value: active, label: 'Сделок', color: 'text-accent' },
     { value: weekCalls, label: 'Звонков/нед', color: 'text-green' },
     { value: dueTasks, label: 'Задач к сроку', color: 'text-red' },
     { value: upMeetings, label: 'Встреч', color: 'text-yellow' },

@@ -140,14 +140,14 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
 }
 
 const SCANDI_KPI_META: Record<string, { label: string; colors: readonly string[] }> = {
-  'Активные проекты':  { label: 'Проекты',  colors: ['#00dc82', '#36d1dc', '#9b59b6'] },
+  'Активные проекты':  { label: 'Сделки',  colors: ['#00dc82', '#36d1dc', '#9b59b6'] },
   'Сумма pipeline':    { label: 'Пайплайн',  colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393', '#fd79a8'] },
   'Задачи на сегодня': { label: 'Задачи',    colors: ['#ff9a56', '#ff6b81', '#c44cff'] },
   'Звонки за неделю':  { label: 'Звонки',    colors: ['#0652DD', '#1dd1a1', '#00d2d3'] },
 };
 
 const FUJI_KPI_META: Record<string, { watermark: string; wmColor: string }> = {
-  'Активные проекты':  { watermark: 'ПРОЕКТЫ',  wmColor: 'rgba(26,39,68,0.05)' },
+  'Активные проекты':  { watermark: 'СДЕЛКИ',  wmColor: 'rgba(26,39,68,0.05)' },
   'Сумма pipeline':    { watermark: 'PIPELINE',  wmColor: 'rgba(196,170,120,0.07)' },
   'Задачи на сегодня': { watermark: 'ЗАДАЧИ',    wmColor: 'rgba(26,39,68,0.05)' },
   'Звонки за неделю':  { watermark: 'ЗВОНКИ',    wmColor: 'rgba(194,59,59,0.05)' },
@@ -155,7 +155,7 @@ const FUJI_KPI_META: Record<string, { watermark: string; wmColor: string }> = {
 };
 
 const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: string }> = {
-  'Активные проекты':  { kanji: '案', color: '#2B5F8A', short: 'Проекты' },
+  'Активные проекты':  { kanji: '案', color: '#2B5F8A', short: 'Сделки' },
   'Сумма pipeline':    { kanji: '額', color: '#2B5F8A', short: 'Pipeline' },
   'Задачи на сегодня': { kanji: '務', color: '#4E6A2E', short: 'Задачи' },
   'Звонки за неделю':  { kanji: '電', color: '#C23B3B', short: 'Звонки' },
@@ -717,7 +717,7 @@ const EVENT_COLOR: Record<string, string> = {
 };
 
 const ENTITY_TYPE_LABEL: Record<string, string> = {
-  projects: 'проект',
+  projects: 'сделка',
   tasks: 'задача',
   contacts: 'контакт',
   companies: 'компания',
@@ -745,7 +745,7 @@ function describeEvent(entry: ActivityLog): string {
       return `Встреча: ${p.title ?? ''}`;
     case 'project_updated': {
       const fields = p.fields_changed as string[] | undefined;
-      return fields ? `Обновлено: ${fields.join(', ')}` : 'Проект обновлён';
+      return fields ? `Обновлено: ${fields.join(', ')}` : 'Сделка обновлена';
     }
     case 'comment_added':
       return (p.text as string) ?? 'Комментарий';
@@ -815,7 +815,7 @@ function RecentActivityList() {
         <div className="flex flex-col items-center py-6 text-center">
           <Clock size={20} className="mb-2 text-text-mute" />
           <p className="text-xs text-text-dim">Нет активности</p>
-          <a href="/projects" className="mt-2 text-xs text-accent hover:underline">Создать проект →</a>
+          <a href="/projects" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</a>
         </div>
       ) : (
         <div data-timeline-scroll="compact" className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">

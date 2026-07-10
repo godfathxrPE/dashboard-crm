@@ -265,7 +265,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     return (
       <div className="rounded-xl border border-red/30 bg-red/5 p-8 text-center">
         <AlertCircle size={24} className="mx-auto text-red" />
-        <p className="mt-2 text-sm text-red">Проект не найден</p>
+        <p className="mt-2 text-sm text-red">Сделка не найдена</p>
         <button
           onClick={() => router.push('/projects')}
           className="mt-3 text-xs text-accent hover:underline"
@@ -299,7 +299,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   function handleDelete() {
     if (!project) return;
-    if (confirm('Удалить проект? Связанные задачи сохранятся. Это действие нельзя отменить.')) {
+    if (confirm(`Удалить ${project.type === 'internal' ? 'проект' : 'сделку'}? Связанные задачи сохранятся. Это действие нельзя отменить.`)) {
       deleteProject.mutate(project.id, {
         onSuccess: () => router.push('/projects'),
       });
@@ -315,7 +315,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                    transition-colors hover:text-accent"
       >
         <ArrowLeft size={14} />
-        Воронка проектов
+        Воронка сделок
       </button>
 
       {/* Header */}

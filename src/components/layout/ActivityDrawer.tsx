@@ -220,7 +220,7 @@ function StatsWidget() {
   const upMeetings = meetings.filter((m) => m.date >= todayStr).length;
 
   const items = [
-    { value: active, label: 'Проектов' },
+    { value: active, label: 'Сделок' },
     { value: weekCalls, label: 'Звонков' },
     { value: nowTasks, label: 'Задач' },
     { value: upMeetings, label: 'Встреч' },

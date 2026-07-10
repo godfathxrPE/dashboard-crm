@@ -13,7 +13,7 @@ import { useState, useRef, useEffect } from 'react';
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Дашборд',
   '/tasks': 'Задачи',
-  '/projects': 'Проекты',
+  '/projects': 'Сделки',
   '/contacts': 'Контакты',
   '/companies': 'Компании',
   '/calls': 'Звонки',

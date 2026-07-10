@@ -171,7 +171,7 @@ export type SortOption = (typeof sortOptions)[number]['value'];
 export const projectFormSchema = z
   .object({
     type: z.enum(['client', 'internal']).default('client'),
-    name: z.string().min(1, 'Введи название проекта'),
+    name: z.string().min(1, 'Введи название'),
     direction: z.enum(['erp', 'iiot']).nullable().default('iiot'),
     pipeline_id: z.string().uuid().nullable().default(null),
     stage_id: z.string().uuid().nullable().default(null),

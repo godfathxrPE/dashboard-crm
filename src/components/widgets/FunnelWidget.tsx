@@ -24,7 +24,7 @@ export function FunnelWidget() {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <h3 className="mb-3 text-xs font-semibold text-text-dim">Воронка проектов</h3>
+      <h3 className="mb-3 text-xs font-semibold text-text-dim">Воронка сделок</h3>
 
       <div className="space-y-2">
         {funnel.map((f) => {

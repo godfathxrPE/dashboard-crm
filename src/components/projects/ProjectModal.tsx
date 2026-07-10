@@ -266,7 +266,9 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-main">
-            {editProject ? 'Редактировать проект' : 'Новый проект'}
+            {editProject
+              ? (isInternal ? 'Редактировать проект' : 'Редактировать сделку')
+              : (isInternal ? 'Новый проект' : 'Новая сделка')}
           </h2>
           <button
             onClick={onClose}
@@ -281,7 +283,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
           {/* Name */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
-              Название проекта *
+              {isInternal ? 'Название проекта *' : 'Название сделки *'}
             </label>
             <input
               {...register('name')}
@@ -568,7 +570,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                 ? 'Сохраняю...'
                 : editProject
                   ? 'Сохранить'
-                  : 'Создать проект'}
+                  : (isInternal ? 'Создать проект' : 'Создать сделку')}
             </button>
           </div>
         </form>

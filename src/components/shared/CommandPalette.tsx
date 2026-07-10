@@ -42,7 +42,7 @@ const QUICK_ACTIONS: Record<string, ModalAction> = {
 
 /** Подписи маршрутов для сохранённых видов */
 const ROUTE_LABELS: Record<string, string> = {
-  '/projects': 'Проекты',
+  '/projects': 'Сделки',
   '/companies': 'Компании',
   '/contacts': 'Контакты',
   '/calls': 'Звонки',
@@ -150,7 +150,7 @@ export function CommandPalette() {
       { id: 'nav-today', label: 'Сегодня', icon: Sun, href: '/', section: 'Навигация' },
       { id: 'nav-overview', label: 'Обзор', icon: BarChart3, href: '/overview', section: 'Навигация' },
       { id: 'nav-tasks', label: 'Задачи', icon: CheckSquare, href: '/tasks', section: 'Навигация' },
-      { id: 'nav-projects', label: 'Проекты', icon: FolderKanban, href: '/projects', section: 'Навигация' },
+      { id: 'nav-projects', label: 'Сделки', icon: FolderKanban, href: '/projects', section: 'Навигация' },
       { id: 'nav-companies', label: 'Компании', icon: Building2, href: '/companies', section: 'Навигация' },
       { id: 'nav-contacts', label: 'Контакты', icon: Users, href: '/contacts', section: 'Навигация' },
       { id: 'nav-leads', label: 'Лиды', icon: UserPlus, href: '/leads', section: 'Навигация' },
@@ -183,7 +183,7 @@ export function CommandPalette() {
           : (p.stage ? STAGE_CONFIG[p.stage]?.shortLabel ?? undefined : undefined),
         icon: FolderKanban,
         href: `/projects/${p.id}`,
-        section: 'Проекты',
+        section: 'Сделки',
       });
     }
 
@@ -326,8 +326,8 @@ export function CommandPalette() {
           <Search size={16} className="text-text-mute" />
           <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Поиск по задачам, проектам, контактам..."
-            aria-label="Поиск по задачам, проектам, контактам"
+            placeholder="Поиск по задачам, сделкам, контактам..."
+            aria-label="Поиск по задачам, сделкам, контактам"
             className="flex-1 bg-transparent text-sm text-text-main placeholder:text-text-mute focus:outline-none" />
           <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-mute">ESC</kbd>
         </div>
