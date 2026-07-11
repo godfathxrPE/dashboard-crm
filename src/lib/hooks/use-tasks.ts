@@ -141,6 +141,10 @@ export function useMoveTask() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // P2b (B3): смена column_id на НЕ-фазовой доске каскадит lane (резолвер) →
+      // прогресс delivery (progress_done/total) пересчитал БД-триггер; префикс
+      // ['projects'] покрывает и ['projects', id]
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
@@ -207,8 +211,12 @@ export function useCreateTask() {
         queryClient.setQueryData(QUERY_KEY, context.previous);
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // P2b (B3): новая задача проекта меняет progress_total (БД-триггер 037)
+      if (input.project_id) {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
     },
   });
 }
@@ -252,8 +260,12 @@ export function useUpdateTask() {
         queryClient.setQueryData(QUERY_KEY, context.previous);
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // P2b (B3): lane/project_id/column_id меняют прогресс delivery (триггер 037)
+      if (vars.lane !== undefined || vars.project_id !== undefined || vars.column_id !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
     },
   });
 }
@@ -287,6 +299,8 @@ export function useDeleteTask() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // P2b (B3): variables — только id; удаление могло уменьшить progress_total
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

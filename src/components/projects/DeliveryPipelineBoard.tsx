@@ -27,6 +27,7 @@ import {
   DELIVERY_PHASE_LABELS,
   DELIVERY_PHASE_COLOR,
   deliveryKindLabel,
+  hasTaskProgress,
   type DeliveryPhase,
 } from '@/lib/constants/delivery-phases';
 import { Badge } from '@/components/ui/Badge';
@@ -93,6 +94,20 @@ function DeliveryCard({ project, stageName, onOpen }: {
         {project.company?.name && <span>{project.company.name} · </span>}
         <span>{stageName}</span>
       </div>
+      {/* P2b (B3): прогресс задач — считает БД-триггер (progress_done/total, 037) */}
+      {hasTaskProgress(project.progress_total) && (
+        <div className="mt-1.5 pl-5">
+          <div className="flex items-center justify-between text-[10px] text-text-mute">
+            <span>{project.progress_done}/{project.progress_total} задач</span>
+          </div>
+          <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full rounded-full bg-accent transition-[width]"
+              style={{ width: `${Math.round((project.progress_done / project.progress_total) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

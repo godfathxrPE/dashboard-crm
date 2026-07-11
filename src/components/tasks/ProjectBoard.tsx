@@ -30,6 +30,8 @@ import {
 import { TaskCard } from './TaskCard';
 import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskModal } from './TaskModal';
+import { useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { isPhaseBoard } from '@/lib/constants/delivery-phases';
 import type { Task, ProjectColumn } from '@/types/entities';
@@ -60,7 +62,9 @@ interface BoardColumnProps {
   column: ProjectColumn;
   tasks: Task[];
   canEdit: boolean;
-  /** P2a: колонка = фаза; управление колонками скрыто, статус задачи = badge (lane) */
+  /** P2b (B0): CRUD колонок/фаз — по контракту RLS (owner/admin ∨ владелец проекта) */
+  canManageColumns: boolean;
+  /** P2a: колонка = фаза; статус задачи = badge (lane) */
   phaseMode: boolean;
   onEditTask: (t: Task) => void;
   onDeleteTask: (id: string) => void;
@@ -73,6 +77,7 @@ function BoardColumn({
   column,
   tasks,
   canEdit,
+  canManageColumns,
   phaseMode,
   onEditTask,
   onDeleteTask,
@@ -106,15 +111,18 @@ function BoardColumn({
               }}
               className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-main focus:border-accent focus:outline-none"
             />
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ColumnCategory)}
-              className="w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-dim focus:border-accent focus:outline-none"
-            >
-              {CATEGORY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            {/* P2b (B5): у фазы редактируется ТОЛЬКО имя — category остаётся 'phase' */}
+            {!phaseMode && (
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as ColumnCategory)}
+                className="w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-dim focus:border-accent focus:outline-none"
+              >
+                {CATEGORY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            )}
             <div className="flex justify-end gap-1">
               <button onClick={saveEdit} className="rounded p-1 text-green hover:bg-surface" aria-label="Сохранить"><Check size={14} /></button>
               <button onClick={() => { setName(column.name); setCategory(column.category); setEditing(false); }} className="rounded p-1 text-text-mute hover:bg-surface" aria-label="Отмена"><X size={14} /></button>
@@ -132,8 +140,8 @@ function BoardColumn({
                 <span className="text-[10px] uppercase tracking-wider text-text-mute">{CATEGORY_LABEL[column.category]}</span>
               )}
             </div>
-            {/* Фазы — структура из шаблона; их rename/delete — P2b */}
-            {canEdit && !phaseMode && (
+            {/* P2b (B5): rename/delete фаз возвращены; права = RLS (canManageColumns) */}
+            {canManageColumns && (
               <div className="flex shrink-0 gap-0.5">
                 <button onClick={() => setEditing(true)} className="rounded p-1 text-text-mute hover:text-accent" aria-label="Переименовать"><Pencil size={13} /></button>
                 <button onClick={() => onRequestDelete(column)} className="rounded p-1 text-text-mute hover:text-red" aria-label="Удалить колонку"><Trash2 size={13} /></button>
@@ -171,7 +179,18 @@ function BoardColumn({
 // Board
 // ═══════════════════════════════════════════════════════
 
-export function ProjectBoard({ projectId }: { projectId: string }) {
+interface ProjectBoardProps {
+  projectId: string;
+  /**
+   * P2b (B0): права CRUD колонок/фаз и «Создать из шаблона» = контракт RLS
+   * (owner/admin ∨ владелец проекта); прокидывает ProjectDetail через
+   * canManageDeliveryProject. Без пропа — fallback на canEdit (легаси-поведение).
+   * canEdit задач (создание/статус/DnD) НЕ сужаем — org-wide работа остаётся.
+   */
+  canManageColumns?: boolean;
+}
+
+export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps) {
   const { data: columns = [], isLoading: colsLoading } = useProjectColumns(projectId);
   const { tasksByColumn, isLoading: tasksLoading } = useProjectBoard(projectId);
   const moveTask = useMoveTask();
@@ -180,8 +199,10 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   const createColumn = useCreateColumn(projectId);
   const updateColumn = useUpdateColumn(projectId);
   const deleteColumn = useDeleteColumn(projectId);
+  const qc = useQueryClient();
   const { data: role } = useOrgRole();
   const canEdit = role !== 'viewer';
+  const canManageCols = canManageColumns ?? canEdit;
   // P2a: фазовый режим — от данных, не от project.type (компонент проект не знает)
   const phaseMode = isPhaseBoard(columns);
 
@@ -193,6 +214,9 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   const [newCategory, setNewCategory] = useState<ColumnCategory>('backlog');
   const [deletingCol, setDeletingCol] = useState<ProjectColumn | null>(null);
   const [targetColId, setTargetColId] = useState<string>('');
+  // P2b (B4): «Создать из шаблона» на пустой фазовой доске
+  const [applyPending, setApplyPending] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -265,10 +289,37 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
     const trimmed = newName.trim();
     if (!trimmed) return;
     const maxPos = columns.reduce((m, c) => Math.max(m, c.position), 0);
+    // P2b (B5): на фазовой доске «+ Фаза» — только имя, category='phase'
     createColumn.mutate(
-      { name: trimmed, category: newCategory, position: maxPos + 1 },
+      { name: trimmed, category: phaseMode ? 'phase' : newCategory, position: maxPos + 1 },
       { onSuccess: () => { setNewName(''); setNewCategory('backlog'); setAdding(false); } },
     );
+  }
+
+  // P2b (B4): фазы из шаблона направления/вида (RPC 037; по образцу spawn в ProjectDetail)
+  async function handleApplyTemplate() {
+    setApplyPending(true);
+    setApplyError(null);
+    const supabase = createClient();
+    const { error } = await supabase.rpc('apply_delivery_template', { p_project_id: projectId });
+    setApplyPending(false);
+    if (error) {
+      const e = error as { code?: string; message?: string };
+      setApplyError(
+        e.code === '42501'
+          ? 'Недостаточно прав: фазы создаёт владелец проекта или админ организации'
+          : e.message?.includes('project already has columns')
+            ? 'У проекта уже есть фазы — обнови страницу'
+            : e.message?.startsWith('no template')
+              ? 'Для этого направления и вида внедрения нет активного шаблона'
+              : e.message ?? 'Не удалось создать фазы из шаблона',
+      );
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ['project_columns', projectId] });
+    qc.invalidateQueries({ queryKey: ['tasks'] });
+    // прогресс N/M (progress_total) пересчитал БД-триггер
+    qc.invalidateQueries({ queryKey: ['projects'] });
   }
 
   function confirmDeleteColumn() {
@@ -294,12 +345,27 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   }
 
   // 0 колонок бывает только у delivery-проекта без шаблона направления
-  // (internal сидится 4 дефолтными; CTA «Создать из шаблона» — P2b)
+  // (internal/client сидятся 4 дефолтными)
   if (columns.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-10 text-center">
         <p className="text-sm text-text-dim">Фазы не созданы</p>
         <p className="mt-1 text-xs text-text-mute">Для этого направления нет шаблона внедрения</p>
+        {/* P2b (B4): права = гарды RPC (owner/created_by ∨ owner/admin), см. B0 */}
+        {canManageCols && (
+          <div className="mt-4">
+            <button
+              onClick={handleApplyTemplate}
+              disabled={applyPending}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs
+                         font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {applyPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              Создать из шаблона
+            </button>
+            {applyError && <p className="mt-2 text-xs text-red">{applyError}</p>}
+          </div>
+        )}
       </div>
     );
   }
@@ -323,6 +389,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
               column={col}
               tasks={getColumnTasks(col.id)}
               canEdit={canEdit}
+              canManageColumns={canManageCols}
               phaseMode={phaseMode}
               onEditTask={(t) => { setEditTask(t); setModalOpen(true); }}
               onDeleteTask={(id) => { if (confirm('Удалить задачу?')) deleteTask.mutate(id); }}
@@ -331,8 +398,8 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
             />
           ))}
 
-          {/* Add column — в phase-режиме скрыто (фазы только из шаблона, CRUD — P2b) */}
-          {canEdit && !phaseMode && (
+          {/* Add column — P2b (B5): в phase-режиме «+ Фаза» (только имя, category='phase') */}
+          {canManageCols && (
             <div className="w-72 shrink-0">
               {adding ? (
                 <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface2 p-3">
@@ -341,18 +408,20 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setAdding(false); }}
-                    placeholder="Название колонки"
+                    placeholder={phaseMode ? 'Название фазы' : 'Название колонки'}
                     className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
                   />
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as ColumnCategory)}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-dim focus:border-accent focus:outline-none"
-                  >
-                    {CATEGORY_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  {!phaseMode && (
+                    <select
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value as ColumnCategory)}
+                      className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-dim focus:border-accent focus:outline-none"
+                    >
+                      {CATEGORY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  )}
                   <div className="flex justify-end gap-1.5">
                     <button onClick={() => setAdding(false)} className="rounded-md border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface">Отмена</button>
                     <button onClick={handleAddColumn} className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90">Добавить</button>
@@ -363,7 +432,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
                   onClick={() => setAdding(true)}
                   className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-text-mute transition-colors hover:border-accent hover:text-accent"
                 >
-                  <Plus size={14} /> Колонка
+                  <Plus size={14} /> {phaseMode ? 'Фаза' : 'Колонка'}
                 </button>
               )}
             </div>

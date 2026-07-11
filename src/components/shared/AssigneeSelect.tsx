@@ -11,6 +11,8 @@ interface AssigneeSelectProps {
   label?: string;
   placeholder?: string;
   disabled?: boolean;
+  /** P2b: скрыть уже выбранных (команда проекта — иначе unique violation по дублю) */
+  excludeIds?: ReadonlyArray<string>;
 }
 
 function initials(name: string): string {
@@ -48,10 +50,16 @@ export function AssigneeSelect({
   label,
   placeholder = 'Не назначено',
   disabled,
+  excludeIds,
 }: AssigneeSelectProps) {
-  const { data: members = [] } = useTeamMembers();
+  const { data: allMembers = [] } = useTeamMembers();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // выбранного не скрываем, даже если он в excludeIds — иначе кнопка «ослепнет»
+  const members = excludeIds?.length
+    ? allMembers.filter((m) => m.id === value || !excludeIds.includes(m.id))
+    : allMembers;
 
   const selected = members.find((m) => m.id === value) ?? null;
 

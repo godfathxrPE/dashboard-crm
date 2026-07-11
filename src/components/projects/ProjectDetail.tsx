@@ -65,7 +65,11 @@ import { HealthDot } from '@/components/shared/HealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { createClient } from '@/lib/supabase/client';
-import { DELIVERY_PHASE_LABELS, deliveryKindLabel } from '@/lib/constants/delivery-phases';
+import { DELIVERY_PHASE_LABELS, deliveryKindLabel, hasTaskProgress } from '@/lib/constants/delivery-phases';
+import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { ProjectTeam } from './ProjectTeam';
 import type { Task } from '@/types/entities';
 
 
@@ -229,6 +233,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const deleteProject = useDeleteProject();
   const { moveToStageId } = useMoveProject();
   const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
+  // P2b (B0): права управления delivery (команда/шаблон/CRUD фаз) = контракт RLS,
+  // НЕ role !== 'viewer' — иначе кнопки давали бы 42501
+  const { data: orgRole } = useOrgRole();
+  const { user } = useAuth();
 
   // Delivery P1 (B4): диалог выбора шаблона внедрения на won-сделке
   const [spawning, setSpawning] = useState(false);
@@ -317,6 +325,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const backHref = project.type === 'client' ? '/deals' : '/projects';
   const backLabel = project.type === 'client' ? 'Воронка сделок' : 'Проекты';
   const isDelivery = project.type === 'delivery';
+  // P2b (B0): единые права управления delivery-проектом (= гарды RLS/RPC)
+  const canManage = canManageDeliveryProject(project, orgRole, user?.id);
 
   const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
   const nextStage = project.stage ? getNextStage(project.stage) : null;
@@ -406,6 +416,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 return '—';
               })()}
             </span>
+            {/* P2b (B3): прогресс задач — отдельная метрика, НЕ смешиваем со стадийным % */}
+            {isDelivery && hasTaskProgress(project.progress_total) && (
+              <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-medium text-text-dim">
+                Задачи: {project.progress_done}/{project.progress_total}
+              </span>
+            )}
             <span>
               Создан {new Date(project.created_at).toLocaleDateString('ru-RU')}
             </span>
@@ -792,6 +808,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         </div>
       </div>
 
+      {/* P2b (B2): команда проекта — full-width секция (3 роли × N людей в грид не влезает) */}
+      {isDelivery && <ProjectTeam projectId={projectId} canManage={canManage} />}
+
       {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
       {isDelivery && (
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
@@ -848,7 +867,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {tab === 'board' && (
         <div className="mb-4">
-          <ProjectBoard projectId={projectId} />
+          {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
+          <ProjectBoard projectId={projectId} canManageColumns={canManage} />
         </div>
       )}
 

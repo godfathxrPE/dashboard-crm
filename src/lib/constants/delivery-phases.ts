@@ -74,3 +74,21 @@ export function isDeliveryTaskOverdue(
 export function isPhaseBoard(columns: ReadonlyArray<{ category: string }>): boolean {
   return columns.length > 0 && columns.every((c) => c.category === 'phase');
 }
+
+// ═══════════════════════════════════════════════════════
+// P2b: команда проекта (project_members, миграция 037) + прогресс задач
+// ═══════════════════════════════════════════════════════
+
+export const PROJECT_MEMBER_ROLE_LABELS: Record<string, string> = {
+  manager: 'Менеджер',
+  implementer: 'Внедренец',
+  installer: 'Монтажник',
+};
+
+// тип роли — ProjectMemberRole в types/database.ts (единый источник)
+export const PROJECT_MEMBER_ROLE_ORDER = ['manager', 'implementer', 'installer'] as const;
+
+/** Показывать «N/M задач»: только когда у проекта вообще есть задачи */
+export function hasTaskProgress(progressTotal: number | null | undefined): boolean {
+  return (progressTotal ?? 0) > 0;
+}

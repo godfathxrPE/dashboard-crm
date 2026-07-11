@@ -294,6 +294,16 @@ export type TaskPriority = 'normal' | 'important' | 'critical';
 export type CallStatus = 'done' | 'pending' | 'cancelled';
 export type ActivityType = 'call' | 'meeting' | 'email' | 'note' | 'task_completed' | 'stage_change' | 'kp_sent';
 
+// ═══ Delivery P2b (миграция 037): команда проекта ═══
+
+export type ProjectMemberRole = 'manager' | 'implementer' | 'installer';
+
+/** Args RPC apply_delivery_template (037): фазы из шаблона для пустой доски delivery */
+export interface ApplyDeliveryTemplateArgs {
+  p_project_id: string;
+  p_template_id?: string | null;
+}
+
 // ═══ Sprint 23: Multitenancy ═══
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'viewer';
@@ -581,6 +591,25 @@ export interface Database {
           sort_order?: number;
         };
         Update: Partial<Database['public']['Tables']['delivery_template_tasks']['Insert']>;
+      };
+      // ═══ Delivery P2b (миграция 037): команда проекта ═══
+      project_members: {
+        Row: {
+          id: string;
+          org_id: string;
+          project_id: string;
+          profile_id: string;
+          role: ProjectMemberRole;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          project_id: string;
+          profile_id: string;
+          role: ProjectMemberRole;
+        };
+        Update: Partial<Database['public']['Tables']['project_members']['Insert']>;
       };
       pipelines: {
         Row: Pipeline;
