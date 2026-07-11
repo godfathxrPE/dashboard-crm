@@ -29,6 +29,12 @@ export const DELIVERY_KIND_LABELS: Record<string, string> = {
   experiment: 'Эксперимент',
 };
 
+/** Лейбл вида внедрения с учётом направления: у ERP нет «запусков» и экспериментов */
+export function deliveryKindLabel(kind: string, direction?: string | null): string {
+  if (direction === 'erp') return kind === 'launch' ? 'Внедрение' : 'Эксперимент';
+  return DELIVERY_KIND_LABELS[kind] ?? kind;
+}
+
 // ═══════════════════════════════════════════════════════
 // P2a: фазовая доска — колонка = фаза СДР (category='phase'),
 // статус задачи живёт в lane (истина; БД-резолвер lane не деривит).

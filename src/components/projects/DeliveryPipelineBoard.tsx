@@ -26,7 +26,7 @@ import {
   DELIVERY_PHASE_ORDER,
   DELIVERY_PHASE_LABELS,
   DELIVERY_PHASE_COLOR,
-  DELIVERY_KIND_LABELS,
+  deliveryKindLabel,
   type DeliveryPhase,
 } from '@/lib/constants/delivery-phases';
 import { Badge } from '@/components/ui/Badge';
@@ -80,7 +80,7 @@ function DeliveryCard({ project, stageName, onOpen }: {
         </Badge>
         {project.delivery_kind && (
           <span className="text-[10px] text-text-mute">
-            {DELIVERY_KIND_LABELS[project.delivery_kind] ?? project.delivery_kind}
+            {deliveryKindLabel(project.delivery_kind, project.direction)}
           </span>
         )}
         {project.status === 'completed' && (

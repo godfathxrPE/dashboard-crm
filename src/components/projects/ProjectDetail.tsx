@@ -65,7 +65,7 @@ import { HealthDot } from '@/components/shared/HealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { createClient } from '@/lib/supabase/client';
-import { DELIVERY_PHASE_LABELS, DELIVERY_KIND_LABELS } from '@/lib/constants/delivery-phases';
+import { DELIVERY_PHASE_LABELS, deliveryKindLabel } from '@/lib/constants/delivery-phases';
 import type { Task } from '@/types/entities';
 
 
@@ -372,16 +372,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
               </Badge>
             )}
-            {isDelivery && (
-              <>
-                <Badge color="green" size="sm">Внедрение</Badge>
-                {project.delivery_kind && (
-                  <span className="text-xs text-text-mute">
-                    {DELIVERY_KIND_LABELS[project.delivery_kind] ?? project.delivery_kind}
-                  </span>
-                )}
-              </>
-            )}
+            {isDelivery && (() => {
+              const kindLabel = project.delivery_kind
+                ? deliveryKindLabel(project.delivery_kind, project.direction)
+                : null;
+              return (
+                <>
+                  <Badge color="green" size="sm">Внедрение</Badge>
+                  {/* D1: у ERP-launch лейбл kind = «Внедрение» — дублировал бы бейдж */}
+                  {kindLabel && kindLabel !== 'Внедрение' && (
+                    <span className="text-xs text-text-mute">{kindLabel}</span>
+                  )}
+                </>
+              );
+            })()}
             {project.type === 'client' && (
               <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
             )}
@@ -537,7 +541,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <div className="mb-4 rounded-lg border border-accent/30 bg-accent-l/40 px-3 py-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-text-dim">Шаблон внедрения:</span>
-            {(['launch', 'experiment'] as const).map((kind) => (
+            {/* D1: у ERP один шаблон — «Эксперимент» без шаблона создал бы пустую доску (ловушка) */}
+            {(project.direction === 'erp' ? (['launch'] as const) : (['launch', 'experiment'] as const)).map((kind) => (
               <button
                 key={kind}
                 disabled={spawnPending}
@@ -545,7 +550,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 className="rounded border border-accent/50 bg-accent-l/60 px-2.5 py-1 text-xs font-medium
                            text-accent transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
               >
-                {DELIVERY_KIND_LABELS[kind]}
+                {deliveryKindLabel(kind, project.direction)}
+                {project.direction === 'erp' && ' (6 этапов)'}
               </button>
             ))}
             {spawnPending && <Loader2 size={12} className="animate-spin text-accent" />}
@@ -557,7 +563,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </button>
           </div>
           <p className="mt-1 text-[11px] text-text-dim">
-            Полный запуск — весь цикл внедрения · Эксперимент — пилот
+            {project.direction === 'erp'
+              ? 'Полный цикл: Обследование → Моделирование → Проектирование → Разработка → Внедрение → Эксплуатация'
+              : 'Полный запуск — весь цикл внедрения · Эксперимент — пилот'}
           </p>
           {spawnError && <p className="mt-1.5 text-xs text-red">{spawnError}</p>}
         </div>
