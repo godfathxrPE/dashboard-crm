@@ -30,9 +30,11 @@ interface TaskModalProps {
   defaultText?: string | null;
   /** Préfill дедлайна при создании, YYYY-MM-DDTHH:mm или ISO */
   defaultDeadline?: string | null;
+  /** P2a: lane при создании (фазовая доска delivery — 'next', статус «Не начата») */
+  defaultLane?: TaskFormValues['lane'];
 }
 
-export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { data: companies } = useCompanies();
@@ -79,7 +81,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
     } else {
       reset({
         text: defaultText ?? '',
-        lane: 'now',
+        lane: defaultLane ?? 'now',
         priority: 'normal',
         project_id: defaultProjectId ?? null,
         company_id: defaultCompanyId ?? null,
@@ -89,7 +91,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         assigned_to: null,
       });
     }
-  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, reset]);
+  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, reset]);
 
   function onSubmit(values: TaskFormValues) {
     if (editTask) {

@@ -9,13 +9,28 @@ import { formatDateShort } from '@/lib/utils/dates';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import {
+  DELIVERY_TASK_STATUS_LABELS,
+  DELIVERY_TASK_OVERDUE_LABEL,
+  cycleDeliveryTaskStatus,
+  isDeliveryTaskOverdue,
+} from '@/lib/constants/delivery-phases';
 import type { Task } from '@/types/entities';
 
 interface TaskCardProps {
   task: Task;
+  /** P2a: фазовая доска delivery — статус (lane) = кликабельный badge вместо чекбокса */
+  phaseMode?: boolean;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
 }
+
+const STATUS_BADGE_CLS: Record<string, string> = {
+  next: 'border-border2 bg-surface2 text-text-mute',
+  now: 'border-accent/30 bg-accent-l text-accent',
+  wait: 'border-yellow/30 bg-yellow-l text-yellow',
+  done: 'border-green/30 bg-green-l text-green',
+};
 
 function deadlineUrgency(deadline: string, lane: string): { cls: string; label: string } {
   if (lane === 'done') return { cls: 'text-text-mute', label: formatDateShort(deadline) };
@@ -25,7 +40,7 @@ function deadlineUrgency(deadline: string, lane: string): { cls: string; label: 
   return { cls: 'text-text-mute', label: formatDateShort(deadline) };
 }
 
-export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
+export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCardProps) {
   const router = useRouter();
   const updateTask = useUpdateTask();
   // Aura: приоритет — НЕ палка сбоку, а цветной чекбокс + тон строки (через data-priority)
@@ -56,6 +71,14 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
     updateTask.mutate({ id: task.id, lane: isDone ? 'now' : 'done' });
   }
 
+  // P2a: клик по badge — цикл next → now → done; column_id НЕ шлём
+  // (фаза не меняется, резолвер БД в phase-колонках lane не трогает)
+  function cycleStatus() {
+    updateTask.mutate({ id: task.id, lane: cycleDeliveryTaskStatus(task.lane) });
+  }
+
+  const isOverdue = phaseMode && isDeliveryTaskOverdue(task.deadline, task.lane);
+
   return (
     <div
       ref={setNodeRef}
@@ -74,19 +97,21 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         !isAura && task.priority === 'critical' && 'border-l-[3px] border-red bg-red/[0.06]',
       )}
     >
-      {/* Checkbox */}
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleDone(); }}
-        onPointerDown={(e) => e.stopPropagation()}
-        className={cn(
-          'mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] transition-all',
-          isDone
-            ? 'border-green bg-green text-white'
-            : 'border-border2 group-hover:border-accent group-hover:shadow-[0_0_0_3px_var(--accent-l)]',
-        )}
-      >
-        {isDone && <Check size={10} strokeWidth={3} />}
-      </button>
+      {/* Checkbox — в phase-режиме заменён на цикл-badge статуса */}
+      {!phaseMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleDone(); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={cn(
+            'mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] transition-all',
+            isDone
+              ? 'border-green bg-green text-white'
+              : 'border-border2 group-hover:border-accent group-hover:shadow-[0_0_0_3px_var(--accent-l)]',
+          )}
+        >
+          {isDone && <Check size={10} strokeWidth={3} />}
+        </button>
+      )}
 
       {/* Content */}
       <div className="flex-1 min-w-0">
@@ -100,8 +125,22 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         </p>
 
         {/* Meta */}
-        {(task.deadline || task.project_id || task.company_id) && (
+        {(phaseMode || task.deadline || task.project_id || task.company_id) && (
           <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+            {phaseMode && (
+              <button
+                onClick={(e) => { e.stopPropagation(); cycleStatus(); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Сменить статус"
+                className={cn(
+                  'rounded-full border px-1.5 py-px text-[0.625rem] font-medium transition-colors cursor-pointer',
+                  // «Просрочена» приоритетнее статусного badge
+                  isOverdue ? 'border-red/40 bg-red-l text-red' : STATUS_BADGE_CLS[task.lane],
+                )}
+              >
+                {isOverdue ? DELIVERY_TASK_OVERDUE_LABEL : (DELIVERY_TASK_STATUS_LABELS[task.lane] ?? task.lane)}
+              </button>
+            )}
             {task.deadline && (() => {
               const urg = deadlineUrgency(task.deadline, task.lane);
               return (

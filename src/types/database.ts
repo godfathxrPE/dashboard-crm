@@ -117,8 +117,12 @@ export type DealStatus = 'open' | 'won' | 'lost' | 'on_hold' | 'completed';
 export type ProjectType = 'client' | 'internal' | 'delivery';
 /** Шаблон проекта внедрения (миграция 035) */
 export type DeliveryKind = 'launch' | 'experiment';
-/** Нормализующий класс колонки канбана задач (биективен к TaskLane) */
-export type ColumnCategory = 'backlog' | 'started' | 'paused' | 'done';
+/**
+ * Нормализующий класс колонки канбана задач (биективен к TaskLane).
+ * P2a: 'phase' — фаза delivery-доски (миграция 036); lane из неё НЕ деривится
+ * (lane = статус задачи, истина).
+ */
+export type ColumnCategory = 'backlog' | 'started' | 'paused' | 'done' | 'phase';
 
 export interface Pipeline {
   id: string;
@@ -513,6 +517,70 @@ export interface Database {
           wip_limit?: number | null;
         };
         Update: Partial<Database['public']['Tables']['project_columns']['Insert']>;
+      };
+      // ═══ Delivery P2a (миграция 036): шаблоны внедрения ═══
+      delivery_templates: {
+        Row: {
+          id: string;
+          org_id: string;
+          direction: Direction;
+          kind: DeliveryKind;
+          name: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          direction: Direction;
+          kind: DeliveryKind;
+          name: string;
+          is_active?: boolean;
+        };
+        Update: Partial<Database['public']['Tables']['delivery_templates']['Insert']>;
+      };
+      delivery_template_phases: {
+        Row: {
+          id: string;
+          org_id: string;
+          template_id: string;
+          name: string;
+          position: number;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          template_id: string;
+          name: string;
+          position?: number;
+        };
+        Update: Partial<Database['public']['Tables']['delivery_template_phases']['Insert']>;
+      };
+      delivery_template_tasks: {
+        Row: {
+          id: string;
+          org_id: string;
+          template_id: string;
+          phase_id: string;
+          wbs_code: string | null;
+          title: string;
+          default_enabled: boolean;
+          is_milestone: boolean;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string;
+          template_id: string;
+          phase_id: string;
+          wbs_code?: string | null;
+          title: string;
+          default_enabled?: boolean;
+          is_milestone?: boolean;
+          sort_order?: number;
+        };
+        Update: Partial<Database['public']['Tables']['delivery_template_tasks']['Insert']>;
       };
       pipelines: {
         Row: Pipeline;

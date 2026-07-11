@@ -28,3 +28,43 @@ export const DELIVERY_KIND_LABELS: Record<string, string> = {
   launch: 'Полный запуск',
   experiment: 'Эксперимент',
 };
+
+// ═══════════════════════════════════════════════════════
+// P2a: фазовая доска — колонка = фаза СДР (category='phase'),
+// статус задачи живёт в lane (истина; БД-резолвер lane не деривит).
+// ═══════════════════════════════════════════════════════
+
+export const DELIVERY_TASK_STATUS_LABELS: Record<string, string> = {
+  next: 'Не начата',
+  now: 'В работе',
+  wait: 'Ожидание',
+  done: 'Готово',
+};
+
+/** Цикл смены статуса кликом по badge; 'wait' вне цикла (ставится только вручную) */
+export const DELIVERY_TASK_STATUS_ORDER = ['next', 'now', 'done'] as const;
+
+export type DeliveryTaskStatus = (typeof DELIVERY_TASK_STATUS_ORDER)[number];
+
+export const DELIVERY_TASK_OVERDUE_LABEL = 'Просрочена';
+
+/** Следующий статус в цикле next → now → done → next; из 'wait' — в начало цикла */
+export function cycleDeliveryTaskStatus(lane: string): DeliveryTaskStatus {
+  const i = DELIVERY_TASK_STATUS_ORDER.indexOf(lane as DeliveryTaskStatus);
+  return DELIVERY_TASK_STATUS_ORDER[(i + 1) % DELIVERY_TASK_STATUS_ORDER.length];
+}
+
+/** Просрочена: дедлайн в прошлом и задача не завершена */
+export function isDeliveryTaskOverdue(
+  deadline: string | null | undefined,
+  lane: string,
+  now: Date = new Date(),
+): boolean {
+  if (!deadline || lane === 'done') return false;
+  return new Date(deadline).getTime() < now.getTime();
+}
+
+/** Фазовый режим доски — деривация от данных (все колонки category='phase'), не от project.type */
+export function isPhaseBoard(columns: ReadonlyArray<{ category: string }>): boolean {
+  return columns.length > 0 && columns.every((c) => c.category === 'phase');
+}

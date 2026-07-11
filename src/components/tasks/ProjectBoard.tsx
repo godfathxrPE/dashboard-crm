@@ -31,6 +31,7 @@ import { TaskCard } from './TaskCard';
 import { TaskQuickAdd } from './TaskQuickAdd';
 import { TaskModal } from './TaskModal';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { isPhaseBoard } from '@/lib/constants/delivery-phases';
 import type { Task, ProjectColumn } from '@/types/entities';
 import type { ColumnCategory } from '@/types/database';
 
@@ -39,12 +40,16 @@ const CATEGORY_LABEL: Record<ColumnCategory, string> = {
   started: 'В работе',
   paused: 'Ожидание',
   done: 'Готово',
+  phase: 'Фаза',
 };
 
-const CATEGORY_OPTIONS = (Object.keys(CATEGORY_LABEL) as ColumnCategory[]).map((c) => ({
-  value: c,
-  label: CATEGORY_LABEL[c],
-}));
+// phase не выбирается вручную — фазы создаёт copy_delivery_template (P2a)
+const CATEGORY_OPTIONS = (Object.keys(CATEGORY_LABEL) as ColumnCategory[])
+  .filter((c) => c !== 'phase')
+  .map((c) => ({
+    value: c,
+    label: CATEGORY_LABEL[c],
+  }));
 
 // ═══════════════════════════════════════════════════════
 // Column
@@ -55,6 +60,8 @@ interface BoardColumnProps {
   column: ProjectColumn;
   tasks: Task[];
   canEdit: boolean;
+  /** P2a: колонка = фаза; управление колонками скрыто, статус задачи = badge (lane) */
+  phaseMode: boolean;
   onEditTask: (t: Task) => void;
   onDeleteTask: (id: string) => void;
   onRename: (id: string, name: string, category: ColumnCategory) => void;
@@ -66,6 +73,7 @@ function BoardColumn({
   column,
   tasks,
   canEdit,
+  phaseMode,
   onEditTask,
   onDeleteTask,
   onRename,
@@ -119,9 +127,13 @@ function BoardColumn({
                 <span className="truncate text-sm font-medium text-text-main">{column.name}</span>
                 <span className="shrink-0 rounded-full bg-surface px-1.5 text-[10px] text-text-mute">{tasks.length}</span>
               </div>
-              <span className="text-[10px] uppercase tracking-wider text-text-mute">{CATEGORY_LABEL[column.category]}</span>
+              {/* В phase-режиме подпись «Фаза» у всех колонок — шум, не показываем */}
+              {!phaseMode && (
+                <span className="text-[10px] uppercase tracking-wider text-text-mute">{CATEGORY_LABEL[column.category]}</span>
+              )}
             </div>
-            {canEdit && (
+            {/* Фазы — структура из шаблона; их rename/delete — P2b */}
+            {canEdit && !phaseMode && (
               <div className="flex shrink-0 gap-0.5">
                 <button onClick={() => setEditing(true)} className="rounded p-1 text-text-mute hover:text-accent" aria-label="Переименовать"><Pencil size={13} /></button>
                 <button onClick={() => onRequestDelete(column)} className="rounded p-1 text-text-mute hover:text-red" aria-label="Удалить колонку"><Trash2 size={13} /></button>
@@ -138,7 +150,7 @@ function BoardColumn({
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={onDeleteTask} />
+            <TaskCard key={task.id} task={task} phaseMode={phaseMode} onEdit={onEditTask} onDelete={onDeleteTask} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
@@ -146,7 +158,8 @@ function BoardColumn({
         )}
         {canEdit && (
           <div className="mt-1">
-            <TaskQuickAdd projectId={projectId} columnId={column.id} />
+            {/* phase: lane='next' явно, иначе DEFAULT БД 'now' родит задачу «В работе» */}
+            <TaskQuickAdd projectId={projectId} columnId={column.id} lane={phaseMode ? 'next' : undefined} />
           </div>
         )}
       </div>
@@ -169,6 +182,8 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
   const deleteColumn = useDeleteColumn(projectId);
   const { data: role } = useOrgRole();
   const canEdit = role !== 'viewer';
+  // P2a: фазовый режим — от данных, не от project.type (компонент проект не знает)
+  const phaseMode = isPhaseBoard(columns);
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
@@ -278,6 +293,17 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
     );
   }
 
+  // 0 колонок бывает только у delivery-проекта без шаблона направления
+  // (internal сидится 4 дефолтными; CTA «Создать из шаблона» — P2b)
+  if (columns.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border py-10 text-center">
+        <p className="text-sm text-text-dim">Фазы не созданы</p>
+        <p className="mt-1 text-xs text-text-mute">Для этого направления нет шаблона внедрения</p>
+      </div>
+    );
+  }
+
   const deleteHasTasks = deletingCol ? getColumnTasks(deletingCol.id).length > 0 : false;
   const deleteTargets = deletingCol ? columns.filter((c) => c.id !== deletingCol.id) : [];
 
@@ -297,6 +323,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
               column={col}
               tasks={getColumnTasks(col.id)}
               canEdit={canEdit}
+              phaseMode={phaseMode}
               onEditTask={(t) => { setEditTask(t); setModalOpen(true); }}
               onDeleteTask={(id) => { if (confirm('Удалить задачу?')) deleteTask.mutate(id); }}
               onRename={(id, name, category) => updateColumn.mutate({ id, name, category })}
@@ -304,8 +331,8 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
             />
           ))}
 
-          {/* Add column */}
-          {canEdit && (
+          {/* Add column — в phase-режиме скрыто (фазы только из шаблона, CRUD — P2b) */}
+          {canEdit && !phaseMode && (
             <div className="w-72 shrink-0">
               {adding ? (
                 <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface2 p-3">

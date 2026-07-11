@@ -821,7 +821,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       <div className="mb-3 flex gap-1 border-b border-border">
         {([
           { value: 'activity' as const, label: 'Активность' },
-          { value: 'board' as const, label: 'Доска задач' },
+          // P2a: у delivery доска = фазовый план внедрения
+          { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
         ]).map((t) => (
           <button
             key={t.value}
@@ -891,6 +892,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         onClose={() => { setTaskModalOpen(false); setEditingTask(null); }}
         editTask={editingTask}
         defaultProjectId={projectId}
+        // P2a: на фазовой доске новая задача — «Не начата» (lane='next')
+        defaultLane={isDelivery ? 'next' : undefined}
       />
       <CallModal
         isOpen={callModalOpen}
