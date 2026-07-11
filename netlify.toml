@@ -4,3 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Next.js Runtime (SSR/middleware/API routes). Без явного plugin-entry Netlify
+# публиковал .next как статику → 404 на всех роутах (первый деплой 2026-07-11).
+# Netlify устанавливает плагин сам на этапе билда — npm-зависимость не нужна.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
