@@ -125,3 +125,4 @@ END $$;
 
 REVOKE ALL ON FUNCTION public.spawn_delivery_project(uuid, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.spawn_delivery_project(uuid, text) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.spawn_delivery_project(uuid, text) FROM anon;  -- гейт-фикс: default-грант Supabase не снимается REVOKE FROM public

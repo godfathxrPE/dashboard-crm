@@ -10,7 +10,7 @@ test.describe('Дашборд', () => {
     // If auth is configured, KPI cards should be visible
     const isAuth = !page.url().includes('/login');
     if (isAuth) {
-      await expect(page.locator('text=ПРОЕКТЫ')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('text=СДЕЛКИ')).toBeVisible({ timeout: 10000 });
       await expect(page.locator('text=ПАЙПЛАЙН')).toBeVisible();
       await expect(page.locator('text=ЗАДАЧИ')).toBeVisible();
       await expect(page.locator('text=ЗВОНКИ')).toBeVisible();
