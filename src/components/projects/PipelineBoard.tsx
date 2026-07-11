@@ -20,7 +20,6 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import {
   Plus,
-  Trophy,
   ArrowUpDown,
   Loader2,
   FolderKanban,
@@ -44,6 +43,7 @@ import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/pr
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
+import { WonDeals } from './WonDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { Watermark } from '@/components/ui/WatermarkNew';
@@ -329,27 +329,6 @@ function PhaseColumn({
             />
           ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Won Section
-// ═══════════════════════════════════════════════════════
-
-function WonDeals({ projects }: { projects: Project[] }) {
-  if (projects.length === 0) return null;
-  const total = projects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
-
-  return (
-    <div className="mt-4 rounded border border-green/30 bg-green/5 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Trophy size={16} className="text-green" />
-        <span className="text-sm font-semibold text-green">Выиграно: {projects.length}</span>
-        {total > 0 && (
-          <span className="ml-auto text-sm font-medium text-green tabular-nums">{formatBudget(total)}</span>
-        )}
       </div>
     </div>
   );

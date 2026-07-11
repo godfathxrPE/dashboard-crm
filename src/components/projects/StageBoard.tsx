@@ -20,7 +20,6 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import {
   Plus,
-  Trophy,
   Loader2,
   FolderKanban,
   Building2,
@@ -42,6 +41,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
+import { WonDeals } from './WonDeals';
 import { Badge } from '@/components/ui/Badge';
 import type { PipelineStage, Direction } from '@/types/database';
 
@@ -246,31 +246,6 @@ function StageColumn({
           <div className="flex h-16 items-center justify-center text-[10px] text-text-mute">
             Перетащите сделку сюда
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Won Section
-// ═══════════════════════════════════════════════════════
-
-function WonDeals({ projects }: { projects: Project[] }) {
-  if (projects.length === 0) return null;
-  const total = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
-
-  return (
-    <div className="mt-4 rounded-xl border border-green/30 bg-green/5 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <Trophy size={16} className="text-green" />
-        <span className="text-sm font-semibold text-green">
-          Выиграно: {projects.length}
-        </span>
-        {total > 0 && (
-          <span className="ml-auto text-sm font-medium text-green">
-            {formatBudget(total)}
-          </span>
         )}
       </div>
     </div>

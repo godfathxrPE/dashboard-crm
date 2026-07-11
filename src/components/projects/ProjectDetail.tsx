@@ -481,8 +481,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               {project.type === 'client' && project.status === 'won' && (
                 <button
                   onClick={() => { setSpawnError(null); setSpawning((v) => !v); }}
-                  className="flex items-center gap-1 rounded-lg border border-accent/40 px-2.5 py-1.5 text-xs
-                             font-medium text-accent transition-colors hover:bg-accent-l"
+                  className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-xs
+                             font-medium text-white shadow-sm transition-opacity hover:opacity-90"
                 >
                   <Rocket size={12} /> Создать проект внедрения
                 </button>
@@ -542,8 +542,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 key={kind}
                 disabled={spawnPending}
                 onClick={() => handleSpawn(kind)}
-                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
-                           transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+                className="rounded border border-accent/50 bg-accent-l/60 px-2.5 py-1 text-xs font-medium
+                           text-accent transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
               >
                 {DELIVERY_KIND_LABELS[kind]}
               </button>
@@ -556,6 +556,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               Отмена
             </button>
           </div>
+          <p className="mt-1 text-[11px] text-text-dim">
+            Полный запуск — весь цикл внедрения · Эксперимент — пилот
+          </p>
           {spawnError && <p className="mt-1.5 text-xs text-red">{spawnError}</p>}
         </div>
       )}
