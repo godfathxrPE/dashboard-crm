@@ -58,6 +58,20 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        {/* FOUC-гард (P1 §2.2): применяем сохранённую тему до гидрации, иначе
+            вспышка светлого t-scandi (default на <html>). Inline parser-blocking
+            <script> первым ребёнком <body> — выполняется до отрисовки контента
+            (паттерн next-themes). НЕ next/script beforeInteractive: тот рендерится
+            ребёнком <html> → React 19 hydration error «<script> cannot be a child
+            of <html>» (гейт-фикс волны 2). Значение уже с префиксом t-…
+            (zustand-persist), второй раз НЕ добавляем. ThemeProvider ниже
+            реконсилит реактивные переключения. */}
+        <script
+          id="theme-init"
+          dangerouslySetInnerHTML={{
+            __html: `try{var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&t!=='t-scandi'){var d=document.documentElement;d.classList.remove('t-scandi');d.classList.add(t);}}catch(e){}`,
+          }}
+        />
         <QueryProvider>
           <ThemeProvider>
             {children}
