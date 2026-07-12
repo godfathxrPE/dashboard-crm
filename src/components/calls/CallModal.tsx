@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
 import { callFormSchema, callStatuses, CALL_STATUS_CONFIG, type CallFormValues } from '@/lib/validators/call';
 import { useCreateCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -11,6 +10,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
+import { Modal } from '@/components/shared/Modal';
 import { deriveFromContact } from '@/lib/forms/derive-links';
 
 function DetailsSection({ register }: { register: any }) {
@@ -64,7 +64,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   const { data: projects } = useProjects();
   const isProjectActive = useIsProjectActive();
 
-  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting } } = useForm<CallFormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting, isDirty } } = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),
   });
 
@@ -145,26 +145,33 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
       }
       onSaved?.({ next_step: values.next_step, project_id: values.project_id });
       onClose();
-    } catch (err) {
-      console.error('Call save error:', err);
+    } catch {
+      // Ошибку показывает глобальный mutationCache.onError (toast), хук откатывает
+      // optimistic. Здесь только НЕ закрываем модалку — даём исправить и повторить.
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} aria-hidden="true">
-      <div data-modal className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
-        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text-main">
-            {editCall ? 'Редактировать звонок' : 'Новый звонок'}
-          </h2>
-          <button onClick={onClose} aria-label="Закрыть" className="rounded-lg p-1 text-text-mute hover:bg-surface-hover"><X size={18} /></button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <Modal
+      title={editCall ? 'Редактировать звонок' : 'Новый звонок'}
+      onClose={onClose}
+      isDirty={isDirty}
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
+            Отмена
+          </button>
+          <button type="submit" form="call-form" disabled={isSubmitting}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+            {isSubmitting ? 'Сохраняю...' : editCall ? 'Сохранить' : 'Записать звонок'}
+          </button>
+        </>
+      }
+    >
+      <form id="call-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Date + Status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -236,19 +243,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
             <input {...register('next_step')} placeholder="Отправить КП до пятницы"
               className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
-              Отмена
-            </button>
-            <button type="submit" disabled={isSubmitting}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-              {isSubmitting ? 'Сохраняю...' : editCall ? 'Сохранить' : 'Записать звонок'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

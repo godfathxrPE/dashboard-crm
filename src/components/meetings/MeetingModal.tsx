@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
 import { meetingFormSchema, type MeetingFormValues } from '@/lib/validators/meeting';
 import { useCreateMeeting, useUpdateMeeting, type Meeting } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -11,6 +10,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
+import { Modal } from '@/components/shared/Modal';
 import { deriveFromContact } from '@/lib/forms/derive-links';
 
 interface MeetingModalProps {
@@ -33,7 +33,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
 
-  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting } } = useForm<MeetingFormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting, isDirty } } = useForm<MeetingFormValues>({
     resolver: zodResolver(meetingFormSchema),
   });
 
@@ -119,26 +119,33 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
       }
       onSaved?.({ next_step: values.next_step, project_id: values.project_id });
       onClose();
-    } catch (err) {
-      console.error('Meeting save error:', err);
+    } catch {
+      // Ошибку показывает глобальный mutationCache.onError (toast). Модалку НЕ
+      // закрываем — даём исправить и повторить.
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div data-modal className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
-        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text-main">
-            {editMeeting ? 'Редактировать встречу' : 'Новая встреча'}
-          </h2>
-          <button onClick={onClose} aria-label="Закрыть" className="rounded-lg p-1 text-text-mute hover:bg-surface-hover"><X size={18} /></button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <Modal
+      title={editMeeting ? 'Редактировать встречу' : 'Новая встреча'}
+      onClose={onClose}
+      isDirty={isDirty}
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
+            Отмена
+          </button>
+          <button type="submit" form="meeting-form" disabled={isSubmitting}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+            {isSubmitting ? 'Сохраняю...' : editMeeting ? 'Сохранить' : 'Создать'}
+          </button>
+        </>
+      }
+    >
+      <form id="meeting-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Название *</label>
             <input {...register('title')} autoFocus placeholder="Встреча с ООО «Рога»"
@@ -218,19 +225,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
             <input {...register('next_step')} placeholder="Отправить КП до пятницы"
               className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
-              Отмена
-            </button>
-            <button type="submit" disabled={isSubmitting}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-              {isSubmitting ? 'Сохраняю...' : editMeeting ? 'Сохранить' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

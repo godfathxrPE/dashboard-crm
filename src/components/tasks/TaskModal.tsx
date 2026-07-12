@@ -3,12 +3,12 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useCreateTask, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { Modal } from '@/components/shared/Modal';
 import {
   taskFormSchema,
   type TaskFormValues,
@@ -46,7 +46,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
     reset,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -112,29 +112,25 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
   if (!isOpen) return null;
 
   return (
-    <div
-      data-modal-overlay
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div data-modal className="w-full max-w-md rounded-xl border border-border bg-surface p-5 elevation-3" role="dialog" aria-modal="true">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-text-main">
-            {editTask ? 'Редактировать задачу' : 'Новая задача'}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Закрыть"
-            className="rounded-md p-1 text-text-mute hover:text-text-main hover:bg-surface2 transition-colors"
-          >
-            <X size={18} />
+    <Modal
+      title={editTask ? 'Редактировать задачу' : 'Новая задача'}
+      onClose={onClose}
+      isDirty={isDirty}
+      maxWidth="max-w-md"
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2 transition-colors">
+            Отмена
           </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <button type="submit" form="task-form" disabled={createTask.isPending || updateTask.isPending}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
+            {createTask.isPending || updateTask.isPending ? 'Сохраняем...' : 'Сохранить'}
+          </button>
+        </>
+      }
+    >
+      <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Text */}
           <div>
             <label className="block text-xs font-medium text-text-dim mb-1">
@@ -252,28 +248,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               <option value={1440}>За 1 день</option>
             </select>
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2 transition-colors"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              disabled={createTask.isPending || updateTask.isPending}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {createTask.isPending || updateTask.isPending
-                ? 'Сохраняем...'
-                : 'Сохранить'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

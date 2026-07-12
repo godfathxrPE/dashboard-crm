@@ -1,3 +1,4 @@
 export { DataTable, type Column } from './DataTable';
 export { Combobox, type ComboboxOption } from './Combobox';
 export { AssigneeSelect } from './AssigneeSelect';
+export { Modal } from './Modal';

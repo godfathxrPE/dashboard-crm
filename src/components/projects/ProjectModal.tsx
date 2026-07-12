@@ -3,7 +3,6 @@
 import { useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
 import {
   projectFormSchema,
   LOSS_REASON_CONFIG,
@@ -22,6 +21,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { Modal } from '@/components/shared/Modal';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import type { Direction, DealStage } from '@/types/database';
 
@@ -49,7 +49,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     watch,
     control,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
@@ -250,41 +250,37 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         await createProject.mutateAsync(payload);
       }
       onClose();
-    } catch (err) {
-      console.error('Project save error:', err);
+    } catch {
+      // Ошибку показывает глобальный mutationCache.onError (toast). Модалку НЕ
+      // закрываем — даём исправить и повторить.
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div
-      data-modal-overlay
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        data-modal
-        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
-        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text-main">
-            {editProject
-              ? (isInternal ? 'Редактировать проект' : 'Редактировать сделку')
-              : (isInternal ? 'Новый проект' : 'Новая сделка')}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Закрыть"
-            className="rounded-lg p-1 text-text-mute transition-colors hover:bg-surface2"
-          >
-            <X size={18} />
+    <Modal
+      title={
+        editProject
+          ? (isInternal ? 'Редактировать проект' : 'Редактировать сделку')
+          : (isInternal ? 'Новый проект' : 'Новая сделка')
+      }
+      onClose={onClose}
+      isDirty={isDirty}
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface2">
+            Отмена
           </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <button type="submit" form="project-form" disabled={isSubmitting}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            {isSubmitting ? 'Сохраняю...' : editProject ? 'Сохранить' : (isInternal ? 'Создать проект' : 'Создать сделку')}
+          </button>
+        </>
+      }
+    >
+      <form id="project-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
@@ -495,50 +491,53 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
           {/* Section divider */}
           <div className="modal-section-divider"><span>Связи</span></div>
 
-          {/* Company */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">
-              Компания
-            </label>
-            <Controller
-              name="company_id"
-              control={control}
-              render={({ field }) => (
-                <Combobox
-                  options={companyOptions}
-                  value={field.value}
-                  onChange={(val) => {
-                    field.onChange(val);
-                    if (val !== field.value) setValue('contact_id', null);
-                  }}
-                  placeholder="Выбрать компанию..."
-                />
-              )}
-            />
-          </div>
+          {/* Company + Contact — 2 колонки на ≥md (1П-4: снижаем высоту модалки) */}
+          <div className="grid gap-3 md:grid-cols-2">
+            {/* Company */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Компания
+              </label>
+              <Controller
+                name="company_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox
+                    options={companyOptions}
+                    value={field.value}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      if (val !== field.value) setValue('contact_id', null);
+                    }}
+                    placeholder="Выбрать компанию..."
+                  />
+                )}
+              />
+            </div>
 
-          {/* Contact */}
-          <div>
-            <label className="mb-1 block text-xs font-medium text-text-dim">
-              Контактное лицо
-            </label>
-            <Controller
-              name="contact_id"
-              control={control}
-              render={({ field }) => (
-                <Combobox
-                  options={contactOptions}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder={
-                    selectedCompanyId
-                      ? 'Выбрать контакт...'
-                      : 'Сначала выберите компанию'
-                  }
-                  disabled={!selectedCompanyId && contactOptions.length === 0}
-                />
-              )}
-            />
+            {/* Contact */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Контактное лицо
+              </label>
+              <Controller
+                name="contact_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox
+                    options={contactOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={
+                      selectedCompanyId
+                        ? 'Выбрать контакт...'
+                        : 'Сначала выберите компанию'
+                    }
+                    disabled={!selectedCompanyId && contactOptions.length === 0}
+                  />
+                )}
+              />
+            </div>
           </div>
 
           {/* Owner */}
@@ -553,33 +552,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               />
             )}
           />
-
-          {/* Submit */}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm
-                         text-text-dim transition-colors hover:bg-surface2"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium
-                         text-white transition-opacity hover:opacity-90
-                         disabled:opacity-50"
-            >
-              {isSubmitting
-                ? 'Сохраняю...'
-                : editProject
-                  ? 'Сохранить'
-                  : (isInternal ? 'Создать проект' : 'Создать сделку')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

@@ -2,17 +2,19 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { X, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateProject, parseDeliveryGateError, type Project } from '@/lib/hooks/use-projects';
 import { useDeliveryGate, type OpenMilestone } from '@/lib/hooks/use-delivery-gate';
 import { DELIVERY_TASK_STATUS_LABELS } from '@/lib/constants/delivery-phases';
+import { Modal } from '@/components/shared/Modal';
 
 // ═══════════════════════════════════════════════════════
 // Delivery P3: модалка завершения проекта внедрения.
 // Чеклист вех (check_delivery_completion) + подтверждение; отказ
 // backstop-триггера (веха переоткрыта между чеклистом и кликом) —
-// alert-баннер внутри модалки (toast-библиотеки в проекте нет).
+// alert-баннер со списком вех внутри модалки (осмысленная локальная
+// реакция). Прочие сбои показывает глобальный toast (AUDIT A1.1).
 // ═══════════════════════════════════════════════════════
 
 const LANE_BADGE_CLS: Record<string, string> = {
@@ -55,16 +57,15 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
   const updateProject = useUpdateProject();
   const gate = useDeliveryGate(project.id, project.type === 'delivery' && project.status === 'open');
 
-  // Backstop-отказ триггера — вехи из DETAIL; generic — прочие ошибки мутации
+  // Backstop-отказ триггера — вехи из DETAIL показываем баннером; прочие сбои
+  // уходят в глобальный toast (mutationCache.onError).
   const [gateError, setGateError] = useState<OpenMilestone[] | null>(null);
-  const [genericError, setGenericError] = useState<string | null>(null);
 
   const ready = gate.data?.ready === true;
   const openMilestones = gate.data?.open_milestones ?? [];
 
   function handleComplete() {
     setGateError(null);
-    setGenericError(null);
     updateProject.mutate(
       { id: project.id, status: 'completed' },
       {
@@ -75,35 +76,42 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
             setGateError(milestones);
             // Чеклист устарел (веху переоткрыли в другой вкладке) — обновляем
             qc.invalidateQueries({ queryKey: ['delivery-gate', project.id] });
-          } else {
-            setGenericError(err instanceof Error ? err.message : 'Не удалось завершить проект');
           }
+          // Прочие ошибки покажет глобальный toast — здесь ничего не делаем.
         },
       },
     );
   }
 
   return (
-    <div
-      data-modal-overlay
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div data-modal className="w-full max-w-md rounded-xl border border-border bg-surface p-5 elevation-3" role="dialog" aria-modal="true">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-text-main">Завершение проекта</h2>
+    <Modal title="Завершение проекта" onClose={onClose} maxWidth="max-w-md"
+      footer={
+        <>
+          {!ready && !gate.isPending && !gate.isError && (
+            <span className="mr-auto text-xs text-text-mute">
+              Закройте вехи, чтобы завершить проект
+            </span>
+          )}
           <button
             onClick={onClose}
-            aria-label="Закрыть"
-            className="rounded-md p-1 text-text-mute hover:text-text-main hover:bg-surface2 transition-colors"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-dim
+                       transition-colors hover:bg-surface2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <X size={18} />
+            Отмена
           </button>
-        </div>
-
+          <button
+            autoFocus
+            onClick={handleComplete}
+            disabled={!ready || updateProject.isPending}
+            className="rounded-lg border border-green/40 px-3 py-1.5 text-xs font-medium text-green
+                       transition-colors hover:bg-green-l focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                       disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {updateProject.isPending ? 'Завершаем…' : 'Завершить'}
+          </button>
+        </>
+      }
+    >
         <p className="mb-3 text-sm text-text-dim">
           Проект «{project.name}» будет отмечен завершённым.
         </p>
@@ -121,11 +129,6 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
                 <MilestoneList items={gateError} />
               </div>
             </div>
-          </div>
-        )}
-        {genericError && (
-          <div role="alert" className="mb-3 rounded-lg border border-red/40 bg-red/5 p-3 text-[13px] text-red">
-            {genericError}
           </div>
         )}
 
@@ -150,33 +153,6 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
             <MilestoneList items={openMilestones} />
           </div>
         )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2">
-          {!ready && !gate.isPending && !gate.isError && (
-            <span className="mr-auto text-xs text-text-mute">
-              Закройте вехи, чтобы завершить проект
-            </span>
-          )}
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-dim
-                       transition-colors hover:bg-surface2 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            Отмена
-          </button>
-          <button
-            autoFocus
-            onClick={handleComplete}
-            disabled={!ready || updateProject.isPending}
-            className="rounded-lg border border-green/40 px-3 py-1.5 text-xs font-medium text-green
-                       transition-colors hover:bg-green-l focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
-                       disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {updateProject.isPending ? 'Завершаем…' : 'Завершить'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

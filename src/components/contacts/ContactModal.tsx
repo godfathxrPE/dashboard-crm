@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { contactFormSchema, type ContactFormValues } from '@/lib/validators/contact';
 import {
   useContacts,
@@ -16,6 +16,7 @@ import {
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { Combobox } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { Modal } from '@/components/shared/Modal';
 import { normalizePhone } from '@/lib/utils/phone';
 
 interface ContactModalProps {
@@ -48,7 +49,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
     reset,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
   });
@@ -96,30 +97,33 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         }
       }
       onClose();
-    } catch (err) {
-      console.error('Contact save error:', err);
+    } catch {
+      // Ошибку показывает глобальный mutationCache.onError (toast). Модалку НЕ
+      // закрываем — даём исправить и повторить.
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div
-        data-modal
-        className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 elevation-3 ring-1 ring-border"
-        role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-text-main">
-            {editContact ? 'Редактировать контакт' : 'Новый контакт'}
-          </h2>
-          <button onClick={onClose} aria-label="Закрыть" className="rounded-lg p-1 text-text-mute transition-colors hover:bg-surface-hover">
-            <X size={18} />
+    <Modal
+      title={editContact ? 'Редактировать контакт' : 'Новый контакт'}
+      onClose={onClose}
+      isDirty={isDirty}
+      footer={
+        <>
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover">
+            Отмена
           </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <button type="submit" form="contact-form" disabled={isSubmitting}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+            {isSubmitting ? 'Сохраняю...' : editContact ? 'Сохранить' : 'Создать'}
+          </button>
+        </>
+      }
+    >
+      <form id="contact-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Name row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -201,19 +205,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
             value={watch('owner_id') ?? null}
             onChange={(v) => setValue('owner_id', v)}
           />
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover">
-              Отмена
-            </button>
-            <button type="submit" disabled={isSubmitting}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
-              {isSubmitting ? 'Сохраняю...' : editContact ? 'Сохранить' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
