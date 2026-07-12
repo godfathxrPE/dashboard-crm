@@ -640,6 +640,8 @@ export interface Database {
           updated_at: string;
           // PCT-1: колонка проектной доски (истина для задач с project_id)
           column_id: string | null;
+          // Delivery P3 (миграция 038): веха приёмки — блокирует завершение delivery
+          is_milestone: boolean;
         };
         Insert: {
           text: string;
@@ -655,6 +657,8 @@ export interface Database {
           org_id?: string;
           // PCT-1
           column_id?: string | null;
+          // Delivery P3
+          is_milestone?: boolean;
         };
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>;
       };
