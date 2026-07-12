@@ -66,6 +66,7 @@ const config: Config = {
       },
       borderColor: {
         DEFAULT: 'var(--border)',
+        input: 'var(--border-input)',
       },
       divideColor: {
         DEFAULT: 'var(--border)',

@@ -19,7 +19,7 @@
 /* ═══ Claude (default, light) ═══ */
 :root {
   --bg: #f5f4ef;  --surface: #ffffff;  --surface2: #f0efe9;  --surface3: #e5e3dc;
-  --border: #e5e3dc;  --border2: #d4d2ca;
+  --border: #e5e3dc;  --border2: #d4d2ca;  --border-input: #8c8c8c;  /* P2 §1.4.11: интерактив-рамка ≥3:1 к surface (3.36:1), декор-border не трогаем */
   --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #6f6d68;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #b5622a;  --accent-l: rgba(181,98,42,0.08);  --accent-l2: rgba(181,98,42,0.16);
@@ -53,7 +53,7 @@
 /* ═══ Frost (dark, glassmorphism) ═══ */
 .t-frost {
   --bg: #0d1020;  --surface: rgba(255,255,255,0.07);  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.10);
-  --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);
+  --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.46:1 к surface */
   --text: #eef2ff;  --text-dim: #94a4d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
   --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);  --accent-text: #7eb0ff;  /* P1 §2.8: solid #5b8aff на accent-l тинте 4.0:1 → 5.85:1 */
@@ -85,7 +85,7 @@
 /* ═══ Paper (light, editorial) ═══ */
 .t-paper {
   --bg: #f5f0e0;  --surface: #fdf8ec;  --surface2: #ede8d4;  --surface3: #dfd8c2;
-  --border: #c8bfa0;  --border2: #a89878;
+  --border: #c8bfa0;  --border2: #a89878;  --border-input: #8d8272;  /* P2 §1.4.11: 3.56:1 к surface, тёплый ink */
   --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #6d5c46;  /* P1 §2.7: 3.7:1 на surface3 → 4.51:1 */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #8b3a1a;  --accent-l: rgba(139,58,26,0.08);  --accent-l2: rgba(139,58,26,0.15);
@@ -116,7 +116,7 @@
 /* ═══ Sand (light, brutalist) ═══ */
 .t-sand {
   --bg: #f0e8d8;  --surface: #faf5ea;  --surface2: #e8dfc8;  --surface3: #dad0b8;
-  --border: #c0a880;  --border2: #a08860;
+  --border: #c0a880;  --border2: #a08860;  --border-input: #8c7c5c;  /* P2 §1.4.11: 3.75:1 к surface, тёплый */
   --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #6b563f;  /* P1 §2.7: 3.7:1 на surface3 → 4.52:1 */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   /* P1 §T2: заливка --accent затемнена #c05828 → #b04e20 (белый текст 4.5→5.31:1),
@@ -149,7 +149,7 @@
 /* ═══ Aurora (dark, neon) ═══ */
 .t-aurora {
   --bg: #0a0e1a;  --surface: rgba(255,255,255,0.055);  --surface2: rgba(255,255,255,0.035);  --surface3: rgba(255,255,255,0.08);
-  --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);
+  --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.63:1 к surface */
   --text: #e8f0ff;  --text-dim: #94a8d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
   --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);  --accent-text: #c9a0ff;  /* P1 §2.8: 3.82:1 badge → 6.77:1 */
@@ -182,7 +182,7 @@
 /* ═══ Tidal (dark, oceanic) ═══ */
 .t-tidal {
   --bg: #080f0d;  --surface: rgba(60,140,100,0.07);  --surface2: rgba(60,140,100,0.04);  --surface3: rgba(60,140,100,0.10);
-  --border: rgba(80,160,120,0.15);  --border2: rgba(80,160,120,0.25);
+  --border: rgba(80,160,120,0.15);  --border2: rgba(80,160,120,0.25);  --border-input: rgba(255,255,255,0.37);  /* P2 §1.4.11: 3.44:1 к surface */
   --text: #c0d8cc;  --text-dim: #7aa08c;  --text-mute: #709080;
   --sidebar-indicator: rgba(255,255,255,0.08);  --sidebar-active-text: var(--accent);
   --accent: #48b890;  --accent-l: rgba(72,184,144,0.14);  --accent-l2: rgba(72,184,144,0.24);
@@ -219,7 +219,7 @@
 .t-aura {
   /* Контраст: сероватый фон страницы + чисто-белые виджеты сверху */
   --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
-  --border: #E2E2EC;  --border2: #D2D2DE;
+  --border: #E2E2EC;  --border2: #D2D2DE;  --border-input: #8a8a9a;  /* P2 §1.4.11: 3.40:1 к surface, прохладный */
   /* text-dim/mute затемнены до AA на белом И на сером --bg (см. аудит WCAG 2.2) */
   --text: #16161D;  --text-dim: #59596D;  --text-mute: #61617A;  /* P1 §2.7: 4.39:1 на surface3 → 5.01:1 (тише dim 5.7:1) */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
@@ -282,7 +282,7 @@
 /* ═══ Washi 和紙 (light, Japanese minimalism) ═══ */
 .t-washi {
   --bg: #F5F0E8;  --surface: #FDFCFA;  --surface2: #EDE7DB;  --surface3: #E5DFD5;
-  --border: #D8D2C8;  --border2: #E5DFD5;
+  --border: #D8D2C8;  --border2: #E5DFD5;  --border-input: #8a8073;  /* P2 §1.4.11: 3.78:1 к surface, тёплый серо-коричневый */
   /* Sumi frame tokens */
   --sidebar-bg: #2C2C2C;
   --sidebar-text: rgba(232,226,216,0.7);
@@ -469,7 +469,7 @@
 /* ═══ Fuji 富士 (light, warm indigo frame) ═══ */
 .t-fuji {
   --bg: #EDE8DF;  --surface: #FDFCF8;  --surface2: #F0EBE2;  --surface3: #E3DDD2;
-  --border: #DDD5C5;  --border2: #C8C0B0;
+  --border: #DDD5C5;  --border2: #C8C0B0;  --border-input: #877e70;  /* P2 §1.4.11: 3.90:1 к surface, тёплая рамка (не индиго) */
   --text: #1A2744;  --text-dim: #545C64;  --text-mute: #5C626A;  /* P1 §2.7: dim 4.12→5.03, mute 4.17→4.56 на surface3 (mute тише dim) */
   --sidebar-indicator: transparent;  --sidebar-active-text: #C4AA78;
   --accent: #2B5078;  --accent-l: rgba(43,80,120,0.08);  --accent-l2: rgba(43,80,120,0.16);
@@ -749,7 +749,7 @@
 /* ═══ Scandinavian (monochrome, zero-radius) ═══ */
 .t-scandi {
   --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
-  --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
+  --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);  --border-input: rgba(0,0,0,0.45);  /* P2 §1.4.11: 3.33:1 к surface */
   --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.60);  /* P1 §2.7: 4.28:1 на surface3 → 4.96:1 (тише dim 0.66) */
   --bracket-color: #DDD5E2;  --ring-active: #444444;  --ring-track: #e8e8e8;
   --frost-bg: rgba(250,250,250,0.78);  --frost-blur: blur(20px) saturate(120%);
@@ -784,7 +784,7 @@
 @media (prefers-color-scheme: dark) {
   .t-scandi {
     --bg: #111111;  --surface: #111111;  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.08);
-    --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);
+    --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);  --border-input: rgba(255,255,255,0.37);  /* P2 §1.4.11: 3.44:1 к surface (scandi-dark) */
     --text: #ffffff;  --text-dim: rgba(255,255,255,0.65);  --text-mute: rgba(255,255,255,0.55);
     --bracket-color: rgba(255,255,255,0.22);  --ring-active: rgba(255,255,255,0.7);  --ring-track: rgba(255,255,255,0.12);
     --frost-bg: rgba(17,17,17,0.72);
@@ -900,7 +900,7 @@
 .t-scandi textarea,
 .t-scandi select {
   border: none !important;
-  border-bottom: 0.5px solid var(--border) !important;
+  border-bottom: 0.5px solid var(--border-input) !important;  /* P2 §1.4.11: ≥3:1 к surface */
   border-radius: 0 !important;
   background: transparent !important;
   padding-left: 0 !important;

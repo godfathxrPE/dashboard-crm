@@ -180,12 +180,16 @@ for th in themes:
             return
         r = wcag(fg, bgc)
         lc = apca_lc(fg, bgc)
-        req = 3.0 if (kind=='ui' or size=='large') else 4.5
+        # decorative (border/border2 в покое): 1.4.11 к ним не применяется —
+        # считаем ratio для инфо, но НЕ включаем в FAIL-счётчик (pass=None).
+        decorative = (kind == 'decorative')
+        req = 3.0 if (kind in ('ui',) or size=='large') else 4.5
         pairs.append({'pair': label,
                       'fg': '#%02x%02x%02x' % tuple(round(x) for x in fg),
                       'bg': '#%02x%02x%02x' % tuple(round(x) for x in bgc),
                       'ratio': round(r,2), 'apca': round(lc,1),
-                      'req': req, 'pass': r >= req, 'kind': kind})
+                      'req': None if decorative else req,
+                      'pass': None if decorative else (r >= req), 'kind': kind})
     # core text pairs
     for surf_name, surf in [('bg',bg), ('surface',surface), ('surface2',surface2), ('surface3',surface3)]:
         add(f'text / {surf_name}', text, surf)
@@ -224,10 +228,20 @@ for th in themes:
             fillo = composite(fill, bg) if fill[3] < 1 else fill[:3]
             label = 'dark' if th in DARK_BTN_TEXT else 'white'
             add(f'{label} / bg-{c} solid (button)', btn_text, fillo)
-    # UI non-text: border vs surface
-    add('border / surface (ui)', border, surface, kind='ui')
-    add('border2 / surface (ui)', border2, surface, kind='ui')
+    # UI non-text (P2 §1.4.11): интерактив-рамка form-контролов — DoD-KPI ≥3:1.
+    border_input = opaque(th, 'border-input', 'bg')
+    add('border-input / surface (ui, DoD-KPI)', border_input, surface, kind='ui')
+    # border/border2 в покое висят на декоре (карточки, разделители) — для 1.4.11
+    # порога нет. Инфо-only, выведены из FAIL-счётчика (P2 §5).
+    add('border / surface (decorative, info-only)', border, surface, kind='decorative')
+    add('border2 / surface (decorative, info-only)', border2, surface, kind='decorative')
     add('accent / bg (ui: focus ring, icons)', accent, bg, kind='ui')
+    # WARN (не FAIL): в светлых темах border-input не должен быть темнее text-mute
+    # (иначе рамка читается как заполненный текст/ошибка) — P2 §5.
+    if border_input is not None and tmute is not None and surface is not None:
+        if rel_lum(surface) > 0.5 and rel_lum(border_input) < rel_lum(tmute):
+            T['warn_border_input'] = (
+                'border-input темнее text-mute — рамка может читаться как текст')
     # sidebar frames (washi/fuji)
     sb = opaque(th, 'sidebar-bg')
     if sb is not None and th in ('t-washi','t-fuji'):
@@ -251,9 +265,12 @@ for th in themes:
 out_path = os.path.join(os.path.dirname(__file__), 'audit-contrast-results.json')
 json.dump(results, open(out_path,'w'), indent=1, ensure_ascii=False)
 
-# summary: failures only
+# summary: failures only (decorative pairs pass=None → вне счётчика)
 for th, T in results.items():
-    fails = [p for p in T['pairs'] if p.get('ratio') is not None and not p['pass']]
-    print(f'\n=== {th}: {len(fails)} FAIL of {len([p for p in T["pairs"] if p.get("ratio")])} ===')
+    fails = [p for p in T['pairs'] if p.get('pass') is False]
+    scored = [p for p in T['pairs'] if p.get('pass') is not None]
+    print(f'\n=== {th}: {len(fails)} FAIL of {len(scored)} ===')
     for p in fails:
         print(f"  {p['pair']}: {p['fg']} on {p['bg']} = {p['ratio']}:1 (req {p['req']}) APCA {p['apca']}")
+    if T.get('warn_border_input'):
+        print(f"  WARN: {T['warn_border_input']}")
