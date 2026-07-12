@@ -2032,6 +2032,24 @@ input[type="checkbox"]:indeterminate {
   border-color: var(--border-input);
 }
 
+/* ═══ P2.2: НЕПРОЗРАЧНЫЕ МОДАЛКИ В ТЁМНЫХ СТЕКЛЯННЫХ ТЕМАХ ═══
+   frost/aurora/tidal имеют полупрозрачный --surface (rgba .05–.07) — это
+   frosted-glass для КАРТОЧЕК поверх bg. Но модалки/командная палитра красят
+   `bg-surface` → сквозь панель просвечивает вся страница, контент сливается.
+   Даём сплошную приподнятую поверхность (как `.t-scandi [data-modal]` красит
+   в --bg). `[data-modal]` покрывает и модалки, и CommandPalette (у неё тот же
+   атрибут). backdrop-filter вешаем на ОВЕРЛЕЙ, не на [data-modal] (вложенный
+   фильтр ломает сэмплинг в Chromium — урок из scandi-override выше). */
+.t-frost  [data-modal] { background: #1e2233 !important; }
+.t-aurora [data-modal] { background: #1a1e2c !important; }
+.t-tidal  [data-modal] { background: #102119 !important; }
+.t-frost  [data-modal-overlay],
+.t-aurora [data-modal-overlay],
+.t-tidal  [data-modal-overlay] {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* ═══ A11Y TEXT TOKENS ═══
    Статусные цвета как текст используют читаемый вариант (*-text),
    если тема его определяет; иначе fallback на базовый цвет.
