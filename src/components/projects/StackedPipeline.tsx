@@ -113,7 +113,8 @@ export function StackedPipeline({
         const firstOrder = track.stages[0].order_index;
         const lastOrder = track.stages[track.stages.length - 1].order_index;
         const currentOrder = stages[currentIndex]?.order_index ?? -1;
-        // Состояние трека для приглушения будущих (относительно активной стадии).
+        // Состояние трека: будущие приглушаем ТОКЕНОМ (--text-mute), не opacity —
+        // opacity-50 на контейнере ронял контраст текста до 1.7–2:1 (a11y-аудит P0).
         const trackState: 'future' | 'active' | 'done' =
           isWon || (currentOrder >= 0 && currentOrder > lastOrder)
             ? 'done'
@@ -124,11 +125,14 @@ export function StackedPipeline({
                 : 'future';
 
         return (
-          <div key={track.key} className={trackState === 'future' ? 'opacity-50' : ''}>
-            {/* Заголовок трека */}
+          <div key={track.key} className={trackState === 'future' ? 'stage-future' : ''}>
+            {/* Заголовок трека: у future лейбл — text-mute, цветная точка остаётся вторичным сигналом */}
             <div className="mb-1 flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
-              <span className="text-[11px] font-medium" style={{ color: track.color }}>
+              <span
+                className="phase-label text-[11px] font-medium"
+                style={{ color: trackState === 'future' ? 'var(--text-mute)' : track.color }}
+              >
                 {track.label}
               </span>
               {trackHasCurrent && !locked && (
@@ -236,8 +240,10 @@ function Segment({
           state === 'current' ? 'var(--text)' :
           state === 'done' ? 'var(--border2)' :
           'var(--surface2)',
+        // current: инверсия через --bg, НЕ --surface — у тёмных тем surface
+        // полупрозрачно-белый и текст пропадал на светлой заливке --text
         color:
-          state === 'current' ? 'var(--surface)' :
+          state === 'current' ? 'var(--bg)' :
           state === 'done' ? 'var(--text-dim)' :
           'var(--text-mute)',
       }}

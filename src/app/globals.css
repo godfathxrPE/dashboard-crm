@@ -28,6 +28,9 @@
   --blue: #2d6ab4;  --blue-l: rgba(45,106,180,0.09);
   --yellow: #a07020;  --yellow-l: rgba(160,112,32,0.09);  --yellow-text: #92661d;
   --purple: #7c3aed;  --purple-l: rgba(124,58,237,0.09);
+  /* Шрифт приложения: темы переопределяют --font-app, html применяет.
+     body font-family НЕ задаёт — иначе перекрывает тему (visual-audit P0 1.1). */
+  --font-app: var(--font-manrope, 'Manrope');
   --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 16px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -57,7 +60,7 @@
   --green: #5BB88E;  --green-l: rgba(91,184,142,0.14);
   --red: #E8795A;  --red-l: rgba(232,121,90,0.14);
   --blue: #5FA8E8;  --blue-l: rgba(95,168,232,0.14);
-  --yellow: #F0C45E;  --yellow-l: rgba(240,196,94,0.14);
+  --yellow: #F0C45E;  --yellow-l: rgba(240,196,94,0.14);  --yellow-text: #F0C45E;  /* 9.7:1 на surface — иначе утечка #92661d из :root (2.3:1) */
   --purple: #A070E0;  --purple-l: rgba(160,112,224,0.14);
   --radius: 12px;  --radius-s: 8px;  --radius-m: 12px;  --radius-l: 16px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
@@ -151,7 +154,7 @@
   --green: #20e8a0;  --green-l: rgba(32,232,160,0.12);
   --red: #ff6090;  --red-l: rgba(255,96,144,0.12);
   --blue: #40b8ff;  --blue-l: rgba(64,184,255,0.12);
-  --yellow: #ffe060;  --yellow-l: rgba(255,224,96,0.12);
+  --yellow: #ffe060;  --yellow-l: rgba(255,224,96,0.12);  --yellow-text: #ffe060;  /* 13.2:1 на surface — иначе утечка из :root */
   --purple: #a060ff;  --purple-l: rgba(160,96,255,0.12);
   --radius: 8px;  --radius-s: 5px;  --radius-m: 8px;  --radius-l: 12px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.25);
@@ -184,7 +187,7 @@
   --green: #40c088;  --green-l: rgba(64,192,136,0.12);
   --red: #c86858;  --red-l: rgba(200,104,88,0.12);
   --blue: #5ca8d0;  --blue-l: rgba(92,168,208,0.12);
-  --yellow: #b8a058;  --yellow-l: rgba(184,160,88,0.12);
+  --yellow: #b8a058;  --yellow-l: rgba(184,160,88,0.12);  --yellow-text: #b8a058;  /* 7.1:1 на surface — иначе утечка из :root */
   --purple: #8878b0;  --purple-l: rgba(136,120,176,0.12);
   --radius: 8px;  --radius-s: 5px;  --radius-m: 8px;  --radius-l: 12px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
@@ -255,7 +258,7 @@
   --track-nego-done: #FDF1CC; --track-nego-current: #B0810F;
   --track-proj-done: #D7EAFB; --track-proj-current: #3B7FD4;
 
-  font-family: var(--font-onest, 'Onest'), var(--font-manrope, 'Manrope'), system-ui, sans-serif;
+  --font-app: var(--font-onest, 'Onest');
   letter-spacing: -0.006em;
 }
 
@@ -501,9 +504,8 @@
   --track-proj-done: rgba(74,122,90,0.10);   --track-proj-current: #4A7A5A;   /* 松 matsu */
 }
 
-/* Fuji: font override */
-.t-fuji body,
-.t-fuji { font-family: var(--font-plex, 'IBM Plex Sans'), var(--font-manrope, 'Manrope'), system-ui, sans-serif; }
+/* Fuji: font override — через --font-app, прямой font-family перебивал бы html */
+.t-fuji { --font-app: var(--font-plex, 'IBM Plex Sans'); }
 
 /* ── Fuji: Indigo L-frame (sidebar + header) ── */
 .t-fuji aside {
@@ -749,12 +751,12 @@
   accent-color: var(--text);
   --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
   --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
-  font-family: var(--font-inter, 'Inter'), var(--font-manrope, 'Manrope'), system-ui, sans-serif;
+  --font-app: var(--font-inter, 'Inter');
   letter-spacing: -0.011em;
   --green: rgba(0,0,0,0.7);  --green-l: rgba(0,0,0,0.05);
   --red: rgba(0,0,0,0.8);  --red-l: rgba(0,0,0,0.05);
   --blue: rgba(0,0,0,0.65);  --blue-l: rgba(0,0,0,0.05);
-  --yellow: rgba(0,0,0,0.6);  --yellow-l: rgba(0,0,0,0.04);
+  --yellow: rgba(0,0,0,0.6);  --yellow-l: rgba(0,0,0,0.04);  --yellow-text: rgba(0,0,0,0.75);  /* Scandi монохромен: янтарь убран осознанно (решение Олега) */
   --purple: rgba(0,0,0,0.6);  --purple-l: rgba(0,0,0,0.04);
   --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
   --shadow-xs: none;  --shadow-sm: var(--elevation-1);  --shadow-md: var(--elevation-2);  --shadow-lg: var(--elevation-3);
@@ -786,7 +788,7 @@
     --green: rgba(255,255,255,0.7);  --green-l: rgba(255,255,255,0.05);
     --red: rgba(255,255,255,0.8);  --red-l: rgba(255,255,255,0.05);
     --blue: rgba(255,255,255,0.65);  --blue-l: rgba(255,255,255,0.05);
-    --yellow: rgba(255,255,255,0.6);  --yellow-l: rgba(255,255,255,0.04);
+    --yellow: rgba(255,255,255,0.6);  --yellow-l: rgba(255,255,255,0.04);  --yellow-text: rgba(255,255,255,0.75);  /* 10.8:1, монохром */
     --purple: rgba(255,255,255,0.6);  --purple-l: rgba(255,255,255,0.04);
     --glass-bg: #111111;  --glass-border: rgba(255,255,255,0.2);
     --track-prep-current: rgba(255,255,255,0.7);  --track-prep-done: rgba(255,255,255,0.06);
@@ -1343,8 +1345,10 @@
 /* ═══════════════════════════════════════════════════════
    BASE STYLES
    ═══════════════════════════════════════════════════════ */
+html {
+  font-family: var(--font-app), system-ui, sans-serif;
+}
 body {
-  font-family: var(--font-manrope, 'Manrope'), system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -1853,6 +1857,28 @@ input[type="checkbox"]:indeterminate {
   background: rgba(8,15,13,0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Тёмные темы A11Y: тёмный текст на ярких solid-заливках (visual-audit P0 1.3) ──
+   text-white на bg-accent/bg-green/… давал 1.6–3.9:1. Бренд-цвета НЕ затемняем —
+   меняем цвет текста на цвет фона темы (accent 5.87 / 5.15 / 7.87 COMPUTED).
+   Scandi исключён: там кнопки уже переведены в outline (см. .t-scandi button.bg-accent).
+   !important — прагматика поверх Tailwind-утилит (как в Aura) — known debt,
+   в идеале токен on-accent. Иконки/спиннеры наследуют color автоматически. */
+.t-frost button.bg-accent, .t-frost a.bg-accent, .t-frost .bg-accent.text-white,
+.t-frost .bg-green.text-white, .t-frost .bg-red.text-white,
+.t-frost .bg-blue.text-white, .t-frost .bg-purple.text-white {
+  color: #0d1020 !important;
+}
+.t-aurora button.bg-accent, .t-aurora a.bg-accent, .t-aurora .bg-accent.text-white,
+.t-aurora .bg-green.text-white, .t-aurora .bg-red.text-white,
+.t-aurora .bg-blue.text-white, .t-aurora .bg-purple.text-white {
+  color: #0a0e1a !important;
+}
+.t-tidal button.bg-accent, .t-tidal a.bg-accent, .t-tidal .bg-accent.text-white,
+.t-tidal .bg-green.text-white, .t-tidal .bg-red.text-white,
+.t-tidal .bg-blue.text-white, .t-tidal .bg-purple.text-white {
+  color: #080f0d !important;
 }
 
 /* ═══════════════════════════════════════════════════════
