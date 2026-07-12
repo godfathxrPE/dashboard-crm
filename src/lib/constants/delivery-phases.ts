@@ -16,12 +16,24 @@ export const DELIVERY_PHASE_LABELS: Record<string, string> = {
   completed: 'Завершён',
 };
 
-// Цвета — var(--…) по образцу PipelineBoard (PHASE_TINT/HEADER_COLOR)
+// Цвета — var(--…) по образцу PipelineBoard (PHASE_TINT/HEADER_COLOR).
+// ТОЛЬКО для маркеров/заливок (точка, тинт-градиент), НЕ для текста.
 export const DELIVERY_PHASE_COLOR: Record<string, string> = {
   initiated: 'var(--track-prep-current)',
   planning: 'var(--track-exp-current)',
   execution: 'var(--track-nego-current, var(--track-exp-current))',
   completed: 'var(--track-proj-current)',
+};
+
+// Цвет ТЕКСТА заголовка фазы — семантические *-text токены (visual-audit P1 §2.1).
+// Fallback на базовый семантический токен (--accent/--purple/…), а НЕ на
+// track-current: в светлых темах (paper/sand) track-current — яркая пастель,
+// нечитаемая как текст. Базовые семантические токены text-совместимы во всех темах.
+export const DELIVERY_PHASE_TEXT: Record<string, string> = {
+  initiated: 'var(--accent-text, var(--accent))',
+  planning: 'var(--purple-text, var(--purple))',
+  execution: 'var(--yellow-text, var(--yellow))',
+  completed: 'var(--blue-text, var(--blue))',
 };
 
 export const DELIVERY_KIND_LABELS: Record<string, string> = {

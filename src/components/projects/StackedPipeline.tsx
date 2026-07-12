@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
-import { DELIVERY_PHASE_LABELS, DELIVERY_PHASE_COLOR } from '@/lib/constants/delivery-phases';
+import { DELIVERY_PHASE_LABELS, DELIVERY_PHASE_COLOR, DELIVERY_PHASE_TEXT } from '@/lib/constants/delivery-phases';
 import type { PipelineStage } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -37,6 +37,18 @@ const PHASE_COLOR: Record<string, string> = {
   ...DELIVERY_PHASE_COLOR,
 };
 
+// Цвет ТЕКСТА лейбла трека — семантические *-text токены (visual-audit P1 §T3).
+// track.color (заливка) остаётся только на точке-маркере; active/done лейблы
+// красились track-current как текст (3–4:1 на светлом). Fallback на базовый
+// семантический токен (в светлых темах track-current — нечитаемая пастель).
+const PHASE_TEXT: Record<string, string> = {
+  attraction: 'var(--accent-text, var(--accent))',
+  working: 'var(--purple-text, var(--purple))',
+  approval: 'var(--yellow-text, var(--yellow))',
+  closing: 'var(--blue-text, var(--blue))',
+  ...DELIVERY_PHASE_TEXT,
+};
+
 interface StackedPipelineProps {
   pipelineId: string;
   currentStageId: string;
@@ -48,6 +60,7 @@ interface TrackGroup {
   key: string;
   label: string;
   color: string;
+  textColor: string;
   stages: PipelineStage[];
 }
 
@@ -82,6 +95,7 @@ export function StackedPipeline({
           key,
           label: PHASE_LABELS[key] ?? key,
           color: PHASE_COLOR[key] ?? 'var(--accent)',
+          textColor: PHASE_TEXT[key] ?? 'var(--accent-text, var(--accent))',
           stages: [s],
         });
       }
@@ -131,7 +145,7 @@ export function StackedPipeline({
               <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
               <span
                 className="phase-label text-[11px] font-medium"
-                style={{ color: trackState === 'future' ? 'var(--text-mute)' : track.color }}
+                style={{ color: trackState === 'future' ? 'var(--text-mute)' : track.textColor }}
               >
                 {track.label}
               </span>

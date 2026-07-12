@@ -57,6 +57,16 @@ const KANBAN_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
   { status: 'disqualified',   label: 'Дисквалифицированные', color: 'var(--red)' },
 ];
 
+// Цвет ТЕКСТА заголовка колонки — семантические *-text токены (visual-audit P1 §2.1).
+// Точка-маркер остаётся на базовом токене (col.color); текст читаем во всех темах.
+const KANBAN_TEXT: Record<LeadStatus, string> = {
+  new:          'var(--blue-text, var(--blue))',
+  contacted:    'var(--yellow-text, var(--yellow))',
+  qualified:    'var(--green-text, var(--green))',
+  disqualified: 'var(--red-text, var(--red))',
+  converted:    'var(--green-text, var(--green))',  // не колонка канбана, но нужен по типу LeadStatus
+};
+
 // ═══════════════════════════════════════════════════════
 // Lead Card (Kanban)
 // ═══════════════════════════════════════════════════════
@@ -553,7 +563,7 @@ export function LeadsView() {
                 {/* Column header */}
                 <div className="mb-2 flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: col.color }} />
-                  <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: col.color }}>
+                  <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: KANBAN_TEXT[col.status] }}>
                     {col.label}
                   </span>
                   <span className="rounded-full bg-surface2 px-1.5 py-0.5 text-[10px] font-medium text-text-mute">

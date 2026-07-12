@@ -26,6 +26,7 @@ import {
   DELIVERY_PHASE_ORDER,
   DELIVERY_PHASE_LABELS,
   DELIVERY_PHASE_COLOR,
+  DELIVERY_PHASE_TEXT,
   deliveryKindLabel,
   hasTaskProgress,
   type DeliveryPhase,
@@ -121,6 +122,7 @@ function PhaseColumn({ phase, projects, stageNameOf, isLast, onOpen }: {
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: phase });
   const color = DELIVERY_PHASE_COLOR[phase] ?? 'var(--accent)';
+  const textColor = DELIVERY_PHASE_TEXT[phase] ?? 'var(--accent-text, var(--accent))';
 
   return (
     <div
@@ -136,7 +138,7 @@ function PhaseColumn({ phase, projects, stageNameOf, isLast, onOpen }: {
     >
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
-        <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color }}>
+        <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: textColor }}>
           {DELIVERY_PHASE_LABELS[phase]}
         </span>
         <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">

@@ -69,11 +69,22 @@ const PHASE_TINT_COLOR: Record<string, string> = {
   closing: 'var(--track-proj-current)',
 };
 
+// Точка-маркер заголовка — track-current (заливка-цвет).
 const PHASE_HEADER_COLOR: Record<string, string> = {
   attraction: 'var(--track-prep-current)',
   working: 'var(--track-exp-current)',
   approval: 'var(--track-nego-current, var(--track-exp-current))',
   closing: 'var(--track-proj-current)',
+};
+
+// Цвет ТЕКСТА заголовка — семантические *-text токены (visual-audit P1 §2.1).
+// Fallback на базовый семантический токен, не на track-current (в paper/sand
+// track-current — яркая пастель, нечитаемая как текст).
+const PHASE_HEADER_TEXT: Record<string, string> = {
+  attraction: 'var(--accent-text, var(--accent))',
+  working: 'var(--purple-text, var(--purple))',
+  approval: 'var(--yellow-text, var(--yellow))',
+  closing: 'var(--blue-text, var(--blue))',
 };
 
 const SCANDI_PHASE_WM: Record<string, { text: string; colors: readonly string[] }> = {
@@ -245,6 +256,7 @@ function PhaseColumn({
   const isScandi = themeVal === 't-scandi';
   const wk = isWashi ? WASHI_PHASE_KANJI[column.id] : null;
   const headerColor = PHASE_HEADER_COLOR[column.id] ?? 'var(--accent)';
+  const headerTextColor = PHASE_HEADER_TEXT[column.id] ?? 'var(--accent-text, var(--accent))';
   const tintColor = PHASE_TINT_COLOR[column.id] ?? 'var(--accent)';
 
   return (
@@ -279,7 +291,7 @@ function PhaseColumn({
       {/* Column header */}
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: headerColor }} />
-        <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: headerColor }}>
+        <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: headerTextColor }}>
           {column.label}
         </span>
         <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
