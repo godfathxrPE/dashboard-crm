@@ -10,3 +10,13 @@
 # Netlify устанавливает плагин сам на этапе билда — npm-зависимость не нужна.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Security headers (хвост из delivery-хендоффа 2026-07-11). CSP не включаем:
+# inline theme-init script в <body> потребует nonce — отдельная задача.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

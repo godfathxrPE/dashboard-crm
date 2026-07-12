@@ -139,7 +139,7 @@ export function StackedPipeline({
                 : 'future';
 
         return (
-          <div key={track.key} className={trackState === 'future' ? 'stage-future' : ''}>
+          <div key={track.key}>
             {/* Заголовок трека: у future лейбл — text-mute, цветная точка остаётся вторичным сигналом */}
             <div className="mb-1 flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
