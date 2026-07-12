@@ -12,6 +12,7 @@ import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { Modal } from '@/components/shared/Modal';
 import { deriveFromContact } from '@/lib/forms/derive-links';
+import { localDateKey, localDateTimeKey } from '@/lib/utils/date-helpers';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -114,9 +115,10 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
     } else {
       reset({
         company_id: defaultCompanyId ?? null, contact_id: defaultContactId ?? null, project_id: defaultProjectId ?? null,
-        date: defaultDate ? `${defaultDate}T10:00` : new Date().toISOString().slice(0, 16),
+        // AUDIT 3.9: локальное время, НЕ UTC (звонок в 00:30 МСК давал вчерашнюю дату)
+        date: defaultDate ? `${defaultDate}T10:00` : localDateTimeKey(),
         // Звонок на будущую дату из календаря — это план, не факт
-        status: defaultDate && defaultDate > new Date().toISOString().slice(0, 10) ? 'pending' : 'done',
+        status: defaultDate && defaultDate > localDateKey() ? 'pending' : 'done',
         next_step: null, agreements: null, duration_s: null,
       });
     }

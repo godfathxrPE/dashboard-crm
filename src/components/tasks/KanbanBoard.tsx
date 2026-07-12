@@ -14,7 +14,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useTasksByLane, useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
+import { useTasksByLane, useReorderTasks, useDeleteTask, type TaskMove } from '@/lib/hooks/use-tasks';
 import { taskLanes } from '@/lib/validators/task';
 import { AccordionLane } from './AccordionLane';
 import { TaskModal } from './TaskModal';
@@ -57,7 +57,7 @@ function TasksPageHeader({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean
 
 export function KanbanBoard() {
   const { lanes, isLoading, isError, error } = useTasksByLane();
-  const updateTask = useUpdateTask();
+  const reorderTasks = useReorderTasks();
   const deleteTask = useDeleteTask();
   const { data: role } = useOrgRole();
   const canEdit = role !== 'viewer';
@@ -175,24 +175,33 @@ export function KanbanBoard() {
         if (idx !== -1) targetIndex = idx;
       }
 
+      // AUDIT A2.2: собираем ВСЕ перестановки и шлём ОДНОЙ мутацией (reorder_tasks
+      // RPC) с единым optimistic-снапшотом — вместо шторма из N updateTask.mutate,
+      // где откат одной затирал соседние успешные и порядок «прыгал».
       if (task.lane === targetLane) {
         // Reorder внутри лейна — персистим sort_order (иначе порядок откатывается после F5)
         const oldIndex = targetTasks.findIndex((t) => t.id === taskId);
         if (oldIndex === -1 || oldIndex === targetIndex) return;
+        const moves: TaskMove[] = [];
         arrayMove(targetTasks, oldIndex, targetIndex).forEach((t, i) => {
-          if (t.sort_order !== i) updateTask.mutate({ id: t.id, sort_order: i });
+          if (t.sort_order !== i) moves.push({ id: t.id, lane: targetLane, sort_order: i });
         });
+        if (moves.length) reorderTasks.mutate({ moves, affectsLane: false });
       } else {
         // Перенос между лейнами с сохранением позиции drop'а
         const without = targetTasks.filter((t) => t.id !== taskId);
         const newList = [...without.slice(0, targetIndex), task, ...without.slice(targetIndex)];
+        const moves: TaskMove[] = [];
         newList.forEach((t, i) => {
-          if (t.id === taskId) updateTask.mutate({ id: t.id, lane: targetLane, sort_order: i });
-          else if (t.sort_order !== i) updateTask.mutate({ id: t.id, sort_order: i });
+          // Переносимая карточка меняет лейн всегда; остальные — только если сдвинулся индекс
+          if (t.id === taskId || t.sort_order !== i) {
+            moves.push({ id: t.id, lane: targetLane, sort_order: i });
+          }
         });
+        if (moves.length) reorderTasks.mutate({ moves, affectsLane: true });
       }
     },
-    [lanes, updateTask],
+    [lanes, reorderTasks],
   );
 
   if (isLoading) {

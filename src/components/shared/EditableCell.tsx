@@ -21,9 +21,13 @@ export function EditableCell({
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // AUDIT 3.5: Enter → handleSave, затем закрытие инпута триггерит onBlur →
+  // второй handleSave → ДВА PATCH. Guard: единожды коммитим за сессию правки.
+  const committedRef = useRef(false);
 
   useEffect(() => {
     if (editing) {
+      committedRef.current = false; // новая сессия редактирования
       inputRef.current?.focus();
       inputRef.current?.select();
     }
@@ -34,6 +38,8 @@ export function EditableCell({
   }, [value, editing]);
 
   const handleSave = useCallback(async () => {
+    if (committedRef.current) return; // blur после Enter/Esc — уже обработали
+    committedRef.current = true;
     if (draft === value) {
       setEditing(false);
       return;
@@ -41,6 +47,9 @@ export function EditableCell({
     setSaving(true);
     try {
       await onSave(draft);
+    } catch {
+      // Ошибку показывает глобальный mutationCache.onError (toast); значение
+      // вернёт optimistic-rollback хука на следующем рендере.
     } finally {
       setSaving(false);
       setEditing(false);
@@ -48,6 +57,7 @@ export function EditableCell({
   }, [draft, value, onSave]);
 
   const handleCancel = useCallback(() => {
+    committedRef.current = true; // блокируем onBlur-сейв при закрытии по Esc
     setDraft(value);
     setEditing(false);
   }, [value]);

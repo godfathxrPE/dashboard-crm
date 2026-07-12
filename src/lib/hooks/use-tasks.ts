@@ -141,6 +141,9 @@ export function useMoveTask() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
       // P2b (B3): смена column_id на НЕ-фазовой доске каскадит lane (резолвер) →
       // прогресс delivery (progress_done/total) пересчитал БД-триггер; префикс
       // ['projects'] покрывает и ['projects', id]
@@ -215,6 +218,9 @@ export function useCreateTask() {
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
       // P2b (B3): новая задача проекта меняет progress_total (БД-триггер 037)
       if (input.project_id) {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -264,10 +270,67 @@ export function useUpdateTask() {
     },
     onSettled: (_data, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
       // P2b (B3): lane/project_id/column_id меняют прогресс delivery (триггер 037)
       if (vars.lane !== undefined || vars.project_id !== undefined || vars.column_id !== undefined) {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         // P3: закрытие/переоткрытие вехи меняет чеклист гейта завершения (038)
+        queryClient.invalidateQueries({ queryKey: ['delivery-gate'] });
+      }
+    },
+  });
+}
+
+/**
+ * AUDIT A2.2: массовый перенос карточек Kanban ОДНОЙ мутацией (RPC 039).
+ * Вход — список перестановок + флаг смены лейна. Один optimistic-снапшот на весь
+ * батч (cancel → снимок → перестановка в кеше → откат целиком), а не N мутаций,
+ * где откат одной затирал соседние успешные (было в KanbanBoard).
+ */
+export interface TaskMove {
+  id: string;
+  lane: TaskLane;
+  sort_order: number;
+}
+
+export function useReorderTasks() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ moves }: { moves: TaskMove[]; affectsLane?: boolean }) => {
+      if (moves.length === 0) return;
+      const { error } = await supabase.rpc('reorder_tasks', { p_moves: moves });
+      if (error) throw error;
+    },
+    onMutate: async ({ moves }) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const previous = queryClient.getQueryData<Task[]>(QUERY_KEY);
+      const byId = new Map(moves.map((m) => [m.id, m]));
+      queryClient.setQueryData<Task[]>(QUERY_KEY, (old) =>
+        (old ?? []).map((t) => {
+          const mv = byId.get(t.id);
+          return mv ? { ...t, lane: mv.lane, sort_order: mv.sort_order } : t;
+        }),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(QUERY_KEY, context.previous);
+      }
+    },
+    onSettled: (_data, _err, { affectsLane }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
+      // Как в useUpdateTask: смена лейна каскадит прогресс delivery (037) и
+      // чеклист гейта завершения (038). Внутрилейновый reorder их не трогает.
+      if (affectsLane) {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
         queryClient.invalidateQueries({ queryKey: ['delivery-gate'] });
       }
     },
@@ -303,6 +366,9 @@ export function useDeleteTask() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
       // P2b (B3): variables — только id; удаление могло уменьшить progress_total
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },

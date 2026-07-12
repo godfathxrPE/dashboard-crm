@@ -6,8 +6,15 @@ import { Upload, X, Loader2, AlertTriangle, Check, ChevronRight } from 'lucide-r
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import { parseFullName, autoDetectMapping, type FieldKey } from '@/lib/utils/import-helpers';
+
+/** Короткое сообщение об ошибке для отчёта импорта (postgrest/JS). */
+function errMsg(e: unknown): string {
+  if (e && typeof e === 'object' && 'message' in e) return String((e as { message: unknown }).message);
+  return String(e);
+}
 
 // ═══════════════════════════════════════════════════════
 // Types
@@ -28,6 +35,7 @@ interface ImportResult {
   companiesCreated: number;
   companiesUpdated: number;
   contactsCreated: number;
+  errors: string[];
 }
 
 const FIELD_OPTIONS: { value: FieldKey; label: string }[] = [
@@ -159,62 +167,101 @@ export function ExcelImportButton() {
 
     let companiesCreated = 0, companiesUpdated = 0, contactsCreated = 0;
     let processed = 0;
+    // AUDIT 1.6: skip-and-continue — каждая ошибка попадает в отчёт, импорт не
+    // обрывается; никаких `newCo!.id` (падало на первой же неудачной вставке).
+    const errors: string[] = [];
+    const bump = (n = 1) => { processed += n; setProgress({ current: processed, total: preview.length }); };
 
-    for (const [, { company, contacts }] of companyMap) {
-      let companyId: string;
+    try {
+      for (const [, { company, contacts }] of companyMap) {
+        let companyId: string;
 
-      if (company.inn) {
-        const { data: existing } = await supabase.from('companies').select('id').eq('inn', company.inn).maybeSingle();
-        if (existing) {
-          companyId = existing.id;
-          if (company.website) await supabase.from('companies').update({ website: company.website }).eq('id', companyId);
-          companiesUpdated++;
-        } else {
-          const { data: newCo } = await supabase.from('companies').insert({ name: company.name, inn: company.inn || null, website: company.website || null, notes: company.notes || null }).select('id').single();
-          companyId = newCo!.id;
-          companiesCreated++;
-        }
-      } else {
-        const { data: newCo } = await supabase.from('companies').insert({ name: company.name, inn: null, website: company.website || null, notes: company.notes || null }).select('id').single();
-        companyId = newCo!.id;
-        companiesCreated++;
-      }
-
-      for (const row of contacts) {
-        const { firstName, lastName } = parseFullName(row.contactFullName);
-        let contactId: string;
-
-        if (row.email) {
-          const { data: existing } = await supabase.from('contacts').select('id').eq('email', row.email).maybeSingle();
-          if (existing) {
-            contactId = existing.id;
-            await supabase.from('contacts').update({
-              ...(row.position ? { position: row.position } : {}),
-              ...(row.phone ? { phone: row.phone } : {}),
-            }).eq('id', contactId);
+        // ── Компания ──
+        try {
+          if (company.inn) {
+            const { data: existing, error: selErr } = await supabase.from('companies').select('id').eq('inn', company.inn).maybeSingle();
+            if (selErr) throw selErr;
+            if (existing) {
+              companyId = existing.id;
+              if (company.website) {
+                const { error: updErr } = await supabase.from('companies').update({ website: company.website }).eq('id', companyId);
+                if (updErr) throw updErr;
+              }
+              companiesUpdated++;
+            } else {
+              const { data: newCo, error: insErr } = await supabase.from('companies').insert({ name: company.name, inn: company.inn || null, website: company.website || null, notes: company.notes || null }).select('id').single();
+              if (insErr || !newCo) throw insErr ?? new Error('insert companies вернул пусто');
+              companyId = newCo.id;
+              companiesCreated++;
+            }
           } else {
-            const { data: newC } = await supabase.from('contacts').insert({ first_name: firstName, last_name: lastName || null, email: row.email || null, phone: row.phone || null, position: row.position || null }).select('id').single();
-            contactId = newC!.id;
-            contactsCreated++;
+            const { data: newCo, error: insErr } = await supabase.from('companies').insert({ name: company.name, inn: null, website: company.website || null, notes: company.notes || null }).select('id').single();
+            if (insErr || !newCo) throw insErr ?? new Error('insert companies вернул пусто');
+            companyId = newCo.id;
+            companiesCreated++;
           }
-        } else {
-          const { data: newC } = await supabase.from('contacts').insert({ first_name: firstName, last_name: lastName || null, email: null, phone: row.phone || null, position: row.position || null }).select('id').single();
-          contactId = newC!.id;
-          contactsCreated++;
+        } catch (e) {
+          errors.push(`Компания «${company.name || company.inn || '—'}»: ${errMsg(e)}`);
+          // Компанию не создали — её контакты некуда привязывать, пропускаем всю группу
+          bump(Math.max(1, contacts.length));
+          continue;
         }
 
-        await supabase.from('contact_company').upsert({ contact_id: contactId, company_id: companyId }, { onConflict: 'contact_id,company_id' });
-        processed++;
-        setProgress({ current: processed, total: preview.length });
+        // ── Контакты компании ──
+        for (const row of contacts) {
+          try {
+            const { firstName, lastName } = parseFullName(row.contactFullName);
+            let contactId: string;
+
+            if (row.email) {
+              const { data: existing, error: selErr } = await supabase.from('contacts').select('id').eq('email', row.email).maybeSingle();
+              if (selErr) throw selErr;
+              if (existing) {
+                contactId = existing.id;
+                const { error: updErr } = await supabase.from('contacts').update({
+                  ...(row.position ? { position: row.position } : {}),
+                  ...(row.phone ? { phone: row.phone } : {}),
+                }).eq('id', contactId);
+                if (updErr) throw updErr;
+              } else {
+                const { data: newC, error: insErr } = await supabase.from('contacts').insert({ first_name: firstName, last_name: lastName || null, email: row.email || null, phone: row.phone || null, position: row.position || null }).select('id').single();
+                if (insErr || !newC) throw insErr ?? new Error('insert contacts вернул пусто');
+                contactId = newC.id;
+                contactsCreated++;
+              }
+            } else {
+              const { data: newC, error: insErr } = await supabase.from('contacts').insert({ first_name: firstName, last_name: lastName || null, email: null, phone: row.phone || null, position: row.position || null }).select('id').single();
+              if (insErr || !newC) throw insErr ?? new Error('insert contacts вернул пусто');
+              contactId = newC.id;
+              contactsCreated++;
+            }
+
+            const { error: linkErr } = await supabase.from('contact_company').upsert({ contact_id: contactId, company_id: companyId }, { onConflict: 'contact_id,company_id' });
+            if (linkErr) throw linkErr;
+          } catch (e) {
+            errors.push(`Контакт «${row.contactFullName || '—'}» (${company.name || company.inn}): ${errMsg(e)}`);
+          } finally {
+            bump();
+          }
+        }
+
+        if (contacts.length === 0) bump();
       }
-
-      if (contacts.length === 0) { processed++; setProgress({ current: processed, total: preview.length }); }
+    } catch (e) {
+      // Непредвиденный сбой вне per-row try — фиксируем, но отчёт всё равно покажем
+      errors.push(`Критическая ошибка: ${errMsg(e)}`);
+    } finally {
+      setResult({ companiesCreated, companiesUpdated, contactsCreated, errors });
+      setStep('result');
+      setProgress({ current: 0, total: 0 });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      if (errors.length) {
+        toast.error(`Импорт завершён с ошибками: ${errors.length} (см. отчёт)`);
+      } else {
+        toast.success(`Импортировано: ${companiesCreated + companiesUpdated} компаний, ${contactsCreated} контактов`);
+      }
     }
-
-    setResult({ companiesCreated, companiesUpdated, contactsCreated });
-    setStep('result');
-    queryClient.invalidateQueries({ queryKey: ['companies'] });
-    queryClient.invalidateQueries({ queryKey: ['contacts'] });
   }
 
   const uniqueCompanies = preview.length > 0 ? new Set(preview.map((r) => r.inn || r.companyName)).size : 0;
@@ -343,14 +390,30 @@ export function ExcelImportButton() {
 
             {/* Step 4: Result */}
             {step === 'result' && result && (
-              <div className="py-8 text-center">
-                <Check size={32} className="mx-auto mb-3 text-green" />
+              <div className="flex min-h-0 flex-1 flex-col py-6 text-center">
+                {result.errors.length === 0
+                  ? <Check size={32} className="mx-auto mb-3 text-green" />
+                  : <AlertTriangle size={32} className="mx-auto mb-3 text-yellow" />}
                 <p className="text-sm text-text-main">
                   Создано компаний: <strong>{result.companiesCreated}</strong>,
                   обновлено: <strong>{result.companiesUpdated}</strong>,
                   контактов: <strong>{result.contactsCreated}</strong>
                 </p>
-                <button onClick={closeModal} className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm text-white hover:opacity-90">Готово</button>
+                {result.errors.length > 0 && (
+                  <p className="mt-1 text-sm font-medium text-yellow">
+                    Ошибок: {result.errors.length} — эти строки пропущены
+                  </p>
+                )}
+                {result.errors.length > 0 && (
+                  <div className="mx-auto mt-3 w-full max-w-xl min-h-0 flex-1 overflow-y-auto rounded-lg border border-yellow/40 bg-yellow-l/40 p-3 text-left">
+                    <ul className="space-y-1">
+                      {result.errors.map((e, i) => (
+                        <li key={i} className="text-xs text-text-dim">• {e}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <button onClick={closeModal} className="mx-auto mt-4 shrink-0 rounded-lg bg-accent px-4 py-2 text-sm text-white hover:opacity-90">Готово</button>
               </div>
             )}
           </div>

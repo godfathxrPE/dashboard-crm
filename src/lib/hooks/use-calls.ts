@@ -139,7 +139,12 @@ export function useCreateCall() {
       }
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
-    onSettled: () => { qc.invalidateQueries({ queryKey: QUERY_KEY }); },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
   });
 }
 
@@ -156,7 +161,12 @@ export function useUpdateCall() {
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
-    onSettled: () => { qc.invalidateQueries({ queryKey: QUERY_KEY }); },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
   });
 }
 
@@ -171,6 +181,11 @@ export function useDeleteCall() {
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
-    onSettled: () => { qc.invalidateQueries({ queryKey: QUERY_KEY }); },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      qc.invalidateQueries({ queryKey: ['timeline'] });
+    },
   });
 }

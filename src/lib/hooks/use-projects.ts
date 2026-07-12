@@ -337,6 +337,8 @@ export function useCreateProject() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: активные сделки — KPI дашборда (создание/удаление сдвигает счётчик)
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 }
@@ -387,6 +389,8 @@ export function useUpdateProject() {
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
       qc.invalidateQueries({ queryKey: [...QUERY_KEY, vars.id] });
+      // AUDIT 2.9: смена стадии (won/lost) меняет счётчик активных сделок на дашборде
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 }
@@ -410,6 +414,8 @@ export function useDeleteProject() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // AUDIT 2.9: активные сделки — KPI дашборда (создание/удаление сдвигает счётчик)
+      qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 }
