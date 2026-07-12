@@ -95,45 +95,14 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
   const getDefaultPipeline = (dir: Direction) =>
     pipelines?.find((p) => p.direction === dir && p.entity_type === 'deal' && p.is_default);
 
-  // Set initial pipeline + stage once pipelines load
+  // Reset формы — ТОЛЬКО при открытии модалки / смене editProject. Раньше эффект
+  // зависел от [pipelines, allStages] и при их фоновом рефетче re-run reset()
+  // затирал введённое пользователем (AUDIT A1 follow-up). Теперь pipelines/allStages
+  // НЕ в зависимостях; дефолтные pipeline/stage для создания ставит соседний
+  // эффект ниже через setValue — не через reset всей формы. Объявлен ПЕРВЫМ, чтобы
+  // blank-reset отработал до setValue-заполнения (иначе reset затрёт pipeline).
   useEffect(() => {
-    if (!pipelines?.length || !allStages?.length) return;
-    if (editProject) return; // edit mode handled separately
-    if (watch('type') === 'internal') return; // PCT-1: internal вне воронки
-    if (watch('pipeline_id')) return; // already set
-
-    const defaultPipeline = getDefaultPipeline('iiot');
-    if (defaultPipeline) {
-      setValue('pipeline_id', defaultPipeline.id);
-      const firstStage = allStages.find(
-        (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
-      );
-      if (firstStage) setValue('stage_id', firstStage.id);
-    }
-  }, [pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const companyOptions: ComboboxOption[] = useMemo(
-    () => companies.map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
-    [companies],
-  );
-
-  const contactOptions: ComboboxOption[] = useMemo(() => {
-    const list = selectedCompanyId
-      ? contacts.filter((c) =>
-          c.companies?.some((cc) => cc.company_id === selectedCompanyId),
-        )
-      : contacts;
-    return list.map((c) => ({
-      value: c.id,
-      label: [c.last_name, c.first_name].filter(Boolean).join(' '),
-      sub: c.position ?? undefined,
-    }));
-  }, [contacts, selectedCompanyId]);
-
-  // Fill form on edit
-  useEffect(() => {
-    if (!pipelines?.length || !allStages?.length) return;
-
+    if (!isOpen) return;
     if (editProject) {
       reset({
         name: editProject.name,
@@ -153,17 +122,12 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         owner_id: editProject.owner_id ?? null,
       });
     } else {
-      const defaultPipeline = getDefaultPipeline('iiot');
-      const firstStage = defaultPipeline
-        ? allStages.find((s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1)
-        : undefined;
-
       reset({
         name: '',
         type: 'client',
         direction: 'iiot',
-        pipeline_id: defaultPipeline?.id ?? '',
-        stage_id: firstStage?.id ?? '',
+        pipeline_id: '',
+        stage_id: '',
         company_id: defaultCompanyId ?? null,
         contact_id: null,
         stage: null,
@@ -176,7 +140,46 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         owner_id: null,
       });
     }
-  }, [editProject, defaultCompanyId, reset, pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, editProject, defaultCompanyId, reset]); // НЕ pipelines/allStages
+
+  const companyOptions: ComboboxOption[] = useMemo(
+    () => companies.map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
+    [companies],
+  );
+
+  const contactOptions: ComboboxOption[] = useMemo(() => {
+    const list = selectedCompanyId
+      ? contacts.filter((c) =>
+          c.companies?.some((cc) => cc.company_id === selectedCompanyId),
+        )
+      : contacts;
+    return list.map((c) => ({
+      value: c.id,
+      label: [c.last_name, c.first_name].filter(Boolean).join(' '),
+      sub: c.position ?? undefined,
+    }));
+  }, [contacts, selectedCompanyId]);
+
+  // Дефолтные pipeline/stage для СОЗДАНИЯ — через setValue (не reset, чтобы не
+  // трогать остальные поля). Реагирует и на открытие модалки, и на загрузку/рефетч
+  // pipelines, но ставит значение ТОЛЬКО если поле пустое — не перетирает ни blank-
+  // reset выше, ни ручной выбор пользователя. Для edit не нужно: pipeline/stage
+  // приходят из editProject в reset-эффекте.
+  useEffect(() => {
+    if (!isOpen || editProject) return;
+    if (!pipelines?.length || !allStages?.length) return;
+    if (watch('type') === 'internal') return; // PCT-1: internal вне воронки
+    if (watch('pipeline_id')) return; // уже установлено (reset/пользователь)
+
+    const defaultPipeline = getDefaultPipeline('iiot');
+    if (defaultPipeline) {
+      setValue('pipeline_id', defaultPipeline.id);
+      const firstStage = allStages.find(
+        (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
+      );
+      if (firstStage) setValue('stage_id', firstStage.id);
+    }
+  }, [isOpen, editProject, pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sprint W1a: фокус на «Дата шага», когда модалку открыли из prompt после переноса стадии
   useEffect(() => {
