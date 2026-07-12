@@ -214,19 +214,31 @@ for th in themes:
     #  - scandi/scandi-dark: кнопки outline (прозрачный фон, color: var(--text)) —
     #    пара «white/bg-X» не применима, помечаем override (НЕ FAIL).
     DARK_BTN_TEXT = {'t-frost': (13,16,32), 't-aurora': (10,14,26), 't-tidal': (8,15,13)}
-    for c in ['accent','green','red','blue','purple']:
-        if th in ('t-scandi', 't-scandi-dark'):
+    # bg-yellow как solid-кнопка (PomodoroWidget «Пауза») существует во ВСЕХ темах —
+    # в отличие от accent, scandi её НЕ переводит в outline. Светлые темы, где
+    # white-on-bright-yellow < 4.5:1, затемняют fill до --yellow-text (AUDIT A1.0).
+    # Светлые темы затемняют fill до --yellow-text (белый текст остаётся);
+    # scandi-dark монохромный — fill остаётся серым, текст переворачивается в --bg.
+    YELLOW_DARKEN_FILL = {'t-aura', 't-fuji', 't-washi', 't-scandi'}
+    for c in ['accent','green','red','blue','purple','yellow']:
+        if th in ('t-scandi', 't-scandi-dark') and c != 'yellow':
             pairs.append({'pair': f'white / bg-{c} solid (button)', 'ratio': None,
                           'note': 'override: scandi buttons are outline (color: var(--text)) — N/A'})
             continue
-        if th == 't-aura':
+        btn_text = DARK_BTN_TEXT.get(th, (255,255,255))
+        if c == 'yellow' and th in YELLOW_DARKEN_FILL:
+            fill = text_token(th, c)       # fill затемнён до --yellow-text, текст белый
+            btn_text = (255,255,255)
+        elif c == 'yellow' and th == 't-scandi-dark':
+            fill = resolve(th, c)          # монохром-grey fill, тёмный текст (--bg)
+            btn_text = bg
+        elif th == 't-aura':
             fill = text_token(th, c)
         else:
             fill = resolve(th, c if c != 'accent' else 'accent')
-        btn_text = DARK_BTN_TEXT.get(th, (255,255,255))
         if fill is not None:
             fillo = composite(fill, bg) if fill[3] < 1 else fill[:3]
-            label = 'dark' if th in DARK_BTN_TEXT else 'white'
+            label = 'dark' if btn_text != (255,255,255) else 'white'
             add(f'{label} / bg-{c} solid (button)', btn_text, fillo)
     # UI non-text (P2 §1.4.11): интерактив-рамка form-контролов — DoD-KPI ≥3:1.
     border_input = opaque(th, 'border-input', 'bg')

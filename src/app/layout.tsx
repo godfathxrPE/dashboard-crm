@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Inter, Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
+import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import './globals.css';
@@ -77,6 +78,9 @@ export default function RootLayout({
             {children}
           </ThemeProvider>
         </QueryProvider>
+        {/* AUDIT A1.1: глобальные toast-уведомления об ошибках мутаций.
+            richColors — семантические цвета (error красный и т.д.). */}
+        <Toaster richColors position="bottom-right" closeButton />
       </body>
     </html>
   );

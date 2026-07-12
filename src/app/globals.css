@@ -276,6 +276,9 @@
 .t-aura .bg-blue    { background-color: var(--blue-text) !important; }
 .t-aura .bg-red     { background-color: var(--red-text) !important; }
 .t-aura .bg-purple  { background-color: var(--purple-text) !important; }
+/* yellow (AUDIT A1.0): PomodoroWidget «Пауза» — white-on-#D4993A ≈3.0:1 (fail).
+   Тот же приём — затемняем fill до --yellow-text (#826112) → белый ≥5.5:1. */
+.t-aura .bg-yellow  { background-color: var(--yellow-text) !important; }
 /* focus-ring и ghost-кнопка (text-accent) уже идут через --accent-text */
 .t-aura { --tw-ring-color: var(--accent-text); }
 
@@ -1815,7 +1818,9 @@ input[type="checkbox"]:indeterminate {
 /* MeetingCard ставит data-meeting-status (палки border-l отключены в JS).
    Предстоящая — янтарный бейдж, прошедшая — приглушённый.              */
 .t-aura [data-meeting-status="upcoming"] > div:first-child {
-  background: var(--yellow) !important;
+  /* Date-badge несёт text-white в разметке — берём затемнённый --yellow-text
+     (#826112), иначе white-on-#D4993A ≈3.0:1 (AUDIT A1.0). */
+  background: var(--yellow-text) !important;
 }
 .t-aura [data-meeting-status="past"] > div:first-child {
   background: var(--text-mute) !important;
@@ -1872,18 +1877,39 @@ input[type="checkbox"]:indeterminate {
    в идеале токен on-accent. Иконки/спиннеры наследуют color автоматически. */
 .t-frost button.bg-accent, .t-frost a.bg-accent, .t-frost .bg-accent.text-white,
 .t-frost .bg-green.text-white, .t-frost .bg-red.text-white,
-.t-frost .bg-blue.text-white, .t-frost .bg-purple.text-white {
+.t-frost .bg-blue.text-white, .t-frost .bg-purple.text-white,
+.t-frost .bg-yellow.text-white {
   color: #0d1020 !important;
 }
 .t-aurora button.bg-accent, .t-aurora a.bg-accent, .t-aurora .bg-accent.text-white,
 .t-aurora .bg-green.text-white, .t-aurora .bg-red.text-white,
-.t-aurora .bg-blue.text-white, .t-aurora .bg-purple.text-white {
+.t-aurora .bg-blue.text-white, .t-aurora .bg-purple.text-white,
+.t-aurora .bg-yellow.text-white {
   color: #0a0e1a !important;
 }
 .t-tidal button.bg-accent, .t-tidal a.bg-accent, .t-tidal .bg-accent.text-white,
 .t-tidal .bg-green.text-white, .t-tidal .bg-red.text-white,
-.t-tidal .bg-blue.text-white, .t-tidal .bg-purple.text-white {
+.t-tidal .bg-blue.text-white, .t-tidal .bg-purple.text-white,
+.t-tidal .bg-yellow.text-white {
   color: #080f0d !important;
+}
+
+/* Светлые темы: bg-yellow как solid-кнопка (PomodoroWidget «Пауза») — white-on-
+   bright-yellow < 4.5:1 у scandi (#a07020 → 4.39:1), fuji (#C4AA78 → 2.22:1),
+   washi (#D4993A → 2.49:1). Затемняем fill до --yellow-text (тот же приём, что
+   aura). paper/sand проходят как есть (5.8–6.3:1) — не трогаем. AUDIT A1.0. */
+.t-scandi .bg-yellow, .t-fuji .bg-yellow, .t-washi .bg-yellow {
+  background-color: var(--yellow-text) !important;
+}
+/* scandi-dark монохромный: --yellow = rgba(255,255,255,0.6) (светло-серый на
+   тёмном), --yellow-text — ещё светлее, поэтому затемнение fill не работает.
+   Возвращаем серый fill и переворачиваем ТЕКСТ в тёмный (как frost/aurora/tidal).
+   Правило ниже по файлу — перебивает светлую .t-scandi .bg-yellow выше. */
+@media (prefers-color-scheme: dark) {
+  .t-scandi .bg-yellow {
+    background-color: var(--yellow) !important;
+    color: var(--bg) !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
