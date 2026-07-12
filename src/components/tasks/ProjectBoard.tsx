@@ -109,14 +109,14 @@ function BoardColumn({
                 if (e.key === 'Enter') saveEdit();
                 if (e.key === 'Escape') { setName(column.name); setCategory(column.category); setEditing(false); }
               }}
-              className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-main focus:border-accent focus:outline-none"
+              className="w-full rounded-md border border-input bg-surface px-2 py-1 text-sm text-text-main focus:border-accent focus:outline-none"
             />
             {/* P2b (B5): у фазы редактируется ТОЛЬКО имя — category остаётся 'phase' */}
             {!phaseMode && (
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ColumnCategory)}
-                className="w-full rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-dim focus:border-accent focus:outline-none"
+                className="w-full rounded-md border border-input bg-surface px-2 py-1 text-xs text-text-dim focus:border-accent focus:outline-none"
               >
                 {CATEGORY_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -409,13 +409,13 @@ export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps)
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setAdding(false); }}
                     placeholder={phaseMode ? 'Название фазы' : 'Название колонки'}
-                    className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+                    className="w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
                   />
                   {!phaseMode && (
                     <select
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value as ColumnCategory)}
-                      className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-text-dim focus:border-accent focus:outline-none"
+                      className="w-full rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim focus:border-accent focus:outline-none"
                     >
                       {CATEGORY_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -459,7 +459,7 @@ export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps)
                 <select
                   value={targetColId}
                   onChange={(e) => setTargetColId(e.target.value)}
-                  className="mb-4 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-main focus:border-accent focus:outline-none"
+                  className="mb-4 w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm text-text-main focus:border-accent focus:outline-none"
                 >
                   <option value="">Выбрать колонку…</option>
                   {deleteTargets.map((c) => (

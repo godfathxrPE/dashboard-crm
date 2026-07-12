@@ -147,7 +147,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                 <Link2 size={10} /> Привязать к компании
               </div>
               <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
-                className="mb-2 w-full rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
+                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
                 <option value="">Выбери компанию...</option>
                 {availableCompanies.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -155,7 +155,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
               </select>
               <input value={linkRole} onChange={(e) => setLinkRole(e.target.value)}
                 placeholder="Роль (необязательно): CEO, менеджер..."
-                className="mb-2 w-full rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
+                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
               <div className="flex gap-1">
                 <button onClick={handleLink} disabled={!linkCompanyId || linkCompany.isPending}
                   className="rounded bg-accent px-2.5 py-1 text-[10px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">

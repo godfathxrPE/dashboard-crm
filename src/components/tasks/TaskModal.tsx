@@ -145,7 +145,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               autoFocus
               placeholder="Что нужно сделать?"
               rows={2}
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
               style={{ minHeight: '60px', resize: 'vertical' }}
             />
             {errors.text && (
@@ -160,7 +160,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             </label>
             <select
               {...register('lane')}
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
             >
               {taskLanes.filter((l) => l !== 'done').map((l) => (
                 <option key={l} value={l}>
@@ -200,7 +200,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               <label className="block text-xs font-medium text-text-dim mb-1">Компания</label>
               <select
                 {...register('company_id')}
-                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
               >
                 <option value="">— не указана —</option>
                 {(companies ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -210,7 +210,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               <label className="block text-xs font-medium text-text-dim mb-1">Контакт</label>
               <select
                 {...register('contact_id')}
-                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
               >
                 <option value="">— не указан —</option>
                 {(contacts ?? []).map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
@@ -233,7 +233,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             <input
               type="datetime-local"
               {...register('deadline')}
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
             />
           </div>
 
@@ -244,7 +244,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             </label>
             <select
               {...register('remind_min', { valueAsNumber: true })}
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
             >
               <option value="">Не напоминать</option>
               <option value={15}>За 15 минут</option>

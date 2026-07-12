@@ -81,7 +81,7 @@ function MemberRow({
             updateRole.mutate({ membershipId: member.membership_id!, role: e.target.value as OrgRole })
           }
           disabled={updateRole.isPending}
-          className="rounded-md border border-border bg-surface px-2 py-1 text-[11px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1 text-[11px] text-text-dim"
         >
           {options.map((r) => (
             <option key={r} value={r}>
@@ -136,12 +136,12 @@ function InviteForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="email@company.ru"
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
+          className="min-w-0 flex-1 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
         />
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as InvitableRole)}
-          className="rounded-md border border-border bg-surface px-2 py-1.5 text-[11px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[11px] text-text-dim"
         >
           {INVITABLE_ROLES.map((r) => (
             <option key={r} value={r}>

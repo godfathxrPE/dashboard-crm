@@ -125,13 +125,13 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Имя *</label>
               <input {...register('first_name')} autoFocus placeholder="Иван"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
               {errors.first_name && <p className="mt-0.5 text-xs text-red">{errors.first_name.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Фамилия *</label>
               <input {...register('last_name')} placeholder="Петров"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
               {errors.last_name && <p className="mt-0.5 text-xs text-red">{errors.last_name.message}</p>}
             </div>
           </div>
@@ -139,7 +139,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Должность</label>
             <input {...register('position')} placeholder="Генеральный директор"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
 
           {/* Компания — только при создании; в edit связи управляются из карточки */}
@@ -159,12 +159,12 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Телефон</label>
               <input {...register('phone')} placeholder="+7 (999) 123-45-67"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Email</label>
               <input {...register('email')} type="email" placeholder="ivan@company.ru"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
               {errors.email && <p className="mt-0.5 text-xs text-red">{errors.email.message}</p>}
             </div>
           </div>
@@ -192,7 +192,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Заметки</label>
             <textarea {...register('notes')} rows={2} placeholder="Дополнительная информация..."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
 
           {/* Owner */}

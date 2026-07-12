@@ -161,7 +161,7 @@ function FocusWidget() {
         value={text}
         onChange={(e) => save(e.target.value)}
         placeholder="Одно главное дело на сегодня..."
-        className="w-full rounded border border-border bg-transparent px-2 py-1.5 text-sm text-text-main
+        className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm text-text-main
                    placeholder:text-text-mute focus:border-accent focus:outline-none"
       />
     </div>

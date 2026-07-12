@@ -65,7 +65,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
         <select
           value={stageId}
           onChange={(e) => setStageId(e.target.value)}
-          className="min-w-[9rem] rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="min-w-[9rem] rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
         >
           <option value="">Стадия входа…</option>
           {stageIds.map((s) => (
@@ -76,7 +76,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
         <select
           value={type}
           onChange={(e) => setType(e.target.value as RequirementType)}
-          className="rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
         >
           <option value="field">Поле сделки</option>
           <option value="file">Файл</option>
@@ -86,7 +86,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
           <select
             value={column}
             onChange={(e) => setColumn(e.target.value as GateFieldColumn)}
-            className="rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+            className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
           >
             {GATE_FIELD_COLUMNS.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -99,7 +99,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
               min={1}
               value={minCount}
               onChange={(e) => setMinCount(parseInt(e.target.value, 10) || 1)}
-              className="w-16 rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+              className="w-16 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
               title="Минимум файлов"
             />
             <input
@@ -107,7 +107,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Метка (КП, Договор…)"
-              className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-main placeholder:text-text-mute"
+              className="min-w-0 flex-1 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-main placeholder:text-text-mute"
             />
           </>
         )}
@@ -119,7 +119,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
           value={hint}
           onChange={(e) => setHint(e.target.value)}
           placeholder="Подсказка: что сделать (например «Укажите бюджет сделки»)"
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
+          className="min-w-0 flex-1 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
         />
         <button
           type="submit"
@@ -188,7 +188,7 @@ export function GatesSection() {
       <select
         value={activePipelineId}
         onChange={(e) => setPipelineId(e.target.value)}
-        className="mb-3 w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-dim"
+        className="mb-3 w-full rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-dim"
       >
         {pipelines.map((p) => (
           <option key={p.id} value={p.id}>

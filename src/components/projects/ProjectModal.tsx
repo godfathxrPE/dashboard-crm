@@ -294,7 +294,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               {...register('name')}
               autoFocus
               placeholder="Поставка оборудования для ООО «Рога»"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -372,7 +372,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               </label>
               <select
                 {...register('stage_id')}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               >
@@ -404,7 +404,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                   onChange={(e) => {
                     field.onChange(parseBudgetInput(e.target.value));
                   }}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                  className="w-full rounded-lg border border-input bg-surface px-3 py-2
                              text-sm text-text-main placeholder:text-text-mute
                              focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />
@@ -425,7 +425,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
             <input
               {...register('deadline')}
               type="date"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -440,7 +440,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               <input
                 {...register('next_step')}
                 placeholder="Отправить КП до пятницы"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -453,7 +453,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                 {...register('next_action_date')}
                 id="project-next-action-date"
                 type="date"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -467,7 +467,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               <div>
                 <select
                   {...register('loss_reason')}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                  className="w-full rounded-lg border border-input bg-surface px-3 py-2
                              text-sm text-text-main
                              focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 >
@@ -484,7 +484,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                   {...register('loss_detail')}
                   placeholder="Подробности..."
                   rows={2}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                  className="w-full rounded-lg border border-input bg-surface px-3 py-2
                              text-sm text-text-main placeholder:text-text-mute
                              focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />

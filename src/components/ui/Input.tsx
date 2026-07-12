@@ -23,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           'transition-all duration-fast ease-out-custom',
           error
             ? 'border-red ring-2 ring-red-l'
-            : 'border-border focus:border-accent focus:ring-2 focus:ring-accent-l focus:outline-none',
+            : 'border-input focus:border-accent focus:ring-2 focus:ring-accent-l focus:outline-none',
           'disabled:bg-surface2 disabled:opacity-60 disabled:cursor-not-allowed',
           sizeStyles[inputSize],
           className,

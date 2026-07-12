@@ -125,7 +125,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
                 type={f.type ?? 'text'}
                 placeholder={f.placeholder}
                 autoFocus={f.name === 'name'}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -159,7 +159,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
               {...register('notes')}
               rows={2}
               placeholder="Дополнительная информация..."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />

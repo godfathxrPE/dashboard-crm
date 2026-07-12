@@ -537,7 +537,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               </div>
               <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
                 aria-label="Выбрать компанию"
-                className="mb-2 w-full rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
+                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
                 <option value="">Выбери компанию...</option>
                 {availableCompanies.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -546,7 +546,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               <input value={linkRole} onChange={(e) => setLinkRole(e.target.value)}
                 placeholder="Роль (необязательно)"
                 aria-label="Роль в компании"
-                className="mb-2 w-full rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
+                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
               <div className="flex gap-1">
                 <button onClick={handleLink} disabled={!linkCompanyId || linkCompany.isPending}
                   className="rounded bg-accent px-2.5 py-1 text-[10px] font-medium text-white hover:opacity-90 disabled:opacity-50">

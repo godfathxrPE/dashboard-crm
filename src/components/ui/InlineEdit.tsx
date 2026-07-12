@@ -64,7 +64,7 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
         rows={3}
         aria-label={placeholder}
         placeholder={placeholder}
-        className="text-sm w-full px-2 py-1 rounded bg-surface2 border border-border2 text-text-main focus:outline-none focus:border-accent resize-y"
+        className="text-sm w-full px-2 py-1 rounded bg-surface2 border border-input text-text-main focus:outline-none focus:border-accent resize-y"
       />
     );
   }
@@ -82,7 +82,7 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
       }}
       disabled={saving}
       aria-label={placeholder}
-      className="text-sm font-medium w-full px-2 py-1 rounded bg-surface2 border border-border2 text-text-main focus:outline-none focus:border-accent"
+      className="text-sm font-medium w-full px-2 py-1 rounded bg-surface2 border border-input text-text-main focus:outline-none focus:border-accent"
     />
   );
 }

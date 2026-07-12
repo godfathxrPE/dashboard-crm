@@ -226,7 +226,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               <input
                 {...register('company_name')}
                 placeholder="ООО «Коралл»"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -266,7 +266,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               <input
                 {...register('contact_first_name')}
                 placeholder="Иван"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -281,7 +281,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               <input
                 {...register('contact_last_name')}
                 placeholder="Петров"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -297,7 +297,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
                 {...register('contact_phone')}
                 type="tel"
                 placeholder="+7 (999) 123-45-67"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -310,7 +310,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
                 {...register('contact_email')}
                 type="email"
                 placeholder="ivan@corall.ru"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -328,7 +328,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
             <input
               {...register('deal_title')}
               placeholder={lead.title}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -350,7 +350,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
                   onChange={(e) => {
                     field.onChange(parseBudgetInput(e.target.value));
                   }}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                  className="w-full rounded-lg border border-input bg-surface px-3 py-2
                              text-sm text-text-main placeholder:text-text-mute
                              focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 />

@@ -101,7 +101,7 @@ export function Combobox({
           type="button"
           onClick={openDropdown}
           disabled={disabled}
-          className="flex w-full items-center justify-between rounded-lg border border-border
+          className="flex w-full items-center justify-between rounded-lg border border-input
                      bg-surface px-3 py-2 text-sm text-left
                      focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
                      disabled:opacity-50"

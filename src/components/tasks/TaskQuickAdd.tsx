@@ -73,7 +73,7 @@ export function TaskQuickAdd({ lane, projectId, columnId }: TaskQuickAddProps) {
           if (!text.trim()) setIsOpen(false);
         }}
         placeholder="Новая задача..."
-        className="flex-1 rounded-md border border-border bg-surface2 px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+        className="flex-1 rounded-md border border-input bg-surface2 px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
       />
     </div>
   );

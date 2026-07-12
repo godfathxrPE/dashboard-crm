@@ -138,7 +138,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
         onChange={(e) => setText(e.target.value)}
         rows={4}
         placeholder="Вставьте транскрипт разговора…"
-        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         style={{ resize: 'vertical', minHeight: '80px' }}
       />
       <div className="mt-1 text-right text-[11px] text-text-mute">{text.length.toLocaleString('ru')} симв.</div>
@@ -253,7 +253,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
                           placeholder="Что не так? (необязательно)"
-                          className="flex-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+                          className="flex-1 rounded-lg border border-input bg-surface px-2 py-1 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
                         />
                         <button
                           type="button"

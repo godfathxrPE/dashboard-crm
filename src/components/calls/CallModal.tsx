@@ -37,7 +37,7 @@ function DetailsSection({ register }: { register: any }) {
       <div>
         <label className="mb-1 block text-xs font-medium text-text-dim">Что обсуждали / договорённости</label>
         <textarea {...register('agreements')} rows={5} placeholder="Обсудили цены, договорились о КП..."
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           style={{ minHeight: expanded ? '50vh' : '120px', resize: 'vertical', transition: 'min-height 200ms ease' }} />
       </div>
     </>
@@ -170,13 +170,13 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Дата и время *</label>
               <input {...register('date')} type="datetime-local"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
               {errors.date && <p className="mt-0.5 text-xs text-red">{errors.date.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">Статус</label>
               <select {...register('status')}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent">
                 {callStatuses.map((s) => (
                   <option key={s} value={s}>{CALL_STATUS_CONFIG[s].label}</option>
                 ))}
@@ -234,7 +234,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Следующий шаг</label>
             <input {...register('next_step')} placeholder="Отправить КП до пятницы"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

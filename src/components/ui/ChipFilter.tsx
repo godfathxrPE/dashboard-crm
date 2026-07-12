@@ -31,7 +31,7 @@ export function ChipFilter({ options, selected, onToggle, onReset }: ChipFilterP
               'border transition-colors duration-150',
               active
                 ? 'bg-accent-l border-accent text-accent'
-                : 'bg-surface border-border text-text-dim hover:border-accent/50',
+                : 'bg-surface border-input text-text-dim hover:border-accent/50',
             )}
           >
             {opt.label}

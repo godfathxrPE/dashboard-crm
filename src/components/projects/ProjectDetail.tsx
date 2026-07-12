@@ -198,7 +198,7 @@ function ActivityComposer({ projectId }: { projectId: string }) {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
         }}
-        className="flex-1 resize-none rounded-lg border border-border bg-bg px-3 py-1.5
+        className="flex-1 resize-none rounded-lg border border-input bg-bg px-3 py-1.5
                    text-sm text-text-main placeholder:text-text-mute
                    focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
       />

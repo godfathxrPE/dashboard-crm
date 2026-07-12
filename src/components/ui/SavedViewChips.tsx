@@ -51,7 +51,7 @@ export function SavedViewChips() {
               'border transition-colors duration-150',
               active
                 ? 'bg-accent-l border-accent text-accent'
-                : 'bg-surface border-border text-text-dim hover:border-accent/50',
+                : 'bg-surface border-input text-text-dim hover:border-accent/50',
             )}
           >
             <button
@@ -90,7 +90,7 @@ export function SavedViewChips() {
       ) : (
         <button
           onClick={() => setNaming(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1 text-sm font-medium text-text-dim transition-colors hover:border-accent/50 hover:text-accent"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-input px-3 py-1 text-sm font-medium text-text-dim transition-colors hover:border-accent/50 hover:text-accent"
         >
           <BookmarkPlus size={12} />
           Сохранить вид

@@ -88,7 +88,7 @@ export function AssigneeSelect({
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
           onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
-          className="flex w-full items-center justify-between gap-2 rounded-lg border border-border
+          className="flex w-full items-center justify-between gap-2 rounded-lg border border-input
                      bg-surface2 px-3 py-2 text-left text-sm
                      focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
                      disabled:opacity-50"

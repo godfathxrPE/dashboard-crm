@@ -124,7 +124,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
               {...register('title')}
               autoFocus
               placeholder="Звонок от Коралл, 12.04"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -140,7 +140,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
             </label>
             <select
               {...register('source')}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             >
@@ -188,7 +188,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
             <input
               {...register('company_name_raw')}
               placeholder="ООО «Коралл»"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -202,7 +202,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
             <input
               {...register('contact_name_raw')}
               placeholder="Иван Петров"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
@@ -218,7 +218,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
                 {...register('phone')}
                 type="tel"
                 placeholder="+7 (999) 123-45-67"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -231,7 +231,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
                 {...register('email')}
                 type="email"
                 placeholder="ivan@corall.ru"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2
+                className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main placeholder:text-text-mute
                            focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
               />
@@ -247,7 +247,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
               {...register('notes')}
               rows={2}
               placeholder="Контекст звонка, что обсуждали..."
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2
                          text-sm text-text-main placeholder:text-text-mute
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />

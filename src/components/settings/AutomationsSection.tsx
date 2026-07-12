@@ -85,7 +85,7 @@ function AddForm({
         <select
           value={stageId}
           onChange={(e) => setStageId(e.target.value)}
-          className="min-w-[9rem] rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="min-w-[9rem] rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
         >
           <option value="">Стадия входа…</option>
           {stages.map((s) => (
@@ -96,7 +96,7 @@ function AddForm({
         <select
           value={assignee}
           onChange={(e) => setAssignee(e.target.value as AutomationAssignee)}
-          className="rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
           title="Кому назначить задачу"
         >
           {AUTOMATION_ASSIGNEE_OPTIONS.map((o) => (
@@ -107,7 +107,7 @@ function AddForm({
         <select
           value={priority}
           onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          className="rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
           title="Приоритет задачи"
         >
           {AUTOMATION_PRIORITY_OPTIONS.map((o) => (
@@ -122,7 +122,7 @@ function AddForm({
             min={0}
             value={dueDays}
             onChange={(e) => setDueDays(parseInt(e.target.value, 10) || 0)}
-            className="w-14 rounded-md border border-border bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+            className="w-14 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
             title="Дней от даты срабатывания"
           />
           дн.
@@ -135,7 +135,7 @@ function AddForm({
           value={taskText}
           onChange={(e) => setTaskText(e.target.value)}
           placeholder="Текст задачи (напр. «Подготовить КП по {deal}»)"
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
+          className="min-w-0 flex-1 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
         />
         <button
           type="submit"
@@ -221,7 +221,7 @@ export function AutomationsSection() {
       <select
         value={activePipelineId}
         onChange={(e) => setPipelineId(e.target.value)}
-        className="mb-3 w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text-dim"
+        className="mb-3 w-full rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-dim"
       >
         {pipelines.map((p) => (
           <option key={p.id} value={p.id}>

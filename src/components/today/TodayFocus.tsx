@@ -32,7 +32,7 @@ export function TodayFocus() {
         value={text}
         onChange={(e) => save(e.target.value)}
         placeholder="Одно главное дело на сегодня…"
-        className="w-full border-0 border-b border-border bg-transparent pb-2 text-lg
+        className="w-full border-0 border-b border-input bg-transparent pb-2 text-lg
                    text-text-main placeholder:text-text-mute
                    focus:border-accent focus:outline-none"
       />

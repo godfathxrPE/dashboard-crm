@@ -125,7 +125,7 @@ export function ProjectTeam({ projectId, canManage }: { projectId: string; canMa
                             { onError: (err) => setErrorText(parseMemberError(err)) },
                           );
                         }}
-                        className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
+                        className="rounded-md border border-input bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
                                    focus:border-accent focus:outline-none"
                       >
                         {PROJECT_MEMBER_ROLE_ORDER.map((r) => (
@@ -173,7 +173,7 @@ export function ProjectTeam({ projectId, canManage }: { projectId: string; canMa
           <select
             value={newRole}
             onChange={(e) => setNewRole(e.target.value as ProjectMemberRole)}
-            className="rounded-lg border border-border bg-surface2 px-2 py-2 text-sm text-text-main
+            className="rounded-lg border border-input bg-surface2 px-2 py-2 text-sm text-text-main
                        focus:border-accent focus:outline-none"
           >
             {PROJECT_MEMBER_ROLE_ORDER.map((r) => (

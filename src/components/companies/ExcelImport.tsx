@@ -265,7 +265,7 @@ export function ExcelImportButton() {
                         <select
                           value={columnMapping[i] ?? 'skip'}
                           onChange={(e) => setColumnMapping((prev) => ({ ...prev, [i]: e.target.value as FieldKey }))}
-                          className="flex-1 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none"
+                          className="flex-1 rounded-lg border border-input bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none"
                         >
                           {FIELD_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>

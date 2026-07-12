@@ -211,7 +211,7 @@ export function DataTable<T>({
             onChange={(e) => handleSearch(e.target.value)}
             placeholder={searchPlaceholder}
             data-search-input
-            className="w-full rounded-lg border border-border bg-surface py-1.5 pl-8 pr-3
+            className="w-full rounded-lg border border-input bg-surface py-1.5 pl-8 pr-3
                        text-sm text-text-main placeholder:text-text-mute
                        focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           />
