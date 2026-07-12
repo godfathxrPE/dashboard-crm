@@ -2022,6 +2022,15 @@ input[type="checkbox"]:indeterminate {
 .t-tidal *::after {
   border-color: var(--border);
 }
+/* P2.1 §1.4.11: dark safety-net выше (`.t-frost *` = specificity 0,1,0) идёт ПОЗЖЕ
+   класса `.border-input` (та же 0,1,0) и глушит его → границы form-контролов в
+   тёмных темах падали на --border (1.5:1). Возвращаем интерактив-рамку правилом
+   большей специфичности (0,2,0). Scandi обрабатывается своим input-override выше. */
+.t-frost .border-input,
+.t-aurora .border-input,
+.t-tidal .border-input {
+  border-color: var(--border-input);
+}
 
 /* ═══ A11Y TEXT TOKENS ═══
    Статусные цвета как текст используют читаемый вариант (*-text),
