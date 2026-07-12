@@ -56,12 +56,12 @@
   --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);
   --text: #eef2ff;  --text-dim: #94a4d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
-  --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);
+  --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);  --accent-text: #7eb0ff;  /* P1 §2.8: solid #5b8aff на accent-l тинте 4.0:1 → 5.85:1 */
   --green: #5BB88E;  --green-l: rgba(91,184,142,0.14);
   --red: #E8795A;  --red-l: rgba(232,121,90,0.14);
   --blue: #5FA8E8;  --blue-l: rgba(95,168,232,0.14);
   --yellow: #F0C45E;  --yellow-l: rgba(240,196,94,0.14);  --yellow-text: #F0C45E;  /* 9.7:1 на surface — иначе утечка #92661d из :root (2.3:1) */
-  --purple: #A070E0;  --purple-l: rgba(160,112,224,0.14);
+  --purple: #A070E0;  --purple-l: rgba(160,112,224,0.14);  --purple-text: #c9a0f5;  /* P1 §2.8: 3.73:1 badge → 6.23:1 */
   --radius: 12px;  --radius-s: 8px;  --radius-m: 12px;  --radius-l: 16px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
   --shadow-sm: 0 2px 6px rgba(0,0,0,0.25);
@@ -86,13 +86,13 @@
 .t-paper {
   --bg: #f5f0e0;  --surface: #fdf8ec;  --surface2: #ede8d4;  --surface3: #dfd8c2;
   --border: #c8bfa0;  --border2: #a89878;
-  --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #7b6952;
+  --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #6d5c46;  /* P1 §2.7: 3.7:1 на surface3 → 4.51:1 */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #8b3a1a;  --accent-l: rgba(139,58,26,0.08);  --accent-l2: rgba(139,58,26,0.15);
   --green: #2e6b3a;  --green-l: rgba(46,107,58,0.09);
   --red: #b02820;  --red-l: rgba(176,40,32,0.09);
   --blue: #1a4878;  --blue-l: rgba(26,72,120,0.09);
-  --yellow: #7a5c10;  --yellow-l: rgba(122,92,16,0.09);
+  --yellow: #7a5c10;  --yellow-l: rgba(122,92,16,0.09);  --yellow-text: #7d5717;  /* P1 §T1: :root #92661d 4.45:1 → 5.67:1 на paper bg */
   --purple: #5b3a8a;  --purple-l: rgba(91,58,138,0.09);
   --radius: 2px;  --radius-s: 1px;  --radius-m: 2px;  --radius-l: 4px;
   --shadow-xs: 0 1px 2px rgba(26,21,8,0.06);
@@ -117,13 +117,15 @@
 .t-sand {
   --bg: #f0e8d8;  --surface: #faf5ea;  --surface2: #e8dfc8;  --surface3: #dad0b8;
   --border: #c0a880;  --border2: #a08860;
-  --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #79634d;
+  --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #6b563f;  /* P1 §2.7: 3.7:1 на surface3 → 4.52:1 */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
-  --accent: #c05828;  --accent-l: rgba(192,88,40,0.08);  --accent-l2: rgba(192,88,40,0.16);
+  /* P1 §T2: заливка --accent затемнена #c05828 → #b04e20 (белый текст 4.5→5.31:1),
+     терракота сохранена; .text-accent идёт через --accent-text (P1 §2.5). */
+  --accent: #b04e20;  --accent-l: rgba(192,88,40,0.08);  --accent-l2: rgba(192,88,40,0.16);  --accent-text: #9A431C;  /* text-accent 3.69:1 → 5.4:1 на bg */
   --green: #3a6820;  --green-l: rgba(58,104,32,0.09);
   --red: #a02010;  --red-l: rgba(160,32,16,0.09);
   --blue: #284870;  --blue-l: rgba(40,72,112,0.09);
-  --yellow: #806010;  --yellow-l: rgba(128,96,16,0.09);
+  --yellow: #806010;  --yellow-l: rgba(128,96,16,0.09);  --yellow-text: #7a5214;  /* P1 §T1: :root #92661d 4.16:1 → 5.66:1 на sand bg */
   --purple: #604020;  --purple-l: rgba(96,64,32,0.09);
   --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
   --shadow-xs: 1px 1px 0 rgba(28,18,8,0.06);
@@ -150,12 +152,12 @@
   --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);
   --text: #e8f0ff;  --text-dim: #94a8d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
-  --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);
+  --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);  --accent-text: #c9a0ff;  /* P1 §2.8: 3.82:1 badge → 6.77:1 */
   --green: #20e8a0;  --green-l: rgba(32,232,160,0.12);
   --red: #ff6090;  --red-l: rgba(255,96,144,0.12);
   --blue: #40b8ff;  --blue-l: rgba(64,184,255,0.12);
   --yellow: #ffe060;  --yellow-l: rgba(255,224,96,0.12);  --yellow-text: #ffe060;  /* 13.2:1 на surface — иначе утечка из :root */
-  --purple: #a060ff;  --purple-l: rgba(160,96,255,0.12);
+  --purple: #a060ff;  --purple-l: rgba(160,96,255,0.12);  --purple-text: #d0b0ff;  /* P1 §2.8: разведён с accent по хроме, 3.98:1 badge → 8.03:1 */
   --radius: 8px;  --radius-s: 5px;  --radius-m: 8px;  --radius-l: 12px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.25);
   --shadow-sm: 0 2px 6px rgba(0,0,0,0.3);
@@ -185,10 +187,10 @@
   --sidebar-indicator: rgba(255,255,255,0.08);  --sidebar-active-text: var(--accent);
   --accent: #48b890;  --accent-l: rgba(72,184,144,0.14);  --accent-l2: rgba(72,184,144,0.24);
   --green: #40c088;  --green-l: rgba(64,192,136,0.12);
-  --red: #c86858;  --red-l: rgba(200,104,88,0.12);
+  --red: #c86858;  --red-l: rgba(200,104,88,0.12);  --red-text: #e09080;  /* P1 §2.8: 4.27:1 badge → 6.46:1 */
   --blue: #5ca8d0;  --blue-l: rgba(92,168,208,0.12);
   --yellow: #b8a058;  --yellow-l: rgba(184,160,88,0.12);  --yellow-text: #b8a058;  /* 7.1:1 на surface — иначе утечка из :root */
-  --purple: #8878b0;  --purple-l: rgba(136,120,176,0.12);
+  --purple: #8878b0;  --purple-l: rgba(136,120,176,0.12);  --purple-text: #a898c8;  /* P1 §2.8: 4.07:1 badge → 6.05:1 */
   --radius: 8px;  --radius-s: 5px;  --radius-m: 8px;  --radius-l: 12px;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-sm: 0 2px 6px rgba(0,0,0,0.35);
@@ -219,7 +221,7 @@
   --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
   --border: #E2E2EC;  --border2: #D2D2DE;
   /* text-dim/mute затемнены до AA на белом И на сером --bg (см. аудит WCAG 2.2) */
-  --text: #16161D;  --text-dim: #59596D;  --text-mute: #6A6A82;
+  --text: #16161D;  --text-dim: #59596D;  --text-mute: #61617A;  /* P1 §2.7: 4.39:1 на surface3 → 5.01:1 (тише dim 5.7:1) */
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
   /* Янтарь — базовый бренд-акцент (раздел "Дашборд"); смещается per-section.
      Заливки (bg-accent, орбы, кнопки) — яркие; текст (.text-accent) — *-text. */
@@ -284,17 +286,17 @@
   /* Sumi frame tokens */
   --sidebar-bg: #2C2C2C;
   --sidebar-text: rgba(232,226,216,0.7);
-  --sidebar-text-dim: rgba(232,226,216,0.5);
+  --sidebar-text-dim: rgba(232,226,216,0.62);  /* P1 §2.4: 3.9:1 на sumi #2c2c2c → 5.16:1 */
   --sidebar-border: rgba(232,226,216,0.06);
   --sidebar-hover: rgba(232,226,216,0.05);
-  --text: #2C2C2C;  --text-dim: #6B6560;  --text-mute: #716b66;
+  --text: #2C2C2C;  --text-dim: #645E58;  --text-mute: #67615C;  /* P1 §2.7: dim 4.34→4.83, mute 3.96→4.61 на surface3 (mute тише dim) */
   --sidebar-indicator: transparent;  --sidebar-active-text: var(--accent);
-  --accent: #C23B3B;  --accent-l: rgba(194,59,59,0.10);  --accent-l2: rgba(194,59,59,0.25);
+  --accent: #C23B3B;  --accent-l: rgba(194,59,59,0.10);  --accent-l2: rgba(194,59,59,0.25);  --accent-text: #B33434;  /* P1 §2.5: torii-red badge 4.45:1 → 5.13:1 */
   --green: #5E7A3A;  --green-l: rgba(94,122,58,0.12);  --green-text: #4E6A2E;
-  --red: #C23B3B;  --red-l: rgba(194,59,59,0.10);  --red-text: #C23B3B;
+  --red: #C23B3B;  --red-l: rgba(194,59,59,0.10);  --red-text: #B33434;  /* P1 §2.5: 4.45:1 (на грани) → 5.13:1 */
   --blue: #2B5F8A;  --blue-l: rgba(43,95,138,0.12);  --blue-text: #2B5F8A;
   --yellow: #D4993A;  --yellow-l: rgba(212,153,58,0.12);  --yellow-text: #826112;
-  --purple: #7B68A8;  --purple-l: rgba(123,104,168,0.12);  --purple-text: #7B68A8;
+  --purple: #7B68A8;  --purple-l: rgba(123,104,168,0.12);  --purple-text: #665393;  /* P1 §2.5: 4.03:1 badge → 5.47:1 */
   --radius: 4px;  --radius-s: 2px;  --radius-m: 4px;  --radius-l: 8px;
   --shadow-xs: 0 1px 2px rgba(44,44,44,0.04);
   --shadow-sm: 0 1px 3px rgba(44,44,44,0.06), 0 1px 2px rgba(44,44,44,0.03);
@@ -327,7 +329,7 @@
 .t-washi aside .text-text-main,
 .t-washi aside .text-sm.font-semibold { color: #E8E2D8 !important; }
 .t-washi aside .text-text-mute.truncate,
-.t-washi aside .text-\[11px\] { color: rgba(232,226,216,0.35) !important; }
+.t-washi aside .text-\[11px\] { color: rgba(232,226,216,0.62) !important; }  /* P1 §2.4: 0.35 (3.9:1) → 0.62 (5.16:1) */
 
 /* Nav items — light text on dark bg */
 .t-washi aside .nav-item {
@@ -344,15 +346,18 @@
 .t-washi aside .border-t { border-color: var(--sidebar-border) !important; }
 
 /* Active item — torii on transparent */
+/* P1 §2.4: активный пункт — светлый текст (#E8E2D8 = 10.84:1 на sumi #2c2c2c);
+   торий-красный остаётся только на декоративных скобках 「 」 (::before/::after ниже),
+   раньше текст красился в --accent (#C23B3B) = 2.65:1 (FAIL). */
 .t-washi aside .nav-active {
   background: transparent !important;
   border-left: none !important;
   font-weight: 500;
-  color: var(--accent) !important;
+  color: #E8E2D8 !important;
 }
 .t-washi aside .nav-active > *,
-.t-washi aside .nav-active span { color: var(--accent) !important; }
-.t-washi aside .nav-active svg { opacity: 0.75; color: var(--accent) !important; }
+.t-washi aside .nav-active span { color: #E8E2D8 !important; }
+.t-washi aside .nav-active svg { opacity: 0.75; color: #E8E2D8 !important; }
 
 /* Bracket markers 「  」 on active item */
 .t-washi aside .nav-active::before,
@@ -465,7 +470,7 @@
 .t-fuji {
   --bg: #EDE8DF;  --surface: #FDFCF8;  --surface2: #F0EBE2;  --surface3: #E3DDD2;
   --border: #DDD5C5;  --border2: #C8C0B0;
-  --text: #1A2744;  --text-dim: #5A6A78;  --text-mute: #62686e;
+  --text: #1A2744;  --text-dim: #545C64;  --text-mute: #5C626A;  /* P1 §2.7: dim 4.12→5.03, mute 4.17→4.56 на surface3 (mute тише dim) */
   --sidebar-indicator: transparent;  --sidebar-active-text: #C4AA78;
   --accent: #2B5078;  --accent-l: rgba(43,80,120,0.08);  --accent-l2: rgba(43,80,120,0.16);
   --green: #4A7A5A;  --green-l: rgba(74,122,90,0.10);  --green-text: #3A6248;
@@ -480,7 +485,7 @@
   /* Sidebar / header (indigo L-frame) */
   --sidebar-bg: #1A2744;
   --sidebar-text: rgba(232,219,191,0.7);
-  --sidebar-text-dim: rgba(232,219,191,0.45);
+  --sidebar-text-dim: rgba(232,219,191,0.62);  /* P1 §2.4: 3.35:1 на indigo #1a2744 → 5.06:1 */
   --sidebar-border: rgba(200,221,230,0.06);
   --sidebar-hover: rgba(232,219,191,0.05);
   /* Radii & shadows */
@@ -533,7 +538,7 @@
 .t-fuji aside .text-text-main,
 .t-fuji aside .text-sm.font-semibold { color: #E8DBbf !important; }
 .t-fuji aside .text-text-mute.truncate,
-.t-fuji aside .text-\[11px\] { color: rgba(232,219,191,0.35) !important; }
+.t-fuji aside .text-\[11px\] { color: rgba(232,219,191,0.62) !important; }  /* P1 §2.4: 0.35 (3.35:1) → 0.62 (5.06:1) */
 .t-fuji aside .border-border\/50,
 .t-fuji aside .border-t { border-color: var(--sidebar-border) !important; }
 
@@ -745,7 +750,7 @@
 .t-scandi {
   --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
   --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);
-  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.56);
+  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.60);  /* P1 §2.7: 4.28:1 на surface3 → 4.96:1 (тише dim 0.66) */
   --bracket-color: #DDD5E2;  --ring-active: #444444;  --ring-track: #e8e8e8;
   --frost-bg: rgba(250,250,250,0.78);  --frost-blur: blur(20px) saturate(120%);
   accent-color: var(--text);

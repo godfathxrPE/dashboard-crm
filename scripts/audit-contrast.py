@@ -235,8 +235,10 @@ for th in themes:
         if sbt: add('sidebar-text / sidebar-bg', composite(sbt, sb), sb)
         sbd = resolve(th, 'sidebar-text-dim')
         if sbd: add('sidebar-text-dim / sidebar-bg', composite(sbd, sb), sb)
-        # nav-active
-        act = resolve(th, 'accent') if th=='t-washi' else parse_color('#C4AA78')
+        # nav-active — компонентный override (globals.css): washi красит активный
+        # пункт в светлый #E8E2D8 (P1 §2.4), fuji — в gold #C4AA78. Токен --accent
+        # тут не применяется (торий-красный остаётся только на скобках 「 」).
+        act = parse_color('#E8E2D8') if th=='t-washi' else parse_color('#C4AA78')
         if act: add('nav-active / sidebar-bg', composite(act, sb) if act[3]<1 else act[:3], sb)
     T['pairs'] = pairs
     # OKLCH of key colors
