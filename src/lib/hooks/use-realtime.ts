@@ -25,6 +25,7 @@ interface Entry {
   callbacks: Set<() => void>;
   retry: number;
   retryTimer?: ReturnType<typeof setTimeout>;
+  broadcastTimer?: ReturnType<typeof setTimeout>;
 }
 
 const registry = new Map<string, Entry>();
@@ -37,8 +38,15 @@ function makeChannel(table: string, entry: Entry): RealtimeChannel {
       'postgres_changes',
       { event: '*', schema: 'public', table },
       () => {
-        // Один binding — рассылаем всем подписчикам (у каждого свой queryKey).
-        entry.callbacks.forEach((cb) => cb());
+        // Дебаунс рассылки: bulk-операция (reorder_tasks, импорт) меняет N строк →
+        // Postgres шлёт N событий подряд. Без дебаунса это N×(число подписчиков)
+        // инвалидаций → шторм рефетчей всей таблицы. Схлопываем всплеск в один
+        // раунд: каждый подписчик инвалидирует свой ключ по разу, react-query
+        // дедупит одинаковые ключи в один запрос (AUDIT 2.2/2.7).
+        clearTimeout(entry.broadcastTimer);
+        entry.broadcastTimer = setTimeout(() => {
+          entry.callbacks.forEach((cb) => cb());
+        }, 150);
       },
     )
     .subscribe((status) => {
@@ -79,6 +87,7 @@ function subscribe(table: string, cb: () => void): () => void {
     e.refs -= 1;
     if (e.refs <= 0) {
       clearTimeout(e.retryTimer);
+      clearTimeout(e.broadcastTimer);
       createClient().removeChannel(e.channel);
       registry.delete(table);
     }
