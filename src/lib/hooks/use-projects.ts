@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { DealStage } from '@/lib/validators/project';
 import type { UnmetRequirement } from '@/types/database';
+import type { OpenMilestone } from './use-delivery-gate';
 import { logActivity } from './use-activity-log';
 
 // ═══════════════════════════════════════════════════════
@@ -24,6 +25,23 @@ export function parseStageGateError(err: unknown): UnmetRequirement[] | null {
   try {
     const parsed = JSON.parse(e.details ?? '[]');
     return Array.isArray(parsed) ? (parsed as UnmetRequirement[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Delivery P3: разбор отказа гейта завершения (триггер 038, тот же шаблон).
+ * message === 'delivery_gate_failed' → DETAIL содержит jsonb-массив открытых
+ * вех (shape open_milestones из check_delivery_completion). null — другая ошибка.
+ */
+export function parseDeliveryGateError(err: unknown): OpenMilestone[] | null {
+  if (!err || typeof err !== 'object') return null;
+  const e = err as { message?: string; details?: string | null };
+  if (e.message !== 'delivery_gate_failed') return null;
+  try {
+    const parsed = JSON.parse(e.details ?? '[]');
+    return Array.isArray(parsed) ? (parsed as OpenMilestone[]) : [];
   } catch {
     return [];
   }

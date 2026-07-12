@@ -3,7 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useRouter } from 'next/navigation';
-import { Pencil, Trash2, Calendar, Check, ArrowRight } from 'lucide-react';
+import { Pencil, Trash2, Calendar, Check, ArrowRight, Diamond } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -121,6 +121,17 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
             isDone && 'line-through text-text-mute',
           )}
         >
+          {/* P3: веха приёмки — глиф-ромб (форма+цвет, не только цвет — CVD) */}
+          {phaseMode && task.is_milestone && (
+            <span
+              title="Веха (milestone)"
+              role="img"
+              aria-label="Веха (milestone)"
+              className="mr-1 inline-block align-[-1px] text-accent"
+            >
+              <Diamond size={11} className="block" />
+            </span>
+          )}
           {task.text}
         </p>
 

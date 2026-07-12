@@ -44,6 +44,7 @@ import {
   type DealStage,
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
+import { DeliveryCompletionModal } from './DeliveryCompletionModal';
 import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
@@ -277,6 +278,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
+  // P3: модалка завершения delivery (чеклист вех, гейт 038)
+  const [completing, setCompleting] = useState(false);
   // PCT-1: вкладки нижней секции — Активность / Доска задач
   const [tab, setTab] = useState<'activity' | 'board'>('activity');
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
@@ -469,13 +472,11 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </>
             );
           })()}
-          {/* Delivery P1: терминал delivery — «Завершить проект» (status open→completed) */}
+          {/* Delivery P1: терминал delivery — «Завершить проект» (status open→completed).
+              P3: confirm() → модалка с чеклистом вех (гейт 038) */}
           {isDelivery && project.status === 'open' && (
             <button
-              onClick={() => {
-                if (!confirm(`Завершить проект «${project.name}»?`)) return;
-                updateProject.mutate({ id: project.id, status: 'completed' });
-              }}
+              onClick={() => setCompleting(true)}
               className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
                          transition-colors hover:bg-green-l"
             >
@@ -935,6 +936,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         editMeeting={editingMeeting}
         defaultProjectId={projectId}
       />
+      {/* P3: завершение delivery — чеклист вех + backstop-баннер (гейт 038) */}
+      {completing && (
+        <DeliveryCompletionModal project={project} onClose={() => setCompleting(false)} />
+      )}
     </>
   );
 }

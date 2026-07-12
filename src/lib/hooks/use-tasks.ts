@@ -189,6 +189,8 @@ export function useCreateTask() {
         org_id: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // P3: рукотворные задачи — не вехи (флаг ставит только шаблон/бэкфилл)
+        is_milestone: input.is_milestone ?? false,
       };
 
       queryClient.setQueryData<Task[]>(QUERY_KEY, (old) => [
@@ -265,6 +267,8 @@ export function useUpdateTask() {
       // P2b (B3): lane/project_id/column_id меняют прогресс delivery (триггер 037)
       if (vars.lane !== undefined || vars.project_id !== undefined || vars.column_id !== undefined) {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
+        // P3: закрытие/переоткрытие вехи меняет чеклист гейта завершения (038)
+        queryClient.invalidateQueries({ queryKey: ['delivery-gate'] });
       }
     },
   });
