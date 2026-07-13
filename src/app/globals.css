@@ -1000,6 +1000,16 @@ input[type="checkbox"]:indeterminate {
 /* Hover неактивных */
 .t-aura aside nav a:hover > span[style*="vertical"] { color: var(--text); }
 
+/* AUDIT C7: aura — единственная тема БЕЗ иконок. Иконки .nav-ico всегда в DOM
+   (единый shell, без ветвления структуры → без hydration-регресса 2.8), aura прячет их CSS. */
+.t-aura .nav-ico { display: none; }
+/* Вертикальный капс-лейбл (свёрнутый сайдбар) — только в aura; в остальных темах
+   свёрнутый пункт = иконка, лейбл скрыт (см. общее правило .nav-vlabel ниже). */
+.t-aura aside .nav-vlabel { display: inline-block; }
+/* Глобальный @layer .nav-active даёт border-left+accent-фон (иконочные тёмные темы);
+   в aura активный — пилюля через a[data-active], левую полосу гасим. */
+.t-aura aside .nav-active { border-left: none; }
+
 /* ── Header (ScandiContentHeader): чистый, орбы видны сквозь зазоры ──── */
 .t-aura main { position: relative; z-index: 1; }
 
@@ -1260,6 +1270,9 @@ input[type="checkbox"]:indeterminate {
   /* Sidebar active */
   .nav-active { border-left: 3px solid var(--accent); background: var(--accent-l); font-weight: 600; color: var(--accent); }
   .nav-active .lucide { color: var(--accent); }
+  /* Вертикальный лейбл свёрнутого сайдбара — только aura (иконочные темы показывают .nav-ico).
+     Layered-hide, aura-show (.t-aura aside .nav-vlabel) вне слоёв → всегда перебивает. */
+  .nav-vlabel { display: none; }
 
   /* Pipeline card phase borders */
   .phase-attract { border-left: 4px solid var(--blue); }

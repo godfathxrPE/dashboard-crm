@@ -3,7 +3,11 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight,
+  Sun, LayoutDashboard, CheckSquare, Target, FolderKanban, Rocket,
+  Users, Building2, Phone, CalendarDays, BarChart3, Settings,
+} from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useThemeStore } from '@/lib/stores/theme-store';
@@ -12,23 +16,40 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useLeads } from '@/lib/hooks/use-leads';
 import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 
-// jpLabel — фича washi (иероглифы + scramble на hover). Восстановлено из старого
-// Sidebar при слиянии в единый shell (AUDIT C6 follow-up, решение Олега).
-const NAV_ITEMS = [
-  { href: '/',          label: 'Сегодня',    short: 'Сг', jpLabel: '今日' },
-  { href: '/overview',  label: 'Обзор',      short: 'Об', jpLabel: 'ダッシュボード' },
-  { href: '/tasks',     label: 'Задачи',     short: 'Зд', jpLabel: 'タスク管理', badgeKey: 'tasks' as const },
-  { href: '/leads',     label: 'Лиды',       short: 'Лд', jpLabel: 'リード',     badgeKey: 'leads' as const },
-  { href: '/deals',     label: 'Сделки',    short: 'Сд', jpLabel: '案件管理' },
-  { href: '/projects',  label: 'Проекты',   short: 'Пр', jpLabel: '導入管理' },
-  { href: '/contacts',  label: 'Контакты',   short: 'Кн', jpLabel: '連絡先' },
-  { href: '/companies', label: 'Компании',   short: 'Км', jpLabel: '企業一覧' },
-  { href: '/calls',     label: 'Звонки',     short: 'Зв', jpLabel: '通話記録', badgeKey: 'calls' as const },
-  { href: '/meetings',  label: 'Встречи',    short: 'Вс', jpLabel: '会議予定' },
-  { href: '/calendar',  label: 'Календарь',  short: 'Кл', jpLabel: 'カレンダー' },
-  { href: '/analytics', label: 'Аналитика',  short: 'Ан', jpLabel: '分析' },
-  { href: '/settings',  label: 'Настройки',  short: 'На', jpLabel: '設定' },
+// jpLabel — фича washi (иероглифы + scramble на hover). icon/sectionColor — иконочный
+// нав всех тем КРОМЕ aura (aura прячет .nav-ico через CSS). Единый shell: иконки ВСЕГДА
+// в DOM, разница тем = CSS-кожа (AUDIT C7, регресс-фикс C6).
+const MAIN_NAV = [
+  { href: '/',          label: 'Сегодня',   jpLabel: '今日',           icon: Sun,             sectionColor: '#94A3B8' },
+  { href: '/overview',  label: 'Обзор',     jpLabel: 'ダッシュボード', icon: LayoutDashboard, sectionColor: '#94A3B8' },
+  { href: '/tasks',     label: 'Задачи',    jpLabel: 'タスク管理',     icon: CheckSquare,     sectionColor: '#8B7CF6', badgeKey: 'tasks' as const },
+  { href: '/leads',     label: 'Лиды',      jpLabel: 'リード',         icon: Target,          sectionColor: '#F97316', badgeKey: 'leads' as const },
+  { href: '/deals',     label: 'Сделки',    jpLabel: '案件管理',       icon: FolderKanban,    sectionColor: '#FF6633' },
+  { href: '/projects',  label: 'Проекты',   jpLabel: '導入管理',       icon: Rocket,          sectionColor: '#10B981' },
+  { href: '/contacts',  label: 'Контакты',  jpLabel: '連絡先',         icon: Users,           sectionColor: '#06B6D4' },
+  { href: '/companies', label: 'Компании',  jpLabel: '企業一覧',       icon: Building2,       sectionColor: '#22C55E' },
+  { href: '/calls',     label: 'Звонки',    jpLabel: '通話記録',       icon: Phone,           sectionColor: '#F59E0B', badgeKey: 'calls' as const },
+  { href: '/meetings',  label: 'Встречи',   jpLabel: '会議予定',       icon: CalendarDays,    sectionColor: '#F43F5E' },
+  { href: '/calendar',  label: 'Календарь', jpLabel: 'カレンダー',     icon: CalendarDays,    sectionColor: '#6366F1' },
 ] as const;
+
+const UTIL_NAV = [
+  { href: '/analytics', label: 'Аналитика', jpLabel: '分析', icon: BarChart3, sectionColor: '#3B82F6' },
+  { href: '/settings',  label: 'Настройки', jpLabel: '設定', icon: Settings,  sectionColor: '#94A3B8' },
+] as const;
+
+/** Красная плашка при urgent, accent при обычном (перенос из старого Sidebar, AUDIT C7). */
+function NavBadge({ count, urgent }: { count: number; urgent?: boolean }) {
+  if (count === 0) return null;
+  return (
+    <span className={cn(
+      'ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white',
+      urgent ? 'bg-red' : 'bg-accent',
+    )}>
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
 
 /** Washi: иероглифы по умолчанию, scramble катакана→русский на hover, русский — активный. */
 function WashiNavLabel({ label, jpLabel, isActive }: { label: string; jpLabel: string; isActive: boolean }) {
@@ -45,7 +66,10 @@ function WashiNavLabel({ label, jpLabel, isActive }: { label: string; jpLabel: s
 }
 
 // ═══════════════════════════════════════════════════════
-// Text-nav Sidebar (единый shell для всех тем, AUDIT C6)
+// Text/icon-nav Sidebar (единый shell для всех тем, AUDIT C6 + C7)
+//   • не-aura: иконка + русский лейбл + NavBadge (иконочный нав как на проде)
+//   • aura:    иконки скрыты CSS (.t-aura .nav-ico) → текстовый капс-нав
+//   • washi:   иконка + иероглиф + scramble + торий-скобки (CSS)
 // ═══════════════════════════════════════════════════════
 
 export function TextNavSidebar() {
@@ -77,7 +101,6 @@ export function TextNavSidebar() {
   const activeTasks = (tasks ?? []).filter((t) => t.lane === 'now' || t.lane === 'next').length;
   const overdueCalls = (calls ?? []).filter((c) => c.status === 'pending' && new Date(c.date) < today).length;
   const pendingCalls = (calls ?? []).filter((c) => c.status === 'pending').length;
-
   const activeLeads = (leads ?? []).filter((l) => l.status === 'new' || l.status === 'contacted').length;
 
   const badges: Record<string, number> = {
@@ -85,9 +108,60 @@ export function TextNavSidebar() {
     calls: overdueCalls || pendingCalls,
     leads: activeLeads,
   };
+  const badgeUrgent: Record<string, boolean> = {
+    tasks: overdueTasks > 0,
+    calls: overdueCalls > 0,
+  };
 
   function isActive(href: string) {
     return pathname === href || (href !== '/' && pathname.startsWith(href));
+  }
+
+  function renderItem(item: { href: string; label: string; jpLabel: string; icon: typeof Sun; sectionColor: string; badgeKey?: 'tasks' | 'leads' | 'calls' }) {
+    const active = isActive(item.href);
+    const badge = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0;
+    const isUrgent = item.badgeKey ? badgeUrgent[item.badgeKey] ?? false : false;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        data-active={active ? '' : undefined}
+        data-nav-item=""
+        style={{ '--section-color': item.sectionColor } as React.CSSProperties}
+        className={cn(
+          'nav-item relative z-10 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+          active
+            ? 'nav-active font-medium text-[var(--sidebar-active-text)]'
+            : 'text-text-dim hover:text-text-main hover:bg-surface2',
+          sidebarOpen ? '' : 'justify-center',
+        )}
+        title={!sidebarOpen ? item.label : undefined}
+      >
+        <item.icon
+          size={20}
+          className={cn('nav-ico shrink-0', active ? 'text-[var(--sidebar-active-text)]' : 'text-text-mute')}
+        />
+        {sidebarOpen ? (
+          <>
+            {isWashi
+              ? <WashiNavLabel label={item.label} jpLabel={item.jpLabel} isActive={active} />
+              : <span className="truncate">{item.label}</span>}
+            {badge > 0 && <NavBadge count={badge} urgent={isUrgent} />}
+          </>
+        ) : (
+          <>
+            {/* Aura без иконок: вертикальный капс-лейбл (nav-ico скрыт CSS) */}
+            <span
+              className="nav-vlabel text-[9px] tracking-wider lowercase"
+              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+            >{item.label}</span>
+            {badge > 0 && (
+              <span className={cn('absolute right-1.5 top-0.5 h-2 w-2 rounded-full', isUrgent ? 'bg-red' : 'bg-accent')} />
+            )}
+          </>
+        )}
+      </Link>
+    );
   }
 
   return (
@@ -99,11 +173,16 @@ export function TextNavSidebar() {
       )}
       style={{ borderWidth: '0.5px' }}
     >
-      {/* Logo — Torii-брендинг для тёмных тем, БИТ.IIOT для aura (кожа, не структура) */}
+      {/* Logo — акцентный TC-квадрат (Torii CRM) для не-aura; бордер-квадрат ОП/БИТ.IIOT для aura */}
       <div className="flex h-14 items-center gap-3 px-4 shrink-0" style={{ borderBottom: '0.5px solid var(--border)' }}>
         <div
-          className="logo-icon flex h-7 w-7 shrink-0 items-center justify-center text-[11px] font-semibold"
-          style={{ border: '1px solid var(--border)', borderRadius: '6px' }}
+          className={cn(
+            'logo-icon flex shrink-0 items-center justify-center font-semibold',
+            isAura
+              ? 'h-7 w-7 text-[11px]'
+              : 'h-8 w-8 rounded-md bg-accent text-white text-sm',
+          )}
+          style={isAura ? { border: '1px solid var(--border)', borderRadius: '6px' } : undefined}
         >
           {isAura ? 'ОП' : 'TC'}
         </div>
@@ -116,49 +195,13 @@ export function TextNavSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="mt-2 flex flex-col flex-1">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
-          const badge = 'badgeKey' in item ? badges[item.badgeKey] ?? 0 : 0;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              data-active={active ? '' : undefined}
-              data-nav-item=""
-              className={cn(
-                'relative flex items-center text-[13px] transition-colors',
-                active
-                  ? 'font-medium text-text-main'
-                  : 'text-text-dim hover:text-text-main',
-                sidebarOpen ? 'justify-between' : 'justify-center',
-              )}
-              style={{ padding: sidebarOpen ? '7px 20px' : '7px 0' }}
-              title={!sidebarOpen ? item.label : undefined}
-            >
-              {/* Active indicator — линия (не в Aura; там пилюля через CSS) */}
-              {active && !isAura && (
-                <span
-                  className="absolute left-0 top-1 bottom-1"
-                  style={{ width: 2, background: 'var(--text)' }}
-                />
-              )}
-              {sidebarOpen ? (
-                <>
-                  {isWashi
-                    ? <WashiNavLabel label={item.label} jpLabel={item.jpLabel} isActive={active} />
-                    : <span className="truncate">{item.label}</span>}
-                  {badge > 0 && <span className="text-[10px] text-text-mute">{badge}</span>}
-                </>
-              ) : (
-                <span
-                  className="text-[9px] tracking-wider lowercase"
-                  style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
-                >{item.label}</span>
-              )}
-            </Link>
-          );
-        })}
+      <nav className="mt-2 flex flex-col flex-1 gap-0.5 px-2">
+        {MAIN_NAV.map(renderItem)}
+
+        {/* Separator */}
+        <div className="my-2 border-t border-border/50" />
+
+        {UTIL_NAV.map(renderItem)}
       </nav>
 
       {/* Toggle button */}
