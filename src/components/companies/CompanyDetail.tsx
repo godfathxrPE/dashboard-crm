@@ -14,6 +14,7 @@ import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { getDealHealth } from '@/lib/utils/deal-health';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
 import { Bracket } from '@/components/ui/Bracket';
+import { PhoneList } from '@/components/shared/PhoneList';
 import { CompanyModal } from './CompanyModal';
 import { ProjectModal } from '@/components/projects/ProjectModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
@@ -85,12 +86,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   }
 
   const infoFields = [
-    { icon: Phone, label: 'Телефон', value: company.phone },
     { icon: Mail, label: 'Email', value: company.email },
     { icon: Globe, label: 'Сайт', value: company.website },
     { icon: MapPin, label: 'Адрес', value: company.address },
     { icon: FileText, label: 'ИНН', value: company.inn },
   ];
+  const hasPhones = (company.phones?.length ?? 0) > 0 || !!company.phone;
 
   return (
     <>
@@ -122,6 +123,14 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
 
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {hasPhones && (
+          <Bracket className="px-3 py-2.5">
+            <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
+              <Phone size={10} /> Телефон
+            </div>
+            <PhoneList phones={company.phones} fallback={company.phone} />
+          </Bracket>
+        )}
         {infoFields.filter((f) => f.value).map((f) => (
           <Bracket key={f.label} className="px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">

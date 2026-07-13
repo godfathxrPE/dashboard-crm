@@ -16,8 +16,10 @@ import {
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { Combobox } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
 import { normalizePhone } from '@/lib/utils/phone';
+import { primaryPhone, normalizePhones } from '@/lib/validators/phone';
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -45,6 +47,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     watch,
@@ -62,20 +65,28 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         last_name: editContact.last_name,
         email: editContact.email,
         phone: editContact.phone,
+        // phones может отсутствовать до применения 041 → fallback на legacy phone
+        phones: editContact.phones?.length
+          ? editContact.phones
+          : editContact.phone
+            ? [{ type: 'mobile', value: editContact.phone, is_primary: true }]
+            : [],
         position: editContact.position,
         notes: editContact.notes,
         owner_id: editContact.owner_id ?? null,
       });
     } else {
-      reset({ first_name: '', last_name: '', email: null, phone: null, position: null, notes: null, owner_id: null });
+      reset({ first_name: '', last_name: '', email: null, phone: null, phones: [], position: null, notes: null, owner_id: null });
     }
   }, [editContact, reset, isOpen, defaultCompanyId]);
 
-  // Ненавязчивая проверка дублей: телефон (нормализованный) или email
-  const phoneVal = watch('phone');
+  // Ненавязчивая проверка дублей: телефон (нормализованный) или email.
+  // Телефон берём из primary массива phones (legacy `phone` синхронизируется на submit).
+  const phonesVal = watch('phones');
   const emailVal = watch('email');
   const duplicate = useMemo(() => {
-    const ph = phoneVal ? normalizePhone(phoneVal) : null;
+    const primary = primaryPhone(phonesVal);
+    const ph = primary ? normalizePhone(primary) : null;
     const em = emailVal?.trim().toLowerCase() || null;
     if ((!ph || ph.length < 10) && !em) return null;
     return allContacts.find((c) =>
@@ -84,14 +95,18 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         (em && c.email && c.email.trim().toLowerCase() === em)
       ),
     ) ?? null;
-  }, [phoneVal, emailVal, allContacts, editContact]);
+  }, [phonesVal, emailVal, allContacts, editContact]);
 
   const onSubmit = async (values: ContactFormValues) => {
+    // Нормализуем массив (ровно один primary, без пустых) и зеркалим primary в
+    // legacy `phone` — дедуп и списки, читающие phone, продолжают работать.
+    const phones = normalizePhones(values.phones);
+    const payload = { ...values, phones, phone: primaryPhone(phones) };
     try {
       if (editContact) {
-        await update.mutateAsync({ id: editContact.id, ...values });
+        await update.mutateAsync({ id: editContact.id, ...payload });
       } else {
-        const created = await create.mutateAsync(values);
+        const created = await create.mutateAsync(payload);
         if (companyId) {
           await linkCompany.mutateAsync({ contact_id: created.id, company_id: companyId });
         }
@@ -159,19 +174,14 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-text-dim">Телефон</label>
-              <input {...register('phone')} placeholder="+7 (999) 123-45-67"
-                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-text-dim">Email</label>
-              <input {...register('email')} type="email" placeholder="ivan@company.ru"
-                className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
-              {errors.email && <p className="mt-0.5 text-xs text-red">{errors.email.message}</p>}
-            </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">Email</label>
+            <input {...register('email')} type="email" placeholder="ivan@company.ru"
+              className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+            {errors.email && <p className="mt-0.5 text-xs text-red">{errors.email.message}</p>}
           </div>
+
+          <PhoneFields control={control} register={register} watch={watch} setValue={setValue} defaultType="mobile" />
 
           {/* Дубль по телефону/email — предупреждение, не блокирует */}
           {duplicate && (

@@ -11,6 +11,7 @@ import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { PhoneList } from '@/components/shared/PhoneList';
 import { ContactModal } from './ContactModal';
 
 interface ContactDetailProps { contactId: string; }
@@ -74,9 +75,9 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
 
   const infoFields = [
     { icon: Briefcase, label: 'Должность', value: contact.position },
-    { icon: Phone, label: 'Телефон', value: contact.phone },
     { icon: Mail, label: 'Email', value: contact.email },
   ];
+  const hasPhones = (contact.phones?.length ?? 0) > 0 || !!contact.phone;
 
   return (
     <>
@@ -108,6 +109,12 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
 
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {hasPhones && (
+          <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+            <div className="mb-1 flex items-center gap-1 text-xs text-text-dim"><Phone size={10} /> Телефон</div>
+            <PhoneList phones={contact.phones} fallback={contact.phone} />
+          </div>
+        )}
         {infoFields.filter((f) => f.value).map((f) => (
           <div key={f.label} className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-xs text-text-dim"><f.icon size={10} /> {f.label}</div>

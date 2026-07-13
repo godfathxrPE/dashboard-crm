@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useTeamMembers, type TeamMember } from '@/lib/hooks/use-team-members';
+import { useAnchoredRect } from '@/lib/hooks/use-anchored-rect';
 
 interface AssigneeSelectProps {
   value: string | null;
@@ -55,6 +57,10 @@ export function AssigneeSelect({
   const { data: allMembers = [] } = useTeamMembers();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLUListElement>(null);
+  // Попап рендерится в портал (position: fixed) поверх overflow-скролла модалки.
+  const anchor = useAnchoredRect(triggerRef, open);
 
   // выбранного не скрываем, даже если он в excludeIds — иначе кнопка «ослепнет»
   const members = excludeIds?.length
@@ -66,7 +72,10 @@ export function AssigneeSelect({
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // Попап живёт в портале вне ref — учитываем и его, иначе клик по пункту закроет до выбора.
+      if (ref.current?.contains(t) || popupRef.current?.contains(t)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -84,6 +93,7 @@ export function AssigneeSelect({
       )}
       <div ref={ref} className="relative">
         <button
+          ref={triggerRef}
           type="button"
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
@@ -111,10 +121,11 @@ export function AssigneeSelect({
           <ChevronDown size={14} className="shrink-0 text-text-mute" />
         </button>
 
-        {open && (
+        {open && anchor && createPortal(
           <ul
-            className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-lg
-                       border border-border bg-surface py-1 shadow-lg"
+            ref={popupRef}
+            style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
+            className="max-h-56 overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
           >
             <li
               onMouseDown={() => pick(null)}
@@ -141,7 +152,8 @@ export function AssigneeSelect({
                 <span className="truncate">{m.full_name}</span>
               </li>
             ))}
-          </ul>
+          </ul>,
+          document.body,
         )}
       </div>
     </div>

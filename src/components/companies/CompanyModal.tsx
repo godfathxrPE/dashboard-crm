@@ -8,7 +8,9 @@ import { AlertTriangle } from 'lucide-react';
 import { companyFormSchema, type CompanyFormValues } from '@/lib/validators/company';
 import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
+import { primaryPhone, normalizePhones } from '@/lib/validators/phone';
 
 /** Нормализация названия для сравнения: без ОПФ, кавычек и регистра */
 function normalizeCompanyName(name: string): string {
@@ -34,6 +36,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     watch,
@@ -66,22 +69,31 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         industry: editCompany.industry,
         website: editCompany.website,
         phone: editCompany.phone,
+        // phones может отсутствовать до применения 041 → fallback на legacy phone
+        phones: editCompany.phones?.length
+          ? editCompany.phones
+          : editCompany.phone
+            ? [{ type: 'work', value: editCompany.phone, is_primary: true }]
+            : [],
         email: editCompany.email,
         address: editCompany.address,
         notes: editCompany.notes,
         owner_id: editCompany.owner_id ?? null,
       });
     } else {
-      reset({ name: '', inn: null, industry: null, website: null, phone: null, email: null, address: null, notes: null, owner_id: null });
+      reset({ name: '', inn: null, industry: null, website: null, phone: null, phones: [], email: null, address: null, notes: null, owner_id: null });
     }
   }, [editCompany, reset]);
 
   const onSubmit = async (values: CompanyFormValues) => {
+    // Нормализуем phones + зеркалим primary в legacy `phone` (backward-compat).
+    const phones = normalizePhones(values.phones);
+    const payload = { ...values, phones, phone: primaryPhone(phones) };
     try {
       if (editCompany) {
-        await update.mutateAsync({ id: editCompany.id, ...values });
+        await update.mutateAsync({ id: editCompany.id, ...payload });
       } else {
-        await create.mutateAsync(values);
+        await create.mutateAsync(payload);
       }
       onClose();
     } catch {
@@ -96,7 +108,6 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
     { name: 'name', label: 'Название *', placeholder: 'ООО «Рога и Копыта»' },
     { name: 'inn', label: 'ИНН', placeholder: '7707083893' },
     { name: 'industry', label: 'Отрасль', placeholder: 'IT, Производство...' },
-    { name: 'phone', label: 'Телефон', placeholder: '+7 (999) 123-45-67' },
     { name: 'email', label: 'Email', placeholder: 'info@company.ru', type: 'email' },
     { name: 'website', label: 'Сайт', placeholder: 'https://company.ru' },
     { name: 'address', label: 'Адрес', placeholder: 'Москва, ул. Примерная, 1' },
@@ -136,6 +147,8 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
               {errors[f.name] && <p className="mt-0.5 text-xs text-red">{errors[f.name]?.message}</p>}
             </div>
           ))}
+
+          <PhoneFields control={control} register={register} watch={watch} setValue={setValue} defaultType="work" />
 
           {/* Дубль — предупреждение, не блокирует */}
           {duplicate && (

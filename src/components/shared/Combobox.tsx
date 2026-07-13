@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, X } from 'lucide-react';
+import { useAnchoredRect } from '@/lib/hooks/use-anchored-rect';
 
 export interface ComboboxOption {
   value: string;
@@ -30,6 +32,8 @@ export function Combobox({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  // Попап рендерится в портал (position: fixed) поверх overflow-скролла модалки.
+  const anchor = useAnchoredRect(containerRef, open);
 
   const selected = options.find((o) => o.value === value);
 
@@ -50,13 +54,13 @@ export function Combobox({
     el?.scrollIntoView({ block: 'nearest' });
   }, [highlightIdx, open]);
 
-  // Close on outside click
+  // Close on outside click. Попап в портале живёт вне containerRef — учитываем и listRef.
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (containerRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
@@ -135,12 +139,12 @@ export function Combobox({
         />
       )}
 
-      {/* Dropdown */}
-      {open && (
+      {/* Dropdown — портал поверх overflow-скролла модалки */}
+      {open && anchor && createPortal(
         <ul
           ref={listRef}
-          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg
-                     border border-border bg-surface py-1 shadow-lg"
+          style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
+          className="max-h-48 overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
         >
           {filtered.length === 0 && (
             <li className="px-3 py-2 text-xs text-text-mute">Ничего не найдено</li>
@@ -160,7 +164,8 @@ export function Combobox({
               )}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
