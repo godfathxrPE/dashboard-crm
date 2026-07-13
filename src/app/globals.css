@@ -1013,12 +1013,9 @@ input[type="checkbox"]:indeterminate {
 /* ── Header (ScandiContentHeader): чистый, орбы видны сквозь зазоры ──── */
 .t-aura main { position: relative; z-index: 1; }
 
-/* ── Уголки-брекеты 「 」 — фича Scandi, НЕ Aura. Глобальный .bracket
-   протекает во все темы; в Aura гасим уголки во всех местах.          */
-.t-aura .bracket::before,
-.t-aura .bracket::after {
-  display: none !important;
-}
+/* Уголки-брекеты 「 」 (реликт Scandi) убраны глобально в источнике
+   (.bracket больше не рисует ::before/::after) — отдельное гашение в Aura
+   больше не нужно. Ниже — только карточное оформление блоков Aura.        */
 
 /* Контраст вместо уголков: белые виджеты на сероватом фоне (--bg серее).
    Карточки-виджеты получают чистую белую поверхность + границу + тень.
@@ -1493,32 +1490,15 @@ aside[aria-label="Основная навигация"] {
 }
 
 /* === Bracket corners === */
+/* Уголки 「 」 были декором Scandi (тема удалена в AUDIT C). Глобальный
+   .bracket всё ещё оборачивает detail-блоки/лейны/drawer, но угловые
+   псевдоэлементы «протекали» во все темы висящими уголками (#DDD5E2 из
+   fallback, --bracket-color нигде не задан). Уголки убраны во всех темах:
+   .bracket теперь просто позиционирующий контейнер (padding + relative).
+   Aura отдельно боксирует свои блоки (см. .t-aura [data-card]/aside .bracket).
+   Активные nav-маркеры washi/fuji — на .nav-active, НЕ на .bracket, не тронуты. */
 .bracket {
   position: relative;
-}
-
-.bracket::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  border-left: 1px solid var(--bracket-color, #DDD5E2);
-  border-top: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-
-.bracket::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
-  border-right: 1px solid var(--bracket-color, #DDD5E2);
-  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
 }
 
 /* ═══ Page Transition — entrance only ═══ */
