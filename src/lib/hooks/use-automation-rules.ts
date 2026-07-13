@@ -6,6 +6,8 @@ import type {
   AutomationRule,
   AutomationTriggerConfig,
   AutomationCreateTaskConfig,
+  TablesInsert,
+  TablesUpdate,
 } from '@/types/database';
 
 const QUERY_KEY = ['automation-rules'] as const;
@@ -25,7 +27,7 @@ export function useAutomationRules() {
         .select('*')
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as AutomationRule[];
+      return (data ?? []) as unknown as AutomationRule[];
     },
   });
 }
@@ -59,11 +61,11 @@ export function useCreateAutomationRule() {
 
       const { data, error } = await supabase
         .from('automation_rules')
-        .insert({ ...input, org_id: orgId as string })
+        .insert({ ...input, org_id: orgId as string } as unknown as TablesInsert<'automation_rules'>)
         .select('*')
         .single();
       if (error) throw error;
-      return data as AutomationRule;
+      return data as unknown as AutomationRule;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });
@@ -80,12 +82,12 @@ export function useUpdateAutomationRule() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('automation_rules')
-        .update(updates)
+        .update(updates as unknown as TablesUpdate<'automation_rules'>)
         .eq('id', id)
         .select('*')
         .single();
       if (error) throw error;
-      return data as AutomationRule;
+      return data as unknown as AutomationRule;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });

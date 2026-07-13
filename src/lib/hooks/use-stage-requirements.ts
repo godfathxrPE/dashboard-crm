@@ -6,6 +6,8 @@ import type {
   StageRequirement,
   RequirementType,
   StageRequirementConfig,
+  TablesInsert,
+  TablesUpdate,
 } from '@/types/database';
 
 const QUERY_KEY = ['stage-requirements'] as const;
@@ -61,11 +63,11 @@ export function useCreateStageRequirement() {
 
       const { data, error } = await supabase
         .from('stage_requirements')
-        .insert({ ...input, org_id: orgId as string })
+        .insert({ ...input, org_id: orgId as string } as unknown as TablesInsert<'stage_requirements'>)
         .select('*')
         .single();
       if (error) throw error;
-      return data as StageRequirement;
+      return data as unknown as StageRequirement;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });
@@ -82,12 +84,12 @@ export function useUpdateStageRequirement() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('stage_requirements')
-        .update(updates)
+        .update(updates as unknown as TablesUpdate<'stage_requirements'>)
         .eq('id', id)
         .select('*')
         .single();
       if (error) throw error;
-      return data as StageRequirement;
+      return data as unknown as StageRequirement;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });

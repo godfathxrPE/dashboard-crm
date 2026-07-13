@@ -30,7 +30,8 @@ export function describeEvent(entry: ActivityLog): string {
   }
 }
 
-export function relativeTime(date: string): string {
+export function relativeTime(date: string | null | undefined): string {
+  if (!date) return '—';
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'только что';

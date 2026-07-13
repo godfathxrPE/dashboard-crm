@@ -1,4 +1,6 @@
 import type { Database } from './database';
+import type { ColumnCategory } from './database';
+// `org_id` уже ослаблен до optional в ./database (RelaxOrgId) — здесь прямые ссылки.
 
 // Удобные алиасы для Row-типов из Supabase
 export type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -9,7 +11,11 @@ export type Task = Database['public']['Tables']['tasks']['Row'] & {
   project?: { id: string; name: string } | null;
   company?: { id: string; name: string } | null;
 };
-export type ProjectColumn = Database['public']['Tables']['project_columns']['Row'];
+// `category` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
+// Сужаем до ColumnCategory (значения гарантированы CHECK-инвариантом в БД).
+export type ProjectColumn = Omit<Database['public']['Tables']['project_columns']['Row'], 'category'> & {
+  category: ColumnCategory;
+};
 export type Call = Database['public']['Tables']['calls']['Row'];
 export type Meeting = Database['public']['Tables']['meetings']['Row'];
 export type Activity = Database['public']['Tables']['activities']['Row'];

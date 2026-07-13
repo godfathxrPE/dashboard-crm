@@ -112,7 +112,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                   {formatFileSize(f.file_size)}
                 </span>
                 <span className="shrink-0 text-xs text-text-mute">
-                  {new Date(f.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                  {new Date(f.created_at!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                 </span>
                 <button
                   onClick={() => handleDelete(f)}

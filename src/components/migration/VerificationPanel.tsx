@@ -34,7 +34,7 @@ export function VerificationPanel() {
     for (const t of TABLES) {
       try {
         const { count, error } = await supabase
-          .from(t.table)
+          .from(t.table as Parameters<typeof supabase.from>[0])
           .select('*', { count: 'exact', head: true });
 
         results.push({

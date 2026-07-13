@@ -105,7 +105,7 @@ export function useDeleteColumn(projectId: string) {
     mutationFn: async ({ id, targetId }: { id: string; targetId?: string | null }) => {
       const { error } = await supabase.rpc('delete_project_column', {
         p_column_id: id,
-        p_target_column_id: targetId ?? null,
+        p_target_column_id: targetId ?? undefined,
       });
       if (error) throw error;
     },

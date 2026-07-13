@@ -26,7 +26,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
     weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     weekStart.setHours(0, 0, 0, 0);
 
-    const inWeek = (dateStr: string) => new Date(dateStr) >= weekStart;
+    const inWeek = (dateStr: string | null | undefined) => !!dateStr && new Date(dateStr) >= weekStart;
 
     const tasksDone = (tasks ?? []).filter((t) => t.lane === 'done' && inWeek(t.updated_at));
     const callsDone = (calls ?? []).filter((c) => c.status === 'done' && inWeek(c.date));

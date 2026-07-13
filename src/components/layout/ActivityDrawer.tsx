@@ -262,7 +262,7 @@ function ActivityWidget() {
           <span>{(entry as any).project?.name ?? entry.event_type}</span>
           <span style={{ color: 'var(--text-mute)', fontSize: 10 }}>
             {(() => {
-              const mins = Math.floor((Date.now() - new Date(entry.created_at).getTime()) / 60000);
+              const mins = Math.floor((Date.now() - new Date(entry.created_at!).getTime()) / 60000);
               if (mins < 60) return `${mins}м`;
               const hrs = Math.floor(mins / 60);
               if (hrs < 24) return `${hrs}ч`;

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
-import type { TaskLane } from '@/types/database';
+import type { TaskLane, Json } from '@/types/database';
 import { logActivity } from './use-activity-log';
 
 const QUERY_KEY = ['tasks'] as const;
@@ -302,7 +302,7 @@ export function useReorderTasks() {
   return useMutation({
     mutationFn: async ({ moves }: { moves: TaskMove[]; affectsLane?: boolean }) => {
       if (moves.length === 0) return;
-      const { error } = await supabase.rpc('reorder_tasks', { p_moves: moves });
+      const { error } = await supabase.rpc('reorder_tasks', { p_moves: moves as unknown as Json });
       if (error) throw error;
     },
     onMutate: async ({ moves }) => {

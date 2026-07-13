@@ -38,7 +38,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
 
   // Дней с последней активности — из уже закешированного activity_log (без нового запроса)
   const lastActivityDays = entries.length > 0
-    ? Math.floor((Date.now() - new Date(entries[0].created_at).getTime()) / 86400000)
+    ? Math.floor((Date.now() - new Date(entries[0].created_at!).getTime()) / 86400000)
     : null;
 
   const dealHealth = calculateDealHealth(project);

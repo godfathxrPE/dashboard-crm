@@ -1,8 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-export async function createServerSupabaseClient() {
+// См. комментарий в client.ts: каст к SupabaseClient<Database> из-за ssr@0.5 × postgrest@2.100.
+export async function createServerSupabaseClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -25,5 +27,5 @@ export async function createServerSupabaseClient() {
         },
       },
     },
-  );
+  ) as unknown as SupabaseClient<Database>;
 }

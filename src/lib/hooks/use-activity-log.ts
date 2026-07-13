@@ -93,7 +93,7 @@ export async function logActivity(
       project_id: projectId,
       user_id: user.id,
       event_type: eventType,
-      payload,
+      payload: payload as Json,
     });
   } catch (err) {
     console.error('Activity log error:', err);

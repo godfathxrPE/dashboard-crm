@@ -26,7 +26,7 @@ export function useStageGate(
         p_target_stage_id: targetStageId!,
       });
       if (error) throw error;
-      return (data ?? []) as UnmetRequirement[];
+      return (data ?? []) as unknown as UnmetRequirement[];
     },
   });
 }

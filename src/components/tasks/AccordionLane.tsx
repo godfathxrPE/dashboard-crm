@@ -51,7 +51,7 @@ export function AccordionLane({
   const visibleTasks = useMemo(() => {
     if (lane !== 'done' || showAllDone) return tasks;
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-    return tasks.filter((t) => (t.updated_at ?? t.created_at) >= weekAgo);
+    return tasks.filter((t) => (t.updated_at ?? t.created_at ?? '') >= weekAgo);
   }, [tasks, lane, showAllDone]);
   const hiddenDone = tasks.length - visibleTasks.length;
 

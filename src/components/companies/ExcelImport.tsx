@@ -135,7 +135,7 @@ export function ExcelImportButton() {
     if (inns.length > 0) {
       const supabase = createClient();
       const { data } = await supabase.from('companies').select('inn').in('inn', inns);
-      setExistingInns(new Set((data ?? []).map((c) => c.inn).filter(Boolean)));
+      setExistingInns(new Set((data ?? []).map((c) => c.inn).filter((v): v is string => Boolean(v))));
     } else {
       setExistingInns(new Set());
     }

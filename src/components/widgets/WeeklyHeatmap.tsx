@@ -30,7 +30,7 @@ export function WeeklyHeatmap() {
       ).length;
 
       const taskCount = (tasks ?? []).filter(
-        (t) => t.lane === 'done' && t.updated_at.slice(0, 10) === dateStr
+        (t) => t.lane === 'done' && (t.updated_at ?? '').slice(0, 10) === dateStr
       ).length;
 
       const meetingCount = (meetings ?? []).filter(

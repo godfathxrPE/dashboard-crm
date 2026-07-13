@@ -46,7 +46,7 @@ export function ExportPanel() {
         case 'tasks':
           csv = toCSV(
             ['ID', 'Текст', 'Статус', 'Приоритет', 'Дедлайн', 'Создано'],
-            (tasks ?? []).map((t) => [t.id, t.text, t.lane, t.priority, t.deadline ?? '', t.created_at])
+            (tasks ?? []).map((t) => [t.id, t.text, t.lane, t.priority, t.deadline ?? '', t.created_at ?? ''])
           );
           downloadFile(csv, `tasks-${date}.csv`, 'text/csv;charset=utf-8');
           break;

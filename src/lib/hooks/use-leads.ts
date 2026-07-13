@@ -212,19 +212,19 @@ export function useConvertLead() {
       const supabase = createClient();
       const { data, error } = await supabase.rpc('convert_lead', {
         p_lead_id: params.leadId,
-        p_company_name: params.companyName ?? null,
-        p_contact_first_name: params.contactFirstName ?? null,
-        p_contact_last_name: params.contactLastName ?? null,
-        p_contact_phone: params.contactPhone ?? null,
-        p_contact_email: params.contactEmail ?? null,
+        p_company_name: params.companyName ?? undefined,
+        p_contact_first_name: params.contactFirstName ?? undefined,
+        p_contact_last_name: params.contactLastName ?? undefined,
+        p_contact_phone: params.contactPhone ?? undefined,
+        p_contact_email: params.contactEmail ?? undefined,
         p_direction: params.direction,
-        p_deal_title: params.dealTitle ?? null,
-        p_deal_amount: params.dealAmount ?? null,
-        p_company_id: params.companyId ?? null,
-        p_contact_id: params.contactId ?? null,
+        p_deal_title: params.dealTitle ?? undefined,
+        p_deal_amount: params.dealAmount ?? undefined,
+        p_company_id: params.companyId ?? undefined,
+        p_contact_id: params.contactId ?? undefined,
       });
       if (error) throw error;
-      return data as LeadConversionResult;
+      return data as unknown as LeadConversionResult;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['leads'] });
