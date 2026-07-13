@@ -10,22 +10,39 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLeads } from '@/lib/hooks/use-leads';
+import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 
+// jpLabel — фича washi (иероглифы + scramble на hover). Восстановлено из старого
+// Sidebar при слиянии в единый shell (AUDIT C6 follow-up, решение Олега).
 const NAV_ITEMS = [
-  { href: '/',          label: 'Сегодня',    short: 'Сг' },
-  { href: '/overview',  label: 'Обзор',      short: 'Об' },
-  { href: '/tasks',     label: 'Задачи',     short: 'Зд', badgeKey: 'tasks' as const },
-  { href: '/leads',     label: 'Лиды',       short: 'Лд', badgeKey: 'leads' as const },
-  { href: '/deals',     label: 'Сделки',    short: 'Сд' },
-  { href: '/projects',  label: 'Проекты',   short: 'Пр' },
-  { href: '/contacts',  label: 'Контакты',   short: 'Кн' },
-  { href: '/companies', label: 'Компании',   short: 'Км' },
-  { href: '/calls',     label: 'Звонки',     short: 'Зв', badgeKey: 'calls' as const },
-  { href: '/meetings',  label: 'Встречи',    short: 'Вс' },
-  { href: '/calendar',  label: 'Календарь',  short: 'Кл' },
-  { href: '/analytics', label: 'Аналитика',  short: 'Ан' },
-  { href: '/settings',  label: 'Настройки',  short: 'На' },
+  { href: '/',          label: 'Сегодня',    short: 'Сг', jpLabel: '今日' },
+  { href: '/overview',  label: 'Обзор',      short: 'Об', jpLabel: 'ダッシュボード' },
+  { href: '/tasks',     label: 'Задачи',     short: 'Зд', jpLabel: 'タスク管理', badgeKey: 'tasks' as const },
+  { href: '/leads',     label: 'Лиды',       short: 'Лд', jpLabel: 'リード',     badgeKey: 'leads' as const },
+  { href: '/deals',     label: 'Сделки',    short: 'Сд', jpLabel: '案件管理' },
+  { href: '/projects',  label: 'Проекты',   short: 'Пр', jpLabel: '導入管理' },
+  { href: '/contacts',  label: 'Контакты',   short: 'Кн', jpLabel: '連絡先' },
+  { href: '/companies', label: 'Компании',   short: 'Км', jpLabel: '企業一覧' },
+  { href: '/calls',     label: 'Звонки',     short: 'Зв', jpLabel: '通話記録', badgeKey: 'calls' as const },
+  { href: '/meetings',  label: 'Встречи',    short: 'Вс', jpLabel: '会議予定' },
+  { href: '/calendar',  label: 'Календарь',  short: 'Кл', jpLabel: 'カレンダー' },
+  { href: '/analytics', label: 'Аналитика',  short: 'Ан', jpLabel: '分析' },
+  { href: '/settings',  label: 'Настройки',  short: 'На', jpLabel: '設定' },
 ] as const;
+
+/** Washi: иероглифы по умолчанию, scramble катакана→русский на hover, русский — активный. */
+function WashiNavLabel({ label, jpLabel, isActive }: { label: string; jpLabel: string; isActive: boolean }) {
+  const { setRef, onMouseEnter, onMouseLeave } = useTextScramble(jpLabel, label, isActive);
+  return (
+    <span
+      ref={setRef}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="truncate"
+      style={{ fontFamily: "'Noto Sans JP', 'Manrope', system-ui, sans-serif" }}
+    />
+  );
+}
 
 // ═══════════════════════════════════════════════════════
 // Text-nav Sidebar (единый shell для всех тем, AUDIT C6)
@@ -36,7 +53,9 @@ export function TextNavSidebar() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   // Aura: активный пункт — полупрозрачная пилюля (не линия). Помечаем data-active.
-  const isAura = useThemeStore((s) => s.theme === 't-aura');
+  const theme = useThemeStore((s) => s.theme);
+  const isAura = theme === 't-aura';
+  const isWashi = theme === 't-washi';
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
   const { data: leads } = useLeads();
@@ -80,18 +99,18 @@ export function TextNavSidebar() {
       )}
       style={{ borderWidth: '0.5px' }}
     >
-      {/* Logo */}
+      {/* Logo — Torii-брендинг для тёмных тем, БИТ.IIOT для aura (кожа, не структура) */}
       <div className="flex h-14 items-center gap-3 px-4 shrink-0" style={{ borderBottom: '0.5px solid var(--border)' }}>
         <div
           className="logo-icon flex h-7 w-7 shrink-0 items-center justify-center text-[11px] font-semibold"
           style={{ border: '1px solid var(--border)', borderRadius: '6px' }}
         >
-          ОП
+          {isAura ? 'ОП' : 'TC'}
         </div>
         {sidebarOpen && (
           <div className="min-w-0">
-            <div className="text-[13px] font-medium text-text-main truncate">Dashboard</div>
-            <div className="text-[10px] text-text-mute truncate">БИТ.IIOT</div>
+            <div className="text-[13px] font-medium text-text-main truncate">{isAura ? 'Dashboard' : 'Torii CRM'}</div>
+            {isAura && <div className="text-[10px] text-text-mute truncate">БИТ.IIOT</div>}
           </div>
         )}
       </div>
@@ -126,7 +145,9 @@ export function TextNavSidebar() {
               )}
               {sidebarOpen ? (
                 <>
-                  <span className="truncate">{item.label}</span>
+                  {isWashi
+                    ? <WashiNavLabel label={item.label} jpLabel={item.jpLabel} isActive={active} />
+                    : <span className="truncate">{item.label}</span>}
                   {badge > 0 && <span className="text-[10px] text-text-mute">{badge}</span>}
                 </>
               ) : (
