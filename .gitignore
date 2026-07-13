@@ -46,3 +46,4 @@ _*.mjs
 .~lock.*#
 .claude/
 .claude/
+.fuse_hidden*
