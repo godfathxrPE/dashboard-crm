@@ -1,5 +1,10 @@
 # Database Schema — dashboard-crm
 
+> **База репозитория (AUDIT-B):** цепочка 001–039 архивирована в `supabase/migrations/archive/`
+> (НЕ реплеится), точка сборки схемы с нуля — снимок прода `20260712230000_baseline.sql`
+> (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
+> `supabase/migrations/README.md`).
+>
 > **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции 001–039 (035–038 delivery, 039 reorder_tasks — применены гейтом Cowork 2026-07-12). Фаза 1 multi-user
 > завершена: S23 мультитенантность (021/022), S24 org-scoped RLS (023), S25 командная
 > видимость + hardening (024), S26 notifications + invitations + write-политики memberships
@@ -57,6 +62,15 @@
 
 > **Pending:** миграция 035 на гейте (см. выше); финальный генеративный смок S28
 > ждёт кредитов Anthropic — см. «Гейт-хвосты», DDL применён.
+>
+> **040 `rls_hardening` (AUDIT-B2, PENDING — гейт Cowork):** org-гард в WITH CHECK
+> INSERT-политик `transcripts_insert`/`ai_runs_insert` (2.3); `notif_update` получил
+> WITH CHECK = USING (2.10); `apply_pending_invites` +параметр `p_email_confirmed`
+> (членство по инвайту только при подтверждённом email; `handle_new_user` прокидывает
+> `email_confirmed_at IS NOT NULL`) — minimal-фикс, полный token-flow в следующем спринте
+> (2.4); `kpi_entries.profile_id` FK → **ON DELETE CASCADE** (отклонение от SET NULL:
+> колонка NOT NULL + в UNIQUE — см. комментарий в миграции; activities/scheduled_calls
+> уже SET NULL в проде — не трогаем) (2.6).
 >
 > Собрано интроспекцией живой БД + `supabase/migrations`; актуально на 2026-07-09.
 
