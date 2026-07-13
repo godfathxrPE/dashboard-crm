@@ -334,33 +334,8 @@
   border-radius: 50%;
 }
 
-/* ── Washi: Sumi Header ── */
-.t-washi header {
-  background: var(--sidebar-bg) !important;
-  border-bottom: 1px solid var(--sidebar-border) !important;
-  box-shadow: none !important;
-}
-/* Override text/icon colors inside header */
-.t-washi header { color: #E8E2D8; }
-.t-washi header .text-text-dim { color: rgba(232,226,216,0.5) !important; }
-.t-washi header .text-text-mute { color: rgba(232,226,216,0.35) !important; }
-.t-washi header .text-text-main { color: #E8E2D8 !important; }
-.t-washi header svg,
-.t-washi header .lucide { color: rgba(232,226,216,0.45) !important; }
-.t-washi header button:hover { background: rgba(232,226,216,0.05) !important; }
-.t-washi header button:hover svg { color: rgba(232,226,216,0.7) !important; }
-/* Search button */
-.t-washi header .border-border { border-color: rgba(232,226,216,0.12) !important; }
-.t-washi header kbd { border-color: rgba(232,226,216,0.12) !important; color: rgba(232,226,216,0.35) !important; background: transparent !important; }
-/* Theme dropdown stays on light surface (it's absolute-positioned in content zone) */
-.t-washi header .absolute.right-0 {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-.t-washi header .absolute.right-0 .text-text-dim { color: var(--text-dim) !important; }
-.t-washi header .absolute.right-0 .text-accent { color: var(--accent) !important; }
-.t-washi header .absolute.right-0 button:hover { background: var(--surface2) !important; }
+/* AUDIT C6: удалён блок `.t-washi header {…}` — таргетил снятый верхний nav-Header.
+   Заголовки страниц лежат в page-level <header> и должны быть нейтральны (как aura). */
 
 /* Washi: CTA buttons — outline default, torii fill on hover, underline draw.
    Targets .btn-primary AND inline-Tailwind CTA buttons (bg-accent + text-white). */
@@ -481,31 +456,7 @@
 .t-fuji aside .border-border\/50,
 .t-fuji aside .border-t { border-color: var(--sidebar-border) !important; }
 
-/* Header */
-.t-fuji header {
-  background: var(--sidebar-bg) !important;
-  border-bottom: 1px solid var(--sidebar-border) !important;
-  box-shadow: none !important;
-}
-.t-fuji header { color: #E8DBbf; }
-.t-fuji header .text-text-dim { color: rgba(232,219,191,0.5) !important; }
-.t-fuji header .text-text-mute { color: rgba(232,219,191,0.35) !important; }
-.t-fuji header .text-text-main { color: #E8DBbf !important; }
-.t-fuji header svg,
-.t-fuji header .lucide { color: rgba(232,219,191,0.45) !important; }
-.t-fuji header button:hover { background: rgba(232,219,191,0.05) !important; }
-.t-fuji header button:hover svg { color: rgba(232,219,191,0.7) !important; }
-.t-fuji header .border-border { border-color: rgba(232,219,191,0.12) !important; }
-.t-fuji header kbd { border-color: rgba(232,219,191,0.12) !important; color: rgba(232,219,191,0.35) !important; background: transparent !important; }
-/* Theme dropdown stays on light surface */
-.t-fuji header .absolute.right-0 {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-.t-fuji header .absolute.right-0 .text-text-dim { color: var(--text-dim) !important; }
-.t-fuji header .absolute.right-0 .text-accent { color: var(--accent) !important; }
-.t-fuji header .absolute.right-0 button:hover { background: var(--surface2) !important; }
+/* AUDIT C6: удалён блок `.t-fuji header {…}` — таргетил снятый верхний nav-Header. */
 
 /* ── Fuji: CTA buttons — pill outline, gold gradient fill on hover ── */
 .t-fuji .btn-primary,
@@ -586,15 +537,7 @@
   z-index: 20;
   pointer-events: none;
 }
-.t-fuji header::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 0;
-  box-shadow: 0 8px 16px rgba(26,39,68,0.10), 0 3px 6px rgba(26,39,68,0.06);
-  z-index: 20;
-  pointer-events: none;
-}
+/* AUDIT C6: `.t-fuji header::after` (тень верхнего nav-Header) удалён вместе с Header. */
 
 /* ── Fuji: Logo — suna gold gradient ── */
 .t-fuji .logo-icon {
@@ -1197,17 +1140,8 @@ input[type="checkbox"]:indeterminate {
    ПОВЕРХ них; если WebGL недоступен, CSS-орбы остаются и атмосфера не
    исчезает. Дублирования нет: оба сдержанные, складываются мягко.     */
 
-/* Frost/Aurora header glass */
-.t-frost header, .t-aurora header {
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  background: rgba(13,16,32,0.6) !important;
-}
-.t-tidal header {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: rgba(8,15,13,0.7) !important;
-}
+/* AUDIT C6: `.t-frost/.t-aurora/.t-tidal header` (стекло верхнего nav-Header)
+   удалены — Header снят, эти правила иначе красили page-level <header> тёмным стеклом. */
 
 /* Glass-theme sticky thead blur */
 .t-frost table thead th {
@@ -1448,17 +1382,14 @@ input[type="checkbox"]:indeterminate {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Sidebar + Header stay in place */
+/* Sidebar stays in place между переходами. AUDIT C6: `header {view-transition-name}`
+   удалён — таргетил снятый верхний nav-Header; на page-level <header> он ошибочно
+   исключал заголовок из перехода страницы (заголовок должен ехать с контентом). */
 aside[aria-label="Основная навигация"] {
   view-transition-name: sidebar;
 }
-header {
-  view-transition-name: header;
-}
 ::view-transition-old(sidebar),
-::view-transition-new(sidebar),
-::view-transition-old(header),
-::view-transition-new(header) {
+::view-transition-new(sidebar) {
   animation: none;
 }
 

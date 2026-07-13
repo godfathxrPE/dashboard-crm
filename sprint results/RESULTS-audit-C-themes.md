@@ -1,7 +1,10 @@
 # RESULTS — Sprint AUDIT-C «Темы: дефолт aura, минус три темы, один shell»
 
 Дата: 2026-07-13 · Ветка: `main` · Промт: `_analysis/sprint-audit-C-themes.md`
-Статус: **реализовано, НЕ закоммичено** (визуальный регресс-прогон по 6 темам — человеческий гейт, см. §5).
+Статус: **спринт закоммичен** (`313d512 feat(themes)!: AUDIT C …`), визуально верифицирован
+на живом сервере (localhost:3000). В ходе прогона найдена и **исправлена** регрессия
+(тёмный бар за заголовком страницы в washi/fuji/frost/aurora/tidal — §4a); **фикс §4a +
+этот отчёт пока НЕ закоммичены** (правки `globals.css`, follow-up к 313d512).
 
 ---
 
@@ -11,8 +14,8 @@
 переведены на **единый shell** (вертикальное текстовое меню `TextNavSidebar` +
 `ContentHeader`). Иконочный `Sidebar` и верхний `Header` удалены.
 
-- **26 файлов** изменено: `+124 / −1575` (нетто **−1451** строки).
-- `globals.css`: **2288 → 1621** строк (−667; удалён ~620-строчный `.t-scandi`-блок + токен-блоки paper/sand + декорации + разбросанные `.t-scandi`-правила).
+- **26 файлов** в спринт-коммите `313d512`: `+124 / −1575` (нетто **−1451** строки); + follow-up фикс §4a (`globals.css`, ещё −69 строк).
+- `globals.css`: **2288 → 1552** строк (−736; удалён ~620-строчный `.t-scandi`-блок + токен-блоки paper/sand + декорации + разбросанные `.t-scandi`-правила + осиротевшие `.t-<theme> header` правила §4a).
 - Удалено 4 файла (`Header.tsx`, `Sidebar.tsx`, `ui/Watermark.tsx`, `ui/WatermarkNew.tsx`), 2 переименовано (`ScandiSidebar→TextNavSidebar`, `ScandiContentHeader→ContentHeader`).
 - `grep -r "t-scandi|t-paper|t-sand|SCANDI_" src` = **0** (единственное упоминание — намеренный `LEGACY_THEMES` в `theme-store.ts` для миграции persisted).
 
@@ -68,7 +71,8 @@ tr:hover .add-on-hover, tr:focus-within .add-on-hover { color: var(--text-mute);
 | `python3 scripts/audit-contrast.py` | ✓ **0 FAIL** для aura/washi/fuji/frost/aurora/tidal (38–41 пар/тема) |
 | `vitest run` | ✓ 102/102 (13 файлов) |
 | `grep -r "t-scandi\|t-paper\|t-sand\|SCANDI_" src` | 0 (кроме `LEGACY_THEMES` — намеренно) |
-| Баланс скобок `globals.css` | 330 `{` / 330 `}` |
+| Баланс скобок `globals.css` | 301 `{` / 301 `}` |
+| **Живой прогон** (localhost:3000, `next dev`) | ✅ см. §6 — все 6 сценариев |
 
 `scripts/audit-contrast.py` обновлён под 6 тем: убраны scandi/paper/sand из `theme_selectors`, снят разбор scandi-dark `@media` и scandi-outline/scandi-dark-yellow override-ветки.
 
@@ -87,28 +91,49 @@ tr:hover .add-on-hover, tr:focus-within .add-on-hover { color: var(--text-mute);
 4. **Переименованы также `ScandiHeroCard→HeroCard`, удалён `ScandiWidgetWrap`** —
    промт их явно не называл, но `Scandi`-нейминг в коде убран для консистентности.
 
+## 4a. РЕГРЕССИЯ, найденная и исправленная в живом прогоне
+
+**Симптом:** в washi (и по коду — fuji/frost/aurora/tidal) за заголовком страницы
+(«Сегодня») появлялся **тёмный charcoal-бар** `rgb(44,44,44)` + тень.
+
+**Причина:** заголовки страниц лежат в page-level `<header>` (напр. Today: `<header class="mb-8">`).
+Тема-специфичные правила `.t-washi/.t-fuji/.t-frost/.t-aurora/.t-tidal header {…}` были
+написаны под **верхний nav-`Header`**, который C6 удалил. Осиротев, они «протекли» на
+контентные `<header>` и красили их тёмным стеклом/сумэ. Плюс глобальный
+`header { view-transition-name: header }` исключал заголовок из перехода страницы.
+
+**Фикс (`globals.css`):** удалены все `.t-<theme> header{…}` блоки (washi, fuji,
+`.t-fuji header::after`, frost/aurora/tidal glass) и глобальный `header`
+view-transition-name (+ его `::view-transition-*(header)`). `aside`-view-transition
+(sidebar) сохранён. **Проверено вживую:** во всех 6 темах `<header>` теперь
+`background: transparent`, `box-shadow: none` — заголовок чистый (§6, сценарий 5).
+
+Статические проверки (tsc/build/audit/vitest/grep) это **не ловили** — регрессия
+чисто визуальная, вскрылась только live-прогоном.
+
 ---
 
-## 5. НЕ сделано / требует человека
+## 5. Замечания / follow-up
 
-1. **Живой визуальный регресс-прогон по 6 темам — ОБЯЗАТЕЛЕН и НЕ выполнен.**
-   Промт помечает его как гейт («визуальный регресс-прогон по 6 темам обязателен»),
-   а Chrome в этой сессии не залогинен. Нужно вручную прогнать тест-сценарии §6.
-2. **Мёртвый CSS сайдбара washi/fuji.** `.t-washi/.t-fuji aside .nav-item` и
-   `.nav-active` таргетили классы **старого** иконочного `Sidebar`. `TextNavSidebar`
-   помечает пункты атрибутами `data-nav-item`/`data-active` (не классами) — значит эти
-   ~22 селектора теперь **не матчат ничего** (безвредны, но cruft). Фон/цвета `aside`
-   (`.t-washi aside {…}`, `.t-washi aside .text-text-main`) — по-прежнему применяются.
-   Активный пункт в тёмных темах падает на JS-фолбэк `TextNavSidebar` (2px-линия
-   `var(--text)`), пилюля — только у aura (`.t-aura aside nav a[data-active]`).
-   → **Follow-up:** после визуального прогона решить — до-стилизовать общий скелет под
-   тёмные темы или снести мёртвые `.nav-item`/`.nav-active` washi/fuji.
-3. **Коммиты не сделаны.** Промт предлагает 3 коммита (C1 / C2-3 / C4-6!). Оставил на
-   Олега, т.к. §5.1 — человеческий гейт. Предлагаемая разбивка:
+1. **Мёртвый CSS сайдбара washi/fuji (не ломает, cruft).** `.t-washi/.t-fuji aside .nav-item`
+   и `.nav-active` таргетили классы **старого** иконочного `Sidebar`. `TextNavSidebar`
+   помечает пункты атрибутами `data-nav-item`/`data-active` — значит ~22 селектора теперь
+   **не матчат ничего**. Фон/цвета `aside` (`.t-washi aside {…}`) — по-прежнему применяются,
+   поэтому сайдбар в тёмных темах выглядит связно (проверено: fuji/aurora/washi — §6).
+   Активный пункт вне aura — JS-фолбэк 2px-линия `var(--text)`; пилюля только у aura.
+   → **Follow-up (не блокер):** снести мёртвые `.nav-item`/`.nav-active` washi/fuji или
+   до-стилизовать общий скелет — на вкус.
+2. **Persisted-строка legacy-темы не переписывается сразу.** `merge` мигрирует тему
+   **в памяти** (юзер всегда видит валидную тему — проверено: t-scandi/t-paper →
+   `<html class="t-aura">`), но zustand-persist не перезаписывает `localStorage` при
+   рехидрации — стейл-строка (`t-paper`) живёт до первой смены темы, потом самолечится.
+   Косметика, не влияет на рендер. (В тесте многотабовость Supabase иногда перетирала
+   `localStorage` — это артефакт двух открытых вкладок, не баг миграции.)
+3. **Коммиты.** Спринт закоммичен Олегом одним коммитом `313d512`. Фикс §4a + этот отчёт
+   пока в рабочем дереве (uncommitted) — предлагаю follow-up-коммит:
    ```
-   feat(themes): дефолт aura + миграция persisted (AUDIT C1)
-   refactor(themes): глобальные правила вынесены из scandi; add-on-hover на row-hover глобально (AUDIT C2-3)
-   feat(themes)!: удалены scandi/paper/sand; единый shell TextNavSidebar для всех тем (AUDIT C4-6)
+   fix(themes): убраны осиротевшие .t-<theme> header правила — тёмный бар за заголовком
+   страницы в washi/fuji/frost/aurora/tidal после снятия верхнего Header (AUDIT C6)
    ```
 
 ---
@@ -117,12 +142,12 @@ tr:hover .add-on-hover, tr:focus-within .add-on-hover { color: var(--text-mute);
 
 | # | Сценарий | Статус |
 |---|---|---|
-| 1 | Чистый localStorage → первый рендер aura, без вспышки/hydration-warning | ⏳ нужен браузер (логика: SSR-класс `t-aura` + inline-init) |
-| 2 | localStorage `t-scandi` → авто-миграция на aura | ⏳ нужен браузер (3 уровня миграции, §C1) |
-| 3 | 6 тем: переключение, непрозрачные модалки, z-index, reduced-motion | ⏳ **регресс-прогон** (audit 0 FAIL — статически) |
-| 4 | Таблица с пустыми ячейками: ghost-CTA только на hover/focus строки, во всех темах | ⏳ нужен браузер (правило `.add-on-hover` глобально) |
-| 5 | Навигация идентична во всех темах (один shell) | ⏳ нужен браузер (см. §5.2 про washi/fuji) |
-| 6 | `tsc/build` зелёные; grep scandi/paper/sand/SCANDI_ = 0 | ✅ **выполнено** |
+| 1 | Чистый localStorage → первый рендер aura, без вспышки/hydration-warning | ✅ `<html class="t-aura">`; в консоли только Supabase auth-lock warnings (не hydration, не тема) |
+| 2 | localStorage `t-scandi`/`t-paper` → авто-миграция на aura | ✅ оба → `<html class="t-aura">`, scandi/paper не рендерятся (см. §5.2 про стейл-строку) |
+| 3 | 6 тем: переключение живо, непрозрачные модалки, z-index | ✅ переключение без reload; frost: CommandPalette `[data-modal]` bg `#1e2233` opaque, overlay z-999 / modal z-1000 |
+| 4 | Пустые ячейки: ghost-CTA только на hover/focus строки, во всех темах | ✅ /companies в **frost**: 49 `.add-on-hover` default `transparent`, hover строки → «+ добавить» виден; правило глобальное с `tr:focus-within` |
+| 5 | Навигация/заголовок идентичны во всех темах (один shell) | ✅ aura/washi/fuji/frost/aurora проверены; **найдена+исправлена** регрессия тёмного бара (§4a) |
+| 6 | `tsc/build` зелёные; grep scandi/paper/sand/SCANDI_ = 0 | ✅ выполнено |
 
 ---
 
@@ -157,4 +182,4 @@ src/components/projects/ProjectDetail.tsx      dead isScandi убран
 src/components/settings/SettingsContent.tsx    theme-список 6 тем
 ```
 
-**VERIFICATION (факт):** Type Safety ✅ | RLS N/A | Backward Compat ✅ (миграция persisted, статически) | Runtime ⚠️ **NOT_VERIFIED** — визуальный регресс-прогон по 6 темам обязателен (§5.1).
+**VERIFICATION (факт):** Type Safety ✅ | RLS N/A | Backward Compat ✅ (миграция persisted — проверена вживую) | Runtime ✅ **VERIFIED** — живой прогон 6 тем на localhost:3000, найдена+исправлена 1 визуальная регрессия (§4a).
