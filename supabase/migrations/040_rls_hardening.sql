@@ -119,8 +119,13 @@ BEGIN
 END; $$;
 
 ALTER FUNCTION "public"."apply_pending_invites"("uuid", "text", boolean) OWNER TO "postgres";
-REVOKE ALL ON FUNCTION "public"."apply_pending_invites"("uuid", "text", boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."apply_pending_invites"("uuid", "text", boolean) TO "service_role";
+-- ГЕЙТ-ФИКС Cowork: default privileges схемы public раздают EXECUTE anon/authenticated
+-- на КАЖДУЮ новую функцию; REVOKE FROM PUBLIC их НЕ снимает (урок P1). Без явного
+-- revoke новая сигнатура стала бы вызываемой через REST rpc → угон чужого инвайта
+-- самозарегистрированным authenticated. Старая функция на проде: service_role-only
+-- (verified has_function_privilege 2026-07-13) — реплицируем.
+REVOKE ALL ON FUNCTION "public"."apply_pending_invites"("uuid", "text", boolean) FROM PUBLIC, "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION "public"."apply_pending_invites"("uuid", "text", boolean) TO "service_role";
 
 -- Прокидываем флаг подтверждения из auth.users в обновлённую сигнатуру.
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger"
