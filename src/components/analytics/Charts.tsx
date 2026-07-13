@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis,
@@ -9,13 +9,10 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { cn } from '@/lib/utils/cn';
 
 /* ── Цвета ── */
 const LANE_LABELS: Record<string, string> = { now: 'Сейчас', next: 'Следующие', wait: 'Отложено', done: 'Выполнено' };
 const LANE_COLORS: Record<string, string> = { now: 'var(--accent)', next: 'var(--blue)', wait: 'var(--yellow)', done: 'var(--green)' };
-const SCANDI_MONO_LANE: Record<string, string> = { done: '#3E6B58', wait: '#6D5D7B', now: '#5B5EA6', next: '#3D6B7E' };
-const VIVID_LANE: Record<string, string> = { now: '#5B5EA6', next: '#3D6B7E', wait: '#6D5D7B', done: '#3E6B58' };
 const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
 
 /* phase_group (источник истины — pipeline_stages) → label + ключ цвета (legacy phase-палитра выше).
@@ -27,7 +24,6 @@ const PHASE_GROUP_LABEL: Record<string, string> = {
 const PHASE_GROUP_COLOR_KEY: Record<string, string> = {
   attraction: 'attract', working: 'develop', approval: 'negotiate', closing: 'close',
 };
-const VIVID_PHASE: Record<string, string> = { attract: '#3D6B7E', develop: '#4A5E8A', negotiate: '#5B5EA6', close: '#6D5D7B' };
 
 /* Aura: сочные градиенты [насыщенный, светлее] per lane/phase для SVG defs */
 const AURA_DONUT: Record<string, [string, string]> = {
@@ -46,9 +42,7 @@ const TT_C = { fill: 'var(--surface2)', opacity: 0.5 };
 export function TasksDistribution() {
   const { data: tasks } = useTasks();
   const theme = useThemeStore((s) => s.theme);
-  const isScandi = theme === 't-scandi';
   const isAura = theme === 't-aura';
-  const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!tasks) return [];
@@ -59,7 +53,6 @@ export function TasksDistribution() {
       .map((lane) => ({ lane, name: LANE_LABELS[lane], value: counts[lane] }));
   }, [tasks]);
 
-  const active = isScandi && hovered;
   const total = chartData.reduce((s, d) => s + d.value, 0);
 
   const arcs = useMemo(() => {
@@ -88,11 +81,7 @@ export function TasksDistribution() {
   }
 
   return (
-    <div
-      className={cn('p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="p-4 rounded-lg bg-surface elevation-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
       <div className="h-48 flex items-center justify-center">
         <svg viewBox="0 0 200 200" width="160" height="160" style={isAura ? { overflow: 'visible' } : undefined}>
@@ -114,9 +103,7 @@ export function TasksDistribution() {
           <g filter={isAura ? 'url(#donut-glow)' : undefined}>
             {arcs.map((arc) => {
               const auraFill = `url(#donut-${arc.lane})`;
-              const fill = isAura
-                ? auraFill
-                : active ? (VIVID_LANE[arc.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[arc.lane] ?? '#888') : (LANE_COLORS[arc.lane] ?? '#888');
+              const fill = isAura ? auraFill : (LANE_COLORS[arc.lane] ?? '#888');
               return (
                 <path
                   key={arc.lane}
@@ -140,18 +127,13 @@ export function TasksDistribution() {
         </svg>
       </div>
       <div className="flex justify-center gap-4 mt-2">
-        {chartData.map((d, i) => {
-          const color = active ? (VIVID_LANE[d.lane] ?? '#888') : isScandi ? (SCANDI_MONO_LANE[d.lane] ?? '#888') : (LANE_COLORS[d.lane] ?? '#888');
-          const shapes = ['filled-sq', 'empty-sq', 'filled-circle', 'half-circle'] as const;
-          const shape = isScandi ? shapes[i % shapes.length] : 'filled-sq';
+        {chartData.map((d) => {
+          const color = LANE_COLORS[d.lane] ?? '#888';
           return (
             <div key={d.lane} className="flex items-center gap-1.5 text-[10px]">
               <span className="w-2.5 h-2.5 inline-block shrink-0" style={{
-                background: shape === 'half-circle'
-                  ? `linear-gradient(90deg, ${color} 50%, transparent 50%)`
-                  : (shape === 'filled-sq' || shape === 'filled-circle') ? color : 'transparent',
-                border: shape === 'empty-sq' || shape === 'half-circle' ? `1.5px solid ${color}` : 'none',
-                borderRadius: shape.includes('circle') ? '50%' : '1px',
+                background: color,
+                borderRadius: '1px',
                 transition: 'background 0.5s ease, border-color 0.5s ease',
               }} />
               <span style={{ color: 'var(--text-dim)' }}>{d.name}</span>
@@ -168,9 +150,7 @@ export function PipelineChart() {
   const { data: projects } = useProjects();
   const { data: pipelineStages } = usePipelineStages();
   const theme = useThemeStore((s) => s.theme);
-  const isScandi = theme === 't-scandi';
   const isAura = theme === 't-aura';
-  const [hovered, setHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!projects) return [];
@@ -187,14 +167,8 @@ export function PipelineChart() {
     }));
   }, [projects, pipelineStages]);
 
-  const active = isScandi && hovered;
-
   return (
-    <div
-      className={cn('p-4 min-w-0 overflow-hidden', !isScandi && 'rounded-lg bg-surface elevation-hover')}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="p-4 min-w-0 overflow-hidden rounded-lg bg-surface elevation-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Сделки по фазам</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
@@ -212,12 +186,11 @@ export function PipelineChart() {
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-mute)' }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TT} labelStyle={TT_L} itemStyle={TT_I} cursor={TT_C} />
-            <Bar dataKey="count" name="Сделок" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out"
-              activeBar={isScandi ? { fill: '#333', opacity: 1 } : undefined}>
+            <Bar dataKey="count" name="Сделок" radius={[0, 6, 6, 0]} isAnimationActive={false} animationDuration={700} animationEasing="ease-out">
               {chartData.map((entry) => (
                 <Cell
-                  key={`bar-${entry.phase}-${active}`}
-                  fill={isAura ? `url(#phase-${entry.phase})` : active ? (VIVID_PHASE[entry.phase] ?? '#888') : (PHASE_COLORS[entry.phase] ?? '#888')}
+                  key={`bar-${entry.phase}`}
+                  fill={isAura ? `url(#phase-${entry.phase})` : (PHASE_COLORS[entry.phase] ?? '#888')}
                   style={{ transition: 'fill 0.5s ease' }}
                 />
               ))}

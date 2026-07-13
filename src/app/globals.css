@@ -82,70 +82,6 @@
   --track-nego-done: #78350f; --track-nego-current: #F0C45E;
   --track-proj-done: #500724; --track-proj-current: #db2777;
 }
-/* ═══ Paper (light, editorial) ═══ */
-.t-paper {
-  --bg: #f5f0e0;  --surface: #fdf8ec;  --surface2: #ede8d4;  --surface3: #dfd8c2;
-  --border: #c8bfa0;  --border2: #a89878;  --border-input: #8d8272;  /* P2 §1.4.11: 3.56:1 к surface, тёплый ink */
-  --text: #1a1508;  --text-dim: #6b5a3e;  --text-mute: #6d5c46;  /* P1 §2.7: 3.7:1 на surface3 → 4.51:1 */
-  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
-  --accent: #8b3a1a;  --accent-l: rgba(139,58,26,0.08);  --accent-l2: rgba(139,58,26,0.15);
-  --green: #2e6b3a;  --green-l: rgba(46,107,58,0.09);
-  --red: #b02820;  --red-l: rgba(176,40,32,0.09);
-  --blue: #1a4878;  --blue-l: rgba(26,72,120,0.09);
-  --yellow: #7a5c10;  --yellow-l: rgba(122,92,16,0.09);  --yellow-text: #7d5717;  /* P1 §T1: :root #92661d 4.45:1 → 5.67:1 на paper bg */
-  --purple: #5b3a8a;  --purple-l: rgba(91,58,138,0.09);
-  --radius: 2px;  --radius-s: 1px;  --radius-m: 2px;  --radius-l: 4px;
-  --shadow-xs: 0 1px 2px rgba(26,21,8,0.06);
-  --shadow-sm: 0 1px 3px rgba(26,21,8,0.08), 0 1px 2px rgba(26,21,8,0.04);
-  --shadow-md: 0 4px 12px rgba(26,21,8,0.08);
-  --shadow-lg: 0 10px 32px rgba(26,21,8,0.12);
-  --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
-  --elevation-0: none;
-  --elevation-1: 0 1px 3px rgba(26,21,8,0.08), 0 1px 2px rgba(26,21,8,0.04);
-  --elevation-2: 0 4px 12px rgba(26,21,8,0.10), 0 2px 4px rgba(26,21,8,0.04);
-  --elevation-3: 0 12px 40px rgba(26,21,8,0.16), 0 4px 8px rgba(26,21,8,0.06);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
-  --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #d1fae5; --track-prep-current: #34d399;
-  --track-exp-done: #ede9fe;  --track-exp-current: #a78bfa;
-  --track-nego-done: #fef3c7; --track-nego-current: #7a5c10;
-  --track-proj-done: #fce7f3; --track-proj-current: #f472b6;
-}
-
-/* ═══ Sand (light, brutalist) ═══ */
-.t-sand {
-  --bg: #f0e8d8;  --surface: #faf5ea;  --surface2: #e8dfc8;  --surface3: #dad0b8;
-  --border: #c0a880;  --border2: #a08860;  --border-input: #8c7c5c;  /* P2 §1.4.11: 3.75:1 к surface, тёплый */
-  --text: #1c1208;  --text-dim: #6b4e2a;  --text-mute: #6b563f;  /* P1 §2.7: 3.7:1 на surface3 → 4.52:1 */
-  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
-  /* P1 §T2: заливка --accent затемнена #c05828 → #b04e20 (белый текст 4.5→5.31:1),
-     терракота сохранена; .text-accent идёт через --accent-text (P1 §2.5). */
-  --accent: #b04e20;  --accent-l: rgba(192,88,40,0.08);  --accent-l2: rgba(192,88,40,0.16);  --accent-text: #9A431C;  /* text-accent 3.69:1 → 5.4:1 на bg */
-  --green: #3a6820;  --green-l: rgba(58,104,32,0.09);
-  --red: #a02010;  --red-l: rgba(160,32,16,0.09);
-  --blue: #284870;  --blue-l: rgba(40,72,112,0.09);
-  --yellow: #806010;  --yellow-l: rgba(128,96,16,0.09);  --yellow-text: #7a5214;  /* P1 §T1: :root #92661d 4.16:1 → 5.66:1 на sand bg */
-  --purple: #604020;  --purple-l: rgba(96,64,32,0.09);
-  --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
-  --shadow-xs: 1px 1px 0 rgba(28,18,8,0.06);
-  --shadow-sm: 2px 2px 0 rgba(28,18,8,0.08);
-  --shadow-md: 3px 3px 0 rgba(28,18,8,0.10);
-  --shadow-lg: 5px 5px 0 rgba(28,18,8,0.14);
-  --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
-  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
-  --elevation-0: none;
-  --elevation-1: 2px 2px 0 rgba(28,18,8,0.08);
-  --elevation-2: 3px 3px 0 rgba(28,18,8,0.12);
-  --elevation-3: 5px 5px 0 rgba(28,18,8,0.18);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
-  --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #d1fae5; --track-prep-current: #34d399;
-  --track-exp-done: #ede9fe;  --track-exp-current: #a78bfa;
-  --track-nego-done: #fef3c7; --track-nego-current: #806010;
-  --track-proj-done: #fce7f3; --track-proj-current: #f472b6;
-}
-
 /* ═══ Aurora (dark, neon) ═══ */
 .t-aurora {
   --bg: #0a0e1a;  --surface: rgba(255,255,255,0.055);  --surface2: rgba(255,255,255,0.035);  --surface3: rgba(255,255,255,0.08);
@@ -749,307 +685,10 @@
   border-radius: 0 0 4px 4px;
 }
 
-/* ═══ Scandinavian (monochrome, zero-radius) ═══ */
-.t-scandi {
-  --bg: #fafafa;  --surface: #fafafa;  --surface2: rgba(0,0,0,0.03);  --surface3: rgba(0,0,0,0.06);
-  --border: rgba(0,0,0,0.2);  --border2: rgba(0,0,0,0.4);  --border-input: rgba(0,0,0,0.45);  /* P2 §1.4.11: 3.33:1 к surface */
-  --text: #1a1a1a;  --text-dim: rgba(0,0,0,0.66);  --text-mute: rgba(0,0,0,0.60);  /* P1 §2.7: 4.28:1 на surface3 → 4.96:1 (тише dim 0.66) */
-  --bracket-color: #DDD5E2;  --ring-active: #444444;  --ring-track: #e8e8e8;
-  --frost-bg: rgba(250,250,250,0.78);  --frost-blur: blur(20px) saturate(120%);
-  accent-color: var(--text);
-  --sidebar-indicator: transparent;  --sidebar-active-text: #1a1a1a;
-  --accent: #1a1a1a;  --accent-l: rgba(0,0,0,0.06);  --accent-l2: rgba(0,0,0,0.12);
-  --font-app: var(--font-inter, 'Inter');
-  letter-spacing: -0.011em;
-  --green: rgba(0,0,0,0.7);  --green-l: rgba(0,0,0,0.05);
-  --red: rgba(0,0,0,0.8);  --red-l: rgba(0,0,0,0.05);
-  --blue: rgba(0,0,0,0.65);  --blue-l: rgba(0,0,0,0.05);
-  --yellow: rgba(0,0,0,0.6);  --yellow-l: rgba(0,0,0,0.04);  --yellow-text: rgba(0,0,0,0.75);  /* Scandi монохромен: янтарь убран осознанно (решение Олега) */
-  --purple: rgba(0,0,0,0.6);  --purple-l: rgba(0,0,0,0.04);
-  --radius: 0px;  --radius-s: 0px;  --radius-m: 0px;  --radius-l: 0px;
-  --shadow-xs: none;  --shadow-sm: var(--elevation-1);  --shadow-md: var(--elevation-2);  --shadow-lg: var(--elevation-3);
-  --shadow-card: var(--elevation-1);  --shadow-card-hover: var(--elevation-2);
-  --glass-bg: #ffffff;  --glass-border: rgba(0,0,0,0.2);  --glass-blur: none;  --glass-inset: none;
-  --elevation-0: none;
-  --elevation-1: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
-  --elevation-2: 0 2px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
-  --elevation-3: 0 4px 16px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.12);
-  --backdrop-color: rgba(0,0,0,0.55);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.16,1,0.3,1);
-  --duration-fast: 0.12s;  --duration-normal: 0.2s;
-  --track-prep-done: rgba(0,0,0,0.06); --track-prep-current: rgba(0,0,0,0.7);
-  --track-exp-done: rgba(0,0,0,0.06);  --track-exp-current: rgba(0,0,0,0.55);
-  --track-nego-done: rgba(0,0,0,0.04); --track-nego-current: rgba(0,0,0,0.45);
-  --track-proj-done: rgba(0,0,0,0.04); --track-proj-current: rgba(0,0,0,0.35);
-}
+/* ═══════════════════════════════════════════════════════
+   SHARED GLOBALS — вынесено из удалённого scandi-блока (AUDIT C2/C3)
+   ═══════════════════════════════════════════════════════ */
 
-/* Scandinavian dark mode */
-@media (prefers-color-scheme: dark) {
-  .t-scandi {
-    --bg: #111111;  --surface: #111111;  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.08);
-    --border: rgba(255,255,255,0.2);  --border2: rgba(255,255,255,0.4);  --border-input: rgba(255,255,255,0.37);  /* P2 §1.4.11: 3.44:1 к surface (scandi-dark) */
-    --text: #ffffff;  --text-dim: rgba(255,255,255,0.65);  --text-mute: rgba(255,255,255,0.55);
-    --bracket-color: rgba(255,255,255,0.22);  --ring-active: rgba(255,255,255,0.7);  --ring-track: rgba(255,255,255,0.12);
-    --frost-bg: rgba(17,17,17,0.72);
-    --sidebar-active-text: #ffffff;
-    --accent: #ffffff;  --accent-l: rgba(255,255,255,0.06);  --accent-l2: rgba(255,255,255,0.12);
-    --green: rgba(255,255,255,0.7);  --green-l: rgba(255,255,255,0.05);
-    --red: rgba(255,255,255,0.8);  --red-l: rgba(255,255,255,0.05);
-    --blue: rgba(255,255,255,0.65);  --blue-l: rgba(255,255,255,0.05);
-    --yellow: rgba(255,255,255,0.6);  --yellow-l: rgba(255,255,255,0.04);  --yellow-text: rgba(255,255,255,0.75);  /* 10.8:1, монохром */
-    --purple: rgba(255,255,255,0.6);  --purple-l: rgba(255,255,255,0.04);
-    --glass-bg: #111111;  --glass-border: rgba(255,255,255,0.2);
-    --track-prep-current: rgba(255,255,255,0.7);  --track-prep-done: rgba(255,255,255,0.06);
-    --track-exp-current: rgba(255,255,255,0.55);  --track-exp-done: rgba(255,255,255,0.06);
-    --track-nego-current: rgba(255,255,255,0.45); --track-nego-done: rgba(255,255,255,0.04);
-    --track-proj-current: rgba(255,255,255,0.35); --track-proj-done: rgba(255,255,255,0.04);
-    --elevation-1: 0 1px 3px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2);
-    --elevation-2: 0 2px 8px rgba(0,0,0,0.2), 0 8px 32px rgba(0,0,0,0.3);
-    --elevation-3: 0 4px 16px rgba(0,0,0,0.2), 0 16px 48px rgba(0,0,0,0.4);
-    --backdrop-color: rgba(0,0,0,0.6);
-  }
-}
-
-/* ── Scandi: global geometry — zero radius, no shadows, thin borders ── */
-.t-scandi * { border-radius: 0 !important; }
-.t-scandi .logo-icon { border-radius: 6px !important; }
-.t-scandi .rounded-full.h-2.w-2,
-.t-scandi .rounded-full.h-1\.5.w-1\.5,
-.t-scandi span.rounded-full[class*="bg-"] { border-radius: 50% !important; }
-.t-scandi { border-width: 0.5px; }
-.t-scandi .border,
-.t-scandi .border-r,
-.t-scandi .border-b,
-.t-scandi .border-t,
-.t-scandi .border-l { border-width: 0.5px; }
-.t-scandi .card:hover { transform: none; }
-
-/* ── Scandi: sidebar — text only when expanded, icons when collapsed ── */
-.t-scandi aside[class*="w-56"] .nav-item svg { display: none; }
-.t-scandi aside[class*="w-56"] .nav-item { gap: 0; }
-.t-scandi aside .nav-active {
-  background: transparent !important;
-  border-left: none !important;
-  font-weight: 500;
-  color: var(--text) !important;
-}
-/* Active indicator — 2px left bar */
-.t-scandi aside .nav-active::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 4px; bottom: 4px;
-  width: 2px;
-  background: var(--text);
-  border-radius: 0 !important;
-}
-.t-scandi aside .nav-active::after { display: none; }
-/* Badges — monochrome */
-.t-scandi aside .rounded-full.bg-accent,
-.t-scandi aside .rounded-full.bg-red {
-  background: var(--text) !important;
-  border-radius: 50% !important;
-}
-
-/* ── Scandi: CTA buttons — outline with scaleX wipe fill ── */
-.t-scandi button.bg-accent,
-.t-scandi a.bg-accent {
-  background: transparent !important;
-  color: var(--text) !important;
-  border: 0.5px solid var(--border) !important;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.t-scandi button.bg-accent::before,
-.t-scandi a.bg-accent::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--text);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: -1;
-}
-.t-scandi button.bg-accent:hover::before,
-.t-scandi a.bg-accent:hover::before { transform: scaleX(1); }
-.t-scandi button.bg-accent:hover,
-.t-scandi a.bg-accent:hover,
-.t-scandi button.bg-accent:hover *,
-.t-scandi a.bg-accent:hover * {
-  color: var(--bg) !important;
-  -webkit-text-fill-color: var(--bg) !important;
-  opacity: 1 !important;
-  filter: none;
-}
-
-/* ── Scandi: Chip filters — square, thin border ── */
-.t-scandi [class*="chip"],
-.t-scandi [class*="filter-chip"],
-.t-scandi .rounded-full[class*="border"][class*="px-"] {
-  border-radius: 0 !important;
-  border-width: 0.5px;
-  padding: 4px 12px;
-  font-size: 11px;
-}
-.t-scandi [class*="chip"]:hover,
-.t-scandi [class*="filter-chip"]:hover {
-  border-color: var(--border2);
-}
-
-/* ── Scandi: Inputs — bottom border only ── */
-.t-scandi input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-.t-scandi textarea,
-.t-scandi select {
-  border: none !important;
-  border-bottom: 0.5px solid var(--border-input) !important;  /* P2 §1.4.11: ≥3:1 к surface */
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  box-shadow: none !important;
-}
-.t-scandi input:focus,
-.t-scandi textarea:focus,
-.t-scandi select:focus {
-  border-bottom-color: var(--text) !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-.t-scandi input:focus-visible,
-.t-scandi textarea:focus-visible,
-.t-scandi select:focus-visible {
-  border-bottom-width: 1.5px !important;
-}
-
-/* ── Scandi: Dashboard — monochrome charts, no card chrome ── */
-.t-scandi [data-kpi] {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-.t-scandi .elevation-hover {
-  box-shadow: none !important;
-}
-.t-scandi .elevation-hover:hover {
-  box-shadow: none !important;
-  transform: none !important;
-}
-/* Funnel bars: thin, monochrome */
-.t-scandi .recharts-bar-rectangle rect {
-  opacity: 0.25;
-  rx: 0;
-  ry: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-.t-scandi .recharts-bar-rectangle:hover rect { opacity: 0.7; }
-/* Activity & deadline items: thin separators */
-.t-scandi .hover\:bg-surface-hover {
-  border-bottom: 0.5px solid var(--border);
-}
-.t-scandi .hover\:bg-surface-hover:last-child {
-  border-bottom: none;
-}
-
-/* ── Scandi: KPI stats grids помечены [data-stats-grid] ──
-   Легаси-правила .grid.grid-cols-4 (flat kanban) удалены: после перехода
-   kanban на динамические колонки (sprint 1.5) селектор не матчил ни один
-   элемент. Новые стили для KPI-сеток вешать на [data-stats-grid]. */
-/* Progress bars: monochrome */
-.t-scandi .stage-progress {
-  height: 3px;
-  background: var(--text);
-  opacity: 0.12;
-}
-
-/* ── Scandi: Tasks — monochrome, clean typography ── */
-.t-scandi .rounded-xl.border.bg-surface {
-  background: transparent !important;
-  border-color: var(--border) !important;
-  border-width: 0.5px;
-}
-/* Task checkbox: slightly rounded exception */
-.t-scandi .rounded-\[4px\] { border-radius: 0 !important; }
-/* Единственное исключение из zero-radius — logo-icon (бренд-знак) и круглые точки-индикаторы */
-/* Overdue dates: not colored, just bold */
-.t-scandi .text-red.font-semibold {
-  color: var(--text) !important;
-  font-weight: 500;
-}
-/* Project tag: square */
-.t-scandi [data-tag] {
-  border: 0.5px solid var(--border);
-  background: transparent !important;
-  font-size: 10px;
-  text-transform: uppercase;
-}
-/* Task sidebar widgets: no chrome */
-.t-scandi .rounded-lg.bg-surface.elevation-1,
-.t-scandi .rounded-lg.bg-surface.p-4 {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-
-/* ── Scandi: Tables (Contacts, Companies) — thin, clean ── */
-.t-scandi table thead th {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-bottom-width: 0.5px;
-  background: var(--frost-bg, var(--bg)) !important;
-  backdrop-filter: var(--frost-blur);
-  -webkit-backdrop-filter: var(--frost-blur);
-}
-.t-scandi table tbody td {
-  font-size: 12px;
-  border-bottom-width: 0.5px;
-  font-variant-numeric: tabular-nums;
-}
-.t-scandi table tbody tr:hover {
-  background: transparent !important;
-  border-left-color: var(--text) !important;
-  box-shadow: none !important;
-}
-.t-scandi table tbody tr:nth-child(even) {
-  background: transparent !important;
-}
-/* Pagination: square buttons */
-.t-scandi .rounded-md {
-  border-radius: 0 !important;
-}
-
-/* ── Scandi: Modal elevation + backdrop ── */
-.t-scandi [data-modal-overlay] {
-  background-color: var(--backdrop-color) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-/* Модалка — непрозрачная: frost-эффект остаётся только на dropdown'ах
-   и sticky thead. ВАЖНО: не вешать backdrop-filter на [data-modal] —
-   вложенный в фильтрованный оверлей, он ломает сэмплинг в Chromium. */
-.t-scandi [data-modal] {
-  background: var(--bg) !important;
-  border: 1px solid var(--text) !important;
-  box-shadow: var(--elevation-2);
-}
-/* Dropdown / popover — морозное стекло, контент проезжает под плавающими слоями */
-.t-scandi .absolute.right-0.top-full,
-.t-scandi .absolute.z-\[9999\] {
-  background: var(--frost-bg, var(--bg)) !important;
-  backdrop-filter: var(--frost-blur);
-  -webkit-backdrop-filter: var(--frost-blur);
-  box-shadow: var(--elevation-1) !important;
-  border: 0.5px solid var(--border) !important;
-}
-/* Command palette + hotkeys: darker backdrop, lighter blur */
-.t-scandi [data-modal-overlay="palette"] {
-  background-color: rgba(0,0,0,0.5) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
 /* Z-index hierarchy (все темы): sidebar 20 < drawer 30 < headers 35-40 <
    dropdowns 50 < overlay 999 < modal 1000. Перебивает Tailwind z-50/z-[60]
    на тех же элементах (равная специфичность, правило ниже по файлу). */
@@ -1068,286 +707,23 @@
   [role="dialog"] { animation: none; }
 }
 
-/* ── Scandi: Badges — plain text, no background ── */
-.t-scandi .rounded-full.bg-accent-l,
-.t-scandi .rounded-full.bg-yellow-l,
-.t-scandi .rounded-full.bg-green-l,
-.t-scandi .rounded-full.bg-blue-l {
-  background: transparent !important;
-  padding: 0 !important;
-  color: var(--text-mute) !important;
-  font-weight: 400;
-}
-
-/* ── Scandi: Search — hide magnifying glass, remove left padding ── */
-.t-scandi .relative.flex-1 > svg.absolute {
-  display: none !important;
-}
-.t-scandi [data-search-input] {
-  padding-left: 0 !important;
-}
-
-/* ── Scandi: Calls — monochrome status, thin cards ── */
-.t-scandi .pill-done,
-.t-scandi .pill-pending,
-.t-scandi .pill-cancelled {
-  background: transparent !important;
-  color: var(--text) !important;
-  opacity: 0.6;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-/* Статусы различаются формой маркера, не цветом: ● done, ○ pending, − cancelled */
-.t-scandi .pill-done::before,
-.t-scandi .pill-pending::before,
-.t-scandi .pill-cancelled::before {
-  content: '';
-  display: inline-block;
-  width: 6px; height: 6px;
-  margin-right: 5px;
-  border-radius: 50%;
-  vertical-align: 1px;
-}
-.t-scandi .pill-done::before { background: var(--text); }
-.t-scandi .pill-pending::before { border: 1px solid var(--text); }
-.t-scandi .pill-cancelled::before {
-  height: 1.5px;
-  border-radius: 0;
-  background: var(--text);
-  vertical-align: 3px;
-}
-/* Call cards: no colored ring, thin separator */
-.t-scandi .rounded-xl.bg-surface {
-  border-width: 0.5px;
-}
-/* Call tabs: monochrome active */
-.t-scandi .border-b-2.border-accent {
-  border-color: var(--text) !important;
-  border-width: 1.5px;
-}
-
-/* ── Scandi: Meetings — square date blocks ── */
-.t-scandi .rounded-lg.bg-accent {
-  border-radius: 0 !important;
-  border: 0.5px solid var(--border);
-  background: transparent !important;
-  color: var(--text) !important;
-}
-
-/* ── Scandi: Analytics — monochrome charts ── */
-.t-scandi .recharts-pie-sector path,
-.t-scandi .recharts-sector {
-  opacity: 0.3;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-.t-scandi .recharts-pie-sector:hover path,
-.t-scandi .recharts-sector:hover {
-  opacity: 0.65;
-}
-.t-scandi .recharts-bar-rectangle rect {
-  fill: var(--text) !important;
-}
-/* Chart containers: no chrome */
-.t-scandi .rounded-lg.bg-surface.p-4.elevation-hover {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* ── Scandi: Per-page polish ── */
-/* Contacts/Companies: truncate company badge in table */
-.t-scandi td .rounded { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Companies: raise contrast of "+ добавить" */
-.t-scandi td .text-text-mute.hover\:text-accent { color: var(--text-dim) !important; opacity: 0.7; }
-.t-scandi td .text-text-mute.hover\:text-accent:hover { color: var(--text) !important; opacity: 1; }
-/* Contact 360: bracket corners on highlight cards */
-.t-scandi .highlight-card {
-  box-shadow: none !important;
-  border-color: transparent !important;
-  position: relative;
-}
-.t-scandi .highlight-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 10px; height: 10px;
-  border-left: 1px solid var(--bracket-color, #DDD5E2);
-  border-top: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-.t-scandi .highlight-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 10px; height: 10px;
-  border-right: 1px solid var(--bracket-color, #DDD5E2);
-  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-.t-scandi .highlight-card [class*="border-l-"] { border-left-color: var(--border) !important; }
-.t-scandi .highlight-card.filled { border-color: transparent !important; box-shadow: none !important; }
-.t-scandi .highlight-card.filled::before,
-.t-scandi .highlight-card.filled::after {
-  border-color: var(--bracket-color, #DDD5E2);
-  filter: none;
-}
-/* Contact 360: bracket corners on profile card + activity */
-.t-scandi .contact-profile-card {
-  border-color: transparent !important;
-  position: relative;
-}
-.t-scandi .contact-profile-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 10px; height: 10px;
-  border-left: 1px solid var(--bracket-color, #DDD5E2);
-  border-top: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-.t-scandi .contact-profile-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 10px; height: 10px;
-  border-right: 1px solid var(--bracket-color, #DDD5E2);
-  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-/* Meetings: dim past meetings */
-.t-scandi [data-meetings-past] .space-y-2 > div { opacity: 0.55; transition: opacity 0.2s ease; }
-.t-scandi [data-meetings-past] .space-y-2 > div:hover { opacity: 0.85; }
-/* ProjectDetail: progress bar thinner */
-.t-scandi .h-1\.5.rounded-full { height: 4px !important; }
-/* ProjectDetail + ContactDetail: info cards flat (no shadow) */
-.t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="px-3"],
-.t-scandi .grid > [class*="rounded-lg"][class*="border"][class*="py-2"] { box-shadow: none !important; }
-/* Timeline scroll zones: ProjectDetail — 5 visible events */
-.t-scandi [data-timeline-scroll] { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-.t-scandi [data-timeline-scroll]::-webkit-scrollbar { width: 4px; }
-.t-scandi [data-timeline-scroll]::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-/* Dashboard activity feed: компактнее — 4 visible events */
-.t-scandi [data-timeline-scroll="compact"] { max-height: 280px !important; }
-/* Kanban: empty column — dashed placeholder */
-.t-scandi [data-kanban-empty] {
-  border: 1.5px dashed var(--border2);
-  min-height: 80px;
-  margin: 4px;
-}
-/* Kanban: card hover — subtle lift */
-.t-scandi .glass-card:hover {
-  transform: none !important;
-  box-shadow: none !important;
-  border-color: var(--border2) !important;
-  transition: border-color 0.2s ease;
-}
-/* Kanban: hide corner notch in scandi */
-.t-scandi .glass-card .absolute.top-0.right-0 { display: none; }
-/* Calls: soften overdue badge — dot + dim text instead of red */
-.t-scandi .text-red.font-semibold,
-.t-scandi span.text-red { color: var(--text-dim) !important; }
-/* Calls ring: softer stroke */
-.t-scandi circle[stroke="var(--accent)"] { stroke: var(--ring-active) !important; }
-.t-scandi circle[stroke="var(--border)"] { stroke: var(--ring-track) !important; }
-/* Bracket corners: call cards + tracker + scheduled, info cards (Project detail) */
-.t-scandi [data-card] {
-  border-color: transparent !important;
-  position: relative;
-}
-.t-scandi [data-card]::before {
-  content: '';
-  position: absolute; top: 0; left: 0;
-  width: 10px; height: 10px;
-  border-left: 1px solid var(--bracket-color, #DDD5E2);
-  border-top: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-.t-scandi [data-card]::after {
-  content: '';
-  position: absolute; bottom: 0; right: 0;
-  width: 10px; height: 10px;
-  border-right: 1px solid var(--bracket-color, #DDD5E2);
-  border-bottom: 1px solid var(--bracket-color, #DDD5E2);
-  pointer-events: none;
-}
-/* Export panel: no border, thin separators */
-.t-scandi .rounded-xl.border.bg-surface.p-4:has(.text-accent) {
-  border: none !important;
-  box-shadow: none !important;
-}
-/* Backup button: outline wipe */
-.t-scandi .border-accent\/30.bg-accent-l\/30 {
-  background: transparent !important;
-  border: 0.5px solid var(--border2) !important;
-  color: var(--text) !important;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-.t-scandi .border-accent\/30.bg-accent-l\/30::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: var(--text);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
-  z-index: -1;
-}
-.t-scandi .border-accent\/30.bg-accent-l\/30:hover::before { transform: scaleX(1); }
-.t-scandi .border-accent\/30.bg-accent-l\/30:hover,
-.t-scandi .border-accent\/30.bg-accent-l\/30:hover * {
-  color: var(--bg) !important; -webkit-text-fill-color: var(--bg) !important;
-}
 /* Reminder toast: reduced motion */
 @media (prefers-reduced-motion: reduce) {
   [style*="translateX"] { transform: none !important; transition: opacity 0.1s !important; }
 }
 
-/* ═══ Scandi: hover-only "+ добавить" in tables ═══ */
-.t-scandi .add-on-hover,
-.t-aura .add-on-hover {
+/* ═══ hover-only «+ добавить» в таблицах (AUDIT C3 — глобально) ═══
+   Скрыто по умолчанию (color: transparent), показ на hover строки И
+   :focus-within (a11y: доступно с клавиатуры). Раньше пер-темно
+   (scandi/aura) — теперь одно правило вне тем. */
+.add-on-hover {
   color: transparent;
   transition: color 150ms ease;
 }
-.t-scandi tr:hover .add-on-hover,
-.t-aura tr:hover .add-on-hover {
+tr:hover .add-on-hover,
+tr:focus-within .add-on-hover {
   color: var(--text-mute);
   cursor: pointer;
-}
-
-/* ═══ Scandi: empty state CTA ═══ */
-.t-scandi .empty-state-action {
-  color: var(--text-mute);
-  font-size: 0.8125rem;
-  border: 1px dashed var(--border);
-  padding: 6px 12px;
-  margin-top: 8px;
-  transition: color 150ms ease, border-color 150ms ease;
-  background: transparent;
-  cursor: pointer;
-}
-.t-scandi .empty-state-action:hover {
-  color: var(--text);
-  border-color: var(--text);
-}
-
-/* ═══ Scandi: modal section dividers ═══ */
-.t-scandi .modal-section-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 16px 0 12px;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-mute);
-}
-.t-scandi .modal-section-divider::after {
-  content: '';
-  flex: 1;
-  height: 0.5px;
-  background: var(--border);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1506,28 +882,9 @@ input[type="checkbox"]:indeterminate {
 @media (prefers-reduced-motion: reduce) {
   .focus-day-card { animation: none; }
 }
-/* Scandi: тихая тема — без перманентной пульсации */
-.t-scandi .focus-day-card {
-  animation: none;
-  box-shadow: none;
-  border: 1px solid var(--border2);
-}
 
 
-/* Paper: editorial ruling */
-.t-paper body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: repeating-linear-gradient(
-    180deg, transparent 0, transparent 27px, rgba(0,0,0,0.028) 27px, rgba(0,0,0,0.028) 28px
-  );
-}
 
-/* Sand: brutalist double header line */
-.t-sand header {
-  border-bottom: 2px solid var(--text) !important;
-  box-shadow: 0 2px 0 var(--accent);
-}
 
 /* Frost: color blob background */
 .t-frost body::before {
@@ -1872,7 +1229,6 @@ input[type="checkbox"]:indeterminate {
 /* ── Тёмные темы A11Y: тёмный текст на ярких solid-заливках (visual-audit P0 1.3) ──
    text-white на bg-accent/bg-green/… давал 1.6–3.9:1. Бренд-цвета НЕ затемняем —
    меняем цвет текста на цвет фона темы (accent 5.87 / 5.15 / 7.87 COMPUTED).
-   Scandi исключён: там кнопки уже переведены в outline (см. .t-scandi button.bg-accent).
    !important — прагматика поверх Tailwind-утилит (как в Aura) — known debt,
    в идеале токен on-accent. Иконки/спиннеры наследуют color автоматически. */
 .t-frost button.bg-accent, .t-frost a.bg-accent, .t-frost .bg-accent.text-white,
@@ -1895,21 +1251,10 @@ input[type="checkbox"]:indeterminate {
 }
 
 /* Светлые темы: bg-yellow как solid-кнопка (PomodoroWidget «Пауза») — white-on-
-   bright-yellow < 4.5:1 у scandi (#a07020 → 4.39:1), fuji (#C4AA78 → 2.22:1),
-   washi (#D4993A → 2.49:1). Затемняем fill до --yellow-text (тот же приём, что
-   aura). paper/sand проходят как есть (5.8–6.3:1) — не трогаем. AUDIT A1.0. */
-.t-scandi .bg-yellow, .t-fuji .bg-yellow, .t-washi .bg-yellow {
+   bright-yellow < 4.5:1 у fuji (#C4AA78 → 2.22:1), washi (#D4993A → 2.49:1).
+   Затемняем fill до --yellow-text (тот же приём, что aura). AUDIT A1.0. */
+.t-fuji .bg-yellow, .t-washi .bg-yellow {
   background-color: var(--yellow-text) !important;
-}
-/* scandi-dark монохромный: --yellow = rgba(255,255,255,0.6) (светло-серый на
-   тёмном), --yellow-text — ещё светлее, поэтому затемнение fill не работает.
-   Возвращаем серый fill и переворачиваем ТЕКСТ в тёмный (как frost/aurora/tidal).
-   Правило ниже по файлу — перебивает светлую .t-scandi .bg-yellow выше. */
-@media (prefers-color-scheme: dark) {
-  .t-scandi .bg-yellow {
-    background-color: var(--yellow) !important;
-    color: var(--bg) !important;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -2062,10 +1407,10 @@ input[type="checkbox"]:indeterminate {
    frost/aurora/tidal имеют полупрозрачный --surface (rgba .05–.07) — это
    frosted-glass для КАРТОЧЕК поверх bg. Но модалки/командная палитра красят
    `bg-surface` → сквозь панель просвечивает вся страница, контент сливается.
-   Даём сплошную приподнятую поверхность (как `.t-scandi [data-modal]` красит
-   в --bg). `[data-modal]` покрывает и модалки, и CommandPalette (у неё тот же
+   Даём сплошную приподнятую поверхность (заливаем [data-modal] в --bg-подобный
+   тон). `[data-modal]` покрывает и модалки, и CommandPalette (у неё тот же
    атрибут). backdrop-filter вешаем на ОВЕРЛЕЙ, не на [data-modal] (вложенный
-   фильтр ломает сэмплинг в Chromium — урок из scandi-override выше). */
+   фильтр ломает сэмплинг в Chromium). */
 .t-frost  [data-modal] { background: #1e2233 !important; }
 .t-aurora [data-modal] { background: #1a1e2c !important; }
 .t-tidal  [data-modal] { background: #102119 !important; }
@@ -2256,20 +1601,11 @@ table tbody tr[data-kbd-focused] {
   background: var(--accent-l);
   border-left-color: var(--accent);
 }
-/* Scandi: hover-строки прозрачные с border-left — фокус в том же языке, метка акцентом */
-.t-scandi table tbody tr[data-kbd-focused] {
-  background: transparent !important;
-  border-left-color: var(--accent) !important;
-  box-shadow: none !important;
-}
 
 /* Фокус-строка вне <table> (очередь «Сегодня») */
 .kbd-focus-row {
   background: var(--accent-l);
   box-shadow: inset 2px 0 0 var(--accent);
-}
-.t-scandi .kbd-focus-row {
-  background: transparent;
 }
 
 /* Peek-панель: слайд справа; z-40 — между drawer (30) и dropdown (50) */
@@ -2279,9 +1615,6 @@ table tbody tr[data-kbd-focused] {
 @keyframes peek-slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
-}
-.t-scandi .peek-panel {
-  background: var(--bg);
 }
 @media (prefers-reduced-motion: reduce) {
   .peek-panel { animation: none; }

@@ -8,8 +8,6 @@ import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
-import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/WatermarkNew';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -155,11 +153,8 @@ export function CalendarView() {
     router.push('/tasks');
   }
 
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-
   return (
     <div>
-      {isScandi && <Watermark text="КАЛЕНДАРЬ" size="section" />}
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
       {/* Grid */}
       <div>

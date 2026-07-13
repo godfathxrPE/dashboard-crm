@@ -46,7 +46,6 @@ import { LostDeals } from './LostDeals';
 import { WonDeals } from './WonDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
-import { Watermark } from '@/components/ui/WatermarkNew';
 import type { PipelineStage, Direction } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -87,20 +86,6 @@ const PHASE_HEADER_TEXT: Record<string, string> = {
   closing: 'var(--blue-text, var(--blue))',
 };
 
-const SCANDI_PHASE_WM: Record<string, { text: string; colors: readonly string[] }> = {
-  attraction: { text: 'Привлечение', colors: ['#00dc82','#10c98a','#20b793','#36d1dc','#4cc3e0','#5ab5e4','#6aa7e8','#7a99ec'] },
-  working:    { text: 'Проработка',  colors: ['#ff6b9d','#c44cff','#45caff','#6ee7b7','#ffca28','#ffa726','#ff7043','#e84393'] },
-  approval:   { text: 'Согласование', colors: ['#ffca28','#f0b42e','#e09e34','#d0883a','#c07240','#b05c46','#a0464c','#903052','#801a58','#70045e','#6c04a0','#8804d0','#a404ff'] },
-  closing:    { text: 'Закрытие',    colors: ['#0652DD','#0e6ec9','#168ab5','#1ea6a1','#26c28d','#2ecc71','#36d68b','#3ee0a5'] },
-};
-
-const SCANDI_HERO_WM = [
-  { label: 'Активные', colors: ['#00dc82','#10c98a','#20b793','#36d1dc','#4cc3e0','#5ab5e4','#6aa7e8','#7a99ec'] },
-  { label: 'Pipeline', colors: ['#2ecc71','#3498db','#9b59b6','#e84393','#fd79a8'] },
-  { label: 'Конверсия', colors: ['#ff9a56','#ff8866','#ff7676','#ff6b81','#e55a9b','#cc49b5','#b238cf','#9927e9','#8016ff'] },
-  { label: 'Avg цикл', colors: ['#74b9ff','#889bf0','#928cfe','#8b6ce7','#7b5bde','#6c5ce7','#5b4cdb','#4a3dc9'] },
-];
-
 const WASHI_PHASE_KANJI: Record<string, { kanji: string; color: string }> = {
   attraction: { kanji: '集', color: '#2B5F8A' },
   working:    { kanji: '探', color: '#C23B3B' },
@@ -112,21 +97,9 @@ const WASHI_PHASE_KANJI: Record<string, { kanji: string; color: string }> = {
 // Hero KPI Row
 // ═══════════════════════════════════════════════════════
 
-function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi, sub }: {
-  label: string; fmt: string; value: number; color: string;
-  wmColors?: readonly string[]; isScandi: boolean; sub?: string;
+function HeroCard({ label, fmt, value, color, sub }: {
+  label: string; fmt: string; value: number; color: string; sub?: string;
 }) {
-  if (isScandi && wmColors) {
-    return (
-      <div className="py-3">
-        <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{label}</span>
-        <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : 'text-text-main'}`}>
-          {fmt}
-        </div>
-        {sub && <div className="mt-1 text-[10px] tabular-nums text-text-mute">{sub}</div>}
-      </div>
-    );
-  }
   return (
     <div className="rounded bg-surface2 px-3.5 py-3">
       <div className="text-xs font-medium uppercase tracking-[0.04em] text-text-dim mb-1">{label}</div>
@@ -139,7 +112,6 @@ function ScandiHeroCard({ label, fmt, value, color, wmColors, isScandi, sub }: {
 }
 
 function HeroMetrics({ projects }: { projects: Project[] }) {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const { data: allStages } = usePipelineStages();
   const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
   const won = projects.filter((p) => p.status === 'won');
@@ -176,13 +148,9 @@ function HeroMetrics({ projects }: { projects: Project[] }) {
 
   return (
     <div data-stats-grid className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      {metrics.map((m, idx) => {
-        const sw = isScandi ? SCANDI_HERO_WM[idx] : null;
-        return (
-          <ScandiHeroCard key={m.label} label={m.label} fmt={m.fmt} value={m.value}
-            color={m.color} wmColors={sw?.colors} isScandi={isScandi} sub={m.sub} />
-        );
-      })}
+      {metrics.map((m) => (
+        <HeroCard key={m.label} label={m.label} fmt={m.fmt} value={m.value} color={m.color} sub={m.sub} />
+      ))}
     </div>
   );
 }
@@ -253,7 +221,6 @@ function PhaseColumn({
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const themeVal = useThemeStore((s) => s.theme);
   const isWashi = themeVal === 't-washi';
-  const isScandi = themeVal === 't-scandi';
   const wk = isWashi ? WASHI_PHASE_KANJI[column.id] : null;
   const headerColor = PHASE_HEADER_COLOR[column.id] ?? 'var(--accent)';
   const headerTextColor = PHASE_HEADER_TEXT[column.id] ?? 'var(--accent-text, var(--accent))';
@@ -268,7 +235,7 @@ function PhaseColumn({
         ${isOver ? 'bg-accent-l/20' : ''}
       `}
       style={{
-        background: isScandi ? undefined : isOver
+        background: isOver
           ? undefined
           : `linear-gradient(180deg, color-mix(in srgb, ${tintColor} 8%, transparent) 0%, transparent 100%)`,
       }}
@@ -363,7 +330,6 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   const { data: allStages } = usePipelineStages();
   const { moveToStageId } = useMoveProject();
   const deleteProject = useDeleteProject();
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const { data: role } = useOrgRole();
   const canEdit = role !== 'viewer';
 
@@ -632,15 +598,9 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
       {/* Toolbar */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isScandi ? (
-            <Watermark text="СДЕЛКИ" size="section" />
-          ) : (
-            <>
-              <FolderKanban size={18} className="text-accent" />
-              <h1 className="aura-page-title text-text-main">Воронка сделок</h1>
-              <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
-            </>
-          )}
+          <FolderKanban size={18} className="text-accent" />
+          <h1 className="aura-page-title text-text-main">Воронка сделок</h1>
+          <span className="rounded-full bg-accent-l px-2.5 py-0.5 text-xs font-medium text-accent">{activeCount} активн.</span>
         </div>
         <div className="flex items-center gap-2">
           {onSwitchView && (

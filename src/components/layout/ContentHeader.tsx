@@ -33,15 +33,12 @@ function getPageTitle(pathname: string): string {
 }
 
 const THEME_SWATCHES: Record<Theme, string> = {
-  't-scandi': '#000000',
-  't-frost': '#5b8aff',
-  't-paper': '#8b3a1a',
-  't-sand': '#c05828',
-  't-aurora': '#a060ff',
-  't-tidal': '#48b890',
+  't-aura': '#E0A03A',
   't-washi': '#C23B3B',
   't-fuji': '#2B5078',
-  't-aura': '#E0A03A',
+  't-frost': '#5b8aff',
+  't-aurora': '#a060ff',
+  't-tidal': '#48b890',
 };
 
 function DrawerToggle() {
@@ -57,7 +54,7 @@ function DrawerToggle() {
   );
 }
 
-export function ScandiContentHeader() {
+export function ContentHeader() {
   const pathname = usePathname();
   const { toggleCommandPalette } = useUiStore();
   const { theme, setTheme } = useThemeStore();

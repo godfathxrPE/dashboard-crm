@@ -21,29 +21,17 @@ import { TaskModal } from './TaskModal';
 import { staggerClass } from '@/lib/utils/stagger';
 import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
-import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
-import { Watermark } from '@/components/ui/WatermarkNew';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
 
 function TasksPageHeader({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   return (
     <div className="flex items-center justify-between mb-4">
       <div>
-        {isScandi ? (
-          <>
-            <Watermark text="ЗАДАЧИ" size="section" />
-            <p className="text-[13px] text-text-mute mt-1">Перетаскивай задачи между секциями</p>
-          </>
-        ) : (
-          <>
-            <h1 className="aura-page-title text-text-main">Задачи</h1>
-            <p className="text-xs text-text-mute mt-0.5">Перетаскивай задачи между секциями</p>
-          </>
-        )}
+        <h1 className="aura-page-title text-text-main">Задачи</h1>
+        <p className="text-xs text-text-mute mt-0.5">Перетаскивай задачи между секциями</p>
       </div>
       {canAdd && (
         <CTAButton onClick={onAdd}>

@@ -9,16 +9,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { CallModal } from '@/components/calls/CallModal';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/WatermarkNew';
-import type { Call } from '@/lib/hooks/use-calls';
 import { localDateKey } from '@/lib/utils/date-helpers';
-
-const SCANDI_SIDEBAR_WM = {
-  clock:  { text: 'Часы',    colors: ['#74b9ff', '#a29bfe', '#6c5ce7'] as readonly string[] },
-  calls:  { text: 'Звонки',  colors: ['#0652DD', '#1dd1a1', '#00d2d3'] as readonly string[] },
-  focus:  { text: 'Фокус',   colors: ['#ff9a56', '#ff6b81', '#c44cff'] as readonly string[] },
-  kpi:    { text: 'В работе', colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393'] as readonly string[] },
-};
 
 // ═══════════════════════════════════════════════════════
 // Clock Widget
@@ -267,29 +258,7 @@ function MiniKpi() {
 // Composed Sidebar
 // ═══════════════════════════════════════════════════════
 
-function ScandiWidgetWrap({ children, wm }: { children: React.ReactNode; wm: { text: string; colors: readonly string[] } }) {
-  return (
-    <div>
-      <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{wm.text}</span>
-      {children}
-    </div>
-  );
-}
-
 export function TasksSidebar() {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-
-  if (isScandi) {
-    return (
-      <div className="hidden lg:flex w-52 shrink-0 flex-col gap-4 sticky top-4 self-start">
-        <ScandiWidgetWrap wm={SCANDI_SIDEBAR_WM.clock}><ClockWidget /></ScandiWidgetWrap>
-        <ScandiWidgetWrap wm={SCANDI_SIDEBAR_WM.calls}><PlannedCalls /></ScandiWidgetWrap>
-        <ScandiWidgetWrap wm={SCANDI_SIDEBAR_WM.focus}><FocusWidget /></ScandiWidgetWrap>
-        <ScandiWidgetWrap wm={SCANDI_SIDEBAR_WM.kpi}><MiniKpi /></ScandiWidgetWrap>
-      </div>
-    );
-  }
-
   return (
     <div className="hidden lg:flex w-80 shrink-0 flex-col gap-3 sticky top-4 self-start">
       <ClockWidget />

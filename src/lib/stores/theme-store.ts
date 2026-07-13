@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const THEMES = ['t-scandi', 't-frost', 't-paper', 't-sand', 't-aurora', 't-tidal', 't-washi', 't-fuji', 't-aura'] as const;
+// AUDIT C: scandi/paper/sand удалены. Дефолт — aura. Порядок = порядок cycleTheme.
+const THEMES = ['t-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal'] as const;
 export type Theme = (typeof THEMES)[number];
+
+// Устаревшие темы (AUDIT C4-6): persisted-значение → миграция на дефолт.
+const LEGACY_THEMES = ['t-scandi', 't-paper', 't-sand'];
+const DEFAULT_THEME: Theme = 't-aura';
 
 interface ThemeState {
   theme: Theme;
@@ -13,7 +18,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: 't-scandi',
+      theme: DEFAULT_THEME,
       setTheme: (theme) => set({ theme }),
       cycleTheme: () => {
         const current = get().theme;
@@ -22,8 +27,17 @@ export const useThemeStore = create<ThemeState>()(
         set({ theme: next });
       },
     }),
-    { name: 'dashboard-theme' },
+    {
+      name: 'dashboard-theme',
+      // Миграция persisted: устаревшая ИЛИ неизвестная тема → дефолт aura.
+      merge: (persisted, current) => {
+        const p = persisted as Partial<ThemeState> | undefined;
+        const t = p?.theme;
+        const valid = t && (THEMES as readonly string[]).includes(t) && !LEGACY_THEMES.includes(t);
+        return { ...current, ...p, theme: valid ? (t as Theme) : DEFAULT_THEME };
+      },
+    },
   ),
 );
 
-export { THEMES };
+export { THEMES, DEFAULT_THEME, LEGACY_THEMES };

@@ -1,8 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark } from '@/components/ui/WatermarkNew';
 
 interface PageHeaderProps {
   title: string;
@@ -13,22 +11,7 @@ interface PageHeaderProps {
   action?: ReactNode;
 }
 
-export function PageHeader({ title, wmText, wmColors, count, icon, action }: PageHeaderProps) {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-  if (isScandi) {
-    return (
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <Watermark text={wmText} size="section" />
-          {count != null && (
-            <span className="text-[11px] text-text-mute mt-1 block">{count}</span>
-          )}
-        </div>
-        {action}
-      </div>
-    );
-  }
-
+export function PageHeader({ title, count, icon, action }: PageHeaderProps) {
   return (
     <div className="mb-4 flex items-center justify-between">
       <div className="flex items-center gap-2">

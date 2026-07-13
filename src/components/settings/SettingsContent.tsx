@@ -17,15 +17,12 @@ const ORG_ROLE_LABEL: Record<OrgRole, string> = {
 };
 
 const THEMES = [
-  { id: 't-scandi', label: 'Scandinavian', color: '#000000' },
-  { id: 't-frost', label: 'Frost', color: '#6ba3be' },
-  { id: 't-paper', label: 'Paper', color: '#8b7355' },
-  { id: 't-sand', label: 'Sand', color: '#b8956a' },
-  { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
-  { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
+  { id: 't-aura', label: 'Аура', color: '#E0A03A' },
   { id: 't-washi', label: '和紙 Washi', color: '#C23B3B' },
   { id: 't-fuji', label: '富士 Fuji', color: '#2B5078' },
-  { id: 't-aura', label: 'Аура', color: '#E0A03A' },
+  { id: 't-frost', label: 'Frost', color: '#6ba3be' },
+  { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
+  { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
 ] as const;
 
 interface SettingsContentProps {

@@ -18,8 +18,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { Watermark as NewWatermark } from '@/components/ui/WatermarkNew';
-import { Bracket } from '@/components/ui/Bracket';
 import {
   BarChart,
   Bar,
@@ -42,7 +40,6 @@ import {
   type DealStage,
 } from '@/lib/validators/project';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
-import { cn } from '@/lib/utils/cn';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -141,13 +138,6 @@ function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: 
   );
 }
 
-const SCANDI_KPI_META: Record<string, { label: string; colors: readonly string[] }> = {
-  'Активные проекты':  { label: 'Сделки',  colors: ['#00dc82', '#36d1dc', '#9b59b6'] },
-  'Сумма pipeline':    { label: 'Пайплайн',  colors: ['#2ecc71', '#3498db', '#9b59b6', '#e84393', '#fd79a8'] },
-  'Задачи на сегодня': { label: 'Задачи',    colors: ['#ff9a56', '#ff6b81', '#c44cff'] },
-  'Звонки за неделю':  { label: 'Звонки',    colors: ['#0652DD', '#1dd1a1', '#00d2d3'] },
-};
-
 const FUJI_KPI_META: Record<string, { watermark: string; wmColor: string }> = {
   'Активные проекты':  { watermark: 'СДЕЛКИ',  wmColor: 'rgba(26,39,68,0.05)' },
   'Сумма pipeline':    { watermark: 'PIPELINE',  wmColor: 'rgba(196,170,120,0.07)' },
@@ -164,24 +154,6 @@ const WASHI_KPI_META: Record<string, { kanji: string; color: string; short: stri
   'Конверсия':         { kanji: '率', color: '#8B6914', short: 'Конверсия' },
 };
 
-function ScandiStatCard({ href, value, fmt, label, colors, trend, staggerIdx }: {
-  href: string; value: number; fmt: (n: number) => string;
-  label: string; colors: readonly string[]; trend?: number; staggerIdx: number;
-}) {
-  return (
-    <a
-      href={href}
-      data-kpi
-      className={`group relative block py-4 ${staggerClass(staggerIdx)}`}
-    >
-      <span className="text-[10px] text-text-dim uppercase tracking-wide mb-1 block">{label}</span>
-      <AnimatedNumber value={value} formatFn={fmt} className="text-[24px] font-medium leading-none block text-text-main" />
-      {trend != null && trend !== 0 && (
-        <div className="mt-1"><TrendBadge delta={trend} /></div>
-      )}
-    </a>
-  );
-}
 
 function KpiCards() {
   const { data: projects, isLoading: loadingP } = useProjects();
@@ -190,7 +162,6 @@ function KpiCards() {
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
   const isFuji = theme === 't-fuji';
-  const isScandi = theme === 't-scandi';
 
   const kpi = useMemo(() => {
     const active = (projects ?? []).filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
@@ -286,9 +257,9 @@ function KpiCards() {
     },
   ];
 
-  // Fuji/Scandi: 4 cards (skip Конверсия)
-  const visibleCards = (isFuji || isScandi) ? cards.filter((c) => c.label !== 'Конверсия') : cards;
-  const gridCols = (isFuji || isScandi) ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
+  // Fuji: 4 cards (skip Конверсия)
+  const visibleCards = isFuji ? cards.filter((c) => c.label !== 'Конверсия') : cards;
+  const gridCols = isFuji ? 'grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5';
 
   const kpiGrid = (
     <div data-stats-grid className={`grid ${gridCols}`}>
@@ -296,24 +267,6 @@ function KpiCards() {
         const isEmpty = c.num === 0;
         const wm = isWashi ? WASHI_KPI_META[c.label] : null;
         const fm = isFuji ? FUJI_KPI_META[c.label] : null;
-        const sm = isScandi ? SCANDI_KPI_META[c.label] : null;
-
-        // Scandi: minimal card with watermark label + individual Bracket
-        if (sm) {
-          return (
-            <Bracket key={c.label}>
-              <ScandiStatCard
-                href={c.href}
-                value={c.num}
-                fmt={c.fmt}
-                label={sm.label}
-                colors={sm.colors}
-                trend={'trend' in c ? (c.trend as number | undefined) : undefined}
-                staggerIdx={i}
-              />
-            </Bracket>
-          );
-        }
 
         // Fuji: watermark layout — no icon, text watermark bottom-right
         if (fm) {
@@ -422,15 +375,11 @@ function KpiCards() {
 // Pipeline Funnel Chart (horizontal bars)
 // ═══════════════════════════════════════════════════════
 
-const VIVID_FUNNEL = ['#3D6B7E', '#4A5E8A', '#5B5EA6', '#6D5D7B', '#3E6B58', '#2D5043'];
-
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
   const themeVal = useThemeStore((s) => s.theme);
   const isFuji = themeVal === 't-fuji';
-  const isScandi = themeVal === 't-scandi';
   const [drillStage, setDrillStage] = useState<string | null>(null);
-  const [chartHovered, setChartHovered] = useState(false);
 
   const chartData = useMemo(() => {
     if (!projects) return [];
@@ -456,12 +405,8 @@ function PipelineFunnelChart() {
   if (isLoading) return <SkeletonChart />;
 
   return (
-    <div
-      className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
-      onMouseEnter={() => setChartHovered(true)}
-      onMouseLeave={() => setChartHovered(false)}
-    >
-      {isScandi ? null : isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
+    <div className="relative overflow-hidden p-4 rounded-lg bg-surface elevation-hover">
+      {isFuji ? <FujiWatermark text="ВОРОНКА" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Воронка по стадиям</h3>
       )}
       <ResponsiveContainer width="100%" height={260} style={{ position: 'relative', zIndex: 1 }}>
@@ -492,9 +437,6 @@ function PipelineFunnelChart() {
             }}
           >
             {chartData.map((entry, idx) => {
-              if (isScandi && chartHovered) {
-                return <Cell key={idx} fill={VIVID_FUNNEL[idx % VIVID_FUNNEL.length]} />;
-              }
               const fills: Record<string, string> = {
                 attract: 'var(--track-prep-current)',
                 develop: 'var(--track-exp-current)',
@@ -549,7 +491,6 @@ function CallsRecentChart() {
   const { data: calls, isLoading } = useCalls();
   const themeVal2 = useThemeStore((s) => s.theme);
   const isFuji = themeVal2 === 't-fuji';
-  const isScandi = themeVal2 === 't-scandi';
   const dayCount = isFuji ? 7 : 14;
   const [callsHovered, setCallsHovered] = useState(false);
 
@@ -582,11 +523,11 @@ function CallsRecentChart() {
 
   return (
     <div
-      className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-lg bg-surface elevation-hover')}
+      className="relative overflow-hidden p-4 rounded-lg bg-surface elevation-hover"
       onMouseEnter={() => setCallsHovered(true)}
       onMouseLeave={() => setCallsHovered(false)}
     >
-      {isScandi ? null : isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
+      {isFuji ? <FujiWatermark text="ЗВОНКИ" color="rgba(43,80,120,0.05)" /> : (
         <h3 className="mb-4 text-xs font-semibold text-text-dim">Звонки за {dayCount} дней</h3>
       )}
       {!hasCalls ? (
@@ -610,9 +551,9 @@ function CallsRecentChart() {
             itemStyle={{ color: 'var(--text-dim)' }}
             cursor={{ fill: 'var(--surface2)', opacity: 0.5 }}
           />
-          <Bar dataKey="done" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--green)'} name="Выполнено" radius={[0, 0, 0, 0]} />
-          <Bar dataKey="pending" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--blue)'} name="Запланир." radius={[0, 0, 0, 0]} />
-          <Bar dataKey="cancelled" stackId="calls" isAnimationActive={false} fill={isScandi ? '#4A5E8A' : 'var(--red)'} name="Отменено" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="done" stackId="calls" isAnimationActive={false} fill="var(--green)" name="Выполнено" radius={[0, 0, 0, 0]} />
+          <Bar dataKey="pending" stackId="calls" isAnimationActive={false} fill="var(--blue)" name="Запланир." radius={[0, 0, 0, 0]} />
+          <Bar dataKey="cancelled" stackId="calls" isAnimationActive={false} fill="var(--red)" name="Отменено" radius={[2, 2, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
       )}
@@ -628,7 +569,6 @@ function UpcomingDeadlines() {
   const { data: projects, isLoading } = useProjects();
   const themeVal3 = useThemeStore((s) => s.theme);
   const isFuji = themeVal3 === 't-fuji';
-  const isScandi = themeVal3 === 't-scandi';
 
   const items = useMemo(() => {
     if (!projects) return [];
@@ -650,8 +590,8 @@ function UpcomingDeadlines() {
   }
 
   return (
-    <div className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-xl bg-surface elevation-hover')}>
-      {isScandi ? null : isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
+    <div className="relative overflow-hidden p-4 rounded-xl bg-surface elevation-hover">
+      {isFuji ? <FujiWatermark text="ДЕДЛАЙНЫ" color="rgba(196,170,120,0.06)" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Calendar size={14} className="text-yellow" />
           <span className="text-xs font-semibold text-text-dim">Ближайшие дедлайны</span>
@@ -773,7 +713,6 @@ function RecentActivityList() {
   const { data: entries, isLoading } = useRecentActivity(20);
   const themeVal4 = useThemeStore((s) => s.theme);
   const isFuji = themeVal4 === 't-fuji';
-  const isScandi = themeVal4 === 't-scandi';
   const [activeTab, setActiveTab] = useState('all');
 
   if (isLoading) {
@@ -788,8 +727,8 @@ function RecentActivityList() {
   }
 
   return (
-    <div className={cn('relative overflow-hidden p-4', !isScandi && 'rounded-xl bg-surface elevation-hover')}>
-      {isScandi ? null : isFuji ? <FujiWatermark text="АКТИВНОСТЬ" /> : (
+    <div className="relative overflow-hidden p-4 rounded-xl bg-surface elevation-hover">
+      {isFuji ? <FujiWatermark text="АКТИВНОСТЬ" /> : (
         <div className="mb-3 flex items-center gap-2">
           <Clock size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-dim">Последние действия</span>
@@ -864,55 +803,25 @@ function RecentActivityList() {
 // ═══════════════════════════════════════════════════════
 
 export function DashboardHome() {
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
-
-  const funnelWidget = <PipelineFunnelChart />;
-  const callsWidget = <CallsRecentChart />;
-  const deadlinesWidget = <UpcomingDeadlines />;
-  const activityWidget = <RecentActivityList />;
-
   return (
     <div className="space-y-4">
-      {/* Page watermark (scandi only) */}
-      {isScandi && <NewWatermark text="ДАШБОРД" size="section" />}
-
       {/* Row 1: KPI cards */}
       <KpiCards />
 
       {/* Row 2: Charts */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="animate-appear stagger-6">
-          {isScandi ? (
-            <Bracket>
-              <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Воронка</span>
-              {funnelWidget}
-            </Bracket>
-          ) : funnelWidget}
+          <PipelineFunnelChart />
         </div>
         <div className="animate-appear stagger-7">
-          {isScandi ? (
-            <Bracket>
-              <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Звонки</span>
-              {callsWidget}
-            </Bracket>
-          ) : callsWidget}
+          <CallsRecentChart />
         </div>
       </div>
 
       {/* Row 3: Lists */}
       <div className="grid gap-4 md:grid-cols-2">
-        {isScandi ? (
-          <Bracket>
-            <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Дедлайны</span>
-            {deadlinesWidget}
-          </Bracket>
-        ) : deadlinesWidget}
-        {isScandi ? (
-          <Bracket>
-            <span className="text-[10px] text-text-mute uppercase tracking-wide mb-2 block">Активность</span>
-            {activityWidget}
-          </Bracket>
-        ) : activityWidget}
+        <UpcomingDeadlines />
+        <RecentActivityList />
       </div>
     </div>
   );

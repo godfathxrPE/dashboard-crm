@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
-import { Inter, Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
+import { Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import './globals.css';
-
-const inter = Inter({
-  subsets: ['latin', 'cyrillic'],
-  variable: '--font-inter',
-  display: 'swap',
-});
 
 const manrope = Manrope({
   subsets: ['latin', 'cyrillic'],
@@ -55,22 +49,24 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`t-scandi ${GeistSans.variable} ${GeistMono.variable} ${inter.variable} ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
+      className={`t-aura ${GeistSans.variable} ${GeistMono.variable} ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
       suppressHydrationWarning
     >
       <body>
         {/* FOUC-гард (P1 §2.2): применяем сохранённую тему до гидрации, иначе
-            вспышка светлого t-scandi (default на <html>). Inline parser-blocking
+            вспышка дефолтного t-aura (класс на <html>). Inline parser-blocking
             <script> первым ребёнком <body> — выполняется до отрисовки контента
             (паттерн next-themes). НЕ next/script beforeInteractive: тот рендерится
             ребёнком <html> → React 19 hydration error «<script> cannot be a child
             of <html>» (гейт-фикс волны 2). Значение уже с префиксом t-…
             (zustand-persist), второй раз НЕ добавляем. ThemeProvider ниже
-            реконсилит реактивные переключения. */}
+            реконсилит реактивные переключения.
+            AUDIT C: применяем ТОЛЬКО валидную тему; scandi/paper/sand и любое
+            неизвестное значение → остаёмся на дефолте t-aura (миграция persisted). */}
         <script
           id="theme-init"
           dangerouslySetInnerHTML={{
-            __html: `try{var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&t!=='t-scandi'){var d=document.documentElement;d.classList.remove('t-scandi');d.classList.add(t);}}catch(e){}`,
+            __html: `try{var V=['t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal'];var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&V.indexOf(t)!==-1&&t!=='t-aura'){var d=document.documentElement;d.classList.remove('t-aura');d.classList.add(t);}}catch(e){}`,
           }}
         />
         <QueryProvider>

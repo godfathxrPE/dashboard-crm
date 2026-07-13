@@ -4,7 +4,6 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
-import { useThemeStore } from '@/lib/stores/theme-store';
 import { calculateDealHealth, getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
@@ -84,7 +83,6 @@ export function ProjectCard({
     transition,
   };
 
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   const { data: allPipelineStages } = usePipelineStages();
   const health = calculateDealHealth(project);
 
@@ -109,16 +107,12 @@ export function ProjectCard({
   const isTerminal = pipelineStage?.is_won || pipelineStage?.is_lost
     || project.status === 'won' || project.status === 'lost';
 
-  // Scandi: visual weight based on progress
-  const scandiWeight = progress >= 70 ? 3 : progress >= 40 ? 2 : 1;
-
   return (
     <div
       ref={setNodeRef}
       style={{
         ...style,
         '--phase-color': phaseColor,
-        borderLeft: isScandi ? `${scandiWeight}px solid var(--text)` : undefined,
       } as React.CSSProperties}
       className={`
         group relative overflow-hidden rounded-md bg-surface p-3 glass-card
@@ -186,7 +180,7 @@ export function ProjectCard({
           <button
             onClick={() => onOpen(project.id)}
             className="block text-left text-sm text-text-main transition-colors hover:text-accent truncate"
-            style={{ fontWeight: isScandi ? (scandiWeight >= 3 ? 600 : scandiWeight >= 2 ? 500 : 400) : 500 }}
+            style={{ fontWeight: 500 }}
           >
             {project.name}
           </button>

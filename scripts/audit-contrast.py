@@ -111,10 +111,11 @@ for m in re.finditer(r':root\s*\{(.*?)\n\}', CSS, re.S):
     root_vars.update(parse_vars(m.group(1)))
 
 themes = {}
+# AUDIT C: scandi/paper/sand удалены. Дефолт-тема aura живёт в .t-aura,
+# базовые токены (Claude/light) — в :root (cascade-fallback ниже).
 theme_selectors = {
-    't-scandi': '.t-scandi', 't-frost': '.t-frost', 't-paper': '.t-paper',
-    't-sand': '.t-sand', 't-aurora': '.t-aurora', 't-tidal': '.t-tidal',
     't-aura': '.t-aura', 't-washi': '.t-washi', 't-fuji': '.t-fuji',
+    't-frost': '.t-frost', 't-aurora': '.t-aurora', 't-tidal': '.t-tidal',
 }
 for name, sel in theme_selectors.items():
     block = extract_block(sel)
@@ -123,12 +124,6 @@ for name, sel in theme_selectors.items():
     v = dict(root_vars)  # cascade: :root fallback
     v.update(parse_vars(block))
     themes[name] = v
-
-# scandi dark (prefers-color-scheme)
-m = re.search(r'@media \(prefers-color-scheme: dark\)\s*\{\s*\.t-scandi\s*\{(.*?)\n  \}', CSS, re.S)
-if m:
-    v = dict(themes['t-scandi']); v.update(parse_vars(m.group(1)))
-    themes['t-scandi-dark'] = v
 
 def resolve(theme, name, depth=0):
     """resolve var name (without --) to color tuple, following var() refs"""
@@ -210,28 +205,17 @@ for th in themes:
     # solid buttons: text on solid fill.
     # Компонентная модель overrides из globals.css:
     #  - aura: bg-X перекрашен в X-text, текст остаётся белым;
-    #  - frost/aurora/tidal: текст перекрашен в цвет фона темы (visual-audit P0 1.3);
-    #  - scandi/scandi-dark: кнопки outline (прозрачный фон, color: var(--text)) —
-    #    пара «white/bg-X» не применима, помечаем override (НЕ FAIL).
+    #  - frost/aurora/tidal: текст перекрашен в цвет фона темы (visual-audit P0 1.3).
     DARK_BTN_TEXT = {'t-frost': (13,16,32), 't-aurora': (10,14,26), 't-tidal': (8,15,13)}
-    # bg-yellow как solid-кнопка (PomodoroWidget «Пауза») существует во ВСЕХ темах —
-    # в отличие от accent, scandi её НЕ переводит в outline. Светлые темы, где
-    # white-on-bright-yellow < 4.5:1, затемняют fill до --yellow-text (AUDIT A1.0).
-    # Светлые темы затемняют fill до --yellow-text (белый текст остаётся);
-    # scandi-dark монохромный — fill остаётся серым, текст переворачивается в --bg.
-    YELLOW_DARKEN_FILL = {'t-aura', 't-fuji', 't-washi', 't-scandi'}
+    # bg-yellow как solid-кнопка (PomodoroWidget «Пауза») существует во всех темах.
+    # Светлые темы, где white-on-bright-yellow < 4.5:1, затемняют fill до
+    # --yellow-text (белый текст остаётся) — AUDIT A1.0.
+    YELLOW_DARKEN_FILL = {'t-aura', 't-fuji', 't-washi'}
     for c in ['accent','green','red','blue','purple','yellow']:
-        if th in ('t-scandi', 't-scandi-dark') and c != 'yellow':
-            pairs.append({'pair': f'white / bg-{c} solid (button)', 'ratio': None,
-                          'note': 'override: scandi buttons are outline (color: var(--text)) — N/A'})
-            continue
         btn_text = DARK_BTN_TEXT.get(th, (255,255,255))
         if c == 'yellow' and th in YELLOW_DARKEN_FILL:
             fill = text_token(th, c)       # fill затемнён до --yellow-text, текст белый
             btn_text = (255,255,255)
-        elif c == 'yellow' and th == 't-scandi-dark':
-            fill = resolve(th, c)          # монохром-grey fill, тёмный текст (--bg)
-            btn_text = bg
         elif th == 't-aura':
             fill = text_token(th, c)
         else:

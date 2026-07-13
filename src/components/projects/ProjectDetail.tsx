@@ -49,7 +49,6 @@ import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
 import { ProjectFiles } from './ProjectFiles';
-import { useThemeStore } from '@/lib/stores/theme-store';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -233,7 +232,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const { moveToStageId } = useMoveProject();
-  const isScandi = useThemeStore((s) => s.theme) === 't-scandi';
   // P2b (B0): права управления delivery (команда/шаблон/CRUD фаз) = контракт RLS,
   // НЕ role !== 'viewer' — иначе кнопки давали бы 42501
   const { data: orgRole } = useOrgRole();

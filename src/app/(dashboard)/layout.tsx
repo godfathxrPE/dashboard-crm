@@ -1,16 +1,13 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { ScandiSidebar } from '@/components/layout/ScandiSidebar';
-import { ScandiContentHeader } from '@/components/layout/ScandiContentHeader';
-import { Header } from '@/components/layout/Header';
+import { TextNavSidebar } from '@/components/layout/TextNavSidebar';
+import { ContentHeader } from '@/components/layout/ContentHeader';
 import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
 import { EventReminder } from '@/components/layout/EventReminder';
 import { AuraOrbs } from '@/components/layout/AuraOrbs';
 import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui-store';
-import { useThemeStore } from '@/lib/stores/theme-store';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -52,9 +49,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
-  const theme = useThemeStore((s) => s.theme);
-  // Scandi и Aura используют один shell: вертикальное текстовое меню + ScandiContentHeader
-  const isTextNav = theme === 't-scandi' || theme === 't-aura';
+  // AUDIT C6: единый shell для всех тем — вертикальное текстовое меню
+  // (TextNavSidebar) + ContentHeader. Тёмные темы отличаются токенами, не скелетом.
   const drawerOpen = useDrawerStore((s) => s.isOpen);
   const pathname = usePathname();
   const section = getSectionFromPath(pathname);
@@ -69,18 +65,14 @@ export default function DashboardLayout({
         Перейти к содержимому
       </a>
 
-      {isTextNav ? <ScandiSidebar /> : <Sidebar />}
+      <TextNavSidebar />
 
       <div
-        className={cn(
-          'transition-all duration-200',
-          isTextNav ? (sidebarOpen ? 'ml-[232px]' : 'ml-14') : sidebarOpen ? 'ml-56' : 'ml-16',
-        )}
-        style={isTextNav && drawerOpen ? { marginRight: 280 } : undefined}
+        className={cn('transition-all duration-200', sidebarOpen ? 'ml-[232px]' : 'ml-14')}
+        style={drawerOpen ? { marginRight: 280 } : undefined}
       >
-        {!isTextNav && <Header />}
         <main id="main-content" className="p-4 md:p-6">
-          {isTextNav && <ScandiContentHeader />}
+          <ContentHeader />
           <PageTransition>
             {children}
           </PageTransition>
@@ -88,7 +80,7 @@ export default function DashboardLayout({
       </div>
       <ActivityDrawer />
       <EventReminder />
-      {isTextNav && <QuickActionModals />}
+      <QuickActionModals />
       <CommandPalette />
       <GlobalModals />
       <Hotkeys />

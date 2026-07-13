@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Phone, Calendar, CheckSquare } from 'lucide-react';
-import { useThemeStore } from '@/lib/stores/theme-store';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
@@ -18,15 +17,9 @@ import { localDateKey } from '@/lib/utils/date-helpers';
 // ═══════════════════════════════════════════════════════
 
 export function ActivityDrawer() {
-  // Aura использует тот же shell, что Scandi → drawer тоже рендерим.
-  // Раньше: if(!isScandi) return null — а layout всё равно резервировал
-  // marginRight:280 для isTextNav, из-за чего в Aura доска сжималась до 150px.
-  const theme = useThemeStore((s) => s.theme);
-  const isTextNav = theme === 't-scandi' || theme === 't-aura';
+  // AUDIT C6: единый shell для всех тем → drawer рендерим всегда (видимость
+  // контролирует useDrawerStore.isOpen, а не тип темы).
   const isOpen = useDrawerStore((s) => s.isOpen);
-
-  if (!isTextNav) return null;
-
 
   return (
     <aside

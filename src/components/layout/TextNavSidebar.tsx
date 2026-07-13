@@ -28,10 +28,10 @@ const NAV_ITEMS = [
 ] as const;
 
 // ═══════════════════════════════════════════════════════
-// Scandinavian Sidebar
+// Text-nav Sidebar (единый shell для всех тем, AUDIT C6)
 // ═══════════════════════════════════════════════════════
 
-export function ScandiSidebar() {
+export function TextNavSidebar() {
   const pathname = usePathname();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
