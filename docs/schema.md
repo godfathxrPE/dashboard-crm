@@ -376,24 +376,26 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ## Tenant-таблицы (`org_id NOT NULL`)
 
-### companies _(002)_
+### companies _(002, +041 phones — на гейте)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
 | id | uuid PK | |
 | name | text | NOT NULL |
-| inn / industry / website / phone / address / notes | text | |
+| inn / industry / website / phone / address / notes | text | `phone` — legacy primary-зеркало массива `phones` |
+| phones | jsonb | **Pending 041** · NOT NULL DEFAULT `[]` · `[{type:'mobile'\|'work'\|'other', value, is_primary}]`; primary синхронизируется в `phone` |
 | owner_id / created_by | uuid | → profiles (`created_by` DEFAULT auth.uid()) |
 | **org_id** | uuid | **NOT NULL** → organizations _(021/022)_ |
 | created_at / updated_at | timestamptz | |
 
-### contacts _(002)_
+### contacts _(002, +041 phones — на гейте)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
 | id | uuid PK | |
 | first_name | text | NOT NULL |
-| last_name / email / phone / position / notes | text | |
+| last_name / email / phone / position / notes | text | `phone` — legacy primary-зеркало массива `phones` |
+| phones | jsonb | **Pending 041** · NOT NULL DEFAULT `[]` · `[{type:'mobile'\|'work'\|'other', value, is_primary}]`; primary синхронизируется в `phone` |
 | owner_id / created_by | uuid | → profiles |
 | **org_id** | uuid | **NOT NULL** |
 | created_at / updated_at | timestamptz | |

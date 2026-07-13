@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import type { PhoneEntry } from '@/types/database';
 import { useRealtimeSync } from './use-realtime';
 
 export interface Company {
@@ -11,6 +12,8 @@ export interface Company {
   industry: string | null;
   website: string | null;
   phone: string | null;
+  /** Мультителефон (041). До применения миграции может отсутствовать в ответе `*`. */
+  phones?: PhoneEntry[];
   email: string | null;
   address: string | null;
   notes: string | null;
@@ -29,6 +32,7 @@ export interface CompanyInsert {
   industry?: string | null;
   website?: string | null;
   phone?: string | null;
+  phones?: PhoneEntry[];
   email?: string | null;
   address?: string | null;
   notes?: string | null;

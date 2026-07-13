@@ -38,6 +38,17 @@ export type Database = {
   };
 };
 
+// ═══ Sprint UI-D1: мультителефон (contacts/companies, миграция 041 — на гейте) ═══
+// JSONB-массив `phones` на contacts/companies. Старая колонка `phone` остаётся
+// primary-зеркалом (backward-compat: дедуп/списки). Зеркало Zod-схемы —
+// `phoneEntrySchema` в src/lib/validators/phone.ts (держать синхронно).
+export type PhoneType = 'mobile' | 'work' | 'other';
+export interface PhoneEntry {
+  type: PhoneType;
+  value: string;
+  is_primary: boolean;
+}
+
 // ═══ Sprint 28: AI-саммари звонков/встреч ═══
 // Пишется Edge Function `ai-summarize`. Рендерится ТОЛЬКО как текст (см. security-контур).
 export interface AiSummary {
