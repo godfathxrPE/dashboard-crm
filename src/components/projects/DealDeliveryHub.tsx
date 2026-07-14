@@ -5,6 +5,8 @@ import { Rocket, Plus, ExternalLink, AlertCircle } from 'lucide-react';
 import { useChildDeliveries, type ChildDelivery } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { DELIVERY_PHASE_LABELS, deliveryKindLabel } from '@/lib/constants/delivery-phases';
+import { getDeliveryHealth, isDeliveryTerminal, type DeliveryHealth } from '@/lib/utils/delivery-health';
+import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-HUB-1 — «Внедрения по сделке»: дочерние delivery-проекты
@@ -40,6 +42,19 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
     const st = stages?.find((s) => s.id === stageId);
     const g = st?.phase_group ?? '';
     return DELIVERY_PHASE_LABELS[g] ?? g ?? '—';
+  };
+
+  // S-DLV-HEALTH-1: health из project-level полей строки; isTerminal — из стадии.
+  const healthOf = (d: ChildDelivery): DeliveryHealth => {
+    const st = stages?.find((s) => s.id === d.stage_id);
+    return getDeliveryHealth({
+      progress_done: d.progress_done,
+      progress_total: d.progress_total,
+      stage_entered_at: d.stage_entered_at,
+      deadline: d.deadline,
+      updated_at: d.updated_at,
+      isTerminal: isDeliveryTerminal(st, d.status),
+    });
   };
 
   return (
@@ -87,7 +102,7 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
       ) : (
         <div className="space-y-2">
           {deliveries.map((d) => (
-            <DeliveryRow key={d.id} delivery={d} phase={phaseLabel(d.stage_id)} />
+            <DeliveryRow key={d.id} delivery={d} phase={phaseLabel(d.stage_id)} health={healthOf(d)} />
           ))}
           {/* 1 сделка → 1..N внедрений — CTA остаётся при непустом списке */}
           {onCreateDelivery && (
@@ -105,13 +120,14 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
   );
 }
 
-function DeliveryRow({ delivery: d, phase }: { delivery: ChildDelivery; phase: string }) {
+function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; phase: string; health: DeliveryHealth }) {
   const hasProgress = d.progress_total > 0;
   const pct = hasProgress ? Math.round((d.progress_done / d.progress_total) * 100) : 0;
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-      {/* TODO(S-DLV-HEALTH-1): health badge slot */}
+      {/* S-DLV-HEALTH-1: health-бейдж внедрения (форма+цвет, tooltip с причинами) */}
+      <DeliveryHealthDot health={health} />
 
       <div className="min-w-0 flex-1">
         <Link

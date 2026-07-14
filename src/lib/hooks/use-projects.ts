@@ -291,18 +291,22 @@ export function useProject(id: string) {
 export interface ChildDelivery {
   id: string;
   name: string;
+  status: string;
   stage_id: string | null;
   delivery_kind: 'launch' | 'experiment' | null;
   direction: 'erp' | 'iiot' | null;
   progress_done: number;
   progress_total: number;
+  // S-DLV-HEALTH-1: сигналы health (аддитивно, всё ещё один запрос)
+  stage_entered_at: string | null;
+  deadline: string | null;
   do_url: string | null;
   do_synced_at: string | null;
   updated_at: string | null;
 }
 
 const CHILD_DELIVERY_COLUMNS =
-  'id, name, stage_id, delivery_kind, direction, progress_done, progress_total, do_url, do_synced_at, updated_at';
+  'id, name, status, stage_id, delivery_kind, direction, progress_done, progress_total, stage_entered_at, deadline, do_url, do_synced_at, updated_at';
 
 async function fetchChildDeliveries(dealId: string): Promise<ChildDelivery[]> {
   const supabase = createClient();

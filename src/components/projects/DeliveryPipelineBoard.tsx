@@ -33,6 +33,8 @@ import {
 } from '@/lib/constants/delivery-phases';
 import { Badge } from '@/components/ui/Badge';
 import type { PipelineStage } from '@/types/database';
+import { getDeliveryHealth, isDeliveryTerminal, type DeliveryHealth } from '@/lib/utils/delivery-health';
+import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 
 // ═══════════════════════════════════════════════════════
 // Delivery-канбан (раздел «Проекты», вкладка «Внедрение») — Sprint P1.
@@ -46,9 +48,10 @@ import type { PipelineStage } from '@/types/database';
 // mapToLegacyStage не зовём (B6).
 // ═══════════════════════════════════════════════════════
 
-function DeliveryCard({ project, stageName, onOpen }: {
+function DeliveryCard({ project, stageName, health, onOpen }: {
   project: Project;
   stageName: string;
+  health: DeliveryHealth;
   onOpen: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: project.id });
@@ -75,6 +78,10 @@ function DeliveryCard({ project, stageName, onOpen }: {
         >
           {project.name}
         </button>
+        {/* S-DLV-HEALTH-1: health-бейдж — «красные» внедрения видны на доске */}
+        <span className="mt-0.5 shrink-0">
+          <DeliveryHealthDot health={health} />
+        </span>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-5">
         <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
@@ -113,10 +120,11 @@ function DeliveryCard({ project, stageName, onOpen }: {
   );
 }
 
-function PhaseColumn({ phase, projects, stageNameOf, isLast, onOpen }: {
+function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }: {
   phase: DeliveryPhase;
   projects: Project[];
   stageNameOf: (p: Project) => string;
+  healthOf: (p: Project) => DeliveryHealth;
   isLast: boolean;
   onOpen: (id: string) => void;
 }) {
@@ -147,7 +155,7 @@ function PhaseColumn({ phase, projects, stageNameOf, isLast, onOpen }: {
       </div>
       <div className="flex-1 space-y-2 p-2">
         {projects.map((p) => (
-          <DeliveryCard key={p.id} project={p} stageName={stageNameOf(p)} onOpen={onOpen} />
+          <DeliveryCard key={p.id} project={p} stageName={stageNameOf(p)} health={healthOf(p)} onOpen={onOpen} />
         ))}
         {projects.length === 0 && (
           <div data-kanban-empty className="flex h-20 items-center justify-center">
@@ -201,6 +209,19 @@ export function DeliveryPipelineBoard() {
 
   const stageNameOf = (p: Project) =>
     (p.stage_id ? stageById.get(p.stage_id)?.name : null) ?? '—';
+
+  // S-DLV-HEALTH-1: health из project-level полей (без per-card запросов задач).
+  const healthOf = (p: Project): DeliveryHealth => {
+    const st = p.stage_id ? stageById.get(p.stage_id) : null;
+    return getDeliveryHealth({
+      progress_done: p.progress_done,
+      progress_total: p.progress_total,
+      stage_entered_at: p.stage_entered_at,
+      deadline: p.deadline,
+      updated_at: p.updated_at,
+      isTerminal: isDeliveryTerminal(st, p.status),
+    });
+  };
 
   const activeProject = useMemo(
     () => deliveryProjects.find((p) => p.id === activeId) ?? null,
@@ -271,6 +292,7 @@ export function DeliveryPipelineBoard() {
             phase={phase}
             projects={grouped[phase]}
             stageNameOf={stageNameOf}
+            healthOf={healthOf}
             isLast={i === DELIVERY_PHASE_ORDER.length - 1}
             onOpen={handleOpen}
           />

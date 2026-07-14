@@ -62,7 +62,9 @@ import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import type { TimelineEvent } from '@/types/timeline';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
+import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
 import { HealthDot } from '@/components/shared/HealthDot';
+import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { createClient } from '@/lib/supabase/client';
@@ -346,6 +348,17 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // S29.1: «живой» контур стадии — из stage_id (pipeline_stages), не legacy enum.
   const headerStage = allPipelineStages?.find((s) => s.id === project.stage_id) ?? null;
   const headerProb = headerStage?.probability ?? stageConfig?.probability ?? null;
+  // S-DLV-HEALTH-1: health внедрения — из project-level полей; терминальные не краснят
+  const deliveryHealth = isDelivery
+    ? getDeliveryHealth({
+        progress_done: project.progress_done,
+        progress_total: project.progress_total,
+        stage_entered_at: project.stage_entered_at,
+        deadline: project.deadline,
+        updated_at: project.updated_at,
+        isTerminal: isDeliveryTerminal(headerStage, project.status),
+      })
+    : null;
 
   function handleAdvance() {
     if (!project) return;
@@ -432,6 +445,15 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             {isDelivery && hasTaskProgress(project.progress_total) && (
               <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-medium text-text-dim">
                 Задачи: {project.progress_done}/{project.progress_total}
+              </span>
+            )}
+            {/* S-DLV-HEALTH-1: health внедрения + причины текстом (место есть) */}
+            {isDelivery && deliveryHealth && (
+              <span className="inline-flex items-center gap-1.5">
+                <DeliveryHealthDot health={deliveryHealth} size="md" showLabel />
+                {deliveryHealth.reasons.length > 0 && (
+                  <span className="text-text-mute">· {deliveryHealth.reasons.join('; ')}</span>
+                )}
               </span>
             )}
             <span>
