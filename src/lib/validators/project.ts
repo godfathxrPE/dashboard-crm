@@ -144,6 +144,33 @@ export const LOSS_REASON_CONFIG: Record<LossReason, { label: string }> = {
 };
 
 // ═══════════════════════════════════════════════════════
+// Won Reasons — причины выигрыша (симметрия loss, миграция 043)
+// Стартовый набор под IT-интеграцию/маркировку
+// ═══════════════════════════════════════════════════════
+
+export const wonReasons = [
+  'price',
+  'features',
+  'deadline',
+  'trust',
+  'referral',
+  'compliance',
+  'no_alternative',
+] as const;
+
+export type WonReason = (typeof wonReasons)[number];
+
+export const WON_REASON_CONFIG: Record<WonReason, { label: string }> = {
+  price:          { label: 'Цена / бюджет' },
+  features:       { label: 'Функционал / закрыли требования' },
+  deadline:       { label: 'Сроки' },
+  trust:          { label: 'Отношения / доверие' },
+  referral:       { label: 'Рекомендация' },
+  compliance:     { label: 'Требование ЧЗ / регуляторика' },
+  no_alternative: { label: 'Безальтернативность' },
+};
+
+// ═══════════════════════════════════════════════════════
 // Sort options
 // ═══════════════════════════════════════════════════════
 
@@ -189,6 +216,9 @@ export const projectFormSchema = z
     next_action_date: z.string().nullable().default(null),
     loss_reason: z.string().nullable().default(null),
     loss_detail: z.string().nullable().default(null),
+    // Причина выигрыша — симметрия loss (миграция 043)
+    won_reason: z.string().nullable().default(null),
+    won_detail: z.string().nullable().default(null),
     owner_id: z.string().uuid().nullable().optional(),
     // Delivery P1 (форма их не редактирует, кроме do_url на карточке)
     parent_deal_id: z.string().uuid().nullable().default(null),

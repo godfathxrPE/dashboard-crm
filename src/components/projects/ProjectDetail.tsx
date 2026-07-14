@@ -40,6 +40,8 @@ import {
   parseBudgetInput,
   lossReasons,
   LOSS_REASON_CONFIG,
+  wonReasons,
+  WON_REASON_CONFIG,
   type DealStage,
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
@@ -242,6 +244,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [tab, setTab] = useState<'activity' | 'board'>('activity');
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
+  // «Выиграна» — двухшаговый выбор причины (симметрия проигрышу, S-WON-REASON-1)
+  const [winning, setWinning] = useState(false);
+  // Опциональный комментарий к причине выигрыша (won_detail)
+  const [winDetail, setWinDetail] = useState('');
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -428,10 +434,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               <>
                 {wonStage && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Отметить «${project.name}» выигранной?`)) return;
-                      moveToStageId(project.id, wonStage.id, mapToLegacyStage(wonStage, project.direction), { onError: onGateError });
-                    }}
+                    onClick={() => { setLosing(false); setWinning((v) => !v); }}
                     className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
                                transition-colors hover:bg-green-l"
                   >
@@ -440,7 +443,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 )}
                 {lostStage && (
                   <button
-                    onClick={() => setLosing((v) => !v)}
+                    onClick={() => { setWinning(false); setLosing((v) => !v); }}
                     className="rounded-lg border border-red/40 px-2.5 py-1.5 text-xs font-medium text-red
                                transition-colors hover:bg-red-l"
                   >
@@ -499,6 +502,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     stage: mapToLegacyStage(firstStage, project.direction),
                     loss_reason: null,
                     loss_detail: null,
+                    won_reason: null,
+                    won_detail: null,
                   });
                 }}
                 className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim
@@ -565,6 +570,60 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           {spawnError && <p className="mt-1.5 text-xs text-red">{spawnError}</p>}
         </div>
       )}
+
+      {/* «Выиграна» — выбор причины (обязателен, симметрия проигрышу) S-WON-REASON-1 */}
+      {winning && (project.status === 'open' || project.status === 'on_hold') && (() => {
+        const wonStage = allPipelineStages?.find((s) => s.pipeline_id === project.pipeline_id && s.is_won);
+        if (!wonStage) return null;
+        return (
+          <div className="mb-4 rounded-lg border border-green/30 bg-green-l/40 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs text-text-dim">Причина выигрыша:</span>
+              {wonReasons.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    moveToStageId(
+                      project.id,
+                      wonStage.id,
+                      mapToLegacyStage(wonStage, project.direction),
+                      { onError: onGateError },
+                      {
+                        won_reason: r,
+                        won_detail: winDetail.trim() || null,
+                        loss_reason: null,
+                        loss_detail: null,
+                      },
+                    );
+                    setWinning(false);
+                    setWinDetail('');
+                  }}
+                  className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
+                             transition-colors hover:border-green hover:text-green"
+                >
+                  {WON_REASON_CONFIG[r].label}
+                </button>
+              ))}
+              <button
+                onClick={() => { setWinning(false); setWinDetail(''); }}
+                className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
+              >
+                Отмена
+              </button>
+            </div>
+            <textarea
+              value={winDetail}
+              onChange={(e) => setWinDetail(e.target.value)}
+              placeholder="Комментарий (необязательно)"
+              rows={2}
+              aria-label="Комментарий к причине выигрыша"
+              className="mt-2 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm
+                         text-text-main placeholder:text-text-mute
+                         focus:border-green focus:outline-none focus:ring-1 focus:ring-green"
+            />
+          </div>
+        );
+      })()}
 
       {/* «Проиграна» — выбор причины (обязателен, паттерн отказа лидов) */}
       {losing && (project.status === 'open' || project.status === 'on_hold') && (() => {

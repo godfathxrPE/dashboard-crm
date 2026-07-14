@@ -67,6 +67,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
       next_action_date: null,
       loss_reason: null,
       loss_detail: null,
+      won_reason: null,
+      won_detail: null,
       owner_id: null,
     },
   });
@@ -119,6 +121,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         next_action_date: editProject.next_action_date,
         loss_reason: editProject.loss_reason,
         loss_detail: editProject.loss_detail,
+        // Причина выигрыша: UI её не редактирует, но несём значение, чтобы
+        // сохранение сделки не затёрло won_reason/won_detail (симметрия loss).
+        won_reason: editProject.won_reason,
+        won_detail: editProject.won_detail,
         owner_id: editProject.owner_id ?? null,
       });
     } else {
@@ -137,6 +143,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         next_action_date: null,
         loss_reason: null,
         loss_detail: null,
+        won_reason: null,
+        won_detail: null,
         owner_id: null,
       });
     }
@@ -233,6 +241,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         stage: null,
         loss_reason: null,
         loss_detail: null,
+        won_reason: null,
+        won_detail: null,
       };
     } else if (values.type === 'delivery') {
       // Delivery P1 (защитная ветка): модалка delivery не создаёт и не редактирует

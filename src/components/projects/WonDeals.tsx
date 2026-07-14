@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronRight, Trophy, Rocket, Building2, Calendar } from 'lucide-react';
-import { formatBudget } from '@/lib/validators/project';
+import { formatBudget, WON_REASON_CONFIG } from '@/lib/validators/project';
+import type { WonReason } from '@/lib/validators/project';
 import type { Project } from '@/lib/hooks/use-projects';
 
 export function WonDeals({ projects }: { projects: Project[] }) {
@@ -67,6 +68,11 @@ export function WonDeals({ projects }: { projects: Project[] }) {
                       {project.budget != null && (
                         <span>{formatBudget(project.budget)}</span>
                       )}
+                      {project.won_reason && (
+                        <span className="rounded bg-green/10 px-1 py-px text-green">
+                          {WON_REASON_CONFIG[project.won_reason as WonReason]?.label ?? project.won_reason}
+                        </span>
+                      )}
                       {wonAt && (
                         <span className="flex items-center gap-0.5">
                           <Calendar size={9} />
@@ -77,6 +83,11 @@ export function WonDeals({ projects }: { projects: Project[] }) {
                         </span>
                       )}
                     </div>
+                    {project.won_detail && (
+                      <p className="mt-0.5 line-clamp-1 text-xs text-text-dim italic">
+                        {project.won_detail}
+                      </p>
+                    )}
                   </div>
 
                   {/* Spawn-диалог живёт на карточке won-сделки — просто переход */}

@@ -1572,6 +1572,8 @@ export type Database = {
           loss_detail: string | null
           loss_reason: string | null
           lost_reason: string | null
+          won_reason: string | null
+          won_detail: string | null
           name: string
           next_action_date: string | null
           next_step: string | null
@@ -1642,6 +1644,8 @@ export type Database = {
           loss_detail?: string | null
           loss_reason?: string | null
           lost_reason?: string | null
+          won_reason?: string | null
+          won_detail?: string | null
           name?: string
           next_action_date?: string | null
           next_step?: string | null

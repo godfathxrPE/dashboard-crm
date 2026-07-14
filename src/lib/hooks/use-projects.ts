@@ -66,6 +66,9 @@ export interface Project {
   owner_id: string | null;
   loss_reason: string | null;
   loss_detail: string | null;
+  // Причина выигрыша — симметрия loss (миграция 043)
+  won_reason: string | null;
+  won_detail: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -104,6 +107,8 @@ export interface ProjectInsert {
   pinned_note?: string | null;
   loss_reason?: string | null;
   loss_detail?: string | null;
+  won_reason?: string | null;
+  won_detail?: string | null;
   // Sprint 1 — PCT-1: nullable для internal
   direction?: 'erp' | 'iiot' | null;
   pipeline_id?: string | null;
@@ -135,6 +140,7 @@ const listKey = (scope?: ProjectScope) => [...QUERY_KEY, scope ?? 'all'] as cons
 const PROJECT_COLUMNS = `
   id, name, company_id, contact_id, stage, budget, deadline, next_step,
   next_action_date, pinned_note, owner_id, loss_reason, loss_detail,
+  won_reason, won_detail,
   created_by, created_at, updated_at, direction, pipeline_id, stage_id,
   probability, status, type, lost_reason, actual_close_date, stage_entered_at,
   parent_deal_id, delivery_kind, do_url, progress_done, progress_total,
@@ -361,6 +367,8 @@ export function useCreateProject() {
         owner_id: null,
         loss_reason: newProject.loss_reason ?? null,
         loss_detail: newProject.loss_detail ?? null,
+        won_reason: newProject.won_reason ?? null,
+        won_detail: newProject.won_detail ?? null,
         created_by: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -503,12 +511,15 @@ export function useMoveProject() {
       stageId: string,
       legacyStage?: DealStage | null,
       options?: { onError?: (err: unknown) => void; onSuccess?: () => void },
+      /** S-WON-REASON-1: доп. поля пишутся тем же mutate (напр. won_reason при выигрыше) */
+      extra?: Partial<ProjectInsert>,
     ) => {
       update.mutate(
         {
           id,
           stage_id: stageId,
           ...(legacyStage !== undefined ? { stage: legacyStage } : {}),
+          ...(extra ?? {}),
         },
         options,
       );
