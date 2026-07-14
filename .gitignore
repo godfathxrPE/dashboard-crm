@@ -53,3 +53,4 @@ _test-runs/
 sprint results/
 /_*.mjs
 tests/RESULTS-*.md
+.obsidian/

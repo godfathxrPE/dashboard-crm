@@ -1,9 +1,16 @@
 'use client';
 
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { PhoneEntry } from '@/types/database';
+import { phoneEntrySchema } from '@/lib/validators/phone';
 import { useRealtimeSync } from './use-realtime';
+
+// 041: phones приходит из БД как jsonb (codegen типизирует Json) — парсим на
+// границе хука доменным phoneEntrySchema. Битую запись глотаем в [] (catch),
+// чтобы один кривой номер не ронял всю строку/список.
+const parsePhones = (v: unknown): PhoneEntry[] => z.array(phoneEntrySchema).catch([]).parse(v);
 
 export interface Contact {
   id: string;
@@ -61,9 +68,7 @@ async function fetchContacts(): Promise<Contact[]> {
     .order('last_name', { ascending: true });
 
   if (error) throw error;
-  // 041: phones (jsonb) — codegen Json vs домен Contact.phones PhoneEntry[];
-  // мост через unknown (паттерн use-projects).
-  return (data ?? []) as unknown as Contact[];
+  return (data ?? []).map((r) => ({ ...r, phones: parsePhones(r.phones) })) as Contact[];
 }
 
 async function fetchContact(id: string): Promise<Contact> {
@@ -82,20 +87,21 @@ async function fetchContact(id: string): Promise<Contact> {
     .single();
 
   if (error) throw error;
-  return data as unknown as Contact;
+  return { ...data, phones: parsePhones(data.phones) } as Contact;
 }
 
 async function createContact(contact: ContactInsert): Promise<Contact> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('contacts')
-    // phones: PhoneEntry[] в ContactInsert vs Json в codegen — каст payload
+    // Каст payload: codegen требует org_id (инжектится сервером/RLS) + phones
+    // Json vs PhoneEntry[]. Payload валидирован zod (contact.ts) до вызова.
     .insert(contact as never)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as unknown as Contact;
+  return { ...data, phones: parsePhones(data.phones) } as Contact;
 }
 
 async function updateContact({ id, ...updates }: ContactUpdate): Promise<Contact> {
@@ -108,7 +114,7 @@ async function updateContact({ id, ...updates }: ContactUpdate): Promise<Contact
     .single();
 
   if (error) throw error;
-  return data as unknown as Contact;
+  return { ...data, phones: parsePhones(data.phones) } as Contact;
 }
 
 async function deleteContact(id: string): Promise<void> {
