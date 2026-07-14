@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
-import { calculateDealHealth, getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { calculateDealHealth, getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
@@ -155,17 +155,23 @@ export function ProjectCard({
           <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
             {stageLabel}
           </span>
-          {/* Возраст в стадии (stage_entered_at, миграция 019) — сигнал застревания */}
+          {/* Возраст в стадии (stage_entered_at) + stale-сигнал по phase_group (S-AGING-1) */}
           {!isTerminal && project.stage_entered_at && (() => {
-            const d = Math.floor((Date.now() - new Date(project.stage_entered_at).getTime()) / 86400000);
-            if (d < 1) return null;
+            const aging = getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null);
+            if (aging.daysInStage === null || aging.daysInStage < 1) return null;
+            const label = aging.isStale
+              ? `Залипла: ${aging.daysInStage} дн. в стадии «${stageLabel}»`
+              : `${aging.daysInStage} дн. в текущей стадии`;
             return (
               <span
-                className="text-[10px] tabular-nums"
-                style={d > 30 ? { color: 'var(--red-text, var(--red))' } : { color: 'var(--text-mute)' }}
-                title="Дней в текущей стадии"
+                className={`inline-flex items-center gap-0.5 text-[10px] tabular-nums ${aging.isStale ? 'text-yellow' : 'text-text-mute'}`}
+                title={label}
+                aria-label={label}
               >
-                · {d} дн.
+                {aging.isStale
+                  ? <AlertTriangle size={9} className="shrink-0" aria-hidden="true" />
+                  : <span aria-hidden="true">·</span>}
+                {aging.daysInStage} дн.
               </span>
             );
           })()}

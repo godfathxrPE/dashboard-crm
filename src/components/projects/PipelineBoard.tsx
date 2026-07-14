@@ -39,6 +39,7 @@ import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/pro
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
+import { compareByNextAction } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
@@ -338,7 +339,8 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
   const [focusNextAction, setFocusNextAction] = useState(false);
   const [nextActionPrompt, setNextActionPrompt] = useState<Project | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>('created_at');
+  // S-AGING-1: дефолт — «требуют внимания» (переопределяется select'ом ниже)
+  const [sortBy, setSortBy] = useState<SortOption>('next_action');
   // Sprint 27: отказ стадийного гейта — блокирующий баннер со списком требований
   const [gateBlock, setGateBlock] = useState<{ name: string; unmet: UnmetRequirement[] } | null>(null);
 
@@ -422,6 +424,8 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
 
     const sorted = [...projects].sort((a, b) => {
       switch (sortBy) {
+        case 'next_action':
+          return compareByNextAction(a, b);
         case 'deadline':
           if (!a.deadline) return 1;
           if (!b.deadline) return -1;

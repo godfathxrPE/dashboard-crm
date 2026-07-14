@@ -148,6 +148,7 @@ export const LOSS_REASON_CONFIG: Record<LossReason, { label: string }> = {
 // ═══════════════════════════════════════════════════════
 
 export const sortOptions = [
+  { value: 'next_action', label: 'Требуют внимания' }, // S-AGING-1: дефолт
   { value: 'created_at',  label: 'По добавлению' },
   { value: 'deadline',    label: 'По дедлайну' },
   { value: 'budget',      label: 'По бюджету' },
