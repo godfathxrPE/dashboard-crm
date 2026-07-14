@@ -280,6 +280,58 @@ export function useProject(id: string) {
   });
 }
 
+// ═══════════════════════════════════════════════════════
+// S-DEAL-HUB-1: дочерние внедрения выигранной сделки
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Проекция строки `projects` (type='delivery') для секции «Внедрения по сделке»
+ * на карточке won-сделки. Только поля, нужные хабу — не тянем весь Project.
+ */
+export interface ChildDelivery {
+  id: string;
+  name: string;
+  stage_id: string | null;
+  delivery_kind: 'launch' | 'experiment' | null;
+  direction: 'erp' | 'iiot' | null;
+  progress_done: number;
+  progress_total: number;
+  do_url: string | null;
+  do_synced_at: string | null;
+  updated_at: string | null;
+}
+
+const CHILD_DELIVERY_COLUMNS =
+  'id, name, stage_id, delivery_kind, direction, progress_done, progress_total, do_url, do_synced_at, updated_at';
+
+async function fetchChildDeliveries(dealId: string): Promise<ChildDelivery[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('projects')
+    .select(CHILD_DELIVERY_COLUMNS)
+    .eq('parent_deal_id', dealId)
+    .eq('type', 'delivery')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as unknown as ChildDelivery[];
+}
+
+/**
+ * Дочерние проекты внедрения (`type='delivery'`, `parent_deal_id = dealId`).
+ * Ключ под префиксом ['projects'] — realtime-инвалидация useProjects и
+ * spawn-инвалидация (`invalidateQueries(['projects'])`) подхватывают список.
+ * org-scope наследуется из RLS на projects, как у остальных project-хуков.
+ */
+export function useChildDeliveries(dealId: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'children', dealId],
+    queryFn: () => fetchChildDeliveries(dealId),
+    enabled: !!dealId,
+    staleTime: 1000 * 60,
+  });
+}
+
 /** Создать проект — оптимистичный UI */
 export function useCreateProject() {
   const qc = useQueryClient();

@@ -45,6 +45,7 @@ import {
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
 import { DeliveryCompletionModal } from './DeliveryCompletionModal';
+import { DealDeliveryHub } from './DealDeliveryHub';
 import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
@@ -734,6 +735,16 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) — только client */}
       {project.type === 'client' && project.status === 'open' && <StageReadiness project={project} />}
+
+      {/* S-DEAL-HUB-1: дочерние внедрения won-сделки (компонент сам скрыт, если не won).
+          onCreateDelivery дёргает существующий spawn-триггер (панель шаблона выше). */}
+      {project.type === 'client' && (
+        <DealDeliveryHub
+          dealId={project.id}
+          dealStatus={project.status}
+          onCreateDelivery={() => { setSpawnError(null); setSpawning(true); }}
+        />
+      )}
 
       {/* Info grid */}
       <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
