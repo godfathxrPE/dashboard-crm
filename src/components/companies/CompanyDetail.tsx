@@ -19,6 +19,7 @@ import { CompanyModal } from './CompanyModal';
 import { ProjectModal } from '@/components/projects/ProjectModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -233,7 +234,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           <Activity size={14} />
           Активность
         </div>
-        <EntityTimeline entityType="company" entityId={companyId} onOpenEvent={handleOpenEvent} />
+        <ActivityComposer entityType="company" entityId={companyId} />
+        <EntityTimeline entityType="company" entityId={companyId} options={{ includeSystem: true }} onOpenEvent={handleOpenEvent} />
       </div>
 
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />

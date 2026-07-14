@@ -15,7 +15,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Clock,
-  Send,
   Rocket,
   ExternalLink,
   Link2,
@@ -56,7 +55,7 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
-import { useLogActivity } from '@/lib/hooks/use-activity-log';
+import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { useQueryClient } from '@tanstack/react-query';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
@@ -162,58 +161,6 @@ function StageProgress({ currentStage }: { currentStage: DealStage }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Activity Composer — только ВВОД заметки (read-часть теперь в <EntityTimeline>)
-// Комментарий пишется в activity_log; инвалидация ['timeline'] подтягивает
-// его в единую ленту сделки (includeSystem).
-// ═══════════════════════════════════════════════════════
-
-function ActivityComposer({ projectId }: { projectId: string }) {
-  const logMutation = useLogActivity();
-  const qc = useQueryClient();
-  const [comment, setComment] = useState('');
-
-  function handleAddComment() {
-    const text = comment.trim();
-    if (!text) return;
-    logMutation.mutate(
-      { project_id: projectId, event_type: 'comment_added', payload: { text } },
-      {
-        onSuccess: () => {
-          setComment('');
-          qc.invalidateQueries({ queryKey: ['timeline'] });
-        },
-      },
-    );
-  }
-
-  return (
-    <div className="mb-4 flex gap-2">
-      <textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Добавить комментарий..."
-        rows={1}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
-        }}
-        className="flex-1 resize-none rounded-lg border border-input bg-bg px-3 py-1.5
-                   text-sm text-text-main placeholder:text-text-mute
-                   focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-      />
-      <button
-        type="button"
-        onClick={handleAddComment}
-        disabled={!comment.trim() || logMutation.isPending}
-        className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white
-                   transition-opacity hover:opacity-90 disabled:opacity-50"
-      >
-        <Send size={14} />
-      </button>
     </div>
   );
 }
@@ -942,7 +889,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </button>
           </div>
         </div>
-        <ActivityComposer projectId={projectId} />
+        <ActivityComposer entityType="project" entityId={projectId} />
         <EntityTimeline
           entityType="project"
           entityId={projectId}

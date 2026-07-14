@@ -94,6 +94,8 @@ export type Database = {
       }
       activity_log: {
         Row: {
+          company_id: string | null
+          contact_id: string | null
           created_at: string | null
           event_type: string
           id: string
@@ -103,6 +105,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          company_id?: string | null
+          contact_id?: string | null
           created_at?: string | null
           event_type: string
           id?: string
@@ -112,6 +116,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          company_id?: string | null
+          contact_id?: string | null
           created_at?: string | null
           event_type?: string
           id?: string
@@ -121,6 +127,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "activity_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "activity_log_org_id_fkey"
             columns: ["org_id"]

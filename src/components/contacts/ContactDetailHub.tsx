@@ -22,6 +22,7 @@ import type { Meeting } from '@/lib/hooks/use-meetings';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 import type { Task } from '@/types/entities';
@@ -567,9 +568,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               Активность
             </div>
 
+            <ActivityComposer entityType="contact" entityId={contactId} />
             <EntityTimeline
               entityType="contact"
               entityId={contactId}
+              options={{ includeSystem: true }}
               onOpenEvent={handleOpenEvent}
               renderAction={renderTimelineAction}
             />

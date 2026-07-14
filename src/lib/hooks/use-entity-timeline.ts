@@ -114,30 +114,71 @@ async function resolveProjectIds(
   return (data ?? []).map((p) => p.id as string);
 }
 
+interface ActivityRow {
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+}
+
+function activityToEvent(a: ActivityRow): TimelineEvent {
+  return {
+    id: `activity:${a.id}`,
+    sourceId: a.id,
+    kind: 'activity' as const,
+    // Человекочитаемый текст (стадия/комментарий/…) через общий describeEvent
+    title: describeEvent(a as unknown as ActivityLog),
+    date: a.created_at,
+    icon: 'activity' as const,
+  };
+}
+
+/**
+ * activity_log сущности = UNION прямых и транзитивных записей (S-NOTES-TIMELINE-1):
+ *  - прямые: заметки, положенные на саму сущность (contact_id/company_id = id;
+ *    для project — project_id = id);
+ *  - транзитивные (только contact/company): записи по связанным проектам
+ *    (project_id ∈ проекты сущности) — как было до спринта.
+ * Дедуп по id: прямая заметка не имеет project_id и в оба набора не попадёт,
+ * но защищаемся на случай пересечения.
+ */
 async function fetchActivity(
   entityType: TimelineEntityType,
   col: string,
   id: string,
 ): Promise<TimelineEvent[]> {
-  const projectIds = await resolveProjectIds(entityType, col, id);
-  if (projectIds.length === 0) return [];
   const supabase = createClient();
-  const { data, error } = await supabase
+
+  // Прямая привязка: col уже = contact_id | company_id | project_id.
+  const direct = await supabase
     .from('activity_log')
     .select('id, event_type, payload, created_at')
-    .in('project_id', projectIds)
+    .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
-  if (error) throw error;
-  return (data ?? []).map((a) => ({
-    id: `activity:${a.id}`,
-    sourceId: a.id as string,
-    kind: 'activity' as const,
-    // Человекочитаемый текст (стадия/комментарий/…) через общий describeEvent
-    title: describeEvent(a as unknown as ActivityLog),
-    date: a.created_at as string,
-    icon: 'activity' as const,
-  }));
+  if (direct.error) throw direct.error;
+
+  // Транзитивная — только для contact/company (у project «прямая» уже по project_id).
+  let transitive: ActivityRow[] = [];
+  if (entityType !== 'project') {
+    const projectIds = await resolveProjectIds(entityType, col, id);
+    if (projectIds.length > 0) {
+      const t = await supabase
+        .from('activity_log')
+        .select('id, event_type, payload, created_at')
+        .in('project_id', projectIds)
+        .order('created_at', { ascending: false })
+        .limit(PER_SOURCE_LIMIT);
+      if (t.error) throw t.error;
+      transitive = (t.data ?? []) as ActivityRow[];
+    }
+  }
+
+  const byId = new Map<string, ActivityRow>();
+  for (const a of [...((direct.data ?? []) as ActivityRow[]), ...transitive]) {
+    byId.set(a.id, a);
+  }
+  return [...byId.values()].map(activityToEvent);
 }
 
 async function fetchAiRuns(col: string, id: string): Promise<TimelineEvent[]> {

@@ -49,28 +49,50 @@ export function useRecentActivity(limit = 10) {
   });
 }
 
+/**
+ * Лог активности с гибкой привязкой к сущности (S-NOTES-TIMELINE-1).
+ * Передавай ровно один из project_id/contact_id/company_id (заметка на
+ * контакте/компании не имеет project_id). org_id НЕ шлём — ставит триггер.
+ */
 export function useLogActivity() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { project_id: string; event_type: string; payload?: Json }) => {
+    mutationFn: async (input: {
+      project_id?: string;
+      contact_id?: string;
+      company_id?: string;
+      event_type: string;
+      payload?: Json;
+    }) => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('activity_log')
-        .insert({
-          project_id: input.project_id,
-          user_id: user.id,
-          event_type: input.event_type,
-          payload: input.payload ?? {},
-        });
+      // Вставляем только переданные FK — undefined в объект insert не кладём.
+      const row: {
+        user_id: string;
+        event_type: string;
+        payload: Json;
+        project_id?: string;
+        contact_id?: string;
+        company_id?: string;
+      } = {
+        user_id: user.id,
+        event_type: input.event_type,
+        payload: input.payload ?? {},
+      };
+      if (input.project_id) row.project_id = input.project_id;
+      if (input.contact_id) row.contact_id = input.contact_id;
+      if (input.company_id) row.company_id = input.company_id;
 
+      const { error } = await supabase.from('activity_log').insert(row);
       if (error) throw error;
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // Лента сущности (useEntityTimeline) слушает ['timeline'] — подтягиваем заметку.
+      qc.invalidateQueries({ queryKey: ['timeline'] });
     },
   });
 }
