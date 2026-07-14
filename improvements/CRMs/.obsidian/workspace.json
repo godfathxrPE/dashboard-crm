@@ -1,0 +1,206 @@
+{
+  "main": {
+    "id": "808be13bdc3f2728",
+    "type": "split",
+    "children": [
+      {
+        "id": "3eb2a1febc8a8156",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3245b89e690bf2ea",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "twenty-analysis-2026-07-12.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "twenty-analysis-2026-07-12"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "f8d313ee67d5c16f",
+    "type": "split",
+    "children": [
+      {
+        "id": "129fc40c04096367",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9c8ece17b4d684b8",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "5c6ed0a40b3df567",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "e2399a89588762ee",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "701c39b0a05a459d",
+    "type": "split",
+    "children": [
+      {
+        "id": "9b6c203727237e56",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "994417d3f6db9ce3",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "twenty-analysis-2026-07-12.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for twenty-analysis-2026-07-12"
+            }
+          },
+          {
+            "id": "4d24239f11036cfc",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "twenty-analysis-2026-07-12.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from twenty-analysis-2026-07-12"
+            }
+          },
+          {
+            "id": "5eb38f41838227de",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "d7f0bf4fb1ce41d0",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "c32d598bc9222db1",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "twenty-analysis-2026-07-12.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of twenty-analysis-2026-07-12"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "3245b89e690bf2ea",
+  "lastOpenFiles": [
+    "pipedrive-analysis-2026-07-12.md",
+    "clay-analysis-2026-07-12.md",
+    "linear-analysis-2026-07-12.md",
+    "affinity-analysis-2026-07-12.md",
+    "zoho-analysis-2026-07-12.md",
+    "salesforce-analysis-2026-07-12.md",
+    "teamwork-analysis-2026-07-12.md",
+    "productive-analysis-2026-07-12.md",
+    "twenty-analysis-2026-07-12.md",
+    "insightly-analysis-2026-07-12.md",
+    "monday-analysis-2026-07-12.md",
+    "accelo-analysis-2026-07-12.md",
+    "Welcome.md",
+    "hubspot-analysis-2026-07-12.md",
+    "crm-benchmark-candidates-2026-07-12.md",
+    "close-analysis-2026-07-12.md",
+    "attio-analysis-2026-07-12.md"
+  ]
+}
