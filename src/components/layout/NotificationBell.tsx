@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, CheckSquare, Briefcase, Check } from 'lucide-react';
+import { Bell, CheckSquare, Briefcase, Check, Rocket } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import {
   useNotifications,
@@ -16,17 +16,20 @@ import type { Notification, NotificationType } from '@/types/database';
 // тип сущности в уведомлении неизвестен — delivery/internal перенаправит
 // серверный бэкстоп deals/[id] → /projects/[id].
 function entityRoute(n: Notification): string {
-  if (n.type === 'project_assigned') return `/deals/${n.entity_id}`;
+  // S-WON-AUTO-1: deal_won ведёт на сделку — там кнопка «Создать проект внедрения»
+  if (n.type === 'project_assigned' || n.type === 'deal_won') return `/deals/${n.entity_id}`;
   return '/tasks';
 }
 
 const TYPE_LABEL: Record<NotificationType, string> = {
   task_assigned: 'Назначена задача',
   project_assigned: 'Назначена сделка',
+  deal_won: 'Сделка выиграна',
 };
 
 function TypeIcon({ type }: { type: NotificationType }) {
-  const Icon = type === 'task_assigned' ? CheckSquare : Briefcase;
+  const Icon =
+    type === 'task_assigned' ? CheckSquare : type === 'deal_won' ? Rocket : Briefcase;
   return <Icon size={14} className="shrink-0 text-accent" />;
 }
 
@@ -44,7 +47,14 @@ function relativeTime(iso: string): string {
 
 function payloadTitle(n: Notification): string {
   const p = n.payload as { title?: string } | null;
-  return p?.title?.trim() || TYPE_LABEL[n.type];
+  const title = p?.title?.trim();
+  // S-WON-AUTO-1: главная строка — actionable CTA (не просто имя сделки)
+  if (n.type === 'deal_won') {
+    return title
+      ? `Сделка «${title}» выиграна — создайте внедрение`
+      : 'Сделка выиграна — создайте внедрение';
+  }
+  return title || TYPE_LABEL[n.type];
 }
 
 export function NotificationBell() {
@@ -115,7 +125,13 @@ export function NotificationBell() {
                 >
                   <TypeIcon type={n.type} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-text-main">
+                    <span
+                      className={cn(
+                        'block text-sm text-text-main',
+                        // deal_won — CTA-строка целиком (иначе truncate съест «создайте внедрение»)
+                        n.type === 'deal_won' ? '' : 'truncate',
+                      )}
+                    >
                       {payloadTitle(n)}
                     </span>
                     <span className="block text-[11px] text-text-mute">

@@ -366,7 +366,8 @@ export interface Membership {
 
 // ═══ Sprint 26: Notifications & Invitations ═══
 
-export type NotificationType = 'task_assigned' | 'project_assigned';
+// S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
+export type NotificationType = 'task_assigned' | 'project_assigned' | 'deal_won';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;

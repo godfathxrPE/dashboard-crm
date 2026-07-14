@@ -515,7 +515,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       project.id,
                       wonStage.id,
                       mapToLegacyStage(wonStage, project.direction),
-                      { onError: onGateError },
+                      // S-WON-AUTO-1: успешный выигрыш → сразу предлагаем Win Wizard (HITL,
+                      // у него есть «Пока не создавать»). Гейт S27 не прошёл → onError, wizard
+                      // НЕ откроется. Панель причины закрываем синхронно ниже (до onSuccess).
+                      { onError: onGateError, onSuccess: () => setSpawning(true) },
                       {
                         won_reason: r,
                         won_detail: winDetail.trim() || null,
