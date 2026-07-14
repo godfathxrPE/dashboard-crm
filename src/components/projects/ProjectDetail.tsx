@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
   ArrowLeft,
   Pencil,
@@ -58,7 +58,6 @@ import { ProjectBoard } from '@/components/tasks/ProjectBoard';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
-import { useQueryClient } from '@tanstack/react-query';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import type { TimelineEvent } from '@/types/timeline';
@@ -68,8 +67,8 @@ import { HealthDot } from '@/components/shared/HealthDot';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { createClient } from '@/lib/supabase/client';
 import { DELIVERY_PHASE_LABELS, deliveryKindLabel, hasTaskProgress } from '@/lib/constants/delivery-phases';
+import { SpawnWizard } from './SpawnWizard';
 import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -177,7 +176,6 @@ interface ProjectDetailProps {
 
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const router = useRouter();
-  const qc = useQueryClient();
   const { data: project, isLoading, error } = useProject(projectId);
   // Delivery P1: родительская сделка (для ссылки на карточке внедрения)
   const { data: parentDeal } = useProject(project?.parent_deal_id ?? '');
@@ -189,47 +187,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: orgRole } = useOrgRole();
   const { user } = useAuth();
 
-  // Delivery P1 (B4): диалог выбора шаблона внедрения на won-сделке
+  // S-WIN-WIZARD-1: Win Wizard — контур/шаблон/owner при spawn внедрения
+  // из won-сделки (заменил «голую» inline-панель шаблона + скролл-костыль).
   const [spawning, setSpawning] = useState(false);
-  const [spawnPending, setSpawnPending] = useState(false);
-  const [spawnError, setSpawnError] = useState<string | null>(null);
-
-  // S-DEAL-HUB-1 UX: при открытии панели шаблона (в т.ч. из Deal Hub внизу
-  // карточки) подтянуть её в поле зрения — иначе появляется вверху вне видимости.
-  // Скролл окна (страница window-scrolled, вложенного overflow нет); ref вместо
-  // getElementById — панель уже смонтирована к моменту эффекта, rAF ждёт layout.
-  const spawnPanelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!spawning) return;
-    const raf = requestAnimationFrame(() => {
-      spawnPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [spawning]);
-
-  async function handleSpawn(kind: 'launch' | 'experiment') {
-    if (!project) return;
-    setSpawnPending(true);
-    setSpawnError(null);
-    const supabase = createClient();
-    const { data, error: rpcError } = await supabase.rpc('spawn_delivery_project', {
-      p_deal_id: project.id,
-      p_kind: kind,
-    });
-    setSpawnPending(false);
-    if (rpcError) {
-      // 42501 — доступ (org/ownership), P0001 — не won / нет пайплайна
-      setSpawnError(
-        rpcError.code === '42501'
-          ? 'Недостаточно прав: внедрение создаёт владелец сделки или админ организации'
-          : rpcError.message,
-      );
-      return;
-    }
-    qc.invalidateQueries({ queryKey: ['projects'] });
-    setSpawning(false);
-    router.push(`/projects/${data as string}`);
-  }
 
   // Sprint 27: отказ стадийного гейта при переходе с детальной карточки
   const [gateBlock, setGateBlock] = useState<UnmetRequirement[] | null>(null);
@@ -485,7 +445,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   1 сделка → 1..N проектов — кнопка не блокируется после первого. */}
               {project.type === 'client' && project.status === 'won' && (
                 <button
-                  onClick={() => { setSpawnError(null); setSpawning((v) => !v); }}
+                  onClick={() => setSpawning(true)}
                   className="flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1.5 text-xs
                              font-medium text-white shadow-sm transition-opacity hover:opacity-90"
                 >
@@ -538,41 +498,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </button>
         </div>
       </div>
-
-      {/* Delivery P1 (B4): выбор шаблона внедрения (паттерн панели «Проиграна») */}
-      {spawning && project.type === 'client' && project.status === 'won' && (
-        <div ref={spawnPanelRef} className="mb-4 rounded-lg border border-accent/30 bg-accent-l/40 px-3 py-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs text-text-dim">Шаблон внедрения:</span>
-            {/* D1: у ERP один шаблон — «Эксперимент» без шаблона создал бы пустую доску (ловушка) */}
-            {(project.direction === 'erp' ? (['launch'] as const) : (['launch', 'experiment'] as const)).map((kind) => (
-              <button
-                key={kind}
-                disabled={spawnPending}
-                onClick={() => handleSpawn(kind)}
-                className="rounded border border-accent/50 bg-accent-l/60 px-2.5 py-1 text-xs font-medium
-                           text-accent transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
-              >
-                {deliveryKindLabel(kind, project.direction)}
-                {project.direction === 'erp' && ' (6 этапов)'}
-              </button>
-            ))}
-            {spawnPending && <Loader2 size={12} className="animate-spin text-accent" />}
-            <button
-              onClick={() => setSpawning(false)}
-              className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
-            >
-              Отмена
-            </button>
-          </div>
-          <p className="mt-1 text-[11px] text-text-dim">
-            {project.direction === 'erp'
-              ? 'Полный цикл: Обследование → Моделирование → Проектирование → Разработка → Внедрение → Эксплуатация'
-              : 'Полный запуск — весь цикл внедрения · Эксперимент — пилот'}
-          </p>
-          {spawnError && <p className="mt-1.5 text-xs text-red">{spawnError}</p>}
-        </div>
-      )}
 
       {/* «Выиграна» — выбор причины (обязателен, симметрия проигрышу) S-WON-REASON-1 */}
       {winning && (project.status === 'open' || project.status === 'on_hold') && (() => {
@@ -778,12 +703,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       {project.type === 'client' && project.status === 'open' && <StageReadiness project={project} />}
 
       {/* S-DEAL-HUB-1: дочерние внедрения won-сделки (компонент сам скрыт, если не won).
-          onCreateDelivery дёргает существующий spawn-триггер (панель шаблона выше). */}
+          onCreateDelivery открывает Win Wizard (S-WIN-WIZARD-1). */}
       {project.type === 'client' && (
         <DealDeliveryHub
           dealId={project.id}
           dealStatus={project.status}
-          onCreateDelivery={() => { setSpawnError(null); setSpawning(true); }}
+          onCreateDelivery={() => setSpawning(true)}
         />
       )}
 
@@ -989,6 +914,19 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       {/* P3: завершение delivery — чеклист вех + backstop-баннер (гейт 038) */}
       {completing && (
         <DeliveryCompletionModal project={project} onClose={() => setCompleting(false)} />
+      )}
+      {/* S-WIN-WIZARD-1: Win Wizard — контур/шаблон/owner при spawn внедрения */}
+      {spawning && project.type === 'client' && project.status === 'won' && (
+        <SpawnWizard
+          dealId={project.id}
+          dealDirection={project.direction}
+          defaultOwnerId={project.owner_id}
+          onCreated={(newId) => {
+            setSpawning(false);
+            router.push(`/projects/${newId}`);
+          }}
+          onClose={() => setSpawning(false)}
+        />
       )}
     </>
   );

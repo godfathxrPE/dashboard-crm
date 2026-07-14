@@ -2137,7 +2137,14 @@ export type Database = {
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
       spawn_delivery_project: {
-        Args: { p_deal_id: string; p_kind: string; p_template_id?: string }
+        Args: {
+          p_deal_id: string
+          p_kind: string
+          // nullable: явный null на проводе → DEFAULT NULL внутри RPC (v1 резолвит
+          // шаблон по direction+kind; owner → COALESCE(p_owner_id, deal.owner_id, auth.uid()))
+          p_template_id?: string | null
+          p_owner_id?: string | null
+        }
         Returns: string
       }
     }
