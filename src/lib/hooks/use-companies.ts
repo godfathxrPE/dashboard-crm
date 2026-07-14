@@ -52,7 +52,9 @@ async function fetchCompanies(): Promise<Company[]> {
     .order('name', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as Company[];
+  // 041: строка содержит phones (jsonb) — codegen типизирует его как Json,
+  // домен Company держит PhoneEntry[]; мост через unknown (паттерн use-projects).
+  return (data ?? []) as unknown as Company[];
 }
 
 async function fetchCompany(id: string): Promise<Company> {
@@ -64,32 +66,33 @@ async function fetchCompany(id: string): Promise<Company> {
     .single();
 
   if (error) throw error;
-  return data as Company;
+  return data as unknown as Company;
 }
 
 async function createCompany(company: CompanyInsert): Promise<Company> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('companies')
-    .insert(company)
+    // phones: PhoneEntry[] в CompanyInsert vs Json в codegen — каст payload
+    .insert(company as never)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Company;
+  return data as unknown as Company;
 }
 
 async function updateCompany({ id, ...updates }: CompanyUpdate): Promise<Company> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('companies')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Company;
+  return data as unknown as Company;
 }
 
 async function deleteCompany(id: string): Promise<void> {

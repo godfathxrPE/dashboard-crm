@@ -61,7 +61,9 @@ async function fetchContacts(): Promise<Contact[]> {
     .order('last_name', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as Contact[];
+  // 041: phones (jsonb) — codegen Json vs домен Contact.phones PhoneEntry[];
+  // мост через unknown (паттерн use-projects).
+  return (data ?? []) as unknown as Contact[];
 }
 
 async function fetchContact(id: string): Promise<Contact> {
@@ -80,32 +82,33 @@ async function fetchContact(id: string): Promise<Contact> {
     .single();
 
   if (error) throw error;
-  return data as Contact;
+  return data as unknown as Contact;
 }
 
 async function createContact(contact: ContactInsert): Promise<Contact> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('contacts')
-    .insert(contact)
+    // phones: PhoneEntry[] в ContactInsert vs Json в codegen — каст payload
+    .insert(contact as never)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Contact;
+  return data as unknown as Contact;
 }
 
 async function updateContact({ id, ...updates }: ContactUpdate): Promise<Contact> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('contacts')
-    .update(updates)
+    .update(updates as never)
     .eq('id', id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Contact;
+  return data as unknown as Contact;
 }
 
 async function deleteContact(id: string): Promise<void> {
