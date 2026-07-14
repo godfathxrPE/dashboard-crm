@@ -1,9 +1,3 @@
-// ⚠️ АВТОГЕНЕРАЦИЯ — НЕ РЕДАКТИРОВАТЬ ВРУЧНУЮ.
-// Источник: Supabase introspection живой БД (ref uoiavcabxgdjugzryrmj), 2026-07-13 (AUDIT-B3).
-// Перегенерация: npx supabase gen types typescript --db-url "postgresql://..." --schema public
-//   (или гейт Cowork через MCP generate_typescript_types) → перезаписать этот файл.
-// Кастомные хелперы и алиасы поверх — в src/types/database.ts (тонкий слой).
-
 export type Json =
   | string
   | number
@@ -492,6 +486,7 @@ export type Database = {
           org_id: string
           owner_id: string | null
           phone: string | null
+          phones: Json
           updated_at: string | null
           website: string | null
         }
@@ -508,6 +503,7 @@ export type Database = {
           org_id: string
           owner_id?: string | null
           phone?: string | null
+          phones?: Json
           updated_at?: string | null
           website?: string | null
         }
@@ -524,6 +520,7 @@ export type Database = {
           org_id?: string
           owner_id?: string | null
           phone?: string | null
+          phones?: Json
           updated_at?: string | null
           website?: string | null
         }
@@ -612,6 +609,7 @@ export type Database = {
           org_id: string
           owner_id: string | null
           phone: string | null
+          phones: Json
           position: string | null
           updated_at: string | null
         }
@@ -626,6 +624,7 @@ export type Database = {
           org_id: string
           owner_id?: string | null
           phone?: string | null
+          phones?: Json
           position?: string | null
           updated_at?: string | null
         }
@@ -640,6 +639,7 @@ export type Database = {
           org_id?: string
           owner_id?: string | null
           phone?: string | null
+          phones?: Json
           position?: string | null
           updated_at?: string | null
         }
@@ -2056,7 +2056,11 @@ export type Database = {
         Returns: undefined
       }
       apply_pending_invites: {
-        Args: { p_email: string; p_profile_id: string }
+        Args: {
+          p_email: string
+          p_email_confirmed?: boolean
+          p_profile_id: string
+        }
         Returns: number
       }
       category_to_lane: {

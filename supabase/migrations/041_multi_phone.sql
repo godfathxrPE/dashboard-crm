@@ -1,7 +1,7 @@
 -- 041_multi_phone.sql — Sprint UI-D1 «Мультителефон на contacts/companies»
--- ⚠️ PENDING: НЕ применять автоприменением. Применяет ТОЛЬКО гейт Cowork через
---    MCP apply_migration, после верификации против живой БД
---    (см. _analysis/sprint-ui-D1-brackets-phones-dropdown.md).
+-- ✅ APPLIED 2026-07-13 (версия 20260713121136) — через гейт Cowork / MCP apply_migration.
+--    Верифицировано против живой БД 2026-07-14
+--    (_analysis/sprint-ui-D1-brackets-phones-dropdown.md).
 --
 -- Базовая точка — 20260712230000_baseline.sql (снимок прода 2026-07-12).
 --
