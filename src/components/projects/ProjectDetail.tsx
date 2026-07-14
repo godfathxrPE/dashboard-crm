@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Pencil,
@@ -242,6 +242,16 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [spawning, setSpawning] = useState(false);
   const [spawnPending, setSpawnPending] = useState(false);
   const [spawnError, setSpawnError] = useState<string | null>(null);
+
+  // S-DEAL-HUB-1 UX: при открытии панели шаблона (в т.ч. из Deal Hub внизу
+  // карточки) подтянуть её в поле зрения — иначе появляется вверху вне видимости.
+  useEffect(() => {
+    if (!spawning) return;
+    const t = setTimeout(() => {
+      document.getElementById('spawn-template-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [spawning]);
 
   async function handleSpawn(kind: 'launch' | 'experiment') {
     if (!project) return;
@@ -554,7 +564,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       {/* Delivery P1 (B4): выбор шаблона внедрения (паттерн панели «Проиграна») */}
       {spawning && project.type === 'client' && project.status === 'won' && (
-        <div className="mb-4 rounded-lg border border-accent/30 bg-accent-l/40 px-3 py-2">
+        <div id="spawn-template-panel" className="mb-4 rounded-lg border border-accent/30 bg-accent-l/40 px-3 py-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-text-dim">Шаблон внедрения:</span>
             {/* D1: у ERP один шаблон — «Эксперимент» без шаблона создал бы пустую доску (ловушка) */}
