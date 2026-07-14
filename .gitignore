@@ -47,3 +47,9 @@ _*.mjs
 .claude/
 .claude/
 .fuse_hidden*
+_to_delete/
+_archive/
+_test-runs/
+sprint results/
+/_*.mjs
+tests/RESULTS-*.md
