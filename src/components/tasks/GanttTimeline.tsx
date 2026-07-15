@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useProjectBoard } from '@/lib/hooks/use-tasks';
+import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import {
   mskDateKey,
   bucketKeyOf,
@@ -17,6 +17,7 @@ interface GanttTimelineProps {
 }
 
 const LABEL_W = '12.5rem'; // колонка названий (rem — конвенция проекта, не px)
+const ROW_H = '1.75rem';   // высота ряда — синхронно в левой колонке и таймлайне
 
 const ZOOMS: { value: GanttZoom; label: string }[] = [
   { value: 'day', label: 'День' },
@@ -24,7 +25,7 @@ const ZOOMS: { value: GanttZoom; label: string }[] = [
   { value: 'month', label: 'Месяц' },
 ];
 
-// цвет бара по приоритету; done — приглушённо
+// цвет бара/ромба по приоритету; done — приглушённо
 function barClass(task: Task): string {
   if (task.lane === 'done') return 'bg-green';
   switch (task.priority) {
@@ -34,45 +35,28 @@ function barClass(task: Task): string {
   }
 }
 
-// эффективный интервал задачи (YYYY-MM-DD). deadline (timestamptz) → MSK-дата.
-function taskSpan(task: Task): { start: string; end: string } | null {
-  const dl = task.deadline ? mskDateKey(task.deadline) : null;
-  const start = task.start_date ?? task.end_date ?? dl;
-  let end = task.end_date ?? dl ?? task.start_date;
-  if (!start || !end) return null;   // ни дат, ни дедлайна → «без дат»
-  if (end < start) end = start;      // fallback по deadline мог инвертировать порядок
-  return { start, end };
-}
-
 export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
-  const { tasks, isLoading, isError } = useProjectBoard(projectId);
+  const { swimlanes, undated, isLoading, isError } = useProjectSchedule(projectId);
   const [zoom, setZoom] = useState<GanttZoom>('week');
 
   const model = useMemo(() => {
-    const list = tasks ?? [];
-    const dated: { task: Task; start: string; end: string }[] = [];
-    const undated: Task[] = [];
-    for (const task of list) {
-      const span = taskSpan(task);
-      if (span) dated.push({ task, ...span });
-      else undated.push(task);
+    const allTasks: GanttTask[] = swimlanes.flatMap((sl) => sl.tasks);
+    if (allTasks.length === 0) {
+      return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), todayIdx: -1 };
     }
-    if (dated.length === 0) {
-      return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), dated, undated, todayIdx: -1 };
-    }
-    const min = dated.reduce((m, d) => (d.start < m ? d.start : m), dated[0].start);
-    const max = dated.reduce((m, d) => (d.end > m ? d.end : m), dated[0].end);
+    const min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
+    const max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
     const buckets = buildBuckets(min, max, zoom);
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
-    dated.sort((a, b) => (a.start === b.start ? a.end.localeCompare(b.end) : a.start.localeCompare(b.start)));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
-    return { buckets, idxByKey, dated, undated, todayIdx };
-  }, [tasks, zoom]);
+    return { buckets, idxByKey, todayIdx };
+  }, [swimlanes, zoom]);
 
+  // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
   if (isError)   return <div className="py-8 text-center text-xs text-red">Не удалось загрузить задачи</div>;
 
-  const { buckets, idxByKey, dated, undated, todayIdx } = model;
+  const { buckets, idxByKey, todayIdx } = model;
 
   if (buckets.length === 0 && undated.length === 0) {
     return <div className="py-8 text-center text-xs text-text-mute">Нет задач для таймлайна</div>;
@@ -80,6 +64,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
 
   const gridCols = { gridTemplateColumns: `repeat(${buckets.length}, minmax(28px, 1fr))` };
   const wideRange = zoom === 'day' && buckets.length > 180;
+  const laneRows = swimlanes.filter((sl) => sl.tasks.length > 0);
 
   return (
     <div className="mb-4 rounded-xl border border-border bg-surface p-3">
@@ -107,58 +92,99 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        {buckets.length > 0 && (
-          <div className="min-w-max">
-            {/* Шапка: спейсер + бакеты */}
-            <div className="flex">
-              <div className="shrink-0" style={{ width: LABEL_W }} />
-              <div className="grid flex-1" style={gridCols}>
+      {buckets.length > 0 && (
+        // C0: split-layout — фикс.левая колонка (вне скролла) + отдельный scrollable timeline-body
+        <div className="flex">
+          {/* ── Левая колонка: названия фаз/задач (sticky, вне overflow) ── */}
+          <div className="shrink-0" style={{ width: LABEL_W }}>
+            <div style={{ height: ROW_H }} /> {/* спейсер под шапку бакетов */}
+            {laneRows.map((sl) => (
+              <div key={sl.id}>
+                {sl.label !== null && (
+                  <div className="truncate px-1 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-mute">
+                    {sl.label}
+                  </div>
+                )}
+                {sl.tasks.map((gt) => (
+                  <div
+                    key={gt.task.id}
+                    className="flex items-center truncate pr-2 text-xs text-text-main"
+                    style={{ height: ROW_H }}
+                    title={gt.task.text}
+                  >
+                    <span className="truncate">{gt.task.text}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
+          <div className="flex-1 overflow-x-auto">
+            <div className="relative min-w-max">
+              {/* Шапка бакетов */}
+              <div className="grid" style={{ ...gridCols, height: ROW_H }}>
                 {buckets.map((b, i) => (
                   <div
                     key={b.key}
-                    className={`border-l border-border/40 px-1 py-1 text-center text-[10px] tabular-nums ${
+                    className={`flex flex-col items-center justify-center border-l border-border/40 text-[10px] tabular-nums ${
                       i === todayIdx ? 'font-semibold text-accent' : 'text-text-mute'
                     }`}
                   >
-                    {b.label}
+                    <span>{b.label}</span>
                     {zoom === 'day' && (i === 0 || b.key.slice(8, 10) === '01') && (
-                      <div className="text-text-dim">{b.key.slice(5, 7)}</div>
+                      <span className="text-text-dim">{b.key.slice(5, 7)}</span>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Строки задач */}
-            {dated.map(({ task, start, end }) => {
-              const s = idxByKey.get(bucketKeyOf(start, zoom)) ?? 0;
-              const e = idxByKey.get(bucketKeyOf(end, zoom)) ?? s;
-              return (
-                <div key={task.id} className="flex items-center border-t border-border/40">
-                  <div
-                    className="shrink-0 truncate py-1.5 pr-2 text-xs text-text-main"
-                    style={{ width: LABEL_W }}
-                    title={task.text}
-                  >
-                    {task.text}
-                  </div>
-                  <div className="grid flex-1" style={gridCols}>
-                    <button
-                      type="button"
-                      onClick={() => onEditTask(task)}
-                      style={{ gridColumn: `${s + 1} / ${e + 2}`, gridRow: 1 }}
-                      className={`my-1 h-4 rounded ${barClass(task)} ${task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
-                      title={`${start} → ${end}`}
-                      aria-label={`${task.text}: ${start} → ${end}`}
-                    />
-                  </div>
+              {/* Ряды по фазам */}
+              {laneRows.map((sl) => (
+                <div key={sl.id}>
+                  {sl.label !== null && <div className="pt-2 pb-0.5 text-[10px]">&nbsp;</div>}
+                  {sl.tasks.map((gt) => {
+                    const s = idxByKey.get(bucketKeyOf(gt.start, zoom)) ?? 0;
+                    const e = idxByKey.get(bucketKeyOf(gt.end, zoom)) ?? s;
+                    return (
+                      <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
+                        {gt.isMilestone ? (
+                          <button
+                            type="button"
+                            onClick={() => onEditTask(gt.task)}
+                            style={{ gridColumn: `${s + 1}`, gridRow: 1 }}
+                            className="flex items-center justify-center"
+                            title={`${gt.task.text} (веха): ${gt.start}`}
+                            aria-label={`${gt.task.text} (веха): ${gt.start}`}
+                          >
+                            <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onEditTask(gt.task)}
+                            style={{ gridColumn: `${s + 1} / ${e + 2}`, gridRow: 1 }}
+                            className={`my-1 h-4 self-center rounded ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
+                            title={`${gt.start} → ${gt.end}`}
+                            aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              ))}
+
+              {/* Today line — оверлей поверх шапки+рядов, выровнен по той же бакет-сетке */}
+              {todayIdx !== -1 && (
+                <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
+                  <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Без дат */}
       {undated.length > 0 && (
