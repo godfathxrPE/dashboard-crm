@@ -15,3 +15,10 @@ export function localDateTimeKey(d: Date = new Date()): string {
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${localDateKey(d)}T${hh}:${mm}`;
 }
+
+/** Календарная дата YYYY-MM-DD в таймзоне Europe/Moscow — для timestamptz-полей (напр. deadline).
+ *  en-CA форматирует как YYYY-MM-DD. Client-аналог `(ts AT TIME ZONE 'Europe/Moscow')::date`. */
+export function mskDateKey(input: string | Date): string {
+  const d = typeof input === 'string' ? new Date(input) : input;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(d);
+}

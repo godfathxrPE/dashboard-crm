@@ -55,6 +55,7 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
+import { GanttTimeline } from '@/components/tasks/GanttTimeline';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
@@ -204,7 +205,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // P3: модалка завершения delivery (чеклист вех, гейт 038)
   const [completing, setCompleting] = useState(false);
   // PCT-1: вкладки нижней секции — Активность / Доска задач
-  const [tab, setTab] = useState<'activity' | 'board'>('activity');
+  const [tab, setTab] = useState<'activity' | 'board' | 'timeline'>('activity');
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
   // «Выиграна» — двухшаговый выбор причины (симметрия проигрышу, S-WON-REASON-1)
@@ -829,6 +830,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           { value: 'activity' as const, label: 'Активность' },
           // P2a: у delivery доска = фазовый план внедрения
           { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
+          { value: 'timeline' as const, label: 'Таймлайн' },
         ]).map((t) => (
           <button
             key={t.value}
@@ -849,6 +851,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
           <ProjectBoard projectId={projectId} canManageColumns={canManage} />
         </div>
+      )}
+
+      {tab === 'timeline' && (
+        <GanttTimeline
+          projectId={projectId}
+          onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
+        />
       )}
 
       {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
