@@ -22,3 +22,62 @@ export function mskDateKey(input: string | Date): string {
   const d = typeof input === 'string' ? new Date(input) : input;
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(d);
 }
+
+// ─── Gantt бакет-ось (S-GANTT-VIEW-1) ──────────────────────────────────────
+// Вся математика на UTC-полдне (T12:00:00Z), как buildDays v0 — инкремент дня/
+// недели/месяца в любой TZ не прыгает через полночь (off-by-one на границах).
+
+export type GanttZoom = 'day' | 'week' | 'month';
+
+const GANTT_DAY_MS = 86_400_000;
+const RU_MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+function noonMs(dateKey: string): number {
+  return Date.parse(`${dateKey}T12:00:00Z`);
+}
+function keyOfMs(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Ключ бакета, в который попадает YYYY-MM-DD: day → сам; week → понедельник ISO-недели; month → 1-е число. */
+export function bucketKeyOf(dateKey: string, zoom: GanttZoom): string {
+  if (zoom === 'day') return dateKey;
+  if (zoom === 'month') return `${dateKey.slice(0, 7)}-01`;
+  const ms = noonMs(dateKey);
+  const back = (new Date(ms).getUTCDay() + 6) % 7; // 0=Sun..6=Sat → дней назад до Пн
+  return keyOfMs(ms - back * GANTT_DAY_MS);
+}
+
+function nextBucketKey(key: string, zoom: GanttZoom): string {
+  if (zoom === 'day') return keyOfMs(noonMs(key) + GANTT_DAY_MS);
+  if (zoom === 'week') return keyOfMs(noonMs(key) + 7 * GANTT_DAY_MS);
+  const d = new Date(noonMs(key));
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return `${d.toISOString().slice(0, 7)}-01`;
+}
+
+function bucketLabel(key: string, zoom: GanttZoom): string {
+  if (zoom === 'day') return key.slice(8, 10);                    // DD
+  if (zoom === 'week') return `${key.slice(8, 10)}.${key.slice(5, 7)}`; // DD.MM (Пн)
+  return `${RU_MONTHS_SHORT[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`; // МММ YYYY
+}
+
+/** Список бакетов [min..max] включительно (по ключам бакетов). */
+export function buildBuckets(minKey: string, maxKey: string, zoom: GanttZoom): { key: string; label: string }[] {
+  const buckets: { key: string; label: string }[] = [];
+  const last = bucketKeyOf(maxKey, zoom);
+  let cur = bucketKeyOf(minKey, zoom);
+  let guard = 0;
+  while (cur <= last && guard < 100_000) {
+    buckets.push({ key: cur, label: bucketLabel(cur, zoom) });
+    cur = nextBucketKey(cur, zoom);
+    guard += 1;
+  }
+  return buckets;
+}
+
+/** Индекс бакета для даты; -1 если вне диапазона. */
+export function bucketIndexOf(dateKey: string, zoom: GanttZoom, buckets: { key: string }[]): number {
+  const bk = bucketKeyOf(dateKey, zoom);
+  return buckets.findIndex((b) => b.key === bk);
+}
