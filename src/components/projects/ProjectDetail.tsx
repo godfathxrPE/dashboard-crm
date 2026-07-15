@@ -830,7 +830,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           { value: 'activity' as const, label: 'Активность' },
           // P2a: у delivery доска = фазовый план внедрения
           { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
-          { value: 'timeline' as const, label: 'Таймлайн' },
+          { value: 'timeline' as const, label: 'Гант' },
         ]).map((t) => (
           <button
             key={t.value}
