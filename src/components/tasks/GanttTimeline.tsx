@@ -57,6 +57,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const { data: team = [] } = useTeamMembers();
   const [zoom, setZoom] = useState<GanttZoom>('week');
   const [filter, setFilter] = useState<GanttFilter>('open');
+  const [tip, setTip] = useState<{ x: number; y: number; text: string; assignee: string; status: string } | null>(null);
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
 
@@ -204,11 +205,14 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                     const status = laneLabel(gt.task.lane, phaseMode);
                     return (
                       <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
-                        <div className="group relative" style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}>
+                        <div className="relative" style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}>
                           {gt.isMilestone ? (
                             <button
                               type="button"
                               onClick={() => onEditTask(gt.task)}
+                              onMouseEnter={(ev) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status })}
+                              onMouseMove={(ev) => setTip((t) => (t ? { ...t, x: ev.clientX, y: ev.clientY } : t))}
+                              onMouseLeave={() => setTip(null)}
                               className="flex h-full w-full items-center justify-center"
                               aria-label={`${gt.task.text} (веха): ${gt.start}`}
                             >
@@ -218,16 +222,13 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                             <button
                               type="button"
                               onClick={() => onEditTask(gt.task)}
+                              onMouseEnter={(ev) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status })}
+                              onMouseMove={(ev) => setTip((t) => (t ? { ...t, x: ev.clientX, y: ev.clientY } : t))}
+                              onMouseLeave={() => setTip(null)}
                               className={`my-1 block h-4 w-full rounded ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
                               aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
                             />
                           )}
-                          {/* Tooltip: название / исполнитель / lane-статус */}
-                          <div className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-max max-w-[240px] rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs shadow-lg group-hover:block">
-                            <div className="font-medium text-text-main">{gt.task.text}</div>
-                            <div className="mt-0.5 text-text-dim">Исполнитель: {assignee}</div>
-                            <div className="text-text-dim">Статус: {status}</div>
-                          </div>
                         </div>
                       </div>
                     );
@@ -263,6 +264,18 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Общий fixed-поповер (эскейпит overflow таймлайна; следует за курсором) */}
+      {tip && (
+        <div
+          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs shadow-lg"
+          style={{ left: tip.x + 12, top: tip.y + 12 }}
+        >
+          <div className="font-medium text-text-main">{tip.text}</div>
+          <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>
+          <div className="text-text-dim">Статус: {tip.status}</div>
         </div>
       )}
     </div>
