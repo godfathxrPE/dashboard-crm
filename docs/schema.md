@@ -455,7 +455,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -467,6 +467,8 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 | column_id | uuid | _032 (PCT-1)_ → project_columns ON DELETE SET NULL. **Истина** для задач с `project_id` (доска исполнения); для задач без проекта — NULL |
 | company_id / contact_id | uuid | _013_ → companies / contacts |
 | deadline | timestamptz | |
+| start_date | date | _046 (S-GANTT-DATES-1)_ nullable. Начало задачи (Gantt) |
+| end_date | date | _046 (S-GANTT-DATES-1)_ nullable. Конец задачи; `CHECK tasks_dates_order_chk` (end_date ≥ start_date). Fallback на `deadline::date` — на уровне рендера |
 | remind_min | int | |
 | sort_order | int | DEFAULT 0. С _032_ разрез per-column для проектных задач |
 | assigned_to / created_by | uuid | → profiles |

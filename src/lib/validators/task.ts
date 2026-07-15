@@ -11,11 +11,16 @@ export const taskFormSchema = z.object({
   company_id: z.string().nullable().default(null),
   contact_id: z.string().nullable().default(null),
   deadline: z.string().nullable().default(null),
+  start_date: z.string().nullable().default(null),
+  end_date: z.string().nullable().default(null),
   remind_min: z.number().nullable().default(null),
   assigned_to: z.string().uuid().nullable().optional(),
   // PCT-1: колонка проектной доски (для задач с project_id)
   column_id: z.string().uuid().nullable().optional(),
-});
+}).refine(
+  (d) => !d.start_date || !d.end_date || d.end_date >= d.start_date,
+  { message: 'Конец не раньше начала', path: ['end_date'] },
+);
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;
 

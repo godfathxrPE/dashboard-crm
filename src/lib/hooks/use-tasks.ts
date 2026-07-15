@@ -185,6 +185,8 @@ export function useCreateTask() {
         company_id: input.company_id ?? null,
         contact_id: input.contact_id ?? null,
         deadline: input.deadline ?? null,
+        start_date: input.start_date ?? null,
+        end_date: input.end_date ?? null,
         remind_min: input.remind_min ?? null,
         sort_order: input.sort_order ?? 0,
         assigned_to: input.assigned_to ?? null,

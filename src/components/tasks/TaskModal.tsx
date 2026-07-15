@@ -57,6 +57,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
       company_id: null,
       contact_id: null,
       deadline: null,
+      start_date: null,
+      end_date: null,
       remind_min: null,
       assigned_to: null,
     },
@@ -75,6 +77,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         company_id: editTask.company_id ?? null,
         contact_id: editTask.contact_id ?? null,
         deadline: editTask.deadline?.slice(0, 16) ?? null,
+        start_date: editTask.start_date ?? null,
+        end_date: editTask.end_date ?? null,
         remind_min: editTask.remind_min,
         assigned_to: editTask.assigned_to ?? null,
       });
@@ -87,6 +91,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         company_id: defaultCompanyId ?? null,
         contact_id: defaultContactId ?? null,
         deadline: defaultDeadline?.slice(0, 16) ?? null,
+        start_date: null,
+        end_date: null,
         remind_min: null,
         assigned_to: null,
       });
@@ -231,6 +237,29 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               {...register('deadline')}
               className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
             />
+          </div>
+
+          {/* Gantt: план по датам */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-dim mb-1">Начало</label>
+              <input
+                type="date"
+                {...register('start_date', { setValueAs: (v) => (v === '' ? null : v) })}
+                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-dim mb-1">Конец</label>
+              <input
+                type="date"
+                {...register('end_date', { setValueAs: (v) => (v === '' ? null : v) })}
+                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              />
+              {errors.end_date && (
+                <p className="mt-1 text-xs text-red">{errors.end_date.message}</p>
+              )}
+            </div>
           </div>
 
           {/* Remind */}

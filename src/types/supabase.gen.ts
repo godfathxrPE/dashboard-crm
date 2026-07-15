@@ -1874,6 +1874,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deadline: string | null
+          end_date: string | null
           id: string
           is_milestone: boolean
           lane: Database["public"]["Enums"]["task_lane"]
@@ -1882,6 +1883,7 @@ export type Database = {
           project_id: string | null
           remind_min: number | null
           sort_order: number | null
+          start_date: string | null
           text: string
           updated_at: string | null
         }
@@ -1893,6 +1895,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deadline?: string | null
+          end_date?: string | null
           id?: string
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
@@ -1901,6 +1904,7 @@ export type Database = {
           project_id?: string | null
           remind_min?: number | null
           sort_order?: number | null
+          start_date?: string | null
           text: string
           updated_at?: string | null
         }
@@ -1912,6 +1916,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deadline?: string | null
+          end_date?: string | null
           id?: string
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
@@ -1920,6 +1925,7 @@ export type Database = {
           project_id?: string | null
           remind_min?: number | null
           sort_order?: number | null
+          start_date?: string | null
           text?: string
           updated_at?: string | null
         }
