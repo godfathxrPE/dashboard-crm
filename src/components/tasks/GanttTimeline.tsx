@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
+import { useTeamMembers } from '@/lib/hooks/use-team-members';
+import { LANE_CONFIG } from '@/lib/validators/task';
+import { DELIVERY_TASK_STATUS_LABELS } from '@/lib/constants/delivery-phases';
 import {
   mskDateKey,
   bucketKeyOf,
@@ -16,6 +19,8 @@ interface GanttTimelineProps {
   onEditTask: (task: Task) => void;
 }
 
+type GanttFilter = 'open' | 'all' | 'milestones';
+
 const LABEL_W = '12.5rem'; // колонка названий (rem — конвенция проекта, не px)
 const ROW_H = '1.75rem';   // высота ряда — синхронно в левой колонке и таймлайне
 
@@ -23,6 +28,11 @@ const ZOOMS: { value: GanttZoom; label: string }[] = [
   { value: 'day', label: 'День' },
   { value: 'week', label: 'Неделя' },
   { value: 'month', label: 'Месяц' },
+];
+const FILTERS: { value: GanttFilter; label: string }[] = [
+  { value: 'open', label: 'Открытые' },
+  { value: 'all', label: 'Все' },
+  { value: 'milestones', label: 'Вехи' },
 ];
 
 // цвет бара/ромба по приоритету; done — приглушённо
@@ -35,12 +45,35 @@ function barClass(task: Task): string {
   }
 }
 
+// lane-статус с fallback: delivery → DELIVERY_TASK_STATUS_LABELS; иначе → LANE_CONFIG
+function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
+  return phaseMode
+    ? (DELIVERY_TASK_STATUS_LABELS[lane] ?? lane)
+    : (LANE_CONFIG[lane]?.label ?? lane);
+}
+
 export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
-  const { swimlanes, undated, isLoading, isError } = useProjectSchedule(projectId);
+  const { swimlanes, undated, phaseMode, isLoading, isError } = useProjectSchedule(projectId);
+  const { data: team = [] } = useTeamMembers();
   const [zoom, setZoom] = useState<GanttZoom>('week');
+  const [filter, setFilter] = useState<GanttFilter>('open');
+
+  const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
+
+  const filteredSwimlanes = useMemo(() => {
+    const pred = (gt: GanttTask) =>
+      filter === 'all' ? true : filter === 'milestones' ? gt.isMilestone : gt.task.lane !== 'done';
+    return swimlanes.map((sl) => ({ ...sl, tasks: sl.tasks.filter(pred) }));
+  }, [swimlanes, filter]);
+
+  const filteredUndated = useMemo(() => {
+    if (filter === 'milestones') return [];              // вехи без дат — не в этот фильтр (см. заметки гейта)
+    if (filter === 'open') return undated.filter((t) => t.lane !== 'done');
+    return undated;
+  }, [undated, filter]);
 
   const model = useMemo(() => {
-    const allTasks: GanttTask[] = swimlanes.flatMap((sl) => sl.tasks);
+    const allTasks: GanttTask[] = filteredSwimlanes.flatMap((sl) => sl.tasks);
     if (allTasks.length === 0) {
       return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), todayIdx: -1 };
     }
@@ -50,41 +83,62 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
-  }, [swimlanes, zoom]);
+  }, [filteredSwimlanes, zoom]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
   if (isError)   return <div className="py-8 text-center text-xs text-red">Не удалось загрузить задачи</div>;
 
   const { buckets, idxByKey, todayIdx } = model;
-
-  if (buckets.length === 0 && undated.length === 0) {
-    return <div className="py-8 text-center text-xs text-text-mute">Нет задач для таймлайна</div>;
-  }
-
+  const laneRows = filteredSwimlanes.filter((sl) => sl.tasks.length > 0);
   const gridCols = { gridTemplateColumns: `repeat(${buckets.length}, minmax(28px, 1fr))` };
   const wideRange = zoom === 'day' && buckets.length > 180;
-  const laneRows = swimlanes.filter((sl) => sl.tasks.length > 0);
 
-  return (
-    <div className="mb-4 rounded-xl border border-border bg-surface p-3">
-      {/* Панель: zoom */}
-      <div className="mb-3 flex items-center gap-1">
+  const controls = (
+    <div className="mb-3 flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-1">
         {ZOOMS.map((z) => (
           <button
             key={z.value}
             type="button"
             onClick={() => setZoom(z.value)}
             className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-              zoom === z.value
-                ? 'border-accent text-accent'
-                : 'border-border text-text-mute hover:text-text-main'
+              zoom === z.value ? 'border-accent text-accent' : 'border-border text-text-mute hover:text-text-main'
             }`}
           >
             {z.label}
           </button>
         ))}
       </div>
+      <div className="flex items-center gap-1">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => setFilter(f.value)}
+            className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+              filter === f.value ? 'border-accent text-accent' : 'border-border text-text-mute hover:text-text-main'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (buckets.length === 0 && filteredUndated.length === 0) {
+    return (
+      <div className="mb-4 rounded-xl border border-border bg-surface p-3">
+        {controls}
+        <div className="py-8 text-center text-xs text-text-mute">Нет задач под фильтр</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 rounded-xl border border-border bg-surface p-3">
+      {controls}
 
       {wideRange && (
         <div className="mb-2 rounded-lg border border-yellow bg-yellow-l px-3 py-1.5 text-xs text-text-main">
@@ -95,7 +149,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
       {buckets.length > 0 && (
         // C0: split-layout — фикс.левая колонка (вне скролла) + отдельный scrollable timeline-body
         <div className="flex">
-          {/* ── Левая колонка: названия фаз/задач (sticky, вне overflow) ── */}
+          {/* ── Левая колонка: названия фаз/задач (вне overflow) ── */}
           <div className="shrink-0" style={{ width: LABEL_W }}>
             <div style={{ height: ROW_H }} /> {/* спейсер под шапку бакетов */}
             {laneRows.map((sl) => (
@@ -146,29 +200,35 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                   {sl.tasks.map((gt) => {
                     const s = idxByKey.get(bucketKeyOf(gt.start, zoom)) ?? 0;
                     const e = idxByKey.get(bucketKeyOf(gt.end, zoom)) ?? s;
+                    const assignee = nameById.get(gt.task.assigned_to ?? '') ?? '—';
+                    const status = laneLabel(gt.task.lane, phaseMode);
                     return (
                       <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
-                        {gt.isMilestone ? (
-                          <button
-                            type="button"
-                            onClick={() => onEditTask(gt.task)}
-                            style={{ gridColumn: `${s + 1}`, gridRow: 1 }}
-                            className="flex items-center justify-center"
-                            title={`${gt.task.text} (веха): ${gt.start}`}
-                            aria-label={`${gt.task.text} (веха): ${gt.start}`}
-                          >
-                            <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => onEditTask(gt.task)}
-                            style={{ gridColumn: `${s + 1} / ${e + 2}`, gridRow: 1 }}
-                            className={`my-1 h-4 self-center rounded ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
-                            title={`${gt.start} → ${gt.end}`}
-                            aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
-                          />
-                        )}
+                        <div className="group relative" style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}>
+                          {gt.isMilestone ? (
+                            <button
+                              type="button"
+                              onClick={() => onEditTask(gt.task)}
+                              className="flex h-full w-full items-center justify-center"
+                              aria-label={`${gt.task.text} (веха): ${gt.start}`}
+                            >
+                              <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onEditTask(gt.task)}
+                              className={`my-1 block h-4 w-full rounded ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
+                              aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
+                            />
+                          )}
+                          {/* Tooltip: название / исполнитель / lane-статус */}
+                          <div className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-max max-w-[240px] rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs shadow-lg group-hover:block">
+                            <div className="font-medium text-text-main">{gt.task.text}</div>
+                            <div className="mt-0.5 text-text-dim">Исполнитель: {assignee}</div>
+                            <div className="text-text-dim">Статус: {status}</div>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -187,11 +247,11 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
       )}
 
       {/* Без дат */}
-      {undated.length > 0 && (
+      {filteredUndated.length > 0 && (
         <div className="mt-3 border-t border-border/40 pt-2">
           <div className="mb-1 text-[10px] uppercase tracking-wide text-text-mute">Без дат</div>
           <div className="flex flex-wrap gap-1.5">
-            {undated.map((task) => (
+            {filteredUndated.map((task) => (
               <button
                 key={task.id}
                 type="button"
