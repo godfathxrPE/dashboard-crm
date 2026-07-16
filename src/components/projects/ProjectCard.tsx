@@ -3,20 +3,15 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { calculateDealHealth, getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
 import { HealthDot } from '@/components/shared/HealthDot';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { Badge } from '@/components/ui/Badge';
 
-// Phase group → color (keyed by phase_group from pipeline_stages)
+// phase_group (pipeline_stages) → color-токен, как в StackedPipeline
 const PHASE_COLOR: Record<string, string> = {
-  attract: 'var(--track-prep-current)',
-  develop: 'var(--track-exp-current)',
-  negotiate: 'var(--track-nego-current, var(--track-exp-current))',
-  close: 'var(--track-proj-current)',
-  // pipeline_stages phase_group values
   attraction: 'var(--track-prep-current)',
   working: 'var(--track-exp-current)',
   approval: 'var(--track-nego-current, var(--track-exp-current))',
@@ -86,23 +81,17 @@ export function ProjectCard({
   const { data: allPipelineStages } = usePipelineStages();
   const health = calculateDealHealth(project);
 
-  // Resolve stage info from pipeline_stages (primary) or legacy STAGE_CONFIG (fallback)
+  // Путь B: стадия — только из pipeline_stages (stage_id); legacy `stage`/STAGE_CONFIG не читаем.
   const pipelineStage = allPipelineStages?.find((s) => s.id === project.stage_id);
   const pipelineSiblings = allPipelineStages?.filter((s) => s.pipeline_id === project.pipeline_id && !s.is_won && !s.is_lost) ?? [];
   const totalActive = pipelineSiblings.length || 12;
 
-  const stageLabel = pipelineStage?.name
-    ?? (project.stage ? STAGE_CONFIG[project.stage]?.shortLabel : null)
-    ?? '—';
-  const stageProbability = pipelineStage?.probability
-    ?? (project.stage ? STAGE_CONFIG[project.stage]?.probability : null)
-    ?? 0;
-  const phaseColor = PHASE_COLOR[pipelineStage?.phase_group ?? '']
-    ?? (project.stage ? PHASE_COLOR[STAGE_CONFIG[project.stage]?.phase ?? ''] : null)
-    ?? 'var(--accent)';
+  const stageLabel = pipelineStage?.name ?? '—';
+  const stageProbability = pipelineStage?.probability ?? 0;
+  const phaseColor = PHASE_COLOR[pipelineStage?.phase_group ?? ''] ?? 'var(--accent)';
   const progress = pipelineStage
     ? Math.round((pipelineStage.order_index / totalActive) * 100)
-    : project.stage ? Math.round(((STAGE_CONFIG[project.stage]?.order ?? 0) + 1) / 12 * 100) : 0;
+    : 0;
 
   const isTerminal = pipelineStage?.is_won || pipelineStage?.is_lost
     || project.status === 'won' || project.status === 'lost';
