@@ -286,6 +286,66 @@ export function useUpdateTask() {
 }
 
 /**
+ * S-GANTT-VIEW-2: правка дат задачи перетаскиванием бара на Гантте.
+ * ГЛАВНАЯ ГРАБЛЯ: Гант читает кэш ['tasks','board',projectId] (useProjectBoard),
+ * а useUpdateTask патчит только ['tasks'] — другой ключ → полоса дёргалась бы назад
+ * до рефетча. Поэтому onMutate патчит ОБА ключа, onError откатывает оба.
+ * onSettled: invalidate ['tasks'] (префикс ловит и board) + dashboard/timeline;
+ * ['projects']/['delivery-gate'] НЕ нужны — даты не влияют на progress/gate.
+ */
+export function useUpdateTaskDates(projectId: string) {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const boardKey = ['tasks', 'board', projectId] as const;
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      start_date,
+      end_date,
+    }: {
+      id: string;
+      start_date: string;
+      end_date: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ start_date, end_date })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Task;
+    },
+    onMutate: async ({ id, start_date, end_date }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: boardKey }),
+        queryClient.cancelQueries({ queryKey: QUERY_KEY }),
+      ]);
+      const prevBoard = queryClient.getQueryData<Task[]>(boardKey);
+      const prevAll = queryClient.getQueryData<Task[]>(QUERY_KEY);
+      const patch = (old: Task[] | undefined) =>
+        (old ?? []).map((t) => (t.id === id ? { ...t, start_date, end_date } : t));
+      queryClient.setQueryData<Task[]>(boardKey, patch);
+      queryClient.setQueryData<Task[]>(QUERY_KEY, patch);
+      return { prevBoard, prevAll };
+    },
+    onError: (_err, _vars, context) => {
+      // откат обоих кэшей (сервер вернул 23514 при нарушении CHECK и т.п.)
+      if (context?.prevBoard !== undefined) queryClient.setQueryData(boardKey, context.prevBoard);
+      if (context?.prevAll !== undefined) queryClient.setQueryData(QUERY_KEY, context.prevAll);
+    },
+    onSettled: () => {
+      // префикс ['tasks'] инвалидирует и board, и личный борд
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
+}
+
+/**
  * AUDIT A2.2: массовый перенос карточек Kanban ОДНОЙ мутацией (RPC 039).
  * Вход — список перестановок + флаг смены лейна. Один optimistic-снапшот на весь
  * батч (cancel → снимок → перестановка в кеше → откат целиком), а не N мутаций,

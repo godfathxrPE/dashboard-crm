@@ -56,6 +56,20 @@ function nextBucketKey(key: string, zoom: GanttZoom): string {
   return `${d.toISOString().slice(0, 7)}-01`;
 }
 
+/** Сдвиг даты YYYY-MM-DD на n бакетов текущего zoom (та же UTC-полдень математика,
+ *  что и nextBucketKey). day → ±n дней; week → ±n×7 дней (день недели сохраняется);
+ *  month → ±n календарных месяцев (день месяца сохраняется).
+ *  ВНИМАНИЕ (month): setUTCMonth на 31-х числах даёт штатный roll — напр. 31 янв +1мес
+ *  = «31 фев» → 3 мар. Для month-zoom это ОК (грубый шаг «на вскидку»), плюс на записи
+ *  срабатывает клэмп start≤end в GanttTimeline. */
+export function shiftDateKeyByBuckets(dateKey: string, zoom: GanttZoom, n: number): string {
+  if (zoom === 'day') return keyOfMs(noonMs(dateKey) + n * GANTT_DAY_MS);
+  if (zoom === 'week') return keyOfMs(noonMs(dateKey) + n * 7 * GANTT_DAY_MS);
+  const d = new Date(noonMs(dateKey));
+  d.setUTCMonth(d.getUTCMonth() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 function bucketLabel(key: string, zoom: GanttZoom): string {
   if (zoom === 'day') return key.slice(8, 10);                    // DD
   if (zoom === 'week') return `${key.slice(8, 10)}.${key.slice(5, 7)}`; // DD.MM (Пн)

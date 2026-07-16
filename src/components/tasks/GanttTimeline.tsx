@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import type * as React from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
+import { useUpdateTaskDates } from '@/lib/hooks/use-tasks';
 import { LANE_CONFIG } from '@/lib/validators/task';
 import { DELIVERY_TASK_STATUS_LABELS } from '@/lib/constants/delivery-phases';
 import {
@@ -10,6 +12,7 @@ import {
   bucketKeyOf,
   bucketIndexOf,
   buildBuckets,
+  shiftDateKeyByBuckets,
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
@@ -52,12 +55,187 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
     : (LANE_CONFIG[lane]?.label ?? lane);
 }
 
+type Tip = { x: number; y: number; text: string; assignee: string; status: string };
+
+const EDGE_PX = 6;    // ширина resize-зоны у краёв бара
+const CLICK_PX = 4;   // смещение < порога = клик (открыть модалку), не drag
+
+type DragMode = 'move' | 'left' | 'right';
+type DragState = { mode: DragMode; startX: number; bucketPx: number; rawDx: number };
+
+interface GanttBarProps {
+  gt: GanttTask;
+  zoom: GanttZoom;
+  s: number;               // индекс стартового бакета
+  e: number;               // индекс конечного бакета
+  getBucketPx: () => number;
+  onEditTask: (task: Task) => void;
+  onDates: (v: { id: string; start_date: string; end_date: string }) => void;
+  setTip: (t: Tip | null) => void;
+  assignee: string;
+  status: string;
+}
+
+// Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
+// Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status }: GanttBarProps) {
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const spanBuckets = e - s; // 0 у однобакетных / вех
+
+  // снап + клэмп дельты по режиму (не даём инвертировать бар при resize)
+  const clampDelta = useCallback(
+    (raw: number, px: number, mode: DragMode) => {
+      let bd = px > 0 ? Math.round(raw / px) : 0;
+      if (mode === 'left') bd = Math.min(bd, spanBuckets);   // start не заходит за end
+      else if (mode === 'right') bd = Math.max(bd, -spanBuckets); // end не заходит за start
+      return bd;
+    },
+    [spanBuckets],
+  );
+
+  const commit = useCallback(
+    (mode: DragMode, bd: number) => {
+      let start = gt.start;
+      let end = gt.end;
+      if (gt.isMilestone) {
+        start = end = shiftDateKeyByBuckets(gt.start, zoom, bd); // веха: start==end
+      } else if (mode === 'move') {
+        start = shiftDateKeyByBuckets(gt.start, zoom, bd);
+        end = shiftDateKeyByBuckets(gt.end, zoom, bd);          // длительность сохраняется
+      } else if (mode === 'left') {
+        start = shiftDateKeyByBuckets(gt.start, zoom, bd);
+        if (start > end) start = end;                           // клэмп CHECK tasks_dates_order_chk
+      } else {
+        end = shiftDateKeyByBuckets(gt.end, zoom, bd);
+        if (end < start) end = start;
+      }
+      // Материализация deadline-only: gt.start/end уже вычислены effectiveSpan из
+      // deadline → первый drag пишет явные start_date/end_date (фича, кормит KPI).
+      onDates({ id: gt.task.id, start_date: start, end_date: end });
+    },
+    [gt, zoom, onDates],
+  );
+
+  const startDrag = useCallback(
+    (ev: React.PointerEvent, mode: DragMode) => {
+      ev.stopPropagation();
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      setDrag({ mode: gt.isMilestone ? 'move' : mode, startX: ev.clientX, bucketPx: getBucketPx(), rawDx: 0 });
+    },
+    [gt.isMilestone, getBucketPx],
+  );
+  const onMove = useCallback((ev: React.PointerEvent) => {
+    setDrag((d) => (d ? { ...d, rawDx: ev.clientX - d.startX } : d));
+  }, []);
+  const onUp = useCallback(
+    (ev: React.PointerEvent) => {
+      try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      if (!drag) return;
+      const { rawDx, bucketPx, mode } = drag;
+      setDrag(null);
+      if (Math.abs(rawDx) < CLICK_PX) {
+        onEditTask(gt.task);                          // мелкое смещение = клик
+        return;
+      }
+      const bd = clampDelta(rawDx, bucketPx, mode);
+      if (bd !== 0) commit(mode, bd);                 // 0 бакетов = ни мутации, ни модалки
+    },
+    [drag, gt.task, onEditTask, clampDelta, commit],
+  );
+  const onCancel = useCallback((ev: React.PointerEvent) => {
+    try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+    setDrag(null);
+  }, []);
+
+  // визуальный transform/width во время drag (снап к бакету)
+  let transform: string | undefined;
+  let width: string | undefined;
+  if (drag) {
+    const bd = clampDelta(drag.rawDx, drag.bucketPx, drag.mode);
+    const dx = bd * drag.bucketPx;
+    if (gt.isMilestone || drag.mode === 'move') transform = `translateX(${dx}px)`;
+    else if (drag.mode === 'left') { transform = `translateX(${dx}px)`; width = `calc(100% - ${dx}px)`; }
+    else width = `calc(100% + ${dx}px)`;
+  }
+
+  const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
+  const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
+  const onKey = (ev: React.KeyboardEvent) => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEditTask(gt.task); }
+  };
+
+  return (
+    <div
+      className="relative"
+      style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}
+    >
+      {gt.isMilestone ? (
+        <div
+          role="button"
+          tabIndex={0}
+          onPointerDown={(ev) => startDrag(ev, 'move')}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onCancel}
+          onKeyDown={onKey}
+          onMouseEnter={showTip}
+          onMouseMove={moveTip}
+          onMouseLeave={() => setTip(null)}
+          className="flex h-full w-full cursor-grab items-center justify-center active:cursor-grabbing"
+          style={{ transform, touchAction: 'none' }}
+          aria-label={`${gt.task.text} (веха): ${gt.start}`}
+        >
+          <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
+        </div>
+      ) : (
+        <div
+          role="button"
+          tabIndex={0}
+          onPointerDown={(ev) => startDrag(ev, 'move')}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onCancel}
+          onKeyDown={onKey}
+          onMouseEnter={showTip}
+          onMouseMove={moveTip}
+          onMouseLeave={() => setTip(null)}
+          className={`relative my-1 block h-4 w-full cursor-grab rounded active:cursor-grabbing ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
+          style={{ transform, width, touchAction: 'none' }}
+          aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
+        >
+          {/* resize-хендлы: перехватывают pointerdown у краёв (курсор ew-resize) */}
+          <span
+            onPointerDown={(ev) => startDrag(ev, 'left')}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={onCancel}
+            className="absolute inset-y-0 left-0 cursor-ew-resize"
+            style={{ width: EDGE_PX, touchAction: 'none' }}
+            aria-hidden
+          />
+          <span
+            onPointerDown={(ev) => startDrag(ev, 'right')}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={onCancel}
+            className="absolute inset-y-0 right-0 cursor-ew-resize"
+            style={{ width: EDGE_PX, touchAction: 'none' }}
+            aria-hidden
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const { swimlanes, undated, phaseMode, isLoading, isError } = useProjectSchedule(projectId);
   const { data: team = [] } = useTeamMembers();
+  const updateDates = useUpdateTaskDates(projectId);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<GanttZoom>('week');
   const [filter, setFilter] = useState<GanttFilter>('open');
-  const [tip, setTip] = useState<{ x: number; y: number; text: string; assignee: string; status: string } | null>(null);
+  const [tip, setTip] = useState<Tip | null>(null);
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
 
@@ -85,6 +263,13 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
   }, [filteredSwimlanes, zoom]);
+
+  // Ширина бакета в рантайме (сетка minmax(28px,1fr) — динамическая, хардкод нельзя).
+  // Снимаем с шапки бакетов на каждый pointerdown.
+  const getBucketPx = useCallback(() => {
+    const w = gridRef.current?.getBoundingClientRect().width ?? 0;
+    return model.buckets.length ? w / model.buckets.length : 0;
+  }, [model.buckets.length]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
@@ -177,8 +362,8 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
           {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
           <div className="flex-1 overflow-x-auto">
             <div className="relative min-w-max">
-              {/* Шапка бакетов */}
-              <div className="grid" style={{ ...gridCols, height: ROW_H }}>
+              {/* Шапка бакетов (ref — мерим ширину бакета для drag) */}
+              <div ref={gridRef} className="grid" style={{ ...gridCols, height: ROW_H }}>
                 {buckets.map((b, i) => (
                   <div
                     key={b.key}
@@ -205,31 +390,18 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                     const status = laneLabel(gt.task.lane, phaseMode);
                     return (
                       <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
-                        <div className="relative" style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}>
-                          {gt.isMilestone ? (
-                            <button
-                              type="button"
-                              onClick={() => onEditTask(gt.task)}
-                              onMouseEnter={(ev) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status })}
-                              onMouseMove={(ev) => setTip((t) => (t ? { ...t, x: ev.clientX, y: ev.clientY } : t))}
-                              onMouseLeave={() => setTip(null)}
-                              className="flex h-full w-full items-center justify-center"
-                              aria-label={`${gt.task.text} (веха): ${gt.start}`}
-                            >
-                              <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => onEditTask(gt.task)}
-                              onMouseEnter={(ev) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status })}
-                              onMouseMove={(ev) => setTip((t) => (t ? { ...t, x: ev.clientX, y: ev.clientY } : t))}
-                              onMouseLeave={() => setTip(null)}
-                              className={`my-1 block h-4 w-full rounded ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
-                              aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
-                            />
-                          )}
-                        </div>
+                        <GanttBar
+                          gt={gt}
+                          zoom={zoom}
+                          s={s}
+                          e={e}
+                          getBucketPx={getBucketPx}
+                          onEditTask={onEditTask}
+                          onDates={updateDates.mutate}
+                          setTip={setTip}
+                          assignee={assignee}
+                          status={status}
+                        />
                       </div>
                     );
                   })}
