@@ -81,13 +81,14 @@ interface GanttBarProps {
   status: string;
   linkMode: boolean;               // S-DEPS-1: режим создания связей — drag отключён
   isLinkSource: boolean;           // подсвечен как выбранный predecessor
+  isCritical: boolean;             // S-CRIT-PATH: бар на критическом пути
   onLinkSelect: (taskId: string) => void;
 }
 
 // Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
 // Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
 // S-DEPS-1: в linkMode drag-хендлеры не навешиваются — клик выбирает конец связи.
-function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, onLinkSelect }: GanttBarProps) {
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, onLinkSelect }: GanttBarProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const spanBuckets = e - s; // 0 у однобакетных / вех
 
@@ -189,6 +190,9 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   const linkClick = linkMode ? { onClick: () => onLinkSelect(gt.task.id) } : undefined;
   const cursorClass = linkMode ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
   const ringClass = isLinkSource ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
+  // S-CRIT-PATH: акцентная обводка через outline (var(--accent), не хардкод; отдельное
+  // CSS-свойство от ring — не клобберит link-source, оба состояния сосуществуют).
+  const critClass = isCritical ? 'outline outline-2 outline-accent outline-offset-1' : '';
 
   return (
     <div
@@ -210,7 +214,7 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
           style={{ transform: linkMode ? undefined : transform, touchAction: 'none' }}
           aria-label={`${gt.task.text} (веха): ${gt.start}`}
         >
-          <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)} ${ringClass}`} />
+          <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)} ${ringClass} ${critClass}`} />
         </div>
       ) : (
         <div
@@ -222,7 +226,7 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
           onMouseEnter={showTip}
           onMouseMove={moveTip}
           onMouseLeave={() => setTip(null)}
-          className={`relative my-1 block h-4 w-full rounded ${cursorClass} ${barClass(gt.task)} ${ringClass} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
+          className={`relative my-1 block h-4 w-full rounded ${cursorClass} ${barClass(gt.task)} ${ringClass} ${critClass} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
           style={{ transform: linkMode ? undefined : transform, width: linkMode ? undefined : width, touchAction: 'none' }}
           aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
         >
@@ -267,7 +271,9 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   // S-DEPS-1: link-mode — тумблер создания связей + выбранный predecessor
   const [linkMode, setLinkMode] = useState(false);
   const [pendingPred, setPendingPred] = useState<string | null>(null);
-  const [edges, setEdges] = useState<{ id: string; d: string }[]>([]); // измеренные пути стрелок
+  // S-CRIT-PATH: тумблер подсветки критического пути (default off)
+  const [showCritical, setShowCritical] = useState(false);
+  const [edges, setEdges] = useState<{ id: string; d: string; critical: boolean }[]>([]); // измеренные пути стрелок
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
 
@@ -328,6 +334,91 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     return undated;
   }, [undated, filter]);
 
+  // S-CRIT-PATH: критический путь = самая длинная по сумме длительностей задач цепочка
+  // в DAG рёбер (longest path). НЕ полный CPM (ES/EF/LS/LF/float) — даты у нас
+  // пользовательские, не выводятся из длительностей; FS-констрейнт не enforced
+  // (см. S-DEPS-1 W7). Полный CPM — возможный v2. Чистый useMemo (не effect+setState)
+  // → лишний пересчёт по нестабильным ссылкам безвреден, лупа исключена (S-DEPS-1).
+  // Считаем по ВИДИМЫМ датированным задачам (у которых есть бар) — консистентно со
+  // стрелками (W4); полный путь — на фильтре «Все».
+  const critical = useMemo(() => {
+    // длительность в днях (inclusive), UTC-полдень — та же нормализация, что бары
+    // (noonMs в date-helpers: Date.parse(`${key}T12:00:00Z`)), TZ не прыгает через полночь.
+    const noon = (k: string) => Date.parse(`${k}T12:00:00Z`);
+    const durDays = (gt: GanttTask) =>
+      Math.max(1, Math.round((noon(gt.end) - noon(gt.start)) / 86_400_000) + 1);
+
+    // узлы: только видимые датированные задачи (реально имеют бар)
+    const nodes = new Map<string, GanttTask>();
+    for (const sl of filteredSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
+
+    // рёбра только между видимыми узлами; заодно in-degree по succ для топосорта
+    const adjPreds = new Map<string, { edgeId: string; pred: string }[]>(); // succ → [{edge,pred}]
+    const adjSuccs = new Map<string, string[]>();                            // pred → [succ]
+    const indeg = new Map<string, number>();
+    for (const id of nodes.keys()) indeg.set(id, 0);
+    for (const d of dependencies) {
+      if (!nodes.has(d.predecessor_id) || !nodes.has(d.successor_id)) continue;
+      (adjPreds.get(d.successor_id) ?? adjPreds.set(d.successor_id, []).get(d.successor_id)!)
+        .push({ edgeId: d.id, pred: d.predecessor_id });
+      (adjSuccs.get(d.predecessor_id) ?? adjSuccs.set(d.predecessor_id, []).get(d.predecessor_id)!)
+        .push(d.successor_id);
+      indeg.set(d.successor_id, (indeg.get(d.successor_id) ?? 0) + 1);
+    }
+
+    // топосорт Kahn (DAG гарантирован триггером 048 → циклов нет)
+    const order: string[] = [];
+    const queue: string[] = [];
+    for (const [id, deg] of indeg) if (deg === 0) queue.push(id);
+    while (queue.length) {
+      const id = queue.shift()!;
+      order.push(id);
+      for (const succ of adjSuccs.get(id) ?? []) {
+        const d = (indeg.get(succ) ?? 0) - 1;
+        indeg.set(succ, d);
+        if (d === 0) queue.push(succ);
+      }
+    }
+
+    // longest-path DP: best[id] = макс. суммарная длительность цепи, кончающейся на id
+    const best = new Map<string, number>();
+    const from = new Map<string, { pred: string; edgeId: string } | null>();
+    for (const id of order) {
+      const gt = nodes.get(id)!;
+      let bestPredSum = 0;
+      let pick: { pred: string; edgeId: string } | null = null;
+      for (const { pred, edgeId } of adjPreds.get(id) ?? []) {
+        const s = best.get(pred) ?? 0;
+        if (s > bestPredSum) { bestPredSum = s; pick = { pred, edgeId }; }
+      }
+      best.set(id, bestPredSum + durDays(gt));
+      from.set(id, pick);
+    }
+
+    // глобальный максимум → бэктрек цепи
+    let endId: string | null = null;
+    let max = 0;
+    for (const [id, v] of best) if (v > max) { max = v; endId = id; }
+    const taskIds = new Set<string>();
+    const edgeIds = new Set<string>();
+    let cur: string | null = endId;
+    while (cur) {
+      taskIds.add(cur);
+      const step = from.get(cur);
+      if (!step) break;
+      edgeIds.add(step.edgeId);
+      cur = step.pred;
+    }
+    // критический путь имеет смысл только при ≥1 ребре (цепочка из 2+ задач)
+    return edgeIds.size
+      ? { taskIds, edgeIds, totalDays: max }
+      : { taskIds: new Set<string>(), edgeIds, totalDays: 0 };
+  }, [filteredSwimlanes, dependencies]);
+
+  // Стабильная строковая сигнатура крит-множества для effect-deps измерения стрелок
+  // (НЕ объект critical — новый ref каждый рендер). '' когда подсветка выключена.
+  const critSig = showCritical ? [...critical.edgeIds].sort().join(',') : '';
+
   const model = useMemo(() => {
     const allTasks: GanttTask[] = filteredSwimlanes.flatMap((sl) => sl.tasks);
     if (allTasks.length === 0) {
@@ -369,20 +460,25 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         };
       };
       const STUB = 10;
-      const next: { id: string; d: string }[] = [];
+      const next: { id: string; d: string; critical: boolean }[] = [];
       for (const dep of dependencies) {
         const from = anchor(dep.predecessor_id, 'end');
         const to = anchor(dep.successor_id, 'start');
         if (!from || !to) continue;                      // конец скрыт фильтром → пропускаем стрелку
         const midX = Math.max(from.x + STUB, to.x - STUB);
-        next.push({ id: dep.id, d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}` });
+        next.push({
+          id: dep.id,
+          d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`,
+          critical: showCritical && critical.edgeIds.has(dep.id), // S-CRIT-PATH
+        });
       }
       // дедуп: идентичные пути → возвращаем prev (React бейлит, re-render не идёт).
       // Без этого setEdges(новый массив) крутит render→effect→setEdges бесконечно.
+      // S-CRIT-PATH: сравниваем и critical, иначе тумблер не перерисует стрелки.
       setEdges((prev) => {
         if (
           prev.length === next.length &&
-          prev.every((e, i) => e.id === next[i].id && e.d === next[i].d)
+          prev.every((e, i) => e.id === next[i].id && e.d === next[i].d && e.critical === next[i].critical)
         ) return prev;
         return next;
       });
@@ -394,8 +490,10 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     return () => ro.disconnect();
     // deps по depSig (стабильная строка), а не filteredSwimlanes (новый ref каждый
     // рендер → effect гонялся всегда). zoom/filter меняют ширину → ResizeObserver перемеряет.
+    // S-CRIT-PATH: showCritical + critSig (стабильная строка, НЕ объект critical) →
+    // перекраска крит-стрелок по тумблеру без лупа.
     // v1: перемер при смене рёбер/зума/фильтра/размера; чистый reflow строк — по следующему триггеру
-  }, [depSig, zoom, filter]);
+  }, [depSig, zoom, filter, showCritical, critSig]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
@@ -451,6 +549,23 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
       {linkMode && (
         <span className="text-xs text-text-mute">
           {pendingPred ? 'Выберите задачу-последователь · Esc — отмена' : 'Выберите задачу-предшественник · Esc — выход'}
+        </span>
+      )}
+      {/* S-CRIT-PATH: тумблер подсветки критического пути (longest path в DAG). */}
+      <button
+        type="button"
+        aria-pressed={showCritical}
+        onClick={() => setShowCritical((v) => !v)}
+        className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+          showCritical ? 'border-accent bg-accent-l text-accent' : 'border-border text-text-mute hover:text-text-main'
+        }`}
+        title="Подсветить самую длинную цепочку зависимых задач (по текущему фильтру)"
+      >
+        Крит. путь
+      </button>
+      {showCritical && critical.taskIds.size > 0 && (
+        <span className="rounded-md bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
+          Крит. путь: {critical.totalDays} дн
         </span>
       )}
     </div>
@@ -546,6 +661,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                           status={status}
                           linkMode={linkMode}
                           isLinkSource={pendingPred === gt.task.id}
+                          isCritical={showCritical && critical.taskIds.has(gt.task.id)}
                           onLinkSelect={onLinkSelect}
                         />
                       </div>
@@ -581,15 +697,28 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                     >
                       <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
                     </marker>
+                    {/* S-CRIT-PATH: акцентный маркер для критических стрелок (marker
+                        наследует color из defs, не из ссылающегося path → отдельный). */}
+                    <marker
+                      id="gantt-dep-arrow-crit"
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                      markerUnits="userSpaceOnUse"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)" />
+                    </marker>
                   </defs>
                   {edges.map((edge) => (
                     <path
                       key={edge.id}
                       d={edge.d}
                       fill="none"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                      markerEnd="url(#gantt-dep-arrow)"
+                      stroke={edge.critical ? 'var(--accent)' : 'currentColor'}
+                      strokeWidth={edge.critical ? 2.5 : 1.5}
+                      markerEnd={edge.critical ? 'url(#gantt-dep-arrow-crit)' : 'url(#gantt-dep-arrow)'}
                       className="cursor-pointer"
                       style={{ pointerEvents: 'stroke' }}
                       onClick={() => {
