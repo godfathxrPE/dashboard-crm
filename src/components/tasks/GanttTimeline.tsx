@@ -283,6 +283,13 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const createDep = useCreateTaskDependency(projectId);
   const deleteDep = useDeleteTaskDependency(projectId);
 
+  // Стабильная сигнатура набора рёбер: строка не меняет reference между рендерами
+  // при тех же зависимостях (dependencies дефолтится в новый [] при пустых данных).
+  const depSig = useMemo(
+    () => dependencies.map((d) => `${d.id}:${d.predecessor_id}>${d.successor_id}`).join('|'),
+    [dependencies],
+  );
+
   const exitLinkMode = useCallback(() => {
     setLinkMode(false);
     setPendingPred(null);
@@ -370,14 +377,25 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         const midX = Math.max(from.x + STUB, to.x - STUB);
         next.push({ id: dep.id, d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}` });
       }
-      setEdges(next);
+      // дедуп: идентичные пути → возвращаем prev (React бейлит, re-render не идёт).
+      // Без этого setEdges(новый массив) крутит render→effect→setEdges бесконечно.
+      setEdges((prev) => {
+        if (
+          prev.length === next.length &&
+          prev.every((e, i) => e.id === next[i].id && e.d === next[i].d)
+        ) return prev;
+        return next;
+      });
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(body);
     return () => ro.disconnect();
-  }, [dependencies, filteredSwimlanes, zoom, filter]);
+    // deps по depSig (стабильная строка), а не filteredSwimlanes (новый ref каждый
+    // рендер → effect гонялся всегда). zoom/filter меняют ширину → ResizeObserver перемеряет.
+    // v1: перемер при смене рёбер/зума/фильтра/размера; чистый reflow строк — по следующему триггеру
+  }, [depSig, zoom, filter]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
