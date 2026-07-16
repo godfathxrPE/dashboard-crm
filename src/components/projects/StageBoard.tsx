@@ -35,7 +35,6 @@ import {
 } from '@/lib/hooks/use-projects';
 import { formatBudget } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -363,9 +362,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
 
     if (!targetStageId || project.stage_id === targetStageId) return;
 
-    const targetStage = pipelineStages.find((s) => s.id === targetStageId);
-    const legacyStage = targetStage ? mapToLegacyStage(targetStage, project.direction) : null;
-    moveToStageId(projectId, targetStageId, legacyStage);
+    moveToStageId(projectId, targetStageId);
   }
 
   function handleOpen(id: string) {
@@ -375,9 +372,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
   function handleRestore(id: string) {
     const firstStage = activeStages[0];
     if (!firstStage) return;
-    const project = projects?.find((p) => p.id === id);
-    const legacyStage = project ? mapToLegacyStage(firstStage, project.direction) : null;
-    moveToStageId(id, firstStage.id, legacyStage);
+    moveToStageId(id, firstStage.id);
   }
 
   function handleDelete(id: string) {

@@ -102,20 +102,6 @@ export function getActiveStages(): DealStage[] {
   return dealStages.filter((s) => s !== 'won' && s !== 'lost');
 }
 
-/** Следующая стадия в pipeline (или null если won/lost) */
-export function getNextStage(current: DealStage): DealStage | null {
-  const idx = STAGE_CONFIG[current].order;
-  const next = dealStages.find((s) => STAGE_CONFIG[s].order === idx + 1);
-  return next ?? null;
-}
-
-/** Предыдущая стадия (или null если new_lead) */
-export function getPrevStage(current: DealStage): DealStage | null {
-  const idx = STAGE_CONFIG[current].order;
-  const prev = dealStages.find((s) => STAGE_CONFIG[s].order === idx - 1);
-  return prev ?? null;
-}
-
 // ═══════════════════════════════════════════════════════
 // Loss Reasons — предустановленные причины проигрыша
 // Паттерн из HubSpot: выбираем категорию + свободный комментарий
@@ -208,8 +194,6 @@ export const projectFormSchema = z
     stage_id: z.string().uuid().nullable().default(null),
     company_id: z.string().uuid().nullable().default(null),
     contact_id: z.string().uuid().nullable().default(null),
-    // Legacy — kept for backward compat, auto-filled from stage_id mapping
-    stage: z.enum(dealStages).nullable().default(null),
     budget: z.number().int().nonnegative().nullable().default(null),
     deadline: z.string().nullable().default(null),
     next_step: z.string().nullable().default(null),

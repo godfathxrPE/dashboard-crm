@@ -490,26 +490,15 @@ export function useMoveProject() {
 
   return {
     ...update,
-    /** Legacy: move by DealStage enum (used by old StageBoard) */
-    moveToStage: (id: string, stage: DealStage) => {
-      const extra: Partial<ProjectInsert> =
-        stage === 'lost'
-          ? { stage, loss_reason: null, loss_detail: null }
-          : stage === 'won'
-            ? { stage, loss_reason: null, loss_detail: null }
-            : { stage };
-
-      update.mutate({ id, ...extra });
-    },
     /**
-     * Sprint 1.5: move by stage_id + optional legacy stage for backward compat.
+     * Sprint 1.5: move by stage_id — единственная истина стадии.
+     * B1 (S-LEGACY-STAGE-1): legacy `stage` больше НЕ пишем (колонка уходит в B2 DROP).
      * Sprint 27: options пробрасываются в mutate — вызывающий ловит отказ гейта
      * (parseStageGateError) поверх встроенного optimistic-rollback хука.
      */
     moveToStageId: (
       id: string,
       stageId: string,
-      legacyStage?: DealStage | null,
       options?: { onError?: (err: unknown) => void; onSuccess?: () => void },
       /** S-WON-REASON-1: доп. поля пишутся тем же mutate (напр. won_reason при выигрыше) */
       extra?: Partial<ProjectInsert>,
@@ -518,7 +507,6 @@ export function useMoveProject() {
         {
           id,
           stage_id: stageId,
-          ...(legacyStage !== undefined ? { stage: legacyStage } : {}),
           ...(extra ?? {}),
         },
         options,

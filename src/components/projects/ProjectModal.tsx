@@ -22,8 +22,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { Modal } from '@/components/shared/Modal';
-import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
-import type { Direction, DealStage } from '@/types/database';
+import type { Direction } from '@/types/database';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -60,7 +59,6 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
       stage_id: '',
       company_id: null,
       contact_id: null,
-      stage: null,
       budget: null,
       deadline: null,
       next_step: null,
@@ -114,7 +112,6 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         stage_id: editProject.stage_id,
         company_id: editProject.company_id,
         contact_id: editProject.contact_id,
-        stage: editProject.stage ?? null,
         budget: editProject.budget,
         deadline: editProject.deadline,
         next_step: editProject.next_step,
@@ -136,7 +133,6 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         stage_id: '',
         company_id: defaultCompanyId ?? null,
         contact_id: null,
-        stage: null,
         budget: null,
         deadline: null,
         next_step: null,
@@ -230,7 +226,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
   };
 
   const onSubmit = async (values: ProjectFormValues) => {
-    let payload: ProjectFormValues & { stage: DealStage | null };
+    let payload: ProjectFormValues;
     if (values.type === 'internal') {
       // Internal — вне воронки: стадийные поля строго null (CHECK-инвариант БД).
       payload = {
@@ -238,22 +234,16 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         direction: null,
         pipeline_id: null,
         stage_id: null,
-        stage: null,
         loss_reason: null,
         loss_detail: null,
         won_reason: null,
         won_detail: null,
       };
-    } else if (values.type === 'delivery') {
-      // Delivery P1 (защитная ветка): модалка delivery не создаёт и не редактирует
-      // (создание — RPC spawn_delivery_project), но если сюда попали — legacy
-      // stage строго null (B6), маппинг IIoT-сделок неприменим.
-      payload = { ...values, stage: null };
     } else {
-      // Auto-fill legacy stage from mapping
-      const pStage = allStages?.find((s) => s.id === values.stage_id);
-      const legacyStage = mapToLegacyStage(pStage, values.direction);
-      payload = { ...values, stage: legacyStage };
+      // B1 (S-LEGACY-STAGE-1): форма стадию (legacy `stage`) больше не отправляет —
+      // истина стадии в stage_id, БД-дефолт/триггеры делают остальное. Общая ветка
+      // для client и delivery (последняя штатно создаётся RPC spawn_delivery_project).
+      payload = values;
     }
 
     try {

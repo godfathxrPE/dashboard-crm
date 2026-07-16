@@ -44,8 +44,7 @@ import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 // phase_group своей стадии (stage_id → pipeline_stages project-пайплайна).
 // ERP- и IIoT-внедрения живут на одной доске: слаги состояний у обоих
 // пайплайнов одинаковые, drag резолвит стадию в пайплайне самого проекта.
-// Legacy `stage` для delivery всегда NULL — в moveToStageId передаём null,
-// mapToLegacyStage не зовём (B6).
+// B1: пишем только stage_id — legacy `stage` из клиента больше не трогаем.
 // ═══════════════════════════════════════════════════════
 
 function DeliveryCard({ project, stageName, health, onOpen }: {
@@ -249,8 +248,8 @@ export function DeliveryPipelineBoard() {
       .sort((a, b) => a.order_index - b.order_index)[0];
     if (!targetStage) return;
 
-    // B6: legacy stage для delivery всегда null (mapToLegacyStage не зовём)
-    moveToStageId(project.id, targetStage.id, null);
+    // B1: пишем только stage_id (legacy `stage` больше не трогаем)
+    moveToStageId(project.id, targetStage.id);
   }
 
   function handleOpen(id: string) { router.push(`/projects/${id}`); }

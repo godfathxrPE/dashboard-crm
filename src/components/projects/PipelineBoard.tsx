@@ -38,7 +38,6 @@ import type { UnmetRequirement } from '@/types/database';
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
-import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import { compareByNextAction } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { ProjectCard } from './ProjectCard';
@@ -488,7 +487,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
       const stageId = String(over.id).slice(6);
       const targetStage = pipelineStages.find((s) => s.id === stageId);
       if (!targetStage || project.stage_id === targetStage.id) return;
-      moveToStageId(project.id, targetStage.id, mapToLegacyStage(targetStage, project.direction), {
+      moveToStageId(project.id, targetStage.id, {
         onError: onMoveError(project.name),
       });
       const todayStage = new Date(new Date().toDateString());
@@ -530,8 +529,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     if (!targetCol || targetCol.stages.length === 0) return;
     const targetStage = targetCol.stages[0];
 
-    const legacyStage = mapToLegacyStage(targetStage, project.direction);
-    moveToStageId(project.id, targetStage.id, legacyStage, { onError: onMoveError(project.name) });
+    moveToStageId(project.id, targetStage.id, { onError: onMoveError(project.name) });
 
     // Sprint W1a: мягкая подсказка запланировать следующий шаг после переноса,
     // если дата шага пустая или в прошлом (drop-target — всегда активная фаза).
@@ -553,8 +551,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     if (!currentStage) return;
     const nextStage = pipelineStages.find((s) => s.order_index === currentStage.order_index + 1 && !s.is_won && !s.is_lost);
     if (!nextStage) return;
-    const legacyStage = mapToLegacyStage(nextStage, p.direction);
-    moveToStageId(id, nextStage.id, legacyStage, { onError: onMoveError(p.name) });
+    moveToStageId(id, nextStage.id, { onError: onMoveError(p.name) });
   }
   // Клиентская навигация: window.location.href давал полную перезагрузку
   // (первый клик «обновлял» страницу, не переходя на сделку)
@@ -563,9 +560,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
     // Move to first stage of the pipeline
     const firstStage = pipelineStages.find((s) => s.order_index === 1);
     if (!firstStage) return;
-    const project = projects?.find((p) => p.id === id);
-    const legacyStage = project ? mapToLegacyStage(firstStage, project.direction) : null;
-    moveToStageId(id, firstStage.id, legacyStage);
+    moveToStageId(id, firstStage.id);
   }
 
   const phaseBudget = (phaseId: string) =>

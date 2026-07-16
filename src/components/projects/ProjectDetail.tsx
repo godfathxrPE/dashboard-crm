@@ -28,7 +28,6 @@ import {
   type Project,
 } from '@/lib/hooks/use-projects';
 import type { UnmetRequirement } from '@/types/database';
-import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
@@ -403,7 +402,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   updateProject.mutate({
                     id: project.id,
                     stage_id: firstStage.id,
-                    stage: mapToLegacyStage(firstStage, project.direction),
                     loss_reason: null,
                     loss_detail: null,
                     won_reason: null,
@@ -455,7 +453,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     moveToStageId(
                       project.id,
                       wonStage.id,
-                      mapToLegacyStage(wonStage, project.direction),
                       // S-WON-AUTO-1: успешный выигрыш → сразу предлагаем Win Wizard (HITL,
                       // у него есть «Пока не создавать»). Гейт S27 не прошёл → onError, wizard
                       // НЕ откроется. Панель причины закрываем синхронно ниже (до onSuccess).
@@ -511,7 +508,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   updateProject.mutate({
                     id: project.id,
                     stage_id: lostStage.id,
-                    stage: mapToLegacyStage(lostStage, project.direction),
                     loss_reason: r,
                   });
                   setLosing(false);
@@ -551,8 +547,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
               }
 
-              const legacyStage = mapToLegacyStage(targetStageObj, project.direction);
-              moveToStageId(project.id, newStageId, legacyStage, { onError: onGateError });
+              moveToStageId(project.id, newStageId, { onError: onGateError });
             }}
           />
         </div>
@@ -578,8 +573,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               }
 
               setGateBlock(null);
-              // S29.1: пишем ТОЛЬКО stage_id — legacy `stage` из чеврона больше не трогаем.
-              moveToStageId(project.id, newStageId, undefined, { onError: onGateError });
+              // S29.1 / B1: пишем ТОЛЬКО stage_id — legacy `stage` из чеврона больше не трогаем.
+              moveToStageId(project.id, newStageId, { onError: onGateError });
             }}
           />
         </div>
@@ -606,8 +601,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               }
 
               setGateBlock(null);
-              // B6: delivery живёт только на stage_id — legacy stage всегда null
-              moveToStageId(project.id, newStageId, null, { onError: onGateError });
+              // B6/B1: delivery живёт только на stage_id — legacy stage не пишем
+              moveToStageId(project.id, newStageId, { onError: onGateError });
             }}
           />
         </div>
