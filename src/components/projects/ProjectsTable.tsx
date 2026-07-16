@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { useProjects, useDeleteProject, type Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
+import { trackFromPhaseGroup } from '@/lib/utils/stage-track';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
@@ -20,20 +21,16 @@ import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage } from '@/types/database';
 
-// Track mapping for the 3-track pipeline (IIoT only — legacy stage)
-function getTrack(stage: string): string {
-  const order = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG]?.order ?? 0;
-  if (order <= 5) return 'Подготовка';
-  if (order <= 9) return 'Эксперимент';
-  return 'Проект';
+// Путь B: 3-трек из phase_group стадии (stage_id → pipeline_stages), не legacy `stage`.
+function getTrack(p: Project, stagesMap: Map<string, PipelineStage>): string | null {
+  return trackFromPhaseGroup(p.stage_id ? stagesMap.get(p.stage_id)?.phase_group : null);
 }
 
-// Resolve stage display name: prefer pipeline_stages, fallback to legacy STAGE_CONFIG
+// Resolve stage display name from pipeline_stages (stage_id). Legacy `stage` не читаем.
 function getStageName(p: Project, stagesMap: Map<string, PipelineStage>): string {
   if (p.type === 'internal') return 'Внутренний';
   const pipelineStage = p.stage_id ? stagesMap.get(p.stage_id) : undefined;
   if (pipelineStage) return pipelineStage.name;
-  if (p.stage) return STAGE_CONFIG[p.stage]?.shortLabel ?? p.stage;
   return '—';
 }
 
@@ -69,14 +66,14 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
   const today = useMemo(() => new Date(new Date().toDateString()), []);
 
   const chipFilters = useMemo<Record<string, (p: Project) => boolean>>(() => ({
-    track_prep: (p) => !!p.stage && getTrack(p.stage) === 'Подготовка',
-    track_exp: (p) => !!p.stage && getTrack(p.stage) === 'Эксперимент',
-    track_proj: (p) => !!p.stage && getTrack(p.stage) === 'Проект',
+    track_prep: (p) => getTrack(p, stagesMap) === 'Подготовка',
+    track_exp: (p) => getTrack(p, stagesMap) === 'Эксперимент',
+    track_proj: (p) => getTrack(p, stagesMap) === 'Проект',
     dir_iiot: (p) => p.direction === 'iiot',
     dir_erp: (p) => p.direction === 'erp',
     has_budget: (p) => !!p.budget && p.budget > 0,
     overdue: (p) => !!p.deadline && new Date(p.deadline) < today,
-  }), [today]);
+  }), [today, stagesMap]);
 
   // Show all non-closed deals (won/lost filtering uses status now, stage can be null for ERP)
   const activeProjects = useMemo(
@@ -124,7 +121,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
       label: 'Трек',
       sortable: false,
       render: (p) => (
-        <span className="text-xs text-text-dim">{p.stage ? getTrack(p.stage) : '—'}</span>
+        <span className="text-xs text-text-dim">{getTrack(p, stagesMap) ?? '—'}</span>
       ),
     },
     {
@@ -304,7 +301,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
                   name: p.name,
                   direction: p.direction === 'iiot' ? 'IIoT' : 'ERP',
                   stage: getStageName(p, stagesMap),
-                  track: p.stage ? getTrack(p.stage) : '',
+                  track: getTrack(p, stagesMap) ?? '',
                   company: p.company?.name ?? '',
                   contact: p.contact ? `${p.contact.first_name} ${p.contact.last_name}` : '',
                   budget: p.budget ? formatBudget(p.budget) : '',
