@@ -32,17 +32,12 @@ import { mapToLegacyStage } from '@/lib/utils/stage-mapping';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
-  STAGE_CONFIG,
-  dealStages,
-  getNextStage,
-  getPrevStage,
   formatBudget,
   parseBudgetInput,
   lossReasons,
   LOSS_REASON_CONFIG,
   wonReasons,
   WON_REASON_CONFIG,
-  type DealStage,
 } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
 import { DeliveryCompletionModal } from './DeliveryCompletionModal';
@@ -90,7 +85,7 @@ function getProjectCompleteness(project: Project) {
     { key: 'deadline', label: 'Дедлайн', filled: !!project.deadline },
     // PCT-1: «Стадия» — только для client (internal вне воронки)
     ...(project.type === 'client'
-      ? [{ key: 'stage', label: 'Стадия', filled: !!project.stage }]
+      ? [{ key: 'stage', label: 'Стадия', filled: !!project.stage_id }]
       : []),
     { key: 'next_step', label: 'Следующий шаг', filled: !!project.next_step },
     { key: 'next_action_date', label: 'Дата шага', filled: !!project.next_action_date },
@@ -126,43 +121,6 @@ function CompletenessBadge({ project }: { project: Project }) {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Stage Progress Bar
-// ═══════════════════════════════════════════════════════
-
-function StageProgress({ currentStage }: { currentStage: DealStage }) {
-  const currentOrder = STAGE_CONFIG[currentStage].order;
-  const activeStages = dealStages.filter((s) => s !== 'won' && s !== 'lost');
-
-  return (
-    <div className="flex gap-0.5 overflow-x-auto pb-1">
-      {activeStages.map((stage) => {
-        const config = STAGE_CONFIG[stage];
-        const isCurrent = stage === currentStage;
-        const isPast = config.order < currentOrder;
-        const isWon = currentStage === 'won';
-
-        return (
-          <div key={stage} className="flex-1 text-center" title={config.label}>
-            <div
-              className={`h-1.5 rounded-full transition-colors ${
-                isWon || isPast ? 'bg-green' : isCurrent ? 'bg-accent' : 'bg-border'
-              }`}
-            />
-            <span
-              className={`mt-1 block text-xs leading-tight ${
-                isCurrent ? 'font-semibold text-accent' : isPast ? 'text-green' : 'text-text-mute'
-              }`}
-            >
-              {config.shortLabel}
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -259,12 +217,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // P2b (B0): единые права управления delivery-проектом (= гарды RLS/RPC)
   const canManage = canManageDeliveryProject(project, orgRole, user?.id);
 
-  const stageConfig = project.stage ? STAGE_CONFIG[project.stage] : null;
-  const nextStage = project.stage ? getNextStage(project.stage) : null;
-  const prevStage = project.stage ? getPrevStage(project.stage) : null;
-  // S29.1: «живой» контур стадии — из stage_id (pipeline_stages), не legacy enum.
+  // S29.1 / Путь B: «живой» контур стадии — из stage_id (pipeline_stages), legacy enum `stage` больше не читаем.
   const headerStage = allPipelineStages?.find((s) => s.id === project.stage_id) ?? null;
-  const headerProb = headerStage?.probability ?? stageConfig?.probability ?? null;
+  const headerProb = headerStage?.probability ?? null;
   // S-DLV-HEALTH-1: health внедрения — из project-level полей; терминальные не краснят
   const deliveryHealth = isDelivery
     ? getDeliveryHealth({
@@ -276,20 +231,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         isTerminal: isDeliveryTerminal(headerStage, project.status),
       })
     : null;
-
-  function handleAdvance() {
-    if (!project) return;
-    if (nextStage) {
-      updateProject.mutate({ id: project.id, stage: nextStage });
-    }
-  }
-
-  function handleRevert() {
-    if (!project) return;
-    if (prevStage) {
-      updateProject.mutate({ id: project.id, stage: prevStage });
-    }
-  }
 
   function handleDelete() {
     if (!project) return;
@@ -352,9 +293,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   const phaseLabel = DELIVERY_PHASE_LABELS[headerStage.phase_group ?? ''] ?? headerStage.phase_group ?? '—';
                   return `${phaseLabel} · ${headerStage.name}`;
                 }
-                // S29.1: бейдж — из stage_id (живой контур); legacy STAGE_CONFIG только как fallback.
+                // S29.1 / Путь B: бейдж — из stage_id (живой контур); legacy enum больше не читаем.
                 if (headerStage) return `${headerStage.name} · ${headerStage.probability ?? 0}%`;
-                if (stageConfig) return `${stageConfig.label} · ${stageConfig.probability}%`;
                 return '—';
               })()}
             </span>
