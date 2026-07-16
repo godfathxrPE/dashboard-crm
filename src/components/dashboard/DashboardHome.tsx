@@ -34,7 +34,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import {
-  STAGE_CONFIG,
+  LEGACY_STAGE_LABELS,
   formatBudget,
 } from '@/lib/validators/project';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
@@ -688,7 +688,7 @@ const ENTITY_TYPE_LABEL: Record<string, string> = {
 
 function stageName(key: unknown): string {
   const s = String(key);
-  return (STAGE_CONFIG as Record<string, { shortLabel: string }>)[s]?.shortLabel ?? s;
+  return LEGACY_STAGE_LABELS[s] ?? s;
 }
 
 function describeEvent(entry: ActivityLog): string {

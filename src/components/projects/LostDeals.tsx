@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Undo2, Trash2, Building2, Calendar } from 'lucide-react';
-import { STAGE_CONFIG, LOSS_REASON_CONFIG, formatBudget } from '@/lib/validators/project';
+import { LOSS_REASON_CONFIG, formatBudget } from '@/lib/validators/project';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { LossReason } from '@/lib/validators/project';
 

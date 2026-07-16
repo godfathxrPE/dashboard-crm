@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
-import type { DealStage } from '@/lib/validators/project';
 import type { UnmetRequirement } from '@/types/database';
 import type { OpenMilestone } from './use-delivery-gate';
 import { logActivity } from './use-activity-log';
@@ -57,7 +56,6 @@ export interface Project {
   name: string;
   company_id: string | null;
   contact_id: string | null;
-  stage: DealStage | null;
   budget: number | null;
   deadline: string | null;
   next_step: string | null;
@@ -99,7 +97,6 @@ export interface ProjectInsert {
   name: string;
   company_id?: string | null;
   contact_id?: string | null;
-  stage?: DealStage | null;
   budget?: number | null;
   deadline?: string | null;
   next_step?: string | null;
@@ -358,7 +355,6 @@ export function useCreateProject() {
         name: newProject.name,
         company_id: newProject.company_id ?? null,
         contact_id: newProject.contact_id ?? null,
-        stage: newProject.stage ?? null,
         budget: newProject.budget ?? null,
         deadline: newProject.deadline ?? null,
         next_step: newProject.next_step ?? null,
@@ -435,19 +431,12 @@ export function useUpdateProject() {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) restoreLists(qc, ctx.prev);
     },
-    onSuccess: (result, vars, ctx) => {
-      // Находим предыдущее состояние из сохранённого кеша (до оптимистичного обновления)
-      const oldProject = ctx?.prev
-        ?.flatMap(([, data]) => data ?? [])
-        .find((p) => p.id === vars.id);
-
-      if (vars.stage && oldProject && vars.stage !== oldProject.stage) {
-        logActivity(vars.id, 'stage_change', { from: oldProject.stage, to: vars.stage });
-      } else {
-        const changed = Object.keys(vars).filter((k) => k !== 'id');
-        if (changed.length > 0) {
-          logActivity(vars.id, 'project_updated', { fields_changed: changed });
-        }
+    onSuccess: (_result, vars) => {
+      // B3 (S-LEGACY-STAGE-1): legacy stage_change-логгер снят вместе с полем `stage`
+      // (триггер on_stage_change дропнут в B2). Полноценный stage_id-логгер — backlog.
+      const changed = Object.keys(vars).filter((k) => k !== 'id');
+      if (changed.length > 0) {
+        logActivity(vars.id, 'project_updated', { fields_changed: changed });
       }
     },
     onSettled: (_data, _err, vars) => {

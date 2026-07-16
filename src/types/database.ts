@@ -135,12 +135,6 @@ export interface SpinReviewResult {
 }
 export type AiRunResult = ProtocolResult | AnalyticNoteResult | SpinReviewResult;
 
-export type DealStage =
-  | 'new_lead' | 'qualification' | 'waiting_materials' | 'preparing_kp'
-  | 'kp_sent' | 'kp_review' | 'preparing_docs' | 'cz_approval'
-  | 'trilateral_meeting' | 'experiment_setup' | 'contract_review'
-  | 'contract_signing' | 'won' | 'lost';
-
 // ═══ Sprint 1: Pipelines & Directions ═══
 
 export type Direction = 'erp' | 'iiot';

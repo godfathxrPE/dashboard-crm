@@ -1585,7 +1585,6 @@ export type Database = {
           probability: number | null
           progress_done: number
           progress_total: number
-          stage: Database["public"]["Enums"]["deal_stage"] | null
           stage_entered_at: string | null
           stage_id: string | null
           status: string
@@ -1620,7 +1619,6 @@ export type Database = {
           probability?: number | null
           progress_done?: number
           progress_total?: number
-          stage?: Database["public"]["Enums"]["deal_stage"] | null
           stage_entered_at?: string | null
           stage_id?: string | null
           status?: string
@@ -1657,7 +1655,6 @@ export type Database = {
           probability?: number | null
           progress_done?: number
           progress_total?: number
-          stage?: Database["public"]["Enums"]["deal_stage"] | null
           stage_entered_at?: string | null
           stage_id?: string | null
           status?: string
@@ -2164,21 +2161,6 @@ export type Database = {
         | "stage_change"
         | "kp_sent"
       call_status: "done" | "pending" | "cancelled"
-      deal_stage:
-        | "new_lead"
-        | "qualification"
-        | "waiting_materials"
-        | "preparing_kp"
-        | "kp_sent"
-        | "kp_review"
-        | "preparing_docs"
-        | "cz_approval"
-        | "trilateral_meeting"
-        | "experiment_setup"
-        | "contract_review"
-        | "contract_signing"
-        | "won"
-        | "lost"
       direction_t: "erp" | "iiot"
       pipeline_entity_t: "deal" | "project"
       task_lane: "now" | "next" | "wait" | "done"
@@ -2320,22 +2302,6 @@ export const Constants = {
         "kp_sent",
       ],
       call_status: ["done", "pending", "cancelled"],
-      deal_stage: [
-        "new_lead",
-        "qualification",
-        "waiting_materials",
-        "preparing_kp",
-        "kp_sent",
-        "kp_review",
-        "preparing_docs",
-        "cz_approval",
-        "trilateral_meeting",
-        "experiment_setup",
-        "contract_review",
-        "contract_signing",
-        "won",
-        "lost",
-      ],
       direction_t: ["erp", "iiot"],
       pipeline_entity_t: ["deal", "project"],
       task_lane: ["now", "next", "wait", "done"],

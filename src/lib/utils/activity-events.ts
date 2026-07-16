@@ -1,9 +1,9 @@
-import { STAGE_CONFIG } from '@/lib/validators/project';
+import { LEGACY_STAGE_LABELS } from '@/lib/validators/project';
 import type { ActivityLog } from '@/types/entities';
 
 function stageName(key: unknown): string {
   const s = String(key);
-  return (STAGE_CONFIG as Record<string, { shortLabel: string }>)[s]?.shortLabel ?? s;
+  return LEGACY_STAGE_LABELS[s] ?? s;
 }
 
 export function describeEvent(entry: ActivityLog): string {
