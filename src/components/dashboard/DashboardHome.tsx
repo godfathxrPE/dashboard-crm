@@ -32,17 +32,24 @@ import { projectHref } from '@/lib/utils/project-href';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import {
   STAGE_CONFIG,
-  PHASE_CONFIG,
-  getActiveStages,
   formatBudget,
-  type DealStage,
 } from '@/lib/validators/project';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 import { localDateKey } from '@/lib/utils/date-helpers';
+
+// Путь B: фаза бара из phase_group стадии (stage_id → pipeline_stages) → цвет-ключ
+// (совпадает с легаси-фазами fills). Не читаем legacy `stage`.
+const PHASE_GROUP_TO_PHASE: Record<string, string> = {
+  attraction: 'attract',
+  working: 'develop',
+  approval: 'negotiate',
+  closing: 'close',
+};
 
 // ═══════════════════════════════════════════════════════
 // Fuji watermark helper
@@ -377,30 +384,42 @@ function KpiCards() {
 
 function PipelineFunnelChart() {
   const { data: projects, isLoading } = useProjects();
+  const { data: allStages } = usePipelineStages();
   const themeVal = useThemeStore((s) => s.theme);
   const isFuji = themeVal === 't-fuji';
+  // drillStage — stage_id (истина стадии), не legacy enum
   const [drillStage, setDrillStage] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
-    if (!projects) return [];
+    if (!projects || !allStages) return [];
     const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
 
-    return getActiveStages().map((stage) => {
-      const count = active.filter((p) => p.stage === stage).length;
-      const config = STAGE_CONFIG[stage];
-      return {
-        stage,
-        name: config.shortLabel,
-        count,
-        phase: config.phase,
-      };
-    });
-  }, [projects]);
+    // Считаем активные сделки по stage_id (истина pipeline_stages), не legacy `stage`.
+    const countByStage = new Map<string, number>();
+    for (const p of active) {
+      if (p.stage_id) countByStage.set(p.stage_id, (countByStage.get(p.stage_id) ?? 0) + 1);
+    }
+
+    // Один бар на стадию с активными сделками, сорт по order_index (прогресс воронки).
+    return allStages
+      .filter((s) => !s.is_won && !s.is_lost && countByStage.has(s.id))
+      .sort((a, b) => a.order_index - b.order_index || a.name.localeCompare(b.name))
+      .map((s) => ({
+        stage: s.id,
+        name: s.name,
+        count: countByStage.get(s.id) ?? 0,
+        phase: PHASE_GROUP_TO_PHASE[s.phase_group ?? ''] ?? 'attract',
+      }));
+  }, [projects, allStages]);
 
   const drillProjects = useMemo(() => {
     if (!drillStage || !projects) return [];
-    return projects.filter((p) => p.stage === drillStage);
+    return projects.filter((p) => p.stage_id === drillStage);
   }, [drillStage, projects]);
+
+  const drillStageName = drillStage
+    ? allStages?.find((s) => s.id === drillStage)?.name ?? '—'
+    : '—';
 
   if (isLoading) return <SkeletonChart />;
 
@@ -454,7 +473,7 @@ function PipelineFunnelChart() {
         <div className="mt-3 border-t border-border pt-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-text-main">
-              {STAGE_CONFIG[drillStage as DealStage]?.label} — {drillProjects.length}
+              {drillStageName} — {drillProjects.length}
             </span>
             <button onClick={() => setDrillStage(null)} className="text-text-mute hover:text-text-main transition-colors">
               <X size={14} />

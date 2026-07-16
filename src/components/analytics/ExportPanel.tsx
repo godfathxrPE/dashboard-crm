@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Download, FileJson, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -34,6 +35,7 @@ export function ExportPanel() {
   const { data: contacts } = useContacts();
   const { data: companies } = useCompanies();
   const { data: meetings } = useMeetings();
+  const stagesMap = usePipelineStagesMap();
   const [exporting, setExporting] = useState<string | null>(null);
 
   function exportCSV(entity: string) {
@@ -54,7 +56,7 @@ export function ExportPanel() {
         case 'projects':
           csv = toCSV(
             ['ID', 'Название', 'Стадия', 'Бюджет', 'Дедлайн', 'След.шаг', 'Создано'],
-            (projects ?? []).map((p) => [p.id, p.name, p.stage ?? '', String(p.budget ?? ''), p.deadline ?? '', p.next_step ?? '', p.created_at])
+            (projects ?? []).map((p) => [p.id, p.name, (p.stage_id ? stagesMap.get(p.stage_id)?.name : '') ?? '', String(p.budget ?? ''), p.deadline ?? '', p.next_step ?? '', p.created_at])
           );
           downloadFile(csv, `projects-${date}.csv`, 'text/csv;charset=utf-8');
           break;

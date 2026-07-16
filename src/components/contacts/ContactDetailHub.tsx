@@ -11,10 +11,11 @@ import { cn } from '@/lib/utils/cn';
 import { useContact, useUpdateContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { projectHref } from '@/lib/utils/project-href';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -143,6 +144,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const { data: contact, isLoading, error } = useContact(contactId);
   const { data: allCompanies } = useCompanies();
   const { data: allProjects } = useProjects();
+  const stagesMap = usePipelineStagesMap();
   const { data: allCalls } = useCalls();
   const lastTouch = useLastTouchMap();
   const updateContact = useUpdateContact();
@@ -514,7 +516,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                       </button>
                       <div className="mt-0.5 flex items-center gap-2">
                         <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] font-medium text-accent">
-                          {p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : '—'}
+                          {(p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—'}
                         </span>
                         {p.budget != null && (
                           <span className="text-xs text-text-dim">{formatBudget(p.budget)}</span>

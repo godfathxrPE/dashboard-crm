@@ -16,7 +16,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useLeads } from '@/lib/hooks/use-leads';
-import { STAGE_CONFIG } from '@/lib/validators/project';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { LANE_CONFIG } from '@/lib/validators/task';
 import { CALL_STATUS_CONFIG } from '@/lib/validators/call';
 
@@ -92,6 +92,7 @@ export function CommandPalette() {
 
   const { data: tasks } = useTasks();
   const { data: projects } = useProjects();
+  const stagesMap = usePipelineStagesMap();
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
   const { data: calls } = useCalls();
@@ -184,7 +185,7 @@ export function CommandPalette() {
       items.push({
         id: `proj-${p.id}`,
         label: p.name,
-        sub: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel ?? undefined : undefined,
+        sub: (p.stage_id ? stagesMap.get(p.stage_id)?.name : undefined) ?? undefined,
         icon: FolderKanban,
         href: projectHref(p),
         section: 'Сделки',
@@ -265,7 +266,7 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [tasks, projects, companies, contacts, calls, meetings, leads, savedViews]);
+  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews]);
 
   // Filter
   const filtered = useMemo(() => {

@@ -9,8 +9,9 @@ import {
 import { useContact, useDeleteContact, useLinkContactCompany, useUnlinkContactCompany } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { projectHref } from '@/lib/utils/project-href';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { PhoneList } from '@/components/shared/PhoneList';
 import { ContactModal } from './ContactModal';
 
@@ -21,6 +22,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
   const { data: contact, isLoading, error } = useContact(contactId);
   const { data: allCompanies } = useCompanies();
   const { data: allProjects } = useProjects();
+  const stagesMap = usePipelineStagesMap();
   const deleteContact = useDeleteContact();
   const linkCompany = useLinkContactCompany();
   const unlinkCompany = useUnlinkContactCompany();
@@ -216,7 +218,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                   <span className="text-sm text-text-main">{p.name}</span>
                   <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
-                    {p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—'}
+                    {(p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—'}
                   </span>
                   {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}
                 </button>

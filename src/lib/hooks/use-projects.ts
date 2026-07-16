@@ -138,7 +138,7 @@ const listKey = (scope?: ProjectScope) => [...QUERY_KEY, scope ?? 'all'] as cons
 
 // QUERY STRATEGY: явные колонки вместо select *
 const PROJECT_COLUMNS = `
-  id, name, company_id, contact_id, stage, budget, deadline, next_step,
+  id, name, company_id, contact_id, budget, deadline, next_step,
   next_action_date, pinned_note, owner_id, loss_reason, loss_detail,
   won_reason, won_detail,
   created_by, created_at, updated_at, direction, pipeline_id, stage_id,

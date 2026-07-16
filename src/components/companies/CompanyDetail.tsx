@@ -12,7 +12,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { getDealHealth } from '@/lib/utils/deal-health';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { Bracket } from '@/components/ui/Bracket';
 import { PhoneList } from '@/components/shared/PhoneList';
 import { CompanyModal } from './CompanyModal';
@@ -198,9 +198,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           ) : (
             <div className="space-y-1.5">
               {linkedProjects.map((p) => {
-                // Стадия из pipeline_stages (legacy STAGE_CONFIG — только fallback)
-                const stageName = allStages?.find((s) => s.id === p.stage_id)?.name
-                  ?? (p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : null)
+                // Стадия из pipeline_stages (stage_id — истина, legacy `stage` не читаем)
+                const stageName = (p.stage_id ? allStages?.find((s) => s.id === p.stage_id)?.name : null)
                   ?? '—';
                 const dh = getDealHealth(p);
                 return (

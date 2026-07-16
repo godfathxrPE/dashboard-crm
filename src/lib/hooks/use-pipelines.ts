@@ -45,6 +45,19 @@ export function usePipelineStages() {
 }
 
 /**
+ * Helper: stage_id → PipelineStage lookup-мапа. Для читателей, которым нужен
+ * лейбл/фаза стадии по stage_id (истина pipeline_stages), а не legacy `stage`.
+ */
+export function usePipelineStagesMap(): Map<string, PipelineStage> {
+  const { data: stages } = usePipelineStages();
+  return useMemo(() => {
+    const map = new Map<string, PipelineStage>();
+    stages?.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [stages]);
+}
+
+/**
  * Helper: get stages for a given pipeline_id.
  */
 export function useStagesForPipeline(pipelineId: string | null | undefined) {

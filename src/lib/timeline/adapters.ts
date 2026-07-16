@@ -7,8 +7,6 @@
 import type { TimelineEvent } from '@/types/timeline';
 import type { ProjectType } from '@/types/database';
 import type { CallStatus } from '@/lib/validators/call';
-import type { DealStage } from '@/lib/validators/project';
-import { STAGE_CONFIG } from '@/lib/validators/project';
 import type { TaskLane } from '@/types/database';
 
 // ─── Минимальные входные формы (подмножество Row, что реально читаем) ───
@@ -41,7 +39,6 @@ export interface ProjectEventRow {
   id: string;
   name: string;
   type: ProjectType;
-  stage: DealStage | null;
   created_at: string;
 }
 
@@ -109,7 +106,6 @@ export function projectToEvent(p: ProjectEventRow): TimelineEvent {
     kind: 'project',
     title: p.type === 'internal' ? `Проект: ${p.name}` : `Сделка: ${p.name}`,
     date: p.created_at,
-    detail: p.stage ? STAGE_CONFIG[p.stage]?.shortLabel : undefined,
     icon: 'project',
   };
 }

@@ -3,8 +3,8 @@
 import { useMemo } from 'react';
 import { AlertTriangle, Clock, CheckSquare, FolderKanban } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useTasks } from '@/lib/hooks/use-tasks';
-import { STAGE_CONFIG } from '@/lib/validators/project';
 import { projectHref } from '@/lib/utils/project-href';
 
 interface DeadlineItem {
@@ -19,6 +19,7 @@ interface DeadlineItem {
 export function DeadlineRadar() {
   const { data: projects } = useProjects();
   const { data: tasks } = useTasks();
+  const stagesMap = usePipelineStagesMap();
 
   const items = useMemo(() => {
     const result: DeadlineItem[] = [];
@@ -45,7 +46,7 @@ export function DeadlineRadar() {
           title: p.name,
           date: new Date(p.deadline),
           type: 'project',
-          meta: p.stage ? STAGE_CONFIG[p.stage].shortLabel : '—',
+          meta: (p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—',
           href: projectHref(p),
         });
       }
@@ -55,7 +56,7 @@ export function DeadlineRadar() {
     result.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     return result.slice(0, 8); // Top 8
-  }, [projects, tasks]);
+  }, [projects, tasks, stagesMap]);
 
   function getUrgency(date: Date): { label: string; color: string } {
     const now = new Date();

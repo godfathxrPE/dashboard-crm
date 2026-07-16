@@ -5,8 +5,9 @@ import { X, CheckSquare, Phone, FolderKanban, CalendarDays, TrendingUp, Award } 
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useMeetings } from '@/lib/hooks/use-meetings';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
 interface WeeklyReviewProps {
@@ -19,6 +20,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
   const { data: calls } = useCalls();
   const { data: projects } = useProjects();
   const { data: meetings } = useMeetings();
+  const stagesMap = usePipelineStagesMap();
 
   const review = useMemo(() => {
     const now = new Date();
@@ -32,9 +34,21 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
     const callsDone = (calls ?? []).filter((c) => c.status === 'done' && inWeek(c.date));
     const meetingsHeld = (meetings ?? []).filter((m) => m.date >= localDateKey(weekStart) && m.date <= localDateKey(now));
 
-    // Projects that moved stage this week
-    const projectsMoved = (projects ?? []).filter((p) => p.type === 'client' && inWeek(p.updated_at) && p.stage !== 'new_lead');
-    const projectsWon = (projects ?? []).filter((p) => p.type === 'client' && p.stage === 'won' && inWeek(p.updated_at));
+    // Первая (входная) стадия каждой воронки — min order_index. Deal на входной
+    // стадии не считаем «перемещённым» (замена legacy `stage !== 'new_lead'`).
+    const firstOrderByPipeline = new Map<string, number>();
+    for (const s of stagesMap.values()) {
+      const cur = firstOrderByPipeline.get(s.pipeline_id);
+      if (cur === undefined || s.order_index < cur) firstOrderByPipeline.set(s.pipeline_id, s.order_index);
+    }
+    const atEntryStage = (stageId: string | null) => {
+      const st = stageId ? stagesMap.get(stageId) : undefined;
+      return st ? st.order_index === firstOrderByPipeline.get(st.pipeline_id) : false;
+    };
+
+    // Projects that moved stage this week (истина — stage_id/status, не legacy `stage`)
+    const projectsMoved = (projects ?? []).filter((p) => p.type === 'client' && inWeek(p.updated_at) && !atEntryStage(p.stage_id));
+    const projectsWon = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won' && inWeek(p.updated_at));
     const wonBudget = projectsWon.reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
     // Active tasks remaining
@@ -51,7 +65,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
       topTasks: tasksDone.slice(0, 5),
       topCalls: callsDone.slice(0, 3),
     };
-  }, [tasks, calls, projects, meetings]);
+  }, [tasks, calls, projects, meetings, stagesMap]);
 
   if (!isOpen) return null;
 

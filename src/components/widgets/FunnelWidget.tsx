@@ -2,21 +2,37 @@
 
 import { useMemo } from 'react';
 import { useProjects } from '@/lib/hooks/use-projects';
-import { phases, PHASE_CONFIG, STAGE_CONFIG, getPhaseForStage, formatBudget, type Phase } from '@/lib/validators/project';
+import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
+import { phases, PHASE_CONFIG, formatBudget, type Phase } from '@/lib/validators/project';
+
+// Путь B: фаза воронки из phase_group стадии (stage_id → pipeline_stages), не legacy `stage`.
+// 4 phase_group 1:1 ложатся на 4 легаси-фазы — визуал воронки не меняется.
+const PHASE_GROUP_TO_PHASE: Record<string, Phase> = {
+  attraction: 'attract',
+  working: 'develop',
+  approval: 'negotiate',
+  closing: 'close',
+};
 
 export function FunnelWidget() {
   const { data: projects } = useProjects();
+  const stagesMap = usePipelineStagesMap();
 
   const funnel = useMemo(() => {
     if (!projects) return [];
     const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
 
+    const phaseOf = (stageId: string | null): Phase | null => {
+      const pg = stageId ? stagesMap.get(stageId)?.phase_group : null;
+      return pg ? PHASE_GROUP_TO_PHASE[pg] ?? null : null;
+    };
+
     return phases.map((phase) => {
-      const items = active.filter((p) => p.stage && getPhaseForStage(p.stage) === phase);
+      const items = active.filter((p) => phaseOf(p.stage_id) === phase);
       const budget = items.reduce((sum, p) => sum + (p.budget ?? 0), 0);
       return { phase, count: items.length, budget };
     });
-  }, [projects]);
+  }, [projects, stagesMap]);
 
   const maxCount = Math.max(1, ...funnel.map((f) => f.count));
   const wonCount = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won').length;
