@@ -276,6 +276,22 @@ export interface AutomationRun {
   fired_at: string;
 }
 
+// ═══ Sprint S-DEPS-1: Gantt-зависимости (task_dependencies, миграция 048 — на гейте) ═══
+// Рёбра DAG между задачами одного проекта. v1 — только FS (finish-to-start).
+// dep_type/lag_days — задел под будущие типы связей и critical path (без DDL).
+export type DepType = 'FS' | 'SS' | 'FF' | 'SF';
+
+export interface TaskDependency {
+  id: string;
+  org_id: string;
+  predecessor_id: string;
+  successor_id: string;
+  dep_type: DepType;
+  lag_days: number;
+  created_by: string | null;
+  created_at: string;
+}
+
 // ═══ Sprint 2: Leads ═══
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';

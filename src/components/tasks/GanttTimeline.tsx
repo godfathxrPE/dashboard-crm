@@ -1,10 +1,15 @@
 'use client';
 
 import type * as React from 'react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useUpdateTaskDates } from '@/lib/hooks/use-tasks';
+import {
+  useTaskDependencies,
+  useCreateTaskDependency,
+  useDeleteTaskDependency,
+} from '@/lib/hooks/use-task-dependencies';
 import { LANE_CONFIG } from '@/lib/validators/task';
 import { DELIVERY_TASK_STATUS_LABELS } from '@/lib/constants/delivery-phases';
 import {
@@ -74,11 +79,15 @@ interface GanttBarProps {
   setTip: (t: Tip | null) => void;
   assignee: string;
   status: string;
+  linkMode: boolean;               // S-DEPS-1: режим создания связей — drag отключён
+  isLinkSource: boolean;           // подсвечен как выбранный predecessor
+  onLinkSelect: (taskId: string) => void;
 }
 
 // Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
 // Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
-function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status }: GanttBarProps) {
+// S-DEPS-1: в linkMode drag-хендлеры не навешиваются — клик выбирает конец связи.
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, onLinkSelect }: GanttBarProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const spanBuckets = e - s; // 0 у однобакетных / вех
 
@@ -161,67 +170,85 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
   const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
   const onKey = (ev: React.KeyboardEvent) => {
-    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEditTask(gt.task); }
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      if (linkMode) onLinkSelect(gt.task.id); else onEditTask(gt.task);
+    }
   };
+
+  // В linkMode drag не навешиваем: клик выбирает конец связи (иначе конфликт с
+  // click-vs-drag). Иначе — нативные Pointer Events VIEW-2.
+  const dragHandlers = linkMode
+    ? undefined
+    : {
+        onPointerDown: (ev: React.PointerEvent) => startDrag(ev, 'move'),
+        onPointerMove: onMove,
+        onPointerUp: onUp,
+        onPointerCancel: onCancel,
+      };
+  const linkClick = linkMode ? { onClick: () => onLinkSelect(gt.task.id) } : undefined;
+  const cursorClass = linkMode ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
+  const ringClass = isLinkSource ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
 
   return (
     <div
       className="relative"
+      data-task-bar={gt.task.id}
       style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}
     >
       {gt.isMilestone ? (
         <div
           role="button"
           tabIndex={0}
-          onPointerDown={(ev) => startDrag(ev, 'move')}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          onPointerCancel={onCancel}
+          {...dragHandlers}
+          {...linkClick}
           onKeyDown={onKey}
           onMouseEnter={showTip}
           onMouseMove={moveTip}
           onMouseLeave={() => setTip(null)}
-          className="flex h-full w-full cursor-grab items-center justify-center active:cursor-grabbing"
-          style={{ transform, touchAction: 'none' }}
+          className={`flex h-full w-full items-center justify-center ${cursorClass}`}
+          style={{ transform: linkMode ? undefined : transform, touchAction: 'none' }}
           aria-label={`${gt.task.text} (веха): ${gt.start}`}
         >
-          <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)}`} />
+          <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)} ${ringClass}`} />
         </div>
       ) : (
         <div
           role="button"
           tabIndex={0}
-          onPointerDown={(ev) => startDrag(ev, 'move')}
-          onPointerMove={onMove}
-          onPointerUp={onUp}
-          onPointerCancel={onCancel}
+          {...dragHandlers}
+          {...linkClick}
           onKeyDown={onKey}
           onMouseEnter={showTip}
           onMouseMove={moveTip}
           onMouseLeave={() => setTip(null)}
-          className={`relative my-1 block h-4 w-full cursor-grab rounded active:cursor-grabbing ${barClass(gt.task)} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
-          style={{ transform, width, touchAction: 'none' }}
+          className={`relative my-1 block h-4 w-full rounded ${cursorClass} ${barClass(gt.task)} ${ringClass} ${gt.task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
+          style={{ transform: linkMode ? undefined : transform, width: linkMode ? undefined : width, touchAction: 'none' }}
           aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
         >
-          {/* resize-хендлы: перехватывают pointerdown у краёв (курсор ew-resize) */}
-          <span
-            onPointerDown={(ev) => startDrag(ev, 'left')}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerCancel={onCancel}
-            className="absolute inset-y-0 left-0 cursor-ew-resize"
-            style={{ width: EDGE_PX, touchAction: 'none' }}
-            aria-hidden
-          />
-          <span
-            onPointerDown={(ev) => startDrag(ev, 'right')}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerCancel={onCancel}
-            className="absolute inset-y-0 right-0 cursor-ew-resize"
-            style={{ width: EDGE_PX, touchAction: 'none' }}
-            aria-hidden
-          />
+          {/* resize-хендлы: только вне linkMode (перехватывают pointerdown у краёв) */}
+          {!linkMode && (
+            <>
+              <span
+                onPointerDown={(ev) => startDrag(ev, 'left')}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerCancel={onCancel}
+                className="absolute inset-y-0 left-0 cursor-ew-resize"
+                style={{ width: EDGE_PX, touchAction: 'none' }}
+                aria-hidden
+              />
+              <span
+                onPointerDown={(ev) => startDrag(ev, 'right')}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerCancel={onCancel}
+                className="absolute inset-y-0 right-0 cursor-ew-resize"
+                style={{ width: EDGE_PX, touchAction: 'none' }}
+                aria-hidden
+              />
+            </>
+          )}
         </div>
       )}
     </div>
@@ -233,11 +260,54 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const { data: team = [] } = useTeamMembers();
   const updateDates = useUpdateTaskDates(projectId);
   const gridRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);   // S-DEPS-1: контекст для измерения стрелок
   const [zoom, setZoom] = useState<GanttZoom>('week');
   const [filter, setFilter] = useState<GanttFilter>('open');
   const [tip, setTip] = useState<Tip | null>(null);
+  // S-DEPS-1: link-mode — тумблер создания связей + выбранный predecessor
+  const [linkMode, setLinkMode] = useState(false);
+  const [pendingPred, setPendingPred] = useState<string | null>(null);
+  const [edges, setEdges] = useState<{ id: string; d: string }[]>([]); // измеренные пути стрелок
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
+
+  // S-DEPS-1: id всех задач проекта (dated + undated) — сужают RLS-выборку рёбер
+  // (task_dependencies без своей project_id; оба конца IN taskIds ⇒ своё ребро).
+  const allTaskIds = useMemo(() => {
+    const ids = swimlanes.flatMap((sl) => sl.tasks.map((gt) => gt.task.id));
+    for (const t of undated) ids.push(t.id);
+    return ids;
+  }, [swimlanes, undated]);
+
+  const { data: dependencies = [] } = useTaskDependencies(projectId, allTaskIds);
+  const createDep = useCreateTaskDependency(projectId);
+  const deleteDep = useDeleteTaskDependency(projectId);
+
+  const exitLinkMode = useCallback(() => {
+    setLinkMode(false);
+    setPendingPred(null);
+  }, []);
+
+  // Esc — выход из link-mode (и сброс выбранного predecessor)
+  useLayoutEffect(() => {
+    if (!linkMode) return;
+    const onEsc = (ev: KeyboardEvent) => { if (ev.key === 'Escape') exitLinkMode(); };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [linkMode, exitLinkMode]);
+
+  // Клик по бару в link-mode: 1-й = predecessor, 2-й = successor → создаём FS-ребро
+  const onLinkSelect = useCallback(
+    (taskId: string) => {
+      if (!pendingPred) { setPendingPred(taskId); return; }
+      if (pendingPred === taskId) { setPendingPred(null); return; } // повторный клик — снять выбор
+      createDep.mutate(
+        { predecessor_id: pendingPred, successor_id: taskId },
+        { onSettled: () => setPendingPred(null) },
+      );
+    },
+    [pendingPred, createDep],
+  );
 
   const filteredSwimlanes = useMemo(() => {
     const pred = (gt: GanttTask) =>
@@ -270,6 +340,44 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const w = gridRef.current?.getBoundingClientRect().width ?? 0;
     return model.buckets.length ? w / model.buckets.length : 0;
   }, [model.buckets.length]);
+
+  // S-DEPS-1: измеряем позиции баров из DOM (бары позиционируются grid-column, не
+  // left/width — аналитический пересчёт хрупок). Стрелка: правый край pred → левый
+  // край succ, ортогональный elbow. Пересчёт на смену зума/фильтра/дат/размера.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) { setEdges([]); return; }
+
+    const measure = () => {
+      const b = bodyRef.current;
+      if (!b) return;
+      const base = b.getBoundingClientRect();
+      const anchor = (taskId: string, side: 'start' | 'end') => {
+        const el = b.querySelector<HTMLElement>(`[data-task-bar="${taskId}"]`);
+        if (!el) return null;                            // W4: не в текущем фильтре → скрыт
+        const r = el.getBoundingClientRect();
+        return {
+          x: (side === 'end' ? r.right : r.left) - base.left,
+          y: r.top + r.height / 2 - base.top,
+        };
+      };
+      const STUB = 10;
+      const next: { id: string; d: string }[] = [];
+      for (const dep of dependencies) {
+        const from = anchor(dep.predecessor_id, 'end');
+        const to = anchor(dep.successor_id, 'start');
+        if (!from || !to) continue;                      // конец скрыт фильтром → пропускаем стрелку
+        const midX = Math.max(from.x + STUB, to.x - STUB);
+        next.push({ id: dep.id, d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}` });
+      }
+      setEdges(next);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(body);
+    return () => ro.disconnect();
+  }, [dependencies, filteredSwimlanes, zoom, filter]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
@@ -310,6 +418,23 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
           </button>
         ))}
       </div>
+      {/* S-DEPS-1: тумблер link-mode (создание связей). В режиме drag баров отключён. */}
+      <button
+        type="button"
+        aria-pressed={linkMode}
+        onClick={() => (linkMode ? exitLinkMode() : setLinkMode(true))}
+        className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+          linkMode ? 'border-accent bg-accent-l text-accent' : 'border-border text-text-mute hover:text-text-main'
+        }`}
+        title="Связать задачи: клик по первой (предшественник), затем по второй"
+      >
+        Связи
+      </button>
+      {linkMode && (
+        <span className="text-xs text-text-mute">
+          {pendingPred ? 'Выберите задачу-последователь · Esc — отмена' : 'Выберите задачу-предшественник · Esc — выход'}
+        </span>
+      )}
     </div>
   );
 
@@ -361,7 +486,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
 
           {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
           <div className="flex-1 overflow-x-auto">
-            <div className="relative min-w-max">
+            <div ref={bodyRef} className="relative min-w-max">
               {/* Шапка бакетов (ref — мерим ширину бакета для drag) */}
               <div ref={gridRef} className="grid" style={{ ...gridCols, height: ROW_H }}>
                 {buckets.map((b, i) => (
@@ -401,6 +526,9 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                           setTip={setTip}
                           assignee={assignee}
                           status={status}
+                          linkMode={linkMode}
+                          isLinkSource={pendingPred === gt.task.id}
+                          onLinkSelect={onLinkSelect}
                         />
                       </div>
                     );
@@ -413,6 +541,45 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                 <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
                   <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
                 </div>
+              )}
+
+              {/* S-DEPS-1: SVG-оверлей стрелок зависимостей (pred.end → succ.start).
+                  Цвет — токен темы (var(--text-mute)); клик по path удаляет ребро. */}
+              {edges.length > 0 && (
+                <svg
+                  className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                  style={{ color: 'var(--text-mute)' }}
+                  aria-hidden
+                >
+                  <defs>
+                    <marker
+                      id="gantt-dep-arrow"
+                      markerWidth="7"
+                      markerHeight="7"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                      markerUnits="userSpaceOnUse"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+                    </marker>
+                  </defs>
+                  {edges.map((edge) => (
+                    <path
+                      key={edge.id}
+                      d={edge.d}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      markerEnd="url(#gantt-dep-arrow)"
+                      className="cursor-pointer"
+                      style={{ pointerEvents: 'stroke' }}
+                      onClick={() => {
+                        if (window.confirm('Удалить зависимость?')) deleteDep.mutate(edge.id);
+                      }}
+                    />
+                  ))}
+                </svg>
               )}
             </div>
           </div>
