@@ -5,7 +5,7 @@ import { Building2, User } from 'lucide-react';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useActivityLog } from '@/lib/hooks/use-activity-log';
-import { STAGE_CONFIG, formatBudget } from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
 import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
 import { Badge } from '@/components/ui/Badge';
 import { DealFocusPanel } from './DealFocusPanel';
@@ -20,9 +20,8 @@ export function ProjectPeekContent({ project }: { project: Project }) {
   const { data: stages } = usePipelineStages();
   const { data: entries = [] } = useActivityLog(project.id);
 
-  const stageName =
-    stages?.find((s) => s.id === project.stage_id)?.name ??
-    (project.stage ? STAGE_CONFIG[project.stage]?.shortLabel ?? project.stage : '—');
+  // Путь B: имя стадии — только из pipeline_stages (stage_id), legacy `stage` не читаем.
+  const stageName = stages?.find((s) => s.id === project.stage_id)?.name ?? '—';
 
   return (
     <div>
