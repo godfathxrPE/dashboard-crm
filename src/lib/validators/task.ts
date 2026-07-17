@@ -17,6 +17,9 @@ export const taskFormSchema = z.object({
   assigned_to: z.string().uuid().nullable().optional(),
   // PCT-1: колонка проектной доски (для задач с project_id)
   column_id: z.string().uuid().nullable().optional(),
+  // S-WBS-1: иерархия — родитель того же проекта; wbs_code (напр. «1.3.11»)
+  parent_task_id: z.string().uuid().nullable().optional(),
+  wbs_code: z.string().max(40).nullable().optional(),
 }).refine(
   (d) => !d.start_date || !d.end_date || d.end_date >= d.start_date,
   { message: 'Конец не раньше начала', path: ['end_date'] },

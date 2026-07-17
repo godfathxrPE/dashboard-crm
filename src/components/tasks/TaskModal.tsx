@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils/cn';
-import { useCreateTask, useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useCreateTask, useUpdateTask, useProjectBoard } from '@/lib/hooks/use-tasks';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
@@ -61,10 +61,45 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
       end_date: null,
       remind_min: null,
       assigned_to: null,
+      parent_task_id: null,
+      wbs_code: null,
     },
   });
 
   const selectedPriority = watch('priority');
+
+  // S-WBS-1: список кандидатов-родителей — задачи ТОГО ЖЕ проекта (родитель без
+  // проекта не имеет смысла). Хук дизейблится при пустом projectId.
+  const currentProjectId = watch('project_id');
+  const { tasks: projectTasks } = useProjectBoard(currentProjectId ?? '');
+
+  // Клиентский anti-cycle: исключаем саму задачу и всех её потомков (DB-триггер —
+  // второй рубеж). Строим детей по parent_task_id и обходим поддерево вниз.
+  const excludedParentIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!editTask) return set;
+    set.add(editTask.id);
+    const childrenOf = new Map<string, string[]>();
+    for (const t of projectTasks ?? []) {
+      if (t.parent_task_id) {
+        (childrenOf.get(t.parent_task_id) ??
+          childrenOf.set(t.parent_task_id, []).get(t.parent_task_id)!).push(t.id);
+      }
+    }
+    const stack = [editTask.id];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (const child of childrenOf.get(cur) ?? []) {
+        if (!set.has(child)) { set.add(child); stack.push(child); }
+      }
+    }
+    return set;
+  }, [editTask, projectTasks]);
+
+  const parentOptions = useMemo(
+    () => (projectTasks ?? []).filter((t) => !excludedParentIds.has(t.id)),
+    [projectTasks, excludedParentIds],
+  );
 
   // Заполняем форму при редактировании
   useEffect(() => {
@@ -81,6 +116,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         end_date: editTask.end_date ?? null,
         remind_min: editTask.remind_min,
         assigned_to: editTask.assigned_to ?? null,
+        parent_task_id: editTask.parent_task_id ?? null,
+        wbs_code: editTask.wbs_code ?? null,
       });
     } else {
       reset({
@@ -95,6 +132,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         end_date: null,
         remind_min: null,
         assigned_to: null,
+        parent_task_id: null,
+        wbs_code: null,
       });
     }
   }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, reset]);
@@ -260,6 +299,39 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
                 <p className="mt-1 text-xs text-red">{errors.end_date.message}</p>
               )}
             </div>
+          </div>
+
+          {/* S-WBS-1: WBS-код + родитель (иерархия задач). Родитель — только при
+              наличии project_id (родитель без проекта не имеет смысла). */}
+          <div className={cn('grid gap-3', currentProjectId ? 'grid-cols-2' : 'grid-cols-1')}>
+            <div>
+              <label className="block text-xs font-medium text-text-dim mb-1">WBS-код</label>
+              <input
+                type="text"
+                {...register('wbs_code', { setValueAs: (v) => (v === '' ? null : v) })}
+                placeholder="1.3.11"
+                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main tabular-nums placeholder:text-text-mute focus:border-accent focus:outline-none"
+              />
+              {errors.wbs_code && (
+                <p className="mt-1 text-xs text-red">{errors.wbs_code.message}</p>
+              )}
+            </div>
+            {currentProjectId && (
+              <div>
+                <label className="block text-xs font-medium text-text-dim mb-1">Родитель</label>
+                <select
+                  {...register('parent_task_id', { setValueAs: (v) => (v === '' ? null : v) })}
+                  className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+                >
+                  <option value="">— без родителя —</option>
+                  {parentOptions.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.wbs_code ? `${t.wbs_code} ` : ''}{t.text}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Remind */}

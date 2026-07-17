@@ -2,6 +2,7 @@
 
 import type * as React from 'react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useUpdateTaskDates } from '@/lib/hooks/use-tasks';
@@ -179,16 +180,23 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
 
   // В linkMode drag не навешиваем: клик выбирает конец связи (иначе конфликт с
   // click-vs-drag). Иначе — нативные Pointer Events VIEW-2.
-  const dragHandlers = linkMode
-    ? undefined
-    : {
+  // W6 (S-WBS-1): сводный бар (isSummary) не таскается — иначе useUpdateTaskDates
+  // записал бы envelope-даты детей как реальные даты родителя. Клик = только onEditTask.
+  const draggable = !linkMode && !gt.isSummary;
+  const dragHandlers = draggable
+    ? {
         onPointerDown: (ev: React.PointerEvent) => startDrag(ev, 'move'),
         onPointerMove: onMove,
         onPointerUp: onUp,
         onPointerCancel: onCancel,
-      };
-  const linkClick = linkMode ? { onClick: () => onLinkSelect(gt.task.id) } : undefined;
-  const cursorClass = linkMode ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
+      }
+    : undefined;
+  const linkClick = linkMode
+    ? { onClick: () => onLinkSelect(gt.task.id) }
+    : gt.isSummary
+      ? { onClick: () => onEditTask(gt.task) }
+      : undefined;
+  const cursorClass = (linkMode || gt.isSummary) ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
   const ringClass = isLinkSource ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
   // S-CRIT-PATH: акцентная обводка через outline (var(--accent), не хардкод; отдельное
   // CSS-свойство от ring — не клобберит link-source, оба состояния сосуществуют).
@@ -198,9 +206,11 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
     <div
       className="relative"
       data-task-bar={gt.task.id}
-      style={{ gridColumn: gt.isMilestone ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}
+      style={{ gridColumn: (gt.isMilestone && !gt.isSummary) ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}
     >
-      {gt.isMilestone ? (
+      {/* W3 (S-WBS-1): приоритет вида — веха-не-сводная → ромб; иначе сводная →
+          скобка-бар; иначе лист-бар. (summary+milestone → скобка выигрывает.) */}
+      {gt.isMilestone && !gt.isSummary ? (
         <div
           role="button"
           tabIndex={0}
@@ -216,6 +226,25 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
         >
           <span className={`inline-block h-2.5 w-2.5 rotate-45 rounded-[1px] ${barClass(gt.task)} ${ringClass} ${critClass}`} />
         </div>
+      ) : gt.isSummary ? (
+        // Сводный бар: тонкая линия + ножки-скобки по краям, полупрозрачная (var-цвет
+        // через bg-токен приоритета) — визуально отличается от листового бара. Не таскается.
+        <div
+          role="button"
+          tabIndex={0}
+          {...linkClick}
+          onKeyDown={onKey}
+          onMouseEnter={showTip}
+          onMouseMove={moveTip}
+          onMouseLeave={() => setTip(null)}
+          className={`relative my-1 flex h-2.5 w-full ${cursorClass}`}
+          style={{ touchAction: 'none' }}
+          aria-label={`${gt.task.text} (сводная): ${gt.start} → ${gt.end}`}
+        >
+          <div className={`absolute inset-x-0 top-0 h-1 rounded-sm ${barClass(gt.task)} ${ringClass} ${critClass} opacity-70`} />
+          <span className={`absolute left-0 top-0 h-2.5 w-0.5 ${barClass(gt.task)}`} aria-hidden />
+          <span className={`absolute right-0 top-0 h-2.5 w-0.5 ${barClass(gt.task)}`} aria-hidden />
+        </div>
       ) : (
         <div
           role="button"
@@ -230,8 +259,8 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
           style={{ transform: linkMode ? undefined : transform, width: linkMode ? undefined : width, touchAction: 'none' }}
           aria-label={`${gt.task.text}: ${gt.start} → ${gt.end}`}
         >
-          {/* resize-хендлы: только вне linkMode (перехватывают pointerdown у краёв) */}
-          {!linkMode && (
+          {/* resize-хендлы: только когда бар таскается (вне linkMode, не сводный) */}
+          {draggable && (
             <>
               <span
                 onPointerDown={(ev) => startDrag(ev, 'left')}
@@ -274,6 +303,15 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   // S-CRIT-PATH: тумблер подсветки критического пути (default off)
   const [showCritical, setShowCritical] = useState(false);
   const [edges, setEdges] = useState<{ id: string; d: string; critical: boolean }[]>([]); // измеренные пути стрелок
+  // S-WBS-1: свёртка сводных строк — id свёрнутых родителей (их потомки скрыты)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
 
@@ -328,6 +366,29 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     return swimlanes.map((sl) => ({ ...sl, tasks: sl.tasks.filter(pred) }));
   }, [swimlanes, filter]);
 
+  // W2 (S-WBS-1): collapse-фильтр применяем ОДИН раз здесь — результат кормит левую
+  // колонку, бары, critical-path И измерение стрелок. Иначе label/bar разъедутся по
+  // высоте, а стрелки повиснут к скрытым. Потомок скрыт, если ЛЮБОЙ предок свёрнут:
+  // задачи идут в дерево-порядке (pre-order, поддерево contiguous) → держим порог
+  // глубины hideBelow, пока не вернёмся на уровень ≤ свёрнутого узла.
+  const visibleSwimlanes = useMemo(() => {
+    if (collapsed.size === 0) return filteredSwimlanes;
+    return filteredSwimlanes.map((sl) => {
+      const out: GanttTask[] = [];
+      let hideBelow = Infinity;
+      for (const gt of sl.tasks) {
+        if (gt.depth > hideBelow) continue;              // потомок свёрнутого предка
+        hideBelow = Infinity;                            // вышли из свёрнутого поддерева
+        out.push(gt);
+        if (gt.isSummary && collapsed.has(gt.task.id)) hideBelow = gt.depth;
+      }
+      return { ...sl, tasks: out };
+    });
+  }, [filteredSwimlanes, collapsed]);
+
+  // Стабильная сигнатура свёрнутого множества для deps эффекта измерения стрелок.
+  const collapsedSig = useMemo(() => [...collapsed].sort().join(','), [collapsed]);
+
   const filteredUndated = useMemo(() => {
     if (filter === 'milestones') return [];              // вехи без дат — не в этот фильтр (см. заметки гейта)
     if (filter === 'open') return undated.filter((t) => t.lane !== 'done');
@@ -348,9 +409,9 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const durDays = (gt: GanttTask) =>
       Math.max(1, Math.round((noon(gt.end) - noon(gt.start)) / 86_400_000) + 1);
 
-    // узлы: только видимые датированные задачи (реально имеют бар)
+    // узлы: только видимые датированные задачи (реально имеют бар; свёрнутые скрыты)
     const nodes = new Map<string, GanttTask>();
-    for (const sl of filteredSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
+    for (const sl of visibleSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
 
     // рёбра только между видимыми узлами; заодно in-degree по succ для топосорта
     const adjPreds = new Map<string, { edgeId: string; pred: string }[]>(); // succ → [{edge,pred}]
@@ -413,14 +474,14 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     return edgeIds.size
       ? { taskIds, edgeIds, totalDays: max }
       : { taskIds: new Set<string>(), edgeIds, totalDays: 0 };
-  }, [filteredSwimlanes, dependencies]);
+  }, [visibleSwimlanes, dependencies]);
 
   // Стабильная строковая сигнатура крит-множества для effect-deps измерения стрелок
   // (НЕ объект critical — новый ref каждый рендер). '' когда подсветка выключена.
   const critSig = showCritical ? [...critical.edgeIds].sort().join(',') : '';
 
   const model = useMemo(() => {
-    const allTasks: GanttTask[] = filteredSwimlanes.flatMap((sl) => sl.tasks);
+    const allTasks: GanttTask[] = visibleSwimlanes.flatMap((sl) => sl.tasks);
     if (allTasks.length === 0) {
       return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), todayIdx: -1 };
     }
@@ -430,7 +491,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
-  }, [filteredSwimlanes, zoom]);
+  }, [visibleSwimlanes, zoom]);
 
   // Ширина бакета в рантайме (сетка minmax(28px,1fr) — динамическая, хардкод нельзя).
   // Снимаем с шапки бакетов на каждый pointerdown.
@@ -492,15 +553,17 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     // рендер → effect гонялся всегда). zoom/filter меняют ширину → ResizeObserver перемеряет.
     // S-CRIT-PATH: showCritical + critSig (стабильная строка, НЕ объект critical) →
     // перекраска крит-стрелок по тумблеру без лупа.
-    // v1: перемер при смене рёбер/зума/фильтра/размера; чистый reflow строк — по следующему триггеру
-  }, [depSig, zoom, filter, showCritical, critSig]);
+    // S-WBS-1: collapsedSig — свёртка меняет набор баров в DOM → перемерить стрелки
+    // (скрытые концы дают anchor=null → стрелка пропускается, W4-паттерн).
+    // v1: перемер при смене рёбер/зума/фильтра/размера/свёртки; чистый reflow строк — по следующему триггеру
+  }, [depSig, zoom, filter, showCritical, critSig, collapsedSig]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
   if (isError)   return <div className="py-8 text-center text-xs text-red">Не удалось загрузить задачи</div>;
 
   const { buckets, idxByKey, todayIdx } = model;
-  const laneRows = filteredSwimlanes.filter((sl) => sl.tasks.length > 0);
+  const laneRows = visibleSwimlanes.filter((sl) => sl.tasks.length > 0);
   const gridCols = { gridTemplateColumns: `repeat(${buckets.length}, minmax(28px, 1fr))` };
   const wideRange = zoom === 'day' && buckets.length > 180;
 
@@ -606,11 +669,28 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                 {sl.tasks.map((gt) => (
                   <div
                     key={gt.task.id}
-                    className="flex items-center truncate pr-2 text-xs text-text-main"
-                    style={{ height: ROW_H }}
+                    className="flex items-center pr-2 text-xs text-text-main"
+                    style={{ height: ROW_H, paddingLeft: `${gt.depth}rem` }}
                     title={gt.task.text}
                   >
-                    <span className="truncate">{gt.task.text}</span>
+                    {/* S-WBS-1: треугольник свёртки у сводных; спейсер у листьев — выравнивание */}
+                    {gt.isSummary ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapse(gt.task.id)}
+                        aria-label={collapsed.has(gt.task.id) ? 'Развернуть' : 'Свернуть'}
+                        aria-expanded={!collapsed.has(gt.task.id)}
+                        className="mr-0.5 shrink-0 text-text-mute hover:text-text-main transition-colors"
+                      >
+                        {collapsed.has(gt.task.id) ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                      </button>
+                    ) : (
+                      <span className="mr-0.5 inline-block w-3 shrink-0" aria-hidden />
+                    )}
+                    {gt.task.wbs_code && (
+                      <span className="mr-1 shrink-0 tabular-nums text-text-mute">{gt.task.wbs_code}</span>
+                    )}
+                    <span className={`truncate ${gt.isSummary ? 'font-medium' : ''}`}>{gt.task.text}</span>
                   </div>
                 ))}
               </div>

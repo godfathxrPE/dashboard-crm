@@ -132,6 +132,10 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
               <Diamond size={11} className="block" />
             </span>
           )}
+          {/* S-WBS-1: WBS-код префиксом (read-only; DnD-репарент — v2) */}
+          {task.wbs_code && (
+            <span className="mr-1 tabular-nums text-text-mute">{task.wbs_code}</span>
+          )}
           {task.text}
         </p>
 

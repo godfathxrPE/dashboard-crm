@@ -196,6 +196,9 @@ export function useCreateTask() {
         updated_at: new Date().toISOString(),
         // P3: рукотворные задачи — не вехи (флаг ставит только шаблон/бэкфилл)
         is_milestone: input.is_milestone ?? false,
+        // S-WBS-1: иерархия (Task требует поля → optimistic обязан их нести)
+        parent_task_id: input.parent_task_id ?? null,
+        wbs_code: input.wbs_code ?? null,
       };
 
       queryClient.setQueryData<Task[]>(QUERY_KEY, (old) => [
