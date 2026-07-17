@@ -15,6 +15,7 @@ import {
   AUTOMATION_TRIGGER_OPTIONS,
   AUTOMATION_STATUS_LABEL,
   AUTOMATION_FIELD_LABEL,
+  AUTOMATION_CONDITION_FIELD_LABEL,
   AUTOMATION_OP_LABEL,
   AUTOMATION_NULLARY_OPS,
 } from '@/lib/constants/automation';
@@ -50,6 +51,8 @@ function describeTrigger(rule: AutomationRule, stageName: (id: string) => string
       const cfg = rule.trigger_config as FieldChangedConfig;
       return `Изменение «${AUTOMATION_FIELD_LABEL[cfg.field] ?? cfg.field}»`;
     }
+    case 'task_overdue':
+      return 'Просрочка задачи';
   }
 }
 
@@ -61,6 +64,8 @@ function describeAction(rule: AutomationRule): string {
       return `задача «${cfg.task_text}» → ${who}`;
     }
     case 'notify': {
+      // task_overdue уведомляет исполнителя задачи (recipient движок 051 игнорирует).
+      if (rule.trigger_type === 'task_overdue') return 'уведомить исполнителя';
       const cfg = rule.action_config as AutomationNotifyConfig;
       const who = AUTOMATION_ASSIGNEE_LABEL[cfg.recipient] ?? cfg.recipient;
       return `уведомить ${who}`;
@@ -80,7 +85,7 @@ function describeConditions(rule: AutomationRule): string {
   const conds = rule.conditions ?? [];
   if (conds.length === 0) return '';
   const parts = conds.map((c) => {
-    const f = AUTOMATION_FIELD_LABEL[c.field] ?? c.field;
+    const f = AUTOMATION_CONDITION_FIELD_LABEL[c.field] ?? c.field;
     const op = AUTOMATION_OP_LABEL[c.op] ?? c.op;
     return AUTOMATION_NULLARY_OPS.includes(c.op) ? `${f} ${op}` : `${f} ${op} ${c.value}`;
   });

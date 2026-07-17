@@ -47,6 +47,7 @@ export const AUTOMATION_TRIGGER_OPTIONS: { value: AutomationTriggerType; label: 
   { value: 'stage_entered', label: 'Вход в стадию' },
   { value: 'status_changed', label: 'Смена статуса' },
   { value: 'field_changed', label: 'Изменение поля' },
+  { value: 'task_overdue', label: 'Просрочка задачи' },
 ];
 
 export const AUTOMATION_TRIGGER_LABEL: Record<AutomationTriggerType, string> = Object.fromEntries(
@@ -101,6 +102,23 @@ export const AUTOMATION_FIELD_OPTIONS: { value: string; label: string; numeric?:
 export const AUTOMATION_FIELD_LABEL: Record<string, string> = Object.fromEntries(
   AUTOMATION_FIELD_OPTIONS.map((o) => [o.value, o.label]),
 );
+
+/**
+ * Курируемые поля ЗАДАЧИ для условий триггера task_overdue (051).
+ * wf_eval_conditions матчит по to_jsonb(task), поэтому это колонки tasks
+ * (не projects). numeric — подсказка типа сравнения.
+ */
+export const AUTOMATION_TASK_FIELD_OPTIONS: { value: string; label: string; numeric?: boolean }[] = [
+  { value: 'priority', label: 'Приоритет' }, // normal | important | critical
+  { value: 'lane', label: 'Колонка' },       // now | next | wait | done
+  { value: 'text', label: 'Текст задачи' },
+];
+
+/** Общий label-lookup для описания условий (проектные + task-поля). */
+export const AUTOMATION_CONDITION_FIELD_LABEL: Record<string, string> = {
+  ...AUTOMATION_FIELD_LABEL,
+  ...Object.fromEntries(AUTOMATION_TASK_FIELD_OPTIONS.map((o) => [o.value, o.label])),
+};
 
 /** Операторы условий (= wf_eval_conditions 050). */
 export const AUTOMATION_OP_OPTIONS: { value: AutomationConditionOp; label: string }[] = [

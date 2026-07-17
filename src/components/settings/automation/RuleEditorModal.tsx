@@ -17,6 +17,7 @@ import {
   AUTOMATION_ACTION_OPTIONS,
   AUTOMATION_STATUS_OPTIONS,
   AUTOMATION_FIELD_OPTIONS,
+  AUTOMATION_TASK_FIELD_OPTIONS,
   AUTOMATION_ASSIGNEE_OPTIONS,
   AUTOMATION_PRIORITY_OPTIONS,
   AUTOMATION_SET_FIELD_OPTIONS,
@@ -83,8 +84,10 @@ function toInput(v: RuleFormValues): AutomationRuleInput {
   } else if (v.trigger_type === 'status_changed') {
     // пусто ⇒ {} (SQL ->>'to' IS NULL матчит любой; {to:''} бы сломал матч)
     trigger_config = v.t_status_to ? { to: v.t_status_to } : {};
-  } else {
+  } else if (v.trigger_type === 'field_changed') {
     trigger_config = { field: v.t_field ?? '' };
+  } else {
+    trigger_config = {}; // task_overdue — без конфигурации
   }
 
   let action_config: AutomationActionConfig;
@@ -177,12 +180,27 @@ export function RuleEditorModal({
   const pipelineId = watch('t_pipeline_id');
   const setFieldName = watch('a_set_field');
 
+  const isOverdue = triggerType === 'task_overdue';
+  // Поля условий: task_overdue матчит по полям ЗАДАЧИ, остальные — по projects.
+  const fieldOptions = isOverdue ? AUTOMATION_TASK_FIELD_OPTIONS : AUTOMATION_FIELD_OPTIONS;
+  // task_overdue (движок 051) умеет только notify / create_activity.
+  const actionOptions = isOverdue
+    ? AUTOMATION_ACTION_OPTIONS.filter((o) => o.value === 'notify' || o.value === 'create_activity')
+    : AUTOMATION_ACTION_OPTIONS;
+
   // Бэкфилл воронки по умолчанию для нового правила (pipelines грузятся async).
   useEffect(() => {
     if (!rule && !pipelineId && pipelines[0]) {
       setValue('t_pipeline_id', pipelines[0].id, { shouldDirty: false });
     }
   }, [rule, pipelineId, pipelines, setValue]);
+
+  // Переключение на task_overdue с несовместимым действием → notify (whitelist 051).
+  useEffect(() => {
+    if (isOverdue && (actionType === 'create_task' || actionType === 'set_field')) {
+      setValue('action_type', 'notify', { shouldDirty: true });
+    }
+  }, [isOverdue, actionType, setValue]);
 
   const pipelineOptions = useMemo(
     () => pipelines.map((p) => ({ value: p.id, label: p.name })),
@@ -328,6 +346,13 @@ export function RuleEditorModal({
                 {errors.t_field && <p className={errCls}>{errors.t_field.message}</p>}
               </div>
             )}
+
+            {triggerType === 'task_overdue' && (
+              <p className="rounded-md bg-surface2 px-2.5 py-2 text-[11px] text-text-mute">
+                Срабатывает, когда дедлайн задачи прошёл, а она не выполнена.
+                Проверяется ежедневно, напоминаем <strong className="text-text-dim">один раз</strong> на задачу.
+              </p>
+            )}
           </fieldset>
 
           {/* ── Секция 2: Условия ── */}
@@ -342,14 +367,19 @@ export function RuleEditorModal({
             {fields.length > 0 && (
               <div className="space-y-2">
                 {fields.map((f, index) => (
-                  <ConditionRow key={f.id} index={index} onRemove={() => remove(index)} />
+                  <ConditionRow
+                    key={f.id}
+                    index={index}
+                    onRemove={() => remove(index)}
+                    fieldOptions={fieldOptions}
+                  />
                 ))}
               </div>
             )}
 
             <button
               type="button"
-              onClick={() => append({ field: AUTOMATION_FIELD_OPTIONS[0].value, op: 'eq', value: '' })}
+              onClick={() => append({ field: fieldOptions[0].value, op: 'eq', value: '' })}
               className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface2"
             >
               <Plus size={12} /> условие
@@ -363,7 +393,7 @@ export function RuleEditorModal({
             <div>
               <label htmlFor="action-type" className={labelCls}>Что сделать</label>
               <select id="action-type" {...register('action_type')} className={selectCls}>
-                {AUTOMATION_ACTION_OPTIONS.map((o) => (
+                {actionOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
@@ -415,21 +445,30 @@ export function RuleEditorModal({
 
             {actionType === 'notify' && (
               <>
-                <div>
-                  <label htmlFor="a-recipient" className={labelCls}>Получатель</label>
-                  <select id="a-recipient" {...register('a_assignee')} className={selectCls}>
-                    {AUTOMATION_ASSIGNEE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* task_overdue: получатель = исполнитель задачи (движок 051), select скрыт */}
+                {isOverdue ? (
+                  <p className="text-[11px] text-text-mute">Уведомление уйдёт исполнителю задачи.</p>
+                ) : (
+                  <div>
+                    <label htmlFor="a-recipient" className={labelCls}>Получатель</label>
+                    <select id="a-recipient" {...register('a_assignee')} className={selectCls}>
+                      {AUTOMATION_ASSIGNEE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label htmlFor="a-notify-text" className={labelCls}>Текст уведомления</label>
                   <input
                     id="a-notify-text"
                     type="text"
                     {...register('a_notify_text')}
-                    placeholder="Напр. «Сделка {deal} требует внимания»"
+                    placeholder={
+                      isOverdue
+                        ? 'Напр. «Задача {task} просрочена»'
+                        : 'Напр. «Сделка {deal} требует внимания»'
+                    }
                     className={inputCls}
                   />
                   {errors.a_notify_text && <p className={errCls}>{errors.a_notify_text.message}</p>}
@@ -445,7 +484,11 @@ export function RuleEditorModal({
                     id="a-title"
                     type="text"
                     {...register('a_title')}
-                    placeholder="Напр. «Проверить бюджет по {deal}»"
+                    placeholder={
+                      isOverdue
+                        ? 'Напр. «Просрочена задача {task}»'
+                        : 'Напр. «Проверить бюджет по {deal}»'
+                    }
                     className={inputCls}
                   />
                   {errors.a_title && <p className={errCls}>{errors.a_title.message}</p>}
@@ -487,7 +530,11 @@ export function RuleEditorModal({
             )}
 
             <p className="text-[10px] text-text-mute">
-              Плейсхолдер <code className="rounded bg-surface2 px-1">{'{deal}'}</code> подставит имя сделки.
+              {isOverdue ? (
+                <>Плейсхолдер <code className="rounded bg-surface2 px-1">{'{task}'}</code> подставит текст задачи.</>
+              ) : (
+                <>Плейсхолдер <code className="rounded bg-surface2 px-1">{'{deal}'}</code> подставит имя сделки.</>
+              )}
             </p>
           </fieldset>
         </form>

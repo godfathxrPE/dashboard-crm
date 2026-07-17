@@ -17,7 +17,7 @@ export const ruleSchema = z
     name: z.string().min(1, 'Название'),
 
     // ── trigger ──
-    trigger_type: z.enum(['stage_entered', 'status_changed', 'field_changed']),
+    trigger_type: z.enum(['stage_entered', 'status_changed', 'field_changed', 'task_overdue']),
     t_pipeline_id: z.string().optional(),
     t_stage_id: z.string().optional(),
     t_status_to: z.string().optional(),   // '' = любой статус
@@ -58,6 +58,11 @@ export const ruleSchema = z
       ctx.addIssue({ code: 'custom', path: ['t_stage_id'], message: 'Выберите стадию' });
     if (v.trigger_type === 'field_changed' && !v.t_field)
       ctx.addIssue({ code: 'custom', path: ['t_field'], message: 'Выберите поле' });
+    // task_overdue — trigger-полей не требует (движок 051 сканирует по deadline)
+
+    // task_overdue (051): движок умеет только notify / create_activity
+    if (v.trigger_type === 'task_overdue' && !['notify', 'create_activity'].includes(v.action_type))
+      ctx.addIssue({ code: 'custom', path: ['action_type'], message: 'Для просрочки — уведомление или заметка' });
 
     // action
     if (v.action_type === 'create_task' && !v.a_task_text?.trim())

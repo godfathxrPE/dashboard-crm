@@ -16,6 +16,9 @@ import type { Notification, NotificationType } from '@/types/database';
 // тип сущности в уведомлении неизвестен — delivery/internal перенаправит
 // серверный бэкстоп deals/[id] → /projects/[id].
 function entityRoute(n: Notification): string {
+  // S-WF-2C-B: task_overdue-автоматизация несёт entity_type='tasks' → доска задач
+  // (иначе ушла бы в /deals/{task_id} = 404). Проверять ДО общей automation-ветки.
+  if (n.type === 'automation' && n.entity_type === 'tasks') return '/tasks';
   // S-WON-AUTO-1: deal_won ведёт на сделку — там кнопка «Создать проект внедрения».
   // S-WF-2B: automation (entity_type='projects') ведёт на сделку (серверный бэкстоп deals→projects).
   if (n.type === 'project_assigned' || n.type === 'deal_won' || n.type === 'automation')

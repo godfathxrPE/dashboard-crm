@@ -232,8 +232,8 @@ export interface UnmetRequirement {
 // 3 триггера × 4 действия + conditions (AND-предикаты). Осмысленность union держим
 // через отдельные config-типы; внешний payload из Supabase — jsonb (см. хук: unknown+каст).
 
-/** Триггеры движка 050 (task_overdue — S-WF-2C, в UI НЕ добавлять). */
-export type AutomationTriggerType = 'stage_entered' | 'status_changed' | 'field_changed';
+/** Триггеры движка (050 + task_overdue из 051, S-WF-2C). */
+export type AutomationTriggerType = 'stage_entered' | 'status_changed' | 'field_changed' | 'task_overdue';
 /** Действия движка 050. */
 export type AutomationActionType = 'create_task' | 'notify' | 'create_activity' | 'set_field';
 /** Кому назначить задачу / кому уведомление. */
@@ -250,10 +250,13 @@ export interface StatusChangedConfig {
 export interface FieldChangedConfig {
   field: string;               // имя колонки projects
 }
+/** task_overdue (051) — триггер без конфигурации (pg_cron сканирует по deadline). */
+export type TaskOverdueConfig = Record<string, never>;
 export type AutomationTriggerConfig =
   | StageEnteredConfig
   | StatusChangedConfig
-  | FieldChangedConfig;
+  | FieldChangedConfig
+  | TaskOverdueConfig;
 
 // ── Conditions (AND-предикаты; совпадает с wf_eval_conditions 050) ──
 export type AutomationConditionOp =
