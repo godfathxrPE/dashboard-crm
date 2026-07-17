@@ -7,6 +7,7 @@ import { useDeliveryProjects, type Project } from '@/lib/hooks/use-projects';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { ProjectModal } from './ProjectModal';
 import { DeliveryPipelineBoard } from './DeliveryPipelineBoard';
+import { PortfolioView } from './PortfolioView';
 import { projectHref } from '@/lib/utils/project-href';
 
 // ═══════════════════════════════════════════════════════
@@ -14,7 +15,7 @@ import { projectHref } from '@/lib/utils/project-href';
 // Сделки (client) живут отдельно на /deals — см. routing-контракт P1.
 // ═══════════════════════════════════════════════════════
 
-type SectionTab = 'delivery' | 'internal';
+type SectionTab = 'delivery' | 'portfolio' | 'internal';
 
 const STATUS_LABELS: Record<Project['status'], string> = {
   open: 'В работе',
@@ -122,6 +123,7 @@ export function ProjectsSection() {
       <div className="mb-4 flex gap-1 border-b border-border">
         {([
           { value: 'delivery' as const, label: 'Внедрение' },
+          { value: 'portfolio' as const, label: 'Портфель' },
           { value: 'internal' as const, label: 'Внутренние' },
         ]).map((t) => (
           <button
@@ -138,7 +140,13 @@ export function ProjectsSection() {
         ))}
       </div>
 
-      {tab === 'delivery' ? <DeliveryPipelineBoard /> : <InternalProjectsList />}
+      {tab === 'portfolio' ? (
+        <PortfolioView />
+      ) : tab === 'delivery' ? (
+        <DeliveryPipelineBoard />
+      ) : (
+        <InternalProjectsList />
+      )}
     </div>
   );
 }
