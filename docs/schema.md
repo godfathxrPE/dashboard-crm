@@ -688,6 +688,27 @@ IN ('owner','admin','manager')` (viewer — read-only). **UPDATE-политик�
 
 ## Tenant-таблицы (`org_id NOT NULL` — ужесточено в 023, S24)
 
+### quotes _(053, S-QUOTE-1)_ — КП на сделке (`type='client'`)
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; ставит `trg_set_org_id` (если NULL) |
+| project_id | uuid NOT NULL | → projects ON DELETE CASCADE (сделка client) |
+| status | `quote_status` enum | `draft`/`sent`/`accepted`/`rejected`/`expired`, default `draft` |
+| amount | bigint | **КОПЕЙКИ** (как `projects.budget`); `CHECK amount is null or >= 0`. accepted → `projects.budget = amount` (прямое присвоение) |
+| currency | text | default `'RUB'` (v1 фиксировано) |
+| document_url | text | ссылка на HTML/PDF из kp-master |
+| notes | text | |
+| valid_until | date | срок действия |
+| sent_at / accepted_at | timestamptz | проставляет `stamp_quote_status` при смене статуса (в т.ч. на INSERT) |
+| created_by | uuid | → profiles ON DELETE SET NULL, DEFAULT `auth.uid()` |
+| created_at / updated_at | timestamptz | `updated_at` — триггер `update_updated_at` |
+
+Индексы: `(org_id)`, `(project_id)`, `(status)`, **partial-uniq `quotes_one_accepted_per_project (project_id) WHERE status='accepted'`** (W4 — не более одной accepted-квоты на сделку; второй accept падает).
+Триггеры: `trg_set_org_id` (before insert), `set_updated_at` (before update), **`trg_zz_stamp_quote_status`** (before insert or update of status; DEFINER + search_path; стемпит sent_at/accepted_at, null-safe для INSERT).
+**RLS (паттерн 048):** `quotes_select` — org-wide (`org_id=current_org_id()`); `quotes_insert/update/delete` — `org_id=current_org_id()` **AND** `current_org_role() in ('owner','admin','manager')`. viewer — read-only. **Hard-delete через CASCADE** (soft-delete в проекте нет). UI-гейт `canEditQuotes` (owner/admin/manager) совпадает с RLS; accept→budget под `canUpdateDealBudget` (owner/admin или `deal.owner_id`).
+
 ### activities _(006)_
 
 | Колонка | Тип | Заметки |
