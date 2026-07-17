@@ -38,6 +38,7 @@ import {
   formatBudget,
 } from '@/lib/validators/project';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
+import { PortfolioRiskWidget } from './PortfolioRiskWidget';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -826,6 +827,11 @@ export function DashboardHome() {
     <div className="space-y-4">
       {/* Row 1: KPI cards */}
       <KpiCards />
+
+      {/* Row 1.5: Portfolio risk (management-сигнал) */}
+      <div className="animate-appear stagger-5">
+        <PortfolioRiskWidget />
+      </div>
 
       {/* Row 2: Charts */}
       <div className="grid gap-4 md:grid-cols-2">

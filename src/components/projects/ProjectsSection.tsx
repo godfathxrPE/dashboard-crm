@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Loader2, Plus, Rocket, Wrench } from 'lucide-react';
 import { useDeliveryProjects, type Project } from '@/lib/hooks/use-projects';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -16,6 +16,8 @@ import { projectHref } from '@/lib/utils/project-href';
 // ═══════════════════════════════════════════════════════
 
 type SectionTab = 'delivery' | 'portfolio' | 'internal';
+
+const TABS: readonly SectionTab[] = ['delivery', 'portfolio', 'internal'];
 
 const STATUS_LABELS: Record<Project['status'], string> = {
   open: 'В работе',
@@ -110,7 +112,18 @@ function InternalProjectsList() {
 }
 
 export function ProjectsSection() {
-  const [tab, setTab] = useState<SectionTab>('delivery');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const raw = searchParams.get('tab');
+  const tab: SectionTab = (TABS as readonly string[]).includes(raw ?? '')
+    ? (raw as SectionTab)
+    : 'delivery';
+
+  const setTab = (value: SectionTab) => {
+    const qs = value === 'delivery' ? '' : `?tab=${value}`; // дефолт — чистый URL
+    router.replace(`${pathname}${qs}`, { scroll: false });
+  };
 
   return (
     <div>

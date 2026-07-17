@@ -3,28 +3,20 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Rocket } from 'lucide-react';
-import { useDeliveryProjects, type Project } from '@/lib/hooks/use-projects';
-import { usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { type Project } from '@/lib/hooks/use-projects';
 import { useTeamMembers, type TeamMember } from '@/lib/hooks/use-team-members';
+import { usePortfolioHealth, type PortfolioRow } from '@/lib/hooks/use-portfolio-health';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
+import { type DeliveryHealthStatus } from '@/lib/utils/delivery-health';
 import {
-  getDeliveryHealth,
-  isDeliveryTerminal,
-  type DeliveryHealth,
-  type DeliveryHealthStatus,
-} from '@/lib/utils/delivery-health';
-import {
-  DELIVERY_PHASE_ORDER,
   DELIVERY_PHASE_LABELS,
   DELIVERY_PHASE_TEXT,
   deliveryKindLabel,
   hasTaskProgress,
-  type DeliveryPhase,
 } from '@/lib/constants/delivery-phases';
 import { projectHref } from '@/lib/utils/project-href';
-import type { PipelineStage } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-PORTFOLIO-1 — портфель внедрений (management-вид).
@@ -48,23 +40,6 @@ const STATUS_META: Record<
 
 type PortfolioFilter = 'all' | DeliveryHealthStatus;
 
-type PortfolioRow = {
-  id: string; // keyField + top-level ключ для сорта по имени
-  name: string; // DataTable сортирует по String(item[key]) — нужен на верхнем уровне
-  deadline: string | null; // ISO — сортируется корректно как строка
-  project: Project;
-  health: DeliveryHealth;
-  stageName: string;
-  phase: DeliveryPhase | null;
-  dwellDays: number | null;
-  ownerName: string;
-  isTerminal: boolean;
-};
-
-function isDeliveryPhase(v: string | null | undefined): v is DeliveryPhase {
-  return !!v && (DELIVERY_PHASE_ORDER as readonly string[]).includes(v);
-}
-
 /** Просрочен и не завершён (прогресс < 100%) — для красной подсветки дедлайна. */
 function isOverdueIncomplete(p: Project, now: Date): boolean {
   if (!p.deadline) return false;
@@ -77,90 +52,15 @@ function isOverdueIncomplete(p: Project, now: Date): boolean {
 
 export function PortfolioView() {
   const router = useRouter();
-  const { data: rawProjects, isLoading, error } = useDeliveryProjects();
-  const { data: allStages } = usePipelineStages();
+  const { rows: active, counts, aging, isLoading, error } = usePortfolioHealth();
   const { data: members } = useTeamMembers();
   const [filter, setFilter] = useState<PortfolioFilter>('all');
-
-  const stageById = useMemo(() => {
-    const map = new Map<string, PipelineStage>();
-    allStages?.forEach((s) => map.set(s.id, s));
-    return map;
-  }, [allStages]);
 
   const membersById = useMemo(() => {
     const map = new Map<string, TeamMember>();
     members?.forEach((m) => map.set(m.id, m));
     return map;
   }, [members]);
-
-  // Активные внедрения, обогащённые health/фазой/dwell, предсортированные по score asc.
-  const active = useMemo<PortfolioRow[]>(() => {
-    const now = new Date();
-    const nowMs = now.getTime();
-    const rows: PortfolioRow[] = [];
-
-    for (const p of rawProjects ?? []) {
-      if (p.type !== 'delivery') continue;
-
-      const st = p.stage_id ? stageById.get(p.stage_id) ?? null : null;
-      const isTerminal = isDeliveryTerminal(st, p.status);
-      const health = getDeliveryHealth({
-        progress_done: p.progress_done,
-        progress_total: p.progress_total,
-        stage_entered_at: p.stage_entered_at,
-        deadline: p.deadline,
-        updated_at: p.updated_at,
-        isTerminal,
-      });
-
-      // Портфель = активные (в полёте). Терминальные (score 100) не краснят/не считаются.
-      if (isTerminal) continue;
-
-      const phaseRaw = st?.phase_group ?? null;
-      const dwellMs = p.stage_entered_at ? new Date(p.stage_entered_at).getTime() : null;
-      const dwellDays =
-        dwellMs !== null && !Number.isNaN(dwellMs)
-          ? Math.floor((nowMs - dwellMs) / 86400000)
-          : null;
-
-      rows.push({
-        id: p.id,
-        name: p.name,
-        deadline: p.deadline,
-        project: p,
-        health,
-        stageName: st?.name ?? '—',
-        phase: isDeliveryPhase(phaseRaw) ? phaseRaw : null,
-        dwellDays,
-        ownerName: (p.owner_id ? membersById.get(p.owner_id)?.full_name : null) ?? '—',
-        isTerminal,
-      });
-    }
-
-    // Краснее — сверху (дефолтный порядок таблицы: DataTable стартует с sortKey=null).
-    rows.sort((a, b) => a.health.score - b.health.score);
-    return rows;
-  }, [rawProjects, stageById, membersById]);
-
-  // ── Риск-счётчики ──
-  const counts = useMemo(() => {
-    const c: Record<DeliveryHealthStatus, number> = { at_risk: 0, attention: 0, healthy: 0 };
-    for (const r of active) c[r.health.status] += 1;
-    return c;
-  }, [active]);
-
-  // ── Старение по фазам: кол-во активных + макс. dwell в фазе ──
-  const aging = useMemo(() => {
-    return DELIVERY_PHASE_ORDER.map((phase) => {
-      const inPhase = active.filter((r) => r.phase === phase);
-      const maxDwell = inPhase.reduce<number | null>((mx, r) => {
-        if (r.dwellDays == null) return mx;
-        return mx == null ? r.dwellDays : Math.max(mx, r.dwellDays);
-      }, null);
-      return { phase, count: inPhase.length, maxDwell };
-    });
-  }, [active]);
 
   const filteredRows = useMemo(
     () => (filter === 'all' ? active : active.filter((r) => r.health.status === filter)),
@@ -189,9 +89,11 @@ export function PortfolioView() {
       render: (r) => (
         <div className="flex items-center gap-1.5">
           <span className="font-medium text-text-main">{r.project.name}</span>
-          <Badge color={r.project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
-            {r.project.direction === 'iiot' ? 'IIoT' : 'ERP'}
-          </Badge>
+          {r.project.direction && (
+            <Badge color={r.project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+              {r.project.direction === 'iiot' ? 'IIoT' : 'ERP'}
+            </Badge>
+          )}
           {r.project.delivery_kind && (
             <span className="text-[10px] text-text-mute">
               {deliveryKindLabel(r.project.delivery_kind, r.project.direction)}
@@ -214,12 +116,15 @@ export function PortfolioView() {
     {
       key: 'owner',
       label: 'Ответственный',
-      render: (r) =>
-        r.ownerName === '—' ? (
+      render: (r) => {
+        const ownerName =
+          (r.project.owner_id ? membersById.get(r.project.owner_id)?.full_name : null) ?? '—';
+        return ownerName === '—' ? (
           <span className="text-text-mute">—</span>
         ) : (
-          <span className="text-xs text-text-dim">{r.ownerName}</span>
-        ),
+          <span className="text-xs text-text-dim">{ownerName}</span>
+        );
+      },
     },
     {
       key: 'phase',
