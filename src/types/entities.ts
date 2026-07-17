@@ -34,3 +34,11 @@ export type ContactInsert = Database['public']['Tables']['contacts']['Insert'];
 export type MeetingInsert = Database['public']['Tables']['meetings']['Insert'];
 export type ActivityLog = Database['public']['Tables']['activity_log']['Row'];
 export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert'];
+
+// ═══ S-QUOTE-1: quotes (КП на сделке) ═══
+// WARNING: таблица `quotes` — РУЧНОЙ стаб в supabase.gen.ts (миграция 053 на гейте
+// Cowork, типы не сгенерированы). После apply 053 → `npx supabase gen types` регенерит
+// gen-файл целиком (стаб уйдёт), а эти алиасы продолжат работать 1:1 без правок.
+export type Quote = Database['public']['Tables']['quotes']['Row'];
+export type QuoteInsert = Database['public']['Tables']['quotes']['Insert'];
+export type QuoteUpdate = Database['public']['Tables']['quotes']['Update'];

@@ -1403,6 +1403,72 @@ export type Database = {
         }
         Relationships: []
       }
+      quotes: {
+        Row: {
+          accepted_at: string | null
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          document_url: string | null
+          id: string
+          notes: string | null
+          org_id: string
+          project_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["quote_status"]
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          org_id: string
+          project_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          org_id?: string
+          project_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_dependencies: {
         Row: {
           created_at: string
@@ -2224,6 +2290,7 @@ export type Database = {
       call_status: "done" | "pending" | "cancelled"
       direction_t: "erp" | "iiot"
       pipeline_entity_t: "deal" | "project"
+      quote_status: "draft" | "sent" | "accepted" | "rejected" | "expired"
       task_lane: "now" | "next" | "wait" | "done"
       task_priority: "normal" | "important" | "critical"
     }
@@ -2365,6 +2432,7 @@ export const Constants = {
       call_status: ["done", "pending", "cancelled"],
       direction_t: ["erp", "iiot"],
       pipeline_entity_t: ["deal", "project"],
+      quote_status: ["draft", "sent", "accepted", "rejected", "expired"],
       task_lane: ["now", "next", "wait", "done"],
       task_priority: ["normal", "important", "critical"],
     },
