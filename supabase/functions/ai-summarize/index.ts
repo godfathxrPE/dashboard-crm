@@ -123,8 +123,8 @@ Deno.serve(async (req: Request) => {
 
   // Загрузка сущности под RLS. Не нашлось (нет / чужое) → 404.
   const entitySelect = entityType === 'call'
-    ? 'id, date, status, next_step, agreements, duration_s, company_id, contact_id, project_id'
-    : 'id, title, date, time, location, notes, next_step, company_id, contact_id, project_id';
+    ? 'id, date, status, next_step, agreements, duration_s, company_id, contact_id, project_id, ai_summary_at'
+    : 'id, title, date, time, location, notes, next_step, company_id, contact_id, project_id, ai_summary_at';
   const { data: entity, error: entityErr } = await supabase
     .from(table).select(entitySelect).eq('id', entityId).maybeSingle();
   if (entityErr) {
@@ -132,6 +132,16 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Не удалось загрузить запись' }, 500);
   }
   if (!entity) return json({ error: 'Запись не найдена' }, 404);
+
+  // Дедуп: если резюме сгенерировано менее 10 минут назад — не тратим токены Claude.
+  // 429 с нейтральным телом; клиент достаёт текст из error.context.json() (use-ai-summary.ts).
+  const prevAt = (entity as Record<string, unknown>).ai_summary_at;
+  if (typeof prevAt === 'string') {
+    const ageMs = Date.now() - new Date(prevAt).getTime();
+    if (ageMs >= 0 && ageMs < 10 * 60 * 1000) {
+      return json({ error: 'Резюме уже сгенерировано недавно. Попробуйте позже.' }, 429);
+    }
+  }
 
   // Контекст: компания, сделка (+стадия), последние активности. Всё под RLS.
   const e = entity as Record<string, string | number | null>;

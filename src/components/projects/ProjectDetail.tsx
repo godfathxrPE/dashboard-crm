@@ -66,6 +66,7 @@ import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { DELIVERY_PHASE_LABELS, deliveryKindLabel, hasTaskProgress } from '@/lib/constants/delivery-phases';
 import { SpawnWizard } from './SpawnWizard';
 import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
+import { safeHref } from '@/lib/utils/safe-href';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
@@ -216,6 +217,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const isDelivery = project.type === 'delivery';
   // P2b (B0): единые права управления delivery-проектом (= гарды RLS/RPC)
   const canManage = canManageDeliveryProject(project, orgRole, user?.id);
+  const doHref = safeHref(project.do_url); // фильтр схемы для внешней ссылки 1С:ДО
 
   // S29.1 / Путь B: «живой» контур стадии — из stage_id (pipeline_stages), legacy enum `stage` больше не читаем.
   const headerStage = allPipelineStages?.find((s) => s.id === project.stage_id) ?? null;
@@ -743,9 +745,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               className="text-sm"
             />
           </div>
-          {project.do_url && (
+          {doHref && (
             <a
-              href={project.do_url}
+              href={doHref}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Открыть в 1С:ДО"

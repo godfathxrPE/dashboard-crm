@@ -6,6 +6,7 @@ import { useChildDeliveries, type ChildDelivery } from '@/lib/hooks/use-projects
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { DELIVERY_PHASE_LABELS, deliveryKindLabel } from '@/lib/constants/delivery-phases';
 import { getDeliveryHealth, isDeliveryTerminal, type DeliveryHealth } from '@/lib/utils/delivery-health';
+import { safeHref } from '@/lib/utils/safe-href';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 
 // ═══════════════════════════════════════════════════════
@@ -123,6 +124,7 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
 function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; phase: string; health: DeliveryHealth }) {
   const hasProgress = d.progress_total > 0;
   const pct = hasProgress ? Math.round((d.progress_done / d.progress_total) * 100) : 0;
+  const doHref = safeHref(d.do_url); // фильтр схемы: javascript:/data: → ссылка не рендерится
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
@@ -170,10 +172,10 @@ function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; 
         )}
       </div>
 
-      {/* Ссылка на проект в 1С:ДО — только если задана */}
-      {d.do_url && (
+      {/* Ссылка на проект в 1С:ДО — только если задана и схема безопасна */}
+      {doHref && (
         <a
-          href={d.do_url}
+          href={doHref}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Открыть в 1С:ДО"

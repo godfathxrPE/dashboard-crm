@@ -11,8 +11,9 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Security headers (хвост из delivery-хендоффа 2026-07-11). CSP не включаем:
-# inline theme-init script в <body> потребует nonce — отдельная задача.
+# Security headers (хвост из delivery-хендоффа 2026-07-11).
+# Полный CSP с nonce для inline theme-init script — отдельная задача; здесь только
+# CSP-lite (object-src/base-uri/frame-ancestors), который ничего не ломает.
 [[headers]]
   for = "/*"
   [headers.values]
@@ -20,3 +21,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"

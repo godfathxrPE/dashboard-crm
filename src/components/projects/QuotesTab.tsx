@@ -8,6 +8,7 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { formatBudget } from '@/lib/validators/project';
 import { formatDateShort } from '@/lib/utils/dates';
+import { safeHref } from '@/lib/utils/safe-href';
 import { QUOTE_STATUS_CONFIG } from '@/lib/validators/quote';
 import { QuoteModal } from './QuoteModal';
 import type { Project } from '@/lib/hooks/use-projects';
@@ -139,6 +140,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
         <ul className="space-y-1.5">
           {quotes.map((q) => {
             const cfg = QUOTE_STATUS_CONFIG[q.status];
+            const docHref = safeHref(q.document_url); // фильтр схемы для ссылки на документ КП
             return (
               <li
                 key={q.id}
@@ -162,9 +164,9 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                   {q.notes && <span className="truncate">{q.notes}</span>}
                 </div>
 
-                {q.document_url && (
+                {docHref && (
                   <a
-                    href={q.document_url}
+                    href={docHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
