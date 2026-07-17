@@ -4,8 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type {
   AutomationRule,
+  AutomationTriggerType,
   AutomationTriggerConfig,
-  AutomationCreateTaskConfig,
+  AutomationActionType,
+  AutomationActionConfig,
+  AutomationCondition,
   TablesInsert,
   TablesUpdate,
 } from '@/types/database';
@@ -38,10 +41,11 @@ export function useAutomationRules() {
 
 export interface AutomationRuleInput {
   name: string;
-  trigger_type: 'stage_entered';
+  trigger_type: AutomationTriggerType;
   trigger_config: AutomationTriggerConfig;
-  action_type: 'create_task';
-  action_config: AutomationCreateTaskConfig;
+  action_type: AutomationActionType;
+  action_config: AutomationActionConfig;
+  conditions?: AutomationCondition[];   // дефолт [] на стороне БД (050)
   is_active?: boolean;
 }
 

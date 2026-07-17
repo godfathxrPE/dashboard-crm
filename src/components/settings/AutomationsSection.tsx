@@ -1,206 +1,122 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Zap, Plus, Trash2 } from 'lucide-react';
+import { Zap, Plus, Trash2, Pencil } from 'lucide-react';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
-import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import {
   useAutomationRules,
-  useCreateAutomationRule,
   useUpdateAutomationRule,
   useDeleteAutomationRule,
 } from '@/lib/hooks/use-automation-rules';
 import {
-  AUTOMATION_ASSIGNEE_OPTIONS,
-  AUTOMATION_PRIORITY_OPTIONS,
   AUTOMATION_ASSIGNEE_LABEL,
-  AUTOMATION_PRIORITY_LABEL,
+  AUTOMATION_TRIGGER_LABEL,
+  AUTOMATION_TRIGGER_OPTIONS,
+  AUTOMATION_STATUS_LABEL,
+  AUTOMATION_FIELD_LABEL,
+  AUTOMATION_OP_LABEL,
+  AUTOMATION_NULLARY_OPS,
 } from '@/lib/constants/automation';
+import { RuleEditorModal } from './automation/RuleEditorModal';
 import type {
   AutomationRule,
-  AutomationAssignee,
-  TaskPriority,
+  AutomationTriggerType,
+  StageEnteredConfig,
+  StatusChangedConfig,
+  FieldChangedConfig,
+  AutomationCreateTaskConfig,
+  AutomationNotifyConfig,
+  AutomationActivityConfig,
+  AutomationSetFieldConfig,
 } from '@/types/database';
 
-const DIRECTION_LABEL: Record<string, string> = { erp: 'ERP', iiot: 'IIoT' };
+// ═══════════════════════════════════════════════════════
+// describeRule — обобщён на 3 триггера × 4 действия (type guards по
+// trigger_type / action_type, без any). «Триггер (если …) → действие».
+// ═══════════════════════════════════════════════════════
 
-/** Человекочитаемое описание правила: «Стадия „X“ → задача „…“ → владелец, +N дн». */
-function describeRule(rule: AutomationRule, stageName: (id: string) => string): string {
-  const cfg = rule.action_config;
-  const stage = stageName(rule.trigger_config.stage_id);
-  const who = AUTOMATION_ASSIGNEE_LABEL[cfg.assignee] ?? cfg.assignee;
-  const prio = AUTOMATION_PRIORITY_LABEL[cfg.priority] ?? cfg.priority;
-  return `Стадия «${stage}» → задача «${cfg.task_text}» → ${who}, ${prio}, +${cfg.due_in_days} дн.`;
+function describeTrigger(rule: AutomationRule, stageName: (id: string) => string): string {
+  switch (rule.trigger_type) {
+    case 'stage_entered': {
+      const cfg = rule.trigger_config as StageEnteredConfig;
+      return `Стадия «${cfg.stage_id ? stageName(cfg.stage_id) : '—'}»`;
+    }
+    case 'status_changed': {
+      const cfg = rule.trigger_config as StatusChangedConfig;
+      return cfg.to ? `Статус → ${AUTOMATION_STATUS_LABEL[cfg.to] ?? cfg.to}` : 'Смена статуса';
+    }
+    case 'field_changed': {
+      const cfg = rule.trigger_config as FieldChangedConfig;
+      return `Изменение «${AUTOMATION_FIELD_LABEL[cfg.field] ?? cfg.field}»`;
+    }
+  }
 }
 
-function AddForm({
-  pipelineId,
-  stages,
-}: {
-  pipelineId: string;
-  stages: { id: string; name: string }[];
-}) {
-  const create = useCreateAutomationRule();
-  const [stageId, setStageId] = useState('');
-  const [taskText, setTaskText] = useState('');
-  const [assignee, setAssignee] = useState<AutomationAssignee>('deal_owner');
-  const [priority, setPriority] = useState<TaskPriority>('important');
-  const [dueDays, setDueDays] = useState(3);
-  const [error, setError] = useState<string | null>(null);
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!stageId) { setError('Выберите стадию входа'); return; }
-    if (!taskText.trim()) { setError('Заполните текст задачи'); return; }
-
-    const stageName = stages.find((s) => s.id === stageId)?.name ?? 'стадию';
-
-    create.mutate(
-      {
-        name: `Задача при входе в «${stageName}»`,
-        trigger_type: 'stage_entered',
-        trigger_config: { pipeline_id: pipelineId, stage_id: stageId },
-        action_type: 'create_task',
-        action_config: {
-          task_text: taskText.trim(),
-          assignee,
-          lane: 'now',
-          priority,
-          due_in_days: Math.max(0, dueDays),
-        },
-      },
-      {
-        onSuccess: () => { setTaskText(''); setStageId(''); },
-        onError: (err) => setError(err instanceof Error ? err.message : 'Не удалось создать правило'),
-      },
-    );
+function describeAction(rule: AutomationRule): string {
+  switch (rule.action_type) {
+    case 'create_task': {
+      const cfg = rule.action_config as AutomationCreateTaskConfig;
+      const who = AUTOMATION_ASSIGNEE_LABEL[cfg.assignee] ?? cfg.assignee;
+      return `задача «${cfg.task_text}» → ${who}`;
+    }
+    case 'notify': {
+      const cfg = rule.action_config as AutomationNotifyConfig;
+      const who = AUTOMATION_ASSIGNEE_LABEL[cfg.recipient] ?? cfg.recipient;
+      return `уведомить ${who}`;
+    }
+    case 'create_activity': {
+      const cfg = rule.action_config as AutomationActivityConfig;
+      return `заметка «${cfg.title}»`;
+    }
+    case 'set_field': {
+      const cfg = rule.action_config as AutomationSetFieldConfig;
+      return `поле «${AUTOMATION_FIELD_LABEL[cfg.field] ?? cfg.field}» = «${cfg.value}»`;
+    }
   }
+}
 
-  return (
-    <form onSubmit={submit} className="mt-3 space-y-2 border-t border-border pt-3">
-      <p className="text-[11px] font-medium text-text-dim">Добавить правило</p>
+function describeConditions(rule: AutomationRule): string {
+  const conds = rule.conditions ?? [];
+  if (conds.length === 0) return '';
+  const parts = conds.map((c) => {
+    const f = AUTOMATION_FIELD_LABEL[c.field] ?? c.field;
+    const op = AUTOMATION_OP_LABEL[c.op] ?? c.op;
+    return AUTOMATION_NULLARY_OPS.includes(c.op) ? `${f} ${op}` : `${f} ${op} ${c.value}`;
+  });
+  return ` (если ${parts.join(' и ')})`;
+}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={stageId}
-          onChange={(e) => setStageId(e.target.value)}
-          className="min-w-[9rem] rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
-        >
-          <option value="">Стадия входа…</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={assignee}
-          onChange={(e) => setAssignee(e.target.value as AutomationAssignee)}
-          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
-          title="Кому назначить задачу"
-        >
-          {AUTOMATION_ASSIGNEE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value as TaskPriority)}
-          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
-          title="Приоритет задачи"
-        >
-          {AUTOMATION_PRIORITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        <label className="flex items-center gap-1 text-[11px] text-text-mute">
-          Срок +
-          <input
-            type="number"
-            min={0}
-            value={dueDays}
-            onChange={(e) => setDueDays(parseInt(e.target.value, 10) || 0)}
-            className="w-14 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
-            title="Дней от даты срабатывания"
-          />
-          дн.
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={taskText}
-          onChange={(e) => setTaskText(e.target.value)}
-          placeholder="Текст задачи (напр. «Подготовить КП по {deal}»)"
-          className="min-w-0 flex-1 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-main placeholder:text-text-mute"
-        />
-        <button
-          type="submit"
-          disabled={create.isPending}
-          className="flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          <Plus size={13} /> Добавить
-        </button>
-      </div>
-      <p className="text-[10px] text-text-mute">
-        Плейсхолдер <code className="rounded bg-surface2 px-1">{'{deal}'}</code> подставит имя сделки.
-      </p>
-      {error && <p className="text-[11px] text-red">{error}</p>}
-    </form>
-  );
+function describeRule(rule: AutomationRule, stageName: (id: string) => string): string {
+  return `${describeTrigger(rule, stageName)}${describeConditions(rule)} → ${describeAction(rule)}`;
 }
 
 /**
- * Настройка автоматизаций (Sprint 29) — видно только owner/admin. «Сделка вошла
- * в стадию → создать задачу ответственному». Правило стреляет один раз на пару
- * (сделка, стадия). Whitelist assignee/priority/lane синхронен с SQL-функцией
- * run_stage_automations(). RLS подстраховывает: запись только owner/admin.
+ * Настройка автоматизаций (S-WF-2B) — видно только owner/admin. Один org-wide
+ * список правил под движок 050 (3 триггера × 4 действия + AND-условия). Правило
+ * стреляет один раз на пару (сделка, trigger_key). RLS подстраховывает: запись
+ * только owner/admin. Редактор — RuleEditorModal.
  */
 export function AutomationsSection() {
   const { data: role } = useOrgRole();
-  const { data: pipelines = [] } = usePipelines();
   const { data: allStages = [] } = usePipelineStages();
   const { data: rules = [] } = useAutomationRules();
   const updateRule = useUpdateAutomationRule();
   const deleteRule = useDeleteAutomationRule();
 
-  const [pipelineId, setPipelineId] = useState<string>('');
-  const activePipelineId = pipelineId || pipelines[0]?.id || '';
+  // null — закрыт; 'new' — пустой редактор; AutomationRule — редактирование.
+  const [editing, setEditing] = useState<AutomationRule | 'new' | null>(null);
+  const [filter, setFilter] = useState<AutomationTriggerType | 'all'>('all');
 
-  const stages = useMemo(
-    () =>
-      allStages
-        .filter((s) => s.pipeline_id === activePipelineId)
-        .sort((a, b) => a.order_index - b.order_index),
-    [allStages, activePipelineId],
-  );
-
-  // Имена стадий по всем воронкам — правило может ссылаться на любую.
   const stageNameById = useMemo(
     () => new Map(allStages.map((s) => [s.id, s.name])),
     [allStages],
   );
   const stageName = (id: string) => stageNameById.get(id) ?? '—';
 
-  const stageOrder = useMemo(
-    () => new Map(allStages.map((s) => [s.id, s.order_index])),
-    [allStages],
-  );
-
-  // Показываем правила активной воронки.
   const visibleRules = useMemo(
-    () =>
-      rules
-        .filter((r) => r.trigger_config.pipeline_id === activePipelineId)
-        .sort(
-          (a, b) =>
-            (stageOrder.get(a.trigger_config.stage_id) ?? 0) -
-            (stageOrder.get(b.trigger_config.stage_id) ?? 0),
-        ),
-    [rules, activePipelineId, stageOrder],
+    () => (filter === 'all' ? rules : rules.filter((r) => r.trigger_type === filter)),
+    [rules, filter],
   );
 
   const canManage = role === 'owner' || role === 'admin';
@@ -208,37 +124,56 @@ export function AutomationsSection() {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Zap size={14} className="text-text-dim" />
-        <h2 className="text-xs font-semibold text-text-dim">Автоматизации</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Zap size={14} className="text-text-dim" />
+          <h2 className="text-xs font-semibold text-text-dim">Автоматизации</h2>
+        </div>
+        <button
+          onClick={() => setEditing('new')}
+          className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+        >
+          <Plus size={13} /> Правило
+        </button>
       </div>
 
       <p className="mb-3 text-[11px] text-text-mute">
-        Когда сделка входит в стадию — автоматически создаётся задача ответственному.
-        Каждое правило срабатывает один раз на сделку в этой стадии.
+        Когда триггер срабатывает и условия выполняются — движок выполняет действие
+        (создать задачу, уведомить, добавить заметку или изменить поле). Каждое правило
+        срабатывает один раз на сделку в рамках триггера.
       </p>
 
-      <select
-        value={activePipelineId}
-        onChange={(e) => setPipelineId(e.target.value)}
-        className="mb-3 w-full rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-text-dim"
-      >
-        {pipelines.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name} · {DIRECTION_LABEL[p.direction] ?? p.direction}
-          </option>
+      {/* Чип-фильтр по типу триггера (поверх полного списка) */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {(['all', ...AUTOMATION_TRIGGER_OPTIONS.map((o) => o.value)] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setFilter(t)}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+              filter === t ? 'bg-accent-l text-accent' : 'bg-surface2 text-text-mute hover:text-text-dim'
+            }`}
+          >
+            {t === 'all' ? 'Все' : AUTOMATION_TRIGGER_LABEL[t]}
+          </button>
         ))}
-      </select>
+      </div>
 
       {visibleRules.length === 0 ? (
         <p className="py-2 text-center text-[12px] text-text-mute">
-          Для этой воронки правила не заданы.
+          {rules.length === 0 ? 'Правила ещё не заданы.' : 'Нет правил этого типа.'}
         </p>
       ) : (
         <div className="divide-y divide-border">
           {visibleRules.map((rule) => (
             <div key={rule.id} className="flex items-center gap-2 py-2">
-              <span className="min-w-0 flex-1 truncate text-[12px] text-text-main" title={describeRule(rule, stageName)}>
+              <span className="shrink-0 rounded-full bg-surface2 px-1.5 py-0.5 text-[9px] font-medium text-text-mute">
+                {AUTOMATION_TRIGGER_LABEL[rule.trigger_type]}
+              </span>
+
+              <span
+                className="min-w-0 flex-1 truncate text-[12px] text-text-main"
+                title={`${rule.name} — ${describeRule(rule, stageName)}`}
+              >
                 {describeRule(rule, stageName)}
               </span>
 
@@ -246,13 +181,20 @@ export function AutomationsSection() {
                 onClick={() => updateRule.mutate({ id: rule.id, is_active: !rule.is_active })}
                 disabled={updateRule.isPending}
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                  rule.is_active
-                    ? 'bg-accent-l text-accent'
-                    : 'bg-surface2 text-text-mute'
+                  rule.is_active ? 'bg-accent-l text-accent' : 'bg-surface2 text-text-mute'
                 }`}
                 title={rule.is_active ? 'Активно — нажмите, чтобы выключить' : 'Выключено — нажмите, чтобы включить'}
               >
                 {rule.is_active ? 'вкл' : 'выкл'}
+              </button>
+
+              <button
+                onClick={() => setEditing(rule)}
+                className="shrink-0 p-1.5 text-text-mute transition-colors hover:text-text-main"
+                aria-label="Изменить правило"
+                title="Изменить правило"
+              >
+                <Pencil size={13} />
               </button>
 
               <button
@@ -269,10 +211,10 @@ export function AutomationsSection() {
         </div>
       )}
 
-      {activePipelineId && (
-        <AddForm
-          pipelineId={activePipelineId}
-          stages={stages.map((s) => ({ id: s.id, name: s.name }))}
+      {editing && (
+        <RuleEditorModal
+          rule={editing === 'new' ? undefined : editing}
+          onClose={() => setEditing(null)}
         />
       )}
     </div>

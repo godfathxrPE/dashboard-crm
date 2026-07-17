@@ -227,24 +227,47 @@ export interface UnmetRequirement {
   hint: string;
 }
 
-// ═══ Sprint 29: Automation v1 (триггер → действие) ═══
+// ═══ Sprint S-WF-2 (миграция 050): Workflow Engine (триггер → условия → действие) ═══
+// Обобщение S29-движка (v1: stage_entered → create_task). Движок 050 поддерживает
+// 3 триггера × 4 действия + conditions (AND-предикаты). Осмысленность union держим
+// через отдельные config-типы; внешний payload из Supabase — jsonb (см. хук: unknown+каст).
 
-/** v1: единственный триггер — вход в стадию. */
-export type AutomationTriggerType = 'stage_entered';
-/** v1: единственное действие — создать задачу. */
-export type AutomationActionType = 'create_task';
-/** Кому назначить создаваемую задачу. */
+/** Триггеры движка 050 (task_overdue — S-WF-2C, в UI НЕ добавлять). */
+export type AutomationTriggerType = 'stage_entered' | 'status_changed' | 'field_changed';
+/** Действия движка 050. */
+export type AutomationActionType = 'create_task' | 'notify' | 'create_activity' | 'set_field';
+/** Кому назначить задачу / кому уведомление. */
 export type AutomationAssignee = 'deal_owner' | 'deal_creator';
 
-export interface AutomationTriggerConfig {
-  pipeline_id: string;
+// ── Trigger configs ──
+export interface StageEnteredConfig {
+  pipeline_id: string;         // SQL матчит по stage_id, но UI/future-фильтр хранит воронку
   stage_id: string;
 }
+export interface StatusChangedConfig {
+  to?: string;                 // опц. целевой статус (пусто ⇒ любой; см. хук/маппинг)
+}
+export interface FieldChangedConfig {
+  field: string;               // имя колонки projects
+}
+export type AutomationTriggerConfig =
+  | StageEnteredConfig
+  | StatusChangedConfig
+  | FieldChangedConfig;
 
+// ── Conditions (AND-предикаты; совпадает с wf_eval_conditions 050) ──
+export type AutomationConditionOp =
+  | 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains' | 'is_null' | 'not_null';
+export interface AutomationCondition {
+  field: string;
+  op: AutomationConditionOp;
+  value: string;               // для is_null/not_null игнорируется
+}
+
+// ── Action configs ──
 /**
- * Конфиг действия create_task. lane/priority/assignee — с whitelist на стороне
- * SQL-функции run_stage_automations() (см. миграцию 029); значения вне списка
- * там заменяются на дефолты 'now'/'normal'/deal_owner.
+ * create_task. lane/priority/assignee — whitelist на стороне SQL
+ * run_stage_automations() (миграция 050); значения вне списка → дефолты.
  */
 export interface AutomationCreateTaskConfig {
   task_text: string;           // поддерживает подстановку {deal} → имя сделки
@@ -253,6 +276,26 @@ export interface AutomationCreateTaskConfig {
   priority: TaskPriority;
   due_in_days: number;
 }
+export interface AutomationNotifyConfig {
+  recipient: AutomationAssignee;   // deal_owner | deal_creator
+  text: string;                    // {deal} → имя сделки
+}
+export interface AutomationActivityConfig {
+  title: string;                   // {deal} → имя сделки
+  description?: string;
+}
+/** Whitelist полей set_field = ровно CASE в SQL 050 (не шире). */
+export type AutomationSetFieldName =
+  | 'next_step' | 'pinned_note' | 'next_action_date' | 'probability';
+export interface AutomationSetFieldConfig {
+  field: AutomationSetFieldName;
+  value: string;                   // SQL кастит per-field (date/int/text)
+}
+export type AutomationActionConfig =
+  | AutomationCreateTaskConfig
+  | AutomationNotifyConfig
+  | AutomationActivityConfig
+  | AutomationSetFieldConfig;
 
 export interface AutomationRule {
   id: string;
@@ -261,7 +304,8 @@ export interface AutomationRule {
   trigger_type: AutomationTriggerType;
   trigger_config: AutomationTriggerConfig;
   action_type: AutomationActionType;
-  action_config: AutomationCreateTaskConfig;
+  action_config: AutomationActionConfig;
+  conditions: AutomationCondition[];   // 050, DEFAULT '[]'
   is_active: boolean;
   created_at: string;
 }
@@ -271,7 +315,8 @@ export interface AutomationRun {
   rule_id: string;
   org_id: string;
   project_id: string;
-  stage_id: string;
+  stage_id: string | null;             // 050: nullable (не-stage триггеры)
+  trigger_key: string;                 // 050: обобщённый ключ идемпотентности
   task_id: string | null;
   fired_at: string;
 }
@@ -377,7 +422,7 @@ export interface Membership {
 // ═══ Sprint 26: Notifications & Invitations ═══
 
 // S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
-export type NotificationType = 'task_assigned' | 'project_assigned' | 'deal_won';
+export type NotificationType = 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;
