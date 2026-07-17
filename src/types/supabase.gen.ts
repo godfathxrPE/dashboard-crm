@@ -1931,6 +1931,7 @@ export type Database = {
           is_milestone: boolean
           lane: Database["public"]["Enums"]["task_lane"]
           org_id: string
+          parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
           remind_min: number | null
@@ -1938,6 +1939,7 @@ export type Database = {
           start_date: string | null
           text: string
           updated_at: string | null
+          wbs_code: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -1952,6 +1954,7 @@ export type Database = {
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
           org_id: string
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           remind_min?: number | null
@@ -1959,6 +1962,7 @@ export type Database = {
           start_date?: string | null
           text: string
           updated_at?: string | null
+          wbs_code?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -1973,6 +1977,7 @@ export type Database = {
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
           org_id?: string
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
           remind_min?: number | null
@@ -1980,6 +1985,7 @@ export type Database = {
           start_date?: string | null
           text?: string
           updated_at?: string | null
+          wbs_code?: string | null
         }
         Relationships: [
           {

@@ -537,7 +537,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id, +046 gantt-даты)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -551,6 +551,8 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 | deadline | timestamptz | |
 | start_date | date | _046 (S-GANTT-DATES-1)_ nullable. Начало задачи (Gantt) |
 | end_date | date | _046 (S-GANTT-DATES-1)_ nullable. Конец задачи; `CHECK tasks_dates_order_chk` (end_date ≥ start_date). Fallback на `deadline::date` — на уровне рендера |
+| parent_task_id | uuid | _052 (S-WBS-1)_ nullable → tasks(id) ON DELETE SET NULL. Родитель WBS-иерархии. Валидатор `check_task_parent_valid` (DEFINER, триггер `trg_zz_check_task_parent` before insert/update of parent_task_id,project_id): self-ref/cross-org/cross-project/цикл (recursive CTE вверх к корню) → `23514`/`23503`/`42501`/`P0001`. Partial-индекс `idx_tasks_parent`. AFTER-триггер `orphan_children_on_project_move` (upd project_id родителя) обнуляет `parent_task_id` осиротевших детей |
+| wbs_code | text | _052 (S-WBS-1)_ nullable. Код WBS (напр. `1.3.11`); префикс у названия на доске/Gantt. Сводный бар на Gantt = обёртка дат детей |
 | remind_min | int | |
 | sort_order | int | DEFAULT 0. С _032_ разрез per-column для проектных задач |
 | assigned_to / created_by | uuid | → profiles |
