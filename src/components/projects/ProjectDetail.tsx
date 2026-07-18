@@ -130,11 +130,19 @@ function CompletenessBadge({ project }: { project: Project }) {
 // Main Detail View
 // ═══════════════════════════════════════════════════════
 
+// PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки
+type Tab = 'activity' | 'board' | 'timeline' | 'quotes';
+
 interface ProjectDetailProps {
   projectId: string;
+  /**
+   * S-IA-DELIVERY-1 (§3.1): роут-контекст для error-state, когда project не
+   * загрузился и его type неизвестен: /deals/[id] → 'deal', /projects/[id] → 'project'.
+   */
+  context: 'deal' | 'project';
 }
 
-export function ProjectDetail({ projectId }: ProjectDetailProps) {
+export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const router = useRouter();
   const { data: project, isLoading, error } = useProject(projectId);
   // Delivery P1: родительская сделка (для ссылки на карточке внедрения)
@@ -163,8 +171,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [modalOpen, setModalOpen] = useState(false);
   // P3: модалка завершения delivery (чеклист вех, гейт 038)
   const [completing, setCompleting] = useState(false);
-  // PCT-1: вкладки нижней секции — Активность / Доска задач
-  const [tab, setTab] = useState<'activity' | 'board' | 'timeline' | 'quotes'>('activity');
+  // S-IA-DELIVERY-1 (M2): null = «пользователь ещё не выбирал» → эффективный таб
+  // деривируется от типа проекта ниже (delivery стартует на Плане, не на ленте).
+  const [tab, setTab] = useState<Tab | null>(null);
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
   // «Выиграна» — двухшаговый выбор причины (симметрия проигрышу, S-WON-REASON-1)
@@ -197,15 +206,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   }
 
   if (error || !project) {
+    // §3.1: тип сущности неизвестен (fetch упал/не нашёл) — copy и «назад» по
+    // роут-контексту, не хардкод «сделки» (/projects — delivery/internal).
+    const isDealCtx = context === 'deal';
     return (
       <div className="rounded-xl border border-red/30 bg-red/5 p-8 text-center">
         <AlertCircle size={24} className="mx-auto text-red" />
-        <p className="mt-2 text-sm text-red">Сделка не найдена</p>
+        <p className="mt-2 text-sm text-red">
+          {isDealCtx ? 'Сделка не найдена' : 'Проект не найден'}
+        </p>
         <button
-          onClick={() => router.push('/deals')}
+          onClick={() => router.push(isDealCtx ? '/deals' : '/projects')}
           className="mt-3 text-xs text-accent hover:underline"
         >
-          ← Вернуться к воронке
+          {isDealCtx ? '← Вернуться к воронке' : '← Вернуться к проектам'}
         </button>
       </div>
     );
@@ -217,6 +231,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const isDelivery = project.type === 'delivery';
   // P2b (B0): единые права управления delivery-проектом (= гарды RLS/RPC)
   const canManage = canManageDeliveryProject(project, orgRole, user?.id);
+  // M2: до явного выбора пользователя — дефолт по типу (derived, без effect):
+  // внедрение живёт планом/датами → «План»; client/internal — лента, как раньше.
+  const activeTab: Tab = tab ?? (isDelivery ? 'board' : 'activity');
   const doHref = safeHref(project.do_url); // фильтр схемы для внешней ссылки 1С:ДО
 
   // S29.1 / Путь B: «живой» контур стадии — из stage_id (pipeline_stages), legacy enum `stage` больше не читаем.
@@ -418,9 +435,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </button>
             </>
           )}
-          {/* Delivery — лёгкая карточка P1: правки инлайн (do_url), модалка форм
-              заточена под client/internal и delivery не редактирует */}
-          {!isDelivery && (
+          {/* S-IA-DELIVERY-1 (§3.2): модалка редактирует и delivery (name/связи/owner,
+              partial-payload). do_url/deadline остаются инлайн на карточке.
+              Для delivery карандаш — по canManage (контракт RLS/RPC, не 42501 в лоб). */}
+          {(!isDelivery || canManage) && (
             <button
               onClick={() => setModalOpen(true)}
               aria-label="Редактировать"
@@ -776,7 +794,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             key={t.value}
             onClick={() => setTab(t.value)}
             className={`-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-              tab === t.value
+              activeTab === t.value
                 ? 'border-accent text-accent'
                 : 'border-transparent text-text-mute hover:text-text-main'
             }`}
@@ -786,14 +804,14 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         ))}
       </div>
 
-      {tab === 'board' && (
+      {activeTab === 'board' && (
         <div className="mb-4">
           {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
           <ProjectBoard projectId={projectId} canManageColumns={canManage} />
         </div>
       )}
 
-      {tab === 'timeline' && (
+      {activeTab === 'timeline' && (
         <GanttTimeline
           projectId={projectId}
           onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
@@ -801,12 +819,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       )}
 
       {/* S-QUOTE-1: КП сделки — только client */}
-      {tab === 'quotes' && project.type === 'client' && (
+      {activeTab === 'quotes' && project.type === 'client' && (
         <QuotesTab deal={project} />
       )}
 
       {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
-      <div className={`mb-4 rounded-xl border border-border bg-surface p-4 ${tab === 'activity' ? '' : 'hidden'}`}>
+      <div className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-text-dim" />

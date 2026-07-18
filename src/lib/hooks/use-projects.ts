@@ -116,6 +116,9 @@ export interface ProjectInsert {
   // Delivery P1: статус меняет «Завершить проект»; delivery создаёт RPC
   status?: Project['status'];
   do_url?: string | null;
+  // S-IA-DELIVERY-1: owner_id всегда уходил в payload спредом ProjectFormValues
+  // (спред обходит excess-property check) — декларируем честно.
+  owner_id?: string | null;
 }
 
 export interface ProjectUpdate extends Partial<ProjectInsert> {

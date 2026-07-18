@@ -73,6 +73,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
 
   const currentType = watch('type');
   const isInternal = currentType === 'internal';
+  // S-IA-DELIVERY-1 (§3.2): edit-режим для delivery — name/связи/owner; sales-поля
+  // (direction/стадия/бюджет/next_step/loss) скрыты, create-path delivery в модалке
+  // НЕТ (спавн только через RPC spawn_delivery_project, как раньше).
+  const isDelivery = (editProject?.type ?? currentType) === 'delivery';
   const currentDirection = watch('direction');
   const currentPipelineId = watch('pipeline_id');
   const currentStageId = watch('stage_id');
@@ -123,6 +127,11 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
         won_reason: editProject.won_reason,
         won_detail: editProject.won_detail,
         owner_id: editProject.owner_id ?? null,
+        // §3.2: delivery-инварианты несём в форму ТОЛЬКО ради superRefine (schema
+        // требует их при type='delivery'); в update-payload они НЕ отправляются
+        // (partial-ветка в onSubmit). Для client/internal здесь null — как и было.
+        parent_deal_id: editProject.parent_deal_id ?? null,
+        delivery_kind: editProject.delivery_kind ?? null,
       });
     } else {
       reset({
@@ -226,6 +235,25 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
   };
 
   const onSubmit = async (values: ProjectFormValues) => {
+    // §3.2 (W2): delivery-edit — строго PARTIAL: только редактируемые поля.
+    // type / stage_id / pipeline_id / parent_deal_id / delivery_kind / progress_* /
+    // do_url / deadline НЕ отправляем — delivery-инварианты и инлайн-поля карточки.
+    if (editProject && values.type === 'delivery') {
+      try {
+        await updateProject.mutateAsync({
+          id: editProject.id,
+          name: values.name,
+          company_id: values.company_id,
+          contact_id: values.contact_id,
+          owner_id: values.owner_id ?? null,
+        });
+        onClose();
+      } catch {
+        // Ошибку показывает глобальный mutationCache.onError (toast); не закрываем.
+      }
+      return;
+    }
+
     let payload: ProjectFormValues;
     if (values.type === 'internal') {
       // Internal — вне воронки: стадийные поля строго null (CHECK-инвариант БД).
@@ -265,7 +293,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     <Modal
       title={
         editProject
-          ? (isInternal ? 'Редактировать проект' : 'Редактировать сделку')
+          ? (isDelivery ? 'Редактировать внедрение' : isInternal ? 'Редактировать проект' : 'Редактировать сделку')
           : (isInternal ? 'Новый проект' : 'Новая сделка')
       }
       onClose={onClose}
@@ -287,7 +315,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
           {/* Name */}
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
-              {isInternal ? 'Название проекта *' : 'Название сделки *'}
+              {isInternal || isDelivery ? 'Название проекта *' : 'Название сделки *'}
             </label>
             <input
               {...register('name')}
@@ -336,7 +364,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
           )}
 
           {/* Direction — segmented control (только client) */}
-          {!isInternal && (
+          {!isInternal && !isDelivery && (
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">
                 Направление
@@ -363,8 +391,9 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
             </div>
           )}
 
-          {/* Stage — dynamic from pipeline (только client) */}
-          {!isInternal && (
+          {/* Stage — dynamic from pipeline (только client; стадию delivery двигает
+              чеврон/kanban карточки, не модалка) */}
+          {!isInternal && !isDelivery && (
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">
                 Стадия
@@ -384,7 +413,9 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
             </div>
           )}
 
-          {/* Budget */}
+          {/* Budget — скрыт для delivery (W8: бюджет внедрения наследуется от сделки,
+              случайная запись из модалки недопустима) */}
+          {!isDelivery && (
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
               Бюджет (₽)
@@ -415,8 +446,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               </p>
             )}
           </div>
+          )}
 
-          {/* Deadline */}
+          {/* Deadline — для delivery правится инлайн на карточке (не дублируем) */}
+          {!isDelivery && (
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">
               Дедлайн
@@ -429,8 +462,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                          focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
+          )}
 
-          {/* Next Step + next action date */}
+          {/* Next Step + next action date — sales-поля, для delivery скрыты */}
+          {!isDelivery && (
           <div className="grid grid-cols-[1fr,auto] gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-text-dim">
@@ -458,9 +493,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               />
             </div>
           </div>
+          )}
 
           {/* Loss reason — only for lost stage */}
-          {isLost && (
+          {!isDelivery && isLost && (
             <div className="space-y-3 rounded-lg border border-red/30 bg-red/5 p-3">
               <h3 className="text-xs font-semibold text-red">Причина проигрыша</h3>
               <div>
