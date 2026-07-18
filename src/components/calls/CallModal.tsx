@@ -12,7 +12,7 @@ import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { Modal } from '@/components/shared/Modal';
 import { deriveFromContact } from '@/lib/forms/derive-links';
-import { localDateKey, localDateTimeKey } from '@/lib/utils/date-helpers';
+import { localDateKey, localDateTimeKey, datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers';
 
 function DetailsSection({ register }: { register: any }) {
   const [expanded, setExpanded] = useState(false);
@@ -106,7 +106,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
         company_id: editCall.company_id,
         contact_id: editCall.contact_id,
         project_id: editCall.project_id,
-        date: editCall.date?.slice(0, 16) ?? '',
+        date: isoToDatetimeLocal(editCall.date) ?? '',
         status: editCall.status,
         next_step: editCall.next_step,
         agreements: editCall.agreements,
@@ -140,10 +140,12 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
 
   const onSubmit = async (values: CallFormValues) => {
     try {
+      // datetime-local (локальное время юзера) → ISO UTC для timestamptz `date`.
+      const payload = { ...values, date: datetimeLocalToIso(values.date) ?? values.date };
       if (editCall) {
-        await update.mutateAsync({ id: editCall.id, ...values });
+        await update.mutateAsync({ id: editCall.id, ...payload });
       } else {
-        await create.mutateAsync(values);
+        await create.mutateAsync(payload);
       }
       onSaved?.({ next_step: values.next_step, project_id: values.project_id });
       onClose();

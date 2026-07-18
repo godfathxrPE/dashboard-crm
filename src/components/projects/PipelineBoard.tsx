@@ -40,6 +40,7 @@ import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { compareByNextAction } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
+import { dealMetrics } from '@/lib/selectors/deal-metrics';
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
@@ -111,38 +112,32 @@ function HeroCard({ label, fmt, value, color, sub }: {
   );
 }
 
-function HeroMetrics({ projects }: { projects: Project[] }) {
-  const { data: allStages } = usePipelineStages();
-  const active = projects.filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
-  const won = projects.filter((p) => p.status === 'won');
-  const lost = projects.filter((p) => p.status === 'lost');
-  const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
-  const closed = won.length + lost.length;
-  const conversion = closed > 0 ? Math.round((won.length / closed) * 100) : 0;
+function HeroMetrics({ projects, pipelineId, stages }: {
+  projects: Project[]; pipelineId?: string; stages?: PipelineStage[];
+}) {
+  // W2: единый источник метрик (совпадает с Обзором). Срез по текущему пайплайну.
+  const m = dealMetrics(projects, { pipelineId, stages });
 
-  // Weighted forecast: Σ budget × probability стадии
-  const weighted = active.reduce((s, p) => {
-    const prob = allStages?.find((st) => st.id === p.stage_id)?.probability ?? 0;
-    return s + (p.budget ?? 0) * prob / 100;
-  }, 0);
-
-  // Цикл: от создания до фактического закрытия (fallback — updated_at до миграции 019)
-  const avgCycle = won.length > 0
+  // Avg цикл — метрика этого экрана (по won в текущем пайплайне), не входит в dealMetrics.
+  const wonInSlice = projects.filter(
+    (p) => p.type === 'client' && p.status === 'won' && (!pipelineId || p.pipeline_id === pipelineId),
+  );
+  const avgCycle = wonInSlice.length > 0
     ? Math.round(
-        won.reduce((s, p) => {
+        wonInSlice.reduce((s, p) => {
           const closedAt = p.actual_close_date ?? p.updated_at;
           return s + (new Date(closedAt).getTime() - new Date(p.created_at).getTime()) / 86400000;
-        }, 0) / won.length,
+        }, 0) / wonInSlice.length,
       )
     : 0;
 
   const metrics: { label: string; value: number; fmt: string; color: string; sub?: string }[] = [
-    { label: 'Активные', value: active.length, fmt: String(active.length), color: 'text-accent' },
+    { label: 'Активные', value: m.active.length, fmt: String(m.active.length), color: 'text-accent', sub: 'по текущему пайплайну' },
     {
-      label: 'Pipeline', value: pipeline, fmt: formatBudget(pipeline), color: 'text-green',
-      sub: pipeline > 0 ? `взвеш. ${formatBudget(Math.round(weighted))}` : undefined,
+      label: 'Pipeline', value: m.pipelineSum, fmt: formatBudget(m.pipelineSum), color: 'text-green',
+      sub: m.pipelineSum > 0 ? `взвеш. ${formatBudget(Math.round(m.weighted))}` : undefined,
     },
-    { label: 'Конверсия', value: conversion, fmt: `${conversion}%`, color: 'text-green' },
+    { label: 'Конверсия', value: m.conversion, fmt: `${m.conversion}%`, color: 'text-green' },
     { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—', color: 'text-text-main' },
   ];
 
@@ -628,7 +623,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
       </div>
 
       {/* Hero Metrics */}
-      <HeroMetrics projects={projects ?? []} />
+      <HeroMetrics projects={projects ?? []} pipelineId={activePipeline?.id} stages={pipelineStages} />
 
       {/* ERP banner when direction=all */}
       {directionFilter === 'all' && erpCount > 0 && (

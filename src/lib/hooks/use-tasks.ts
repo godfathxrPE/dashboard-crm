@@ -1,6 +1,12 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
@@ -8,6 +14,26 @@ import type { TaskLane, Json } from '@/types/database';
 import { logActivity } from './use-activity-log';
 
 const QUERY_KEY = ['tasks'] as const;
+
+// ─── Общая механика optimistic по ВСЕМ срезам префикса ['tasks'] ───────────────
+// Личный борд читает ['tasks'], проектная доска и Гант — ['tasks','board',projectId]
+// (useProjectBoard). Мутации обязаны патчить ОБА, иначе доска «прыгает» назад до
+// рефетча (ровно грабля S-GANTT-VIEW-2, которую чинил useUpdateTaskDates вручную).
+// Кэш каждого среза — Task[].
+type TaskSnapshots = [QueryKey, Task[] | undefined][];
+
+function snapshotTaskCaches(qc: QueryClient): TaskSnapshots {
+  return qc.getQueriesData<Task[]>({ queryKey: QUERY_KEY });
+}
+
+/** Патч по id — единообразно во всех срезах (update/delete/dates). */
+function patchTaskCaches(qc: QueryClient, patch: (old: Task[] | undefined) => Task[]): void {
+  qc.setQueriesData<Task[]>({ queryKey: QUERY_KEY }, patch);
+}
+
+function rollbackTaskCaches(qc: QueryClient, snapshots: TaskSnapshots | undefined): void {
+  for (const [key, data] of snapshots ?? []) qc.setQueryData(key, data);
+}
 
 /**
  * Загрузка всех задач текущего пользователя.
@@ -173,7 +199,7 @@ export function useCreateTask() {
     // Оптимистичное обновление: добавляем в кеш до ответа сервера
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Task[]>(QUERY_KEY);
+      const snapshots = snapshotTaskCaches(queryClient);
 
       const optimistic: Task = {
         id: `temp-${Date.now()}`,
@@ -201,12 +227,15 @@ export function useCreateTask() {
         wbs_code: input.wbs_code ?? null,
       };
 
-      queryClient.setQueryData<Task[]>(QUERY_KEY, (old) => [
-        optimistic,
-        ...(old ?? []),
-      ]);
+      // Личный борд ['tasks'] — всегда; доска ['tasks','board',pid] отфильтрована
+      // .eq('project_id') → добавляем только в доску СВОЕГО проекта.
+      for (const [key] of snapshots) {
+        const isBoard = key[1] === 'board';
+        if (isBoard && (!input.project_id || key[2] !== input.project_id)) continue;
+        queryClient.setQueryData<Task[]>(key, (old) => [optimistic, ...(old ?? [])]);
+      }
 
-      return { previous };
+      return { snapshots };
     },
     onSuccess: (result, input) => {
       if (input.project_id) {
@@ -217,9 +246,7 @@ export function useCreateTask() {
       }
     },
     onError: (_err, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
-      }
+      rollbackTaskCaches(queryClient, context?.snapshots);
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -255,13 +282,15 @@ export function useUpdateTask() {
     },
     onMutate: async ({ id, ...updates }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Task[]>(QUERY_KEY);
+      const snapshots = snapshotTaskCaches(queryClient);
 
-      queryClient.setQueryData<Task[]>(QUERY_KEY, (old) =>
+      // Патч по id во всех срезах: смена column_id из TaskModal двигает карточку
+      // на проектной доске мгновенно, без «прыжка».
+      patchTaskCaches(queryClient, (old) =>
         (old ?? []).map((t) => (t.id === id ? { ...t, ...updates } : t)),
       );
 
-      return { previous };
+      return { snapshots };
     },
     onSuccess: (result, vars) => {
       if (vars.lane === 'done' && result.project_id) {
@@ -269,9 +298,7 @@ export function useUpdateTask() {
       }
     },
     onError: (_err, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
-      }
+      rollbackTaskCaches(queryClient, context?.snapshots);
     },
     onSettled: (_data, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -291,15 +318,15 @@ export function useUpdateTask() {
 /**
  * S-GANTT-VIEW-2: правка дат задачи перетаскиванием бара на Гантте.
  * ГЛАВНАЯ ГРАБЛЯ: Гант читает кэш ['tasks','board',projectId] (useProjectBoard),
- * а useUpdateTask патчит только ['tasks'] — другой ключ → полоса дёргалась бы назад
- * до рефетча. Поэтому onMutate патчит ОБА ключа, onError откатывает оба.
+ * а патч только ['tasks'] → полоса дёргалась бы назад до рефетча. W2: унифицировано
+ * с create/update/delete — общий patchTaskCaches патчит ВСЕ срезы префикса, одна
+ * механика вместо ручного дубля по двум ключам.
  * onSettled: invalidate ['tasks'] (префикс ловит и board) + dashboard/timeline;
  * ['projects']/['delivery-gate'] НЕ нужны — даты не влияют на progress/gate.
  */
-export function useUpdateTaskDates(projectId: string) {
+export function useUpdateTaskDates() {
   const supabase = createClient();
   const queryClient = useQueryClient();
-  const boardKey = ['tasks', 'board', projectId] as const;
 
   return useMutation({
     mutationFn: async ({
@@ -322,22 +349,16 @@ export function useUpdateTaskDates(projectId: string) {
       return data as Task;
     },
     onMutate: async ({ id, start_date, end_date }) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: boardKey }),
-        queryClient.cancelQueries({ queryKey: QUERY_KEY }),
-      ]);
-      const prevBoard = queryClient.getQueryData<Task[]>(boardKey);
-      const prevAll = queryClient.getQueryData<Task[]>(QUERY_KEY);
-      const patch = (old: Task[] | undefined) =>
-        (old ?? []).map((t) => (t.id === id ? { ...t, start_date, end_date } : t));
-      queryClient.setQueryData<Task[]>(boardKey, patch);
-      queryClient.setQueryData<Task[]>(QUERY_KEY, patch);
-      return { prevBoard, prevAll };
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const snapshots = snapshotTaskCaches(queryClient);
+      patchTaskCaches(queryClient, (old) =>
+        (old ?? []).map((t) => (t.id === id ? { ...t, start_date, end_date } : t)),
+      );
+      return { snapshots };
     },
     onError: (_err, _vars, context) => {
-      // откат обоих кэшей (сервер вернул 23514 при нарушении CHECK и т.п.)
-      if (context?.prevBoard !== undefined) queryClient.setQueryData(boardKey, context.prevBoard);
-      if (context?.prevAll !== undefined) queryClient.setQueryData(QUERY_KEY, context.prevAll);
+      // откат всех срезов (сервер вернул 23514 при нарушении CHECK и т.п.)
+      rollbackTaskCaches(queryClient, context?.snapshots);
     },
     onSettled: () => {
       // префикс ['tasks'] инвалидирует и board, и личный борд
@@ -416,18 +437,14 @@ export function useDeleteTask() {
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Task[]>(QUERY_KEY);
+      const snapshots = snapshotTaskCaches(queryClient);
 
-      queryClient.setQueryData<Task[]>(QUERY_KEY, (old) =>
-        (old ?? []).filter((t) => t.id !== id),
-      );
+      patchTaskCaches(queryClient, (old) => (old ?? []).filter((t) => t.id !== id));
 
-      return { previous };
+      return { snapshots };
     },
     onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
-      }
+      rollbackTaskCaches(queryClient, context?.snapshots);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });

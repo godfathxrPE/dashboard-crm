@@ -18,7 +18,8 @@ export function useAlerts(): AlertItem[] {
 
     // Просроченные задачи
     const overdue = (tasks ?? []).filter(
-      (t) => t.lane !== 'done' && t.deadline && t.deadline.slice(0, 10) < todayStr,
+      // deadline — timestamptz: голый slice(0,10) даёт UTC-дату (00:00–03:00 МСК → вчера).
+      (t) => t.lane !== 'done' && t.deadline && localDateKey(new Date(t.deadline)) < todayStr,
     );
     if (overdue.length > 0) {
       alerts.push({

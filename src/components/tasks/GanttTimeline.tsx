@@ -291,7 +291,7 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
 export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const { swimlanes, undated, phaseMode, isLoading, isError } = useProjectSchedule(projectId);
   const { data: team = [] } = useTeamMembers();
-  const updateDates = useUpdateTaskDates(projectId);
+  const updateDates = useUpdateTaskDates();
   const gridRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);   // S-DEPS-1: контекст для измерения стрелок
   const [zoom, setZoom] = useState<GanttZoom>('week');

@@ -72,7 +72,8 @@ export function EventReminder() {
     if (hour >= 9 && hour < 10) {
       tasks.forEach((t) => {
         if (t.lane === 'done' || !t.deadline) return;
-        if (t.deadline.slice(0, 10) !== todayStr) return;
+        // deadline — timestamptz: сравниваем локальную дату, не UTC-срез
+        if (localDateKey(new Date(t.deadline)) !== todayStr) return;
         const key = `task-${t.id}`;
         if (dismissed.current.has(key)) return;
         upcoming.push({

@@ -182,7 +182,8 @@ function MiniKpi() {
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
   const weekCalls = (calls ?? []).filter((c) => c.date >= weekAgo).length;
   const todayStr = localDateKey();
-  const dueTasks = (tasks ?? []).filter((t) => t.lane !== 'done' && t.deadline && t.deadline.slice(0, 10) <= todayStr).length;
+  // deadline — timestamptz: локальная дата, не UTC-срез (единый day-key, как KPI/alerts)
+  const dueTasks = (tasks ?? []).filter((t) => t.lane !== 'done' && t.deadline && localDateKey(new Date(t.deadline)) <= todayStr).length;
   const upMeetings = (meetings ?? []).filter((m) => m.date >= todayStr).length;
 
   const values: Record<string, number> = {

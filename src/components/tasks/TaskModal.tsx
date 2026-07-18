@@ -18,6 +18,7 @@ import {
   taskPriorities,
 } from '@/lib/validators/task';
 import type { Task } from '@/types/entities';
+import { datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -111,7 +112,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         project_id: editTask.project_id,
         company_id: editTask.company_id ?? null,
         contact_id: editTask.contact_id ?? null,
-        deadline: editTask.deadline?.slice(0, 16) ?? null,
+        deadline: isoToDatetimeLocal(editTask.deadline),
         start_date: editTask.start_date ?? null,
         end_date: editTask.end_date ?? null,
         remind_min: editTask.remind_min,
@@ -127,7 +128,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         project_id: defaultProjectId ?? null,
         company_id: defaultCompanyId ?? null,
         contact_id: defaultContactId ?? null,
-        deadline: defaultDeadline?.slice(0, 16) ?? null,
+        deadline: isoToDatetimeLocal(defaultDeadline),
         start_date: null,
         end_date: null,
         remind_min: null,
@@ -139,13 +140,16 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
   }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, reset]);
 
   function onSubmit(values: TaskFormValues) {
+    // datetime-local (локальное время) → ISO UTC для timestamptz `deadline`;
+    // пустая строка → null. start_date/end_date — date-only, идут как есть.
+    const payload = { ...values, deadline: datetimeLocalToIso(values.deadline) };
     if (editTask) {
       updateTask.mutate(
-        { id: editTask.id, ...values },
+        { id: editTask.id, ...payload },
         { onSuccess: () => onClose() },
       );
     } else {
-      createTask.mutate(values, {
+      createTask.mutate(payload, {
         onSuccess: () => {
           reset();
           onClose();

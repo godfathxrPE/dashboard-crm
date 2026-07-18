@@ -16,6 +16,24 @@ export function localDateTimeKey(d: Date = new Date()): string {
   return `${localDateKey(d)}T${hh}:${mm}`;
 }
 
+/** Значение `<input type="datetime-local">` ('YYYY-MM-DDTHH:mm', ЛОКАЛЬНОЕ время
+ *  юзера) → ISO UTC для timestamptz. `new Date('YYYY-MM-DDTHH:mm')` без суффикса
+ *  парсится как локальное время — это и есть смысл конвертера (юзер ввёл 15:00 МСК
+ *  → сохраняем 12:00Z). Пара к isoToDatetimeLocal — обе стороны через один код. */
+export function datetimeLocalToIso(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** ISO UTC из БД (timestamptz) → значение для `<input type="datetime-local">`
+ *  в локальной TZ юзера. Обратное к datetimeLocalToIso: 12:00Z → «15:00» в МСК. */
+export function isoToDatetimeLocal(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : localDateTimeKey(d);
+}
+
 /** Календарная дата YYYY-MM-DD в таймзоне Europe/Moscow — для timestamptz-полей (напр. deadline).
  *  en-CA форматирует как YYYY-MM-DD. Client-аналог `(ts AT TIME ZONE 'Europe/Moscow')::date`. */
 export function mskDateKey(input: string | Date): string {

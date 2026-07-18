@@ -33,15 +33,14 @@ import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import {
-  LEGACY_STAGE_LABELS,
-  formatBudget,
-} from '@/lib/validators/project';
+import { formatBudget } from '@/lib/validators/project';
+import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { PortfolioRiskWidget } from './PortfolioRiskWidget';
 import { staggerClass } from '@/lib/utils/stagger';
 import type { ActivityLog } from '@/types/entities';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { dealMetrics } from '@/lib/selectors/deal-metrics';
 
 // Путь B: фаза бара из phase_group стадии (stage_id → pipeline_stages) → цвет-ключ
 // (совпадает с легаси-фазами fills). Не читаем legacy `stage`.
@@ -81,19 +80,6 @@ function FujiWatermark({ text, color }: { text: string; color?: string }) {
 // ═══════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════
-
-function relativeTime(date: string | null | undefined): string {
-  if (!date) return '—';
-  const diff = Date.now() - new Date(date).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'только что';
-  if (mins < 60) return `${mins}м назад`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}ч назад`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}д назад`;
-  return new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-}
 
 function deadlineUrgency(date: string): { label: string; color: string } {
   const days = Math.ceil(
@@ -172,17 +158,17 @@ function KpiCards() {
   const isFuji = theme === 't-fuji';
 
   const kpi = useMemo(() => {
-    const active = (projects ?? []).filter((p) => p.type === 'client' && p.status !== 'won' && p.status !== 'lost');
-    const won = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'won');
-    const lost = (projects ?? []).filter((p) => p.type === 'client' && p.status === 'lost');
-    const pipeline = active.reduce((s, p) => s + (p.budget ?? 0), 0);
+    // W2: единый источник метрик (совпадает со «Сделками»). Обзор = все направления.
+    const m = dealMetrics(projects ?? []);
+    const active = m.active;
 
     const today = new Date();
     const todayStr = localDateKey(today);
 
     const urgentTasks = (tasks ?? []).filter((t) => {
       if (t.lane === 'done' || !t.deadline) return false;
-      return t.deadline.slice(0, 10) <= todayStr;
+      // deadline — timestamptz: локальная дата, не UTC-срез
+      return localDateKey(new Date(t.deadline)) <= todayStr;
     });
 
     const weekAgo = new Date(today.getTime() - 7 * 86400000).toISOString();
@@ -190,8 +176,7 @@ function KpiCards() {
     const weekCalls = (calls ?? []).filter((c) => c.date >= weekAgo);
     const prevWeekCalls = (calls ?? []).filter((c) => c.date >= twoWeeksAgo && c.date < weekAgo);
 
-    const closed = won.length + lost.length;
-    const conversion = closed > 0 ? Math.round((won.length / closed) * 100) : 0;
+    const conversion = m.conversion;
 
     // Trends: new projects this week vs last week
     const newThisWeek = active.filter((p) => p.created_at >= weekAgo).length;
@@ -199,7 +184,7 @@ function KpiCards() {
 
     return {
       activeProjects: active.length,
-      pipeline,
+      pipeline: m.pipelineSum,
       urgentTasks: urgentTasks.length,
       weekCalls: weekCalls.length,
       conversion,
@@ -233,6 +218,7 @@ function KpiCards() {
       label: 'Сумма pipeline',
       num: kpi.pipeline,
       fmt: (n: number) => formatBudget(Math.round(n)),
+      sub: 'все направления',
       iconBg: 'bg-accent-l text-accent',
       href: '/deals',
     },
@@ -259,7 +245,7 @@ function KpiCards() {
       label: 'Конверсия',
       num: kpi.conversion,
       fmt: (n: number) => `${Math.round(n)}%`,
-      sub: 'won / (won + lost)',
+      sub: 'won / (won + lost) · за всё время',
       iconBg: 'bg-green-l text-green',
       href: '/analytics',
     },
@@ -677,49 +663,6 @@ const EVENT_COLOR: Record<string, string> = {
   comment_added: 'text-text-mute',
   entity_deleted: 'text-red',
 };
-
-const ENTITY_TYPE_LABEL: Record<string, string> = {
-  projects: 'сделка',
-  tasks: 'задача',
-  contacts: 'контакт',
-  companies: 'компания',
-  calls: 'звонок',
-  meetings: 'встреча',
-};
-
-function stageName(key: unknown): string {
-  const s = String(key);
-  return LEGACY_STAGE_LABELS[s] ?? s;
-}
-
-function describeEvent(entry: ActivityLog): string {
-  const p = entry.payload as Record<string, unknown>;
-  switch (entry.event_type) {
-    case 'stage_change':
-      return `Стадия: ${stageName(p.from)} → ${stageName(p.to)}`;
-    case 'call_logged':
-      return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
-    case 'task_created':
-      return `Задача: ${p.title ?? ''}`;
-    case 'task_completed':
-      return `Выполнено: ${p.title ?? ''}`;
-    case 'meeting_scheduled':
-      return `Встреча: ${p.title ?? ''}`;
-    case 'project_updated': {
-      const fields = p.fields_changed as string[] | undefined;
-      return fields ? `Обновлено: ${fields.join(', ')}` : 'Сделка обновлена';
-    }
-    case 'comment_added':
-      return (p.text as string) ?? 'Комментарий';
-    case 'entity_deleted': {
-      const entityType = ENTITY_TYPE_LABEL[p.entity_type as string] ?? String(p.entity_type);
-      const entityName = p.entity_name as string;
-      return `Удалён ${entityType}: ${entityName}`;
-    }
-    default:
-      return entry.event_type;
-  }
-}
 
 const ACTIVITY_TABS = [
   { key: 'all', label: 'Все', filter: () => true },
