@@ -10,6 +10,7 @@ export interface TeamMember {
   id: string;                 // profile id (= auth.uid)
   full_name: string;
   avatar_url: string | null;
+  job_title: string | null;   // S-ONBOARD-1 (061)
   role: OrgRole | null;       // роль в текущей org (из memberships)
   membership_id: string | null;
 }
@@ -29,7 +30,7 @@ export function useTeamMembers() {
       const supabase = createClient();
       const [{ data: profiles, error: pErr }, { data: memberships, error: mErr }] =
         await Promise.all([
-          supabase.from('profiles').select('id, full_name, avatar_url').order('full_name'),
+          supabase.from('profiles').select('id, full_name, avatar_url, job_title').order('full_name'),
           supabase.from('memberships').select('id, profile_id, role'),
         ]);
       if (pErr) throw pErr;
@@ -45,6 +46,7 @@ export function useTeamMembers() {
           id: p.id,
           full_name: p.full_name,
           avatar_url: p.avatar_url,
+          job_title: p.job_title,
           role: m?.role ?? null,
           membership_id: m?.id ?? null,
         };

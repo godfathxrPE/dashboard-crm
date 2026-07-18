@@ -1377,11 +1377,15 @@ export type Database = {
         Relationships: []
       }
       profiles: {
+        // стаб 061 (phone/job_title/onboarded_at) — снять регеном после apply
         Row: {
           avatar_url: string | null
           created_at: string | null
           full_name: string
           id: string
+          job_title: string | null
+          onboarded_at: string | null
+          phone: string | null
           settings: Json | null
           updated_at: string | null
         }
@@ -1390,6 +1394,9 @@ export type Database = {
           created_at?: string | null
           full_name?: string
           id: string
+          job_title?: string | null
+          onboarded_at?: string | null
+          phone?: string | null
           settings?: Json | null
           updated_at?: string | null
         }
@@ -1398,6 +1405,9 @@ export type Database = {
           created_at?: string | null
           full_name?: string
           id?: string
+          job_title?: string | null
+          onboarded_at?: string | null
+          phone?: string | null
           settings?: Json | null
           updated_at?: string | null
         }
@@ -2250,6 +2260,12 @@ export type Database = {
         Returns: undefined
       }
       accept_invitation: { Args: { p_token: string }; Returns: Json }
+      // стабы 061 — снять регеном после apply
+      complete_onboarding: {
+        Args: { p_full_name: string; p_phone: string | null; p_job_title: string | null }
+        Returns: undefined
+      }
+      session_gate: { Args: never; Returns: Json }
       current_org_id: { Args: never; Returns: string }
       current_org_role: { Args: never; Returns: string }
       delete_project_column: {

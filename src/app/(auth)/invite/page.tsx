@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 
-type Phase = 'checking' | 'accepting' | 'invalid' | 'no-token';
+type Phase = 'checking' | 'accepting' | 'invalid' | 'no-token' | 'wrong-email';
 
 function InviteInner() {
   const router = useRouter();
@@ -15,6 +15,9 @@ function InviteInner() {
   const token = params.get('token');
   const qc = useQueryClient();
   const [phase, setPhase] = useState<Phase>('checking');
+  // T1c: инвайт адресован другому email — показываем оба адреса на экране смены аккаунта
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   // StrictMode/двойной эффект — accept зовём один раз на маунт
   const ran = useRef(false);
 
@@ -41,9 +44,11 @@ function InviteInner() {
 
       setPhase('accepting');
       const { data, error } = await supabase.rpc('accept_invitation', { p_token: token });
-      const status = (data as { status?: string } | null)?.status;
+      const result = data as { status?: string; invited_email?: string } | null;
+      const status = result?.status;
 
-      if (error || (status !== 'accepted' && status !== 'unauthenticated' && status !== 'invalid')) {
+      const known = ['accepted', 'unauthenticated', 'invalid', 'wrong_email'];
+      if (error || !status || !known.includes(status)) {
         setPhase('invalid');
         return;
       }
@@ -54,6 +59,13 @@ function InviteInner() {
       }
       if (status === 'invalid') {
         setPhase('invalid');
+        return;
+      }
+      // T1c: токен не сгорел (accepted_at не стемпнут) — объясняем и даём сменить аккаунт
+      if (status === 'wrong_email') {
+        setInvitedEmail(result?.invited_email ?? null);
+        setCurrentEmail(user.email ?? null);
+        setPhase('wrong-email');
         return;
       }
 
@@ -95,6 +107,26 @@ function InviteInner() {
             <h1 className="text-lg font-semibold text-text-main">Ссылка недействительна</h1>
             <p className="text-sm text-text-mute">
               Приглашение уже принято или истекло. Попросите владельца прислать новую ссылку.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={signOut} className="w-full">
+            Выйти
+          </Button>
+        </div>
+      )}
+
+      {phase === 'wrong-email' && (
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <h1 className="text-lg font-semibold text-text-main">
+              Приглашение для другого адреса
+            </h1>
+            <p className="text-sm text-text-mute">
+              Вы вошли как{' '}
+              <span className="font-medium text-text-main">{currentEmail ?? 'другой аккаунт'}</span>
+              , а приглашение отправлено на{' '}
+              <span className="font-medium text-text-main">{invitedEmail ?? 'другой адрес'}</span>.
+              Выйдите и войдите под нужным адресом — ссылка останется действительной.
             </p>
           </div>
           <Button variant="secondary" onClick={signOut} className="w-full">

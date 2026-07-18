@@ -44,6 +44,8 @@ export async function updateSession(request: NextRequest) {
   // /invite обслуживает org-less юзеров — исключён и из auth-bounce, и из org-guard,
   // иначе редирект зациклится (org-less → /invite → org-guard → /invite → …).
   const isInvite = path.startsWith('/invite');
+  // /welcome обслуживает не-онбордившихся — исключён из welcome-гейта по той же причине.
+  const isWelcome = path.startsWith('/welcome');
 
   // Не авторизован → на логин (кроме /login, /callback, /invite).
   // /invite пускаем: его client-страница сама уведёт на /login?next=/invite?token=…,
@@ -71,16 +73,28 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Org-guard: залогинен, но без организации (сбой инвайта / отозванный доступ /
-  // удалён из команды) → на /invite, а не в молчаливо-пустой дашборд
-  // (current_org_id()=NULL → все RLS-SELECT возвращают пусто без ошибок).
-  if (user && !isInvite && !isAuthRoute) {
-    const { data: orgId, error } = await supabase.rpc('current_org_id');
-    // Fail-open при ошибке RPC: не бросаем легитимного члена на /invite из-за
-    // транзиентного сбоя (пустой дашборд — меньшее зло, чем ложный gate).
+  // Org-guard + welcome-гейт одним round-trip (session_gate, 061):
+  // 1) залогинен, но без организации (сбой инвайта / отозванный доступ / удалён
+  //    из команды) → на /invite, а не в молчаливо-пустой дашборд
+  //    (current_org_id()=NULL → все RLS-SELECT возвращают пусто без ошибок);
+  // 2) в орге, но не онбордился (onboarded_at IS NULL) → на /welcome.
+  // Порядок важен: org-less приоритетнее (у него ещё нет орга — сперва /invite).
+  if (user && !isInvite && !isWelcome && !isAuthRoute) {
+    const { data: gate, error } = await supabase.rpc('session_gate');
+    const g = gate as { org_id?: string | null; onboarded?: boolean } | null;
+    const orgId = g?.org_id ?? null;
+    // Fail-open при ошибке RPC (и по org, и по onboarded): не блокируем
+    // легитимного юзера из-за транзиентного сбоя — меньшее зло, чем ложный gate.
+    const onboarded = g?.onboarded ?? true;
     if (!error && !orgId) {
       const url = request.nextUrl.clone();
       url.pathname = '/invite';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    if (!error && orgId && !onboarded) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/welcome';
       url.search = '';
       return NextResponse.redirect(url);
     }

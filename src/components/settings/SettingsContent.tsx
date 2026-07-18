@@ -1,12 +1,15 @@
 'use client';
 
-import { Settings, Palette, Database, Upload, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Settings, Palette, Upload, ExternalLink, Pencil } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { GatesSection } from '@/components/settings/GatesSection';
 import { AutomationsSection } from '@/components/settings/AutomationsSection';
+import { ProfileForm } from '@/components/settings/ProfileForm';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { useMyProfile } from '@/lib/hooks/use-profile';
 import type { OrgRole } from '@/types/database';
 
 const ORG_ROLE_LABEL: Record<OrgRole, string> = {
@@ -32,6 +35,8 @@ interface SettingsContentProps {
 export function SettingsContent({ userEmail }: SettingsContentProps) {
   const { theme, setTheme } = useThemeStore();
   const { data: role } = useOrgRole();
+  const { data: profile } = useMyProfile();
+  const [editingProfile, setEditingProfile] = useState(false);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -41,23 +46,53 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
       </div>
 
       <div className="space-y-4">
-        {/* Profile */}
+        {/* Profile — self-service (S-ONBOARD-1): свой профиль правит каждый сам */}
         <div className="rounded-xl border border-border bg-surface p-4">
-          <h2 className="mb-3 text-xs font-semibold text-text-dim">Профиль</h2>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
-              {userEmail.slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-main">{userEmail}</p>
-              <p className="text-[10px] text-text-mute">Supabase Auth · Magic Link</p>
-            </div>
-            {role && (
-              <span className="ml-auto rounded-full border border-border bg-surface2 px-2.5 py-1 text-[11px] font-medium text-text-dim">
-                {ORG_ROLE_LABEL[role]}
-              </span>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-semibold text-text-dim">Профиль</h2>
+            {!editingProfile && (
+              <button
+                onClick={() => setEditingProfile(true)}
+                className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+              >
+                <Pencil size={11} /> Редактировать
+              </button>
             )}
           </div>
+
+          {editingProfile ? (
+            <ProfileForm mode="settings" onDone={() => setEditingProfile(false)} />
+          ) : (
+            <div className="flex items-center gap-3">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt="Аватар"
+                  className="h-10 w-10 rounded-full border border-border object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
+                  {(profile?.full_name || userEmail).slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-text-main">
+                  {profile?.full_name || userEmail}
+                </p>
+                <p className="truncate text-[10px] text-text-mute">
+                  {[profile?.job_title, profile?.phone, userEmail]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+              {role && (
+                <span className="ml-auto shrink-0 rounded-full border border-border bg-surface2 px-2.5 py-1 text-[11px] font-medium text-text-dim">
+                  {ORG_ROLE_LABEL[role]}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Team (owner/admin only) */}

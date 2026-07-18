@@ -66,14 +66,26 @@ function MemberRow({
 
   return (
     <div className="flex items-center gap-3 py-2">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-bold text-accent">
-        {initials(member.full_name)}
-      </span>
+      {member.avatar_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={member.avatar_url}
+          alt=""
+          className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
+        />
+      ) : (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-bold text-accent">
+          {initials(member.full_name)}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-text-main">
           {member.full_name || 'Без имени'}
           {isSelf && <span className="ml-1 text-[11px] text-text-mute">(вы)</span>}
         </p>
+        {member.job_title && (
+          <p className="truncate text-[11px] text-text-dim">{member.job_title}</p>
+        )}
       </div>
 
       {readOnly ? (
