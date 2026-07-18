@@ -80,7 +80,7 @@ export function StatusBeacon({ alerts }: StatusBeaconProps) {
         <div
           className={cn(
             'absolute right-0 top-full mt-2 z-[9999]',
-            'w-80 rounded-lg border border-border bg-surface elevation-3',
+            'w-80 rounded-lg border border-border bg-popover elevation-3',
             'beacon-panel-in',
           )}
         >

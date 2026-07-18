@@ -107,7 +107,7 @@ export function ContentHeader() {
             <Sun size={14} />
           </button>
           {themeOpen && (
-            <div className="absolute right-0 top-full z-[9999] mt-1 w-40 border bg-surface p-1" style={{ borderWidth: '0.5px' }}>
+            <div className="absolute right-0 top-full z-[9999] mt-1 w-40 rounded-lg border border-border bg-popover p-1 shadow-lg" style={{ borderWidth: '0.5px' }}>
               {THEMES.map((t) => (
                 <button
                   key={t}

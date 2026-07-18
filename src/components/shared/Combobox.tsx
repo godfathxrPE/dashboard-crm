@@ -144,7 +144,7 @@ export function Combobox({
         <ul
           ref={listRef}
           style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
-          className="max-h-48 overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+          className="max-h-48 overflow-auto rounded-lg border border-border bg-popover py-1 shadow-lg"
         >
           {filtered.length === 0 && (
             <li className="px-3 py-2 text-xs text-text-mute">Ничего не найдено</li>

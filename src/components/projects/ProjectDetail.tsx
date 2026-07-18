@@ -129,7 +129,7 @@ function CompletenessBadge({ project }: { project: Project }) {
         {filled}/{total}
       </button>
       {open && missing.length > 0 && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-surface p-2 elevation-2">
+        <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-popover p-2 elevation-2">
           <p className="mb-1 text-[10px] font-medium text-text-mute">Не заполнено:</p>
           {missing.map((f) => (
             <div key={f.key} className="text-xs text-text-dim py-0.5">{f.label}</div>
@@ -319,7 +319,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             {!isDelivery && <CompletenessBadge project={project} />}
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${headerProb != null && headerProb > 50 ? 'bg-green/10 text-green' : 'bg-accent-l text-accent'}`}>
+            {/* S-UI-POLISH-1 (п.3): пилюля текущей стадии — solid-акцент (bg-accent/green
+                + текст на --bg), а не тинт: находится взглядом за секунду в любой теме */}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}>
               {(() => {
                 // Delivery: «Состояние · текущая фаза» (phase_group → лейбл, стадия = фаза СДР)
                 if (isDelivery && headerStage) {

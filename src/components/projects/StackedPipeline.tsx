@@ -251,11 +251,14 @@ function Segment({
       style={{
         clipPath: clip,
         backgroundColor:
-          state === 'current' ? 'var(--text)' :
+          // S-UI-POLISH-1 (п.3): активный сегмент — акцентная заливка (читается в
+          // любой теме, цвет = «в работе»); внешний ring/outline на clip-path не
+          // следует полигону, поэтому берём контрастом fill+инверсия текста.
+          state === 'current' ? 'var(--accent)' :
           state === 'done' ? 'var(--border2)' :
           'var(--surface2)',
         // current: инверсия через --bg, НЕ --surface — у тёмных тем surface
-        // полупрозрачно-белый и текст пропадал на светлой заливке --text
+        // полупрозрачно-белый и текст пропадал на заливке
         color:
           state === 'current' ? 'var(--bg)' :
           state === 'done' ? 'var(--text-dim)' :

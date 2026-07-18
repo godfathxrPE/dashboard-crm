@@ -131,11 +131,13 @@ function Segment({
       style={{
         clipPath: clip,
         backgroundColor:
-          state === 'current' ? 'var(--text)' :
+          // S-UI-POLISH-1 (п.3): акцентная заливка активного сегмента + инверсия
+          // текста на --bg (у тёмных тем --surface полупрозрачен → текст пропадал).
+          state === 'current' ? 'var(--accent)' :
           state === 'done' ? 'var(--border2)' :
           'var(--surface2)',
         color:
-          state === 'current' ? 'var(--surface)' :
+          state === 'current' ? 'var(--bg)' :
           state === 'done' ? 'var(--text-dim)' :
           'var(--text-mute)',
       }}

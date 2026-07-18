@@ -125,7 +125,7 @@ export function AssigneeSelect({
           <ul
             ref={popupRef}
             style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
-            className="max-h-56 overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+            className="max-h-56 overflow-auto rounded-lg border border-border bg-popover py-1 shadow-lg"
           >
             <li
               onMouseDown={() => pick(null)}

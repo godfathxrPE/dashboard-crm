@@ -17,6 +17,7 @@
 /* ═══ Claude (default, light) ═══ */
 :root {
   --bg: #f5f4ef;  --surface: #ffffff;  --surface2: #f0efe9;  --surface3: #e5e3dc;
+  --popover: var(--surface);  /* S-UI-POLISH-1: непрозрачный слой всплывающих элементов; светлые темы = surface, тёмные — solid hex ниже */
   --border: #e5e3dc;  --border2: #d4d2ca;  --border-input: #8c8c8c;  /* P2 §1.4.11: интерактив-рамка ≥3:1 к surface (3.36:1), декор-border не трогаем */
   --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #6f6d68;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
@@ -51,6 +52,7 @@
 /* ═══ Frost (dark, glassmorphism) ═══ */
 .t-frost {
   --bg: #0d1020;  --surface: rgba(255,255,255,0.07);  --surface2: rgba(255,255,255,0.04);  --surface3: rgba(255,255,255,0.10);
+  --popover: #1e2233;  /* S-UI-POLISH-1: solid, единый источник и для [data-modal] */
   --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.46:1 к surface */
   --text: #eef2ff;  --text-dim: #94a4d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
@@ -83,6 +85,7 @@
 /* ═══ Aurora (dark, neon) ═══ */
 .t-aurora {
   --bg: #0a0e1a;  --surface: rgba(255,255,255,0.055);  --surface2: rgba(255,255,255,0.035);  --surface3: rgba(255,255,255,0.08);
+  --popover: #1a1e2c;  /* S-UI-POLISH-1: solid, единый источник и для [data-modal] */
   --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.63:1 к surface */
   --text: #e8f0ff;  --text-dim: #94a8d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
@@ -116,6 +119,7 @@
 /* ═══ Tidal (dark, oceanic) ═══ */
 .t-tidal {
   --bg: #080f0d;  --surface: rgba(60,140,100,0.07);  --surface2: rgba(60,140,100,0.04);  --surface3: rgba(60,140,100,0.10);
+  --popover: #102119;  /* S-UI-POLISH-1: solid, единый источник и для [data-modal] */
   --border: rgba(80,160,120,0.15);  --border2: rgba(80,160,120,0.25);  --border-input: rgba(255,255,255,0.37);  /* P2 §1.4.11: 3.44:1 к surface */
   --text: #c0d8cc;  --text-dim: #7aa08c;  --text-mute: #709080;
   --sidebar-indicator: rgba(255,255,255,0.08);  --sidebar-active-text: var(--accent);
@@ -153,6 +157,7 @@
 .t-aura {
   /* Контраст: сероватый фон страницы + чисто-белые виджеты сверху */
   --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
+  --popover: var(--surface);  /* S-UI-POLISH-1: светлая тема — surface уже непрозрачен */
   --border: #E2E2EC;  --border2: #D2D2DE;  --border-input: #8a8a9a;  /* P2 §1.4.11: 3.40:1 к surface, прохладный */
   /* text-dim/mute затемнены до AA на белом И на сером --bg (см. аудит WCAG 2.2) */
   --text: #16161D;  --text-dim: #59596D;  --text-mute: #61617A;  /* P1 §2.7: 4.39:1 на surface3 → 5.01:1 (тише dim 5.7:1) */
@@ -219,6 +224,7 @@
 /* ═══ Washi 和紙 (light, Japanese minimalism) ═══ */
 .t-washi {
   --bg: #F5F0E8;  --surface: #FDFCFA;  --surface2: #EDE7DB;  --surface3: #E5DFD5;
+  --popover: var(--surface);  /* S-UI-POLISH-1: светлая тема — surface уже непрозрачен */
   --border: #D8D2C8;  --border2: #E5DFD5;  --border-input: #8a8073;  /* P2 §1.4.11: 3.78:1 к surface, тёплый серо-коричневый */
   /* Sumi frame tokens */
   --sidebar-bg: #2C2C2C;
@@ -381,6 +387,7 @@
 /* ═══ Fuji 富士 (light, warm indigo frame) ═══ */
 .t-fuji {
   --bg: #EDE8DF;  --surface: #FDFCF8;  --surface2: #F0EBE2;  --surface3: #E3DDD2;
+  --popover: var(--surface);  /* S-UI-POLISH-1: светлая тема — surface уже непрозрачен */
   --border: #DDD5C5;  --border2: #C8C0B0;  --border-input: #877e70;  /* P2 §1.4.11: 3.90:1 к surface, тёплая рамка (не индиго) */
   --text: #1A2744;  --text-dim: #545C64;  --text-mute: #5C626A;  /* P1 §2.7: dim 4.12→5.03, mute 4.17→4.56 на surface3 (mute тише dim) */
   --sidebar-indicator: transparent;  --sidebar-active-text: #C4AA78;
@@ -1353,9 +1360,10 @@ input[type="checkbox"]:indeterminate {
    тон). `[data-modal]` покрывает и модалки, и CommandPalette (у неё тот же
    атрибут). backdrop-filter вешаем на ОВЕРЛЕЙ, не на [data-modal] (вложенный
    фильтр ломает сэмплинг в Chromium). */
-.t-frost  [data-modal] { background: #1e2233 !important; }
-.t-aurora [data-modal] { background: #1a1e2c !important; }
-.t-tidal  [data-modal] { background: #102119 !important; }
+/* S-UI-POLISH-1: единый источник solid-цвета — токен --popover (см. theme-блоки). */
+.t-frost  [data-modal] { background: var(--popover) !important; }
+.t-aurora [data-modal] { background: var(--popover) !important; }
+.t-tidal  [data-modal] { background: var(--popover) !important; }
 .t-frost  [data-modal-overlay],
 .t-aurora [data-modal-overlay],
 .t-tidal  [data-modal-overlay] {

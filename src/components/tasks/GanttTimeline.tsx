@@ -972,7 +972,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
       {/* Общий fixed-поповер (эскейпит overflow таймлайна; следует за курсором) */}
       {tip && (
         <div
-          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs shadow-lg"
           style={{ left: tip.x + 12, top: tip.y + 12 }}
         >
           <div className="font-medium text-text-main">{tip.text}</div>
@@ -986,7 +986,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
       {edgeMenu && (
         <div
           ref={edgeMenuRef}
-          className="fixed z-50 rounded-lg border border-border bg-surface2 p-2.5 text-xs shadow-lg"
+          className="fixed z-50 rounded-lg border border-border bg-popover p-2.5 text-xs shadow-lg"
           style={{ left: edgeMenu.x + 8, top: edgeMenu.y + 8 }}
         >
           <div className="flex items-center gap-1.5">

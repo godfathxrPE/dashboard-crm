@@ -348,7 +348,7 @@ export function DataTable<T>({
       {/* Floating Bulk Action Bar — portal to body to escape overflow/transform ancestors */}
       {selectable && bulkActions && selectedIds.size > 0 && typeof document !== 'undefined' && createPortal(
         <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 flex items-center gap-3
-                        rounded-xl border border-border bg-surface px-4 py-2.5
+                        rounded-xl border border-border bg-popover px-4 py-2.5
                         shadow-lg bulk-bar-enter">
           <span className="text-sm font-medium text-text-main tabular-nums">
             {selectedIds.size} выбрано
