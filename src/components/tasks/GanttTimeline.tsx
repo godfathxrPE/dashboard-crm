@@ -89,9 +89,14 @@ const ddmm = (k: string) => `${k.slice(8, 10)}.${k.slice(5, 7)}`;
 
 const EDGE_PX = 6;    // ширина resize-зоны у краёв бара
 const CLICK_PX = 4;   // смещение < порога = клик (открыть модалку), не drag
+// S-GANTT-UX-2 (B3): полуширина fallback-оси (today±N дней), когда датированных задач
+// нет вовсе (проект из шаблона) — иначе chip из «Без дат» некуда дропать.
+const UNDATED_AXIS_PAD_DAYS = 14;
 
 type DragMode = 'move' | 'left' | 'right';
 type DragState = { mode: DragMode; startX: number; bucketPx: number; rawDx: number };
+// S-GANTT-UX-2: drag chip из «Без дат» — hoverIdx = бакет под курсором (null вне таймлайна)
+type UndatedDrag = { task: Task; startX: number; startY: number; moved: boolean; hoverIdx: number | null };
 
 interface GanttBarProps {
   gt: GanttTask;
@@ -208,7 +213,9 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   // click-vs-drag). Иначе — нативные Pointer Events VIEW-2.
   // W6 (S-WBS-1): сводный бар (isSummary) не таскается — иначе useUpdateTaskDates
   // записал бы envelope-даты детей как реальные даты родителя. Клик = только onEditTask.
-  const draggable = !linkMode && !gt.isSummary;
+  // S-GANTT-UX-2 (W4): без canManage drag/resize отключены — после 065 member видит
+  // Гант, но write упрётся в RLS 42501; бар для него = только клик (edit-модалка).
+  const draggable = !linkMode && !gt.isSummary && canManage;
   const dragHandlers = draggable
     ? {
         onPointerDown: (ev: React.PointerEvent) => startDrag(ev, 'move'),
@@ -219,10 +226,10 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
     : undefined;
   const linkClick = linkMode
     ? { onClick: () => onLinkSelect(gt.task.id) }
-    : gt.isSummary
+    : !draggable
       ? { onClick: () => onEditTask(gt.task) }
       : undefined;
-  const cursorClass = (linkMode || gt.isSummary) ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
+  const cursorClass = draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
   const ringClass = isLinkSource ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
   // S-CRIT-PATH: акцентная обводка через outline (var(--accent), не хардкод; отдельное
   // CSS-свойство от ring — не клобберит link-source, оба состояния сосуществуют).
@@ -628,18 +635,30 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     };
   }, [edgeMenu]);
 
+  const hasUndated = filteredUndated.length > 0;
+
   const model = useMemo(() => {
     const allTasks: GanttTask[] = visibleSwimlanes.flatMap((sl) => sl.tasks);
-    if (allTasks.length === 0) {
+    let min: string;
+    let max: string;
+    if (allTasks.length > 0) {
+      min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
+      max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
+    } else if (hasUndated) {
+      // S-GANTT-UX-2 (B3): only-undated (проект из шаблона) — бакетов из задач нет,
+      // а drop из «Без дат» без оси мёртв. Временная ось today±N; как только появится
+      // первая датированная задача, ось снова строится из дат.
+      const today = mskDateKey(new Date());
+      min = shiftDateKeyByBuckets(today, 'day', -UNDATED_AXIS_PAD_DAYS);
+      max = shiftDateKeyByBuckets(today, 'day', UNDATED_AXIS_PAD_DAYS);
+    } else {
       return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), todayIdx: -1 };
     }
-    const min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
-    const max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
     const buckets = buildBuckets(min, max, zoom);
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
-  }, [visibleSwimlanes, zoom]);
+  }, [visibleSwimlanes, hasUndated, zoom]);
 
   // Ширина бакета в рантайме (сетка minmax(28px,1fr) — динамическая, хардкод нельзя).
   // Снимаем с шапки бакетов на каждый pointerdown.
@@ -647,6 +666,96 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     const w = gridRef.current?.getBoundingClientRect().width ?? 0;
     return model.buckets.length ? w / model.buckets.length : 0;
   }, [model.buckets.length]);
+
+  // S-GANTT-UX-2 (W4): единая запись дат с toast'ом — canManage лишь UI-гейт,
+  // RLS-отказ (42501) не должен молча откатывать бар без объяснения.
+  const commitDates = useCallback(
+    (v: { id: string; start_date: string; end_date: string }) =>
+      updateDates.mutate(v, {
+        onError: () => toast.error('Не удалось изменить даты (нет прав или сеть)'),
+      }),
+    [updateDates.mutate],
+  );
+
+  // S-GANTT-UX-2: drag chip из «Без дат» на таймлайн (нативные Pointer Events, как
+  // бары VIEW-2). Дата = ключ бакета под курсором; запись строго через
+  // useUpdateTaskDates (patchTaskCaches уберёт chip и покажет бар во всех срезах).
+  // Источник правды — ref (события в burst приходят ДО re-render, state-замыкание
+  // отстаёт → быстрый свайп терял moved и открывал модалку); state — только рендер призрака.
+  const undatedDragRef = useRef<UndatedDrag | null>(null);
+  const [undatedDrag, setUndatedDrag] = useState<UndatedDrag | null>(null);
+  const applyUndatedDrag = useCallback((v: UndatedDrag | null) => {
+    undatedDragRef.current = v;
+    // дедуп setState (гоча measurement-loop): идентичное состояние → prev, React бейлит
+    setUndatedDrag((prev) => {
+      if (prev === v) return prev;
+      if (prev && v && prev.task.id === v.task.id && prev.moved === v.moved && prev.hoverIdx === v.hoverIdx) return prev;
+      return v;
+    });
+  }, []);
+
+  const undatedDragStart = useCallback(
+    (task: Task) => (ev: React.PointerEvent) => {
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      applyUndatedDrag({ task, startX: ev.clientX, startY: ev.clientY, moved: false, hoverIdx: null });
+    },
+    [applyUndatedDrag],
+  );
+
+  const undatedDragMove = useCallback(
+    (ev: React.PointerEvent) => {
+      const d = undatedDragRef.current;
+      if (!d) return; // pointermove летит и на голый hover — DOM не меряем
+      const x = ev.clientX;
+      const y = ev.clientY;
+      const moved = d.moved || Math.abs(x - d.startX) >= CLICK_PX || Math.abs(y - d.startY) >= CLICK_PX;
+      // «Над таймлайном» = x в границах бакет-сетки, y в границах timeline-body
+      let hoverIdx: number | null = null;
+      const grid = gridRef.current;
+      const body = bodyRef.current;
+      if (moved && grid && body && model.buckets.length > 0) {
+        const gr = grid.getBoundingClientRect();
+        const br = body.getBoundingClientRect();
+        if (x >= gr.left && x < gr.right && y >= br.top && y <= br.bottom) {
+          hoverIdx = Math.min(
+            model.buckets.length - 1,
+            Math.max(0, Math.floor((x - gr.left) / (gr.width / model.buckets.length))),
+          );
+        }
+      }
+      if (moved === d.moved && hoverIdx === d.hoverIdx) return;
+      applyUndatedDrag({ ...d, moved, hoverIdx });
+    },
+    [model.buckets.length, applyUndatedDrag],
+  );
+
+  const undatedDragUp = useCallback(
+    (ev: React.PointerEvent) => {
+      try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      const d = undatedDragRef.current;
+      applyUndatedDrag(null);
+      if (!d) return;
+      if (!d.moved) {
+        onEditTask(d.task); // мелкое смещение = клик (W6, тот же CLICK_PX, что бары)
+        return;
+      }
+      const bucket = d.hoverIdx !== null ? model.buckets[d.hoverIdx] : undefined;
+      if (bucket) {
+        // start=end=ключ бакета (Пн/1-е на неделя/месяц — как bar-snap VIEW-2);
+        // start==end валиден по CHECK tasks_dates_order_chk (046)
+        commitDates({ id: d.task.id, start_date: bucket.key, end_date: bucket.key });
+      }
+    },
+    [model.buckets, onEditTask, commitDates, applyUndatedDrag],
+  );
+
+  const undatedDragCancel = useCallback(
+    (ev: React.PointerEvent) => {
+      try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      applyUndatedDrag(null);
+    },
+    [applyUndatedDrag],
+  );
 
   // S-DEPS-1: измеряем позиции баров из DOM (бары позиционируются grid-column, не
   // left/width — аналитический пересчёт хрупок). Стрелка: правый край pred → левый
@@ -906,7 +1015,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                           e={e}
                           getBucketPx={getBucketPx}
                           onEditTask={onEditTask}
-                          onDates={updateDates.mutate}
+                          onDates={commitDates}
                           setTip={setTip}
                           assignee={assignee}
                           status={status}
@@ -923,10 +1032,26 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 </div>
               ))}
 
+              {/* S-GANTT-UX-2 (B3): fallback-ось без единого бара — пустой ряд, чтобы
+                  timeline-body имел высоту-приёмник для drop из «Без дат» */}
+              {laneRows.length === 0 && (
+                <div className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }} />
+              )}
+
               {/* Today line — оверлей поверх шапки+рядов, выровнен по той же бакет-сетке */}
               {todayIdx !== -1 && (
                 <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
                   <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
+                </div>
+              )}
+
+              {/* S-GANTT-UX-2: призрак дня под курсором при drag chip из «Без дат» */}
+              {undatedDrag?.hoverIdx != null && (
+                <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
+                  <div
+                    style={{ gridColumn: `${undatedDrag.hoverIdx + 1}` }}
+                    className="border-x border-accent bg-accent-l opacity-60"
+                  />
                 </div>
               )}
 
@@ -1042,24 +1167,37 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         <div className="mt-3 border-t border-border/40 pt-2">
           <div className="mb-1 text-[10px] uppercase tracking-wide text-text-mute">Без дат</div>
           <div className="flex flex-wrap gap-1.5">
+            {/* S-GANTT-UX-2: chip таскается на таймлайн (canManage) — pointer-flow сам
+                различает клик (edit) и drag по CLICK_PX; без canManage — обычный клик */}
             {filteredUndated.map((task) => (
               <div
                 key={task.id}
-                className="group flex max-w-[200px] items-center gap-1 rounded border border-border px-2 py-1 text-xs text-text-dim"
+                role="button"
+                tabIndex={0}
+                {...(canManage
+                  ? {
+                      onPointerDown: undatedDragStart(task),
+                      onPointerMove: undatedDragMove,
+                      onPointerUp: undatedDragUp,
+                      onPointerCancel: undatedDragCancel,
+                    }
+                  : { onClick: () => onEditTask(task) })}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEditTask(task); }
+                }}
+                className={`group flex max-w-[200px] items-center gap-1 rounded border px-2 py-1 text-xs text-text-dim hover:text-text-main ${
+                  undatedDrag?.task.id === task.id ? 'border-accent' : 'border-border'
+                } ${canManage ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                style={{ touchAction: 'none' }}
                 title={task.text}
               >
-                <button
-                  type="button"
-                  onClick={() => onEditTask(task)}
-                  className="truncate hover:text-text-main"
-                >
-                  {task.text}
-                </button>
-                {/* S-GANTT-UX-2: удаление undated-задачи (не вложенный button — chip стал div) */}
+                <span className="truncate">{task.text}</span>
+                {/* удаление undated-задачи; stopPropagation на pointerdown — не стартовать drag */}
                 {canManage && (
                   <button
                     type="button"
-                    onClick={() => handleDeleteTask(task, false)}
+                    onPointerDown={(ev) => ev.stopPropagation()}
+                    onClick={(ev) => { ev.stopPropagation(); handleDeleteTask(task, false); }}
                     className="shrink-0 text-red opacity-0 transition-opacity group-hover:opacity-70 hover:!opacity-100"
                     aria-label={`Удалить задачу «${task.text}»`}
                     title="Удалить задачу"
