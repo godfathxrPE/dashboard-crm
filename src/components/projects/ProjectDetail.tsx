@@ -46,6 +46,7 @@ import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
 import { ProjectFiles } from './ProjectFiles';
+import { ProjectVideos } from './ProjectVideos';
 import { QuotesTab } from './QuotesTab';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
@@ -831,6 +832,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
       {/* ═══ Files ═══ */}
       <ProjectFiles projectId={projectId} />
+
+      {/* ═══ Videos (S-VIDEO-EMBED-1) ═══ */}
+      <ProjectVideos projectId={projectId} canManage={canManage} />
 
       {/* PCT-1: вкладки Активность / Доска задач */}
       <div className="mb-3 flex gap-1 border-b border-border">

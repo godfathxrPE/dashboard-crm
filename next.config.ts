@@ -10,7 +10,14 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  { key: 'Content-Security-Policy', value: "object-src 'none'; base-uri 'self'; frame-ancestors 'none'" },
+  // frame-src: whitelist embed-плееров (S-VIDEO-EMBED-1) — только хосты, которые
+  // отдаёт parseVideoUrl (video-embed-helpers.ts); держать списки синхронно.
+  {
+    key: 'Content-Security-Policy',
+    value:
+      "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; " +
+      'frame-src https://www.youtube.com https://youtube.com https://vk.com https://vkvideo.ru https://rutube.ru',
+  },
 ];
 
 const nextConfig: NextConfig = {
