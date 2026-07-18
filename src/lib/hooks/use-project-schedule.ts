@@ -189,6 +189,11 @@ export function useProjectSchedule(projectId: string): ProjectSchedule {
     for (const sl of swimlanes) {
       sl.tasks = buildTree(sl.tasks);
     }
+    // Fix (прод): бакет «Без дат» шёл в порядке выборки из БД (вразнобой). Ключ —
+    // wbs_code если заполнен, иначе номер этапа в начале task.text; numeric-aware,
+    // чтобы «1.2» < «1.10» и «1.x» < «2.x». Array.sort в V8 стабильна.
+    const sortKey = (t: Task) => (t.wbs_code && t.wbs_code.trim()) ? t.wbs_code : t.text;
+    undated.sort((a, b) => sortKey(a).localeCompare(sortKey(b), 'ru', { numeric: true }));
     return { swimlanes, undated, phaseMode, isLoading: tL || cL, isError: tE || cE };
   }, [tasks, columns, tL, cL, tE, cE]);
 }
