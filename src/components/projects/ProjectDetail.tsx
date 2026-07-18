@@ -51,6 +51,7 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
+import { PlanImportButton } from '@/components/tasks/PlanImport';
 import dynamic from 'next/dynamic';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -857,6 +858,12 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
       {activeTab === 'board' && (
         <div className="mb-4">
+          {/* S-PLAN-IMPORT-1 (W8): кнопка НАД доской, не внутри ProjectBoard */}
+          {isDelivery && (
+            <div className="mb-2 flex justify-end">
+              <PlanImportButton projectId={projectId} canImport={canManage} />
+            </div>
+          )}
           {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
           <ProjectBoard projectId={projectId} canManageColumns={canManage} />
         </div>
