@@ -7,13 +7,14 @@ import type { Invitation, InvitableRole } from '@/types/database';
 const QUERY_KEY = ['invitations'] as const;
 
 /**
- * Ссылка для ручной передачи приглашённому. Токен в URL НЕ кладём — матчинг при
- * signup идёт по email (apply_pending_invites). Параметр `invited=1` — только для
- * UX-текста на странице входа. Email-отправка появится в S30.
+ * Ссылка-приглашение для ручной передачи (T1a, токен-flow). Токен-uuid в URL —
+ * bearer-секрет: по нему `/invite` зовёт accept_invitation(token) и создаёт membership
+ * для залогиненного пользователя. Заменяет старый login-flow с матчингом по email
+ * при signup (был сломан таймингом подтверждения auth.users). Авто-письмо — T1b.
  */
-export function inviteLink(): string {
+export function inviteLink(token: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${origin}/login?invited=1`;
+  return `${origin}/invite?token=${token}`;
 }
 
 /** Непринятые приглашения текущей org (RLS: только owner/admin). */
@@ -48,14 +49,15 @@ export function useCreateInvitation() {
       if (orgErr) throw orgErr;
       if (!orgId) throw new Error('Нет активной организации');
 
-      const { error } = await supabase.from('invitations').insert({
+      // .select('id, token').single() — токен нужен в URL ссылки (иначе copy бесполезен)
+      const { data, error } = await supabase.from('invitations').insert({
         org_id: orgId as string,
         email: email.trim().toLowerCase(),
         role,
         invited_by: user.id,
-      });
+      }).select('id, token').single();
       if (error) throw error;
-      return inviteLink();
+      return inviteLink((data as { token: string }).token);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
   });

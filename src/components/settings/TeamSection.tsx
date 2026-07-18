@@ -159,8 +159,8 @@ function InviteForm() {
       </div>
       {error && <p className="text-[11px] text-red">{error}</p>}
       <p className="text-[11px] text-text-mute">
-        Письмо пока не отправляется — скопируйте ссылку из списка ниже и передайте вручную.
-        Membership создастся при регистрации по совпадению email.
+        Скопируйте ссылку из списка ниже и отправьте коллеге — по ней он войдёт и получит
+        доступ. Авто-отправка письма появится позже.
       </p>
     </form>
   );
@@ -171,8 +171,8 @@ function PendingInvites() {
   const revoke = useRevokeInvitation();
   const [copied, setCopied] = useState<string | null>(null);
 
-  function copy(id: string) {
-    navigator.clipboard?.writeText(inviteLink());
+  function copy(id: string, token: string) {
+    navigator.clipboard?.writeText(inviteLink(token));
     setCopied(id);
     setTimeout(() => setCopied((c) => (c === id ? null : c)), 2000);
   }
@@ -187,7 +187,7 @@ function PendingInvites() {
           <span className="min-w-0 flex-1 truncate text-sm text-text-main">{inv.email}</span>
           <RoleBadge role={inv.role} />
           <button
-            onClick={() => copy(inv.id)}
+            onClick={() => copy(inv.id, inv.token)}
             className="flex items-center gap-1 p-1.5 text-text-mute hover:text-text-main transition-colors"
             title="Скопировать ссылку-приглашение"
           >

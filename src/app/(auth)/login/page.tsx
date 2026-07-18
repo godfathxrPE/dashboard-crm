@@ -18,11 +18,18 @@ export default function LoginPage() {
     setStatus('loading');
     setErrorMsg('');
 
+    // Прокидываем ?next через callback, чтобы после magic-link вернуться на исходный
+    // путь (напр. /invite?token=…), а не молча на дашборд.
+    const next = new URLSearchParams(window.location.search).get('next');
+    const callback = next
+      ? `${window.location.origin}/callback?next=${encodeURIComponent(next)}`
+      : `${window.location.origin}/callback`;
+
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
         // Callback URL для подтверждения Magic Link
-        emailRedirectTo: `${window.location.origin}/callback`,
+        emailRedirectTo: callback,
       },
     });
 

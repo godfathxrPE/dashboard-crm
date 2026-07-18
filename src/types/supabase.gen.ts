@@ -2249,6 +2249,7 @@ export type Database = {
         Args: { p_project_id: string; p_template_id: string }
         Returns: undefined
       }
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
       current_org_id: { Args: never; Returns: string }
       current_org_role: { Args: never; Returns: string }
       delete_project_column: {
