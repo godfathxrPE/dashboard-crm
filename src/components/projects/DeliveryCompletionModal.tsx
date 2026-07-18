@@ -19,7 +19,7 @@ import { Modal } from '@/components/shared/Modal';
 
 const LANE_BADGE_CLS: Record<string, string> = {
   next: 'border-border2 bg-surface2 text-text-mute',
-  now: 'border-accent/30 bg-accent-l text-accent',
+  now: 'border-accent bg-accent text-[var(--bg)]',  // S-UI-POLISH-1: активный статус — solid-акцент (тинт был блёклым), как пилюля стадии
   wait: 'border-yellow/30 bg-yellow-l text-yellow',
   done: 'border-green/30 bg-green-l text-green',
 };
