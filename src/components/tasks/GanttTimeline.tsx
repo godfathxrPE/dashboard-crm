@@ -2,10 +2,12 @@
 
 import type * as React from 'react';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
-import { useUpdateTaskDates } from '@/lib/hooks/use-tasks';
+import { useDeleteTask, useUpdateTaskDates } from '@/lib/hooks/use-tasks';
+import { useProjectColumns, useDeleteColumn } from '@/lib/hooks/use-project-columns';
 import {
   useTaskDependencies,
   useCreateTaskDependency,
@@ -26,6 +28,9 @@ import type { Task } from '@/types/entities';
 
 interface GanttTimelineProps {
   projectId: string;
+  // S-GANTT-UX-2: UI-гейт write-действий (canManageDeliveryProject из ProjectDetail),
+  // НЕ RLS-факт — на write-путях дублируется toast'ом при 42501.
+  canManage: boolean;
   onEditTask: (task: Task) => void;
 }
 
@@ -84,9 +89,14 @@ const ddmm = (k: string) => `${k.slice(8, 10)}.${k.slice(5, 7)}`;
 
 const EDGE_PX = 6;    // ширина resize-зоны у краёв бара
 const CLICK_PX = 4;   // смещение < порога = клик (открыть модалку), не drag
+// S-GANTT-UX-2 (B3): полуширина fallback-оси (today±N дней), когда датированных задач
+// нет вовсе (проект из шаблона) — иначе chip из «Без дат» некуда дропать.
+const UNDATED_AXIS_PAD_DAYS = 14;
 
 type DragMode = 'move' | 'left' | 'right';
 type DragState = { mode: DragMode; startX: number; bucketPx: number; rawDx: number };
+// S-GANTT-UX-2: drag chip из «Без дат» — hoverIdx = бакет под курсором (null вне таймлайна)
+type UndatedDrag = { task: Task; startX: number; startY: number; moved: boolean; hoverIdx: number | null };
 
 interface GanttBarProps {
   gt: GanttTask;
@@ -103,12 +113,14 @@ interface GanttBarProps {
   isLinkSource: boolean;           // подсвечен как выбранный predecessor
   isCritical: boolean;             // S-CRIT-PATH: бар на критическом пути
   onLinkSelect: (taskId: string) => void;
+  canManage: boolean;              // S-GANTT-UX-2: гейт drag/resize и hover-Trash
+  onDeleteTask: (task: Task, isSummary: boolean) => void;
 }
 
 // Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
 // Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
 // S-DEPS-1: в linkMode drag-хендлеры не навешиваются — клик выбирает конец связи.
-function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, onLinkSelect }: GanttBarProps) {
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, onLinkSelect, canManage, onDeleteTask }: GanttBarProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const spanBuckets = e - s; // 0 у однобакетных / вех
 
@@ -201,7 +213,9 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   // click-vs-drag). Иначе — нативные Pointer Events VIEW-2.
   // W6 (S-WBS-1): сводный бар (isSummary) не таскается — иначе useUpdateTaskDates
   // записал бы envelope-даты детей как реальные даты родителя. Клик = только onEditTask.
-  const draggable = !linkMode && !gt.isSummary;
+  // S-GANTT-UX-2 (W4): без canManage drag/resize отключены — после 065 member видит
+  // Гант, но write упрётся в RLS 42501; бар для него = только клик (edit-модалка).
+  const draggable = !linkMode && !gt.isSummary && canManage;
   const dragHandlers = draggable
     ? {
         onPointerDown: (ev: React.PointerEvent) => startDrag(ev, 'move'),
@@ -212,10 +226,10 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
     : undefined;
   const linkClick = linkMode
     ? { onClick: () => onLinkSelect(gt.task.id) }
-    : gt.isSummary
+    : !draggable
       ? { onClick: () => onEditTask(gt.task) }
       : undefined;
-  const cursorClass = (linkMode || gt.isSummary) ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing';
+  const cursorClass = draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
   const ringClass = isLinkSource ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
   // S-CRIT-PATH: акцентная обводка через outline (var(--accent), не хардкод; отдельное
   // CSS-свойство от ring — не клобберит link-source, оба состояния сосуществуют).
@@ -223,10 +237,25 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
 
   return (
     <div
-      className="relative"
+      className="group relative"
       data-task-bar={gt.task.id}
       style={{ gridColumn: (gt.isMilestone && !gt.isSummary) ? `${s + 1}` : `${s + 1} / ${e + 2}`, gridRow: 1 }}
     >
+      {/* S-GANTT-UX-2: hover-Trash — удаление задачи прямо из Ганта. Вне бара справа
+          (внутри конфликтует с resize-хендлом EDGE_PX); stopPropagation на pointerdown —
+          не стартовать drag. В linkMode скрыт (клики заняты выбором связи). */}
+      {canManage && !linkMode && (
+        <button
+          type="button"
+          onPointerDown={(ev) => ev.stopPropagation()}
+          onClick={(ev) => { ev.stopPropagation(); onDeleteTask(gt.task, gt.isSummary); }}
+          className="absolute -right-4 top-1/2 z-10 -translate-y-1/2 text-red opacity-0 transition-opacity group-hover:opacity-70 hover:!opacity-100"
+          aria-label={`Удалить задачу «${gt.task.text}»`}
+          title="Удалить задачу"
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
       {/* W3 (S-WBS-1): приоритет вида — веха-не-сводная → ромб; иначе сводная →
           скобка-бар; иначе лист-бар. (summary+milestone → скобка выигрывает.) */}
       {gt.isMilestone && !gt.isSummary ? (
@@ -307,10 +336,20 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   );
 }
 
-export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
+export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelineProps) {
   const { swimlanes, undated, phaseMode, isLoading, isError } = useProjectSchedule(projectId);
   const { data: team = [] } = useTeamMembers();
   const updateDates = useUpdateTaskDates();
+  // S-GANTT-UX-2: удаление задачи/фазы из Ганта — те же мутации, что на доске
+  // (FK-cleanup на БД: deps CASCADE 048, parent_task_id SET NULL 052; RPC 032/033).
+  const deleteTask = useDeleteTask();
+  const deleteColumn = useDeleteColumn(projectId);
+  // Кэш ['project_columns', projectId] уже прогрет useProjectSchedule → нового запроса нет.
+  // Нужен для real phase-id (гейт Trash: __none__/__flat__ — не колонки) и пикера target.
+  const { data: columns = [] } = useProjectColumns(projectId);
+  // Пикер target при удалении непустой фазы — тот же UX, что на доске «План»
+  const [deletingPhase, setDeletingPhase] = useState<{ id: string; name: string } | null>(null);
+  const [targetPhaseId, setTargetPhaseId] = useState('');
   const gridRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);   // S-DEPS-1: контекст для измерения стрелок
   const [zoom, setZoom] = useState<GanttZoom>('week');
@@ -336,6 +375,47 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   }, []);
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
+
+  // S-GANTT-UX-2: window.confirm — конвенция проекта для задачи/ребра (НЕ для фазы —
+  // у неё пикер target). У summary подтверждение называет судьбу детей (SET NULL 052).
+  const handleDeleteTask = useCallback(
+    (task: Task, isSummary: boolean) => {
+      const msg = isSummary
+        ? `Удалить сводную задачу «${task.text}»? Подзадачи останутся без родителя. Действие необратимо.`
+        : `Удалить задачу «${task.text}»? Действие необратимо.`;
+      if (!window.confirm(msg)) return;
+      deleteTask.mutate(task.id, {
+        onError: () => toast.error('Не удалось удалить задачу (нет прав или сеть)'),
+      });
+    },
+    [deleteTask],
+  );
+
+  // Real phase-id: Trash у свимлейна только для настоящих колонок (W5) —
+  // синтетические '__none__'/'__flat__' в project_columns не существуют.
+  const realPhaseIds = useMemo(() => new Set(columns.map((c) => c.id)), [columns]);
+
+  // Есть ли в удаляемой фазе задачи: считаем по СЫРЫМ данным (dated в свимлейне +
+  // undated с этим column_id), не по фильтру — RPC без target падает на непустой.
+  const deletePhaseTaskCount = useMemo(() => {
+    if (!deletingPhase) return 0;
+    const dated = swimlanes.find((sl) => sl.id === deletingPhase.id)?.tasks.length ?? 0;
+    return dated + undated.filter((t) => t.column_id === deletingPhase.id).length;
+  }, [deletingPhase, swimlanes, undated]);
+  const deletePhaseTargets = useMemo(
+    () => (deletingPhase ? columns.filter((c) => c.id !== deletingPhase.id) : []),
+    [deletingPhase, columns],
+  );
+
+  const confirmDeletePhase = useCallback(() => {
+    if (!deletingPhase) return;
+    deleteColumn.mutate(
+      { id: deletingPhase.id, targetId: deletePhaseTaskCount > 0 ? targetPhaseId : null },
+      { onError: () => toast.error('Не удалось удалить фазу (защищённая колонка или нет прав)') },
+    );
+    setDeletingPhase(null);
+    setTargetPhaseId('');
+  }, [deletingPhase, deletePhaseTaskCount, targetPhaseId, deleteColumn]);
 
   // S-DEPS-1: id всех задач проекта (dated + undated) — сужают RLS-выборку рёбер
   // (task_dependencies без своей project_id; оба конца IN taskIds ⇒ своё ребро).
@@ -555,18 +635,30 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     };
   }, [edgeMenu]);
 
+  const hasUndated = filteredUndated.length > 0;
+
   const model = useMemo(() => {
     const allTasks: GanttTask[] = visibleSwimlanes.flatMap((sl) => sl.tasks);
-    if (allTasks.length === 0) {
+    let min: string;
+    let max: string;
+    if (allTasks.length > 0) {
+      min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
+      max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
+    } else if (hasUndated) {
+      // S-GANTT-UX-2 (B3): only-undated (проект из шаблона) — бакетов из задач нет,
+      // а drop из «Без дат» без оси мёртв. Временная ось today±N; как только появится
+      // первая датированная задача, ось снова строится из дат.
+      const today = mskDateKey(new Date());
+      min = shiftDateKeyByBuckets(today, 'day', -UNDATED_AXIS_PAD_DAYS);
+      max = shiftDateKeyByBuckets(today, 'day', UNDATED_AXIS_PAD_DAYS);
+    } else {
       return { buckets: [] as { key: string; label: string }[], idxByKey: new Map<string, number>(), todayIdx: -1 };
     }
-    const min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
-    const max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
     const buckets = buildBuckets(min, max, zoom);
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
-  }, [visibleSwimlanes, zoom]);
+  }, [visibleSwimlanes, hasUndated, zoom]);
 
   // Ширина бакета в рантайме (сетка minmax(28px,1fr) — динамическая, хардкод нельзя).
   // Снимаем с шапки бакетов на каждый pointerdown.
@@ -574,6 +666,96 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     const w = gridRef.current?.getBoundingClientRect().width ?? 0;
     return model.buckets.length ? w / model.buckets.length : 0;
   }, [model.buckets.length]);
+
+  // S-GANTT-UX-2 (W4): единая запись дат с toast'ом — canManage лишь UI-гейт,
+  // RLS-отказ (42501) не должен молча откатывать бар без объяснения.
+  const commitDates = useCallback(
+    (v: { id: string; start_date: string; end_date: string }) =>
+      updateDates.mutate(v, {
+        onError: () => toast.error('Не удалось изменить даты (нет прав или сеть)'),
+      }),
+    [updateDates.mutate],
+  );
+
+  // S-GANTT-UX-2: drag chip из «Без дат» на таймлайн (нативные Pointer Events, как
+  // бары VIEW-2). Дата = ключ бакета под курсором; запись строго через
+  // useUpdateTaskDates (patchTaskCaches уберёт chip и покажет бар во всех срезах).
+  // Источник правды — ref (события в burst приходят ДО re-render, state-замыкание
+  // отстаёт → быстрый свайп терял moved и открывал модалку); state — только рендер призрака.
+  const undatedDragRef = useRef<UndatedDrag | null>(null);
+  const [undatedDrag, setUndatedDrag] = useState<UndatedDrag | null>(null);
+  const applyUndatedDrag = useCallback((v: UndatedDrag | null) => {
+    undatedDragRef.current = v;
+    // дедуп setState (гоча measurement-loop): идентичное состояние → prev, React бейлит
+    setUndatedDrag((prev) => {
+      if (prev === v) return prev;
+      if (prev && v && prev.task.id === v.task.id && prev.moved === v.moved && prev.hoverIdx === v.hoverIdx) return prev;
+      return v;
+    });
+  }, []);
+
+  const undatedDragStart = useCallback(
+    (task: Task) => (ev: React.PointerEvent) => {
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+      applyUndatedDrag({ task, startX: ev.clientX, startY: ev.clientY, moved: false, hoverIdx: null });
+    },
+    [applyUndatedDrag],
+  );
+
+  const undatedDragMove = useCallback(
+    (ev: React.PointerEvent) => {
+      const d = undatedDragRef.current;
+      if (!d) return; // pointermove летит и на голый hover — DOM не меряем
+      const x = ev.clientX;
+      const y = ev.clientY;
+      const moved = d.moved || Math.abs(x - d.startX) >= CLICK_PX || Math.abs(y - d.startY) >= CLICK_PX;
+      // «Над таймлайном» = x в границах бакет-сетки, y в границах timeline-body
+      let hoverIdx: number | null = null;
+      const grid = gridRef.current;
+      const body = bodyRef.current;
+      if (moved && grid && body && model.buckets.length > 0) {
+        const gr = grid.getBoundingClientRect();
+        const br = body.getBoundingClientRect();
+        if (x >= gr.left && x < gr.right && y >= br.top && y <= br.bottom) {
+          hoverIdx = Math.min(
+            model.buckets.length - 1,
+            Math.max(0, Math.floor((x - gr.left) / (gr.width / model.buckets.length))),
+          );
+        }
+      }
+      if (moved === d.moved && hoverIdx === d.hoverIdx) return;
+      applyUndatedDrag({ ...d, moved, hoverIdx });
+    },
+    [model.buckets.length, applyUndatedDrag],
+  );
+
+  const undatedDragUp = useCallback(
+    (ev: React.PointerEvent) => {
+      try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      const d = undatedDragRef.current;
+      applyUndatedDrag(null);
+      if (!d) return;
+      if (!d.moved) {
+        onEditTask(d.task); // мелкое смещение = клик (W6, тот же CLICK_PX, что бары)
+        return;
+      }
+      const bucket = d.hoverIdx !== null ? model.buckets[d.hoverIdx] : undefined;
+      if (bucket) {
+        // start=end=ключ бакета (Пн/1-е на неделя/месяц — как bar-snap VIEW-2);
+        // start==end валиден по CHECK tasks_dates_order_chk (046)
+        commitDates({ id: d.task.id, start_date: bucket.key, end_date: bucket.key });
+      }
+    },
+    [model.buckets, onEditTask, commitDates, applyUndatedDrag],
+  );
+
+  const undatedDragCancel = useCallback(
+    (ev: React.PointerEvent) => {
+      try { ev.currentTarget.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      applyUndatedDrag(null);
+    },
+    [applyUndatedDrag],
+  );
 
   // S-DEPS-1: измеряем позиции баров из DOM (бары позиционируются grid-column, не
   // left/width — аналитический пересчёт хрупок). Стрелка: правый край pred → левый
@@ -747,8 +929,21 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
             {laneRows.map((sl) => (
               <div key={sl.id}>
                 {sl.label !== null && (
-                  <div className="truncate px-1 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-mute">
-                    {sl.label}
+                  <div className="group flex items-center gap-1 px-1 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-mute">
+                    <span className="truncate">{sl.label}</span>
+                    {/* S-GANTT-UX-2: удаление фазы — только real phase-id (не «Без фазы»/flat);
+                        UX как на доске: непустая фаза → пикер target, не window.confirm */}
+                    {canManage && phaseMode && realPhaseIds.has(sl.id) && (
+                      <button
+                        type="button"
+                        onClick={() => { setTargetPhaseId(''); setDeletingPhase({ id: sl.id, name: sl.label ?? '' }); }}
+                        className="shrink-0 leading-none text-red opacity-0 transition-opacity group-hover:opacity-70 hover:!opacity-100"
+                        aria-label={`Удалить фазу «${sl.label}»`}
+                        title="Удалить фазу"
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    )}
                   </div>
                 )}
                 {sl.tasks.map((gt) => (
@@ -820,7 +1015,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                           e={e}
                           getBucketPx={getBucketPx}
                           onEditTask={onEditTask}
-                          onDates={updateDates.mutate}
+                          onDates={commitDates}
                           setTip={setTip}
                           assignee={assignee}
                           status={status}
@@ -828,6 +1023,8 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                           isLinkSource={pendingPred === gt.task.id}
                           isCritical={showCritical && critical.taskIds.has(gt.task.id)}
                           onLinkSelect={onLinkSelect}
+                          canManage={canManage}
+                          onDeleteTask={handleDeleteTask}
                         />
                       </div>
                     );
@@ -835,10 +1032,26 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                 </div>
               ))}
 
+              {/* S-GANTT-UX-2 (B3): fallback-ось без единого бара — пустой ряд, чтобы
+                  timeline-body имел высоту-приёмник для drop из «Без дат» */}
+              {laneRows.length === 0 && (
+                <div className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }} />
+              )}
+
               {/* Today line — оверлей поверх шапки+рядов, выровнен по той же бакет-сетке */}
               {todayIdx !== -1 && (
                 <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
                   <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
+                </div>
+              )}
+
+              {/* S-GANTT-UX-2: призрак дня под курсором при drag chip из «Без дат» */}
+              {undatedDrag?.hoverIdx != null && (
+                <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
+                  <div
+                    style={{ gridColumn: `${undatedDrag.hoverIdx + 1}` }}
+                    className="border-x border-accent bg-accent-l opacity-60"
+                  />
                 </div>
               )}
 
@@ -954,17 +1167,83 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         <div className="mt-3 border-t border-border/40 pt-2">
           <div className="mb-1 text-[10px] uppercase tracking-wide text-text-mute">Без дат</div>
           <div className="flex flex-wrap gap-1.5">
+            {/* S-GANTT-UX-2: chip таскается на таймлайн (canManage) — pointer-flow сам
+                различает клик (edit) и drag по CLICK_PX; без canManage — обычный клик */}
             {filteredUndated.map((task) => (
-              <button
+              <div
                 key={task.id}
-                type="button"
-                onClick={() => onEditTask(task)}
-                className="max-w-[200px] truncate rounded border border-border px-2 py-1 text-xs text-text-dim hover:text-text-main"
+                role="button"
+                tabIndex={0}
+                {...(canManage
+                  ? {
+                      onPointerDown: undatedDragStart(task),
+                      onPointerMove: undatedDragMove,
+                      onPointerUp: undatedDragUp,
+                      onPointerCancel: undatedDragCancel,
+                    }
+                  : { onClick: () => onEditTask(task) })}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEditTask(task); }
+                }}
+                className={`group flex max-w-[200px] items-center gap-1 rounded border px-2 py-1 text-xs text-text-dim hover:text-text-main ${
+                  undatedDrag?.task.id === task.id ? 'border-accent' : 'border-border'
+                } ${canManage ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                style={{ touchAction: 'none' }}
                 title={task.text}
               >
-                {task.text}
-              </button>
+                <span className="truncate">{task.text}</span>
+                {/* удаление undated-задачи; stopPropagation на pointerdown — не стартовать drag */}
+                {canManage && (
+                  <button
+                    type="button"
+                    onPointerDown={(ev) => ev.stopPropagation()}
+                    onClick={(ev) => { ev.stopPropagation(); handleDeleteTask(task, false); }}
+                    className="shrink-0 text-red opacity-0 transition-opacity group-hover:opacity-70 hover:!opacity-100"
+                    aria-label={`Удалить задачу «${task.text}»`}
+                    title="Удалить задачу"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                )}
+              </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* S-GANTT-UX-2: диалог удаления фазы — скопирован UX доски «План» (ProjectBoard):
+          непустая фаза требует target-колонку (контракт RPC delete_project_column 032/033) */}
+      {deletingPhase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeletingPhase(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-5 elevation-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-2 text-sm font-semibold text-text-main">Удалить фазу «{deletingPhase.name}»?</h3>
+            {deletePhaseTaskCount > 0 ? (
+              <>
+                <p className="mb-2 text-xs text-text-mute">В фазе есть задачи. Куда их перенести?</p>
+                <select
+                  value={targetPhaseId}
+                  onChange={(e) => setTargetPhaseId(e.target.value)}
+                  className="mb-4 w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm text-text-main focus:border-accent focus:outline-none"
+                >
+                  <option value="">Выбрать фазу…</option>
+                  {deletePhaseTargets.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <p className="mb-4 text-xs text-text-mute">Фаза пуста — будет удалена безвозвратно.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeletingPhase(null)} className="rounded-lg border border-border px-3 py-1.5 text-sm text-text-dim hover:bg-surface2">Отмена</button>
+              <button
+                onClick={confirmDeletePhase}
+                disabled={deletePhaseTaskCount > 0 && !targetPhaseId}
+                className="rounded-lg bg-red px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Удалить
+              </button>
+            </div>
           </div>
         </div>
       )}

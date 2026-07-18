@@ -865,6 +865,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {activeTab === 'timeline' && (
         <GanttTimeline
           projectId={projectId}
+          canManage={canManage}
           onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
         />
       )}
