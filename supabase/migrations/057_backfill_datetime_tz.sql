@@ -1,3 +1,7 @@
+-- ✅ APPLIED 2026-07-18 (schema_migrations 20260718085820) — НЕ ЗАПУСКАТЬ ПОВТОРНО
+--    Сдвиг −3ч НЕ идемпотентен: повторный прогон увёл бы даты ещё на 3 часа назад.
+--    Оба update ниже закомментированы → случайный прогон файла = no-op.
+--
 -- 057_backfill_datetime_tz.sql — Sprint W2
 -- Разовый бэкфилл исторических timestamptz, введённых через <input datetime-local>
 -- по СТАРОМУ пути (когда локальное «МСК» время писалось в БД как будто это UTC).
@@ -28,11 +32,12 @@
 --    where deadline is not null and created_at < '2026-07-18T08:41:05.247Z'::timestamptz
 --    order by created_at;
 
-update public.calls
-set date = date - interval '3 hours'
-where created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
-
-update public.tasks
-set deadline = deadline - interval '3 hours'
-where deadline is not null
-  and created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
+-- APPLIED 2026-07-18 — закомментировано, чтобы повторный прогон был no-op (см. баннер вверху):
+-- update public.calls
+-- set date = date - interval '3 hours'
+-- where created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
+--
+-- update public.tasks
+-- set deadline = deadline - interval '3 hours'
+-- where deadline is not null
+--   and created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
