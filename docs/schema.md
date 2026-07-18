@@ -162,8 +162,9 @@
 > **058 `accept_invitation` (Sprint T1a):** приём инвайта по токену (DEFINER). **Статус
 > apply — гейт Cowork** (см. memory).
 >
-> **059 `membership_role_guard` (Sprint T2 «Корректность совместной работы») — PENDING
-> (гейт):** admin больше не разжалует и не удалит owner. `membership_update`
+> **059 `membership_role_guard` (Sprint T2 «Корректность совместной работы») — APPLIED
+> 2026-07-18 (гейт Cowork; live-политики сверены, advisors без новых):** admin больше не
+> разжалует и не удалит owner. `membership_update`
 > пересобрана с **USING (старая роль) + WITH CHECK (новая роль)** — admin ограничен
 > `role IN ('manager','viewer')` в обоих (grok W1: WITH CHECK ловит `SET role`-эскалацию,
 > которую USING пропускает). `membership_delete` — тот же предикат USING + сохранён
