@@ -55,7 +55,11 @@ function MemberRow({
   const removeMember = useRemoveMember();
 
   // Роль owner меняет только owner; себя не трогаем через этот UI.
-  const readOnly = isSelf || !member.membership_id || (member.role === 'owner' && !canAssignOwner);
+  // T2: owner-строку (роль + удаление) может трогать только owner — admin не
+  // разжалует и не выкинет владельца (RLS 059 подстрахует, здесь — UX).
+  const ownerLocked = member.role === 'owner' && !canAssignOwner;
+  const readOnly = isSelf || !member.membership_id || ownerLocked;
+  const canRemove = !isSelf && !!member.membership_id && !ownerLocked;
   const options: OrgRole[] = canAssignOwner
     ? ['owner', 'admin', 'manager', 'viewer']
     : ['admin', 'manager', 'viewer'];
@@ -91,7 +95,7 @@ function MemberRow({
         </select>
       )}
 
-      {!isSelf && member.membership_id && (
+      {canRemove && (
         <button
           onClick={() => removeMember.mutate(member.membership_id!)}
           disabled={removeMember.isPending}

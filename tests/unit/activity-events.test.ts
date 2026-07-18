@@ -32,6 +32,33 @@ describe('describeEvent — project_updated', () => {
     expect(describeEvent(entry('project_updated', { fields_changed: [] }))).toBe('Сделка обновлена');
     expect(describeEvent(entry('project_updated', {}))).toBe('Сделка обновлена');
   });
+
+  test('дубли лейблов (won_reason+won_detail) сворачиваются в один', () => {
+    const text = describeEvent(
+      entry('project_updated', { fields_changed: ['won_reason', 'won_detail'] }),
+    );
+    // «причина выигрыша» ровно один раз, а не «…, причина выигрыша»
+    expect(text).toBe('Обновлено: причина выигрыша');
+  });
+});
+
+describe('describeEvent — stage_changed (T2)', () => {
+  test('готовые имена из payload → «Стадия: A → B»', () => {
+    const text = describeEvent(
+      entry('stage_changed', {
+        from_stage_id: 's1', to_stage_id: 's2',
+        from_name: 'Квалификация', to_name: 'Переговоры',
+      }),
+    );
+    expect(text).toBe('Стадия: Квалификация → Переговоры');
+  });
+
+  test('нет from_name (первое назначение стадии) → «—» слева', () => {
+    const text = describeEvent(
+      entry('stage_changed', { from_name: null, to_name: 'Новая' }),
+    );
+    expect(text).toBe('Стадия: — → Новая');
+  });
 });
 
 describe('describeEvent — automation_fired', () => {

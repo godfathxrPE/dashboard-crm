@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCalls, useDeleteCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { staggerClass } from '@/lib/utils/stagger';
 import { CALL_STATUS_CONFIG, formatDuration, type CallStatus } from '@/lib/validators/call';
 import { CallModal } from './CallModal';
@@ -24,6 +25,8 @@ export function CallLog() {
   const updateCall = useUpdateCall();
 
   const createTask = useCreateTask();
+  const { data: role } = useOrgRole();
+  const canCreate = role != null && role !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
   const [modalOpen, setModalOpen] = useState(false);
   const [editCall, setEditCall] = useState<Call | null>(null);
   const [aiCall, setAiCall] = useState<Call | null>(null);
@@ -97,14 +100,14 @@ export function CallLog() {
         wmText="Звонки"
         wmColors={WATERMARK_GRADIENTS.tidal}
         icon={<Phone size={18} className="text-accent" />}
-        action={<CTAButton size="sm" onClick={() => { setEditCall(null); setModalOpen(true); }}><Plus size={14} /> Звонок</CTAButton>}
+        action={canCreate ? <CTAButton size="sm" onClick={() => { setEditCall(null); setModalOpen(true); }}><Plus size={14} /> Звонок</CTAButton> : undefined}
       />
 
       {/* Layout: tracker + scheduled | call log */}
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         {/* Sidebar: tracker + scheduled */}
         <div className="space-y-4">
-          <CallTracker onQuickLog={() => { setEditCall(null); setModalOpen(true); }} />
+          {canCreate && <CallTracker onQuickLog={() => { setEditCall(null); setModalOpen(true); }} />}
 
           {/* Scheduled calls */}
           {scheduledCalls.length > 0 && (

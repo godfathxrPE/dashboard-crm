@@ -9,6 +9,7 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
@@ -35,6 +36,8 @@ export function ContactsTable() {
   const lastTouch = useLastTouchMap();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
+  const { data: role } = useOrgRole();
+  const canCreate = role != null && role !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
 
   // Обогащаем строки датой последнего касания (для колонки + сортировки)
   const rows = useMemo<ContactRow[]>(
@@ -222,7 +225,7 @@ export function ContactsTable() {
         wmColors={WATERMARK_GRADIENTS.oilSlick}
         count={contacts?.length ?? 0}
         icon={<Users size={18} className="text-accent" />}
-        action={<CTAButton size="sm" onClick={() => { setEditContact(null); setModalOpen(true); }}><Plus size={14} /> Контакт</CTAButton>}
+        action={canCreate ? <CTAButton size="sm" onClick={() => { setEditContact(null); setModalOpen(true); }}><Plus size={14} /> Контакт</CTAButton> : undefined}
       />
 
       {/* Chip filters */}

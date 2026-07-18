@@ -27,4 +27,9 @@ export type TimelineEvent = {
   sourceId: string;
   /** renderer выберет Lucide-икону */
   icon: TimelineKind;
+  /** Актор события (кто сделал): profile id из created_by / user_id. Резолв
+   *  id→имя — на этапе сборки ленты (useActorMap), не в адаптере. */
+  actorId?: string;
+  /** Имя актора («Олег») — проставляется хуком после резолва по useActorMap */
+  actorName?: string;
 };

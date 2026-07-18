@@ -16,6 +16,7 @@ import {
 import type { TimelineEvent } from '@/types/timeline';
 import { describeEvent } from '@/lib/utils/activity-events';
 import type { ActivityLog } from '@/types/entities';
+import { useActorMap } from './use-actor';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
@@ -54,7 +55,7 @@ async function fetchCalls(col: string, id: string): Promise<TimelineEvent[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('calls')
-    .select('id, date, status, next_step, agreements')
+    .select('id, date, status, next_step, agreements, created_by')
     .eq(col, id)
     .order('date', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -66,7 +67,7 @@ async function fetchMeetings(col: string, id: string): Promise<TimelineEvent[]> 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('meetings')
-    .select('id, date, title, next_step, notes')
+    .select('id, date, title, next_step, notes, created_by')
     .eq(col, id)
     .order('date', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -78,7 +79,7 @@ async function fetchTasks(col: string, id: string): Promise<TimelineEvent[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('tasks')
-    .select('id, text, lane, deadline, created_at')
+    .select('id, text, lane, deadline, created_at, created_by')
     .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -91,7 +92,7 @@ async function fetchProjects(col: string, id: string): Promise<TimelineEvent[]> 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, type, created_at')
+    .select('id, name, type, created_at, created_by')
     .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -119,6 +120,7 @@ interface ActivityRow {
   event_type: string;
   payload: unknown;
   created_at: string;
+  user_id: string | null;
 }
 
 function activityToEvent(a: ActivityRow): TimelineEvent {
@@ -130,6 +132,7 @@ function activityToEvent(a: ActivityRow): TimelineEvent {
     title: describeEvent(a as unknown as ActivityLog),
     date: a.created_at,
     icon: 'activity' as const,
+    actorId: a.user_id ?? undefined,
   };
 }
 
@@ -152,7 +155,7 @@ async function fetchActivity(
   // Прямая привязка: col уже = contact_id | company_id | project_id.
   const direct = await supabase
     .from('activity_log')
-    .select('id, event_type, payload, created_at')
+    .select('id, event_type, payload, created_at, user_id')
     .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -165,7 +168,7 @@ async function fetchActivity(
     if (projectIds.length > 0) {
       const t = await supabase
         .from('activity_log')
-        .select('id, event_type, payload, created_at')
+        .select('id, event_type, payload, created_at, user_id')
         .in('project_id', projectIds)
         .order('created_at', { ascending: false })
         .limit(PER_SOURCE_LIMIT);
@@ -268,6 +271,8 @@ export function useEntityTimeline(
     staleTime: STALE_TIME,
   });
 
+  // Резолв актора id→имя — на сборке (одна Map из useTeamMembers-кеша, не N запросов).
+  const actorMap = useActorMap();
   const events = useMemo(() => {
     const all: TimelineEvent[] = [
       ...(calls.data ?? []),
@@ -277,8 +282,11 @@ export function useEntityTimeline(
       ...(activity.data ?? []),
       ...(aiRuns.data ?? []),
     ];
-    return all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [calls.data, meetings.data, tasks.data, projects.data, activity.data, aiRuns.data]);
+    const resolved = all.map((e) =>
+      e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e,
+    );
+    return resolved.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [calls.data, meetings.data, tasks.data, projects.data, activity.data, aiRuns.data, actorMap]);
 
   // isLoading для disabled-запросов в React Query v5 = false (fetchStatus idle),
   // поэтому пропущенные источники (projects на project-хабе, system off) не «висят».

@@ -9,6 +9,7 @@ import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCompanies, useUpdateCompany, useDeleteCompany, type Company } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
 import { formatBudget } from '@/lib/validators/project';
@@ -36,6 +37,9 @@ export function CompaniesTable() {
   const lastTouch = useLastTouchMap();
   const updateCompany = useUpdateCompany();
   const deleteCompany = useDeleteCompany();
+  const { data: role } = useOrgRole();
+  // T2: viewer не создаёт/импортирует (RLS отсекла бы 42501 — прячем в UI).
+  const canCreate = role != null && role !== 'viewer';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
@@ -260,10 +264,12 @@ export function CompaniesTable() {
         count={companies?.length ?? 0}
         icon={<Building2 size={18} className="text-accent" />}
         action={
-          <div className="flex items-center gap-2">
-            <ExcelImportButton />
-            <CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}><Plus size={14} /> Компания</CTAButton>
-          </div>
+          canCreate ? (
+            <div className="flex items-center gap-2">
+              <ExcelImportButton />
+              <CTAButton size="sm" onClick={() => { setEditCompany(null); setModalOpen(true); }}><Plus size={14} /> Компания</CTAButton>
+            </div>
+          ) : undefined
         }
       />
 

@@ -31,6 +31,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useLeads, useConvertedLeads, useUpdateLead, useDeleteLead } from '@/lib/hooks/use-leads';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import {
   LEAD_STATUS_CONFIG,
   LEAD_SOURCE_CONFIG,
@@ -356,6 +357,8 @@ export function LeadsView() {
   const { data: leads, isLoading, error } = useLeads();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const { data: role } = useOrgRole();
+  const canCreate = role != null && role !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
 
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [modalOpen, setModalOpen] = useState(false);
@@ -533,12 +536,14 @@ export function LeadsView() {
               <List size={14} />
             </button>
           </div>
-          <button
-            onClick={() => { setEditLead(null); setModalOpen(true); }}
-            className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-          >
-            <Plus size={14} /> Лид
-          </button>
+          {canCreate && (
+            <button
+              onClick={() => { setEditLead(null); setModalOpen(true); }}
+              className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            >
+              <Plus size={14} /> Лид
+            </button>
+          )}
         </div>
       </div>
 

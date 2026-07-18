@@ -59,6 +59,13 @@ export function describeEvent(entry: ActivityLog): string {
   switch (entry.event_type) {
     case 'stage_change':
       return `Стадия: ${stageName(p.from)} → ${stageName(p.to)}`;
+    case 'stage_changed': {
+      // Sprint T2: имена стадий приходят готовыми в payload (резолв stage_id→name
+      // сделан на записи из pipeline_stages) — legacy-enum здесь не трогаем.
+      const from = (p.from_name as string) || '—';
+      const to = (p.to_name as string) || '—';
+      return `Стадия: ${from} → ${to}`;
+    }
     case 'call_logged':
       return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
     case 'task_created':
@@ -72,7 +79,9 @@ export function describeEvent(entry: ActivityLog): string {
       if (!fields || fields.length === 0) return 'Сделка обновлена';
       // Легаси `stage` при наличии `stage_id` — дубль той же смены, не показываем.
       if (fields.includes('stage_id')) fields = fields.filter((f) => f !== 'stage');
-      const labels = fields.map(fieldLabel);
+      // W2-дедуп: разные колонки дают один лейбл (won_reason/won_detail →
+      // «причина выигрыша») — сворачиваем одинаковые подписи через Set.
+      const labels = [...new Set(fields.map(fieldLabel))];
       return `Обновлено: ${labels.join(', ')}`;
     }
     case 'comment_added':

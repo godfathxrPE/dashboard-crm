@@ -9,6 +9,7 @@ import {
 import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useSavedViews } from '@/lib/hooks/use-saved-views';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -78,6 +79,9 @@ export function CommandPalette() {
   const togglePalette = useUiStore((s) => s.toggleCommandPalette);
   const closePalette = useUiStore((s) => s.closeCommandPalette);
   const openModal = useUiStore((s) => s.openModal);
+  const { data: orgRole } = useOrgRole();
+  // T2: viewer не создаёт сущности — прячем «Действия» и быстрые клавиши (RLS 42501).
+  const canCreate = orgRole != null && orgRole !== 'viewer';
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -126,15 +130,17 @@ export function CommandPalette() {
   const allItems = useMemo<CmdItem[]>(() => {
     const items: CmdItem[] = [];
 
-    // Actions (создание сущностей) — всегда первыми
-    items.push(
-      { id: 'act-task', label: 'Новая задача', icon: Plus, action: 'task', kbd: 'T', section: 'Действия' },
-      { id: 'act-call', label: 'Новый звонок', icon: Plus, action: 'call', kbd: 'C', section: 'Действия' },
-      { id: 'act-project', label: 'Новая сделка', icon: Plus, action: 'project', kbd: 'P', section: 'Действия' },
-      { id: 'act-meeting', label: 'Новая встреча', icon: Plus, action: 'meeting', kbd: 'M', section: 'Действия' },
-      { id: 'act-contact', label: 'Новый контакт', icon: Plus, action: 'contact', section: 'Действия' },
-      { id: 'act-company', label: 'Новая компания', icon: Plus, action: 'company', section: 'Действия' },
-    );
+    // Actions (создание сущностей) — всегда первыми; viewer их не видит (T2).
+    if (canCreate) {
+      items.push(
+        { id: 'act-task', label: 'Новая задача', icon: Plus, action: 'task', kbd: 'T', section: 'Действия' },
+        { id: 'act-call', label: 'Новый звонок', icon: Plus, action: 'call', kbd: 'C', section: 'Действия' },
+        { id: 'act-project', label: 'Новая сделка', icon: Plus, action: 'project', kbd: 'P', section: 'Действия' },
+        { id: 'act-meeting', label: 'Новая встреча', icon: Plus, action: 'meeting', kbd: 'M', section: 'Действия' },
+        { id: 'act-contact', label: 'Новый контакт', icon: Plus, action: 'contact', section: 'Действия' },
+        { id: 'act-company', label: 'Новая компания', icon: Plus, action: 'company', section: 'Действия' },
+      );
+    }
 
     // Saved views (все страницы) — после действий
     for (const v of savedViews) {
@@ -266,7 +272,7 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews]);
+  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews, canCreate]);
 
   // Filter
   const filtered = useMemo(() => {
@@ -304,8 +310,9 @@ export function CommandPalette() {
 
   // Keyboard navigation
   function handleKeyDown(e: React.KeyboardEvent) {
-    // Быстрые клавиши действий — только при пустом query (иначе это ввод текста)
-    if (!query && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    // Быстрые клавиши действий — только при пустом query (иначе это ввод текста);
+    // viewer их не запускает (T2 — RLS всё равно отдала бы 42501).
+    if (canCreate && !query && !e.metaKey && !e.ctrlKey && !e.altKey) {
       const action = QUICK_ACTIONS[e.key.toLowerCase()];
       if (action) {
         e.preventDefault();

@@ -17,6 +17,7 @@ export interface CallEventRow {
   status: CallStatus;
   next_step: string | null;
   agreements: string | null;
+  created_by: string | null;
 }
 
 export interface MeetingEventRow {
@@ -25,6 +26,7 @@ export interface MeetingEventRow {
   title: string;
   next_step: string | null;
   notes: string | null;
+  created_by: string | null;
 }
 
 export interface TaskEventRow {
@@ -33,6 +35,7 @@ export interface TaskEventRow {
   lane: TaskLane;
   deadline: string | null;
   created_at: string;
+  created_by: string | null;
 }
 
 export interface ProjectEventRow {
@@ -40,6 +43,7 @@ export interface ProjectEventRow {
   name: string;
   type: ProjectType;
   created_at: string;
+  created_by: string | null;
 }
 
 // ─── Адаптеры ───
@@ -60,6 +64,7 @@ export function callToEvent(c: CallEventRow): TimelineEvent {
     detail: c.next_step ?? c.agreements ?? undefined,
     status,
     icon: 'call',
+    actorId: c.created_by ?? undefined,
   };
 }
 
@@ -72,6 +77,7 @@ export function meetingToEvent(m: MeetingEventRow): TimelineEvent {
     date: m.date,
     detail: m.next_step ?? m.notes ?? undefined,
     icon: 'meeting',
+    actorId: m.created_by ?? undefined,
   };
 }
 
@@ -96,6 +102,7 @@ export function taskToEvent(t: TaskEventRow, now: number = Date.now()): Timeline
     detail,
     status,
     icon: 'task',
+    actorId: t.created_by ?? undefined,
   };
 }
 
@@ -107,5 +114,6 @@ export function projectToEvent(p: ProjectEventRow): TimelineEvent {
     title: p.type === 'internal' ? `Проект: ${p.name}` : `Сделка: ${p.name}`,
     date: p.created_at,
     icon: 'project',
+    actorId: p.created_by ?? undefined,
   };
 }

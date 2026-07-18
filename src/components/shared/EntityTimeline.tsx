@@ -150,7 +150,10 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
                           {event.title}
                           {event.detail && <span className="ml-1 text-text-dim">— {event.detail}</span>}
                         </p>
-                        <p className="mt-0.5 text-xs text-text-mute">{relativeTime(event.date)}</p>
+                        <p className="mt-0.5 text-xs text-text-mute">
+                          {relativeTime(event.date)}
+                          {event.actorName && <span className="ml-1">• {event.actorName}</span>}
+                        </p>
                       </button>
                       {event.status === 'overdue' && (
                         <span className="mt-1 shrink-0 rounded-full bg-red-l px-1.5 py-0.5 text-[10px] font-medium text-red">

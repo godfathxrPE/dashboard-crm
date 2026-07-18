@@ -7,6 +7,7 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useMeetings, useDeleteMeeting, type Meeting } from '@/lib/hooks/use-meetings';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { staggerClass } from '@/lib/utils/stagger';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { cn } from '@/lib/utils/cn';
@@ -17,6 +18,8 @@ import { localDateKey } from '@/lib/utils/date-helpers';
 export function MeetingsList() {
   const { data: meetings, isLoading, error } = useMeetings();
   const deleteMeeting = useDeleteMeeting();
+  const { data: role } = useOrgRole();
+  const canCreate = role != null && role !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
@@ -72,7 +75,7 @@ export function MeetingsList() {
         wmColors={WATERMARK_GRADIENTS.frost}
         count={meetings?.length ?? 0}
         icon={<CalendarDays size={18} className="text-accent" />}
-        action={<CTAButton size="sm" onClick={() => { setEditMeeting(null); setModalOpen(true); }}><Plus size={14} /> Встреча</CTAButton>}
+        action={canCreate ? <CTAButton size="sm" onClick={() => { setEditMeeting(null); setModalOpen(true); }}><Plus size={14} /> Встреча</CTAButton> : undefined}
       />
 
       {/* Upcoming */}

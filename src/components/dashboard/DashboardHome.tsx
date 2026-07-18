@@ -32,6 +32,7 @@ import { projectHref } from '@/lib/utils/project-href';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
+import { useActorMap } from '@/lib/hooks/use-actor';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { formatBudget } from '@/lib/validators/project';
 import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
@@ -644,6 +645,7 @@ function UpcomingDeadlines() {
 
 const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
   stage_change: ArrowRightLeft,
+  stage_changed: ArrowRightLeft,
   call_logged: Phone,
   task_created: CheckSquare,
   task_completed: CheckSquare,
@@ -655,6 +657,7 @@ const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
 
 const EVENT_COLOR: Record<string, string> = {
   stage_change: 'text-blue',
+  stage_changed: 'text-blue',
   call_logged: 'text-green',
   task_created: 'text-purple',
   task_completed: 'text-purple',
@@ -666,7 +669,7 @@ const EVENT_COLOR: Record<string, string> = {
 
 const ACTIVITY_TABS = [
   { key: 'all', label: 'Все', filter: () => true },
-  { key: 'stage', label: 'Стадии', filter: (a: ActivityLog) => a.event_type === 'stage_change' },
+  { key: 'stage', label: 'Стадии', filter: (a: ActivityLog) => a.event_type === 'stage_change' || a.event_type === 'stage_changed' },
   { key: 'call', label: 'Звонки', filter: (a: ActivityLog) => a.event_type === 'call_logged' },
   { key: 'task', label: 'Задачи', filter: (a: ActivityLog) => a.event_type === 'task_created' || a.event_type === 'task_completed' },
   { key: 'delete', label: 'Удаления', filter: (a: ActivityLog) => a.event_type === 'entity_deleted' },
@@ -674,6 +677,7 @@ const ACTIVITY_TABS = [
 
 function RecentActivityList() {
   const { data: entries, isLoading } = useRecentActivity(20);
+  const actorMap = useActorMap();
   const themeVal4 = useThemeStore((s) => s.theme);
   const isFuji = themeVal4 === 't-fuji';
   const [activeTab, setActiveTab] = useState('all');
@@ -728,6 +732,7 @@ function RecentActivityList() {
             const color = EVENT_COLOR[entry.event_type] ?? 'text-text-mute';
             const projectName = (entry as any).project?.name;
             const projectId = entry.project_id;
+            const actorName = entry.user_id ? actorMap.get(entry.user_id) : undefined;
 
             const Tag = projectId ? 'a' : 'div';
 
@@ -751,6 +756,7 @@ function RecentActivityList() {
                 </div>
                 <span className="shrink-0 text-xs text-text-mute">
                   {relativeTime(entry.created_at)}
+                  {actorName && <span className="ml-1">• {actorName}</span>}
                 </span>
               </Tag>
             );

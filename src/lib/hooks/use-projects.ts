@@ -6,6 +6,7 @@ import { useRealtimeSync } from './use-realtime';
 import type { UnmetRequirement } from '@/types/database';
 import type { OpenMilestone } from './use-delivery-gate';
 import { logActivity } from './use-activity-log';
+import { usePipelineStagesMap } from './use-pipelines';
 
 // ═══════════════════════════════════════════════════════
 // Sprint 27: разбор ошибки стадийного гейта
@@ -266,6 +267,22 @@ function patchLists(qc: ReturnType<typeof useQueryClient>, fn: (old: Project[]) 
   );
 }
 
+/** Текущий проект из кешей (single или любой list-срез) — для чтения old-стадии. */
+function findProjectInCache(
+  qc: ReturnType<typeof useQueryClient>,
+  id: string,
+): Project | undefined {
+  const single = qc.getQueryData<Project>([...QUERY_KEY, id]);
+  if (single) return single;
+  for (const [, data] of qc.getQueriesData<Project[]>({ queryKey: QUERY_KEY })) {
+    if (Array.isArray(data)) {
+      const found = data.find((p) => p.id === id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
 /** Срез кеша по его ключу совместим с типом проекта? */
 function scopeMatches(key: readonly unknown[], type: Project['type']): boolean {
   const scope = key[1];
@@ -403,15 +420,30 @@ export function useCreateProject() {
   });
 }
 
+/**
+ * Поля, которые «производны» от смены стадии: пишутся тем же mutate, что и
+ * stage_id (выигрыш — won_*, проигрыш — loss/lost_*, статус, дата закрытия).
+ * Если changed ⊆ {stage_id} ∪ этот набор — событие смены стадии, а не
+ * обезличенный project_updated (grok W3: одно перемещение — одно событие).
+ */
+const STAGE_DERIVED_FIELDS = new Set([
+  'stage_id', 'status', 'won_reason', 'won_detail',
+  'loss_reason', 'loss_detail', 'lost_reason', 'actual_close_date',
+]);
+
 /** Обновить проект — оптимистичный UI */
 export function useUpdateProject() {
   const qc = useQueryClient();
+  // Имена стадий на момент лога — из кеша pipeline_stages (истина stage_id).
+  const stagesMap = usePipelineStagesMap();
 
   return useMutation({
     mutationFn: updateProject,
     onMutate: async (updated) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
       const prev = snapshotLists(qc);
+      // Старая стадия (до патча) — для payload stage_changed в onSuccess.
+      const fromStageId = findProjectInCache(qc, updated.id)?.stage_id ?? null;
 
       patchLists(qc, (old) =>
         old.map((p) =>
@@ -426,18 +458,32 @@ export function useUpdateProject() {
         old ? { ...old, ...updated, updated_at: new Date().toISOString() } : old
       );
 
-      return { prev };
+      return { prev, fromStageId };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) restoreLists(qc, ctx.prev);
     },
-    onSuccess: (_result, vars) => {
-      // B3 (S-LEGACY-STAGE-1): legacy stage_change-логгер снят вместе с полем `stage`
-      // (триггер on_stage_change дропнут в B2). Полноценный stage_id-логгер — backlog.
+    onSuccess: (_result, vars, ctx) => {
       const changed = Object.keys(vars).filter((k) => k !== 'id');
-      if (changed.length > 0) {
-        logActivity(vars.id, 'project_updated', { fields_changed: changed });
+      if (changed.length === 0) return;
+
+      // Смена стадии (в т.ч. выигрыш/проигрыш) → явное stage_changed с from→to и
+      // именами; обезличенный project_updated для stage-only апдейта подавляем.
+      const isStageChange =
+        changed.includes('stage_id') && changed.every((k) => STAGE_DERIVED_FIELDS.has(k));
+      if (isStageChange) {
+        const fromStageId = ctx?.fromStageId ?? null;
+        const toStageId = vars.stage_id ?? null;
+        logActivity(vars.id, 'stage_changed', {
+          from_stage_id: fromStageId,
+          to_stage_id: toStageId,
+          from_name: fromStageId ? stagesMap.get(fromStageId)?.name ?? null : null,
+          to_name: toStageId ? stagesMap.get(toStageId)?.name ?? null : null,
+        });
+        return;
       }
+
+      logActivity(vars.id, 'project_updated', { fields_changed: changed });
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });

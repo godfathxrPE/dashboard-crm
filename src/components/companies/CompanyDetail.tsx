@@ -9,6 +9,7 @@ import {
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { projectHref } from '@/lib/utils/project-href';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { getDealHealth } from '@/lib/utils/deal-health';
@@ -38,6 +39,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: allProjects } = useProjects();
   const { data: allStages } = usePipelineStages();
   const deleteCompany = useDeleteCompany();
+  const { data: orgRole } = useOrgRole();
+  const canCreate = orgRole != null && orgRole !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
   const [modalOpen, setModalOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -158,10 +161,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <Users size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Контакты</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedContacts.length}</span>
-            <button onClick={() => setContactModalOpen(true)}
-              className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
-              + Контакт
-            </button>
+            {canCreate && (
+              <button onClick={() => setContactModalOpen(true)}
+                className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
+                + Контакт
+              </button>
+            )}
           </div>
           {linkedContacts.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет привязанных контактов.</p>
@@ -188,10 +193,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <FolderKanban size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Сделки</span>
             <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedProjects.length}</span>
-            <button onClick={() => setProjectModalOpen(true)}
-              className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
-              + Сделка
-            </button>
+            {canCreate && (
+              <button onClick={() => setProjectModalOpen(true)}
+                className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
+                + Сделка
+              </button>
+            )}
           </div>
           {linkedProjects.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет сделок. Привяжи компанию при создании сделки.</p>

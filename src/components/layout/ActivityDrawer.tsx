@@ -9,6 +9,7 @@ import { useMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
+import { useActorMap } from '@/lib/hooks/use-actor';
 import { Bracket } from '@/components/ui/Bracket';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
@@ -242,18 +243,24 @@ function StatsWidget() {
 
 function ActivityWidget() {
   const { data: entries = [] } = useRecentActivity(5);
+  const actorMap = useActorMap();
 
   return (
     <Section title="АКТИВНОСТЬ">
-      {entries.map((entry) => (
+      {entries.map((entry) => {
+        const actorName = entry.user_id ? actorMap.get(entry.user_id) : undefined;
+        return (
         <div key={entry.id} style={{
           display: 'flex', justifyContent: 'space-between',
           padding: '5px 0', fontSize: 11,
           borderBottom: '0.5px solid var(--border)',
           color: 'var(--text-dim)',
         }}>
-          <span>{(entry as any).project?.name ?? entry.event_type}</span>
-          <span style={{ color: 'var(--text-mute)', fontSize: 10 }}>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {(entry as any).project?.name ?? entry.event_type}
+            {actorName && <span style={{ color: 'var(--text-mute)' }}> • {actorName}</span>}
+          </span>
+          <span style={{ color: 'var(--text-mute)', fontSize: 10, flexShrink: 0, marginLeft: 6 }}>
             {(() => {
               const mins = Math.floor((Date.now() - new Date(entry.created_at!).getTime()) / 60000);
               if (mins < 60) return `${mins}м`;
@@ -263,7 +270,8 @@ function ActivityWidget() {
             })()}
           </span>
         </div>
-      ))}
+        );
+      })}
     </Section>
   );
 }
