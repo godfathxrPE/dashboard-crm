@@ -42,3 +42,9 @@ export type ActivityLogInsert = Database['public']['Tables']['activity_log']['In
 export type Quote = Database['public']['Tables']['quotes']['Row'];
 export type QuoteInsert = Database['public']['Tables']['quotes']['Insert'];
 export type QuoteUpdate = Database['public']['Tables']['quotes']['Update'];
+
+// ═══ S-VIDEO-EMBED-1: project_videos (видео-материалы проекта) ═══
+// WARNING: таблица `project_videos` — РУЧНОЙ стаб в supabase.gen.ts (миграция 066 на
+// гейте Cowork). После apply 066 → regen снимет стаб, алиасы продолжат работать 1:1.
+export type ProjectVideo = Database['public']['Tables']['project_videos']['Row'];
+export type ProjectVideoInsert = Database['public']['Tables']['project_videos']['Insert'];
