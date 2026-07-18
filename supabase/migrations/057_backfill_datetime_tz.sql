@@ -4,9 +4,12 @@
 -- С фикса W2 (datetimeLocalToIso / isoToDatetimeLocal) запись идёт корректно, поэтому
 -- сдвигаем ТОЛЬКО строки, созданные ДО деплоя фронта.
 --
+-- DEPLOY_TS = 2026-07-18T08:41:05.247Z (UTC) — published_at прод-деплоя Netlify
+--   rococo-quokka-4ae212, commit 488f3af (W1-хвост), state ready. Именно с этого
+--   момента фронт пишет ISO UTC корректно; всё созданное РАНЬШЕ шло по старому пути.
+--
 -- ⚠️ ГЕЙТ (Cowork), ручные шаги перед apply:
---   1. Заменить <DEPLOY_TS> на фактический момент ДЕПЛОЯ ФРОНТА на Netlify
---      (НЕ merge PR — между merge и деплоем записи ещё идут по старому пути).
+--   1. Метка деплоя уже подставлена (published_at, НЕ merge PR). Сверить при желании.
 --   2. Прогнать SELECT-превью ниже и ГЛАЗАМИ проверить сдвигаемый набор
 --      (данных мало — ~14 звонков — просмотр дёшев и обязателен).
 --   3. Строки, импортированные migrate.mjs из старого дашборда, могли храниться
@@ -15,21 +18,21 @@
 --      их доп. условием `and created_at not between '<IMPORT_FROM>' and '<IMPORT_TO>'`.
 --   МСК = UTC+3 → сдвиг −3 часа приводит «UTC-записанное МСК» к настоящему UTC.
 --
--- SELECT-превью (выполнить и проверить ПЕРЕД update; сам update закомментирован до подстановки метки):
+-- SELECT-превью (ОБЯЗАТЕЛЬНО выполнить и проверить глазами ПЕРЕД apply самого update ниже):
 --   select id, date, date - interval '3 hours' as fixed, created_at
 --     from public.calls
---    where created_at < '<DEPLOY_TS>'::timestamptz
+--    where created_at < '2026-07-18T08:41:05.247Z'::timestamptz
 --    order by created_at;
 --   select id, deadline, deadline - interval '3 hours' as fixed, created_at
 --     from public.tasks
---    where deadline is not null and created_at < '<DEPLOY_TS>'::timestamptz
+--    where deadline is not null and created_at < '2026-07-18T08:41:05.247Z'::timestamptz
 --    order by created_at;
 
 update public.calls
 set date = date - interval '3 hours'
-where created_at < '<DEPLOY_TS>'::timestamptz;
+where created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
 
 update public.tasks
 set deadline = deadline - interval '3 hours'
 where deadline is not null
-  and created_at < '<DEPLOY_TS>'::timestamptz;
+  and created_at < '2026-07-18T08:41:05.247Z'::timestamptz;
