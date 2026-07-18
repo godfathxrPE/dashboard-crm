@@ -127,6 +127,38 @@
 >
 > Собрано интроспекцией живой БД + `supabase/migrations`; сверено с живой БД (MCP list_migrations + introspection) 2026-07-14.
 
+> **054–056b (Sprint W1 «Безопасность данных», applied 2026-07-18 через MCP `apply_migration`,
+> версии `20260717215536`/`215622`/`215630` + 056b; смок гейта пройден):**
+>
+> - **054 `rls_update_with_check`** — WITH CHECK на все UPDATE-политики, где его не было
+>   (live-разведка pg_policies, 10 шт.): calls/companies/contacts/leads/meetings/projects/
+>   tasks/quotes → `org_id = (SELECT current_org_id())` (только org-граница, ролевые условия
+>   НЕ зеркалятся — иначе сломалась бы смена owner_id менеджером); organizations → зеркало
+>   USING (id = current_org_id() AND role='owner'); profiles → `id = auth.uid()`.
+>   `notif_update`/`project_columns_update` не тронуты — WITH CHECK уже был (040+).
+>   Плюс **`freeze_org_id()`** (DEFINER, search_path hardened, GRANT только service_role) +
+>   триггер **`trg_aa_freeze_org_id`** `BEFORE UPDATE OF org_id` на все **29** таблиц с org_id:
+>   молча возвращает `OLD.org_id` (не raise — совместимо с optimistic-заглушками хуков).
+>   org_id теперь иммутабелен: межтенантный перенос строки закрыт в два слоя.
+>   Смок: tamper `set org_id=<чужой>` под authenticated → строка осталась в родном org;
+>   обычный update и смена owner_id проходят; политик без WITH CHECK — 0.
+> - **055 `storage_project_files`** — политики бакета `project-files` теперь в git: дроп
+>   live-политик ("Users can read/upload/delete own project files") и пересоздание канонических
+>   `project_files_select/insert/delete` (authenticated, own-path: `(storage.foldername(name))[1]
+>   = auth.uid()::text`); бакет private, file_size_limit 50 MB (идемпотентно — уже был private).
+> - **056 `revoke_anon_defaults`** — `ALTER DEFAULT PRIVILEGES ... REVOKE ALL FROM anon`
+>   (tables/sequences/functions) + `REVOKE ALL ON ALL TABLES/SEQUENCES ... FROM anon`.
+>   Новая таблица без ENABLE RLS больше не станет публично читаемой под anon-ключом.
+>   Verify: `anon_any_table = 0`, authenticated не задет.
+> - **056b `revoke_trigger_fn_execute`** — advisor-гигиена: у чисто триггерных DEFINER-функций
+>   (notify_deal_won, orphan_children_on_project_move, stamp_quote_status,
+>   check_task_dependency_valid, check_task_parent_valid) снят EXECUTE с anon/authenticated
+>   (GRANT service_role). Остаточные WARN advisors — 11 легитимных клиентских RPC/RLS-хелперов
+>   (документированная норма) + leaked-password-protection (вход только magic link; включить
+>   можно тумблером Dashboard → Auth).
+> - Вне SQL: Edge `ai-summarize` v4 задеплоена (дедуп 10 мин → 429, verify_jwt=true);
+>   netlify.toml — HSTS + CSP-lite; клиентский `safeHref` на do_url/document_url.
+
 ## Тенант-модель _(applied S23)_
 
 С миграций 021–022 введена мультитенантность (в живой БД с 2026-07-05):
