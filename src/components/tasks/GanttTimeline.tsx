@@ -10,6 +10,7 @@ import {
   useTaskDependencies,
   useCreateTaskDependency,
   useDeleteTaskDependency,
+  useUpdateTaskDependency,
 } from '@/lib/hooks/use-task-dependencies';
 import { LANE_CONFIG } from '@/lib/validators/task';
 import { DELIVERY_TASK_STATUS_LABELS } from '@/lib/constants/delivery-phases';
@@ -61,7 +62,25 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
     : (LANE_CONFIG[lane]?.label ?? lane);
 }
 
-type Tip = { x: number; y: number; text: string; assignee: string; status: string };
+// S-SCHEDULE-1a: assignee/status опциональны — тултип FS-нарушения на стрелке несёт только text
+type Tip = { x: number; y: number; text: string; assignee?: string; status?: string };
+
+// S-SCHEDULE-1a: измеренный путь стрелки + данные для lag-бейджа/поповера/soft-warn
+type EdgePath = {
+  id: string;
+  d: string;
+  midX: number;      // x вертикального сегмента elbow — якорь бейджа/поповера
+  midY: number;      // середина вертикального сегмента
+  critical: boolean;
+  violated: boolean; // FS-нарушение: succ.start < pred.end + lag
+  lag_days: number;
+};
+
+// S-SCHEDULE-1a: состояние поповера ребра (lag-редактор + удаление); lag — строка инпута
+type EdgeMenu = { id: string; lag: string; x: number; y: number };
+
+// DD.MM из date-key YYYY-MM-DD (для текста FS-нарушения)
+const ddmm = (k: string) => `${k.slice(8, 10)}.${k.slice(5, 7)}`;
 
 const EDGE_PX = 6;    // ширина resize-зоны у краёв бара
 const CLICK_PX = 4;   // смещение < порога = клик (открыть модалку), не drag
@@ -302,7 +321,10 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const [pendingPred, setPendingPred] = useState<string | null>(null);
   // S-CRIT-PATH: тумблер подсветки критического пути (default off)
   const [showCritical, setShowCritical] = useState(false);
-  const [edges, setEdges] = useState<{ id: string; d: string; critical: boolean }[]>([]); // измеренные пути стрелок
+  const [edges, setEdges] = useState<EdgePath[]>([]); // измеренные пути стрелок
+  // S-SCHEDULE-1a: поповер ребра (клик по стрелке → lag-редактор + удаление)
+  const [edgeMenu, setEdgeMenu] = useState<EdgeMenu | null>(null);
+  const edgeMenuRef = useRef<HTMLDivElement>(null);
   // S-WBS-1: свёртка сводных строк — id свёрнутых родителей (их потомки скрыты)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggleCollapse = useCallback((id: string) => {
@@ -326,11 +348,14 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   const { data: dependencies = [] } = useTaskDependencies(projectId, allTaskIds);
   const createDep = useCreateTaskDependency(projectId);
   const deleteDep = useDeleteTaskDependency(projectId);
+  const updateDep = useUpdateTaskDependency(projectId);
 
   // Стабильная сигнатура набора рёбер: строка не меняет reference между рендерами
   // при тех же зависимостях (dependencies дефолтится в новый [] при пустых данных).
+  // S-SCHEDULE-1a: + lag_days — иначе optimistic-правка lag не перезапустит измерение
+  // стрелок (бейдж/цвет не обновятся до случайного reflow, ревью W3).
   const depSig = useMemo(
-    () => dependencies.map((d) => `${d.id}:${d.predecessor_id}>${d.successor_id}`).join('|'),
+    () => dependencies.map((d) => `${d.id}:${d.predecessor_id}>${d.successor_id}:${d.lag_days}`).join('|'),
     [dependencies],
   );
 
@@ -359,6 +384,15 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     },
     [pendingPred, createDep],
   );
+
+  // S-SCHEDULE-1a: сохранить lag из поповера ребра. Целое ≥ 0 (v1 без lead-time);
+  // NaN/мусор из number-инпута → 0.
+  const saveEdgeLag = useCallback(() => {
+    if (!edgeMenu) return;
+    const n = Math.floor(Number(edgeMenu.lag));
+    updateDep.mutate({ id: edgeMenu.id, lag_days: Number.isFinite(n) && n > 0 ? n : 0 });
+    setEdgeMenu(null);
+  }, [edgeMenu, updateDep]);
 
   const filteredSwimlanes = useMemo(() => {
     const pred = (gt: GanttTask) =>
@@ -480,6 +514,47 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
   // (НЕ объект critical — новый ref каждый рендер). '' когда подсветка выключена.
   const critSig = showCritical ? [...critical.edgeIds].sort().join(',') : '';
 
+  // S-SCHEDULE-1a: soft-warn нарушения FS — succ.start < pred.end + lag (только сигнал,
+  // без каскада/блокировки — это S-SCHEDULE-1b). Сравнение по date-key MSK; прибавка
+  // дней — shiftDateKeyByBuckets (UTC-полдень, та же арифметика, что бары/critical).
+  // Конец без бара (undated / скрыт свёрткой-фильтром) → нарушение не считаем.
+  const violation = useMemo(() => {
+    const nodes = new Map<string, GanttTask>();
+    for (const sl of visibleSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
+    const tips = new Map<string, string>(); // edgeId → текст тултипа нарушения
+    for (const d of dependencies) {
+      const pred = nodes.get(d.predecessor_id);
+      const succ = nodes.get(d.successor_id);
+      if (!pred || !succ) continue;
+      const earliest = shiftDateKeyByBuckets(pred.end, 'day', d.lag_days);
+      if (succ.start < earliest) {
+        tips.set(
+          d.id,
+          `FS-нарушение: «${succ.task.text}» должна начаться не раньше ${ddmm(earliest)} (после «${pred.task.text}»${d.lag_days > 0 ? ` + ${d.lag_days} дн` : ''})`,
+        );
+      }
+    }
+    return tips;
+  }, [visibleSwimlanes, dependencies]);
+
+  // Стабильная сигнатура множества нарушений для effect-deps измерения (не Map-ref).
+  const violSig = useMemo(() => [...violation.keys()].sort().join(','), [violation]);
+
+  // S-SCHEDULE-1a: закрытие поповера ребра — Esc или pointerdown вне поповера
+  useLayoutEffect(() => {
+    if (!edgeMenu) return;
+    const onEsc = (ev: KeyboardEvent) => { if (ev.key === 'Escape') setEdgeMenu(null); };
+    const onDown = (ev: PointerEvent) => {
+      if (!edgeMenuRef.current?.contains(ev.target as Node)) setEdgeMenu(null);
+    };
+    window.addEventListener('keydown', onEsc);
+    window.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onEsc);
+      window.removeEventListener('pointerdown', onDown);
+    };
+  }, [edgeMenu]);
+
   const model = useMemo(() => {
     const allTasks: GanttTask[] = visibleSwimlanes.flatMap((sl) => sl.tasks);
     if (allTasks.length === 0) {
@@ -521,7 +596,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         };
       };
       const STUB = 10;
-      const next: { id: string; d: string; critical: boolean }[] = [];
+      const next: EdgePath[] = [];
       for (const dep of dependencies) {
         const from = anchor(dep.predecessor_id, 'end');
         const to = anchor(dep.successor_id, 'start');
@@ -530,16 +605,24 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
         next.push({
           id: dep.id,
           d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`,
+          midX,
+          midY: (from.y + to.y) / 2,                     // середина вертикального сегмента elbow
           critical: showCritical && critical.edgeIds.has(dep.id), // S-CRIT-PATH
+          violated: violation.has(dep.id),               // S-SCHEDULE-1a: soft-warn FS
+          lag_days: dep.lag_days,
         });
       }
       // дедуп: идентичные пути → возвращаем prev (React бейлит, re-render не идёт).
       // Без этого setEdges(новый массив) крутит render→effect→setEdges бесконечно.
       // S-CRIT-PATH: сравниваем и critical, иначе тумблер не перерисует стрелки.
+      // S-SCHEDULE-1a: + violated/lag_days — иначе смена lag/нарушения не перекрасит.
       setEdges((prev) => {
         if (
           prev.length === next.length &&
-          prev.every((e, i) => e.id === next[i].id && e.d === next[i].d && e.critical === next[i].critical)
+          prev.every((e, i) =>
+            e.id === next[i].id && e.d === next[i].d && e.critical === next[i].critical &&
+            e.violated === next[i].violated && e.lag_days === next[i].lag_days,
+          )
         ) return prev;
         return next;
       });
@@ -555,8 +638,10 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
     // перекраска крит-стрелок по тумблеру без лупа.
     // S-WBS-1: collapsedSig — свёртка меняет набор баров в DOM → перемерить стрелки
     // (скрытые концы дают anchor=null → стрелка пропускается, W4-паттерн).
+    // S-SCHEDULE-1a: violSig — смена дат/lag меняет множество нарушений → перекраска
+    // (depSig ловит lag, violSig — сдвиг дат при неизменных рёбрах).
     // v1: перемер при смене рёбер/зума/фильтра/размера/свёртки; чистый reflow строк — по следующему триггеру
-  }, [depSig, zoom, filter, showCritical, critSig, collapsedSig]);
+  }, [depSig, zoom, filter, showCritical, critSig, collapsedSig, violSig]);
 
   // isLoading (в т.ч. пока грузятся колонки) → только «Загрузка…», без флеша плоского режима
   if (isLoading) return <div className="py-8 text-center text-xs text-text-mute">Загрузка…</div>;
@@ -790,21 +875,72 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                     >
                       <path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)" />
                     </marker>
+                    {/* S-SCHEDULE-1a: маркер FS-нарушения; приоритетнее critical (это ошибка) */}
+                    <marker
+                      id="gantt-dep-arrow-viol"
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                      markerUnits="userSpaceOnUse"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="var(--red)" />
+                    </marker>
                   </defs>
                   {edges.map((edge) => (
-                    <path
-                      key={edge.id}
-                      d={edge.d}
-                      fill="none"
-                      stroke={edge.critical ? 'var(--accent)' : 'currentColor'}
-                      strokeWidth={edge.critical ? 2.5 : 1.5}
-                      markerEnd={edge.critical ? 'url(#gantt-dep-arrow-crit)' : 'url(#gantt-dep-arrow)'}
-                      className="cursor-pointer"
-                      style={{ pointerEvents: 'stroke' }}
-                      onClick={() => {
-                        if (window.confirm('Удалить зависимость?')) deleteDep.mutate(edge.id);
-                      }}
-                    />
+                    <g key={edge.id}>
+                      <path
+                        d={edge.d}
+                        fill="none"
+                        stroke={edge.violated ? 'var(--red)' : edge.critical ? 'var(--accent)' : 'currentColor'}
+                        strokeWidth={edge.violated || edge.critical ? 2.5 : 1.5}
+                        markerEnd={
+                          edge.violated
+                            ? 'url(#gantt-dep-arrow-viol)'
+                            : edge.critical
+                              ? 'url(#gantt-dep-arrow-crit)'
+                              : 'url(#gantt-dep-arrow)'
+                        }
+                      />
+                      {/* прозрачный hit-path (~10px) — кликабельность тонкой стрелки;
+                          клик → поповер lag-редактора (удаление связи — внутри него) */}
+                      <path
+                        d={edge.d}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={10}
+                        className="cursor-pointer"
+                        style={{ pointerEvents: 'stroke' }}
+                        onClick={(ev) =>
+                          setEdgeMenu({ id: edge.id, lag: String(edge.lag_days), x: ev.clientX, y: ev.clientY })
+                        }
+                        onMouseEnter={(ev) => {
+                          const t = violation.get(edge.id);
+                          if (t) setTip({ x: ev.clientX, y: ev.clientY, text: t });
+                        }}
+                        onMouseMove={(ev) => {
+                          const t = violation.get(edge.id);
+                          if (t) setTip({ x: ev.clientX, y: ev.clientY, text: t });
+                        }}
+                        onMouseLeave={() => { if (edge.violated) setTip(null); }}
+                      />
+                      {/* бейдж «+Nд» у середины ребра — только при lag > 0 */}
+                      {edge.lag_days > 0 && (
+                        <text
+                          x={edge.midX + 4}
+                          y={edge.midY + 3}
+                          className="tabular-nums"
+                          fontSize={10}
+                          fill={edge.violated ? 'var(--red)' : 'var(--text-mute)'}
+                          stroke="var(--surface)"
+                          strokeWidth={3}
+                          paintOrder="stroke"
+                        >
+                          +{edge.lag_days}д
+                        </text>
+                      )}
+                    </g>
                   ))}
                 </svg>
               )}
@@ -840,8 +976,56 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
           style={{ left: tip.x + 12, top: tip.y + 12 }}
         >
           <div className="font-medium text-text-main">{tip.text}</div>
-          <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>
-          <div className="text-text-dim">Статус: {tip.status}</div>
+          {tip.assignee !== undefined && <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>}
+          {tip.status !== undefined && <div className="text-text-dim">Статус: {tip.status}</div>}
+        </div>
+      )}
+
+      {/* S-SCHEDULE-1a: поповер ребра — lag-редактор (FS + N дн) + удаление связи.
+          Fixed (эскейпит overflow), закрытие — Esc / pointerdown вне (effect выше). */}
+      {edgeMenu && (
+        <div
+          ref={edgeMenuRef}
+          className="fixed z-50 rounded-lg border border-border bg-surface2 p-2.5 text-xs shadow-lg"
+          style={{ left: edgeMenu.x + 8, top: edgeMenu.y + 8 }}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-text-main">Связь FS</span>
+            <span className="text-text-mute">+</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              autoFocus
+              value={edgeMenu.lag}
+              onChange={(ev) => setEdgeMenu({ ...edgeMenu, lag: ev.target.value })}
+              onKeyDown={(ev) => { if (ev.key === 'Enter') saveEdgeLag(); }}
+              className="w-14 rounded-md border border-input bg-surface px-1.5 py-0.5 tabular-nums text-text-main focus:border-accent focus:outline-none"
+              aria-label="Задержка, календарных дней"
+            />
+            <span className="text-text-mute">дн</span>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={saveEdgeLag}
+              className="rounded-lg border border-accent px-2 py-0.5 font-medium text-accent transition-colors hover:bg-accent-l"
+            >
+              Сохранить
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Удалить зависимость?')) {
+                  deleteDep.mutate(edgeMenu.id);
+                  setEdgeMenu(null);
+                }
+              }}
+              className="rounded-lg border border-border px-2 py-0.5 text-red transition-colors hover:border-red"
+            >
+              Удалить связь
+            </button>
+          </div>
         </div>
       )}
     </div>

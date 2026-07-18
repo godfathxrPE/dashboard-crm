@@ -112,6 +112,51 @@ export function useCreateTaskDependency(projectId: string) {
   });
 }
 
+/**
+ * S-SCHEDULE-1a: правка lag_days ребра (FS + N календарных дней). Шлём СТРОГО
+ * lag_days — смена predecessor/successor через UPDATE обошла бы DAG-валидатор
+ * 048 (он BEFORE INSERT only, см. 062). Тот же оптимистик-паттерн.
+ */
+export function useUpdateTaskDependency(projectId: string) {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const key = depsKey(projectId);
+
+  return useMutation({
+    meta: { silentError: true },
+    mutationFn: async (input: { id: string; lag_days: number }) => {
+      // клиентская валидация: целое ≥ 0 (v1 без lead-time / отрицательного lag)
+      const lag = Math.max(0, Math.floor(input.lag_days));
+      const { data, error } = await supabase
+        .from('task_dependencies')
+        .update({ lag_days: lag })
+        .eq('id', input.id)
+        .select('id, predecessor_id, successor_id, dep_type, lag_days')
+        .single();
+
+      if (error) throw error;
+      return data as DependencyEdge;
+    },
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<DependencyEdge[]>(key);
+      queryClient.setQueryData<DependencyEdge[]>(key, (old) =>
+        (old ?? []).map((e) =>
+          e.id === input.id ? { ...e, lag_days: Math.max(0, Math.floor(input.lag_days)) } : e,
+        ),
+      );
+      return { previous };
+    },
+    onError: (err, _vars, context) => {
+      if (context?.previous !== undefined) queryClient.setQueryData(key, context.previous);
+      toast.error(parseDependencyError(err));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
 /** Удалить ребро по id. Тот же оптимистик-паттерн. */
 export function useDeleteTaskDependency(projectId: string) {
   const supabase = createClient();
