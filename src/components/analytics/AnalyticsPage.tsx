@@ -1,12 +1,30 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
-import { CallsChart } from './CallsChart';
-import { TasksDistribution, PipelineChart } from './Charts';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
+
+// W4a: recharts-чарты — dynamic-чанком, первый чанк /analytics без recharts.
+function ChartSkeleton() {
+  return (
+    <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
+      <div className="mb-4 h-3 w-32 rounded bg-border/50" />
+      <div className="h-48 rounded bg-border/30" />
+    </div>
+  );
+}
+const CallsChart = dynamic(() => import('./CallsChart').then((m) => m.CallsChart), {
+  ssr: false, loading: () => <ChartSkeleton />,
+});
+const TasksDistribution = dynamic(() => import('./Charts').then((m) => m.TasksDistribution), {
+  ssr: false, loading: () => <ChartSkeleton />,
+});
+const PipelineChart = dynamic(() => import('./Charts').then((m) => m.PipelineChart), {
+  ssr: false, loading: () => <ChartSkeleton />,
+});
 
 export function AnalyticsPage() {
   const [reviewOpen, setReviewOpen] = useState(false);

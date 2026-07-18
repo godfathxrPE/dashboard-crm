@@ -1,47 +1,30 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { TextNavSidebar } from '@/components/layout/TextNavSidebar';
 import { ContentHeader } from '@/components/layout/ContentHeader';
 import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
 import { EventReminder } from '@/components/layout/EventReminder';
 import { AuraOrbs } from '@/components/layout/AuraOrbs';
-import { useState, useEffect } from 'react';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
-import { CallModal } from '@/components/calls/CallModal';
-import { MeetingModal } from '@/components/meetings/MeetingModal';
-import { TaskModal } from '@/components/tasks/TaskModal';
 import { cn } from '@/lib/utils/cn';
 import PageTransition from '@/components/layout/PageTransition';
 import { CommandPalette } from '@/components/shared/CommandPalette';
-import { GlobalModals } from '@/components/shared/GlobalModals';
 import { Hotkeys } from '@/components/shared/Hotkeys';
 import { getSectionFromPath } from '@/lib/section-colors';
 
-function QuickActionModals() {
-  const pendingAction = useDrawerStore((s) => s.pendingAction);
-  const setPendingAction = useDrawerStore((s) => s.setPendingAction);
-  const [callOpen, setCallOpen] = useState(false);
-  const [meetingOpen, setMeetingOpen] = useState(false);
-  const [taskOpen, setTaskOpen] = useState(false);
-
-  useEffect(() => {
-    if (!pendingAction) return;
-    if (pendingAction.type === 'call') setCallOpen(true);
-    if (pendingAction.type === 'meeting') setMeetingOpen(true);
-    if (pendingAction.type === 'task') setTaskOpen(true);
-    setPendingAction(null);
-  }, [pendingAction, setPendingAction]);
-
-  return (
-    <>
-      <CallModal isOpen={callOpen} onClose={() => setCallOpen(false)} editCall={null} />
-      <MeetingModal isOpen={meetingOpen} onClose={() => setMeetingOpen(false)} editMeeting={null} />
-      <TaskModal isOpen={taskOpen} onClose={() => setTaskOpen(false)} editTask={null} />
-    </>
-  );
-}
+// W4a: модалки открываются по хоткею/действию — первому чанку shell не нужны.
+// CommandPalette остаётся статикой: ⌘K должен открываться мгновенно.
+const QuickActionModals = dynamic(
+  () => import('@/components/shared/QuickActionModals').then((m) => m.QuickActionModals),
+  { ssr: false },
+);
+const GlobalModals = dynamic(
+  () => import('@/components/shared/GlobalModals').then((m) => m.GlobalModals),
+  { ssr: false },
+);
 
 export default function DashboardLayout({
   children,

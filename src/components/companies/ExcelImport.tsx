@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Upload, X, Loader2, AlertTriangle, Check, ChevronRight } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -104,6 +103,8 @@ export function ExcelImportButton() {
     if (!file) return;
 
     const buffer = await file.arrayBuffer();
+    // W4a: xlsx (~250КБ) грузится лениво при выборе файла, не в чанке /companies
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });

@@ -50,7 +50,7 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
-import { GanttTimeline } from '@/components/tasks/GanttTimeline';
+import dynamic from 'next/dynamic';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
@@ -71,6 +71,20 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
 import type { Task } from '@/types/entities';
+
+// W4a: Гант (849 строк + измерение стрелок) грузится только при открытии вкладки
+// «Гант», а не в первом чанке деталки. ssr:false — компонент целиком клиентский.
+const GanttTimeline = dynamic(
+  () => import('@/components/tasks/GanttTimeline').then((m) => m.GanttTimeline),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={24} className="animate-spin text-accent" />
+      </div>
+    ),
+  },
+);
 
 
 // ═══════════════════════════════════════════════════════

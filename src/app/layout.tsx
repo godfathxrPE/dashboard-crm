@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
 import { Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
@@ -28,9 +26,11 @@ const onest = Onest({
   display: 'swap',
 });
 
+// W4a: веса срезаны до фактических потребителей — 400 (.t-aura h1/.aura-page-title)
+// и 700 (KPI-цифра в analytics/Charts.tsx). 300/600 никто не использовал.
 const unbounded = Unbounded({
   subsets: ['latin', 'cyrillic'],
-  weight: ['300', '400', '600', '700'],
+  weight: ['400', '700'],
   variable: '--font-unbounded',
   display: 'swap',
 });
@@ -49,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`t-aura ${GeistSans.variable} ${GeistMono.variable} ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
+      className={`t-aura ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
       suppressHydrationWarning
     >
       <body>

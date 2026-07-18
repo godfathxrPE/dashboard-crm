@@ -7,9 +7,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // W4a: Geist убран (2 семейства woff2 без живой роли: body всё равно
+      // перекрывал sans через --font-app, mono на kbd — системный достаточен).
       fontFamily: {
-        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-geist-mono)', 'monospace'],
+        sans: ['var(--font-app)', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       colors: {
         bg: 'var(--bg)',
