@@ -16,6 +16,9 @@ export interface GanttTask {
   depth: number;          // 0 = корень; +1 на уровень вложенности (отступ строки)
   isSummary: boolean;     // есть дети-в-расписании → сводный бар (span = обёртка детей)
   parentId: string | null;// родитель В ЭТОМ ЖЕ свимлейне (иначе null — см. W7)
+  // S-WBS-1.1: у задачи нет собственных дат, span целиком вычислен из детей
+  // (undated-родитель, материализованный сводным баром вместо бакета «Без дат»).
+  datesFromChildren?: boolean;
 }
 export interface GanttSwimlane {
   id: string;             // column.id | '__none__' | '__flat__'
@@ -65,31 +68,51 @@ function buildTree(items: GanttTask[]): GanttTask[] {
     }
   }
 
-  const out: GanttTask[] = [];
-  // visit проставляет depth/isSummary/parentId и возвращает эффективный span
-  // (для сводных — обёртку детей; DFS снизу вверх, порядок в out — сверху вниз).
-  const visit = (node: GanttTask, depth: number, parentId: string | null): { start: string; end: string } => {
-    node.depth = depth;
-    node.parentId = parentId;
-    out.push(node);                                   // родитель в out ДО детей (pre-order)
-    const kids = (childrenOf.get(node.task.id) ?? []).sort(bySpan);
-    if (kids.length === 0) {
+  // Проход 1 (S-WBS-1.1): span снизу вверх, ДО сортировки — datesFromChildren-узлы
+  // приходят с пустым сентинел-span и должны сортироваться по вычисленной обёртке.
+  // Собственный span сводного узла кандидатом в min/max НЕ является (как в S-WBS-1).
+  const computeSpan = (node: GanttTask): void => {
+    const kids = childrenOf.get(node.task.id);
+    if (!kids?.length) {
       node.isSummary = false;
-      return { start: node.start, end: node.end };
+      return;
     }
     node.isSummary = true;
-    let minS = kids[0].start;
-    let maxE = kids[0].end;
+    let minS = '';
+    let maxE = '';
     for (const kid of kids) {
-      const span = visit(kid, depth + 1, node.task.id);
-      if (span.start < minS) minS = span.start;
-      if (span.end > maxE) maxE = span.end;
+      computeSpan(kid);
+      if (!kid.start) continue;                       // пустой span — не кандидат в обёртку
+      if (!minS || kid.start < minS) minS = kid.start;
+      if (!maxE || kid.end > maxE) maxE = kid.end;
     }
-    node.start = minS;                                // сводный span = обёртка детей
-    node.end = maxE;
-    return { start: minS, end: maxE };
+    if (minS) {
+      node.start = minS;                              // сводный span = обёртка детей
+      node.end = maxE;
+    }
+    // minS пуст ⇒ у узла нет датированных потомков в дереве: datesFromChildren-узел
+    // остаётся с пустым span и защитно выбрасывается в visit ниже.
   };
+  for (const root of roots) computeSpan(root);
 
+  // Проход 2: pre-order (родитель в out ДО детей) по финальным спанам.
+  const out: GanttTask[] = [];
+  const visit = (node: GanttTask, depth: number, parentId: string | null): void => {
+    if (!node.start) {
+      // Не должно случаться: материализация (keepsInLane) гарантирует датированного
+      // потомка в цепочке того же лейна. Защита от рассинхрона — не роняем Гант.
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[gantt] узел без вычислимого span выброшен из дерева:', node.task.id);
+      }
+      return;
+    }
+    node.depth = depth;
+    node.parentId = parentId;
+    out.push(node);
+    for (const kid of (childrenOf.get(node.task.id) ?? []).sort(bySpan)) {
+      visit(kid, depth + 1, node.task.id);
+    }
+  };
   for (const root of roots.sort(bySpan)) visit(root, 0, null);
   return out;
 }
@@ -100,15 +123,50 @@ export function useProjectSchedule(projectId: string): ProjectSchedule {
 
   return useMemo(() => {
     const phaseMode = isPhaseBoard(columns);
+    const all = tasks ?? [];
+    const laneOf = (t: Task) => (phaseMode ? (t.column_id ?? '__none__') : '__flat__');
+
+    // S-WBS-1.1 (закрытие F1): undated-задача с датированным потомком по цепочке
+    // parent_task_id, НЕ покидающей её свимлейн, материализуется в лейне сводным
+    // узлом (span из детей) вместо бакета «Без дат». Цепочка строго внутри лейна:
+    // кросс-фазовый промежуточный узел рвёт дерево (W7, v1 split) — потомок в лейне
+    // всплыл бы отдельным корнем, а предок остался бы пустым листом.
+    const childrenByParent = new Map<string, Task[]>();
+    for (const t of all) {
+      if (!t.parent_task_id) continue;
+      const arr = childrenByParent.get(t.parent_task_id) ?? [];
+      arr.push(t);
+      childrenByParent.set(t.parent_task_id, arr);
+    }
+    // Мемо по id корректен: лейн вдоль цепочки не меняется (равен лейну самой задачи).
+    const keepMemo = new Map<string, boolean>();
+    const keepsInLane = (t: Task, visited: Set<string>): boolean => {
+      const memo = keepMemo.get(t.id);
+      if (memo !== undefined) return memo;
+      if (visited.has(t.id)) return false;            // защита от цикла (гард 048/052 в БД)
+      visited.add(t.id);
+      const lane = laneOf(t);
+      let keep = false;
+      for (const child of childrenByParent.get(t.id) ?? []) {
+        if (laneOf(child) !== lane) continue;
+        if (effectiveSpan(child) || keepsInLane(child, visited)) { keep = true; break; }
+      }
+      keepMemo.set(t.id, keep);
+      return keep;
+    };
+
     const undated: Task[] = [];
     const byLane = new Map<string, GanttTask[]>();
 
-    for (const task of tasks ?? []) {
+    for (const task of all) {
       const span = effectiveSpan(task);
-      if (!span) { undated.push(task); continue; }
+      if (!span && !keepsInLane(task, new Set())) { undated.push(task); continue; }
       // depth/isSummary/parentId проставляет buildTree ниже (после сбора свимлейна).
-      const gt: GanttTask = { task, ...span, isMilestone: task.is_milestone === true, depth: 0, isSummary: false, parentId: null };
-      const laneId = phaseMode ? (task.column_id ?? '__none__') : '__flat__';
+      // Без span — summary-only узел: пустой сентинел, computeSpan перезапишет из детей.
+      const gt: GanttTask = span
+        ? { task, ...span, isMilestone: task.is_milestone === true, depth: 0, isSummary: false, parentId: null }
+        : { task, start: '', end: '', isMilestone: task.is_milestone === true, depth: 0, isSummary: false, parentId: null, datesFromChildren: true };
+      const laneId = laneOf(task);
       const arr = byLane.get(laneId) ?? [];
       arr.push(gt);
       byLane.set(laneId, arr);
