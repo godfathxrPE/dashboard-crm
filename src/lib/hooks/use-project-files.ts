@@ -35,7 +35,8 @@ export function useUploadProjectFile(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (file: File) => {
+    // S-PROJECT-WORKSPACE-1 (064): comment — необязательный комментарий к файлу
+    mutationFn: async ({ file, comment }: { file: File; comment?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -59,6 +60,7 @@ export function useUploadProjectFile(projectId: string) {
           file_size: file.size,
           file_type: file.type || null,
           storage_path: storagePath,
+          comment: comment || null,
         })
         .select()
         .single();

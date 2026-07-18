@@ -18,6 +18,7 @@ import {
   Rocket,
   ExternalLink,
   Link2,
+  StickyNote,
 } from 'lucide-react';
 import {
   useProject,
@@ -796,6 +797,33 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             >
               <ExternalLink size={13} />
             </a>
+          )}
+        </div>
+      )}
+
+      {/* S-PROJECT-WORKSPACE-1 (п.6): заметки проекта для команды — переиспользуем
+          projects.pinned_note (017); на client заметка уже в DealFocusPanel — не дублируем.
+          Пишет canManage, команда читает (v1; all-team edit — NEXT, требует RLS-решения). */}
+      {(isDelivery || project.type === 'internal') && (
+        <div className="mb-4 rounded-xl border border-border bg-surface p-4">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-text-main">
+            <StickyNote size={14} className="text-text-dim" /> Заметки проекта
+          </div>
+          {canManage ? (
+            <div className="text-[13px] leading-relaxed">
+              <InlineEdit
+                as="textarea"
+                value={project.pinned_note ?? ''}
+                placeholder="Заметки для команды…"
+                onSave={async (val) => {
+                  updateProject.mutate({ id: project.id, pinned_note: val || null });
+                }}
+              />
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-text-main">
+              {project.pinned_note || <span className="text-text-mute">Заметок пока нет</span>}
+            </p>
           )}
         </div>
       )}

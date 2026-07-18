@@ -24,15 +24,18 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
   const download = useDownloadProjectFile();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  // S-PROJECT-WORKSPACE-1 (064): при мульти-загрузке коммент применяется ко всему батчу
+  const [comment, setComment] = useState('');
 
   const handleFiles = useCallback(
     (fileList: FileList | null) => {
       if (!fileList) return;
       for (const file of Array.from(fileList)) {
-        upload.mutate(file);
+        upload.mutate({ file, comment });
       }
+      setComment('');
     },
-    [upload],
+    [upload, comment],
   );
 
   function handleDelete(file: ProjectFile) {
@@ -68,6 +71,14 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
         />
       </div>
 
+      <input
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Комментарий к файлу (необязательно)"
+        className="mb-2 w-full rounded-lg border border-input bg-surface px-3 py-1.5
+                   text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+      />
+
       {/* Drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -101,13 +112,20 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                 className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-surface2 transition-colors"
               >
                 <FileText size={14} className="shrink-0 text-text-mute" />
-                <button
-                  onClick={() => download(f.storage_path, f.file_name)}
-                  className="min-w-0 flex-1 truncate text-left text-text-main hover:text-accent transition-colors"
-                  title={f.file_name}
-                >
-                  {f.file_name}
-                </button>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <button
+                    onClick={() => download(f.storage_path, f.file_name)}
+                    className="min-w-0 truncate text-left text-text-main hover:text-accent transition-colors"
+                    title={f.file_name}
+                  >
+                    {f.file_name}
+                  </button>
+                  {f.comment && (
+                    <span className="block truncate text-[11px] text-text-mute" title={f.comment}>
+                      {f.comment}
+                    </span>
+                  )}
+                </div>
                 <span className="shrink-0 text-xs text-text-mute">
                   {formatFileSize(f.file_size)}
                 </span>
