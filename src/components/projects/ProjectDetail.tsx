@@ -46,6 +46,7 @@ import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
 import { ProjectFiles } from './ProjectFiles';
+import { ProjectChat } from './ProjectChat';
 import { QuotesTab } from './QuotesTab';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
@@ -147,7 +148,7 @@ function CompletenessBadge({ project }: { project: Project }) {
 // ═══════════════════════════════════════════════════════
 
 // PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки
-type Tab = 'activity' | 'board' | 'timeline' | 'quotes';
+type Tab = 'activity' | 'board' | 'timeline' | 'quotes' | 'chat';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -841,6 +842,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           { value: 'timeline' as const, label: 'Гант' },
           // S-QUOTE-1: вкладка «КП» — только для сделок (type='client')
           ...(project.type === 'client' ? [{ value: 'quotes' as const, label: 'КП' }] : []),
+          // S-CHAT-1: чат команды — на всех типах проектов (отдельный модуль, НЕ Активность)
+          { value: 'chat' as const, label: 'Чат' },
         ]).map((t) => (
           <button
             key={t.value}
@@ -881,6 +884,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {activeTab === 'quotes' && project.type === 'client' && (
         <QuotesTab deal={project} />
       )}
+
+      {/* S-CHAT-1: чат команды проекта (realtime) */}
+      {activeTab === 'chat' && <ProjectChat projectId={projectId} />}
 
       {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
       <div className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
