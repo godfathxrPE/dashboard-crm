@@ -2,13 +2,18 @@ import { describe, test, expect } from 'vitest';
 import {
   PROJECT_MEMBER_ROLE_LABELS,
   PROJECT_MEMBER_ROLE_ORDER,
+  PROJECT_ROLES_BY_CATEGORY,
+  rolesForProject,
   hasTaskProgress,
 } from '@/lib/constants/delivery-phases';
 import { groupMembersByRole, type ProjectMember } from '@/lib/hooks/use-project-members';
 
-describe('project_members — роли (P2b, миграция 037)', () => {
-  test('ровно 3 роли в порядке manager → implementer → installer', () => {
-    expect(PROJECT_MEMBER_ROLE_ORDER).toEqual(['manager', 'implementer', 'installer']);
+describe('project_members — роли (S-TEAM-ROLES-1, миграция 063)', () => {
+  test('8 ролей в ORDER', () => {
+    expect(PROJECT_MEMBER_ROLE_ORDER).toEqual([
+      'pm', 'manager', 'analyst', 'architect', 'developer',
+      'implementer', 'installer', 'launch_lead',
+    ]);
   });
 
   test('лейблы полны и согласованы с ORDER (роли только из констант)', () => {
@@ -20,10 +25,45 @@ describe('project_members — роли (P2b, миграция 037)', () => {
     );
   });
 
-  test('русские лейблы ролей', () => {
-    expect(PROJECT_MEMBER_ROLE_LABELS.manager).toBe('Менеджер');
-    expect(PROJECT_MEMBER_ROLE_LABELS.implementer).toBe('Внедренец');
-    expect(PROJECT_MEMBER_ROLE_LABELS.installer).toBe('Монтажник');
+  test('ключевые лейблы', () => {
+    expect(PROJECT_MEMBER_ROLE_LABELS.pm).toBe('Руководитель проекта');
+    expect(PROJECT_MEMBER_ROLE_LABELS.manager).toBe('Менеджер проекта');
+    expect(PROJECT_MEMBER_ROLE_LABELS.launch_lead).toBe('Руководитель запуска');
+  });
+
+  test('каждая категория — подмножество ORDER (нет ролей мимо CHECK 063)', () => {
+    for (const roles of Object.values(PROJECT_ROLES_BY_CATEGORY)) {
+      for (const role of roles) expect(PROJECT_MEMBER_ROLE_ORDER).toContain(role);
+    }
+  });
+
+  test('rolesForProject: ERP без монтажника/внедренца/РЗ', () => {
+    const erp = rolesForProject('erp', 'delivery');
+    expect(erp).toContain('architect');
+    expect(erp).toContain('developer');
+    expect(erp).not.toContain('installer');
+    expect(erp).not.toContain('implementer');
+    expect(erp).not.toContain('launch_lead');
+  });
+
+  test('rolesForProject: IIoT с монтажником/внедренцем/РЗ, без архитектора/программиста', () => {
+    const iiot = rolesForProject('iiot', 'delivery');
+    expect(iiot).toContain('implementer');
+    expect(iiot).toContain('installer');
+    expect(iiot).toContain('launch_lead');
+    expect(iiot).not.toContain('architect');
+    expect(iiot).not.toContain('developer');
+  });
+
+  test('rolesForProject: internal — только pm/manager/analyst (direction игнорируется)', () => {
+    expect(rolesForProject(null, 'internal')).toEqual(['pm', 'manager', 'analyst']);
+    expect(rolesForProject('iiot', 'internal')).toEqual(['pm', 'manager', 'analyst']);
+  });
+
+  test('rolesForProject: manager есть в каждой категории (дефолт add-формы валиден)', () => {
+    for (const roles of Object.values(PROJECT_ROLES_BY_CATEGORY)) {
+      expect(roles).toContain('manager');
+    }
   });
 });
 

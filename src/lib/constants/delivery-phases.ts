@@ -1,3 +1,5 @@
+import type { Direction, ProjectMemberRole, ProjectType } from '@/types/database';
+
 // ═══════════════════════════════════════════════════════
 // Delivery-состояния — ЕДИНСТВЕННЫЙ источник (спринт P1, §9 ФИНАЛ).
 // Состояние проекта внедрения = phase_group стадии project-пайплайна
@@ -91,14 +93,42 @@ export function isPhaseBoard(columns: ReadonlyArray<{ category: string }>): bool
 // P2b: команда проекта (project_members, миграция 037) + прогресс задач
 // ═══════════════════════════════════════════════════════
 
-export const PROJECT_MEMBER_ROLE_LABELS: Record<string, string> = {
-  manager: 'Менеджер',
+// S-TEAM-ROLES-1 (063): 8 ролей — DB-суперсет; Record<ProjectMemberRole,…>
+// заставляет tsc ловить пропущенный ключ при следующем расширении.
+export const PROJECT_MEMBER_ROLE_LABELS: Record<ProjectMemberRole, string> = {
+  pm: 'Руководитель проекта',
+  manager: 'Менеджер проекта',
+  analyst: 'Аналитик',
+  architect: 'Архитектор',
+  developer: 'Программист',
   implementer: 'Внедренец',
   installer: 'Монтажник',
+  launch_lead: 'Руководитель запуска',
 };
 
-// тип роли — ProjectMemberRole в types/database.ts (единый источник)
-export const PROJECT_MEMBER_ROLE_ORDER = ['manager', 'implementer', 'installer'] as const;
+// тип роли — ProjectMemberRole в types/database.ts (единый источник);
+// полный порядок отображения — группировка показывает любую присутствующую
+// роль (включая легаси вне категории проекта)
+export const PROJECT_MEMBER_ROLE_ORDER = [
+  'pm', 'manager', 'analyst', 'architect', 'developer',
+  'implementer', 'installer', 'launch_lead',
+] as const;
+
+// Селектируемые роли по категории проекта (UI-фильтр; БД хранит один суперсет).
+export const PROJECT_ROLES_BY_CATEGORY: Record<'erp' | 'iiot' | 'internal', ProjectMemberRole[]> = {
+  erp:      ['pm', 'manager', 'analyst', 'architect', 'developer'],
+  iiot:     ['pm', 'manager', 'analyst', 'implementer', 'installer', 'launch_lead'],
+  internal: ['pm', 'manager', 'analyst'],
+};
+
+export function rolesForProject(
+  direction: Direction | null,
+  type: ProjectType,
+): ProjectMemberRole[] {
+  if (type === 'internal') return PROJECT_ROLES_BY_CATEGORY.internal;
+  if (direction === 'iiot') return PROJECT_ROLES_BY_CATEGORY.iiot;
+  return PROJECT_ROLES_BY_CATEGORY.erp; // delivery/client с erp — дефолт
+}
 
 /** Показывать «N/M задач»: только когда у проекта вообще есть задачи */
 export function hasTaskProgress(progressTotal: number | null | undefined): boolean {

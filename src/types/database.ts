@@ -394,7 +394,11 @@ export type ActivityType = 'call' | 'meeting' | 'email' | 'note' | 'task_complet
 
 // ═══ Delivery P2b (миграция 037): команда проекта ═══
 
-export type ProjectMemberRole = 'manager' | 'implementer' | 'installer';
+// S-TEAM-ROLES-1 (063): 8 ролей — один DB-суперсет, UI фильтрует по категории
+// проекта (rolesForProject в delivery-phases.ts). role — ярлык, НЕ участвует в RLS.
+export type ProjectMemberRole =
+  | 'pm' | 'manager' | 'analyst' | 'architect' | 'developer'
+  | 'implementer' | 'installer' | 'launch_lead';
 
 /** Args RPC apply_delivery_template (037): фазы из шаблона для пустой доски delivery */
 export interface ApplyDeliveryTemplateArgs {

@@ -27,7 +27,7 @@ import {
   parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
-import type { UnmetRequirement } from '@/types/database';
+import type { ProjectType, UnmetRequirement } from '@/types/database';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
@@ -760,8 +760,15 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* P2b (B2): команда проекта — full-width секция (3 роли × N людей в грид не влезает) */}
-      {isDelivery && <ProjectTeam projectId={projectId} canManage={canManage} />}
+      {/* P2b (B2): команда — full-width секция; S-TEAM-ROLES-1: роли фильтруются по категории (direction+type) */}
+      {isDelivery && (
+        <ProjectTeam
+          projectId={projectId}
+          canManage={canManage}
+          direction={project.direction}
+          type={project.type as ProjectType}
+        />
+      )}
 
       {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
       {isDelivery && (

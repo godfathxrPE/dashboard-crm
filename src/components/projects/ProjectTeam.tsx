@@ -13,10 +13,10 @@ import {
 } from '@/lib/hooks/use-project-members';
 import {
   PROJECT_MEMBER_ROLE_LABELS,
-  PROJECT_MEMBER_ROLE_ORDER,
+  rolesForProject,
 } from '@/lib/constants/delivery-phases';
 import { AssigneeSelect } from '@/components/shared';
-import type { ProjectMemberRole } from '@/types/database';
+import type { Direction, ProjectMemberRole, ProjectType } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // P2b (B2): виджет «Команда» delivery-проекта — full-width секция под info grid.
@@ -49,8 +49,21 @@ function MemberAvatar({ member }: { member: ProjectMember }) {
   );
 }
 
-export function ProjectTeam({ projectId, canManage }: { projectId: string; canManage: boolean }) {
+export function ProjectTeam({
+  projectId,
+  canManage,
+  direction,
+  type,
+}: {
+  projectId: string;
+  canManage: boolean;
+  direction: Direction | null;
+  type: ProjectType;
+}) {
   const { data: members = [], isLoading } = useProjectMembers(projectId);
+  // S-TEAM-ROLES-1: селекты предлагают только роли категории проекта (ERP/IIoT/internal);
+  // группировка НЕ фильтруется — легаси-роль вне категории остаётся видимой
+  const selectable = rolesForProject(direction, type);
   const addMember = useAddProjectMember(projectId);
   const updateRole = useUpdateProjectMemberRole(projectId);
   const removeMember = useRemoveProjectMember(projectId);
@@ -99,7 +112,7 @@ export function ProjectTeam({ projectId, canManage }: { projectId: string; canMa
       ) : members.length === 0 && !adding ? (
         <p className="py-2 text-xs text-text-mute">
           Команда не назначена
-          {canManage && ' — добавь менеджера, внедренца или монтажника'}
+          {canManage && ' — добавь участников команды'}
         </p>
       ) : (
         <div className="space-y-2">
@@ -128,13 +141,14 @@ export function ProjectTeam({ projectId, canManage }: { projectId: string; canMa
                         className="rounded-md border border-input bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
                                    focus:border-accent focus:outline-none"
                       >
-                        {PROJECT_MEMBER_ROLE_ORDER.map((r) => (
-                          <option key={r} value={r}>{PROJECT_MEMBER_ROLE_LABELS[r]}</option>
+                        {/* легаси-роль вне категории — в начало, чтобы не потерять текущее значение */}
+                        {(selectable.includes(m.role) ? selectable : [m.role, ...selectable]).map((r) => (
+                          <option key={r} value={r}>{PROJECT_MEMBER_ROLE_LABELS[r] ?? r}</option>
                         ))}
                       </select>
                     ) : (
                       <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
-                        {PROJECT_MEMBER_ROLE_LABELS[m.role]}
+                        {PROJECT_MEMBER_ROLE_LABELS[m.role] ?? m.role}
                       </span>
                     )}
                     {canManage && (
@@ -176,8 +190,8 @@ export function ProjectTeam({ projectId, canManage }: { projectId: string; canMa
             className="rounded-lg border border-input bg-surface2 px-2 py-2 text-sm text-text-main
                        focus:border-accent focus:outline-none"
           >
-            {PROJECT_MEMBER_ROLE_ORDER.map((r) => (
-              <option key={r} value={r}>{PROJECT_MEMBER_ROLE_LABELS[r]}</option>
+            {selectable.map((r) => (
+              <option key={r} value={r}>{PROJECT_MEMBER_ROLE_LABELS[r] ?? r}</option>
             ))}
           </select>
           <button
