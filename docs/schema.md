@@ -179,7 +179,7 @@
 > - **бакет `avatars`** (public read; insert/update/delete — только `{uid}/…`, паттерн 055 но ключ=uid).
 > - **RPC `session_gate()`** (DEFINER, stable): `{org_id: current_org_id(), onboarded: exists…onboarded_at}` — заменил отдельный `current_org_id`-вызов в middleware.
 > - **RPC `complete_onboarding(full_name,phone,job_title)`** (DEFINER): гард пустого имени → `23514`, anon → `42501`, trim, own-row update, `onboarded_at=coalesce(…,now())`.
-> - Смок: `session_gate` под неонбордившимся → `onboarded:false`+org; пустое имя→23514; anon→42501; `wrong_email` не стемпит (nacccsgo остался pending). Middleware: org-less→/invite, орг-есть-не-онбордился→/welcome (исключён из гейта).
+> - Смок: `session_gate` под неонбордившимся → `onboarded:false`+org; пустое имя→23514; anon→42501; `wrong_email` не стемпит `accepted_at` (проверено на живом инвайте, тест-приглашение после смока удалено). Middleware: org-less→/invite, орг-есть-не-онбордился→/welcome (исключён из гейта).
 
 ## Тенант-модель _(applied S23)_
 
