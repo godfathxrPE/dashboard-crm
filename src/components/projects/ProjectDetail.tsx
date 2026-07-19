@@ -378,8 +378,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 {wonStage && (
                   <button
                     onClick={() => { setLosing(false); setWinning((v) => !v); }}
-                    className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
-                               transition-colors hover:bg-green-l"
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text-dim
+                               transition-colors hover:border-green/40 hover:text-green hover:bg-green-l"
                   >
                     Выиграна
                   </button>
@@ -387,8 +387,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 {lostStage && (
                   <button
                     onClick={() => { setWinning(false); setLosing((v) => !v); }}
-                    className="rounded-lg border border-red/40 px-2.5 py-1.5 text-xs font-medium text-red
-                               transition-colors hover:bg-red-l"
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text-dim
+                               transition-colors hover:border-red/40 hover:text-red hover:bg-red-l"
                   >
                     Проиграна
                   </button>
@@ -401,8 +401,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           {isDelivery && project.status === 'open' && (
             <button
               onClick={() => setCompleting(true)}
-              className="rounded-lg border border-green/40 px-2.5 py-1.5 text-xs font-medium text-green
-                         transition-colors hover:bg-green-l"
+              className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text-dim
+                         transition-colors hover:border-green/40 hover:text-green hover:bg-green-l"
             >
               Завершить проект
             </button>

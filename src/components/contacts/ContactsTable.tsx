@@ -119,7 +119,7 @@ export function ContactsTable() {
         <EditableCell
           value={c.phone}
           type="tel"
-          className="text-text-dim"
+          className="text-text-dim whitespace-nowrap tabular-nums"
           onSave={(val) => updateContact.mutateAsync({ id: c.id, phone: val || null })}
         />
       ) : (

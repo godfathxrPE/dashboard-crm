@@ -134,10 +134,10 @@ function HeroMetrics({ projects, pipelineId, stages }: {
   const metrics: { label: string; value: number; fmt: string; color: string; sub?: string }[] = [
     { label: 'Активные', value: m.active.length, fmt: String(m.active.length), color: 'text-accent', sub: 'по текущему пайплайну' },
     {
-      label: 'Pipeline', value: m.pipelineSum, fmt: formatBudget(m.pipelineSum), color: 'text-green',
+      label: 'Pipeline', value: m.pipelineSum, fmt: formatBudget(m.pipelineSum), color: 'text-text-main',
       sub: m.pipelineSum > 0 ? `взвеш. ${formatBudget(Math.round(m.weighted))}` : undefined,
     },
-    { label: 'Конверсия', value: m.conversion, fmt: `${m.conversion}%`, color: 'text-green' },
+    { label: 'Конверсия', value: m.conversion, fmt: `${m.conversion}%`, color: 'text-text-main' },
     { label: 'Avg цикл', value: avgCycle, fmt: avgCycle > 0 ? `${avgCycle} дн` : '—', color: 'text-text-main' },
   ];
 
