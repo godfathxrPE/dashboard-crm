@@ -62,8 +62,8 @@ export function ProfileForm({ mode, onDone }: ProfileFormProps) {
         const supabase = createClient();
         const { error } = await supabase.rpc('complete_onboarding', {
           p_full_name: values.full_name,
-          p_phone: values.phone?.trim() || null,
-          p_job_title: values.job_title?.trim() || null,
+          p_phone: values.phone?.trim() || '',
+          p_job_title: values.job_title?.trim() || '',
         });
         if (error) throw error;
         await Promise.all([

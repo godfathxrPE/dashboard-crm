@@ -51,8 +51,8 @@ export function SpawnWizard({
     const { data, error } = await supabase.rpc('spawn_delivery_project', {
       p_deal_id: dealId,
       p_kind: kind,
-      p_template_id: null,
-      p_owner_id: ownerId ?? null,
+      p_template_id: undefined,
+      p_owner_id: ownerId ?? undefined,
     });
     setPending(false);
     if (error) {
