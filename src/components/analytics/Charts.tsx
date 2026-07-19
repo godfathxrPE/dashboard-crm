@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
@@ -51,6 +51,9 @@ export function TasksDistribution() {
   const { data: tasks } = useTasks();
   const theme = useThemeStore((s) => s.theme);
   const isAura = theme === 't-aura';
+  // Донат — рукописный SVG (не recharts) → hover добавляем руками. Матч по lane
+  // (не name — надёжнее). Наведённый сегмент яркий, остальные приглушены opacity.
+  const [hovered, setHovered] = useState<{ lane: string; name: string; value: number } | null>(null);
 
   const chartData = useMemo(() => {
     if (!tasks) return [];
@@ -123,29 +126,52 @@ export function TasksDistribution() {
                   key={arc.lane}
                   d={arcPath(arc.startAngle - 90, arc.endAngle - 90, outer, inner)}
                   fill={fill}
+                  onMouseEnter={() => setHovered({ lane: arc.lane, name: arc.name, value: arc.value })}
+                  onMouseLeave={() => setHovered(null)}
                   style={{
-                    transition: 'fill 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                    ...(isAura ? { animation: 'donutIn 0.7s cubic-bezier(0.16,1,0.3,1)', opacity: 1, transformOrigin: '100px 100px' } : {}),
+                    cursor: 'default',
+                    transition: 'opacity 0.15s ease, fill 0.5s cubic-bezier(0.16,1,0.3,1)',
+                    opacity: hovered && hovered.lane !== arc.lane ? 0.45 : 1,
+                    // isAura-spread БЕЗ своего opacity — иначе он всегда затрёт hover-приглушение (W2)
+                    ...(isAura ? { animation: 'donutIn 0.7s cubic-bezier(0.16,1,0.3,1)', transformOrigin: '100px 100px' } : {}),
                   }}
                 />
               );
             })}
           </g>
-          {/* Центр: общая цифра (все темы; Unbounded — только aura, остальным наследование) */}
-          {total > 0 && (
+          {/* Центр: hover → значение+имя сегмента, иначе общий total (Unbounded только aura) */}
+          {total > 0 && (hovered ? (
+            <>
+              <text x="100" y="92" textAnchor="middle"
+                style={{ fontSize: 26, fontWeight: 600, fill: 'var(--text)', fontFamily: isAura ? 'var(--font-unbounded, sans-serif)' : 'inherit' }}>
+                {hovered.value}
+              </text>
+              <text x="100" y="114" textAnchor="middle"
+                style={{ fontSize: 11, fill: 'var(--text-mute)' }}>
+                {hovered.name}
+              </text>
+            </>
+          ) : (
             <text x="100" y="100" textAnchor="middle" dominantBaseline="central"
               style={{ fontSize: 28, fontWeight: 600, fill: 'var(--text)', fontFamily: isAura ? 'var(--font-unbounded, sans-serif)' : 'inherit' }}>
               {total}
             </text>
-          )}
+          ))}
         </svg>
         )}
       </div>
       <div className="flex justify-center gap-4 mt-2">
         {chartData.map((d) => {
           const color = LANE_COLORS[d.lane] ?? '#888';
+          const dimmed = hovered != null && hovered.lane !== d.lane;
           return (
-            <div key={d.lane} className="flex items-center gap-1.5 text-xs">
+            <div
+              key={d.lane}
+              className="flex items-center gap-1.5 text-xs cursor-default"
+              onMouseEnter={() => setHovered({ lane: d.lane, name: d.name, value: d.value })}
+              onMouseLeave={() => setHovered(null)}
+              style={{ opacity: dimmed ? 0.45 : 1, transition: 'opacity 0.15s ease' }}
+            >
               <span className="w-2.5 h-2.5 inline-block shrink-0" style={{
                 background: color,
                 borderRadius: '1px',
