@@ -719,6 +719,16 @@
   animation: none;
 }
 
+/* Minimal: чекбокс — чёрный (--text), не терракота (--accent).
+   Глобальное :checked красит в --accent; в minimal primary чёрный.
+   Галочка внутри — белая (background-image), на чёрном читается. */
+.t-minimal input[type="checkbox"]:checked,
+.t-minimal input[type="checkbox"]:indeterminate {
+  background-color: var(--text);
+  border-color: var(--text);
+}
+.t-minimal input[type="checkbox"]:hover { border-color: var(--text); }
+
 /* ═══════════════════════════════════════════════════════
    SHARED GLOBALS — вынесено из удалённого scandi-блока (AUDIT C2/C3)
    ═══════════════════════════════════════════════════════ */

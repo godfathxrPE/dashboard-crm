@@ -42,7 +42,7 @@ function TasksPageHeader({
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-baseline gap-3">
         <h1 className="aura-page-title text-text-main">Задачи</h1>
-        <span className="text-[13px] text-text-mute">
+        <span className="text-sm text-text-mute">
           {activeCount} активных · неделя {weekNum}
         </span>
       </div>
