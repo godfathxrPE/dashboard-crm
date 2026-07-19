@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Manrope, IBM_Plex_Sans, Onest, Unbounded } from 'next/font/google';
+import { Manrope, IBM_Plex_Sans, Onest, Unbounded, Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
@@ -35,6 +35,14 @@ const unbounded = Unbounded({
   display: 'swap',
 });
 
+// Minimal theme: Inter — рабочая лошадь data-UI (кириллица, tabular nums, высокий x-height)
+const inter = Inter({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600', '700'], // 700 — в UI встречается font-bold, без него faux-bold
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'Torii CRM',
   description: 'PM + CRM + Аналитика',
@@ -49,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`t-aura ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable}`}
+      className={`t-aura ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <body>
@@ -66,7 +74,7 @@ export default function RootLayout({
         <script
           id="theme-init"
           dangerouslySetInnerHTML={{
-            __html: `try{var V=['t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal'];var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&V.indexOf(t)!==-1&&t!=='t-aura'){var d=document.documentElement;d.classList.remove('t-aura');d.classList.add(t);}}catch(e){}`,
+            __html: `try{var V=['t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal','t-minimal'];var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&V.indexOf(t)!==-1&&t!=='t-aura'){var d=document.documentElement;d.classList.remove('t-aura');d.classList.add(t);}}catch(e){}`,
           }}
         />
         <QueryProvider>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 // AUDIT C: scandi/paper/sand удалены. Дефолт — aura. Порядок = порядок cycleTheme.
-const THEMES = ['t-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal'] as const;
+const THEMES = ['t-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'] as const;
 export type Theme = (typeof THEMES)[number];
 
 // Устаревшие темы (AUDIT C4-6): persisted-значение → миграция на дефолт.

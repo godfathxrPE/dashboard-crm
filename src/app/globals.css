@@ -633,6 +633,57 @@
   border-radius: 0 0 4px 4px;
 }
 
+/* ═══ Minimal (light, neutral — Linear/Attio class) ═══
+   Тихая тема: нейтральный canvas, 1 тёплый акцент, никакого декора.
+   Характер = дисциплина: Inter, компактность, сигналы только у исключений. */
+.t-minimal {
+  --bg: #F6F6F7;  --surface: #FFFFFF;  --surface2: #F3F3F4;  --surface3: #EAEAEC;
+  --popover: var(--surface);
+  --border: #E5E5E8;  --border2: #D6D6DB;  --border-input: #8A8A93;  /* 3.42:1 к surface */
+  --text: #1A1A1E;  --text-dim: #5A5A64;  --text-mute: #66666F;  /* mute 4.73:1 на surface3, тише dim (5.67:1) */
+  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
+  /* Терракота Torii — единственный акцент */
+  --accent: #C05A2E;  --accent-l: rgba(192,90,46,0.08);  --accent-l2: rgba(192,90,46,0.16);
+  --accent-text: #A64A24;  /* 5.79:1 на белом, 5.36:1 на bg */
+  --green: #1B8A4C;  --green-l: rgba(27,138,76,0.09);   --green-text: #177B43;   /* 5.32:1 */
+  --red: #CC3B2E;    --red-l: rgba(204,59,46,0.09);     --red-text: #B02A24;     /* 6.56:1 */
+  --blue: #2563C9;   --blue-l: rgba(37,99,201,0.09);    --blue-text: #1D68BC;    /* 5.59:1 */
+  --yellow: #B0680A; --yellow-l: rgba(176,104,10,0.10); --yellow-text: #846300;  /* 5.58:1 */
+  --purple: #7C5CD4; --purple-l: rgba(124,92,212,0.09); --purple-text: #6F4BC8;  /* 5.97:1 */
+  --teal-text: #007B6A;
+  --radius: 10px;  --radius-s: 6px;  --radius-m: 10px;  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(20,20,25,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,25,0.05), 0 1px 2px rgba(20,20,25,0.04);
+  --shadow-md: 0 4px 12px rgba(20,20,25,0.06), 0 1px 3px rgba(20,20,25,0.04);
+  --shadow-lg: 0 10px 32px rgba(20,20,25,0.08), 0 2px 8px rgba(20,20,25,0.04);
+  --shadow-card: var(--shadow-xs);  --shadow-card-hover: var(--shadow-sm);
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(20,20,25,0.05), 0 1px 2px rgba(20,20,25,0.04);
+  --elevation-2: 0 4px 12px rgba(20,20,25,0.07), 0 2px 4px rgba(20,20,25,0.04);
+  --elevation-3: 0 12px 40px rgba(20,20,25,0.11), 0 4px 8px rgba(20,20,25,0.05);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;  --duration-normal: 0.25s;
+  /* Pipeline-треки: нейтральная пастель + насыщенный current (solid hex — не rgba) */
+  --track-prep-done: #EDEDEF; --track-prep-current: #2E2E36;
+  --track-exp-done: #F5E4DB;  --track-exp-current: #C05A2E;
+  --track-nego-done: #F7EBD4; --track-nego-current: #B0680A;
+  --track-proj-done: #DFEAF9; --track-proj-current: #2563C9;
+
+  --font-app: var(--font-inter, 'Inter');
+  font-feature-settings: 'cv11';
+}
+
+/* Minimal A11Y: сплошные заливки с белым текстом — тот же приём, что в aura.
+   --accent #C05A2E white-on-fill = 4.43:1 (провал AA) → затемняем fill до *-text. */
+.t-minimal .bg-accent { background-color: var(--accent-text) !important; }
+.t-minimal .bg-green  { background-color: var(--green-text) !important; }
+.t-minimal .bg-blue   { background-color: var(--blue-text) !important; }
+.t-minimal .bg-red    { background-color: var(--red-text) !important; }
+.t-minimal .bg-purple { background-color: var(--purple-text) !important; }
+.t-minimal .bg-yellow { background-color: var(--yellow-text) !important; }
+.t-minimal { --tw-ring-color: var(--accent-text); }
+
 /* ═══════════════════════════════════════════════════════
    SHARED GLOBALS — вынесено из удалённого scandi-блока (AUDIT C2/C3)
    ═══════════════════════════════════════════════════════ */

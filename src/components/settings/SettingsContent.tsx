@@ -26,6 +26,7 @@ const THEMES = [
   { id: 't-frost', label: 'Frost', color: '#6ba3be' },
   { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
   { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
+  { id: 't-minimal', label: 'Minimal', color: '#C05A2E' },
 ] as const;
 
 interface SettingsContentProps {
@@ -110,7 +111,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
             <Palette size={14} className="text-text-dim" />
             <h2 className="text-xs font-semibold text-text-dim">Тема оформления</h2>
           </div>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
             {THEMES.map((t) => (
               <button key={t.id} onClick={() => setTheme(t.id)}
                 className={`flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 transition-all
