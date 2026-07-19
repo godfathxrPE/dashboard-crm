@@ -1597,6 +1597,56 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          id: string
+          org_id: string
+          message_id: string
+          user_id: string
+          emoji: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id?: string
+          message_id: string
+          user_id?: string
+          emoji: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          message_id?: string
+          user_id?: string
+          emoji?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "project_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // STOPGAP S-CHAT-2 — заменить regenerated после apply 068 (гейт Cowork)
       project_messages: {
         Row: {
           author_id: string | null

@@ -58,3 +58,13 @@ export type ProjectMessageInsert = Database['public']['Tables']['project_message
 export type ProjectMessageWithAuthor = ProjectMessage & {
   author: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
 };
+
+// ═══ S-CHAT-2: message_reactions (реакции на сообщения — junction) ═══
+// WARNING: таблица `message_reactions` — РУЧНОЙ стаб в supabase.gen.ts (миграция 068 на
+// гейте Cowork). После apply 068 → regen снимет стаб, алиасы продолжат работать 1:1.
+export type MessageReaction = Database['public']['Tables']['message_reactions']['Row'];
+export type MessageReactionInsert = Database['public']['Tables']['message_reactions']['Insert'];
+/** Реакция с реактором (embed profiles!user_id в select хука). */
+export type MessageReactionWithUser = MessageReaction & {
+  user: Pick<Profile, 'full_name' | 'avatar_url'> | null;
+};

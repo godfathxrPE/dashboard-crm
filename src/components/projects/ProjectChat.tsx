@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Pencil, Trash2, SendHorizontal, Smile } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MessageCircle, Pencil, Trash2, SendHorizontal, Smile, SmilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProjectMessages,
@@ -10,6 +10,7 @@ import {
   useDeleteMessage,
   isTempMessage,
 } from '@/lib/hooks/use-project-messages';
+import { useMessageReactions, useToggleReaction } from '@/lib/hooks/use-message-reactions';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
@@ -115,6 +116,25 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiBtnRef = useRef<HTMLButtonElement>(null);
+
+  // ── S-CHAT-2: реакции. messageIds — из уже загруженной ленты (без повторного fetch).
+  const messageIds = useMemo(
+    () => messages.filter((m) => !isTempMessage(m)).map((m) => m.id),
+    [messages],
+  );
+  const { byMessage: reactionsByMessage } = useMessageReactions(projectId, messageIds);
+  const toggleReactionMut = useToggleReaction(projectId);
+  // Отдельный state пикера реакций — НЕ шарим composer'ный emojiOpen/emojiBtnRef.
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  const reactionAnchorRef = useRef<HTMLButtonElement | null>(null);
+
+  function toggleReaction(messageId: string, emoji: string) {
+    const mine = reactionsByMessage.get(messageId)?.find((r) => r.emoji === emoji)?.mine ?? false;
+    toggleReactionMut.mutate(
+      { messageId, emoji, mine },
+      { onError: () => toast.error('Не удалось изменить реакцию') },
+    );
+  }
 
   const myId = user?.id ?? null;
   const isModerator = orgRole === 'owner' || orgRole === 'admin';
@@ -300,8 +320,20 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                 </span>
               );
 
-              const actions = (canEdit || canDelete) && editingId !== m.id && (
+              // Кнопка «реакция» доступна всем на любом non-temp сообщении (не под
+              // canEdit/canDelete); Pencil/Trash — под своими гейтами.
+              const controls = !temp && editingId !== m.id && (
                 <div className="flex shrink-0 items-center gap-1 self-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <button
+                    onClick={(e) => {
+                      reactionAnchorRef.current = e.currentTarget;
+                      setReactionPickerFor(m.id);
+                    }}
+                    className="rounded p-0.5 text-text-mute transition-colors hover:text-text-main"
+                    aria-label="Добавить реакцию"
+                  >
+                    <SmilePlus size={12} />
+                  </button>
                   {canEdit && (
                     <button
                       onClick={() => startEdit(m)}
@@ -320,6 +352,31 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                       <Trash2 size={12} />
                     </button>
                   )}
+                </div>
+              );
+
+              // Чипы реакций под пузырём (свой и чужой). Всегда видимы (не hover).
+              const reactions = temp ? [] : (reactionsByMessage.get(m.id) ?? []);
+              const reactionChips = reactions.length > 0 && (
+                <div className={`mt-1 flex flex-wrap gap-1 ${mine ? 'justify-end' : 'pl-[calc(1.75rem+0.375rem)]'}`}>
+                  {reactions.map((r) => (
+                    <button
+                      key={r.emoji}
+                      type="button"
+                      onClick={() => toggleReaction(m.id, r.emoji)}
+                      title={r.users.map((u) => u.name).join(', ')}
+                      aria-pressed={r.mine}
+                      aria-label={`${r.emoji} ${r.count}`}
+                      className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] leading-none tabular-nums transition-colors ${
+                        r.mine
+                          ? 'border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-text-main'
+                          : 'border-border bg-surface2 text-text-dim hover:text-text-main'
+                      }`}
+                    >
+                      <span>{r.emoji}</span>
+                      <span>{r.count}</span>
+                    </button>
+                  ))}
                 </div>
               );
 
@@ -371,7 +428,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                     <div
                       className={`group flex justify-end gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
                     >
-                      {actions}
+                      {controls}
                       {editBlock || (
                         <div
                           className={`chat-own flex max-w-[72%] flex-col rounded-[var(--radius-m)] bg-[var(--chat-own-bg)] border border-[color:var(--chat-own-border)] px-3 py-1.5 ${
@@ -411,15 +468,28 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                           {timeEl}
                         </div>
                       )}
-                      {actions}
+                      {controls}
                     </div>
                   )}
+                  {reactionChips}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Пикер реакций — один на ленту, привязан к нажатой кнопке (reactionAnchorRef) */}
+      {reactionPickerFor && (
+        <ChatEmojiPicker
+          anchorRef={reactionAnchorRef}
+          onPick={(e) => {
+            toggleReaction(reactionPickerFor, e);
+            setReactionPickerFor(null);
+          }}
+          onClose={() => setReactionPickerFor(null)}
+        />
+      )}
 
       {/* Composer: вне скролла, на --surface */}
       <div className="flex items-end gap-2">
