@@ -4,8 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { formatBudget } from '@/lib/validators/project';
-import { calculateDealHealth, getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
-import { HealthDot } from '@/components/shared/HealthDot';
+import { getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { Badge } from '@/components/ui/Badge';
@@ -33,20 +32,26 @@ function IconBuilding() {
     </svg>
   );
 }
-function IconContact() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0">
-      <path d="M10.7 14v-1.3A2.7 2.7 0 008 10H4a2.7 2.7 0 00-2.7 2.7V14M6 7.3A2.7 2.7 0 106 2a2.7 2.7 0 000 5.3z" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function deadlineUrgency(deadline: string): { cls: string; pill: string } {
   const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
   if (days < 0) return { cls: 'text-red', pill: 'bg-red-l text-red' };
   if (days < 14) return { cls: 'text-red', pill: 'bg-red-l text-red' };
   if (days < 30) return { cls: 'text-yellow', pill: 'bg-yellow-l text-yellow' };
   return { cls: 'text-green', pill: 'bg-green-l text-green' };
+}
+
+// Одна строка внимания (F-04): свёрнутый сигнал «нужно ли внимание».
+// Переиспользует визуальный язык точек из старого next-step блока.
+function AttentionLine({ tone, dot, text }: { tone: 'red' | 'yellow'; dot: 'fill' | 'outline'; text: string }) {
+  const color = tone === 'red' ? 'var(--red-text, var(--red))' : 'var(--yellow-text, var(--yellow))';
+  return (
+    <div className="mt-1 flex items-center gap-1.5" style={{ color }}>
+      <span
+        className={`h-[6px] w-[6px] shrink-0 rounded-full ${dot === 'fill' ? 'bg-current' : 'border border-current'}`}
+      />
+      <span className="text-xs">{text}</span>
+    </div>
+  );
 }
 
 interface ProjectCardProps {
@@ -79,7 +84,6 @@ export function ProjectCard({
   };
 
   const { data: allPipelineStages } = usePipelineStages();
-  const health = calculateDealHealth(project);
 
   // Путь B: стадия — только из pipeline_stages (stage_id); legacy `stage`/STAGE_CONFIG не читаем.
   const pipelineStage = allPipelineStages?.find((s) => s.id === project.stage_id);
@@ -87,7 +91,6 @@ export function ProjectCard({
   const totalActive = pipelineSiblings.length || 12;
 
   const stageLabel = pipelineStage?.name ?? '—';
-  const stageProbability = pipelineStage?.probability ?? 0;
   const phaseColor = PHASE_COLOR[pipelineStage?.phase_group ?? ''] ?? 'var(--accent)';
   const progress = pipelineStage
     ? Math.round((pipelineStage.order_index / totalActive) * 100)
@@ -110,18 +113,6 @@ export function ProjectCard({
         ${isDragging ? 'opacity-50 elevation-2 rotate-1' : ''}
       `}
     >
-      {/* Corner notch */}
-      <div
-        className="absolute top-0 right-0"
-        style={{
-          width: 0,
-          height: 0,
-          borderTop: `20px solid ${phaseColor}`,
-          borderLeft: '20px solid transparent',
-          borderTopRightRadius: 'inherit',
-        }}
-      />
-
       {/* Drag handle */}
       <button
         {...attributes}
@@ -135,7 +126,7 @@ export function ProjectCard({
       </button>
 
       <div className="pl-4">
-        {/* Stage + probability */}
+        {/* Stage */}
         <div className="mb-1 flex items-center gap-1.5">
           <span
             className="inline-block h-[5px] w-[5px] rounded-full"
@@ -143,30 +134,6 @@ export function ProjectCard({
           />
           <span className="text-xs font-medium uppercase tracking-wider text-text-mute">
             {stageLabel}
-          </span>
-          {/* Возраст в стадии (stage_entered_at) + stale-сигнал по phase_group (S-AGING-1) */}
-          {!isTerminal && project.stage_entered_at && (() => {
-            const aging = getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null);
-            if (aging.daysInStage === null || aging.daysInStage < 1) return null;
-            const label = aging.isStale
-              ? `Залипла: ${aging.daysInStage} дн. в стадии «${stageLabel}»`
-              : `${aging.daysInStage} дн. в текущей стадии`;
-            return (
-              <span
-                className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${aging.isStale ? 'text-yellow' : 'text-text-mute'}`}
-                title={label}
-                aria-label={label}
-              >
-                {aging.isStale
-                  ? <AlertTriangle size={9} className="shrink-0" aria-hidden="true" />
-                  : <span aria-hidden="true">·</span>}
-                {aging.daysInStage} дн.
-              </span>
-            );
-          })()}
-          <span className="ml-auto flex items-center gap-1.5">
-            <HealthDot level={health.level} score={health.total} />
-            <span className="text-xs text-text-mute">{stageProbability}%</span>
           </span>
         </div>
 
@@ -193,14 +160,6 @@ export function ProjectCard({
           <div className="mb-0.5 flex items-center gap-1 text-xs text-text-dim">
             <IconBuilding />
             {project.company.name}
-          </div>
-        )}
-
-        {/* Contact */}
-        {project.contact && (
-          <div className="mb-0.5 flex items-center gap-1 text-xs text-text-dim">
-            <IconContact />
-            {project.contact.first_name} {project.contact.last_name}
           </div>
         )}
 
@@ -240,37 +199,27 @@ export function ProjectCard({
           );
         })()}
 
-        {/* Next step + rotting indicator (Sprint W1a) */}
+        {/* Одна строка внимания (F-04): свёрнуты next-step + возраст-в-стадии + health */}
         {(() => {
           const dh = getDealHealth(project);
-          if (dh === 'no-action') {
-            return (
-              <div
-                className="mt-1 flex items-center gap-1.5"
-                style={{ color: 'var(--yellow-text, var(--yellow))' }}
-              >
-                {/* контурная точка — «нет действия» */}
-                <span className="inline-block h-[6px] w-[6px] shrink-0 rounded-full border border-current" />
-                <span className="text-xs">
-                  {project.next_step?.trim() ? 'нет даты шага' : 'нет следующего шага'}
-                </span>
-              </div>
-            );
-          }
+          const aging = !isTerminal && project.stage_entered_at
+            ? getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null)
+            : null;
+
+          // 1. шаг просрочен (red)
           if (dh === 'overdue-action') {
             const days = getNextActionOverdueDays(project.next_action_date!);
-            return (
-              <div
-                className="mt-1 flex items-center gap-1.5"
-                style={{ color: 'var(--red-text, var(--red))' }}
-              >
-                {/* заполненная точка — «просрочено» */}
-                <span className="inline-block h-[6px] w-[6px] shrink-0 rounded-full bg-current" />
-                <span className="text-xs">шаг просрочен {days} дн.</span>
-              </div>
-            );
+            return <AttentionLine tone="red" dot="fill" text={`шаг просрочен ${days} дн.`} />;
           }
-          // ok — как раньше, плюс дата шага мелким
+          // 2. нет действия (yellow)
+          if (dh === 'no-action') {
+            return <AttentionLine tone="yellow" dot="outline" text={project.next_step?.trim() ? 'нет даты шага' : 'нет следующего шага'} />;
+          }
+          // 3. залипла в стадии (yellow)
+          if (aging?.isStale && aging.daysInStage) {
+            return <AttentionLine tone="yellow" dot="outline" text={`залипла ${aging.daysInStage} дн. в «${stageLabel}»`} />;
+          }
+          // 4. ok — следующий шаг мелким (mute), либо ничего
           if (!project.next_step) return null;
           return (
             <div className="mt-1">
