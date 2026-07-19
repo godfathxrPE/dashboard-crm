@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight,
-  Sun, LayoutDashboard, CheckSquare, Target, FolderKanban, Rocket,
-  Users, Building2, Phone, CalendarDays, BarChart3, Settings,
+  Sun, LayoutDashboard, CheckSquare, Zap, DollarSign, Folder,
+  Users, Building2, Phone, CalendarDays, Calendar, BarChart3, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -23,14 +23,14 @@ const MAIN_NAV = [
   { href: '/',          label: 'Сегодня',   jpLabel: '今日',           icon: Sun,             sectionColor: '#94A3B8' },
   { href: '/overview',  label: 'Обзор',     jpLabel: 'ダッシュボード', icon: LayoutDashboard, sectionColor: '#94A3B8' },
   { href: '/tasks',     label: 'Задачи',    jpLabel: 'タスク管理',     icon: CheckSquare,     sectionColor: '#8B7CF6', badgeKey: 'tasks' as const },
-  { href: '/leads',     label: 'Лиды',      jpLabel: 'リード',         icon: Target,          sectionColor: '#F97316', badgeKey: 'leads' as const },
-  { href: '/deals',     label: 'Сделки',    jpLabel: '案件管理',       icon: FolderKanban,    sectionColor: '#FF6633' },
-  { href: '/projects',  label: 'Проекты',   jpLabel: '導入管理',       icon: Rocket,          sectionColor: '#10B981' },
+  { href: '/leads',     label: 'Лиды',      jpLabel: 'リード',         icon: Zap,             sectionColor: '#F97316', badgeKey: 'leads' as const },
+  { href: '/deals',     label: 'Сделки',    jpLabel: '案件管理',       icon: DollarSign,      sectionColor: '#FF6633' },
+  { href: '/projects',  label: 'Проекты',   jpLabel: '導入管理',       icon: Folder,          sectionColor: '#10B981' },
   { href: '/contacts',  label: 'Контакты',  jpLabel: '連絡先',         icon: Users,           sectionColor: '#06B6D4' },
   { href: '/companies', label: 'Компании',  jpLabel: '企業一覧',       icon: Building2,       sectionColor: '#22C55E' },
   { href: '/calls',     label: 'Звонки',    jpLabel: '通話記録',       icon: Phone,           sectionColor: '#F59E0B', badgeKey: 'calls' as const },
   { href: '/meetings',  label: 'Встречи',   jpLabel: '会議予定',       icon: CalendarDays,    sectionColor: '#F43F5E' },
-  { href: '/calendar',  label: 'Календарь', jpLabel: 'カレンダー',     icon: CalendarDays,    sectionColor: '#6366F1' },
+  { href: '/calendar',  label: 'Календарь', jpLabel: 'カレンダー',     icon: Calendar,        sectionColor: '#6366F1' },
 ] as const;
 
 const UTIL_NAV = [
@@ -137,7 +137,7 @@ export function TextNavSidebar() {
         title={!sidebarOpen ? item.label : undefined}
       >
         <item.icon
-          size={20}
+          size={16}
           className={cn('nav-ico shrink-0', active ? 'text-[var(--sidebar-active-text)]' : 'text-text-mute')}
         />
         {sidebarOpen ? (
