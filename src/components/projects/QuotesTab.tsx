@@ -109,7 +109,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
           >
             Обновить бюджет сделки до {formatBudget(accepted.amount)}
           </button>
-          <p className="mt-2 text-[10px] text-text-mute">
+          <p className="mt-2 text-xs text-text-mute">
             Внедрение по этой сделке создаётся кнопкой «Создать внедрение» в блоке выше.
           </p>
         </div>
@@ -178,7 +178,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                   </a>
                 )}
 
-                <span className="shrink-0 text-[10px] text-text-mute tabular-nums">
+                <span className="shrink-0 text-xs text-text-mute tabular-nums">
                   {formatDateShort(q.created_at)}
                 </span>
 

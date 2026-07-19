@@ -355,7 +355,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                   </button>
                 ))}
               </div>
-              <p className="mt-1 text-[10px] text-text-mute">
+              <p className="mt-1 text-xs text-text-mute">
                 {isInternal
                   ? 'Внутренний проект — вне воронки продаж (без стадий и гейтов). Тип нельзя изменить после создания.'
                   : 'Клиентский проект — сделка в воронке продаж.'}
@@ -441,7 +441,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               )}
             />
             {watch('budget') != null && (
-              <p className="mt-0.5 text-[10px] text-text-mute">
+              <p className="mt-0.5 text-xs text-text-mute">
                 = {formatBudget(watch('budget'))}
               </p>
             )}

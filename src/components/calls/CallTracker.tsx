@@ -61,7 +61,7 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xl font-bold text-text-main">{todayCalls}</span>
-            <span className="text-[9px] text-text-mute">из {dailyGoal}</span>
+            <span className="text-xs text-text-mute">из {dailyGoal}</span>
           </div>
         </div>
 

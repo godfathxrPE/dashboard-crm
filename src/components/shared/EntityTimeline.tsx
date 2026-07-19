@@ -156,7 +156,7 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
                         </p>
                       </button>
                       {event.status === 'overdue' && (
-                        <span className="mt-1 shrink-0 rounded-full bg-red-l px-1.5 py-0.5 text-[10px] font-medium text-red">
+                        <span className="mt-1 shrink-0 rounded-full bg-red-l px-1.5 py-0.5 text-xs font-medium text-red">
                           Просрочено
                         </span>
                       )}

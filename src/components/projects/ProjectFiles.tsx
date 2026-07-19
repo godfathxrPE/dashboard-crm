@@ -50,7 +50,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
         <div className="flex items-center gap-2">
           <FileText size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-main">Файлы</span>
-          <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
+          <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
             {files.length}
           </span>
         </div>
@@ -100,7 +100,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
             <p className="mt-2 text-xs text-text-mute">
               Нет прикреплённых файлов
             </p>
-            <p className="text-[10px] text-text-mute">
+            <p className="text-xs text-text-mute">
               Перетащи сюда или нажми «+ Файл»
             </p>
           </div>

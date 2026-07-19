@@ -139,7 +139,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
           <div className="mb-3 flex items-center gap-2">
             <Building2 size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Компании</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
+            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
               {(contact.companies ?? []).length}
             </span>
             <button onClick={() => setLinkOpen(!linkOpen)}
@@ -152,7 +152,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
           {/* Link form */}
           {linkOpen && (
             <div className="mb-3 rounded-lg border border-accent/30 bg-accent-l/30 p-2.5">
-              <div className="mb-2 flex items-center gap-1 text-[10px] font-medium text-accent">
+              <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>
               <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
@@ -167,11 +167,11 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                 className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
               <div className="flex gap-1">
                 <button onClick={handleLink} disabled={!linkCompanyId || linkCompany.isPending}
-                  className="rounded bg-accent px-2.5 py-1 text-[10px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+                  className="rounded bg-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50">
                   {linkCompany.isPending ? 'Сохраняю...' : 'Привязать'}
                 </button>
                 <button onClick={() => setLinkOpen(false)}
-                  className="rounded border border-border px-2.5 py-1 text-[10px] text-text-dim hover:bg-surface-hover">
+                  className="rounded border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface-hover">
                   Отмена
                 </button>
               </div>
@@ -190,7 +190,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                     className="flex-1 text-left text-sm text-text-main hover:text-accent">
                     {cc.company?.name ?? 'N/A'}
                   </button>
-                  {cc.role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">{cc.role}</span>}
+                  {cc.role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">{cc.role}</span>}
                   <button onClick={() => handleUnlink(cc.company_id)}
                     className="rounded p-0.5 text-text-mute opacity-0 transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100"
                     title="Убрать связь">
@@ -207,7 +207,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Сделки</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{linkedProjects.length}</span>
+            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{linkedProjects.length}</span>
           </div>
           {linkedProjects.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет сделок с этим контактом</p>
@@ -217,7 +217,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                 <button key={p.id} onClick={() => router.push(projectHref(p))}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
                   <span className="text-sm text-text-main">{p.name}</span>
-                  <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+                  <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
                     {(p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—'}
                   </span>
                   {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}

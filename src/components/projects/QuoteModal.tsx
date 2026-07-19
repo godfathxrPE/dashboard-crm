@@ -119,7 +119,7 @@ export function QuoteModal({ dealId, editQuote, onClose }: QuoteModalProps) {
             )}
           />
           {watch('amount') != null && (
-            <p className="mt-0.5 text-[10px] text-text-mute tabular-nums">
+            <p className="mt-0.5 text-xs text-text-mute tabular-nums">
               = {formatBudget(watch('amount'))}
             </p>
           )}

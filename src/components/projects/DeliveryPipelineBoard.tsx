@@ -87,24 +87,24 @@ function DeliveryCard({ project, stageName, health, onOpen }: {
           {project.direction === 'iiot' ? 'IIoT' : 'ERP'}
         </Badge>
         {project.delivery_kind && (
-          <span className="text-[10px] text-text-mute">
+          <span className="text-xs text-text-mute">
             {deliveryKindLabel(project.delivery_kind, project.direction)}
           </span>
         )}
         {project.status === 'completed' && (
-          <span className="rounded-full bg-green-l px-1.5 py-0.5 text-[10px] font-medium text-green">
+          <span className="rounded-full bg-green-l px-1.5 py-0.5 text-xs font-medium text-green">
             Завершён
           </span>
         )}
       </div>
-      <div className="mt-1 pl-5 text-[10px] text-text-dim">
+      <div className="mt-1 pl-5 text-xs text-text-dim">
         {project.company?.name && <span>{project.company.name} · </span>}
         <span>{stageName}</span>
       </div>
       {/* P2b (B3): прогресс задач — считает БД-триггер (progress_done/total, 037) */}
       {hasTaskProgress(project.progress_total) && (
         <div className="mt-1.5 pl-5">
-          <div className="flex items-center justify-between text-[10px] text-text-mute">
+          <div className="flex items-center justify-between text-xs text-text-mute">
             <span>{project.progress_done}/{project.progress_total} задач</span>
           </div>
           <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-border">
@@ -148,7 +148,7 @@ function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }:
         <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: textColor }}>
           {DELIVERY_PHASE_LABELS[phase]}
         </span>
-        <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
+        <span className="rounded-full bg-surface px-1.5 py-0.5 text-xs font-medium text-text-mute">
           {projects.length}
         </span>
       </div>
@@ -302,7 +302,7 @@ export function DeliveryPipelineBoard() {
         {activeProject ? (
           <div className="max-w-[250px] rotate-2 rounded bg-surface p-3 opacity-90 elevation-3">
             <p className="text-sm font-medium text-text-main">{activeProject.name}</p>
-            <p className="mt-0.5 text-[10px] text-text-mute">{stageNameOf(activeProject)}</p>
+            <p className="mt-0.5 text-xs text-text-mute">{stageNameOf(activeProject)}</p>
           </div>
         ) : null}
       </DragOverlay>

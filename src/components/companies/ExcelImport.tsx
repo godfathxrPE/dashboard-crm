@@ -307,7 +307,7 @@ export function ExcelImportButton() {
                   <div className="space-y-2">
                     {headers.map((h, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="w-6 text-[10px] text-text-mute text-right shrink-0">{String.fromCharCode(65 + i)}</span>
+                        <span className="w-6 text-xs text-text-mute text-right shrink-0">{String.fromCharCode(65 + i)}</span>
                         <span className="text-xs text-text-main truncate w-40 shrink-0" title={h}>«{h || '(пусто)'}»</span>
                         <span className="text-text-mute text-xs">→</span>
                         <select
@@ -365,7 +365,7 @@ export function ExcelImportButton() {
                       ))}
                     </tbody>
                   </table>
-                  {preview.length > 100 && <p className="mt-1 text-[10px] text-text-mute">Показано 100 из {preview.length}</p>}
+                  {preview.length > 100 && <p className="mt-1 text-xs text-text-mute">Показано 100 из {preview.length}</p>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0 }}>
                   <button onClick={() => setStep('mapping')} className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2">← Назад</button>

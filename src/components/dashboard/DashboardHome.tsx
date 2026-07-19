@@ -88,10 +88,10 @@ function SkeletonChart() {
 // ═══════════════════════════════════════════════════════
 
 function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: string }) {
-  if (delta === 0) return <span className="text-[9px] text-text-mute">→ без изменений</span>;
+  if (delta === 0) return <span className="text-xs text-text-mute">→ без изменений</span>;
   const up = delta > 0;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-[9px] font-medium ${up ? 'text-green' : 'text-red'}`}>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? 'text-green' : 'text-red'}`}>
       <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
         <path strokeLinecap="round" strokeLinejoin="round" d={up ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
       </svg>
@@ -263,7 +263,7 @@ function KpiCards() {
               <AnimatedNumber
                 value={c.num}
                 formatFn={c.fmt}
-                className="text-[32px] font-bold leading-none block relative z-[1] text-text-main"
+                className="text-3xl font-bold leading-none block relative z-[1] text-text-main"
               />
               {/* Trend */}
               {'trend' in c && c.trend != null && (
@@ -321,7 +321,7 @@ function KpiCards() {
               <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm ? c.label : undefined}>
                 {wm ? wm.short : c.label}
               </div>
-              {c.sub && !wm && <div className="text-[9px] text-text-dim">{c.sub}</div>}
+              {c.sub && !wm && <div className="text-xs text-text-dim">{c.sub}</div>}
               {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
             </div>
           </a>
@@ -393,7 +393,7 @@ function UpcomingDeadlines() {
                     {p.company.name}
                   </span>
                 )}
-                <span className={`shrink-0 text-[10px] font-medium ${urg.color}`}>
+                <span className={`shrink-0 text-xs font-medium ${urg.color}`}>
                   {urg.label}
                 </span>
               </a>
@@ -517,7 +517,7 @@ function RecentActivityList() {
                     {describeEvent(entry)}
                   </span>
                   {projectName && (
-                    <span className="text-[10px] text-text-main font-medium">{projectName}</span>
+                    <span className="text-xs text-text-main font-medium">{projectName}</span>
                   )}
                 </div>
                 <span className="shrink-0 text-xs text-text-mute">

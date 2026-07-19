@@ -128,13 +128,13 @@ function CompletenessBadge({ project }: { project: Project }) {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${colorClass}`}
+        className={`rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
       >
         {filled}/{total}
       </button>
       {open && missing.length > 0 && (
         <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-popover p-2 elevation-2">
-          <p className="mb-1 text-[10px] font-medium text-text-mute">Не заполнено:</p>
+          <p className="mb-1 text-xs font-medium text-text-mute">Не заполнено:</p>
           {missing.map((f) => (
             <div key={f.key} className="text-xs text-text-dim py-0.5">{f.label}</div>
           ))}
@@ -325,7 +325,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
             {/* S-UI-POLISH-1 (п.3): пилюля текущей стадии — solid-акцент (bg-accent/green
                 + текст на --bg), а не тинт: находится взглядом за секунду в любой теме */}
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}>
               {(() => {
                 // Delivery: «Состояние · текущая фаза» (phase_group → лейбл, стадия = фаза СДР)
                 if (isDelivery && headerStage) {
@@ -339,7 +339,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             </span>
             {/* P2b (B3): прогресс задач — отдельная метрика, НЕ смешиваем со стадийным % */}
             {isDelivery && hasTaskProgress(project.progress_total) && (
-              <span className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-medium text-text-dim">
+              <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-text-dim">
                 Задачи: {project.progress_done}/{project.progress_total}
               </span>
             )}
@@ -700,7 +700,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           onClick={() => project.company_id && router.push(`/companies/${project.company_id}`)}
         >
           <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Building2 size={11} /> Компания</div>
-          <div className={`text-[15px] font-medium ${project.company ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+          <div className={`text-base font-medium ${project.company ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
             {project.company?.name ?? '—'}
           </div>
         </div>
@@ -711,7 +711,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           onClick={() => project.contact_id && router.push(`/contacts/${project.contact_id}`)}
         >
           <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><User size={11} /> Контакт</div>
-          <div className={`text-[15px] font-medium ${project.contact ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+          <div className={`text-base font-medium ${project.contact ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
             {project.contact ? `${project.contact.first_name} ${project.contact.last_name}` : '—'}
           </div>
         </div>
@@ -723,7 +723,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             onClick={() => project.parent_deal_id && router.push(`/deals/${project.parent_deal_id}`)}
           >
             <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Rocket size={11} /> Сделка</div>
-            <div className={`truncate text-[15px] font-medium ${project.parent_deal_id ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
+            <div className={`truncate text-base font-medium ${project.parent_deal_id ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
               {parentDeal?.name ?? (project.parent_deal_id ? '…' : '—')}
             </div>
           </div>
@@ -739,7 +739,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               onSave={async (val) => {
                 updateProject.mutate({ id: project.id, budget: val ? Number(val) : null });
               }}
-              className="text-[15px] font-medium"
+              className="text-base font-medium"
             />
           </div>
         )}
@@ -759,7 +759,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             onSave={async (val) => {
               updateProject.mutate({ id: project.id, deadline: val || null });
             }}
-            className="text-[15px] font-medium"
+            className="text-base font-medium"
           />
         </div>
       </div>
@@ -995,7 +995,7 @@ function InfoCard({
         <Icon size={11} />
         {label}
       </div>
-      <div className="text-[15px] font-medium text-text-main">{value}</div>
+      <div className="text-base font-medium text-text-main">{value}</div>
     </div>
   );
 }

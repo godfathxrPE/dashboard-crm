@@ -91,7 +91,7 @@ export function VerificationPanel() {
                 {c.count != null ? (
                   <span className="text-xs font-semibold text-text-main">{c.count}</span>
                 ) : (
-                  <span className="text-[10px] text-red">{c.error}</span>
+                  <span className="text-xs text-red">{c.error}</span>
                 )}
               </div>
             ))}

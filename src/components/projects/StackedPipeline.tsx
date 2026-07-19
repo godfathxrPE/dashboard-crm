@@ -151,14 +151,14 @@ export function StackedPipeline({
               </span>
               {trackHasCurrent && !locked && (
                 <span
-                  className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  className="ml-1 rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ background: 'var(--accent-l)', color: 'var(--accent)' }}
                 >
                   {track.stages.find((s) => s.id === currentStageId)?.name}
                 </span>
               )}
               {trackState === 'done' && (
-                <span className="ml-1 text-[10px] text-text-mute">✓</span>
+                <span className="ml-1 text-xs text-text-mute">✓</span>
               )}
             </div>
 

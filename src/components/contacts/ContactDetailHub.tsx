@@ -455,11 +455,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                         className="text-sm text-accent hover:underline truncate block">
                         {cc.company?.name ?? 'N/A'}
                       </button>
-                      {cc.role && <span className="text-[10px] text-text-mute">{cc.role}</span>}
+                      {cc.role && <span className="text-xs text-text-mute">{cc.role}</span>}
                     </div>
                   ))}
                   {(contact.companies ?? []).length > 2 && (
-                    <span className="text-[10px] text-text-mute">+ ещё {(contact.companies ?? []).length - 2}</span>
+                    <span className="text-xs text-text-mute">+ ещё {(contact.companies ?? []).length - 2}</span>
                   )}
                 </div>
               )}
@@ -484,7 +484,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                       <span className="text-xs text-text-dim">
                         {new Date(upcomingCall.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                       </span>
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-${badge.color}-l text-${badge.color}`}>
+                      <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium bg-${badge.color}-l text-${badge.color}`}>
                         {badge.label}
                       </span>
                     </div>
@@ -515,7 +515,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                         {p.name}
                       </button>
                       <div className="mt-0.5 flex items-center gap-2">
-                        <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] font-medium text-accent">
+                        <span className="rounded-full bg-accent-l px-1.5 py-0.5 text-xs font-medium text-accent">
                           {(p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—'}
                         </span>
                         {p.budget != null && (
@@ -525,7 +525,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                     </div>
                   ))}
                   {linkedProjects.length > 3 && (
-                    <span className="text-[10px] text-text-mute">+ ещё {linkedProjects.length - 3}</span>
+                    <span className="text-xs text-text-mute">+ ещё {linkedProjects.length - 3}</span>
                   )}
                 </div>
               )}
@@ -535,7 +535,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
           {/* Company Link Form (shown when linkOpen) */}
           {linkOpen && (
             <div className="rounded-lg border border-accent/30 bg-accent-l/30 p-3">
-              <div className="mb-2 flex items-center gap-1 text-[10px] font-medium text-accent">
+              <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>
               <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
@@ -552,11 +552,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                 className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
               <div className="flex gap-1">
                 <button onClick={handleLink} disabled={!linkCompanyId || linkCompany.isPending}
-                  className="rounded bg-accent px-2.5 py-1 text-[10px] font-medium text-white hover:opacity-90 disabled:opacity-50">
+                  className="rounded bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50">
                   {linkCompany.isPending ? 'Сохраняю...' : 'Привязать'}
                 </button>
                 <button onClick={() => setLinkOpen(false)}
-                  className="rounded border border-border px-2.5 py-1 text-[10px] text-text-dim hover:bg-surface2">
+                  className="rounded border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface2">
                   Отмена
                 </button>
               </div>

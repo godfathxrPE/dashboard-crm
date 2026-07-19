@@ -348,7 +348,7 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
               )}
             />
             {watch('deal_amount') != null && (
-              <p className="mt-0.5 text-[10px] text-text-mute">
+              <p className="mt-0.5 text-xs text-text-mute">
                 = {formatBudget(watch('deal_amount'))}
               </p>
             )}

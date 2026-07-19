@@ -40,7 +40,7 @@ function MilestoneList({ items }: { items: OpenMilestone[] }) {
           </span>
           <span
             className={cn(
-              'shrink-0 rounded-full border px-1.5 py-px text-[0.625rem] font-medium',
+              'shrink-0 rounded-full border px-1.5 py-px text-xs font-medium',
               LANE_BADGE_CLS[m.lane] ?? LANE_BADGE_CLS.next,
             )}
           >

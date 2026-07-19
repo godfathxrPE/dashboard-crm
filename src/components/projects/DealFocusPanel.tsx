@@ -69,7 +69,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
           <ChevronRight size={13} />
           Следующий шаг
         </div>
-        <div className="text-[15px] leading-snug">
+        <div className="text-base leading-snug">
           <InlineEdit
             value={project.next_step ?? ''}
             placeholder="Какой следующий шаг?"
@@ -101,7 +101,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
             <button
               onClick={markStepDone}
               className="flex items-center gap-1 rounded-lg border border-border px-2 py-0.5
-                         text-[12px] text-text-dim transition-colors hover:bg-surface-hover hover:text-green"
+                         text-xs text-text-dim transition-colors hover:bg-surface-hover hover:text-green"
             >
               <Check size={12} />
               Шаг сделан
@@ -135,7 +135,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
         </div>
         <HealthDot level={dealHealth.level} score={dealHealth.total} size="md" showLabel />
         {lastActivityDays !== null && (
-          <span className="text-[12px] text-text-mute">
+          <span className="text-xs text-text-mute">
             {lastActivityDays === 0
               ? 'активность сегодня'
               : `${lastActivityDays} дн. без активности`}

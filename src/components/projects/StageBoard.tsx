@@ -133,13 +133,13 @@ function BoardCard({
 
       <div className="mt-1.5 flex flex-col gap-0.5">
         {project.company?.name && (
-          <span className="flex items-center gap-1 text-[10px] text-text-dim">
+          <span className="flex items-center gap-1 text-xs text-text-dim">
             <Building2 size={9} />
             <span className="truncate">{project.company.name}</span>
           </span>
         )}
         {project.contact && (
-          <span className="flex items-center gap-1 text-[10px] text-text-dim">
+          <span className="flex items-center gap-1 text-xs text-text-dim">
             <User size={9} />
             <span className="truncate">
               {project.contact.first_name} {project.contact.last_name}
@@ -150,13 +150,13 @@ function BoardCard({
 
       <div className="mt-1.5 flex items-center gap-2">
         {project.budget != null && (
-          <span className="flex items-center gap-0.5 text-[10px] font-medium text-text-dim">
+          <span className="flex items-center gap-0.5 text-xs font-medium text-text-dim">
             <Banknote size={9} />
             {formatBudget(project.budget)}
           </span>
         )}
         {project.deadline && (
-          <span className={`flex items-center gap-0.5 text-[10px] ${deadlineColor(project.deadline)}`}>
+          <span className={`flex items-center gap-0.5 text-xs ${deadlineColor(project.deadline)}`}>
             <Calendar size={9} />
             {new Date(project.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
           </span>
@@ -213,12 +213,12 @@ function StageColumn({
           <span className="truncate text-[11px] font-semibold text-text-main">
             {stage.name}
           </span>
-          <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
+          <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-xs font-medium text-text-mute">
             {projects.length}
           </span>
         </div>
         {totalBudget > 0 && (
-          <div className="mt-0.5 text-[10px] font-semibold text-text-dim">
+          <div className="mt-0.5 text-xs font-semibold text-text-dim">
             {formatBudget(totalBudget)}
           </div>
         )}
@@ -242,7 +242,7 @@ function StageColumn({
         </SortableContext>
 
         {projects.length === 0 && (
-          <div className="flex h-16 items-center justify-center text-[10px] text-text-mute">
+          <div className="flex h-16 items-center justify-center text-xs text-text-mute">
             Перетащите сделку сюда
           </div>
         )}
@@ -482,7 +482,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
                 <p className="text-xs font-semibold text-text-main">
                   {activeProject.name}
                 </p>
-                <p className="mt-0.5 text-[10px] text-text-mute">
+                <p className="mt-0.5 text-xs text-text-mute">
                   {activeProjectStageName}
                 </p>
               </div>

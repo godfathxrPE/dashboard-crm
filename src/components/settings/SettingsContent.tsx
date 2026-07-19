@@ -80,7 +80,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
                 <p className="truncate text-sm font-medium text-text-main">
                   {profile?.full_name || userEmail}
                 </p>
-                <p className="truncate text-[10px] text-text-mute">
+                <p className="truncate text-xs text-text-mute">
                   {[profile?.job_title, profile?.phone, userEmail]
                     .filter(Boolean)
                     .join(' · ')}
@@ -119,7 +119,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
                     : 'border-border hover:border-accent/50'
                   }`}>
                 <div className="h-5 w-5 rounded-full" style={{ backgroundColor: t.color }} />
-                <span className="text-[10px] font-medium text-text-dim">{t.label}</span>
+                <span className="text-xs font-medium text-text-dim">{t.label}</span>
               </button>
             ))}
           </div>
@@ -160,7 +160,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
               ['g → a', 'Аналитика'],
             ].map(([key, desc]) => (
               <div key={key} className="flex items-center gap-3">
-                <kbd className="rounded border border-border bg-bg px-1.5 py-0.5 text-[10px] font-mono text-text-mute">
+                <kbd className="rounded border border-border bg-bg px-1.5 py-0.5 text-xs font-mono text-text-mute">
                   {key}
                 </kbd>
                 <span className="text-text-dim">{desc}</span>

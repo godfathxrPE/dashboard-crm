@@ -77,14 +77,14 @@ export function WeeklyHeatmap() {
                 {d.isFuture ? '' : d.total}
               </span>
             </div>
-            <span className={`text-[9px] ${d.isToday ? 'font-bold text-accent' : 'text-text-mute'}`}>
+            <span className={`text-[10px] ${d.isToday ? 'font-bold text-accent' : 'text-text-mute'}`}>
               {d.day}
             </span>
           </div>
         ))}
       </div>
 
-      <div className="mt-2 flex items-center justify-center gap-3 text-[9px] text-text-mute">
+      <div className="mt-2 flex items-center justify-center gap-3 text-xs text-text-mute">
         <span>📞 Звонки</span>
         <span>✅ Задачи</span>
         <span>📅 Встречи</span>

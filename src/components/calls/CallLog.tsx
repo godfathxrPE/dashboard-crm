@@ -119,7 +119,7 @@ export function CallLog() {
               <div className="space-y-2">
                 {scheduledCalls.map((c) => (
                   <div key={c.id} data-card className="rounded-lg border border-border/50 bg-bg px-2.5 py-2">
-                    <div className="flex items-center gap-1 text-[10px] text-blue">
+                    <div className="flex items-center gap-1 text-xs text-blue">
                       <Calendar size={9} />
                       {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -129,7 +129,7 @@ export function CallLog() {
                       </div>
                     )}
                     {c.contact && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-text-dim">
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-text-dim">
                         <User size={9} /> {c.contact.first_name} {c.contact.last_name}
                       </div>
                     )}
@@ -149,7 +149,7 @@ export function CallLog() {
                 className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px
                   ${tab === t.key ? t.activeColor : 'border-transparent text-text-mute hover:text-text-dim'}`}>
                 {t.label}
-                <span className="ml-1 rounded-full bg-surface px-1.5 py-0.5 text-[10px]">{t.count}</span>
+                <span className="ml-1 rounded-full bg-surface px-1.5 py-0.5 text-xs">{t.count}</span>
               </button>
             ))}
           </div>
@@ -177,14 +177,14 @@ export function CallLog() {
                   {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBg} ${statusColor}`}>
+                      <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${statusBg} ${statusColor}`}>
                         {statusLabel}
                       </span>
-                      <span className="text-[10px] text-text-dim">
+                      <span className="text-xs text-text-dim">
                         {new Date(call.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {call.duration_s != null && call.duration_s > 0 && (
-                        <span className="text-[10px] text-text-dim">{formatDuration(call.duration_s)}</span>
+                        <span className="text-xs text-text-dim">{formatDuration(call.duration_s)}</span>
                       )}
                     </div>
 
@@ -226,7 +226,7 @@ export function CallLog() {
 
                     {/* Next step */}
                     {call.next_step && (
-                      <p className="mt-0.5 text-[10px] text-accent">→ {call.next_step}</p>
+                      <p className="mt-0.5 text-xs text-accent">→ {call.next_step}</p>
                     )}
                   </div>
 

@@ -74,7 +74,7 @@ function MemberRow({
           className="h-8 w-8 shrink-0 rounded-full border border-border object-cover"
         />
       ) : (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-bold text-accent">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-l text-xs font-bold text-accent">
           {initials(member.full_name)}
         </span>
       )}

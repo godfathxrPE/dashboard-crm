@@ -76,7 +76,7 @@ export function PomodoroWidget() {
         <span className="text-xs font-semibold text-text-dim">
           {mode === 'work' ? 'Фокус' : 'Перерыв'}
         </span>
-        <span className="ml-auto rounded-full bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+        <span className="ml-auto rounded-full bg-accent-l px-1.5 py-0.5 text-xs text-accent">
           {sessions} сессий
         </span>
       </div>

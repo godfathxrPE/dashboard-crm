@@ -83,7 +83,7 @@ function Avatar({ author }: { author: ProjectMessageWithAuthor['author'] }) {
     );
   }
   return (
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-semibold text-accent">
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-l text-xs font-semibold text-accent">
       {author ? initials(author.full_name) || '?' : '?'}
     </div>
   );
@@ -262,7 +262,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
       <div className="mb-3 flex items-center gap-2">
         <MessageCircle size={14} className="text-text-dim" />
         <span className="text-xs font-semibold text-text-main">Чат проекта</span>
-        <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
+        <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
           {messages.length}
         </span>
       </div>
@@ -400,13 +400,13 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                   <div className="flex gap-2">
                     <button
                       onClick={submitEdit}
-                      className="rounded bg-accent px-2 py-0.5 text-[10px] font-medium text-white hover:opacity-90"
+                      className="rounded bg-accent px-2 py-0.5 text-xs font-medium text-white hover:opacity-90"
                     >
                       Сохранить
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="rounded px-2 py-0.5 text-[10px] text-text-mute hover:text-text-main"
+                      className="rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
                     >
                       Отмена
                     </button>

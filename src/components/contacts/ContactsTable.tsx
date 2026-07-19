@@ -101,7 +101,7 @@ export function ContactsTable() {
           <div className="flex flex-wrap gap-1">
             {comps.map((cc) => (
               <span key={cc.company_id}
-                className="inline-flex items-center gap-0.5 rounded bg-surface2 border border-border px-1.5 py-0.5 text-[10px] text-text-dim">
+                className="inline-flex items-center gap-0.5 rounded bg-surface2 border border-border px-1.5 py-0.5 text-xs text-text-dim">
                 <Building2 size={9} />
                 {cc.company?.name ?? 'N/A'}
                 {cc.role && <span className="text-text-mute"> · {cc.role}</span>}

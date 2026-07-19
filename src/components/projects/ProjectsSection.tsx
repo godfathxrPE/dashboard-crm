@@ -50,7 +50,7 @@ function InternalProjectsList() {
       label: 'Статус',
       sortable: true,
       render: (p) => (
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
           p.status === 'completed' ? 'bg-green-l text-green' : 'bg-accent-l text-accent'
         }`}>
           {STATUS_LABELS[p.status] ?? p.status}

@@ -40,7 +40,7 @@ import type {
 
 const labelCls = 'block text-[11px] font-medium text-text-dim mb-1';
 const selectCls =
-  'w-full rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim';
+  'w-full rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
 const inputCls =
   'w-full rounded-md border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
 const errCls = 'mt-1 text-[11px] text-red';
@@ -358,7 +358,7 @@ export function RuleEditorModal({
           {/* ── Секция 2: Условия ── */}
           <fieldset className="space-y-2 border-t border-border pt-3">
             <legend className="text-[11px] font-semibold text-text-dim">Условия</legend>
-            <p className="text-[10px] text-text-mute">
+            <p className="text-xs text-text-mute">
               Все условия должны выполняться (И). Пусто — срабатывает всегда.
               Операторы <code className="rounded bg-surface2 px-1">{'>'}</code>/
               <code className="rounded bg-surface2 px-1">{'<'}</code> — для числовых полей.
@@ -529,7 +529,7 @@ export function RuleEditorModal({
               </div>
             )}
 
-            <p className="text-[10px] text-text-mute">
+            <p className="text-xs text-text-mute">
               {isOverdue ? (
                 <>Плейсхолдер <code className="rounded bg-surface2 px-1">{'{task}'}</code> подставит текст задачи.</>
               ) : (

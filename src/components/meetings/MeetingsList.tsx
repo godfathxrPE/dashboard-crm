@@ -209,7 +209,7 @@ function MeetingCard({
         <span className="text-sm font-bold">
           {new Date(meeting.date).getDate()}
         </span>
-        <span className="text-[8px] uppercase opacity-80">
+        <span className="text-xs uppercase opacity-80">
           {new Date(meeting.date).toLocaleDateString('ru-RU', { month: 'short' })}
         </span>
       </div>
@@ -237,7 +237,7 @@ function MeetingCard({
           <p className="mt-1 line-clamp-2 text-xs text-text-dim">{meeting.notes}</p>
         )}
         {meeting.next_step && (
-          <p className="mt-0.5 text-[10px] text-accent">→ {meeting.next_step}</p>
+          <p className="mt-0.5 text-xs text-accent">→ {meeting.next_step}</p>
         )}
       </div>
 

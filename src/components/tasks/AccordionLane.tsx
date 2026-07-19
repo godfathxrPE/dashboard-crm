@@ -83,13 +83,13 @@ export function AccordionLane({
         </span>
         <span className="ml-auto flex items-center gap-1.5">
           {overdueCount > 0 && (
-            <span className="flex h-5 items-center rounded-full bg-red-l px-1.5 text-[10px] font-semibold text-red">
+            <span className="flex h-5 items-center rounded-full bg-red-l px-1.5 text-xs font-semibold text-red">
               {overdueCount} просроч.
             </span>
           )}
           <span
             className={cn(
-              'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold',
+              'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
               config.bg,
               config.color,
             )}

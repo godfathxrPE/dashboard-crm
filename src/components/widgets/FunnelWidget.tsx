@@ -55,7 +55,7 @@ export function FunnelWidget() {
                   className={`h-6 rounded ${config.bgColor} flex items-center px-2 transition-all`}
                   style={{ width: `${widthPct}%` }}
                 >
-                  <span className={`text-[10px] font-semibold ${config.color}`}>
+                  <span className={`text-xs font-semibold ${config.color}`}>
                     {f.count}
                   </span>
                 </div>
@@ -69,11 +69,11 @@ export function FunnelWidget() {
 
         {/* Won row */}
         <div className="mt-1 flex items-center gap-2 border-t border-border/50 pt-2">
-          <span className="w-24 text-right text-[10px] font-medium text-green">Выиграно</span>
+          <span className="w-24 text-right text-xs font-medium text-green">Выиграно</span>
           <div className="flex-1">
             <span className="text-sm font-bold text-green">{wonCount}</span>
           </div>
-          <span className="w-16 text-right text-[10px] font-medium text-green">
+          <span className="w-16 text-right text-xs font-medium text-green">
             {formatBudget(wonBudget)}
           </span>
         </div>

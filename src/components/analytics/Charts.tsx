@@ -130,7 +130,7 @@ export function TasksDistribution() {
         {chartData.map((d) => {
           const color = LANE_COLORS[d.lane] ?? '#888';
           return (
-            <div key={d.lane} className="flex items-center gap-1.5 text-[10px]">
+            <div key={d.lane} className="flex items-center gap-1.5 text-xs">
               <span className="w-2.5 h-2.5 inline-block shrink-0" style={{
                 background: color,
                 borderRadius: '1px',

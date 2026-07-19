@@ -51,7 +51,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
         </span>
         <span
           className={cn(
-            'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-medium',
+            'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-medium',
             config.bg,
             config.color,
           )}

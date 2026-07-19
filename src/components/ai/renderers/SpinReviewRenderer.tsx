@@ -25,7 +25,7 @@ export function SpinReviewRenderer({ result }: { result: SpinReviewResult }) {
         {SPIN_KEYS.map((k) => (
           <div key={k} className="rounded-lg border border-border bg-surface px-2 py-1.5 text-center">
             <p className="text-base font-semibold text-text-main">{c[k] ?? 0}</p>
-            <p className="text-[10px] uppercase text-text-mute">{SPIN_SHORT[k]}</p>
+            <p className="text-xs uppercase text-text-mute">{SPIN_SHORT[k]}</p>
           </div>
         ))}
       </div>
@@ -37,7 +37,7 @@ export function SpinReviewRenderer({ result }: { result: SpinReviewResult }) {
           <ul className="space-y-1">
             {result.examples.map((ex, i) => (
               <li key={i} className="text-text-main">
-                <span className="mr-1.5 rounded bg-surface-hover px-1 text-[10px] font-medium text-text-dim">
+                <span className="mr-1.5 rounded bg-surface-hover px-1 text-xs font-medium text-text-dim">
                   {TYPE_LABEL[ex.type] ?? ex.type}
                 </span>
                 <span className="italic text-text-mute">«{ex.quote}»</span>

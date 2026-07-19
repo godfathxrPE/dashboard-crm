@@ -812,6 +812,9 @@ input[type="checkbox"]:indeterminate {
   font-variant-numeric: tabular-nums;
 }
 
+/* Ячейки таблиц (в т.ч. не-bold) выравниваются по разрядам (F-10) */
+table { font-variant-numeric: tabular-nums; }
+
 /* ═══════════════════════════════════════════════════════
    THEME-SPECIFIC DECORATIONS
    ═══════════════════════════════════════════════════════ */

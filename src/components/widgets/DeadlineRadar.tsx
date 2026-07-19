@@ -75,7 +75,7 @@ export function DeadlineRadar() {
       <div className="mb-3 flex items-center gap-2">
         <AlertTriangle size={14} className="text-yellow" />
         <span className="text-xs font-semibold text-text-dim">Дедлайн-радар</span>
-        <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">{items.length}</span>
+        <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{items.length}</span>
       </div>
 
       {items.length === 0 ? (
@@ -93,9 +93,9 @@ export function DeadlineRadar() {
                 }
                 <span className="min-w-0 flex-1 truncate text-xs text-text-main">{item.title}</span>
                 {item.meta && (
-                  <span data-tag className="shrink-0 rounded bg-accent-l px-1 py-0.5 text-[9px] text-accent">{item.meta}</span>
+                  <span data-tag className="shrink-0 rounded bg-accent-l px-1 py-0.5 text-xs text-accent">{item.meta}</span>
                 )}
-                <span className={`shrink-0 text-[10px] font-medium ${urgency.color}`}>{urgency.label}</span>
+                <span className={`shrink-0 text-xs font-medium ${urgency.color}`}>{urgency.label}</span>
               </a>
             );
           })}

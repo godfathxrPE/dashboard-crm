@@ -95,7 +95,7 @@ export function PortfolioView() {
             </Badge>
           )}
           {r.project.delivery_kind && (
-            <span className="text-[10px] text-text-mute">
+            <span className="text-xs text-text-mute">
               {deliveryKindLabel(r.project.delivery_kind, r.project.direction)}
             </span>
           )}
@@ -134,7 +134,7 @@ export function PortfolioView() {
           <span className="text-xs text-text-dim">{r.stageName}</span>
           {r.phase && (
             <span
-              className="text-[10px] font-medium"
+              className="text-xs font-medium"
               style={{ color: DELIVERY_PHASE_TEXT[r.phase] ?? 'var(--text-mute)' }}
             >
               {DELIVERY_PHASE_LABELS[r.phase]}
@@ -278,7 +278,7 @@ export function PortfolioView() {
               >
                 {count}
               </span>
-              <span className="text-[10px] tabular-nums text-text-mute">
+              <span className="text-xs tabular-nums text-text-mute">
                 {maxDwell != null ? `макс ${maxDwell} дн` : '—'}
               </span>
             </div>

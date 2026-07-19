@@ -133,11 +133,11 @@ function BoardColumn({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="truncate text-sm font-medium text-text-main">{column.name}</span>
-                <span className="shrink-0 rounded-full bg-surface px-1.5 text-[10px] text-text-mute">{tasks.length}</span>
+                <span className="shrink-0 rounded-full bg-surface px-1.5 text-xs text-text-mute">{tasks.length}</span>
               </div>
               {/* В phase-режиме подпись «Фаза» у всех колонок — шум, не показываем */}
               {!phaseMode && (
-                <span className="text-[10px] uppercase tracking-wider text-text-mute">{CATEGORY_LABEL[column.category]}</span>
+                <span className="text-xs uppercase tracking-wider text-text-mute">{CATEGORY_LABEL[column.category]}</span>
               )}
             </div>
             {/* P2b (B5): rename/delete фаз возвращены; права = RLS (canManageColumns) */}

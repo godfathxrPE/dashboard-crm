@@ -124,7 +124,7 @@ function Segment({
     <div
       onClick={readOnly ? undefined : onClick}
       className={cn(
-        'relative flex flex-1 items-center justify-center px-1 text-[10px] font-medium whitespace-nowrap transition-[filter] duration-150',
+        'relative flex flex-1 items-center justify-center px-1 text-xs font-medium whitespace-nowrap transition-[filter] duration-150',
         isFirst ? 'pl-2' : 'pl-3',
         readOnly ? 'cursor-default' : 'cursor-pointer hover:brightness-[0.92]',
       )}

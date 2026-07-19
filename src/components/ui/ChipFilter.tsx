@@ -37,7 +37,7 @@ export function ChipFilter({ options, selected, onToggle, onReset }: ChipFilterP
             {opt.label}
             {opt.count != null && (
               <span className={cn(
-                'rounded-full px-1.5 py-0.5 text-[10px] leading-none',
+                'rounded-full px-1.5 py-0.5 text-xs leading-none',
                 active ? 'bg-accent/20' : 'bg-surface2',
               )}>
                 {opt.count}

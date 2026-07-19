@@ -351,7 +351,7 @@ export function CommandPalette() {
             placeholder="Поиск по задачам, сделкам, контактам..."
             aria-label="Поиск по задачам, сделкам, контактам"
             className="flex-1 bg-transparent text-sm text-text-main placeholder:text-text-mute focus:outline-none" />
-          <kbd className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-mute">ESC</kbd>
+          <kbd className="rounded border border-border px-1.5 py-0.5 text-xs text-text-mute">ESC</kbd>
         </div>
 
         {/* Results */}
@@ -368,7 +368,7 @@ export function CommandPalette() {
               return (
                 <div key={item.id}>
                   {showSection && (
-                    <div className="px-2 pb-1 pt-2 text-[10px] font-semibold text-text-mute">{item.section}</div>
+                    <div className="px-2 pb-1 pt-2 text-xs font-semibold text-text-mute">{item.section}</div>
                   )}
                   <button
                     data-cmd-idx={i}
@@ -379,7 +379,7 @@ export function CommandPalette() {
                     <item.icon size={14} className={i === selectedIdx ? 'text-accent' : 'text-text-mute'} />
                     <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
                     {item.kbd && (
-                      <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] font-mono text-text-mute">
+                      <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs font-mono text-text-mute">
                         {item.kbd}
                       </kbd>
                     )}
@@ -394,7 +394,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer */}
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-2 text-[10px] text-text-mute">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-2 text-xs text-text-mute">
           <span>↑↓ — навигация</span>
           <span className="text-text-dim">·</span>
           <span>Enter — выбрать</span>

@@ -929,7 +929,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             {laneRows.map((sl) => (
               <div key={sl.id}>
                 {sl.label !== null && (
-                  <div className="group flex items-center gap-1 px-1 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-mute">
+                  <div className="group flex items-center gap-1 px-1 pt-2 pb-0.5 text-xs font-semibold uppercase tracking-wide text-text-mute">
                     <span className="truncate">{sl.label}</span>
                     {/* S-GANTT-UX-2: удаление фазы — только real phase-id (не «Без фазы»/flat);
                         UX как на доске: непустая фаза → пикер target, не window.confirm */}
@@ -985,7 +985,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 {buckets.map((b, i) => (
                   <div
                     key={b.key}
-                    className={`flex flex-col items-center justify-center border-l border-border/40 text-[10px] tabular-nums ${
+                    className={`flex flex-col items-center justify-center border-l border-border/40 text-xs tabular-nums ${
                       i === todayIdx ? 'font-semibold text-accent' : 'text-text-mute'
                     }`}
                   >
@@ -1000,7 +1000,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
               {/* Ряды по фазам */}
               {laneRows.map((sl) => (
                 <div key={sl.id}>
-                  {sl.label !== null && <div className="pt-2 pb-0.5 text-[10px]">&nbsp;</div>}
+                  {sl.label !== null && <div className="pt-2 pb-0.5 text-xs">&nbsp;</div>}
                   {sl.tasks.map((gt) => {
                     const s = idxByKey.get(bucketKeyOf(gt.start, zoom)) ?? 0;
                     const e = idxByKey.get(bucketKeyOf(gt.end, zoom)) ?? s;
@@ -1165,7 +1165,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
       {/* Без дат */}
       {filteredUndated.length > 0 && (
         <div className="mt-3 border-t border-border/40 pt-2">
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-text-mute">Без дат</div>
+          <div className="mb-1 text-xs uppercase tracking-wide text-text-mute">Без дат</div>
           <div className="flex flex-wrap gap-1.5">
             {/* S-GANTT-UX-2: chip таскается на таймлайн (canManage) — pointer-flow сам
                 различает клик (edit) и drag по CLICK_PX; без canManage — обычный клик */}

@@ -35,7 +35,7 @@ function Avatar({ member }: { member: TeamMember }) {
     );
   }
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-l text-[9px] font-bold text-accent">
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-bold text-accent">
       {initials(member.full_name)}
     </span>
   );

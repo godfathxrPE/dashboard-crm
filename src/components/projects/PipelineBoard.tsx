@@ -107,7 +107,7 @@ function HeroCard({ label, fmt, value, color, sub }: {
       <div className={`text-2xl font-extrabold tabular-nums leading-none ${value === 0 ? 'text-text-mute' : color}`}>
         {fmt}
       </div>
-      {sub && <div className="mt-1 text-[10px] tabular-nums text-text-mute">{sub}</div>}
+      {sub && <div className="mt-1 text-xs tabular-nums text-text-mute">{sub}</div>}
     </div>
   );
 }
@@ -172,7 +172,7 @@ function StageChip({ stage, count, dragging }: {
     <span
       ref={setNodeRef}
       title={stage.name}
-      className={`rounded px-1 py-0.5 text-[9px] transition-colors ${
+      className={`rounded px-1 py-0.5 text-xs transition-colors ${
         isOver
           ? 'border border-accent bg-accent-l text-accent'
           : dragging
@@ -256,11 +256,11 @@ function PhaseColumn({
         <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: headerTextColor }}>
           {column.label}
         </span>
-        <span className="rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
+        <span className="rounded-full bg-surface px-1.5 py-0.5 text-xs font-medium text-text-mute">
           {projects.length}
         </span>
         {totalBudget > 0 && (
-          <span className="ml-auto text-[10px] font-semibold text-text-dim tabular-nums">
+          <span className="ml-auto text-xs font-semibold text-text-dim tabular-nums">
             {formatBudget(totalBudget)}
           </span>
         )}
@@ -659,7 +659,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
             {activeProject ? (
               <div className="rounded bg-surface p-3 elevation-3 opacity-90 rotate-2 max-w-[250px]">
                 <p className="text-sm font-medium text-text-main">{activeProject.name}</p>
-                <p className="mt-0.5 text-[10px] text-text-mute">{activeProjectStageName}</p>
+                <p className="mt-0.5 text-xs text-text-mute">{activeProjectStageName}</p>
               </div>
             ) : null}
           </DragOverlay>

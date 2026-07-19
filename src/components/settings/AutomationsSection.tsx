@@ -154,7 +154,7 @@ export function AutomationsSection() {
           <button
             key={t}
             onClick={() => setFilter(t)}
-            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+            className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
               filter === t ? 'bg-accent-l text-accent' : 'bg-surface2 text-text-mute hover:text-text-dim'
             }`}
           >
@@ -164,19 +164,19 @@ export function AutomationsSection() {
       </div>
 
       {visibleRules.length === 0 ? (
-        <p className="py-2 text-center text-[12px] text-text-mute">
+        <p className="py-2 text-center text-xs text-text-mute">
           {rules.length === 0 ? 'Правила ещё не заданы.' : 'Нет правил этого типа.'}
         </p>
       ) : (
         <div className="divide-y divide-border">
           {visibleRules.map((rule) => (
             <div key={rule.id} className="flex items-center gap-2 py-2">
-              <span className="shrink-0 rounded-full bg-surface2 px-1.5 py-0.5 text-[9px] font-medium text-text-mute">
+              <span className="shrink-0 rounded-full bg-surface2 px-1.5 py-0.5 text-xs font-medium text-text-mute">
                 {AUTOMATION_TRIGGER_LABEL[rule.trigger_type]}
               </span>
 
               <span
-                className="min-w-0 flex-1 truncate text-[12px] text-text-main"
+                className="min-w-0 flex-1 truncate text-xs text-text-main"
                 title={`${rule.name} — ${describeRule(rule, stageName)}`}
               >
                 {describeRule(rule, stageName)}
@@ -185,7 +185,7 @@ export function AutomationsSection() {
               <button
                 onClick={() => updateRule.mutate({ id: rule.id, is_active: !rule.is_active })}
                 disabled={updateRule.isPending}
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
                   rule.is_active ? 'bg-accent-l text-accent' : 'bg-surface2 text-text-mute'
                 }`}
                 title={rule.is_active ? 'Активно — нажмите, чтобы выключить' : 'Выключено — нажмите, чтобы включить'}

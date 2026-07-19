@@ -128,7 +128,7 @@ export function Hotkeys() {
             ) : (
               <div key={i} className="flex items-center justify-between">
                 <span className="text-text-dim">{s.label}</span>
-                <kbd className="rounded border border-border bg-surface2 px-1.5 py-0.5 text-[10px] font-mono text-text-mute">
+                <kbd className="rounded border border-border bg-surface2 px-1.5 py-0.5 text-xs font-mono text-text-mute">
                   {s.keys}
                 </kbd>
               </div>

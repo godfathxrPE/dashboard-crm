@@ -141,7 +141,7 @@ export function ProjectCard({
             className="inline-block h-[5px] w-[5px] rounded-full"
             style={{ backgroundColor: phaseColor }}
           />
-          <span className="text-[10px] font-medium uppercase tracking-wider text-text-mute">
+          <span className="text-xs font-medium uppercase tracking-wider text-text-mute">
             {stageLabel}
           </span>
           {/* Возраст в стадии (stage_entered_at) + stale-сигнал по phase_group (S-AGING-1) */}
@@ -153,7 +153,7 @@ export function ProjectCard({
               : `${aging.daysInStage} дн. в текущей стадии`;
             return (
               <span
-                className={`inline-flex items-center gap-0.5 text-[10px] tabular-nums ${aging.isStale ? 'text-yellow' : 'text-text-mute'}`}
+                className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${aging.isStale ? 'text-yellow' : 'text-text-mute'}`}
                 title={label}
                 aria-label={label}
               >
@@ -166,7 +166,7 @@ export function ProjectCard({
           })()}
           <span className="ml-auto flex items-center gap-1.5">
             <HealthDot level={health.level} score={health.total} />
-            <span className="text-[10px] text-text-mute">{stageProbability}%</span>
+            <span className="text-xs text-text-mute">{stageProbability}%</span>
           </span>
         </div>
 
@@ -212,7 +212,7 @@ export function ProjectCard({
         ) : (
           <div className="mt-1 flex items-center gap-1 text-yellow" title="Бюджет не указан">
             <AlertTriangle size={11} />
-            <span className="text-[10px]">Бюджет</span>
+            <span className="text-xs">Бюджет</span>
           </div>
         )}
 
@@ -228,7 +228,7 @@ export function ProjectCard({
                 <IconCalendar />
                 {dateStr}
               </span>
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${urg.pill}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${urg.pill}`}>
                 {(() => {
                   const d = Math.ceil((new Date(project.deadline!).getTime() - Date.now()) / 86400000);
                   if (d < 0) return `${Math.abs(d)}д просрочено`;
@@ -276,7 +276,7 @@ export function ProjectCard({
             <div className="mt-1">
               <p className="line-clamp-1 text-xs text-text-mute">→ {project.next_step}</p>
               {project.next_action_date && (
-                <p className="text-[10px] tabular-nums text-text-mute">
+                <p className="text-xs tabular-nums text-text-mute">
                   {new Date(project.next_action_date).toLocaleDateString('ru-RU', {
                     day: 'numeric', month: 'short',
                   })}
@@ -298,7 +298,7 @@ export function ProjectCard({
               <button
                 onClick={() => onAdvance(project.id)}
                 className="flex items-center gap-0.5 rounded px-1.5 py-0.5
-                           text-[10px] font-medium text-accent transition-colors hover:bg-accent-l"
+                           text-xs font-medium text-accent transition-colors hover:bg-accent-l"
               >
                 <ArrowRight size={10} />
                 {next.name}

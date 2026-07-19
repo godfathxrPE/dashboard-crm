@@ -38,11 +38,11 @@ export function PhoneList({ phones, fallback }: PhoneListProps) {
           </a>
           {usePrimaryLabel && (
             p.is_primary ? (
-              <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-[10px] text-accent">
+              <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
                 основной
               </span>
             ) : (
-              <span className="text-[10px] text-text-mute">{PHONE_TYPE_LABEL[p.type]}</span>
+              <span className="text-xs text-text-mute">{PHONE_TYPE_LABEL[p.type]}</span>
             )
           )}
         </div>

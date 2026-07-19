@@ -70,7 +70,7 @@ export function StatusBeacon({ alerts }: StatusBeaconProps) {
           <span className={cn('absolute h-2.5 w-2.5 rounded-full animate-ping opacity-40', dotColor)} />
         )}
         {alerts.length > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red px-0.5 text-[9px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red px-0.5 text-[10px] font-bold text-white">
             {alerts.length > 9 ? '9+' : alerts.length}
           </span>
         )}

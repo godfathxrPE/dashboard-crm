@@ -27,7 +27,7 @@ export function QuickActions() {
                         transition-colors ${a.color}`}
           >
             <a.icon size={18} />
-            <span className="text-[10px] font-medium">+ {a.label}</span>
+            <span className="text-xs font-medium">+ {a.label}</span>
           </button>
         ))}
       </div>

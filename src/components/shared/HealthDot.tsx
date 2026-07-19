@@ -25,8 +25,7 @@ export function HealthDot({ level, score, showLabel = false, size = 'sm' }: Heal
   return (
     <div className="flex items-center gap-1.5" role="img" aria-label={label} title={label}>
       <span aria-hidden className={cn(
-        'inline-block w-3 text-center leading-none',
-        size === 'sm' ? 'text-[10px]' : 'text-xs',
+        'inline-block w-3 text-center leading-none text-xs',
         config.text,
       )}>
         {config.glyph}

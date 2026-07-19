@@ -27,7 +27,7 @@ export function ProjectPeekContent({ project }: { project: Project }) {
     <div>
       {/* Статус-строка: стадия + направление + бюджет + дедлайн */}
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
+        <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
           {stageName}
         </span>
         <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">

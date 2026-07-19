@@ -148,7 +148,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
                 onPointerDown={(e) => e.stopPropagation()}
                 title="Сменить статус"
                 className={cn(
-                  'rounded-full border px-1.5 py-px text-[0.625rem] font-medium transition-colors cursor-pointer',
+                  'rounded-full border px-1.5 py-px text-xs font-medium transition-colors cursor-pointer',
                   // «Просрочена» приоритетнее статусного badge
                   isOverdue ? 'border-red/40 bg-red-l text-red' : STATUS_BADGE_CLS[task.lane],
                 )}
@@ -159,7 +159,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
             {task.deadline && (() => {
               const urg = deadlineUrgency(task.deadline, task.lane);
               return (
-                <span className={cn('flex items-center gap-1 text-[0.625rem]', urg.cls)}>
+                <span className={cn('flex items-center gap-1 text-xs', urg.cls)}>
                   <Calendar size={9} />
                   {urg.label}
                 </span>
@@ -170,7 +170,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
                 onClick={(e) => { e.stopPropagation(); router.push(`/deals/${task.project_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}
                 data-tag
-                className="rounded bg-accent-l px-1 py-0.5 text-[0.625rem] text-accent truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+                className="rounded bg-accent-l px-1 py-0.5 text-xs text-accent truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
               >
                 {task.project?.name ?? 'проект'}
               </button>
@@ -179,7 +179,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/companies/${task.company_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="rounded bg-purple-l px-1 py-0.5 text-[0.625rem] text-purple truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+                className="rounded bg-purple-l px-1 py-0.5 text-xs text-purple truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
               >
                 {task.company?.name ?? 'компания'}
               </button>

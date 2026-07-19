@@ -87,7 +87,7 @@ export function ContentHeader() {
         >
           <Search size={14} />
           <span className="hidden sm:inline">Поиск</span>
-          <kbd className="px-1 py-0.5 text-[10px] font-mono text-text-mute" style={{ border: '0.5px solid var(--border)' }}>
+          <kbd className="px-1 py-0.5 text-xs font-mono text-text-mute" style={{ border: '0.5px solid var(--border)' }}>
             ⌘K
           </kbd>
         </button>
@@ -131,7 +131,7 @@ export function ContentHeader() {
         {/* Sign out */}
         <button
           onClick={signOut}
-          className="flex h-7 w-7 items-center justify-center text-[10px] font-medium text-text-dim hover:text-text-main transition-colors"
+          className="flex h-7 w-7 items-center justify-center text-xs font-medium text-text-dim hover:text-text-main transition-colors"
           style={{ border: '0.5px solid var(--border)', borderRadius: '50%' }}
           aria-label="Выйти"
         >

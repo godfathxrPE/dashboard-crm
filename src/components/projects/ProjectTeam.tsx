@@ -43,7 +43,7 @@ function MemberAvatar({ member }: { member: ProjectMember }) {
     );
   }
   return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-l text-[10px] font-bold text-accent">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-l text-xs font-bold text-accent">
       {initials(member.profile?.full_name ?? '')}
     </span>
   );
@@ -118,7 +118,7 @@ export function ProjectTeam({
         <div className="space-y-2">
           {grouped.map((group) => (
             <div key={group.role}>
-              <p className="mb-1 text-[10px] uppercase tracking-wider text-text-mute">
+              <p className="mb-1 text-xs uppercase tracking-wider text-text-mute">
                 {PROJECT_MEMBER_ROLE_LABELS[group.role]}
               </p>
               <div className="space-y-1">
@@ -147,7 +147,7 @@ export function ProjectTeam({
                         ))}
                       </select>
                     ) : (
-                      <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
+                      <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
                         {PROJECT_MEMBER_ROLE_LABELS[m.role] ?? m.role}
                       </span>
                     )}

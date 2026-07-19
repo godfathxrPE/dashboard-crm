@@ -33,8 +33,7 @@ export function DeliveryHealthDot({ health, size = 'sm', showLabel = false }: De
       <span
         aria-hidden
         className={cn(
-          'inline-block w-3 text-center leading-none',
-          size === 'sm' ? 'text-[10px]' : 'text-xs',
+          'inline-block w-3 text-center leading-none text-xs',
           cfg.text,
         )}
       >

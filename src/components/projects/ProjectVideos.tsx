@@ -65,7 +65,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
         <div className="flex items-center gap-2">
           <Video size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-main">Видео</span>
-          <span className="rounded-full bg-bg px-1.5 py-0.5 text-[10px] text-text-mute">
+          <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
             {videos.length}
           </span>
         </div>
@@ -176,7 +176,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
                   <span className="min-w-0 flex-1 truncate text-xs text-text-dim" title={video.title ?? undefined}>
                     {video.title || PROVIDER_LABELS[video.provider as keyof typeof PROVIDER_LABELS] || 'Видео'}
                   </span>
-                  <span className="shrink-0 text-[10px] text-text-mute">
+                  <span className="shrink-0 text-xs text-text-mute">
                     {PROVIDER_LABELS[video.provider as keyof typeof PROVIDER_LABELS] ?? video.provider}
                   </span>
                   {canManage && (

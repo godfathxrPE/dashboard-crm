@@ -206,7 +206,7 @@ export function MigrationTool() {
         <h2 className="mb-2 text-xs font-semibold text-text-dim">
           1. Экспортируй данные из старого дашборда
         </h2>
-        <p className="mb-3 text-[10px] text-text-mute">
+        <p className="mb-3 text-xs text-text-mute">
           Открой старый Dashboard → Настройки → Экспорт JSON → Скачай файл.
           Или в DevTools console: <code className="bg-bg px-1 rounded">JSON.stringify(localStorage)</code>
         </p>
@@ -248,10 +248,10 @@ export function MigrationTool() {
                 {statusIcon(log.status)}
                 <span className="flex-1 text-xs font-medium capitalize text-text-main">{log.entity}</span>
                 {log.count > 0 && (
-                  <span className="text-[10px] text-green">{log.count} записей</span>
+                  <span className="text-xs text-green">{log.count} записей</span>
                 )}
                 {log.message && (
-                  <span className={`text-[10px] ${log.status === 'error' ? 'text-red' : 'text-text-mute'}`}>
+                  <span className={`text-xs ${log.status === 'error' ? 'text-red' : 'text-text-mute'}`}>
                     {log.message}
                   </span>
                 )}

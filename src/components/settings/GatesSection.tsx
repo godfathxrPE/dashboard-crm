@@ -65,7 +65,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
         <select
           value={stageId}
           onChange={(e) => setStageId(e.target.value)}
-          className="min-w-[9rem] rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="min-w-[9rem] rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim"
         >
           <option value="">Стадия входа…</option>
           {stageIds.map((s) => (
@@ -76,7 +76,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
         <select
           value={type}
           onChange={(e) => setType(e.target.value as RequirementType)}
-          className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+          className="rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim"
         >
           <option value="field">Поле сделки</option>
           <option value="file">Файл</option>
@@ -86,7 +86,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
           <select
             value={column}
             onChange={(e) => setColumn(e.target.value as GateFieldColumn)}
-            className="rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+            className="rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim"
           >
             {GATE_FIELD_COLUMNS.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -99,7 +99,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
               min={1}
               value={minCount}
               onChange={(e) => setMinCount(parseInt(e.target.value, 10) || 1)}
-              className="w-16 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-dim"
+              className="w-16 rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim"
               title="Минимум файлов"
             />
             <input
@@ -107,7 +107,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Метка (КП, Договор…)"
-              className="min-w-0 flex-1 rounded-md border border-input bg-surface px-2 py-1.5 text-[12px] text-text-main placeholder:text-text-mute"
+              className="min-w-0 flex-1 rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute"
             />
           </>
         )}
@@ -198,28 +198,28 @@ export function GatesSection() {
       </select>
 
       {sortedReqs.length === 0 ? (
-        <p className="py-2 text-center text-[12px] text-text-mute">
+        <p className="py-2 text-center text-xs text-text-mute">
           Для этой воронки требования не заданы.
         </p>
       ) : (
         <div className="divide-y divide-border">
           {sortedReqs.map((req) => (
             <div key={req.id} className="flex items-center gap-2 py-2">
-              <span className="shrink-0 rounded-full border border-border bg-surface2 px-2 py-0.5 text-[10px] font-medium text-text-dim">
+              <span className="shrink-0 rounded-full border border-border bg-surface2 px-2 py-0.5 text-xs font-medium text-text-dim">
                 {stageName.get(req.stage_id) ?? '—'}
               </span>
               <span className="shrink-0 text-[11px] text-text-mute">
                 {req.requirement_type === 'field' ? 'Поле' : 'Файл'}
               </span>
               <span className="shrink-0 text-[11px] text-text-dim">{describeConfig(req)}</span>
-              <span className="min-w-0 flex-1 truncate text-[12px] text-text-main" title={req.error_hint}>
+              <span className="min-w-0 flex-1 truncate text-xs text-text-main" title={req.error_hint}>
                 {req.error_hint}
               </span>
 
               <button
                 onClick={() => updateReq.mutate({ id: req.id, is_active: !req.is_active })}
                 disabled={updateReq.isPending}
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
                   req.is_active
                     ? 'bg-accent-l text-accent'
                     : 'bg-surface2 text-text-mute'

@@ -59,7 +59,7 @@ export function AvatarUpload({ avatarUrl, fullName }: AvatarUploadProps) {
           <Camera size={13} />
           {upload.isPending ? 'Загрузка…' : avatarUrl ? 'Заменить фото' : 'Загрузить фото'}
         </button>
-        <p className="mt-1 text-[10px] text-text-mute">JPG/PNG, до 2 МБ. Необязательно.</p>
+        <p className="mt-1 text-xs text-text-mute">JPG/PNG, до 2 МБ. Необязательно.</p>
       </div>
       <input
         ref={inputRef}

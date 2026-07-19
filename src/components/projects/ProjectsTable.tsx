@@ -111,7 +111,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
       label: 'Стадия',
       sortable: true,
       render: (p) => (
-        <span className="rounded-full bg-accent-l px-2 py-0.5 text-[10px] font-medium text-accent">
+        <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
           {getStageName(p, stagesMap)}
         </span>
       ),
@@ -157,7 +157,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
       ) : (
         <span className="flex items-center gap-1 text-yellow" title="Бюджет не указан">
           <AlertTriangle size={11} />
-          <span className="text-[10px]">—</span>
+          <span className="text-xs">—</span>
         </span>
       ),
     },

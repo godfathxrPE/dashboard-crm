@@ -127,19 +127,19 @@ function LeadCard({
       {/* Contact info */}
       <div className="flex flex-col gap-0.5 mb-2">
         {lead.company_name_raw && (
-          <span className="flex items-center gap-1 text-[10px] text-text-dim">
+          <span className="flex items-center gap-1 text-xs text-text-dim">
             <Building2 size={9} />
             <span className="truncate">{lead.company_name_raw}</span>
           </span>
         )}
         {lead.contact_name_raw && (
-          <span className="flex items-center gap-1 text-[10px] text-text-dim">
+          <span className="flex items-center gap-1 text-xs text-text-dim">
             <User size={9} />
             <span className="truncate">{lead.contact_name_raw}</span>
           </span>
         )}
         {lead.phone && (
-          <span className="flex items-center gap-1 text-[10px] text-text-dim">
+          <span className="flex items-center gap-1 text-xs text-text-dim">
             <Phone size={9} />
             {lead.phone}
           </span>
@@ -147,7 +147,7 @@ function LeadCard({
       </div>
 
       {/* Date + возраст в статусе (rotting для лидов — язык меток как у сделок: ○/●) */}
-      <div className="mb-2 flex items-center gap-2 text-[10px] text-text-mute">
+      <div className="mb-2 flex items-center gap-2 text-xs text-text-mute">
         {new Date(lead.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
         {(() => {
           const s = leadStaleness(lead);
@@ -174,12 +174,12 @@ function LeadCard({
       {/* Reject: выбор причины */}
       {rejecting && (
         <div className="mb-1 flex flex-wrap items-center gap-1 border-t border-border/50 pt-2">
-          <span className="w-full text-[10px] text-text-mute">Причина отказа:</span>
+          <span className="w-full text-xs text-text-mute">Причина отказа:</span>
           {disqualifyReasons.map((r) => (
             <button
               key={r}
               onClick={() => { onStatusChange(lead.id, 'disqualified', r); setRejecting(false); }}
-              className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-dim
+              className="rounded border border-border px-1.5 py-0.5 text-xs text-text-dim
                          transition-colors hover:border-red hover:bg-red-l hover:text-red"
             >
               {DISQUALIFY_REASON_CONFIG[r].label}
@@ -187,7 +187,7 @@ function LeadCard({
           ))}
           <button
             onClick={() => setRejecting(false)}
-            className="rounded px-1.5 py-0.5 text-[10px] text-text-mute hover:text-text-main"
+            className="rounded px-1.5 py-0.5 text-xs text-text-mute hover:text-text-main"
           >
             Отмена
           </button>
@@ -199,7 +199,7 @@ function LeadCard({
         {lead.status === 'new' && (
           <button
             onClick={() => onStatusChange(lead.id, 'contacted')}
-            className="rounded px-2 py-1 text-[10px] font-medium text-accent hover:bg-accent-l transition-colors"
+            className="rounded px-2 py-1 text-xs font-medium text-accent hover:bg-accent-l transition-colors"
           >
             Связаться
           </button>
@@ -208,13 +208,13 @@ function LeadCard({
           <>
             <button
               onClick={() => onStatusChange(lead.id, 'qualified')}
-              className="rounded px-2 py-1 text-[10px] font-medium text-green hover:bg-green-l transition-colors"
+              className="rounded px-2 py-1 text-xs font-medium text-green hover:bg-green-l transition-colors"
             >
               Квалифицировать
             </button>
             <button
               onClick={() => setRejecting(true)}
-              className="rounded px-2 py-1 text-[10px] font-medium text-red hover:bg-red-l transition-colors"
+              className="rounded px-2 py-1 text-xs font-medium text-red hover:bg-red-l transition-colors"
             >
               Отклонить
             </button>
@@ -223,7 +223,7 @@ function LeadCard({
         {lead.status === 'qualified' && (
           <button
             onClick={() => onConvert(lead)}
-            className="flex items-center gap-0.5 rounded px-2 py-1 text-[10px] font-medium text-accent hover:bg-accent-l transition-colors"
+            className="flex items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-accent hover:bg-accent-l transition-colors"
           >
             Конвертировать <ArrowRight size={10} />
           </button>
@@ -231,13 +231,13 @@ function LeadCard({
         {lead.status === 'disqualified' && (
           <>
             {lead.disqualify_reason && (
-              <span className="rounded bg-red-l px-1.5 py-0.5 text-[10px] text-red">
+              <span className="rounded bg-red-l px-1.5 py-0.5 text-xs text-red">
                 {DISQUALIFY_REASON_CONFIG[lead.disqualify_reason as DisqualifyReason]?.label ?? lead.disqualify_reason}
               </span>
             )}
             <button
               onClick={() => onStatusChange(lead.id, 'new')}
-              className="rounded px-2 py-1 text-[10px] font-medium text-text-mute hover:bg-surface2 transition-colors"
+              className="rounded px-2 py-1 text-xs font-medium text-text-mute hover:bg-surface2 transition-colors"
             >
               Восстановить
             </button>
@@ -245,7 +245,7 @@ function LeadCard({
         )}
         <button
           onClick={() => onEdit(lead)}
-          className="ml-auto rounded px-2 py-1 text-[10px] text-text-mute hover:text-text-main hover:bg-surface2 transition-colors"
+          className="ml-auto rounded px-2 py-1 text-xs text-text-mute hover:text-text-main hover:bg-surface2 transition-colors"
         >
           Ред.
         </button>
@@ -315,7 +315,7 @@ function ConvertedLeads() {
                 {lead.converted_deal_id && (
                   <button
                     onClick={() => router.push(`/deals/${lead.converted_deal_id}`)}
-                    className="flex items-center gap-0.5 rounded px-2 py-1 text-[10px] font-medium text-accent
+                    className="flex items-center gap-0.5 rounded px-2 py-1 text-xs font-medium text-accent
                                opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent-l"
                   >
                     К сделке <ArrowRight size={10} />
@@ -571,7 +571,7 @@ export function LeadsView() {
                   <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: KANBAN_TEXT[col.status] }}>
                     {col.label}
                   </span>
-                  <span className="rounded-full bg-surface2 px-1.5 py-0.5 text-[10px] font-medium text-text-mute">
+                  <span className="rounded-full bg-surface2 px-1.5 py-0.5 text-xs font-medium text-text-mute">
                     {items.length}
                   </span>
                 </div>

@@ -40,7 +40,7 @@ function ClockWidget() {
 
   return (
     <div className="rounded-lg bg-surface p-4 elevation-1">
-      <div className="text-[2.5rem] font-extrabold leading-none text-text-main tabular-nums">
+      <div className="text-4xl font-extrabold leading-none text-text-main tabular-nums">
         {time}
       </div>
       <div className="mt-2 flex items-center justify-between text-xs text-text-mute">
@@ -68,11 +68,11 @@ function PlannedCalls() {
     <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-green">
+          <span className="text-xs font-bold uppercase tracking-widest text-green">
             Запланированные звонки
           </span>
           {pending.length > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-white">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-medium text-white">
               {pending.length}
             </span>
           )}
@@ -144,7 +144,7 @@ function FocusWidget() {
     <div className="rounded-lg bg-surface p-4 focus-day-card">
       <div className="mb-2 flex items-center gap-2">
         <Target size={12} className="text-yellow" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-yellow">
+        <span className="text-xs font-bold uppercase tracking-widest text-yellow">
           Фокус дня
         </span>
       </div>
@@ -200,7 +200,7 @@ function MiniKpi() {
   if (isWashi) {
     return (
       <div className="rounded-lg bg-surface p-4 elevation-1">
-        <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-accent">
+        <div className="mb-3 text-xs font-bold uppercase tracking-widest text-accent">
           Сейчас в работе
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -226,7 +226,7 @@ function MiniKpi() {
               {/* Value */}
               <AnimatedNumber
                 value={values[it.key]}
-                className="text-[32px] font-bold tabular-nums block leading-none"
+                className="text-3xl font-bold tabular-nums block leading-none"
                 style={{ color: it.color }}
               />
               {/* Label */}
@@ -240,7 +240,7 @@ function MiniKpi() {
 
   return (
     <div className="rounded-lg bg-surface p-4 elevation-1">
-      <div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-accent">
+      <div className="mb-3 text-xs font-bold uppercase tracking-widest text-accent">
         Сейчас в работе
       </div>
       <div className="grid grid-cols-2 gap-3">
