@@ -13,6 +13,8 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
+import { formatPhone } from '@/lib/utils/phone';
+import { canonicalPosition } from '@/lib/utils/position';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
@@ -52,13 +54,13 @@ export function ContactsTable() {
   const positionFilters = useMemo(() => {
     const freq: Record<string, number> = {};
     (contacts ?? []).forEach((c) => {
-      if (c.position) freq[c.position] = (freq[c.position] || 0) + 1;
+      if (c.position) { const cp = canonicalPosition(c.position); freq[cp] = (freq[cp] || 0) + 1; }
     });
     return Object.entries(freq)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .reduce<Record<string, (c: ContactRow) => boolean>>((acc, [pos]) => {
-        acc[`pos_${pos}`] = (c) => c.position === pos;
+        acc[`pos_${pos}`] = (c) => c.position != null && canonicalPosition(c.position) === pos;
         return acc;
       }, {});
   }, [contacts]);
@@ -119,6 +121,7 @@ export function ContactsTable() {
         <EditableCell
           value={c.phone}
           type="tel"
+          format={formatPhone}
           className="text-text-dim whitespace-nowrap tabular-nums"
           onSave={(val) => updateContact.mutateAsync({ id: c.id, phone: val || null })}
         />

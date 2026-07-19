@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Building2, Mail, Phone } from 'lucide-react';
 import type { Contact } from '@/lib/hooks/use-contacts';
 import { daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { formatPhone } from '@/lib/utils/phone';
 
 /** Содержимое peek-панели контакта (Sprint W2d) — статичная композиция без новых запросов */
 export function ContactPeekContent({ contact }: { contact: Contact & { last_touch?: string | null } }) {
@@ -35,7 +36,7 @@ export function ContactPeekContent({ contact }: { contact: Contact & { last_touc
         {contact.phone && (
           <a href={`tel:${contact.phone}`} className="flex items-center gap-1.5 text-text-main hover:text-accent">
             <Phone size={13} className="text-text-mute" />
-            {contact.phone}
+            {formatPhone(contact.phone)}
           </a>
         )}
         {contact.email && (

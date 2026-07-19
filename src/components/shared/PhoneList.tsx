@@ -1,5 +1,6 @@
 import type { PhoneEntry } from '@/types/database';
 import { PHONE_TYPE_LABEL } from '@/lib/validators/phone';
+import { formatPhone } from '@/lib/utils/phone';
 
 interface PhoneListProps {
   /** Массив phones (041). Может отсутствовать до применения миграции. */
@@ -34,7 +35,7 @@ export function PhoneList({ phones, fallback }: PhoneListProps) {
             href={`tel:${p.value.replace(/[^\d+]/g, '')}`}
             className="text-sm text-text-main hover:text-accent hover:underline"
           >
-            {p.value}
+            {formatPhone(p.value)}
           </a>
           {usePrimaryLabel && (
             p.is_primary ? (

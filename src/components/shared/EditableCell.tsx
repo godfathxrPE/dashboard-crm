@@ -8,6 +8,7 @@ interface EditableCellProps {
   className?: string;
   placeholder?: string;
   type?: 'text' | 'tel' | 'email';
+  format?: (value: string) => string;
 }
 
 export function EditableCell({
@@ -16,6 +17,7 @@ export function EditableCell({
   className = '',
   placeholder = '—',
   type = 'text',
+  format,
 }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -93,7 +95,7 @@ export function EditableCell({
                  hover:bg-accent-l/50 ${!value ? 'text-text-mute' : ''} ${className}`}
       title="Кликни для редактирования"
     >
-      {value || placeholder}
+      {value ? (format ? format(value) : value) : placeholder}
     </span>
   );
 }

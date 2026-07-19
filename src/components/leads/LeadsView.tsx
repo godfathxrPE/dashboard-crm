@@ -43,6 +43,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { exportToCSV } from '@/lib/utils/export-csv';
+import { formatPhone } from '@/lib/utils/phone';
 import { LeadModal } from './LeadModal';
 import { LeadConversionModal } from './LeadConversionModal';
 import type { Lead, LeadStatus } from '@/types/database';
@@ -141,7 +142,7 @@ function LeadCard({
         {lead.phone && (
           <span className="flex items-center gap-1 text-xs text-text-dim">
             <Phone size={9} />
-            {lead.phone}
+            {formatPhone(lead.phone)}
           </span>
         )}
       </div>
@@ -487,7 +488,7 @@ export function LeadsView() {
       key: 'phone',
       label: 'Телефон',
       render: (l) => l.phone ? (
-        <span className="text-sm text-text-dim">{l.phone}</span>
+        <span className="text-sm text-text-dim">{formatPhone(l.phone)}</span>
       ) : <span className="text-text-mute">—</span>,
     },
     {
