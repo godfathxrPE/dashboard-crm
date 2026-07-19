@@ -983,10 +983,8 @@ input[type="checkbox"]:indeterminate {
   -webkit-backdrop-filter: blur(10px) saturate(120%);
 }
 
-/* Текст пунктов — капс, межбуквенный интервал (и вертикальный, и обычный) */
+/* Текст пунктов — обычный регистр (капс убивает силуэты кириллицы), трекинг наследуется от .t-aura */
 .t-aura aside nav a[data-nav-item] > span {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
   font-weight: 500;
 }
 
@@ -1045,6 +1043,11 @@ input[type="checkbox"]:indeterminate {
 
 /* ── Карточки/таблицы непрозрачны — орбы не «грязнят» данные ─────────── */
 .t-aura table thead th {
+  background: var(--surface);
+}
+/* tbody тоже непрозрачен — иначе орбы (alpha 0.14–0.18) подкрашивают строки
+   с данными (аудит F-03). tr красится поверх (hover/selected видимы). */
+.t-aura table tbody {
   background: var(--surface);
 }
 

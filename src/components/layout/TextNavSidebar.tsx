@@ -78,7 +78,6 @@ export function TextNavSidebar() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   // Aura: активный пункт — полупрозрачная пилюля (не линия). Помечаем data-active.
   const theme = useThemeStore((s) => s.theme);
-  const isAura = theme === 't-aura';
   const isWashi = theme === 't-washi';
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
@@ -150,9 +149,9 @@ export function TextNavSidebar() {
           </>
         ) : (
           <>
-            {/* Aura без иконок: вертикальный капс-лейбл (nav-ico скрыт CSS) */}
+            {/* Aura без иконок: вертикальный лейбл (nav-ico скрыт CSS) */}
             <span
-              className="nav-vlabel text-[9px] tracking-wider lowercase"
+              className="nav-vlabel text-[11px]"
               style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
             >{item.label}</span>
             {badge > 0 && (
@@ -173,23 +172,14 @@ export function TextNavSidebar() {
       )}
       style={{ borderWidth: '0.5px' }}
     >
-      {/* Logo — акцентный TC-квадрат (Torii CRM) для не-aura; бордер-квадрат ОП/БИТ.IIOT для aura */}
+      {/* Logo — акцентный TC-квадрат (единый бренд Torii CRM во всех темах; fuji-плитка золотая через .logo-icon) */}
       <div className="flex h-14 items-center gap-3 px-4 shrink-0" style={{ borderBottom: '0.5px solid var(--border)' }}>
-        <div
-          className={cn(
-            'logo-icon flex shrink-0 items-center justify-center font-semibold',
-            isAura
-              ? 'h-7 w-7 text-[11px]'
-              : 'h-8 w-8 rounded-md bg-accent text-white text-sm',
-          )}
-          style={isAura ? { border: '1px solid var(--border)', borderRadius: '6px' } : undefined}
-        >
-          {isAura ? 'ОП' : 'TC'}
+        <div className="logo-icon flex shrink-0 items-center justify-center font-semibold h-8 w-8 rounded-md bg-accent text-white text-sm">
+          TC
         </div>
         {sidebarOpen && (
           <div className="min-w-0">
-            <div className="text-[13px] font-medium text-text-main truncate">{isAura ? 'Dashboard' : 'Torii CRM'}</div>
-            {isAura && <div className="text-[10px] text-text-mute truncate">БИТ.IIOT</div>}
+            <div className="text-[13px] font-medium text-text-main truncate">Torii CRM</div>
           </div>
         )}
       </div>
