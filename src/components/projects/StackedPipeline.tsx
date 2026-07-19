@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
 import { DELIVERY_PHASE_LABELS, DELIVERY_PHASE_COLOR, DELIVERY_PHASE_TEXT } from '@/lib/constants/delivery-phases';
@@ -64,6 +65,28 @@ interface TrackGroup {
   stages: PipelineStage[];
 }
 
+// Состояние трека — БАЙТ-В-БАЙТ формула из live-инлайна (a11y-проверенные пороги,
+// не упрощать). Возвращает и trackHasCurrent — нужен FullTrack для pill текущей
+// стадии. Будущие треки приглушаем ТОКЕНОМ (--text-mute), не opacity.
+function trackStateOf(
+  track: TrackGroup,
+  stages: PipelineStage[],
+  currentIndex: number,
+  currentStageId: string,
+  isWon: boolean,
+): { state: 'future' | 'active' | 'done'; trackHasCurrent: boolean } {
+  const trackHasCurrent = track.stages.some((s) => s.id === currentStageId);
+  const firstOrder = track.stages[0].order_index;
+  const lastOrder = track.stages[track.stages.length - 1].order_index;
+  const currentOrder = stages[currentIndex]?.order_index ?? -1;
+  let state: 'future' | 'active' | 'done';
+  if (isWon || (currentOrder >= 0 && currentOrder > lastOrder)) state = 'done';
+  else if (trackHasCurrent) state = 'active';
+  else if (currentOrder >= 0 && currentOrder >= firstOrder) state = 'active';
+  else state = 'future';
+  return { state, trackHasCurrent };
+}
+
 export function StackedPipeline({
   pipelineId,
   currentStageId,
@@ -71,6 +94,9 @@ export function StackedPipeline({
   onStageClick,
 }: StackedPipelineProps) {
   const allStages = useStagesForPipeline(pipelineId);
+  // Ручное раскрытие завершённого/будущего трека в чевроны (навигация по стадиям
+  // не теряется — гейт-логика доступна через раскрытие чипа).
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   // Активные стадии (без терминалов won/lost), по order_index.
   const stages = useMemo(
@@ -120,82 +146,57 @@ export function StackedPipeline({
 
   const locked = readOnly || isTerminal;
 
+  // D2: активный трек — полные чевроны; завершённые/будущие — компактные чипы,
+  // подряд идущие коалесцируются в одну строку. Раскрытый вручную трек (expandedKey)
+  // тоже рендерится полным. Гейт-логика сегментов/onStageClick не тронута.
+  const nodes: ReactNode[] = [];
+  let chips: TrackGroup[] = [];
+  const flush = (k: string) => {
+    if (!chips.length) return;
+    const batch = chips;
+    nodes.push(
+      <div key={`chips-${k}`} className="flex flex-wrap items-center gap-1.5">
+        {batch.map((t) => (
+          <TrackChip
+            key={t.key}
+            track={t}
+            state={trackStateOf(t, stages, currentIndex, currentStageId, isWon).state as 'future' | 'done'}
+            onClick={() => setExpandedKey(t.key)}
+          />
+        ))}
+      </div>,
+    );
+    chips = [];
+  };
+  tracks.forEach((track, i) => {
+    const { state, trackHasCurrent } = trackStateOf(track, stages, currentIndex, currentStageId, isWon);
+    const full = state === 'active' || expandedKey === track.key;
+    if (full) {
+      flush(String(i));
+      nodes.push(
+        <FullTrack
+          key={track.key}
+          track={track}
+          state={state}
+          trackHasCurrent={trackHasCurrent}
+          stages={stages}
+          currentIndex={currentIndex}
+          currentStageId={currentStageId}
+          isWon={isWon}
+          locked={locked}
+          onStageClick={onStageClick}
+          onCollapse={expandedKey === track.key ? () => setExpandedKey(null) : undefined}
+        />,
+      );
+    } else {
+      chips.push(track);
+    }
+  });
+  flush('end');
+
   return (
     <div className="flex flex-col gap-3">
-      {tracks.map((track) => {
-        const trackHasCurrent = track.stages.some((s) => s.id === currentStageId);
-        const firstOrder = track.stages[0].order_index;
-        const lastOrder = track.stages[track.stages.length - 1].order_index;
-        const currentOrder = stages[currentIndex]?.order_index ?? -1;
-        // Состояние трека: будущие приглушаем ТОКЕНОМ (--text-mute), не opacity —
-        // opacity-50 на контейнере ронял контраст текста до 1.7–2:1 (a11y-аудит P0).
-        const trackState: 'future' | 'active' | 'done' =
-          isWon || (currentOrder >= 0 && currentOrder > lastOrder)
-            ? 'done'
-            : trackHasCurrent
-              ? 'active'
-              : currentOrder >= 0 && currentOrder >= firstOrder
-                ? 'active'
-                : 'future';
-
-        return (
-          <div key={track.key}>
-            {/* Заголовок трека: у future лейбл — text-mute, цветная точка остаётся вторичным сигналом */}
-            <div className="mb-1 flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
-              <span
-                className="phase-label text-[11px] font-medium"
-                style={{ color: trackState === 'future' ? 'var(--text-mute)' : track.textColor }}
-              >
-                {track.label}
-              </span>
-              {trackHasCurrent && !locked && (
-                <span
-                  className="ml-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                  style={{ background: 'var(--accent-l)', color: 'var(--accent)' }}
-                >
-                  {track.stages.find((s) => s.id === currentStageId)?.name}
-                </span>
-              )}
-              {trackState === 'done' && (
-                <span className="ml-1 text-xs text-text-mute">✓</span>
-              )}
-            </div>
-
-            {/* Чеврон-бар трека */}
-            <div className="flex h-9 overflow-hidden rounded-md">
-              {track.stages.map((stage, i) => {
-                const globalIdx = stages.findIndex((s) => s.id === stage.id);
-                const isFirst = i === 0;
-                const isLast = i === track.stages.length - 1;
-
-                let state: 'done' | 'current' | 'future';
-                if (locked) {
-                  state = isWon ? 'done' : 'future';
-                } else if (globalIdx < currentIndex) {
-                  state = 'done';
-                } else if (globalIdx === currentIndex) {
-                  state = 'current';
-                } else {
-                  state = 'future';
-                }
-
-                return (
-                  <Segment
-                    key={stage.id}
-                    stage={stage}
-                    state={state}
-                    isFirst={isFirst}
-                    isLast={isLast}
-                    locked={locked}
-                    onClick={() => onStageClick?.(stage.id)}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      {nodes}
 
       {/* Общий прогресс */}
       <div className="mt-1 flex items-center gap-3">
@@ -208,6 +209,136 @@ export function StackedPipeline({
         <span className="text-xs font-medium text-text-dim">{pct}%</span>
       </div>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Полный трек — заголовок (dot+label+pill+✓) + чеврон-бар. Вырезан БАЙТ-В-БАЙТ
+// из инлайна; гейт-логика сегментов (state/onClick/locked) не меняется. Кнопка
+// «свернуть» появляется только когда трек раскрыт вручную (onCollapse задан).
+// ═══════════════════════════════════════════════════════
+
+function FullTrack({
+  track,
+  state,
+  trackHasCurrent,
+  stages,
+  currentIndex,
+  currentStageId,
+  isWon,
+  locked,
+  onStageClick,
+  onCollapse,
+}: {
+  track: TrackGroup;
+  state: 'future' | 'active' | 'done';
+  trackHasCurrent: boolean;
+  stages: PipelineStage[];
+  currentIndex: number;
+  currentStageId: string;
+  isWon: boolean;
+  locked: boolean;
+  onStageClick?: (stageId: string) => void;
+  onCollapse?: () => void;
+}) {
+  return (
+    <div>
+      {/* Заголовок трека: у future лейбл — text-mute, цветная точка остаётся вторичным сигналом */}
+      <div className="mb-1 flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
+        <span
+          className="phase-label text-[11px] font-medium"
+          style={{ color: state === 'future' ? 'var(--text-mute)' : track.textColor }}
+        >
+          {track.label}
+        </span>
+        {trackHasCurrent && !locked && (
+          <span
+            className="ml-1 rounded-full px-2 py-0.5 text-xs font-medium"
+            style={{ background: 'var(--accent-l)', color: 'var(--accent)' }}
+          >
+            {track.stages.find((s) => s.id === currentStageId)?.name}
+          </span>
+        )}
+        {state === 'done' && (
+          <span className="ml-1 text-xs text-text-mute">✓</span>
+        )}
+        {onCollapse && (
+          <button
+            type="button"
+            aria-expanded
+            onClick={onCollapse}
+            title="Свернуть"
+            className="ml-auto rounded p-0.5 text-text-mute transition-colors hover:text-text-dim focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Чеврон-бар трека */}
+      <div className="flex h-9 overflow-hidden rounded-md">
+        {track.stages.map((stage, i) => {
+          const globalIdx = stages.findIndex((s) => s.id === stage.id);
+          const isFirst = i === 0;
+          const isLast = i === track.stages.length - 1;
+
+          let state: 'done' | 'current' | 'future';
+          if (locked) {
+            state = isWon ? 'done' : 'future';
+          } else if (globalIdx < currentIndex) {
+            state = 'done';
+          } else if (globalIdx === currentIndex) {
+            state = 'current';
+          } else {
+            state = 'future';
+          }
+
+          return (
+            <Segment
+              key={stage.id}
+              stage={stage}
+              state={state}
+              isFirst={isFirst}
+              isLast={isLast}
+              locked={locked}
+              onClick={() => onStageClick?.(stage.id)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Компактный чип завершённого/будущего трека — раскрывается в чевроны по клику.
+// Заливкой НЕ красим (категория ≠ статус); done → приглушённая точка + ✓.
+// ═══════════════════════════════════════════════════════
+
+function TrackChip({
+  track,
+  state,
+  onClick,
+}: {
+  track: TrackGroup;
+  state: 'future' | 'done';
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${track.label} — раскрыть`}
+      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-surface2"
+    >
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ background: state === 'done' ? 'var(--text-mute)' : track.color }}
+      />
+      <span style={{ color: state === 'done' ? 'var(--text-dim)' : 'var(--text-mute)' }}>{track.label}</span>
+      {state === 'done' && <span className="text-text-mute">✓</span>}
+    </button>
   );
 }
 
