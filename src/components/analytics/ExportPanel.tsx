@@ -116,41 +116,42 @@ export function ExportPanel() {
   }
 
   const csvItems = [
-    { key: 'tasks', label: 'Задачи', count: tasks?.length ?? 0, iconColor: 'text-accent' },
-    { key: 'projects', label: 'Сделки', count: projects?.length ?? 0, iconColor: 'text-accent' },
-    { key: 'calls', label: 'Звонки', count: calls?.length ?? 0, iconColor: 'text-green' },
-    { key: 'contacts', label: 'Контакты', count: contacts?.length ?? 0, iconColor: 'text-yellow' },
-    { key: 'companies', label: 'Компании', count: companies?.length ?? 0, iconColor: 'text-yellow' },
+    { key: 'tasks', label: 'Задачи', count: tasks?.length ?? 0 },
+    { key: 'projects', label: 'Сделки', count: projects?.length ?? 0 },
+    { key: 'calls', label: 'Звонки', count: calls?.length ?? 0 },
+    { key: 'contacts', label: 'Контакты', count: contacts?.length ?? 0 },
+    { key: 'companies', label: 'Компании', count: companies?.length ?? 0 },
   ];
 
+  // M6: экспорт — служебная утилита, а не равный виджет. Компактная горизонтальная
+  // полоса: заголовок + чипы CSV (цвет без роли → mute) + один акцентный чип JSON.
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Download size={14} className="text-accent" />
-        <span className="text-xs font-semibold text-text-dim">Экспорт данных</span>
-      </div>
+    <div className="rounded-xl border border-border bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 flex items-center gap-1.5 text-xs font-semibold text-text-dim">
+          <Download size={14} className="text-text-mute" />
+          Экспорт данных
+        </span>
 
-      {/* CSV exports */}
-      <div className="mb-3 space-y-1.5">
         {csvItems.map((item) => (
           <button key={item.key} onClick={() => exportCSV(item.key)}
             disabled={exporting === item.key}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-hover disabled:opacity-50">
-            <FileSpreadsheet size={13} className={item.iconColor} />
-            <span className="flex-1 text-xs text-text-main">{item.label}</span>
-            <span className="text-xs text-text-dim">{item.count} записей</span>
-            {exporting === item.key && <Loader2 size={12} className="animate-spin" />}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50">
+            {exporting === item.key
+              ? <Loader2 size={13} className="animate-spin text-text-mute" />
+              : <FileSpreadsheet size={13} className="text-text-mute" />}
+            <span>{item.label} · {item.count}</span>
           </button>
         ))}
-      </div>
 
-      {/* JSON backup */}
-      <button onClick={exportJSON} disabled={exporting === 'json'}
-        className="flex w-full items-center gap-2 rounded-lg border border-accent/30 bg-accent-l/30 px-3 py-2.5 transition-colors hover:bg-accent-l disabled:opacity-50">
-        <FileJson size={14} className="text-accent" />
-        <span className="flex-1 text-left text-xs font-medium text-accent">Полный бэкап (JSON)</span>
-        {exporting === 'json' && <Loader2 size={12} className="animate-spin text-accent" />}
-      </button>
+        <button onClick={exportJSON} disabled={exporting === 'json'}
+          className="flex items-center gap-1.5 rounded-lg border border-accent/30 px-2.5 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent-l disabled:opacity-50">
+          {exporting === 'json'
+            ? <Loader2 size={13} className="animate-spin text-accent" />
+            : <FileJson size={14} className="text-accent" />}
+          <span>Полный бэкап (JSON)</span>
+        </button>
+      </div>
     </div>
   );
 }

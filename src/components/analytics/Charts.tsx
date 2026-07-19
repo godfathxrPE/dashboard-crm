@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis,
@@ -13,7 +14,14 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 /* ── Цвета ── */
 const LANE_LABELS: Record<string, string> = { now: 'Сейчас', next: 'Следующие', wait: 'Отложено', done: 'Выполнено' };
 const LANE_COLORS: Record<string, string> = { now: 'var(--accent)', next: 'var(--blue)', wait: 'var(--yellow)', done: 'var(--green)' };
-const PHASE_COLORS: Record<string, string> = { attract: 'var(--blue)', develop: 'var(--accent)', negotiate: 'var(--yellow)', close: 'var(--green)' };
+/* M6: одна палитра фаз с воронкой /overview (OverviewCharts) — трек-токены.
+   Одна сущность (фаза сделки) = один цвет на всех экранах. */
+const PHASE_COLORS: Record<string, string> = {
+  attract: 'var(--track-prep-current)',
+  develop: 'var(--track-exp-current)',
+  negotiate: 'var(--track-nego-current, var(--track-exp-current))',
+  close: 'var(--track-proj-current)',
+};
 
 /* phase_group (источник истины — pipeline_stages) → label + ключ цвета (legacy phase-палитра выше).
    Аналитика группирует по stage_id → phase_group, без legacy enum `stage`. */
@@ -84,6 +92,12 @@ export function TasksDistribution() {
     <div className="p-4 rounded-lg bg-surface elevation-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Задачи по статусу</h3>
       <div className="h-48 flex items-center justify-center">
+        {total === 0 ? (
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-xs text-text-mute">Задач пока нет</p>
+            <Link href="/tasks" className="text-xs text-accent hover:underline">Создать задачу →</Link>
+          </div>
+        ) : (
         <svg viewBox="0 0 200 200" width="160" height="160" style={isAura ? { overflow: 'visible' } : undefined}>
           {isAura && (
             <defs>
@@ -117,14 +131,15 @@ export function TasksDistribution() {
               );
             })}
           </g>
-          {/* Центр: общая цифра (только Aura) */}
-          {isAura && total > 0 && (
+          {/* Центр: общая цифра (все темы; Unbounded — только aura, остальным наследование) */}
+          {total > 0 && (
             <text x="100" y="100" textAnchor="middle" dominantBaseline="central"
-              style={{ fontSize: 30, fontWeight: 700, fill: 'var(--text)', fontFamily: 'var(--font-unbounded, sans-serif)' }}>
+              style={{ fontSize: 28, fontWeight: 600, fill: 'var(--text)', fontFamily: isAura ? 'var(--font-unbounded, sans-serif)' : 'inherit' }}>
               {total}
             </text>
           )}
         </svg>
+        )}
       </div>
       <div className="flex justify-center gap-4 mt-2">
         {chartData.map((d) => {
@@ -171,6 +186,12 @@ export function PipelineChart() {
     <div className="p-4 min-w-0 overflow-hidden rounded-lg bg-surface elevation-hover">
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Сделки по фазам</h3>
       <div className="h-48">
+        {chartData.every((d) => d.count === 0) ? (
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+            <p className="text-xs text-text-mute">Нет активных сделок</p>
+            <Link href="/deals" className="text-xs text-accent hover:underline">Создать сделку →</Link>
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
           <BarChart data={chartData} layout="vertical" barSize={18}>
             {isAura && (
@@ -197,6 +218,7 @@ export function PipelineChart() {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

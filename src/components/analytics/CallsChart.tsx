@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -56,8 +57,9 @@ export function CallsChart() {
       <h3 className="mb-3 text-xs font-semibold text-text-dim">Звонки по неделям</h3>
       <div className="h-48">
         {!hasCalls ? (
-          <div className="flex h-full items-center justify-center text-xs text-text-mute">
-            Нет звонков за период
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+            <p className="text-xs text-text-mute">Нет звонков за период</p>
+            <Link href="/calls" className="text-xs text-accent hover:underline">Записать звонок →</Link>
           </div>
         ) : (
         <ResponsiveContainer width="100%" height="100%">

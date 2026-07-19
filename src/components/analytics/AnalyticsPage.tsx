@@ -48,10 +48,10 @@ export function AnalyticsPage() {
           <CallsChart />
           <TasksDistribution />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <PipelineChart />
-          <ExportPanel />
-        </div>
+        {/* M6: pipeline на всю ширину; ExportPanel — утилита, ушла вниз строкой (ниже) */}
+        <PipelineChart />
+        {/* Экспорт — служебная полоса, последним элементом страницы */}
+        <ExportPanel />
       </div>
 
       <WeeklyReview isOpen={reviewOpen} onClose={() => setReviewOpen(false)} />
