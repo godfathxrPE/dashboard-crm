@@ -680,6 +680,9 @@
 /* Primary actions — чёрные (референс Minimal): white-on-#1A1A1E ≈ 17.3:1.
    Терракота остаётся тексту/ссылкам (.text-accent → --accent-text). */
 .t-minimal .bg-accent { background-color: var(--text) !important; }
+/* disabled solid-кнопки — тихие, ремап bg-accent их не перекрашивает
+   (иначе disabled:bg-surface3 из Tailwind не бьёт !important-ремап выше) */
+.t-minimal .bg-accent:disabled { background-color: var(--surface3) !important; color: var(--text-mute) !important; }
 .t-minimal .bg-green  { background-color: var(--green-text) !important; }
 .t-minimal .bg-blue   { background-color: var(--blue-text) !important; }
 .t-minimal .bg-red    { background-color: var(--red-text) !important; }
