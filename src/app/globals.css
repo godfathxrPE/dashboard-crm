@@ -1645,14 +1645,27 @@ table tbody tr[data-kbd-focused] {
    var(--text) — прецедент --aura-pill-text; значения проверены scripts/contrast.py. */
 .t-aura .chat-own { --chat-time: var(--text); }
 
-/* S-CHAT-1.2: выделенные токены своего пузыря. Не трогаем --accent-l/--accent-l2 —
-   это общая утилита (аватар чата, таблицы, кнопки); в fuji .bg-accent-l уже
-   hard-overridden на красный. Заливка плотнее accent-l + рамка акцентом: свой↔чужой
-   1.32–1.57, рамка↔фон в тёмных 2.32–3.12 (audit-contrast.py, 36/36).
-   fuji остаётся тёпло-красным (identity) — НЕ переключать на --accent-l2. */
+/* S-CHAT-1.2 / M4: выделенные токены своего пузыря. Не трогаем --accent-l/--accent-l2 —
+   это общая утилита (аватар чата, таблицы, кнопки). Текст пузыря идёт через
+   --chat-own-fg с фоллбэком var(--text): светлые тинты (washi/aura/fuji) — тёмный
+   --text (9–14:1), minimal — белый на солидном чёрном (17.4:1). НЕ хардкодить
+   text-white в JSX (глобально ломает светлые тинты ~1.6:1). */
+.chat-own { color: var(--chat-own-fg, var(--text)); }
+
+/* minimal — свои пузыри солидные чёрные, белый текст (Linear-паттерн). */
+.t-minimal .chat-own {
+  --chat-own-bg: var(--text);
+  --chat-own-border: var(--text);
+  --chat-own-fg: #fff;
+  --chat-time: rgba(255,255,255,0.75);
+}
 .t-aura   .chat-own { --chat-own-bg: rgba(72,77,87,0.16);   --chat-own-border: rgba(72,77,87,0.28); }
-.t-washi  .chat-own { --chat-own-bg: rgba(194,59,59,0.22);  --chat-own-border: rgba(194,59,59,0.34); }
-.t-fuji   .chat-own { --chat-own-bg: rgba(194,59,59,0.20);  --chat-own-border: rgba(194,59,59,0.34); }
-.t-frost  .chat-own { --chat-own-bg: rgba(91,138,255,0.30); --chat-own-border: rgba(91,138,255,0.55); }
-.t-aurora .chat-own { --chat-own-bg: rgba(160,96,255,0.30); --chat-own-border: rgba(160,96,255,0.55); }
-.t-tidal  .chat-own { --chat-own-bg: rgba(72,184,144,0.28); --chat-own-border: rgba(72,184,144,0.55); }
+/* washi — torii-красный тинт приглушён (22% кричал). */
+.t-washi  .chat-own { --chat-own-bg: rgba(194,59,59,0.16);  --chat-own-border: rgba(194,59,59,0.30); }
+/* fuji — акцент темы индиго #2B5078, НЕ washi-красный (была чужая краска). */
+.t-fuji   .chat-own { --chat-own-bg: rgba(43,80,120,0.13);  --chat-own-border: rgba(43,80,120,0.28); }
+/* тёмные — СОЛИДНЫЙ фон (композит текущего тинта над popover): глубина без
+   просвечивания сквозь glass, вид не меняется. */
+.t-frost  .chat-own { --chat-own-bg: #2D3C66; --chat-own-border: rgba(91,138,255,0.45); }
+.t-aurora .chat-own { --chat-own-bg: #3C2E61; --chat-own-border: rgba(160,96,255,0.45); }
+.t-tidal  .chat-own { --chat-own-bg: #1D4536; --chat-own-border: rgba(72,184,144,0.45); }

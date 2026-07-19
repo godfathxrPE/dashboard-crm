@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircle, Pencil, Trash2, SendHorizontal, Smile, SmilePlus } from 'lucide-react';
+import { MessageCircle, MessageSquare, Pencil, Trash2, SendHorizontal, Smile, SmilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProjectMessages,
@@ -274,15 +274,16 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
         role="log"
         aria-live="polite"
         aria-label="Чат проекта"
-        className="mb-3 h-[min(55vh,40rem)] overflow-y-auto rounded-[var(--radius-m)] bg-bg px-3 py-2"
+        className="mb-3 h-[min(55vh,40rem)] overflow-y-auto rounded-[var(--radius-m)] border border-border/50 bg-bg px-3 py-2"
       >
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-xs text-text-mute">Загрузка...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-xs text-text-mute">Сообщений пока нет — начните обсуждение</p>
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <MessageSquare size={20} className="text-text-mute" aria-hidden="true" />
+            <p className="text-xs text-text-mute">Пока тихо. Напиши первое сообщение команде</p>
           </div>
         ) : (
           <div className="flex min-h-full flex-col justify-end">
@@ -369,7 +370,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                       aria-label={`${r.emoji} ${r.count}`}
                       className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] leading-none tabular-nums transition-colors ${
                         r.mine
-                          ? 'border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-text-main'
+                          ? 'border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-[color:var(--chat-own-fg,var(--text))]'
                           : 'border-border bg-surface2 text-text-dim hover:text-text-main'
                       }`}
                     >
@@ -419,7 +420,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                   {newDay && (
                     // День-чип — обычный текст в потоке (НЕ aria-hidden), aria-live озвучит
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-full bg-surface2 px-2.5 py-0.5 text-[11px] text-text-mute">
+                      <span className="rounded-full border border-border/60 bg-surface px-2.5 py-0.5 text-[11px] text-text-mute">
                         {dayChipLabel(dayKey, todayKey)}
                       </span>
                     </div>
@@ -435,7 +436,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                             groupEnd ? 'rounded-br-[4px]' : ''
                           } ${temp ? 'opacity-60' : ''} ${animate ? 'animate-appear' : ''}`}
                         >
-                          <p className="whitespace-pre-wrap break-words text-sm text-text-main">
+                          <p className="whitespace-pre-wrap break-words text-sm">
                             {m.body}
                           </p>
                           {timeEl}
@@ -529,7 +530,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
           onClick={handleSend}
           disabled={!draft.trim() || sendMessage.isPending}
           className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white
-                     transition-opacity hover:opacity-90 disabled:opacity-50"
+                     transition-opacity hover:opacity-90 disabled:bg-surface3 disabled:text-text-mute"
           aria-label="Отправить"
         >
           <SendHorizontal size={14} />
