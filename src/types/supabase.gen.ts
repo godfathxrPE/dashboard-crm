@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activities: {
@@ -249,6 +274,7 @@ export type Database = {
         Row: {
           action_config: Json
           action_type: string
+          conditions: Json
           created_at: string | null
           id: string
           is_active: boolean
@@ -260,6 +286,7 @@ export type Database = {
         Insert: {
           action_config: Json
           action_type: string
+          conditions?: Json
           created_at?: string | null
           id?: string
           is_active?: boolean
@@ -271,6 +298,7 @@ export type Database = {
         Update: {
           action_config?: Json
           action_type?: string
+          conditions?: Json
           created_at?: string | null
           id?: string
           is_active?: boolean
@@ -294,28 +322,31 @@ export type Database = {
           fired_at: string | null
           id: string
           org_id: string
-          project_id: string
+          project_id: string | null
           rule_id: string
-          stage_id: string
+          stage_id: string | null
           task_id: string | null
+          trigger_key: string
         }
         Insert: {
           fired_at?: string | null
           id?: string
           org_id: string
-          project_id: string
+          project_id?: string | null
           rule_id: string
-          stage_id: string
+          stage_id?: string | null
           task_id?: string | null
+          trigger_key: string
         }
         Update: {
           fired_at?: string | null
           id?: string
           org_id?: string
-          project_id?: string
+          project_id?: string | null
           rule_id?: string
-          stage_id?: string
+          stage_id?: string | null
           task_id?: string | null
+          trigger_key?: string
         }
         Relationships: [
           {
@@ -1412,127 +1443,6 @@ export type Database = {
         }
         Relationships: []
       }
-      quotes: {
-        Row: {
-          accepted_at: string | null
-          amount: number | null
-          created_at: string
-          created_by: string | null
-          currency: string
-          document_url: string | null
-          id: string
-          notes: string | null
-          org_id: string
-          project_id: string
-          sent_at: string | null
-          status: Database["public"]["Enums"]["quote_status"]
-          updated_at: string
-          valid_until: string | null
-        }
-        Insert: {
-          accepted_at?: string | null
-          amount?: number | null
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          document_url?: string | null
-          id?: string
-          notes?: string | null
-          org_id: string
-          project_id: string
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["quote_status"]
-          updated_at?: string
-          valid_until?: string | null
-        }
-        Update: {
-          accepted_at?: string | null
-          amount?: number | null
-          created_at?: string
-          created_by?: string | null
-          currency?: string
-          document_url?: string | null
-          id?: string
-          notes?: string | null
-          org_id?: string
-          project_id?: string
-          sent_at?: string | null
-          status?: Database["public"]["Enums"]["quote_status"]
-          updated_at?: string
-          valid_until?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "quotes_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "quotes_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_dependencies: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          dep_type: string
-          id: string
-          lag_days: number
-          org_id: string
-          predecessor_id: string
-          successor_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          dep_type?: string
-          id?: string
-          lag_days?: number
-          org_id: string
-          predecessor_id: string
-          successor_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          dep_type?: string
-          id?: string
-          lag_days?: number
-          org_id?: string
-          predecessor_id?: string
-          successor_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_dependencies_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_dependencies_predecessor_id_fkey"
-            columns: ["predecessor_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "task_dependencies_successor_id_fkey"
-            columns: ["successor_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       project_columns: {
         Row: {
           category: string
@@ -1687,8 +1597,59 @@ export type Database = {
           },
         ]
       }
+      project_messages: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          org_id: string
+          project_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          org_id: string
+          project_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          org_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_videos: {
-        // stub до apply 066 + regen (S-VIDEO-EMBED-1)
         Row: {
           created_at: string
           created_by: string | null
@@ -1724,13 +1685,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "project_videos_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "project_videos_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1738,60 +1692,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "project_videos_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_messages: {
-        // stub до apply 067 + regen (S-CHAT-1)
-        Row: {
-          author_id: string | null
-          body: string
-          created_at: string
-          edited_at: string | null
-          id: string
-          org_id: string
-          project_id: string
-        }
-        Insert: {
-          author_id?: string | null
-          body: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          org_id: string
-          project_id: string
-        }
-        Update: {
-          author_id?: string | null
-          body?: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          org_id?: string
-          project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_messages_org_id_fkey"
+            foreignKeyName: "project_videos_org_id_fkey"
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "project_messages_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_messages_project_id_fkey"
+            foreignKeyName: "project_videos_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -1817,8 +1725,6 @@ export type Database = {
           loss_detail: string | null
           loss_reason: string | null
           lost_reason: string | null
-          won_reason: string | null
-          won_detail: string | null
           name: string
           next_action_date: string | null
           next_step: string | null
@@ -1835,6 +1741,8 @@ export type Database = {
           status: string
           type: string
           updated_at: string | null
+          won_detail: string | null
+          won_reason: string | null
         }
         Insert: {
           actual_close_date?: string | null
@@ -1869,6 +1777,8 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string | null
+          won_detail?: string | null
+          won_reason?: string | null
         }
         Update: {
           actual_close_date?: string | null
@@ -1887,8 +1797,6 @@ export type Database = {
           loss_detail?: string | null
           loss_reason?: string | null
           lost_reason?: string | null
-          won_reason?: string | null
-          won_detail?: string | null
           name?: string
           next_action_date?: string | null
           next_step?: string | null
@@ -1905,6 +1813,8 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string | null
+          won_detail?: string | null
+          won_reason?: string | null
         }
         Relationships: [
           {
@@ -1961,6 +1871,79 @@ export type Database = {
             columns: ["stage_id"]
             isOneToOne: false
             referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          accepted_at: string | null
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          document_url: string | null
+          id: string
+          notes: string | null
+          org_id: string
+          project_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["quote_status"]
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          org_id: string
+          project_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          org_id?: string
+          project_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quote_status"]
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2107,6 +2090,68 @@ export type Database = {
           },
         ]
       }
+      task_dependencies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dep_type: string
+          id: string
+          lag_days: number
+          org_id: string
+          predecessor_id: string
+          successor_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dep_type?: string
+          id?: string
+          lag_days?: number
+          org_id: string
+          predecessor_id: string
+          successor_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dep_type?: string
+          id?: string
+          lag_days?: number
+          org_id?: string
+          predecessor_id?: string
+          successor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_predecessor_id_fkey"
+            columns: ["predecessor_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_successor_id_fkey"
+            columns: ["successor_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -2221,6 +2266,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -2329,6 +2381,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
       apply_delivery_template: {
         Args: { p_project_id: string; p_template_id?: string }
         Returns: undefined
@@ -2353,6 +2406,10 @@ export type Database = {
         Args: { p_project_id: string; p_target_stage_id: string }
         Returns: Json
       }
+      complete_onboarding: {
+        Args: { p_full_name: string; p_job_title: string; p_phone: string }
+        Returns: undefined
+      }
       convert_lead: {
         Args: {
           p_company_id?: string
@@ -2373,12 +2430,6 @@ export type Database = {
         Args: { p_project_id: string; p_template_id: string }
         Returns: undefined
       }
-      accept_invitation: { Args: { p_token: string }; Returns: Json }
-      complete_onboarding: {
-        Args: { p_full_name: string; p_phone: string | null; p_job_title: string | null }
-        Returns: undefined
-      }
-      session_gate: { Args: never; Returns: Json }
       current_org_id: { Args: never; Returns: string }
       current_org_role: { Args: never; Returns: string }
       delete_project_column: {
@@ -2386,6 +2437,7 @@ export type Database = {
         Returns: undefined
       }
       is_org_member: { Args: { p_org: string }; Returns: boolean }
+      is_project_member: { Args: { p_project_id: string }; Returns: boolean }
       lane_to_category: {
         Args: { p: Database["public"]["Enums"]["task_lane"] }
         Returns: string
@@ -2395,17 +2447,21 @@ export type Database = {
         Returns: undefined
       }
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
+      run_overdue_automations: { Args: never; Returns: undefined }
+      session_gate: { Args: never; Returns: Json }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
       spawn_delivery_project: {
         Args: {
           p_deal_id: string
           p_kind: string
-          // nullable: явный null на проводе → DEFAULT NULL внутри RPC (v1 резолвит
-          // шаблон по direction+kind; owner → COALESCE(p_owner_id, deal.owner_id, auth.uid()))
-          p_template_id?: string | null
-          p_owner_id?: string | null
+          p_owner_id?: string
+          p_template_id?: string
         }
         Returns: string
+      }
+      wf_eval_conditions: {
+        Args: { p_conds: Json; p_row: Json }
+        Returns: boolean
       }
     }
     Enums: {
@@ -2548,6 +2604,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       activity_type: [
