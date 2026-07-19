@@ -900,11 +900,19 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       )}
 
       {activeTab === 'timeline' && (
-        <GanttTimeline
-          projectId={projectId}
-          canManage={canManage}
-          onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
-        />
+        <div>
+          {/* M8: тот же PlanImportButton, что на доске — датированный план из Excel строит бары Ганта */}
+          {isDelivery && (
+            <div className="mb-2 flex justify-end">
+              <PlanImportButton projectId={projectId} canImport={canManage} />
+            </div>
+          )}
+          <GanttTimeline
+            projectId={projectId}
+            canManage={canManage}
+            onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
+          />
+        </div>
       )}
 
       {/* S-QUOTE-1: КП сделки — только client */}

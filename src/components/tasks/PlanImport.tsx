@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, Loader2, AlertTriangle, Check, ChevronRight } from 'lucide-react';
+import { Upload, Download, X, Loader2, AlertTriangle, Check, ChevronRight } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -99,6 +99,26 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
     if (fileRef.current) fileRef.current.value = '';
   }
 
+  // M8: шаблон .xlsx — колонки обязаны совпадать с autoDetectPlanMapping, чтобы
+  // скачанный файл проходил автодетект без ручного маппинга. Даты RU дд.мм.гггг.
+  async function downloadTemplate() {
+    try {
+      const XLSX = await import('xlsx');
+      const rows = [
+        ['Фаза', 'Задача', 'Дата начала', 'Дата окончания', 'Веха', 'WBS'],
+        ['Обследование', 'Согласовать договор и ДС на этап', '20.07.2026', '24.07.2026', '', '1.1'],
+        ['Обследование', 'Отчёт об обследовании', '25.07.2026', '30.07.2026', 'да', '1.8'],
+        ['Моделирование', 'Разработка контрольных примеров', '31.07.2026', '07.08.2026', '', '2.2'],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'План');
+      XLSX.writeFile(wb, 'план-шаблон.xlsx');
+    } catch {
+      toast.error('Не удалось скачать шаблон');
+    }
+  }
+
   const taskTextMapped = Object.values(columnMapping).includes('taskText');
 
   function goToPreview() {
@@ -184,10 +204,16 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
 
   return (
     <>
-      <button onClick={() => fileRef.current?.click()}
-        className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main">
-        <Upload size={14} /> Импорт плана
-      </button>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => void downloadTemplate()}
+          className="flex items-center gap-1 text-xs text-accent hover:underline">
+          <Download size={13} /> Скачать шаблон .xlsx
+        </button>
+        <button onClick={() => fileRef.current?.click()}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main">
+          <Upload size={14} /> Импорт плана
+        </button>
+      </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
 
       {open && createPortal(
