@@ -100,19 +100,19 @@ describe('SpawnWizard — создание', () => {
     expect(rpcMock).toHaveBeenCalledWith('spawn_delivery_project', {
       p_deal_id: 'deal-1',
       p_kind: 'launch',
-      p_template_id: null,
+      p_template_id: undefined,
       p_owner_id: 'u-1',
     });
     expect(toastSuccess).toHaveBeenCalled();
   });
 
-  it('дефолтный owner null → p_owner_id: null (RPC подставит COALESCE)', async () => {
+  it('дефолтный owner null → p_owner_id: undefined (опущен → RPC DEFAULT/COALESCE)', async () => {
     rpcMock.mockResolvedValue({ data: 'x', error: null });
     setup({ defaultOwnerId: null });
     fireEvent.click(screen.getByText('Создать внедрение'));
     fireEvent.click(screen.getByRole('button', { name: /Создать внедрение/i }));
     await waitFor(() => expect(rpcMock).toHaveBeenCalled());
-    expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_owner_id: null });
+    expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_owner_id: undefined });
   });
 
   it('ошибка 42501 → тост, onCreated не зовётся', async () => {
