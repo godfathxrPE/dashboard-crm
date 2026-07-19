@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Link2,
   StickyNote,
+  ChevronRight,
 } from 'lucide-react';
 import {
   useProject,
@@ -71,6 +72,7 @@ import { DELIVERY_PHASE_LABELS, deliveryKindLabel, hasTaskProgress } from '@/lib
 import { SpawnWizard } from './SpawnWizard';
 import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
 import { safeHref } from '@/lib/utils/safe-href';
+import { cn } from '@/lib/utils/cn';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
@@ -192,6 +194,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   // S-IA-DELIVERY-1 (M2): null = «пользователь ещё не выбирал» → эффективный таб
   // деривируется от типа проекта ниже (delivery стартует на Плане, не на ленте).
   const [tab, setTab] = useState<Tab | null>(null);
+  // M5 (F-10): материалы (1С:ДО/заметки/файлы/видео) свёрнуты по умолчанию — план к сгибу
+  const [showMaterials, setShowMaterials] = useState(false);
   // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
   const [losing, setLosing] = useState(false);
   // «Выиграна» — двухшаговый выбор причины (симметрия проигрышу, S-WON-REASON-1)
@@ -774,68 +778,87 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         />
       )}
 
-      {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
-      {isDelivery && (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-          <Link2 size={13} className="shrink-0 text-text-dim" />
-          <span className="shrink-0 text-[13px] text-text-dim">1С:ДО</span>
-          <div className="min-w-0 flex-1">
-            <InlineEdit
-              value={project.do_url ?? ''}
-              type="text"
-              placeholder="Вставить ссылку на проект в 1С:ДО"
-              onSave={async (val) => {
-                updateProject.mutate({ id: project.id, do_url: val.trim() || null });
-              }}
-              className="text-sm"
-            />
+      {/* M5 (F-10): 1С:ДО / заметки / файлы / видео уходят под сгиб — сворачиваемая
+          секция «Материалы проекта» (по умолчанию закрыта), чтобы табы и План были
+          видны без скролла. Info-grid и Команда остаются выше. */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => setShowMaterials((v) => !v)}
+          aria-expanded={showMaterials}
+          className="flex w-full items-center gap-2 rounded-xl border border-border/60 bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface2"
+        >
+          <ChevronRight size={15} className={cn('shrink-0 text-text-mute transition-transform', showMaterials && 'rotate-90')} />
+          <span className="text-xs font-semibold uppercase tracking-wide text-text-mute">Материалы проекта</span>
+          <span className="ml-auto text-[11px] text-text-mute">1С:ДО · заметки · файлы · видео</span>
+        </button>
+        {showMaterials && (
+          <div className="mt-3 space-y-4">
+            {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
+            {isDelivery && (
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+                <Link2 size={13} className="shrink-0 text-text-dim" />
+                <span className="shrink-0 text-[13px] text-text-dim">1С:ДО</span>
+                <div className="min-w-0 flex-1">
+                  <InlineEdit
+                    value={project.do_url ?? ''}
+                    type="text"
+                    placeholder="Вставить ссылку на проект в 1С:ДО"
+                    onSave={async (val) => {
+                      updateProject.mutate({ id: project.id, do_url: val.trim() || null });
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                {doHref && (
+                  <a
+                    href={doHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Открыть в 1С:ДО"
+                    className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-accent"
+                  >
+                    <ExternalLink size={13} />
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* S-PROJECT-WORKSPACE-1 (п.6): заметки проекта для команды — переиспользуем
+                projects.pinned_note (017); на client заметка уже в DealFocusPanel — не дублируем.
+                Пишет canManage, команда читает (v1; all-team edit — NEXT, требует RLS-решения). */}
+            {(isDelivery || project.type === 'internal') && (
+              <div className="rounded-xl border border-border bg-surface p-4">
+                <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-text-main">
+                  <StickyNote size={14} className="text-text-dim" /> Заметки проекта
+                </div>
+                {canManage ? (
+                  <div className="text-[13px] leading-relaxed">
+                    <InlineEdit
+                      as="textarea"
+                      value={project.pinned_note ?? ''}
+                      placeholder="Заметки для команды…"
+                      onSave={async (val) => {
+                        updateProject.mutate({ id: project.id, pinned_note: val || null });
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-text-main">
+                    {project.pinned_note || <span className="text-text-mute">Заметок пока нет</span>}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ═══ Files ═══ */}
+            <ProjectFiles projectId={projectId} />
+
+            {/* ═══ Videos (S-VIDEO-EMBED-1) ═══ */}
+            <ProjectVideos projectId={projectId} canManage={canManage} />
           </div>
-          {doHref && (
-            <a
-              href={doHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Открыть в 1С:ДО"
-              className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-accent"
-            >
-              <ExternalLink size={13} />
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* S-PROJECT-WORKSPACE-1 (п.6): заметки проекта для команды — переиспользуем
-          projects.pinned_note (017); на client заметка уже в DealFocusPanel — не дублируем.
-          Пишет canManage, команда читает (v1; all-team edit — NEXT, требует RLS-решения). */}
-      {(isDelivery || project.type === 'internal') && (
-        <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-text-main">
-            <StickyNote size={14} className="text-text-dim" /> Заметки проекта
-          </div>
-          {canManage ? (
-            <div className="text-[13px] leading-relaxed">
-              <InlineEdit
-                as="textarea"
-                value={project.pinned_note ?? ''}
-                placeholder="Заметки для команды…"
-                onSave={async (val) => {
-                  updateProject.mutate({ id: project.id, pinned_note: val || null });
-                }}
-              />
-            </div>
-          ) : (
-            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-text-main">
-              {project.pinned_note || <span className="text-text-mute">Заметок пока нет</span>}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ═══ Files ═══ */}
-      <ProjectFiles projectId={projectId} />
-
-      {/* ═══ Videos (S-VIDEO-EMBED-1) ═══ */}
-      <ProjectVideos projectId={projectId} canManage={canManage} />
+        )}
+      </div>
 
       {/* PCT-1: вкладки Активность / Доска задач */}
       <div className="mb-3 flex gap-1 border-b border-border">
