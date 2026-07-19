@@ -30,16 +30,36 @@ export function PortfolioRiskWidget() {
   const redRows = rows.filter((r) => r.health.status === 'at_risk').slice(0, TOP_N);
   const hasRisk = counts.at_risk > 0;
 
+  // Сигнал — только у исключения. Нет рисков → тихая одна строка, не полноразмерный виджет.
+  if (!hasRisk) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-lg bg-surface px-4 py-2.5 elevation-hover">
+        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-green" />
+        <span className="text-xs text-text-dim">
+          <span className="font-medium text-text-main">Портфель внедрений:</span>{' '}
+          {rows.length} активных, рисков нет
+          {counts.attention > 0 && (
+            <span className="text-yellow"> · {counts.attention} требуют внимания</span>
+          )}
+        </span>
+        <Link
+          href="/projects?tab=portfolio"
+          className="ml-auto flex items-center gap-1 text-[11px] text-accent hover:underline"
+        >
+          Портфель <ArrowRight size={12} />
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg bg-surface p-4 elevation-hover">
       {/* Заголовок */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span aria-hidden className={hasRisk ? 'text-red' : 'text-green'}>
-            {hasRisk ? '▲' : '●'}
-          </span>
+          <span aria-hidden className="text-red">▲</span>
           <span className="text-xs font-semibold text-text-dim">
-            {hasRisk ? 'Внедрения в зоне риска' : 'Портфель внедрений'}
+            Внедрения в зоне риска
           </span>
         </div>
         <Link
@@ -52,7 +72,7 @@ export function PortfolioRiskWidget() {
 
       {/* Счётчики */}
       <div className="mb-3 flex items-baseline gap-3">
-        <span className={`text-3xl font-bold tabular-nums ${hasRisk ? 'text-red' : 'text-green'}`}>
+        <span className="text-3xl font-bold tabular-nums text-red">
           {counts.at_risk}
         </span>
         <span className="text-xs text-text-mute">
@@ -63,43 +83,37 @@ export function PortfolioRiskWidget() {
         </span>
       </div>
 
-      {/* Топ-красные или спокойное zero-state */}
-      {hasRisk ? (
-        <div className="space-y-1">
-          {redRows.map((r) => (
-            <Link
-              key={r.id}
-              href={projectHref(r.project)}
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover"
-            >
-              <AlertTriangle size={12} className="shrink-0 text-red" />
-              <span className="min-w-0 flex-1 truncate text-xs text-text-main">
-                {r.project.name}
+      {/* Топ-красные */}
+      <div className="space-y-1">
+        {redRows.map((r) => (
+          <Link
+            key={r.id}
+            href={projectHref(r.project)}
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover"
+          >
+            <AlertTriangle size={12} className="shrink-0 text-red" />
+            <span className="min-w-0 flex-1 truncate text-xs text-text-main">
+              {r.project.name}
+            </span>
+            {r.health.reasons[0] && (
+              <span className="hidden shrink-0 text-xs text-text-mute sm:inline">
+                {r.health.reasons[0]}
               </span>
-              {r.health.reasons[0] && (
-                <span className="hidden shrink-0 text-xs text-text-mute sm:inline">
-                  {r.health.reasons[0]}
-                </span>
-              )}
-              <span className="shrink-0 text-[11px] tabular-nums text-text-mute">
-                {r.health.score}
-              </span>
-            </Link>
-          ))}
-          {counts.at_risk > TOP_N && (
-            <Link
-              href="/projects?tab=portfolio"
-              className="block px-2 pt-1 text-[11px] text-accent hover:underline"
-            >
-              ещё {counts.at_risk - TOP_N} →
-            </Link>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-text-mute">
-          Нет активных внедрений в риске — всё зелёное.
-        </p>
-      )}
+            )}
+            <span className="shrink-0 text-[11px] tabular-nums text-text-mute">
+              {r.health.score}
+            </span>
+          </Link>
+        ))}
+        {counts.at_risk > TOP_N && (
+          <Link
+            href="/projects?tab=portfolio"
+            className="block px-2 pt-1 text-[11px] text-accent hover:underline"
+          >
+            ещё {counts.at_risk - TOP_N} →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

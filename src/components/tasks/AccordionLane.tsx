@@ -78,7 +78,7 @@ export function AccordionLane({
             isOpen && 'rotate-90',
           )}
         />
-        <span className={cn('text-xs font-bold uppercase tracking-[0.06em]', config.color)}>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
           {config.label}
         </span>
         <span className="ml-auto flex items-center gap-1.5">
@@ -87,13 +87,7 @@ export function AccordionLane({
               {overdueCount} просроч.
             </span>
           )}
-          <span
-            className={cn(
-              'flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
-              config.bg,
-              config.color,
-            )}
-          >
+          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold text-text-mute">
             {tasks.length}
           </span>
         </span>

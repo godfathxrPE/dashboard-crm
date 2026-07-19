@@ -26,7 +26,7 @@ interface TaskCardProps {
 }
 
 const STATUS_BADGE_CLS: Record<string, string> = {
-  next: 'border-border2 bg-surface2 text-text-mute',
+  next: 'border-transparent bg-transparent text-text-mute',
   now: 'border-accent bg-accent text-[var(--bg)]',  // S-UI-POLISH-1: активный статус — solid-акцент (тинт был блёклым), как пилюля стадии
   wait: 'border-yellow/30 bg-yellow-l text-yellow',
   done: 'border-green/30 bg-green-l text-green',
@@ -165,21 +165,22 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
                 </span>
               );
             })()}
-            {task.project_id && (
+            {!phaseMode && task.project_id && (
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/deals/${task.project_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}
                 data-tag
-                className="rounded bg-accent-l px-1 py-0.5 text-xs text-accent truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+                className="rounded border border-border px-1 py-0.5 text-xs text-text-mute hover:text-text-main hover:border-border2 transition-colors truncate max-w-[120px] cursor-pointer"
               >
                 {task.project?.name ?? 'проект'}
               </button>
             )}
-            {task.company_id && (
+            {!phaseMode && task.company_id && (
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/companies/${task.company_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="rounded bg-purple-l px-1 py-0.5 text-xs text-purple truncate max-w-[120px] cursor-pointer hover:text-text-main hover:bg-accent-l2 transition-colors"
+                data-tag
+                className="rounded border border-border px-1 py-0.5 text-xs text-text-mute hover:text-text-main hover:border-border2 transition-colors truncate max-w-[120px] cursor-pointer"
               >
                 {task.company?.name ?? 'компания'}
               </button>

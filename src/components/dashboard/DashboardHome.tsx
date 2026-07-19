@@ -88,7 +88,7 @@ function SkeletonChart() {
 // ═══════════════════════════════════════════════════════
 
 function TrendBadge({ delta, label = 'за нед.' }: { delta: number; label?: string }) {
-  if (delta === 0) return <span className="text-xs text-text-mute">→ без изменений</span>;
+  if (delta === 0) return null;
   const up = delta > 0;
   return (
     <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? 'text-green' : 'text-red'}`}>
@@ -248,7 +248,7 @@ function KpiCards() {
                 style={{
                   right: 12,
                   bottom: 8,
-                  fontSize: '48px',
+                  fontSize: '30px',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '2px',
@@ -259,11 +259,13 @@ function KpiCards() {
               >
                 {fm.watermark}
               </span>
+              {/* Label — тихий, над значением (ватермарка = атмосфера, не имя метрики) */}
+              <div className="relative z-[1] text-xs text-text-dim leading-tight">{c.label}</div>
               {/* Value */}
               <AnimatedNumber
                 value={c.num}
                 formatFn={c.fmt}
-                className="text-3xl font-bold leading-none block relative z-[1] text-text-main"
+                className="mt-1 text-3xl font-bold leading-none block relative z-[1] text-text-main"
               />
               {/* Trend */}
               {'trend' in c && c.trend != null && (
@@ -275,16 +277,16 @@ function KpiCards() {
           );
         }
 
-        return (
-          <a
-            key={c.label}
-            href={c.href}
-            data-kpi
-            className={`group relative overflow-hidden flex items-center gap-3 rounded-lg bg-surface px-4 py-4
-                       elevation-hover border border-border ${staggerClass(i)}`}
-          >
-            {/* Washi: kanji watermark */}
-            {wm && (
+        // Washi: kanji watermark + цветная иконка + wm.short (ветка сохранена как есть)
+        if (wm) {
+          return (
+            <a
+              key={c.label}
+              href={c.href}
+              data-kpi
+              className={`group relative overflow-hidden flex items-center gap-3 rounded-lg bg-surface px-4 py-4
+                         elevation-hover border border-border ${staggerClass(i)}`}
+            >
               <span
                 className="absolute -top-1 -right-1 select-none pointer-events-none"
                 aria-hidden="true"
@@ -299,31 +301,49 @@ function KpiCards() {
               >
                 {wm.kanji}
               </span>
-            )}
-            {/* Icon */}
-            {wm ? (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center">
                 <c.icon size={28} style={{ color: isEmpty ? undefined : wm.color }} className={isEmpty ? 'text-text-mute opacity-50' : ''} />
               </div>
-            ) : (
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full
-                              ${isEmpty ? 'bg-surface2 text-text-mute opacity-50' : c.iconBg}`}>
-                <c.icon size={18} />
+              <div className="min-w-0">
+                <AnimatedNumber
+                  value={c.num}
+                  formatFn={c.fmt}
+                  className={`text-2xl font-extrabold leading-tight block
+                              ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
+                />
+                <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={c.label}>
+                  {wm.short}
+                </div>
+                {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
               </div>
-            )}
-            <div className="min-w-0">
-              <AnimatedNumber
-                value={c.num}
-                formatFn={c.fmt}
-                className={`text-2xl font-extrabold leading-tight block
-                            ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
-              />
-              <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={wm ? c.label : undefined}>
-                {wm ? wm.short : c.label}
-              </div>
-              {c.sub && !wm && <div className="text-xs text-text-dim">{c.sub}</div>}
-              {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
+            </a>
+          );
+        }
+
+        // Default: вертикальная анатомия label → значение → дельта/контекст, без иконки-круга
+        return (
+          <a
+            key={c.label}
+            href={c.href}
+            data-kpi
+            className={`group relative overflow-hidden flex flex-col rounded-lg bg-surface px-4 py-3.5
+                       elevation-hover border border-border ${staggerClass(i)}`}
+          >
+            {/* Label — тихий, сверху */}
+            <div className="text-xs text-text-dim leading-tight" title={c.sub}>
+              {c.label}
             </div>
+            {/* Value — главный элемент */}
+            <AnimatedNumber
+              value={c.num}
+              formatFn={c.fmt}
+              className={`mt-1 text-2xl font-semibold leading-tight tabular-nums block
+                          ${isEmpty ? 'text-text-mute' : 'text-text-main'}`}
+            />
+            {/* Delta / контекст */}
+            {'trend' in c && c.trend != null
+              ? <div className="mt-0.5"><TrendBadge delta={c.trend} /></div>
+              : c.sub && <div className="mt-0.5 text-[11px] text-text-mute leading-tight truncate">{c.sub}</div>}
           </a>
         );
       })}

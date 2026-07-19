@@ -39,14 +39,9 @@ function ClockWidget() {
   const weekNum = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
 
   return (
-    <div className="rounded-lg bg-surface p-4 elevation-1">
-      <div className="text-4xl font-extrabold leading-none text-text-main tabular-nums">
-        {time}
-      </div>
-      <div className="mt-2 flex items-center justify-between text-xs text-text-mute">
-        <span className="capitalize">{dayName}, {date}</span>
-        <span>Неделя {weekNum}</span>
-      </div>
+    <div className="flex items-baseline justify-between rounded-lg bg-surface px-4 py-3 elevation-1">
+      <span className="text-lg font-semibold tabular-nums text-text-main">{time}</span>
+      <span className="text-xs text-text-mute capitalize">{dayName}, {date} · нед. {weekNum}</span>
     </div>
   );
 }
@@ -68,7 +63,7 @@ function PlannedCalls() {
     <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-green">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
             Запланированные звонки
           </span>
           {pending.length > 0 && (
@@ -143,8 +138,8 @@ function FocusWidget() {
   return (
     <div className="rounded-lg bg-surface p-4 focus-day-card">
       <div className="mb-2 flex items-center gap-2">
-        <Target size={12} className="text-yellow" />
-        <span className="text-xs font-bold uppercase tracking-widest text-yellow">
+        <Target size={12} className="text-text-mute" />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
           Фокус дня
         </span>
       </div>
@@ -191,16 +186,16 @@ function MiniKpi() {
   };
 
   const items = [
-    { value: active, label: 'Сделок', color: 'text-accent' },
-    { value: weekCalls, label: 'Звонков/нед', color: 'text-green' },
-    { value: dueTasks, label: 'Задач к сроку', color: 'text-red' },
-    { value: upMeetings, label: 'Встреч', color: 'text-yellow' },
+    { value: active, label: 'Сделок', color: 'text-text-main' },
+    { value: weekCalls, label: 'Звонков/нед', color: 'text-text-main' },
+    { value: dueTasks, label: 'Задач к сроку', color: dueTasks > 0 ? 'text-red' : 'text-text-main' },
+    { value: upMeetings, label: 'Встреч', color: 'text-text-main' },
   ];
 
   if (isWashi) {
     return (
       <div className="rounded-lg bg-surface p-4 elevation-1">
-        <div className="mb-3 text-xs font-bold uppercase tracking-widest text-accent">
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-text-mute">
           Сейчас в работе
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -240,13 +235,13 @@ function MiniKpi() {
 
   return (
     <div className="rounded-lg bg-surface p-4 elevation-1">
-      <div className="mb-3 text-xs font-bold uppercase tracking-widest text-accent">
+      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-text-mute">
         Сейчас в работе
       </div>
       <div className="grid grid-cols-2 gap-3">
         {items.map((it) => (
           <div key={it.label}>
-            <AnimatedNumber value={it.value} className={`text-2xl font-bold tabular-nums block ${it.color}`} />
+            <AnimatedNumber value={it.value} className={`text-2xl font-semibold tabular-nums block ${it.color}`} />
             <div className="text-xs text-text-dim">{it.label}</div>
           </div>
         ))}
