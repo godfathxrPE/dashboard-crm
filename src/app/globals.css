@@ -1555,3 +1555,15 @@ table tbody tr[data-kbd-focused] {
    темах, КРОМЕ t-aura (4.23:1 — провал AA на янтарной подложке). Оверрайд на
    var(--text) — прецедент --aura-pill-text; значения проверены scripts/contrast.py. */
 .t-aura .chat-own { --chat-time: var(--text); }
+
+/* S-CHAT-1.2: выделенные токены своего пузыря. Не трогаем --accent-l/--accent-l2 —
+   это общая утилита (аватар чата, таблицы, кнопки); в fuji .bg-accent-l уже
+   hard-overridden на красный. Заливка плотнее accent-l + рамка акцентом: свой↔чужой
+   1.32–1.57, рамка↔фон в тёмных 2.32–3.12 (audit-contrast.py, 36/36).
+   fuji остаётся тёпло-красным (identity) — НЕ переключать на --accent-l2. */
+.t-aura   .chat-own { --chat-own-bg: rgba(72,77,87,0.16);   --chat-own-border: rgba(72,77,87,0.28); }
+.t-washi  .chat-own { --chat-own-bg: rgba(194,59,59,0.22);  --chat-own-border: rgba(194,59,59,0.34); }
+.t-fuji   .chat-own { --chat-own-bg: rgba(194,59,59,0.20);  --chat-own-border: rgba(194,59,59,0.34); }
+.t-frost  .chat-own { --chat-own-bg: rgba(91,138,255,0.30); --chat-own-border: rgba(91,138,255,0.55); }
+.t-aurora .chat-own { --chat-own-bg: rgba(160,96,255,0.30); --chat-own-border: rgba(160,96,255,0.55); }
+.t-tidal  .chat-own { --chat-own-bg: rgba(72,184,144,0.28); --chat-own-border: rgba(72,184,144,0.55); }

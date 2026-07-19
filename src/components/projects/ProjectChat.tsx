@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Pencil, Trash2, SendHorizontal } from 'lucide-react';
+import { MessageCircle, Pencil, Trash2, SendHorizontal, Smile } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useProjectMessages,
@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { mskDateKey } from '@/lib/utils/date-helpers';
+import { ChatEmojiPicker } from '@/components/projects/ChatEmojiPicker';
 import type { ProjectMessageWithAuthor } from '@/types/entities';
 
 interface ProjectChatProps {
@@ -93,9 +94,11 @@ function Avatar({ author }: { author: ProjectMessageWithAuthor['author'] }) {
  * Composer виден всем, кто открыл проект (SELECT прошёл = участник по зеркалу RLS);
  * INSERT-политика — бэкап, ошибка уйдёт в toast.
  *
- * S-CHAT-1.1: telegram-lite — лента на --bg (инверсия глубины), пузыри
- * chat-own (--accent-l) / chat-other (--surface + border), группировка ≤5 мин,
- * день-чипы по mskDateKey. Цвета зафиксированы аудитом contrast.py — не менять.
+ * S-CHAT-1.1: telegram-lite — лента на --bg (инверсия глубины), группировка ≤5 мин,
+ * день-чипы по mskDateKey.
+ * Пузыри: chat-own (--chat-own-bg + рамка --chat-own-border, акцентное разделение
+ * свой↔чужой/фон, подтянуто аудитом S-CHAT-1.2) / chat-other (--surface + border + shadow).
+ * Цвета ТЕКСТА в пузырях зафиксированы аудитом читаемости (10:1+) — не менять.
  */
 export function ProjectChat({ projectId }: ProjectChatProps) {
   const { messages, isLoading } = useProjectMessages(projectId);
@@ -109,6 +112,9 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiBtnRef = useRef<HTMLButtonElement>(null);
 
   const myId = user?.id ?? null;
   const isModerator = orgRole === 'owner' || orgRole === 'admin';
@@ -175,6 +181,35 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
       { body, me },
       { onError: () => toast.error('Не удалось отправить сообщение') },
     );
+  }
+
+  // Вставка эмодзи в позицию курсора; selection читаем прямо с DOM-элемента —
+  // textarea хранит selectionStart/End и после потери фокуса (клик по пикеру).
+  function handleEmojiPick(emoji: string) {
+    const el = textareaRef.current;
+    const s = el ? el.selectionStart : draft.length;
+    const e = el ? el.selectionEnd : draft.length;
+    const next = draft.slice(0, s) + emoji + draft.slice(e);
+    setEmojiOpen(false);
+    if (next.length > 4000) {
+      // Лимит maxLength — не вставляем, только возвращаем фокус.
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      return;
+    }
+    setDraft(next);
+    // Фокус + caret после эмодзи — после рендера нового value.
+    requestAnimationFrame(() => {
+      const t = textareaRef.current;
+      if (!t) return;
+      t.focus();
+      const caret = s + emoji.length;
+      t.setSelectionRange(caret, caret);
+    });
+  }
+
+  function closeEmojiPicker() {
+    setEmojiOpen(false);
+    textareaRef.current?.focus();
   }
 
   function startEdit(m: ProjectMessageWithAuthor) {
@@ -339,7 +374,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                       {actions}
                       {editBlock || (
                         <div
-                          className={`chat-own flex max-w-[72%] flex-col rounded-[var(--radius-m)] bg-accent-l px-3 py-1.5 ${
+                          className={`chat-own flex max-w-[72%] flex-col rounded-[var(--radius-m)] bg-[var(--chat-own-bg)] border border-[color:var(--chat-own-border)] px-3 py-1.5 ${
                             groupEnd ? 'rounded-br-[4px]' : ''
                           } ${temp ? 'opacity-60' : ''} ${animate ? 'animate-appear' : ''}`}
                         >
@@ -388,7 +423,22 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
 
       {/* Composer: вне скролла, на --surface */}
       <div className="flex items-end gap-2">
+        <button
+          ref={emojiBtnRef}
+          type="button"
+          onClick={() => setEmojiOpen((v) => !v)}
+          aria-label="Эмодзи"
+          aria-expanded={emojiOpen}
+          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
+                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none"
+        >
+          <Smile size={16} />
+        </button>
+        {emojiOpen && (
+          <ChatEmojiPicker onPick={handleEmojiPick} onClose={closeEmojiPicker} anchorRef={emojiBtnRef} />
+        )}
         <textarea
+          ref={textareaRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
