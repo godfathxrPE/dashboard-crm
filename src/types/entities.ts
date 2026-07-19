@@ -48,3 +48,13 @@ export type QuoteUpdate = Database['public']['Tables']['quotes']['Update'];
 // гейте Cowork). После apply 066 → regen снимет стаб, алиасы продолжат работать 1:1.
 export type ProjectVideo = Database['public']['Tables']['project_videos']['Row'];
 export type ProjectVideoInsert = Database['public']['Tables']['project_videos']['Insert'];
+
+// ═══ S-CHAT-1: project_messages (чат проекта — отдельный модуль, НЕ activity_log) ═══
+// WARNING: таблица `project_messages` — РУЧНОЙ стаб в supabase.gen.ts (миграция 067 на
+// гейте Cowork). После apply 067 → regen снимет стаб, алиасы продолжат работать 1:1.
+export type ProjectMessage = Database['public']['Tables']['project_messages']['Row'];
+export type ProjectMessageInsert = Database['public']['Tables']['project_messages']['Insert'];
+/** Сообщение с автором (embed profiles!author_id в select хука). */
+export type ProjectMessageWithAuthor = ProjectMessage & {
+  author: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
+};
