@@ -77,10 +77,10 @@
   --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #14532d; --track-prep-current: #059669;
-  --track-exp-done: #3b0764;  --track-exp-current: #7c3aed;
-  --track-nego-done: #78350f; --track-nego-current: #F0C45E;
-  --track-proj-done: #500724; --track-proj-current: #db2777;
+  --track-prep-done: #14532d; --track-prep-current: #5381C4;
+  --track-exp-done: #3b0764;  --track-exp-current: #339CEB;
+  --track-nego-done: #78350f; --track-nego-current: #08BAF8;
+  --track-proj-done: #500724; --track-proj-current: #5CD7F4;
 }
 /* ═══ Aurora (dark, neon) ═══ */
 .t-aurora {
@@ -110,10 +110,10 @@
   --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #14532d; --track-prep-current: #059669;
-  --track-exp-done: #3b0764;  --track-exp-current: #7c3aed;
-  --track-nego-done: #451a03; --track-nego-current: #ffe060;
-  --track-proj-done: #500724; --track-proj-current: #db2777;
+  --track-prep-done: #14532d; --track-prep-current: #7E6ED3;
+  --track-exp-done: #3b0764;  --track-exp-current: #A974F7;
+  --track-nego-done: #451a03; --track-nego-current: #D283FF;
+  --track-proj-done: #500724; --track-proj-current: #F1A4F7;
 }
 
 /* ═══ Tidal (dark, oceanic) ═══ */
@@ -144,10 +144,10 @@
   --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(80,160,120,0.25);
   --ease-out: cubic-bezier(0.16,1,0.3,1);  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
   --duration-fast: 0.15s;  --duration-normal: 0.25s;
-  --track-prep-done: #14532d; --track-prep-current: #059669;
-  --track-exp-done: #3b0764;  --track-exp-current: #7c3aed;
-  --track-nego-done: #422006; --track-nego-current: #b8a058;
-  --track-proj-done: #500724; --track-proj-current: #db2777;
+  --track-prep-done: #14532d; --track-prep-current: #3B9373;
+  --track-exp-done: #3b0764;  --track-exp-current: #23AD90;
+  --track-nego-done: #422006; --track-nego-current: #15C5B1;
+  --track-proj-done: #500724; --track-proj-current: #62DAD6;
 }
 
 /* ═══ Аура (light, цветная атмосфера / Linear-Stripe light) ═══ */
