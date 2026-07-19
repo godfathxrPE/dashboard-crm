@@ -641,7 +641,7 @@
   --popover: var(--surface);
   --border: #E5E5E8;  --border2: #D6D6DB;  --border-input: #8A8A93;  /* 3.42:1 к surface */
   --text: #1A1A1E;  --text-dim: #5A5A64;  --text-mute: #66666F;  /* mute 4.73:1 на surface3, тише dim (5.67:1) */
-  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
+  --sidebar-indicator: rgba(26,26,30,0.06);  --sidebar-active-text: var(--text);
   /* Терракота Torii — единственный акцент */
   --accent: #C05A2E;  --accent-l: rgba(192,90,46,0.08);  --accent-l2: rgba(192,90,46,0.16);
   --accent-text: #A64A24;  /* 5.79:1 на белом, 5.36:1 на bg */
@@ -675,14 +675,37 @@
 }
 
 /* Minimal A11Y: сплошные заливки с белым текстом — тот же приём, что в aura.
-   --accent #C05A2E white-on-fill = 4.43:1 (провал AA) → затемняем fill до *-text. */
-.t-minimal .bg-accent { background-color: var(--accent-text) !important; }
+   Для accent fill = --text (чёрный, референс Minimal), остальные — *-text.
+   green/red/... #C05A2E white-on-fill < 4.5:1 (провал AA) → затемняем fill до *-text. */
+/* Primary actions — чёрные (референс Minimal): white-on-#1A1A1E ≈ 17.3:1.
+   Терракота остаётся тексту/ссылкам (.text-accent → --accent-text). */
+.t-minimal .bg-accent { background-color: var(--text) !important; }
 .t-minimal .bg-green  { background-color: var(--green-text) !important; }
 .t-minimal .bg-blue   { background-color: var(--blue-text) !important; }
 .t-minimal .bg-red    { background-color: var(--red-text) !important; }
 .t-minimal .bg-purple { background-color: var(--purple-text) !important; }
 .t-minimal .bg-yellow { background-color: var(--yellow-text) !important; }
 .t-minimal { --tw-ring-color: var(--accent-text); }
+
+/* Minimal: актив нава — нейтральный тинт, без терракоты.
+   Layered .nav-active (border-left+фон+color+lucide accent) не гасится токенами
+   sidebar-indicator (компонентами не читаются) — перебиваем unlayered. */
+.t-minimal aside .nav-active {
+  border-left-color: transparent;
+  background: var(--sidebar-indicator);
+  color: var(--sidebar-active-text);
+  box-shadow: none;
+}
+.t-minimal aside .nav-active .lucide {
+  color: var(--sidebar-active-text);
+}
+
+/* Minimal: «Фокус дня» без терракотового glow и без пульсации. */
+.t-minimal .focus-day-card {
+  border: 1px solid var(--border);
+  box-shadow: none;
+  animation: none;
+}
 
 /* ═══════════════════════════════════════════════════════
    SHARED GLOBALS — вынесено из удалённого scandi-блока (AUDIT C2/C3)

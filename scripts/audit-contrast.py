@@ -205,7 +205,8 @@ for th in themes:
                 add(f'text-{c} / {c}-l badge', toko, tint_o)
     # solid buttons: text on solid fill.
     # Компонентная модель overrides из globals.css:
-    #  - aura/minimal: bg-X перекрашен в X-text (все 6 заливок), текст остаётся белым;
+    #  - aura: bg-X перекрашен в X-text (все 6 заливок), текст остаётся белым;
+    #  - minimal: bg-accent → --text (чёрный), остальные bg-X → X-text; текст белый;
     #  - frost/aurora/tidal: текст перекрашен в цвет фона темы (visual-audit P0 1.3).
     DARK_BTN_TEXT = {'t-frost': (13,16,32), 't-aurora': (10,14,26), 't-tidal': (8,15,13)}
     # bg-yellow как solid-кнопка (PomodoroWidget «Пауза») существует во всех темах.
@@ -217,8 +218,11 @@ for th in themes:
         if c == 'yellow' and th in YELLOW_DARKEN_FILL:
             fill = text_token(th, c)       # fill затемнён до --yellow-text, текст белый
             btn_text = (255,255,255)
-        elif th in ('t-aura', 't-minimal'):
+        elif th == 't-aura':
             fill = text_token(th, c)
+        elif th == 't-minimal':
+            # accent-кнопка перекрашена в --text (чёрный), остальные — в *-text
+            fill = resolve(th, 'text') if c == 'accent' else text_token(th, c)
         else:
             fill = resolve(th, c if c != 'accent' else 'accent')
         if fill is not None:
