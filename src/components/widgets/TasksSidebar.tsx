@@ -9,7 +9,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings } from '@/lib/hooks/use-meetings';
 import { CallModal } from '@/components/calls/CallModal';
 import { useThemeStore } from '@/lib/stores/theme-store';
-import { localDateKey } from '@/lib/utils/date-helpers';
+import { localDateKey, weekNumber } from '@/lib/utils/date-helpers';
 
 // ═══════════════════════════════════════════════════════
 // Clock Widget
@@ -35,8 +35,7 @@ function ClockWidget() {
   const time = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const dayName = now.toLocaleDateString('ru-RU', { weekday: 'long' });
   const date = now.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const weekNum = Math.ceil(((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+  const weekNum = weekNumber(now);
 
   return (
     <div className="flex items-baseline justify-between rounded-lg bg-surface px-4 py-3 elevation-1">
@@ -256,7 +255,7 @@ function MiniKpi() {
 
 export function TasksSidebar() {
   return (
-    <div className="hidden lg:flex w-80 shrink-0 flex-col gap-3 sticky top-4 self-start">
+    <div className="hidden lg:flex w-72 shrink-0 flex-col gap-3 sticky top-4 self-start">
       <ClockWidget />
       <PlannedCalls />
       <FocusWidget />

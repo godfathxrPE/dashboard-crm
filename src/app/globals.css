@@ -700,6 +700,15 @@
   color: var(--sidebar-active-text);
 }
 
+/* Minimal: рабочее пространство, не лендинг — шапка страницы 20px/600,
+   а не крупный дефолт .aura-page-title (clamp до 24px). Aura с Unbounded не трогаем. */
+.t-minimal .aura-page-title,
+.t-minimal h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 /* Minimal: «Фокус дня» без терракотового glow и без пульсации. */
 .t-minimal .focus-day-card {
   border: 1px solid var(--border);

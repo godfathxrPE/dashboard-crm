@@ -23,15 +23,28 @@ import { TasksSidebar } from '@/components/widgets/TasksSidebar';
 import { Loader2, Plus } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { weekNumber } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 import type { TaskLane } from '@/types/database';
 
-function TasksPageHeader({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
+function TasksPageHeader({
+  onAdd,
+  canAdd,
+  activeCount,
+  weekNum,
+}: {
+  onAdd: () => void;
+  canAdd: boolean;
+  activeCount: number;
+  weekNum: number;
+}) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div>
+      <div className="flex items-baseline gap-3">
         <h1 className="aura-page-title text-text-main">Задачи</h1>
-        <p className="text-xs text-text-mute mt-0.5">Перетаскивай задачи между секциями</p>
+        <span className="text-[13px] text-text-mute">
+          {activeCount} активных · неделя {weekNum}
+        </span>
       </div>
       {canAdd && (
         <CTAButton onClick={onAdd}>
@@ -211,9 +224,16 @@ export function KanbanBoard() {
     );
   }
 
+  const activeCount = taskLanes.reduce((n, lane) => (lane === 'done' ? n : n + lanes[lane].length), 0);
+
   return (
     <>
-      <TasksPageHeader onAdd={() => { setEditTask(null); setModalOpen(true); }} canAdd={canEdit} />
+      <TasksPageHeader
+        onAdd={() => { setEditTask(null); setModalOpen(true); }}
+        canAdd={canEdit}
+        activeCount={activeCount}
+        weekNum={weekNumber()}
+      />
 
       <div className="flex gap-6">
         {/* Accordion kanban */}
@@ -225,7 +245,7 @@ export function KanbanBoard() {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-surface px-2 py-1 shadow-[var(--shadow-xs)]">
               {taskLanes.map((lane, i) => (
                 <div key={lane} className={staggerClass(i)}>
                   <AccordionLane

@@ -175,7 +175,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
                 {task.project?.name ?? 'проект'}
               </button>
             )}
-            {!phaseMode && task.company_id && (
+            {!phaseMode && task.company_id && !task.project_id && (
               <button
                 onClick={(e) => { e.stopPropagation(); router.push(`/companies/${task.company_id}`); }}
                 onPointerDown={(e) => e.stopPropagation()}

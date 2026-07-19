@@ -7,6 +7,13 @@ export function localDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Номер недели в году (грубый, локальная TZ). Единая формула для ClockWidget
+ *  и шапки /tasks — дубль не плодим. */
+export function weekNumber(d: Date = new Date()): number {
+  const startOfYear = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+}
+
 /** Локальный `YYYY-MM-DDTHH:mm` (НЕ UTC) для <input type="datetime-local">.
  *  Заменяет toISOString().slice(0,16), дающий UTC-время (звонок в 00:30 МСК
  *  показывался вчерашним 21:30). AUDIT 3.9. */
