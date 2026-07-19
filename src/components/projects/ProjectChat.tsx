@@ -13,11 +13,51 @@ import {
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
-import { relativeTime } from '@/lib/utils/activity-events';
+import { mskDateKey } from '@/lib/utils/date-helpers';
 import type { ProjectMessageWithAuthor } from '@/types/entities';
 
 interface ProjectChatProps {
   projectId: string;
+}
+
+// Время/дата всегда в МСК (как mskDateKey) — у команды одна «правда времени»,
+// чип «Вчера» и время в пузыре не расходятся между таймзонами браузеров.
+const MSK_TIME_FMT = new Intl.DateTimeFormat('ru-RU', {
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Europe/Moscow',
+});
+const MSK_FULL_FMT = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Europe/Moscow',
+});
+// Ключ YYYY-MM-DD форматируем через UTC-полдень — TZ браузера не сдвинет день.
+const DAY_FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+const DAY_FMT_YEAR = new Intl.DateTimeFormat('ru-RU', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const GROUP_GAP_MS = 5 * 60 * 1000;
+const DAY_MS = 86_400_000;
+
+function dayChipLabel(dayKey: string, todayKey: string): string {
+  if (dayKey === todayKey) return 'Сегодня';
+  // «Вчера» — календарный день −1 от MSK-ключа (UTC-полдень, как бакеты Ганта),
+  // НЕ от browser-local даты.
+  const yesterdayKey = new Date(Date.parse(`${todayKey}T12:00:00Z`) - DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  if (dayKey === yesterdayKey) return 'Вчера';
+  const noon = new Date(Date.parse(`${dayKey}T12:00:00Z`));
+  const fmt = dayKey.slice(0, 4) === todayKey.slice(0, 4) ? DAY_FMT : DAY_FMT_YEAR;
+  return fmt.format(noon);
 }
 
 function initials(name: string): string {
@@ -52,6 +92,10 @@ function Avatar({ author }: { author: ProjectMessageWithAuthor['author'] }) {
  * body рендерится как текст (React экранирует — XSS-контур), whitespace-pre-wrap.
  * Composer виден всем, кто открыл проект (SELECT прошёл = участник по зеркалу RLS);
  * INSERT-политика — бэкап, ошибка уйдёт в toast.
+ *
+ * S-CHAT-1.1: telegram-lite — лента на --bg (инверсия глубины), пузыри
+ * chat-own (--accent-l) / chat-other (--surface + border), группировка ≤5 мин,
+ * день-чипы по mskDateKey. Цвета зафиксированы аудитом contrast.py — не менять.
  */
 export function ProjectChat({ projectId }: ProjectChatProps) {
   const { messages, isLoading } = useProjectMessages(projectId);
@@ -79,6 +123,11 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
   const atBottomRef = useRef(true);
   const prevCountRef = useRef(0);
 
+  // Анимация входящих: seen наполняется целиком на первом non-loading рендере
+  // (иначе стробоскоп на 50 сообщениях); ready → анимируем только то, что пришло ПОСЛЕ.
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const readyRef = useRef(false);
+
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
@@ -94,7 +143,11 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
     const last = messages[messages.length - 1];
     const lastIsMine = last && (last.author_id === myId || isTempMessage(last));
     if (atBottomRef.current || lastIsMine) {
-      el.scrollTop = el.scrollHeight;
+      // Smooth — только на новое сообщение после первой отрисовки и без reduced-motion.
+      const smooth =
+        readyRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      else el.scrollTop = el.scrollHeight;
     }
   }, [messages, myId]);
 
@@ -104,6 +157,15 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
     if (el && !isLoading) el.scrollTop = el.scrollHeight;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
+
+  // После рендера — все текущие id считаются «виденными»; ready после первого
+  // non-loading рендера. Объявлен ПОСЛЕ скролл-эффекта: тот должен видеть
+  // ready-состояние ДО этой пачки (initial load — мгновенный скролл).
+  useEffect(() => {
+    if (isLoading) return;
+    for (const m of messages) seenIdsRef.current.add(m.id);
+    readyRef.current = true;
+  }, [isLoading, messages]);
 
   function handleSend() {
     const body = draft.trim();
@@ -138,6 +200,8 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
     }
   }
 
+  const todayKey = mskDateKey(new Date());
+
   return (
     <div className="mb-4 rounded-xl border border-border bg-surface p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -148,99 +212,171 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
         </span>
       </div>
 
-      {/* Лента */}
+      {/* Лента: инверсия глубины — полотно на --bg, пузыри поверх */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="mb-3 max-h-[420px] min-h-[120px] overflow-y-auto pr-1"
+        role="log"
+        aria-live="polite"
+        aria-label="Чат проекта"
+        className="mb-3 h-[min(55vh,40rem)] overflow-y-auto rounded-[var(--radius-m)] bg-bg px-3 py-2"
       >
         {isLoading ? (
-          <p className="py-8 text-center text-xs text-text-mute">Загрузка...</p>
+          <div className="flex h-full items-center justify-center">
+            <p className="text-xs text-text-mute">Загрузка...</p>
+          </div>
         ) : messages.length === 0 ? (
-          <p className="py-8 text-center text-xs text-text-mute">
-            Сообщений пока нет — начните обсуждение
-          </p>
+          <div className="flex h-full items-center justify-center">
+            <p className="text-xs text-text-mute">Сообщений пока нет — начните обсуждение</p>
+          </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {messages.map((m) => {
+          <div className="flex min-h-full flex-col justify-end">
+            {messages.map((m, i) => {
               const mine = m.author_id === myId;
-              const canEdit = mine && !isTempMessage(m);
-              const canDelete = (mine || isModerator) && !isTempMessage(m);
-              return (
-                <div
-                  key={m.id}
-                  className={`group flex gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2 ${
-                    mine ? 'bg-accent-l/20' : ''
-                  } ${isTempMessage(m) ? 'opacity-60' : ''}`}
+              const temp = isTempMessage(m);
+              const canEdit = mine && !temp;
+              const canDelete = (mine || isModerator) && !temp;
+
+              const prev = messages[i - 1];
+              const next = messages[i + 1];
+              const dayKey = mskDateKey(m.created_at);
+              const newDay = !prev || mskDateKey(prev.created_at) !== dayKey;
+              const groupStart =
+                newDay ||
+                prev.author_id !== m.author_id ||
+                Date.parse(m.created_at) - Date.parse(prev.created_at) > GROUP_GAP_MS;
+              const groupEnd =
+                !next ||
+                mskDateKey(next.created_at) !== dayKey ||
+                next.author_id !== m.author_id ||
+                Date.parse(next.created_at) - Date.parse(m.created_at) > GROUP_GAP_MS;
+
+              // W4: анимируем только входящее, появившееся после первого рендера.
+              const animate = readyRef.current && !seenIdsRef.current.has(m.id) && !mine && !temp;
+
+              const created = new Date(m.created_at);
+              const timeEl = (
+                <span
+                  title={MSK_FULL_FMT.format(created)}
+                  className="mt-0.5 self-end whitespace-nowrap text-[11px] leading-none tabular-nums text-[color:var(--chat-time,var(--text-dim))]"
                 >
-                  <Avatar author={m.author} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xs font-medium text-text-main">
-                        {m.author?.full_name ?? 'Участник'}
-                      </span>
-                      <span className="text-[10px] text-text-mute">
-                        {relativeTime(m.created_at)}
-                        {m.edited_at && <span className="ml-1 italic">· изм.</span>}
+                  {MSK_TIME_FMT.format(created)}
+                  {m.edited_at && <span className="italic"> · изм.</span>}
+                </span>
+              );
+
+              const actions = (canEdit || canDelete) && editingId !== m.id && (
+                <div className="flex shrink-0 items-center gap-1 self-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  {canEdit && (
+                    <button
+                      onClick={() => startEdit(m)}
+                      className="rounded p-0.5 text-text-mute transition-colors hover:text-text-main"
+                      aria-label="Править сообщение"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(m)}
+                      className="rounded p-0.5 text-text-mute transition-colors hover:text-red"
+                      aria-label="Удалить сообщение"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+
+              const editBlock = editingId === m.id && (
+                <div className="flex w-full max-w-[72%] flex-col gap-1">
+                  <textarea
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        submitEdit();
+                      }
+                      if (e.key === 'Escape') setEditingId(null);
+                    }}
+                    rows={2}
+                    autoFocus
+                    className="w-full resize-none rounded-lg border border-input bg-surface px-2 py-1.5
+                               text-sm text-text-main focus:border-accent focus:outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={submitEdit}
+                      className="rounded bg-accent px-2 py-0.5 text-[10px] font-medium text-white hover:opacity-90"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="rounded px-2 py-0.5 text-[10px] text-text-mute hover:text-text-main"
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              );
+
+              return (
+                <div key={m.id}>
+                  {newDay && (
+                    // День-чип — обычный текст в потоке (НЕ aria-hidden), aria-live озвучит
+                    <div className="my-3 flex justify-center">
+                      <span className="rounded-full bg-surface2 px-2.5 py-0.5 text-[11px] text-text-mute">
+                        {dayChipLabel(dayKey, todayKey)}
                       </span>
                     </div>
-                    {editingId === m.id ? (
-                      <div className="mt-1 flex flex-col gap-1">
-                        <textarea
-                          value={editDraft}
-                          onChange={(e) => setEditDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              submitEdit();
-                            }
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          rows={2}
-                          autoFocus
-                          className="w-full resize-none rounded-lg border border-input bg-surface px-2 py-1.5
-                                     text-sm text-text-main focus:border-accent focus:outline-none"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={submitEdit}
-                            className="rounded bg-accent px-2 py-0.5 text-[10px] font-medium text-white hover:opacity-90"
-                          >
-                            Сохранить
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="rounded px-2 py-0.5 text-[10px] text-text-mute hover:text-text-main"
-                          >
-                            Отмена
-                          </button>
+                  )}
+                  {mine ? (
+                    <div
+                      className={`group flex justify-end gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
+                    >
+                      {actions}
+                      {editBlock || (
+                        <div
+                          className={`chat-own flex max-w-[72%] flex-col rounded-[var(--radius-m)] bg-accent-l px-3 py-1.5 ${
+                            groupEnd ? 'rounded-br-[4px]' : ''
+                          } ${temp ? 'opacity-60' : ''} ${animate ? 'animate-appear' : ''}`}
+                        >
+                          <p className="whitespace-pre-wrap break-words text-sm text-text-main">
+                            {m.body}
+                          </p>
+                          {timeEl}
                         </div>
-                      </div>
-                    ) : (
-                      // XSS: body — только текст, React экранирует; переносы — pre-wrap
-                      <p className="whitespace-pre-wrap break-words text-sm text-text-dim">{m.body}</p>
-                    )}
-                  </div>
-                  {(canEdit || canDelete) && editingId !== m.id && (
-                    <div className="flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      {canEdit && (
-                        <button
-                          onClick={() => startEdit(m)}
-                          className="rounded p-0.5 text-text-mute hover:text-text-main transition-colors"
-                          aria-label="Править сообщение"
-                        >
-                          <Pencil size={12} />
-                        </button>
                       )}
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(m)}
-                          className="rounded p-0.5 text-text-mute hover:text-red transition-colors"
-                          aria-label="Удалить сообщение"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                    </div>
+                  ) : (
+                    <div
+                      className={`group flex gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
+                    >
+                      {groupStart ? (
+                        <Avatar author={m.author} />
+                      ) : (
+                        <div className="w-7 shrink-0" aria-hidden="true" />
                       )}
+                      {editBlock || (
+                        <div
+                          className={`chat-other flex max-w-[72%] flex-col rounded-[var(--radius-m)] border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-xs)] ${
+                            groupEnd ? 'rounded-bl-[4px]' : ''
+                          } ${animate ? 'animate-appear' : ''}`}
+                        >
+                          {groupStart && (
+                            <span className="text-xs font-medium text-text-main">
+                              {m.author?.full_name ?? 'Участник'}
+                            </span>
+                          )}
+                          <p className="whitespace-pre-wrap break-words text-sm text-text-main">
+                            {m.body}
+                          </p>
+                          {timeEl}
+                        </div>
+                      )}
+                      {actions}
                     </div>
                   )}
                 </div>
@@ -250,7 +386,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
         )}
       </div>
 
-      {/* Composer: Enter — отправить, Shift+Enter — перенос */}
+      {/* Composer: вне скролла, на --surface */}
       <div className="flex items-end gap-2">
         <textarea
           value={draft}
@@ -261,7 +397,9 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
               handleSend();
             }
           }}
-          placeholder="Сообщение команде… (Enter — отправить, Shift+Enter — перенос)"
+          placeholder="Сообщение команде…"
+          title="Enter — отправить, Shift+Enter — перенос"
+          aria-label="Сообщение команде. Enter — отправить, Shift+Enter — перенос"
           rows={2}
           maxLength={4000}
           className="min-h-[42px] flex-1 resize-none rounded-lg border border-input bg-surface px-3 py-2

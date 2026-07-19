@@ -1549,3 +1549,9 @@ table tbody tr[data-kbd-focused] {
 @media (prefers-reduced-motion: reduce) {
   .peek-panel { animation: none; }
 }
+
+/* ═══ Чат проекта (S-CHAT-1.1) ═══ */
+/* Время в своём пузыре: дефолт var(--text-dim) читается на --accent-l во всех
+   темах, КРОМЕ t-aura (4.23:1 — провал AA на янтарной подложке). Оверрайд на
+   var(--text) — прецедент --aura-pill-text; значения проверены scripts/contrast.py. */
+.t-aura .chat-own { --chat-time: var(--text); }
