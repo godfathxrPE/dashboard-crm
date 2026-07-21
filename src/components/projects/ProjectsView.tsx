@@ -75,7 +75,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
   );
 
   // Counts for chip badges
-  const { data: allProjects } = useProjects('deals');
+  const { data: allProjects, isLoading: projectsLoading } = useProjects('deals');
   const directionOptions: ChipOption[] = useMemo(() => {
     const all = allProjects ?? [];
     return DIRECTION_OPTIONS.map((opt) => ({
@@ -104,6 +104,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
           selected={directionFilter === 'all' ? [] : [directionFilter]}
           onToggle={(val) => setDirection(val === directionFilter ? 'all' : val as DirectionFilter)}
           onReset={() => setDirection('all')}
+          loading={projectsLoading}
         />
         <span className="h-4 w-px bg-border" />
         <ChipFilter
@@ -111,6 +112,7 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
           selected={quickFilter ? [quickFilter] : []}
           onToggle={(val) => setQuick(val === quickFilter ? null : val as ProjectQuickFilter)}
           onReset={() => setQuick(null)}
+          loading={projectsLoading}
         />
         <SavedViewChips />
       </div>

@@ -13,9 +13,11 @@ interface ChipFilterProps {
   selected: string[];
   onToggle: (value: string) => void;
   onReset?: () => void;
+  /** F-06: пока true — не рендерить count-бейджи (иначе мигают ложным «0» до загрузки) */
+  loading?: boolean;
 }
 
-export function ChipFilter({ options, selected, onToggle, onReset }: ChipFilterProps) {
+export function ChipFilter({ options, selected, onToggle, onReset, loading }: ChipFilterProps) {
   if (options.length === 0) return null;
 
   return (
@@ -35,7 +37,7 @@ export function ChipFilter({ options, selected, onToggle, onReset }: ChipFilterP
             )}
           >
             {opt.label}
-            {opt.count != null && (
+            {!loading && opt.count != null && (
               <span className={cn(
                 'rounded-full px-1.5 py-0.5 text-xs leading-none',
                 active ? 'bg-accent/20' : 'bg-surface2',

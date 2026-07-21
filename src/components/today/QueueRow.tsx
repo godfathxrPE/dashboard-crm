@@ -61,10 +61,14 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
 
       <div className="flex shrink-0 items-center gap-1">
         {secondary && (
-          /* Шов W1b-5: secondary всегда видима (была только на hover — терялась) */
+          /* F-12: hover|focus, не теряется при kbd-навигации (`focused`) */
           <button
             onClick={(e) => { e.stopPropagation(); secondary.onClick(); }}
-            className="rounded px-2 py-1 text-xs text-text-mute transition hover:text-text-main"
+            className={cn(
+              'rounded px-2 py-1 text-xs text-text-mute opacity-0 transition-opacity hover:text-text-main',
+              'group-hover:opacity-100 focus-within:opacity-100',
+              focused && 'opacity-100',
+            )}
           >
             {secondary.label}
           </button>
