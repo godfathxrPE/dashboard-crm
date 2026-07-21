@@ -36,7 +36,7 @@ export function DealProgressBar({
   return (
     <div>
       {/* Chevron segments */}
-      <div className="flex h-8 overflow-hidden rounded-md">
+      <div className="flex h-8 overflow-hidden rounded">
         {stages.map((stage, i) => {
           const isFirst = i === 0;
           const isLast = i === stages.length - 1;

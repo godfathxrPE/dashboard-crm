@@ -107,7 +107,7 @@ export function ProjectCard({
         '--phase-color': phaseColor,
       } as React.CSSProperties}
       className={`
-        group relative overflow-hidden rounded-md bg-surface p-3 glass-card
+        group relative overflow-hidden rounded bg-surface p-3 glass-card
         elevation-hover
         hover:shadow-[0_0_0_1px_color-mix(in_srgb,var(--phase-color)_20%,transparent),var(--elevation-2)]
         ${isDragging ? 'opacity-50 elevation-2 rotate-1' : ''}

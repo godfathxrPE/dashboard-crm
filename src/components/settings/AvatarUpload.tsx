@@ -54,7 +54,7 @@ export function AvatarUpload({ avatarUrl, fullName }: AvatarUploadProps) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={upload.isPending}
-          className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-dim hover:border-accent/50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-dim hover:border-accent/50 transition-colors disabled:opacity-50"
         >
           <Camera size={13} />
           {upload.isPending ? 'Загрузка…' : avatarUrl ? 'Заменить фото' : 'Загрузить фото'}

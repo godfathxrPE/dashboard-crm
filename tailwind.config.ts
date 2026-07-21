@@ -48,8 +48,8 @@ const config: Config = {
       borderRadius: {
         DEFAULT: 'var(--radius)',
         sm: 'var(--radius-s)',
-        md: 'var(--radius-m)',
         lg: 'var(--radius-l)',
+        xl: 'calc(var(--radius-l) + 2px)',
       },
       boxShadow: {
         xs: 'var(--shadow-xs)',

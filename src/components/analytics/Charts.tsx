@@ -41,7 +41,7 @@ const AURA_PHASE: Record<string, [string, string]> = {
   attract: ['#3B7FD4', '#5DA8E8'], develop: ['#C77A1E', '#E0A03A'], negotiate: ['#B0810F', '#D4A82A'], close: ['#2F8F5B', '#4FB87E'],
 };
 
-const TT: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-md)', fontSize: 11 };
+const TT: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--elevation-2)', fontSize: 11 };
 const TT_L: React.CSSProperties = { color: 'var(--text)' };
 const TT_I: React.CSSProperties = { color: 'var(--text-dim)' };
 const TT_C = { fill: 'var(--surface2)', opacity: 0.5 };

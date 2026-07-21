@@ -136,7 +136,7 @@ export function AutomationsSection() {
         </div>
         <button
           onClick={() => setEditing('new')}
-          className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-1 rounded bg-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
         >
           <Plus size={13} /> Правило
         </button>

@@ -119,7 +119,7 @@ function BoardCard({
         cursor-grab rounded-lg bg-surface p-2.5 overflow-hidden glass-card
         shadow-card transition-all duration-fast hover:shadow-card-hover
         hover:-translate-y-px active:cursor-grabbing
-        ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent/30 rotate-1' : ''}
+        ${isDragging ? 'opacity-50 elevation-3 ring-2 ring-accent/30 rotate-1' : ''}
       `}
     >
       <div className="flex items-center gap-1.5">
@@ -478,7 +478,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
 
           <DragOverlay>
             {activeProject ? (
-              <div className="w-56 rounded-lg border border-accent/50 bg-surface p-2.5 shadow-xl opacity-90 rotate-2">
+              <div className="w-56 rounded-lg border border-accent/50 bg-surface p-2.5 elevation-3 opacity-90 rotate-2">
                 <p className="text-xs font-semibold text-text-main">
                   {activeProject.name}
                 </p>

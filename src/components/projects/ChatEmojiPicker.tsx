@@ -101,7 +101,7 @@ export function ChatEmojiPicker({ onPick, onClose, anchorRef }: ChatEmojiPickerP
         visibility: pos ? 'visible' : 'hidden',
       }}
       className="max-h-72 w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-[var(--radius-m)]
-                 border border-border bg-popover p-2 shadow-lg outline-none"
+                 border border-border bg-popover p-2 elevation-3 outline-none"
     >
       {EMOJI_CATEGORIES.map((cat) => (
         <div key={cat.key} className="mb-1.5 last:mb-0">

@@ -277,7 +277,7 @@ function FullTrack({
       </div>
 
       {/* Чеврон-бар трека */}
-      <div className="flex h-9 overflow-hidden rounded-md">
+      <div className="flex h-9 overflow-hidden rounded">
         {track.stages.map((stage, i) => {
           const globalIdx = stages.findIndex((s) => s.id === stage.id);
           const isFirst = i === 0;

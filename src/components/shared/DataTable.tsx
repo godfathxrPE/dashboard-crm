@@ -349,7 +349,7 @@ export function DataTable<T>({
       {selectable && bulkActions && selectedIds.size > 0 && typeof document !== 'undefined' && createPortal(
         <div className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 flex items-center gap-3
                         rounded-xl border border-border bg-popover px-4 py-2.5
-                        shadow-lg bulk-bar-enter">
+                        elevation-3 bulk-bar-enter">
           <span className="text-sm font-medium text-text-main tabular-nums">
             {selectedIds.size} выбрано
           </span>

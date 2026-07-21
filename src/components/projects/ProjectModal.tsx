@@ -345,7 +345,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                     key={opt.value}
                     type="button"
                     onClick={() => onTypeChange(opt.value)}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                       currentType === opt.value
                         ? 'bg-accent-l text-accent'
                         : 'text-text-mute hover:text-text-main'
@@ -378,7 +378,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                     key={opt.value}
                     type="button"
                     onClick={() => onDirectionChange(opt.value)}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                       currentDirection === opt.value
                         ? 'bg-accent-l text-accent'
                         : 'text-text-mute hover:text-text-main'

@@ -160,7 +160,7 @@ export function LeadModal({ isOpen, onClose, editLead }: LeadModalProps) {
                   key={opt.value ?? 'null'}
                   type="button"
                   onClick={() => setValue('direction', opt.value)}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                     currentDirection === opt.value
                       ? 'bg-accent-l text-accent'
                       : 'text-text-mute hover:text-text-main'

@@ -241,7 +241,7 @@ export function CallLog() {
                       </button>
                       <button
                         onClick={() => updateCall.mutate({ id: call.id, status: 'done' })}
-                        className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-text-dim
+                        className="rounded border border-border px-2.5 py-1 text-xs font-medium text-text-dim
                                    transition-colors hover:border-accent hover:bg-accent-l hover:text-accent"
                       >
                         Выполнен

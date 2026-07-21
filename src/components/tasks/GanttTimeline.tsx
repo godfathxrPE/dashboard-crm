@@ -894,7 +894,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         Крит. путь
       </button>
       {showCritical && critical.taskIds.size > 0 && (
-        <span className="rounded-md bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
+        <span className="rounded bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
           Крит. путь: {critical.totalDays} дн
         </span>
       )}
@@ -1223,7 +1223,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 <select
                   value={targetPhaseId}
                   onChange={(e) => setTargetPhaseId(e.target.value)}
-                  className="mb-4 w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm text-text-main focus:border-accent focus:outline-none"
+                  className="mb-4 w-full rounded border border-input bg-surface px-2 py-1.5 text-sm text-text-main focus:border-accent focus:outline-none"
                 >
                   <option value="">Выбрать фазу…</option>
                   {deletePhaseTargets.map((c) => (
@@ -1251,7 +1251,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
       {/* Общий fixed-поповер (эскейпит overflow таймлайна; следует за курсором) */}
       {tip && (
         <div
-          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none fixed z-50 w-max max-w-[240px] rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs elevation-3"
           style={{ left: tip.x + 12, top: tip.y + 12 }}
         >
           <div className="font-medium text-text-main">{tip.text}</div>
@@ -1265,7 +1265,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
       {edgeMenu && (
         <div
           ref={edgeMenuRef}
-          className="fixed z-50 rounded-lg border border-border bg-popover p-2.5 text-xs shadow-lg"
+          className="fixed z-50 rounded-lg border border-border bg-popover p-2.5 text-xs elevation-3"
           style={{ left: edgeMenu.x + 8, top: edgeMenu.y + 8 }}
         >
           <div className="flex items-center gap-1.5">
@@ -1279,7 +1279,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
               value={edgeMenu.lag}
               onChange={(ev) => setEdgeMenu({ ...edgeMenu, lag: ev.target.value })}
               onKeyDown={(ev) => { if (ev.key === 'Enter') saveEdgeLag(); }}
-              className="w-14 rounded-md border border-input bg-surface px-1.5 py-0.5 tabular-nums text-text-main focus:border-accent focus:outline-none"
+              className="w-14 rounded border border-input bg-surface px-1.5 py-0.5 tabular-nums text-text-main focus:border-accent focus:outline-none"
               aria-label="Задержка, календарных дней"
             />
             <span className="text-text-mute">дн</span>

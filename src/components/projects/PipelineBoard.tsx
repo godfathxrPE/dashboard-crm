@@ -698,7 +698,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
               setModalOpen(true);
               setNextActionPrompt(null);
             }}
-            className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+            className="rounded bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
           >
             Запланировать
           </button>

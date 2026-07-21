@@ -100,7 +100,7 @@ export function PipelineFunnelChart() {
               background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius)',
-              boxShadow: 'var(--shadow-md)',
+              boxShadow: 'var(--elevation-2)',
               fontSize: 11,
             }}
             labelStyle={{ color: 'var(--text)' }}
@@ -226,7 +226,7 @@ export function CallsRecentChart() {
               background: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius)',
-              boxShadow: 'var(--shadow-md)',
+              boxShadow: 'var(--elevation-2)',
               fontSize: 11,
             }}
             labelStyle={{ color: 'var(--text)' }}

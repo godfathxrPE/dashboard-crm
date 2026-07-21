@@ -58,7 +58,7 @@ function DeliveryCard({ project, stageName, health, onOpen }: {
   return (
     <div
       ref={setNodeRef}
-      className={`group rounded-lg border border-border bg-surface p-3 transition-shadow hover:elevation-1 ${
+      className={`group rounded-lg border border-border bg-surface p-3 transition-shadow hover:shadow-[var(--elevation-1)] ${
         isDragging ? 'opacity-40' : ''
       }`}
     >

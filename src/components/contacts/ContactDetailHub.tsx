@@ -416,7 +416,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                 onFocus={() => setNotesFocused(true)}
                 placeholder="Запиши главное..."
                 className={cn(
-                  'w-full resize-none rounded-md bg-transparent text-sm text-text-main placeholder:text-text-mute placeholder:italic placeholder:text-[0.8125rem]',
+                  'w-full resize-none rounded bg-transparent text-sm text-text-main placeholder:text-text-mute placeholder:italic placeholder:text-[0.8125rem]',
                   'transition-all duration-fast focus:outline-none focus:ring-0 focus:border-transparent',
                   'border-none outline-none',
                   notesFocused ? 'p-2 min-h-[80px]' : 'p-0 min-h-[40px]',
@@ -425,11 +425,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               {notesFocused && (
                 <div className="mt-2 flex gap-2">
                   <button onClick={handleSaveNotes}
-                    className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 transition-opacity">
+                    className="rounded bg-accent px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 transition-opacity">
                     Сохранить
                   </button>
                   <button onClick={() => { setNotes(null); setNotesFocused(false); }}
-                    className="rounded-md border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface2">
+                    className="rounded border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface2">
                     Отмена
                   </button>
                 </div>

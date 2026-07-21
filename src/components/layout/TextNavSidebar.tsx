@@ -174,7 +174,7 @@ export function TextNavSidebar() {
     >
       {/* Logo — акцентный TC-квадрат (единый бренд Torii CRM во всех темах; fuji-плитка золотая через .logo-icon) */}
       <div className="flex h-14 items-center gap-3 px-4 shrink-0" style={{ borderBottom: '0.5px solid var(--border)' }}>
-        <div className="logo-icon flex shrink-0 items-center justify-center font-semibold h-8 w-8 rounded-md bg-accent text-white text-sm">
+        <div className="logo-icon flex shrink-0 items-center justify-center font-semibold h-8 w-8 rounded bg-accent text-white text-sm">
           TC
         </div>
         {sidebarOpen && (

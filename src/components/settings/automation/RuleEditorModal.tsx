@@ -40,9 +40,9 @@ import type {
 
 const labelCls = 'block text-[11px] font-medium text-text-dim mb-1';
 const selectCls =
-  'w-full rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
+  'w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
 const inputCls =
-  'w-full rounded-md border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
+  'w-full rounded border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
 const errCls = 'mt-1 text-[11px] text-red';
 
 // ── маппинг rule → плоские form-values (обратный) ──
@@ -348,7 +348,7 @@ export function RuleEditorModal({
             )}
 
             {triggerType === 'task_overdue' && (
-              <p className="rounded-md bg-surface2 px-2.5 py-2 text-[11px] text-text-mute">
+              <p className="rounded bg-surface2 px-2.5 py-2 text-[11px] text-text-mute">
                 Срабатывает, когда дедлайн задачи прошёл, а она не выполнена.
                 Проверяется ежедневно, напоминаем <strong className="text-text-dim">один раз</strong> на задачу.
               </p>
@@ -380,7 +380,7 @@ export function RuleEditorModal({
             <button
               type="button"
               onClick={() => append({ field: fieldOptions[0].value, op: 'eq', value: '' })}
-              className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface2"
+              className="flex items-center gap-1 rounded border border-border px-2.5 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface2"
             >
               <Plus size={12} /> условие
             </button>

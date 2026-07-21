@@ -123,7 +123,7 @@ export function ProjectTeam({
               </p>
               <div className="space-y-1">
                 {group.members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-surface2">
+                  <div key={m.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-surface2">
                     <MemberAvatar member={m} />
                     <span className="min-w-0 flex-1 truncate text-sm text-text-main">
                       {m.profile?.full_name ?? '…'}
@@ -138,7 +138,7 @@ export function ProjectTeam({
                             { onError: (err) => setErrorText(parseMemberError(err)) },
                           );
                         }}
-                        className="rounded-md border border-input bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
+                        className="rounded border border-input bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
                                    focus:border-accent focus:outline-none"
                       >
                         {/* легаси-роль вне категории — в начало, чтобы не потерять текущее значение */}

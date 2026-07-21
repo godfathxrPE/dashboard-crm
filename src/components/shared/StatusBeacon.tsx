@@ -60,7 +60,7 @@ export function StatusBeacon({ alerts }: StatusBeaconProps) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          'relative flex h-8 w-8 items-center justify-center rounded-md transition-colors',
+          'relative flex h-8 w-8 items-center justify-center rounded transition-colors',
           'hover:bg-surface2',
         )}
         title={alerts.length === 0 ? 'Всё в порядке' : `${alerts.length} проблем`}

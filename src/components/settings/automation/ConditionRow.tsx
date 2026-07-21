@@ -9,9 +9,9 @@ import {
 import type { RuleFormValues } from '@/lib/validators/automation-rule';
 
 const selectCls =
-  'rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
+  'rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
 const inputCls =
-  'min-w-0 flex-1 rounded-md border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute';
+  'min-w-0 flex-1 rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute';
 
 /**
  * Строка условия (AND-предикат). Выделена по правилу DS «3+ повторов».

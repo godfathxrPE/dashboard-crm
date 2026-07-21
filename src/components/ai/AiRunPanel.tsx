@@ -224,7 +224,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                       <button
                         type="button"
                         onClick={() => rating.mutate({ runId: run.id, rating: 1 })}
-                        className={`rounded-md p-1 hover:bg-surface-hover ${run.rating === 1 ? 'text-green' : 'text-text-mute'}`}
+                        className={`rounded p-1 hover:bg-surface-hover ${run.rating === 1 ? 'text-green' : 'text-text-mute'}`}
                         aria-label="Полезно"
                       >
                         <ThumbsUp size={13} />
@@ -232,7 +232,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                       <button
                         type="button"
                         onClick={() => { setNoteFor(run.id); setNoteText(run.feedback_note ?? ''); }}
-                        className={`rounded-md p-1 hover:bg-surface-hover ${run.rating === -1 ? 'text-red' : 'text-text-mute'}`}
+                        className={`rounded p-1 hover:bg-surface-hover ${run.rating === -1 ? 'text-red' : 'text-text-mute'}`}
                         aria-label="Не полезно"
                       >
                         <ThumbsDown size={13} />
@@ -240,7 +240,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                       <button
                         type="button"
                         onClick={() => handleCopy(run)}
-                        className="ml-auto inline-flex items-center gap-1 rounded-md p-1 text-text-mute hover:bg-surface-hover"
+                        className="ml-auto inline-flex items-center gap-1 rounded p-1 text-text-mute hover:bg-surface-hover"
                         aria-label="Копировать"
                       >
                         {copiedId === run.id ? <Check size={13} className="text-green" /> : <Copy size={13} />}
