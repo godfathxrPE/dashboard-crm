@@ -65,7 +65,8 @@ export function SavedViewChips() {
             <button
               onClick={() => remove(view.id)}
               aria-label={`Удалить вид «${view.label}»`}
-              className="hidden text-text-mute transition-colors hover:text-red group-hover:inline-flex"
+              /* F-15: hit-area ≥24px через padding+отрицательный margin (визуальный размер иконки не меняется) */
+              className="hidden items-center justify-center p-2 -m-1 text-text-mute transition-colors hover:text-red group-hover:inline-flex"
             >
               <X size={11} />
             </button>
