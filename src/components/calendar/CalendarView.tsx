@@ -226,14 +226,14 @@ export function CalendarView() {
           <div className="mb-3 flex gap-1.5">
             <button
               onClick={() => { setEditCall(null); setCallModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta
                          text-text-dim transition-colors hover:border-accent hover:text-accent"
             >
               <Plus size={11} /> Звонок
             </button>
             <button
               onClick={() => { setEditMeeting(null); setMeetingModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px]
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta
                          text-text-dim transition-colors hover:border-accent hover:text-accent"
             >
               <Plus size={11} /> Встреча

@@ -247,7 +247,7 @@ function FullTrack({
       <div className="mb-1 flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-full" style={{ background: track.color }} />
         <span
-          className="phase-label text-[11px] font-medium"
+          className="phase-label text-meta font-medium"
           style={{ color: state === 'future' ? 'var(--text-mute)' : track.textColor }}
         >
           {track.label}
@@ -330,7 +330,7 @@ function TrackChip({
       type="button"
       onClick={onClick}
       title={`${track.label} — раскрыть`}
-      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-surface2"
+      className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-meta font-medium transition-colors hover:bg-surface2"
     >
       <span
         className="h-1.5 w-1.5 rounded-full"
@@ -375,7 +375,7 @@ function Segment({
     <div
       onClick={locked ? undefined : onClick}
       className={cn(
-        'relative flex flex-1 items-center justify-center px-1 text-[11px] font-medium whitespace-nowrap transition-[filter] duration-150',
+        'relative flex flex-1 items-center justify-center px-1 text-meta font-medium whitespace-nowrap transition-[filter] duration-150',
         isFirst ? 'pl-2' : 'pl-3',
         locked ? 'cursor-default' : 'cursor-pointer hover:brightness-[0.92]',
       )}

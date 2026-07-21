@@ -162,7 +162,7 @@ function BoardColumn({
           ))}
         </SortableContext>
         {tasks.length === 0 && (
-          <p className="py-4 text-center text-[11px] text-text-mute">Пусто</p>
+          <p className="py-4 text-center text-meta text-text-mute">Пусто</p>
         )}
         {canEdit && (
           <div className="mt-1">
@@ -442,7 +442,7 @@ export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps)
         <DragOverlay>
           {activeTask ? (
             <div className="max-w-[280px] rounded border border-accent/50 bg-surface p-2 elevation-3 opacity-90">
-              <p className="text-[0.8125rem] text-text-main">{activeTask.text}</p>
+              <p className="text-body text-text-main">{activeTask.text}</p>
             </div>
           ) : null}
         </DragOverlay>

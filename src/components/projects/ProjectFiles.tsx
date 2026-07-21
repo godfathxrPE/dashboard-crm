@@ -57,7 +57,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
         <button
           onClick={() => inputRef.current?.click()}
           className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                     text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                     text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
         >
           <Plus size={12} />
           Файл
@@ -121,7 +121,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                     {f.file_name}
                   </button>
                   {f.comment && (
-                    <span className="block truncate text-[11px] text-text-mute" title={f.comment}>
+                    <span className="block truncate text-meta text-text-mute" title={f.comment}>
                       {f.comment}
                     </span>
                   )}

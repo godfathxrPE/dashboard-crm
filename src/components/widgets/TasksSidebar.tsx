@@ -62,7 +62,7 @@ function PlannedCalls() {
     <div className="rounded-lg bg-surface p-4 elevation-1">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
+          <span className="text-meta font-semibold uppercase tracking-wide text-text-mute">
             Запланированные звонки
           </span>
           {pending.length > 0 && (
@@ -85,7 +85,7 @@ function PlannedCalls() {
           <p className="mt-2 text-xs text-text-mute">Нет запланированных звонков</p>
           <button
             onClick={() => setModalOpen(true)}
-            className="mt-1 text-[11px] text-accent hover:underline"
+            className="mt-1 text-meta text-accent hover:underline"
           >
             Добавь через «+» выше
           </button>
@@ -138,7 +138,7 @@ function FocusWidget() {
     <div className="rounded-lg bg-surface p-4 focus-day-card">
       <div className="mb-2 flex items-center gap-2">
         <Target size={12} className="text-text-mute" />
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
+        <span className="text-meta font-semibold uppercase tracking-wide text-text-mute">
           Фокус дня
         </span>
       </div>
@@ -194,7 +194,7 @@ function MiniKpi() {
   if (isWashi) {
     return (
       <div className="rounded-lg bg-surface p-4 elevation-1">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-text-mute">
+        <div className="mb-3 text-meta font-semibold uppercase tracking-wide text-text-mute">
           Сейчас в работе
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -224,7 +224,7 @@ function MiniKpi() {
                 style={{ color: it.color }}
               />
               {/* Label */}
-              <div className="mt-1 text-[11px] text-text-mute">{it.label}</div>
+              <div className="mt-1 text-meta text-text-mute">{it.label}</div>
             </div>
           ))}
         </div>
@@ -234,7 +234,7 @@ function MiniKpi() {
 
   return (
     <div className="rounded-lg bg-surface p-4 elevation-1">
-      <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-text-mute">
+      <div className="mb-3 text-meta font-semibold uppercase tracking-wide text-text-mute">
         Сейчас в работе
       </div>
       <div className="grid grid-cols-2 gap-3">

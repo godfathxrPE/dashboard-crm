@@ -60,7 +60,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
 
   return (
     <form onSubmit={submit} className="mt-3 space-y-2 border-t border-border pt-3">
-      <p className="text-[11px] font-medium text-text-dim">Добавить требование</p>
+      <p className="text-meta font-medium text-text-dim">Добавить требование</p>
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={stageId}
@@ -129,7 +129,7 @@ function AddForm({ pipelineId, stageIds }: { pipelineId: string; stageIds: { id:
           <Plus size={13} /> Добавить
         </button>
       </div>
-      {error && <p className="text-[11px] text-red">{error}</p>}
+      {error && <p className="text-meta text-red">{error}</p>}
     </form>
   );
 }
@@ -181,7 +181,7 @@ export function GatesSection() {
         <h2 className="text-xs font-semibold text-text-dim">Стадийные гейты</h2>
       </div>
 
-      <p className="mb-3 text-[11px] text-text-mute">
+      <p className="mb-3 text-meta text-text-mute">
         Требования на вход в стадию: сделку нельзя передвинуть, пока они не закрыты.
       </p>
 
@@ -208,10 +208,10 @@ export function GatesSection() {
               <span className="shrink-0 rounded-full border border-border bg-surface2 px-2 py-0.5 text-xs font-medium text-text-dim">
                 {stageName.get(req.stage_id) ?? '—'}
               </span>
-              <span className="shrink-0 text-[11px] text-text-mute">
+              <span className="shrink-0 text-meta text-text-mute">
                 {req.requirement_type === 'field' ? 'Поле' : 'Файл'}
               </span>
-              <span className="shrink-0 text-[11px] text-text-dim">{describeConfig(req)}</span>
+              <span className="shrink-0 text-meta text-text-dim">{describeConfig(req)}</span>
               <span className="min-w-0 flex-1 truncate text-xs text-text-main" title={req.error_hint}>
                 {req.error_hint}
               </span>

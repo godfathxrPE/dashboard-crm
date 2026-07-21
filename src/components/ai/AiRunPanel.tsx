@@ -141,7 +141,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
         className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         style={{ resize: 'vertical', minHeight: '80px' }}
       />
-      <div className="mt-1 text-right text-[11px] text-text-mute">{text.length.toLocaleString('ru')} симв.</div>
+      <div className="mt-1 text-right text-meta text-text-mute">{text.length.toLocaleString('ru')} симв.</div>
 
       {/* Кнопки пресетов */}
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -213,7 +213,7 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                 {run.status === 'done' && (
                   <>
                     {run.result?.meta?.truncated && (
-                      <p className="mt-2 text-[11px] text-yellow">Транскрипт был обрезан по лимиту — результат по началу.</p>
+                      <p className="mt-2 text-meta text-yellow">Транскрипт был обрезан по лимиту — результат по началу.</p>
                     )}
                     <div className="mt-2">
                       <AiResultRenderer run={run} onCreateTask={openTaskFromAction} />

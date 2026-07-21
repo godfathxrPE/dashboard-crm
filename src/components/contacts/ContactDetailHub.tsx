@@ -78,7 +78,7 @@ function PillAction({ icon, label, onClick }: { icon: React.ReactNode; label: st
     >
       <span className="shrink-0">{icon}</span>
       <span className={cn(
-        'overflow-hidden whitespace-nowrap text-[0.8125rem] text-text-main',
+        'overflow-hidden whitespace-nowrap text-body text-text-main',
         'max-w-0 opacity-0 transition-all duration-300 ease-out-custom',
         'group-hover/pill:max-w-[100px] group-hover/pill:opacity-100',
         // Mobile: always visible
@@ -126,7 +126,7 @@ function HighlightCard({ children, isFilled = false, className }: { children: Re
 
 function CardLabel({ icon: Icon, label }: { icon: typeof Building2; label: string }) {
   return (
-    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-text-mute">
+    <div className="mb-2 flex items-center gap-1.5 text-meta font-medium text-text-mute">
       <Icon size={11} />
       {label}
     </div>
@@ -416,7 +416,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                 onFocus={() => setNotesFocused(true)}
                 placeholder="Запиши главное..."
                 className={cn(
-                  'w-full resize-none rounded bg-transparent text-sm text-text-main placeholder:text-text-mute placeholder:italic placeholder:text-[0.8125rem]',
+                  'w-full resize-none rounded bg-transparent text-sm text-text-main placeholder:text-text-mute placeholder:italic placeholder:text-body',
                   'transition-all duration-fast focus:outline-none focus:ring-0 focus:border-transparent',
                   'border-none outline-none',
                   notesFocused ? 'p-2 min-h-[80px]' : 'p-0 min-h-[40px]',

@@ -272,7 +272,7 @@
 .t-washi aside .text-text-main,
 .t-washi aside .text-sm.font-semibold { color: #E8E2D8 !important; }
 .t-washi aside .text-text-mute.truncate,
-.t-washi aside .text-\[11px\] { color: rgba(232,226,216,0.62) !important; }  /* P1 §2.4: 0.35 (3.9:1) → 0.62 (5.16:1) */
+.t-washi aside .text-meta { color: rgba(232,226,216,0.62) !important; }  /* P1 §2.4: 0.35 (3.9:1) → 0.62 (5.16:1) */
 
 /* Nav items — light text on dark bg */
 .t-washi aside .nav-item {
@@ -457,7 +457,7 @@
 .t-fuji aside .text-text-main,
 .t-fuji aside .text-sm.font-semibold { color: #E8DBbf !important; }
 .t-fuji aside .text-text-mute.truncate,
-.t-fuji aside .text-\[11px\] { color: rgba(232,219,191,0.62) !important; }  /* P1 §2.4: 0.35 (3.35:1) → 0.62 (5.06:1) */
+.t-fuji aside .text-meta { color: rgba(232,219,191,0.62) !important; }  /* P1 §2.4: 0.35 (3.35:1) → 0.62 (5.06:1) */
 .t-fuji aside .border-border\/50,
 .t-fuji aside .border-t { border-color: var(--sidebar-border) !important; }
 

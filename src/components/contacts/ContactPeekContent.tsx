@@ -22,7 +22,7 @@ export function ContactPeekContent({ contact }: { contact: Contact & { last_touc
               key={cc.company_id}
               href={`/companies/${cc.company_id}`}
               className="inline-flex items-center gap-1 rounded border border-border bg-surface2
-                         px-1.5 py-0.5 text-[11px] text-text-dim transition-colors hover:border-accent hover:text-accent"
+                         px-1.5 py-0.5 text-meta text-text-dim transition-colors hover:border-accent hover:text-accent"
             >
               <Building2 size={10} />
               {cc.company?.name ?? 'N/A'}

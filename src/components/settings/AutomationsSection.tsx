@@ -142,7 +142,7 @@ export function AutomationsSection() {
         </button>
       </div>
 
-      <p className="mb-3 text-[11px] text-text-mute">
+      <p className="mb-3 text-meta text-text-mute">
         Когда триггер срабатывает и условия выполняются — движок выполняет действие
         (создать задачу, уведомить, добавить заметку или изменить поле). Каждое правило
         срабатывает один раз на сделку в рамках триггера.

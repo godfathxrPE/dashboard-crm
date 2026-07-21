@@ -126,7 +126,7 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
         <div className="max-h-[560px] space-y-4 overflow-y-auto pr-1">
           {groups.map((group) => (
             <div key={group.key}>
-              <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-text-mute">
+              <div className="mb-1.5 text-meta font-medium uppercase tracking-wide text-text-mute">
                 {group.label}
               </div>
               <div className="relative ml-[7px] border-l border-border pl-5">

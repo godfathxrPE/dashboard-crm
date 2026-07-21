@@ -38,12 +38,12 @@ import type {
   AutomationSetFieldConfig,
 } from '@/types/database';
 
-const labelCls = 'block text-[11px] font-medium text-text-dim mb-1';
+const labelCls = 'block text-meta font-medium text-text-dim mb-1';
 const selectCls =
   'w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-dim';
 const inputCls =
   'w-full rounded border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
-const errCls = 'mt-1 text-[11px] text-red';
+const errCls = 'mt-1 text-meta text-red';
 
 // ── маппинг rule → плоские form-values (обратный) ──
 function fromRule(rule: AutomationRule): RuleFormValues {
@@ -273,7 +273,7 @@ export function RuleEditorModal({
 
           {/* ── Секция 1: Триггер ── */}
           <fieldset className="space-y-2 border-t border-border pt-3">
-            <legend className="text-[11px] font-semibold text-text-dim">Триггер</legend>
+            <legend className="text-meta font-semibold text-text-dim">Триггер</legend>
 
             <div>
               <label htmlFor="trigger-type" className={labelCls}>Когда</label>
@@ -348,7 +348,7 @@ export function RuleEditorModal({
             )}
 
             {triggerType === 'task_overdue' && (
-              <p className="rounded bg-surface2 px-2.5 py-2 text-[11px] text-text-mute">
+              <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
                 Срабатывает, когда дедлайн задачи прошёл, а она не выполнена.
                 Проверяется ежедневно, напоминаем <strong className="text-text-dim">один раз</strong> на задачу.
               </p>
@@ -357,7 +357,7 @@ export function RuleEditorModal({
 
           {/* ── Секция 2: Условия ── */}
           <fieldset className="space-y-2 border-t border-border pt-3">
-            <legend className="text-[11px] font-semibold text-text-dim">Условия</legend>
+            <legend className="text-meta font-semibold text-text-dim">Условия</legend>
             <p className="text-xs text-text-mute">
               Все условия должны выполняться (И). Пусто — срабатывает всегда.
               Операторы <code className="rounded bg-surface2 px-1">{'>'}</code>/
@@ -380,7 +380,7 @@ export function RuleEditorModal({
             <button
               type="button"
               onClick={() => append({ field: fieldOptions[0].value, op: 'eq', value: '' })}
-              className="flex items-center gap-1 rounded border border-border px-2.5 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface2"
+              className="flex items-center gap-1 rounded border border-border px-2.5 py-1 text-meta text-text-dim transition-colors hover:bg-surface2"
             >
               <Plus size={12} /> условие
             </button>
@@ -388,7 +388,7 @@ export function RuleEditorModal({
 
           {/* ── Секция 3: Действие ── */}
           <fieldset className="space-y-2 border-t border-border pt-3">
-            <legend className="text-[11px] font-semibold text-text-dim">Действие</legend>
+            <legend className="text-meta font-semibold text-text-dim">Действие</legend>
 
             <div>
               <label htmlFor="action-type" className={labelCls}>Что сделать</label>
@@ -447,7 +447,7 @@ export function RuleEditorModal({
               <>
                 {/* task_overdue: получатель = исполнитель задачи (движок 051), select скрыт */}
                 {isOverdue ? (
-                  <p className="text-[11px] text-text-mute">Уведомление уйдёт исполнителю задачи.</p>
+                  <p className="text-meta text-text-mute">Уведомление уйдёт исполнителю задачи.</p>
                 ) : (
                   <div>
                     <label htmlFor="a-recipient" className={labelCls}>Получатель</label>

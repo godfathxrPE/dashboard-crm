@@ -728,7 +728,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
               </p>
               <ul className="mt-1.5 space-y-1">
                 {gateBlock.unmet.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[13px] text-text-dim">
+                  <li key={i} className="flex items-start gap-1.5 text-body text-text-dim">
                     <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
                     <span>{r.hint}</span>
                   </li>

@@ -311,7 +311,7 @@ function KpiCards() {
                   className={`text-2xl font-extrabold leading-tight block
                               ${isEmpty ? 'text-text-mute opacity-50' : 'text-text-main'}`}
                 />
-                <div className="text-[11px] text-text-mute leading-tight mt-0.5" title={c.label}>
+                <div className="text-meta text-text-mute leading-tight mt-0.5" title={c.label}>
                   {wm.short}
                 </div>
                 {'trend' in c && c.trend != null && <TrendBadge delta={c.trend} />}
@@ -343,7 +343,7 @@ function KpiCards() {
             {/* Delta / контекст */}
             {'trend' in c && c.trend != null
               ? <div className="mt-0.5"><TrendBadge delta={c.trend} /></div>
-              : c.sub && <div className="mt-0.5 text-[11px] text-text-mute leading-tight truncate">{c.sub}</div>}
+              : c.sub && <div className="mt-0.5 text-meta text-text-mute leading-tight truncate">{c.sub}</div>}
           </a>
         );
       })}
@@ -494,7 +494,7 @@ function RecentActivityList() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-2.5 py-1.5 text-[11px] transition-colors -mb-px ${
+            className={`px-2.5 py-1.5 text-meta transition-colors -mb-px ${
               activeTab === tab.key
                 ? 'text-accent border-b-2 border-accent font-medium'
                 : 'text-text-dim hover:text-text-main'

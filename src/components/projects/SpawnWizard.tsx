@@ -200,7 +200,7 @@ export function SpawnWizard({
             label="Руководитель проекта"
             placeholder="Владелец сделки (по умолчанию)"
           />
-          <p className="mt-1 text-[11px] text-text-mute">
+          <p className="mt-1 text-meta text-text-mute">
             По умолчанию — владелец сделки. Можно назначить другого члена организации.
           </p>
         </div>

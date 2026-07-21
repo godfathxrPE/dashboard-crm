@@ -314,7 +314,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
               const timeEl = (
                 <span
                   title={MSK_FULL_FMT.format(created)}
-                  className="mt-0.5 self-end whitespace-nowrap text-[11px] leading-none tabular-nums text-[color:var(--chat-time,var(--text-dim))]"
+                  className="mt-0.5 self-end whitespace-nowrap text-meta leading-none tabular-nums text-[color:var(--chat-time,var(--text-dim))]"
                 >
                   {MSK_TIME_FMT.format(created)}
                   {m.edited_at && <span className="italic"> · изм.</span>}
@@ -368,7 +368,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                       title={r.users.map((u) => u.name).join(', ')}
                       aria-pressed={r.mine}
                       aria-label={`${r.emoji} ${r.count}`}
-                      className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] leading-none tabular-nums transition-colors ${
+                      className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-meta leading-none tabular-nums transition-colors ${
                         r.mine
                           ? 'border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-[color:var(--chat-own-fg,var(--text))]'
                           : 'border-border bg-surface2 text-text-dim hover:text-text-main'
@@ -420,7 +420,7 @@ export function ProjectChat({ projectId }: ProjectChatProps) {
                   {newDay && (
                     // День-чип — обычный текст в потоке (НЕ aria-hidden), aria-live озвучит
                     <div className="my-3 flex justify-center">
-                      <span className="rounded-full border border-border/60 bg-surface px-2.5 py-0.5 text-[11px] text-text-mute">
+                      <span className="rounded-full border border-border/60 bg-surface px-2.5 py-0.5 text-meta text-text-mute">
                         {dayChipLabel(dayKey, todayKey)}
                       </span>
                     </div>

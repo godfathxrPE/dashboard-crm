@@ -33,7 +33,7 @@ function MilestoneList({ items }: { items: OpenMilestone[] }) {
   return (
     <ul className="space-y-1.5">
       {items.map((m) => (
-        <li key={m.id} className="flex items-center gap-2 text-[13px]">
+        <li key={m.id} className="flex items-center gap-2 text-body">
           <span className="min-w-0 flex-1 truncate text-text-main">
             {m.phase && <span className="text-text-mute">{m.phase} · </span>}
             {m.text}
@@ -123,7 +123,7 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
               <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-text-main">Завершение заблокировано</p>
-                <p className="mt-0.5 mb-1.5 text-[13px] text-text-dim">
+                <p className="mt-0.5 mb-1.5 text-body text-text-dim">
                   Вехи переоткрыты — закройте их и повторите:
                 </p>
                 <MilestoneList items={gateError} />
@@ -138,7 +138,7 @@ export function DeliveryCompletionModal({ project, onClose }: DeliveryCompletion
             <Loader2 size={14} className="animate-spin" /> Проверяем вехи…
           </div>
         ) : gate.isError ? (
-          <div role="alert" className="mb-4 rounded-lg border border-red/40 bg-red/5 p-3 text-[13px] text-red">
+          <div role="alert" className="mb-4 rounded-lg border border-red/40 bg-red/5 p-3 text-body text-red">
             Не удалось проверить вехи проекта
           </div>
         ) : ready ? (

@@ -116,7 +116,7 @@ export function NotificationBell() {
             {unread > 0 && (
               <button
                 onClick={() => markAllRead.mutate()}
-                className="flex items-center gap-1 text-[11px] text-accent hover:underline"
+                className="flex items-center gap-1 text-meta text-accent hover:underline"
               >
                 <Check size={11} /> Прочитать все
               </button>
@@ -147,7 +147,7 @@ export function NotificationBell() {
                     >
                       {payloadTitle(n)}
                     </span>
-                    <span className="block text-[11px] text-text-mute">
+                    <span className="block text-meta text-text-mute">
                       {TYPE_LABEL[n.type]} · {relativeTime(n.created_at)}
                     </span>
                   </span>

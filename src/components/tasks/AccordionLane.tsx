@@ -78,7 +78,7 @@ export function AccordionLane({
             isOpen && 'rotate-90',
           )}
         />
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-mute">
+        <span className="text-meta font-semibold uppercase tracking-wide text-text-mute">
           {config.label}
         </span>
         <span className="ml-auto flex items-center gap-1.5">

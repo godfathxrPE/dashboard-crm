@@ -78,7 +78,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
             }}
           />
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
           <span className="flex items-center gap-1">
             <span className="text-text-dim">Дата:</span>
             <InlineEdit
@@ -116,7 +116,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
           <Pin size={12} />
           Закреплено
         </div>
-        <div className="text-[13px] leading-relaxed">
+        <div className="text-body leading-relaxed">
           <InlineEdit
             as="textarea"
             value={project.pinned_note ?? ''}

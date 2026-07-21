@@ -151,7 +151,7 @@ export function TextNavSidebar() {
           <>
             {/* Aura без иконок: вертикальный лейбл (nav-ico скрыт CSS) */}
             <span
-              className="nav-vlabel text-[11px]"
+              className="nav-vlabel text-meta"
               style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
             >{item.label}</span>
             {badge > 0 && (
@@ -179,7 +179,7 @@ export function TextNavSidebar() {
         </div>
         {sidebarOpen && (
           <div className="min-w-0">
-            <div className="text-[13px] font-medium text-text-main truncate">Torii CRM</div>
+            <div className="text-body font-medium text-text-main truncate">Torii CRM</div>
           </div>
         )}
       </div>

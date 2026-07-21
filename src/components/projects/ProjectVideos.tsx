@@ -73,7 +73,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
           <button
             onClick={() => setAdding((v) => !v)}
             className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                       text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                       text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
           >
             {adding ? <X size={12} /> : <Plus size={12} />}
             {adding ? 'Отмена' : 'Видео'}
@@ -99,7 +99,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
           />
           {draftParsed && (
             <div className="flex flex-col gap-2">
-              <span className="text-[11px] text-text-mute">
+              <span className="text-meta text-text-mute">
                 {draftParsed.embedUrl
                   ? `Провайдер: ${PROVIDER_LABELS[draftParsed.provider]} — будет встроен плеер`
                   : 'Плеер для этой ссылки не поддерживается — добавится кликабельной ссылкой'}
@@ -122,7 +122,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
           <button
             onClick={handleAdd}
             disabled={!url.trim() || addVideo.isPending}
-            className="self-start rounded-lg bg-accent px-3 py-1.5 text-[11px] font-medium text-white
+            className="self-start rounded-lg bg-accent px-3 py-1.5 text-meta font-medium text-white
                        transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {addVideo.isPending ? 'Добавление...' : 'Добавить'}

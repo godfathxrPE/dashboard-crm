@@ -665,7 +665,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               <p className="text-sm font-medium text-text-main">Переход заблокирован</p>
               <ul className="mt-1.5 space-y-1">
                 {gateBlock.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-[13px] text-text-dim">
+                  <li key={i} className="flex items-start gap-1.5 text-body text-text-dim">
                     <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
                     <span>{r.hint}</span>
                   </li>
@@ -703,7 +703,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
           onClick={() => project.company_id && router.push(`/companies/${project.company_id}`)}
         >
-          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Building2 size={11} /> Компания</div>
+          <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Building2 size={11} /> Компания</div>
           <div className={`text-base font-medium ${project.company ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
             {project.company?.name ?? '—'}
           </div>
@@ -714,7 +714,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
           onClick={() => project.contact_id && router.push(`/contacts/${project.contact_id}`)}
         >
-          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><User size={11} /> Контакт</div>
+          <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><User size={11} /> Контакт</div>
           <div className={`text-base font-medium ${project.contact ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
             {project.contact ? `${project.contact.first_name} ${project.contact.last_name}` : '—'}
           </div>
@@ -726,7 +726,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
             onClick={() => project.parent_deal_id && router.push(`/deals/${project.parent_deal_id}`)}
           >
-            <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Rocket size={11} /> Сделка</div>
+            <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Rocket size={11} /> Сделка</div>
             <div className={`truncate text-base font-medium ${project.parent_deal_id ? 'text-accent group-hover:underline' : 'text-text-mute'}`}>
               {parentDeal?.name ?? (project.parent_deal_id ? '…' : '—')}
             </div>
@@ -734,7 +734,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         ) : (
           /* Budget — inline edit */
           <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-            <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Banknote size={11} /> Бюджет</div>
+            <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Banknote size={11} /> Бюджет</div>
             <InlineEdit
               value={project.budget ? String(project.budget) : ''}
               type="number"
@@ -750,7 +750,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
         {/* Deadline — inline edit */}
         <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-          <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim"><Calendar size={11} /> Дедлайн</div>
+          <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Calendar size={11} /> Дедлайн</div>
           <InlineEdit
             value={project.deadline ?? ''}
             type="date"
@@ -790,7 +790,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         >
           <ChevronRight size={15} className={cn('shrink-0 text-text-mute transition-transform', showMaterials && 'rotate-90')} />
           <span className="text-xs font-semibold uppercase tracking-wide text-text-mute">Материалы проекта</span>
-          <span className="ml-auto text-[11px] text-text-mute">1С:ДО · заметки · файлы · видео</span>
+          <span className="ml-auto text-meta text-text-mute">1С:ДО · заметки · файлы · видео</span>
         </button>
         {showMaterials && (
           <div className="mt-3 space-y-4">
@@ -798,7 +798,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             {isDelivery && (
               <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
                 <Link2 size={13} className="shrink-0 text-text-dim" />
-                <span className="shrink-0 text-[13px] text-text-dim">1С:ДО</span>
+                <span className="shrink-0 text-body text-text-dim">1С:ДО</span>
                 <div className="min-w-0 flex-1">
                   <InlineEdit
                     value={project.do_url ?? ''}
@@ -833,7 +833,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                   <StickyNote size={14} className="text-text-dim" /> Заметки проекта
                 </div>
                 {canManage ? (
-                  <div className="text-[13px] leading-relaxed">
+                  <div className="text-body leading-relaxed">
                     <InlineEdit
                       as="textarea"
                       value={project.pinned_note ?? ''}
@@ -844,7 +844,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                     />
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-text-main">
+                  <p className="whitespace-pre-wrap text-body leading-relaxed text-text-main">
                     {project.pinned_note || <span className="text-text-mute">Заметок пока нет</span>}
                   </p>
                 )}
@@ -933,19 +933,19 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           <div className="flex flex-wrap gap-1">
             <button
               onClick={() => { setEditingTask(null); setTaskModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
             >
               <Plus size={12} /> Задача
             </button>
             <button
               onClick={() => { setEditingCall(null); setCallModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
             >
               <Plus size={12} /> Звонок
             </button>
             <button
               onClick={() => { setEditingMeeting(null); setMeetingModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
             >
               <Plus size={12} /> Встреча
             </button>
@@ -1022,7 +1022,7 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
-      <div className="mb-1 flex items-center gap-1 text-[13px] text-text-dim">
+      <div className="mb-1 flex items-center gap-1 text-body text-text-dim">
         <Icon size={11} />
         {label}
       </div>

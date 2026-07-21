@@ -77,7 +77,7 @@ export function PortfolioView() {
       render: (r) => (
         <div className="flex items-center gap-1.5">
           <DeliveryHealthDot health={r.health} />
-          <span className="text-[11px] tabular-nums text-text-mute">{r.health.score}</span>
+          <span className="text-meta tabular-nums text-text-mute">{r.health.score}</span>
         </div>
       ),
     },
@@ -181,7 +181,7 @@ export function PortfolioView() {
       render: (r) =>
         r.health.reasons.length ? (
           <span
-            className="block max-w-[220px] truncate text-[11px] text-text-mute"
+            className="block max-w-[220px] truncate text-meta text-text-mute"
             title={r.health.reasons.join('; ')}
           >
             {r.health.reasons.join('; ')}
@@ -265,7 +265,7 @@ export function PortfolioView() {
             className="min-w-[130px] flex-1 rounded-lg border border-border bg-surface px-3 py-2"
           >
             <div
-              className="text-[11px] font-medium"
+              className="text-meta font-medium"
               style={{ color: DELIVERY_PHASE_TEXT[phase] ?? 'var(--text-mute)' }}
             >
               {DELIVERY_PHASE_LABELS[phase]}

@@ -88,7 +88,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
                 </p>
               </div>
               {role && (
-                <span className="ml-auto shrink-0 rounded-full border border-border bg-surface2 px-2.5 py-1 text-[11px] font-medium text-text-dim">
+                <span className="ml-auto shrink-0 rounded-full border border-border bg-surface2 px-2.5 py-1 text-meta font-medium text-text-dim">
                   {ORG_ROLE_LABEL[role]}
                 </span>
               )}

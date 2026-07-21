@@ -94,7 +94,7 @@ export function WonDeals({ projects }: { projects: Project[] }) {
                   <button
                     onClick={() => router.push(`/deals/${project.id}`)}
                     className="flex shrink-0 items-center gap-1 rounded border border-accent/40
-                               px-2 py-1 text-[11px] font-medium text-accent
+                               px-2 py-1 text-meta font-medium text-accent
                                transition-colors hover:bg-accent-l"
                   >
                     <Rocket size={11} /> Проект внедрения

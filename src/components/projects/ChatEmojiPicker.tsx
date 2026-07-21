@@ -105,7 +105,7 @@ export function ChatEmojiPicker({ onPick, onClose, anchorRef }: ChatEmojiPickerP
     >
       {EMOJI_CATEGORIES.map((cat) => (
         <div key={cat.key} className="mb-1.5 last:mb-0">
-          <div className="px-1 pb-0.5 pt-1 text-[11px] font-medium text-text-mute">{cat.label}</div>
+          <div className="px-1 pb-0.5 pt-1 text-meta font-medium text-text-mute">{cat.label}</div>
           <div className="grid grid-cols-8">
             {cat.emojis.map((emoji) => (
               <button

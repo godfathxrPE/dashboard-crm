@@ -91,13 +91,13 @@ export function ProjectTeam({
   return (
     <div className="mb-6 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-1 text-[13px] text-text-dim">
+        <div className="flex items-center gap-1 text-body text-text-dim">
           <Users size={11} /> Команда
         </div>
         {canManage && !adding && (
           <button
             onClick={() => { setErrorText(null); setAdding(true); }}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim
                        transition-colors hover:bg-surface-hover hover:text-text-main"
           >
             <Plus size={12} /> Добавить
@@ -138,7 +138,7 @@ export function ProjectTeam({
                             { onError: (err) => setErrorText(parseMemberError(err)) },
                           );
                         }}
-                        className="rounded border border-input bg-surface px-1.5 py-0.5 text-[11px] text-text-dim
+                        className="rounded border border-input bg-surface px-1.5 py-0.5 text-meta text-text-dim
                                    focus:border-accent focus:outline-none"
                       >
                         {/* легаси-роль вне категории — в начало, чтобы не потерять текущее значение */}

@@ -44,7 +44,7 @@ export function PortfolioRiskWidget() {
         </span>
         <Link
           href="/projects?tab=portfolio"
-          className="ml-auto flex items-center gap-1 text-[11px] text-accent hover:underline"
+          className="ml-auto flex items-center gap-1 text-meta text-accent hover:underline"
         >
           Портфель <ArrowRight size={12} />
         </Link>
@@ -64,7 +64,7 @@ export function PortfolioRiskWidget() {
         </div>
         <Link
           href="/projects?tab=portfolio"
-          className="flex items-center gap-1 text-[11px] text-accent hover:underline"
+          className="flex items-center gap-1 text-meta text-accent hover:underline"
         >
           Портфель <ArrowRight size={12} />
         </Link>
@@ -100,7 +100,7 @@ export function PortfolioRiskWidget() {
                 {r.health.reasons[0]}
               </span>
             )}
-            <span className="shrink-0 text-[11px] tabular-nums text-text-mute">
+            <span className="shrink-0 text-meta tabular-nums text-text-mute">
               {r.health.score}
             </span>
           </Link>
@@ -108,7 +108,7 @@ export function PortfolioRiskWidget() {
         {counts.at_risk > TOP_N && (
           <Link
             href="/projects?tab=portfolio"
-            className="block px-2 pt-1 text-[11px] text-accent hover:underline"
+            className="block px-2 pt-1 text-meta text-accent hover:underline"
           >
             ещё {counts.at_risk - TOP_N} →
           </Link>

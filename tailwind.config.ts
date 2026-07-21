@@ -13,6 +13,12 @@ const config: Config = {
         sans: ['var(--font-app)', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
+      fontSize: {
+        // Семантические токены мелкого текста (rem, a11y-scalable). Только размер —
+        // lineHeight намеренно не задан (сохранить текущее наследование, 0 сдвига).
+        meta: '0.6875rem',   // 11px — подписи, мета, второстепенное
+        body: '0.8125rem',   // 13px — осознанный body примитивов (Card/Table/Button/Input)
+      },
       colors: {
         bg: 'var(--bg)',
         surface: 'var(--surface)',

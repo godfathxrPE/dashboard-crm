@@ -36,7 +36,7 @@ function initials(name: string): string {
 function RoleBadge({ role }: { role: OrgRole | null }) {
   if (!role) return null;
   return (
-    <span className="rounded-full border border-border bg-surface2 px-2.5 py-1 text-[11px] font-medium text-text-dim">
+    <span className="rounded-full border border-border bg-surface2 px-2.5 py-1 text-meta font-medium text-text-dim">
       {ROLE_LABEL[role]}
     </span>
   );
@@ -81,10 +81,10 @@ function MemberRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-text-main">
           {member.full_name || 'Без имени'}
-          {isSelf && <span className="ml-1 text-[11px] text-text-mute">(вы)</span>}
+          {isSelf && <span className="ml-1 text-meta text-text-mute">(вы)</span>}
         </p>
         {member.job_title && (
-          <p className="truncate text-[11px] text-text-dim">{member.job_title}</p>
+          <p className="truncate text-meta text-text-dim">{member.job_title}</p>
         )}
       </div>
 
@@ -97,7 +97,7 @@ function MemberRow({
             updateRole.mutate({ membershipId: member.membership_id!, role: e.target.value as OrgRole })
           }
           disabled={updateRole.isPending}
-          className="rounded border border-input bg-surface px-2 py-1 text-[11px] text-text-dim"
+          className="rounded border border-input bg-surface px-2 py-1 text-meta text-text-dim"
         >
           {options.map((r) => (
             <option key={r} value={r}>
@@ -144,7 +144,7 @@ function InviteForm() {
 
   return (
     <form onSubmit={submit} className="mt-3 space-y-2 border-t border-border pt-3">
-      <p className="text-[11px] font-medium text-text-dim">Пригласить в команду</p>
+      <p className="text-meta font-medium text-text-dim">Пригласить в команду</p>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="email"
@@ -157,7 +157,7 @@ function InviteForm() {
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as InvitableRole)}
-          className="rounded border border-input bg-surface px-2 py-1.5 text-[11px] text-text-dim"
+          className="rounded border border-input bg-surface px-2 py-1.5 text-meta text-text-dim"
         >
           {INVITABLE_ROLES.map((r) => (
             <option key={r} value={r}>
@@ -173,8 +173,8 @@ function InviteForm() {
           <UserPlus size={13} /> Пригласить
         </button>
       </div>
-      {error && <p className="text-[11px] text-red">{error}</p>}
-      <p className="text-[11px] text-text-mute">
+      {error && <p className="text-meta text-red">{error}</p>}
+      <p className="text-meta text-text-mute">
         Скопируйте ссылку из списка ниже и отправьте коллеге — по ней он войдёт и получит
         доступ. Авто-отправка письма появится позже.
       </p>
@@ -197,7 +197,7 @@ function PendingInvites() {
 
   return (
     <div className="mt-3 space-y-1 border-t border-border pt-3">
-      <p className="text-[11px] font-medium text-text-dim">Ожидают регистрации</p>
+      <p className="text-meta font-medium text-text-dim">Ожидают регистрации</p>
       {invites.map((inv) => (
         <div key={inv.id} className="flex items-center gap-2 py-1">
           <span className="min-w-0 flex-1 truncate text-sm text-text-main">{inv.email}</span>

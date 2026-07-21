@@ -151,7 +151,7 @@ function InviteInner() {
         </div>
       )}
 
-      <p className="text-center text-[11px] text-text-mute">Torii CRM · v4.0</p>
+      <p className="text-center text-meta text-text-mute">Torii CRM · v4.0</p>
     </div>
   );
 }

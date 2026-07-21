@@ -57,7 +57,7 @@ export const CardBody = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPara
     return (
       <p
         ref={ref}
-        className={cn('text-text-dim text-[0.8125rem]', className)}
+        className={cn('text-text-dim text-body', className)}
         {...props}
       >
         {children}

@@ -9,7 +9,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const sizeStyles: Record<InputSize, string> = {
-  md: 'h-9 px-3 py-2 text-[0.8125rem]',
+  md: 'h-9 px-3 py-2 text-body',
   sm: 'h-[30px] px-2 py-1.5 text-xs',
 };
 

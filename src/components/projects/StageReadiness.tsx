@@ -72,7 +72,7 @@ export function StageReadiness({ project }: { project: Project }) {
         {stageReqs.map((req) => {
           const met = !unmetKeys.has(reqKey(req.requirement_type, req.config));
           return (
-            <li key={req.id} className="flex items-start gap-2 text-[13px]">
+            <li key={req.id} className="flex items-start gap-2 text-body">
               {met ? (
                 <Check size={14} className="mt-0.5 shrink-0 text-green" />
               ) : (

@@ -117,7 +117,7 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
       <div className="flex-1 min-w-0">
         <p
           className={cn(
-            'text-[0.8125rem] leading-[1.4] text-text-main',
+            'text-body leading-[1.4] text-text-main',
             isDone && 'line-through text-text-mute',
           )}
         >

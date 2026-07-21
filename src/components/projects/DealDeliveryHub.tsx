@@ -138,7 +138,7 @@ function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; 
         >
           {d.name}
         </Link>
-        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-text-dim">
+        <div className="mt-0.5 flex items-center gap-1.5 text-meta text-text-dim">
           <span>{phase}</span>
           {d.delivery_kind && (
             <>
@@ -163,12 +163,12 @@ function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; 
             >
               <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
             </div>
-            <span className="shrink-0 text-[11px] tabular-nums text-text-dim">
+            <span className="shrink-0 text-meta tabular-nums text-text-dim">
               {d.progress_done}/{d.progress_total}
             </span>
           </>
         ) : (
-          <span className="ml-auto text-[11px] tabular-nums text-text-mute">—</span>
+          <span className="ml-auto text-meta tabular-nums text-text-mute">—</span>
         )}
       </div>
 

@@ -11,7 +11,7 @@ export const Table = forwardRef<HTMLTableElement, HTMLAttributes<HTMLTableElemen
     return (
       <table
         ref={ref}
-        className={cn('w-full text-[0.8125rem]', className)}
+        className={cn('w-full text-body', className)}
         {...props}
       >
         {children}

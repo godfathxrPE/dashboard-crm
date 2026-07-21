@@ -77,7 +77,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
         {canEditQuotes && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
           >
             <Plus size={12} /> КП
           </button>
@@ -128,7 +128,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
           {canEditQuotes && (
             <button
               onClick={openCreate}
-              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
             >
               <Plus size={12} /> КП
             </button>
@@ -158,7 +158,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                   {formatBudget(q.amount)}
                 </span>
 
-                <div className="flex-1 truncate text-[11px] text-text-mute">
+                <div className="flex-1 truncate text-meta text-text-mute">
                   {q.valid_until && <span>до {formatDateShort(q.valid_until)}</span>}
                   {q.valid_until && q.notes && <span> · </span>}
                   {q.notes && <span className="truncate">{q.notes}</span>}
