@@ -104,8 +104,10 @@ export function ContactsTable() {
             {comps.map((cc) => (
               <span key={cc.company_id}
                 className="inline-flex items-center gap-0.5 rounded bg-surface2 border border-border px-1.5 py-0.5 text-xs text-text-dim">
-                <Building2 size={9} />
-                {cc.company?.name ?? 'N/A'}
+                <Building2 size={9} className="shrink-0" />
+                <span className="inline-block max-w-[140px] truncate align-bottom" title={cc.company?.name ?? undefined}>
+                  {cc.company?.name ?? 'N/A'}
+                </span>
                 {cc.role && <span className="text-text-mute"> · {cc.role}</span>}
               </span>
             ))}

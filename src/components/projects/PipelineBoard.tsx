@@ -62,13 +62,6 @@ const PHASE_LABELS: Record<string, string> = {
   closing: 'Закрытие',
 };
 
-const PHASE_TINT_COLOR: Record<string, string> = {
-  attraction: 'var(--track-prep-current)',
-  working: 'var(--track-exp-current)',
-  approval: 'var(--track-nego-current, var(--track-exp-current))',
-  closing: 'var(--track-proj-current)',
-};
-
 // Точка-маркер заголовка — track-current (заливка-цвет).
 const PHASE_HEADER_COLOR: Record<string, string> = {
   attraction: 'var(--track-prep-current)',
@@ -219,7 +212,8 @@ function PhaseColumn({
   const wk = isWashi ? WASHI_PHASE_KANJI[column.id] : null;
   const headerColor = PHASE_HEADER_COLOR[column.id] ?? 'var(--accent)';
   const headerTextColor = PHASE_HEADER_TEXT[column.id] ?? 'var(--accent-text, var(--accent))';
-  const tintColor = PHASE_TINT_COLOR[column.id] ?? 'var(--accent)';
+  // F-14: фон колонки нейтрален (зона данных не размыта фазовым цветом); цвет живёт на точке-маркере.
+  const tintColor = 'var(--surface2)';
 
   return (
     <div

@@ -67,6 +67,7 @@ export function DeadlineRadar() {
     if (diffDays === 1) return { label: 'Завтра', color: 'text-yellow' };
     if (diffDays <= 3) return { label: `Через ${diffDays}д`, color: 'text-yellow' };
     if (diffDays <= 7) return { label: `Через ${diffDays}д`, color: 'text-blue' };
+    if (diffDays > 90) return { label: '>90д', color: 'text-text-mute' }; // F-16: капнуть дальние
     return { label: `Через ${diffDays}д`, color: 'text-text-mute' };
   }
 

@@ -58,6 +58,7 @@ function deadlineUrgency(date: string): { label: string; color: string } {
   if (days <= 3) return { label: `Через ${days}д`, color: 'text-red' };
   if (days <= 14) return { label: `Через ${days}д`, color: 'text-yellow' };
   if (days <= 30) return { label: `Через ${days}д`, color: 'text-yellow' };
+  if (days > 90) return { label: '>90д', color: 'text-green' }; // F-16: капнуть дальние (не «Через 389д»)
   return { label: `Через ${days}д`, color: 'text-green' };
 }
 
@@ -265,7 +266,7 @@ function KpiCards() {
               <AnimatedNumber
                 value={c.num}
                 formatFn={c.fmt}
-                className="mt-1 text-3xl font-bold leading-none block relative z-[1] text-text-main"
+                className="mt-1 text-3xl font-bold tabular-nums leading-none block relative z-[1] text-text-main"
               />
               {/* Trend */}
               {'trend' in c && c.trend != null && (
