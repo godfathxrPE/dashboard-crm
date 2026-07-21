@@ -192,6 +192,7 @@ export function ProjectCard({
                   const d = Math.ceil((new Date(project.deadline!).getTime() - Date.now()) / 86400000);
                   if (d < 0) return `${Math.abs(d)}д просрочено`;
                   if (d === 0) return 'Сегодня';
+                  if (d > 90) return '>90д'; // F-16: кап дальних сроков (симметрично deadlineUrgency)
                   return `${d}д`;
                 })()}
               </span>
