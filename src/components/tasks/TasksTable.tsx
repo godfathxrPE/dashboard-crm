@@ -11,7 +11,7 @@ import { PRIORITY_CONFIG } from '@/lib/validators/task';
 import {
   taskDateBucket,
   daysOverdue,
-  BUCKET_ORDER,
+  groupByBucket,
   BUCKET_LABELS,
 } from '@/lib/utils/task-view';
 import type { Task } from '@/types/entities';
@@ -70,9 +70,10 @@ interface TasksTableProps {
 
 /**
  * S-TASKS-RESTRUCTURE-1: второй вид «Таблица» на shared/DataTable (j/k + peek
- * бесплатно). Строки предварительно отсортированы по бакету дедлайна (порядок
- * BUCKET_ORDER), внутри — по возрастанию срока; бакет показан меткой в колонке
- * «Срок». Колонки несортируемы, чтобы сохранить группировку.
+ * бесплатно). Строки берутся из единого groupByBucket (порядок групп + сортировка
+ * внутри бакета 1:1 со Списком — S-TASKS-POLISH-1); бакет показан меткой в колонке
+ * «Срок». Колонки несортируемы, чтобы сохранить группировку. Поиск поднят в
+ * TasksView (общий на оба вида) — внутренний поиск DataTable скрыт.
  */
 export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
   const { data: members } = useTeamMembers();
@@ -81,18 +82,12 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
     [members],
   );
 
-  const sorted = useMemo(() => {
-    const order = new Map(BUCKET_ORDER.map((b, i) => [b, i]));
-    return [...tasks].sort((a, b) => {
-      const ba = order.get(taskDateBucket(a, now)) ?? 99;
-      const bb = order.get(taskDateBucket(b, now)) ?? 99;
-      if (ba !== bb) return ba - bb;
-      // внутри бакета — по возрастанию срока (без даты — в конец)
-      const da = a.deadline ?? '￿';
-      const db = b.deadline ?? '￿';
-      return da < db ? -1 : da > db ? 1 : 0;
-    });
-  }, [tasks, now]);
+  // Единый источник порядка: тот же groupByBucket, что и в TaskStream (List),
+  // развёрнутый в плоский список. Гарантирует идентичную сортировку в двух видах.
+  const sorted = useMemo(
+    () => groupByBucket(tasks, now).flatMap((g) => g.tasks),
+    [tasks, now],
+  );
 
   const columns: Column<Task>[] = useMemo(
     () => [
@@ -184,7 +179,7 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
       columns={columns}
       keyField="id"
       onRowClick={onEdit}
-      searchPlaceholder="Поиск задач…"
+      hideSearch
       emptyMessage="Задач нет"
       peek={(t) => ({
         title: t.text,

@@ -30,9 +30,12 @@ interface TaskStreamRowProps {
   isOverdue: boolean;
   onEdit: (task: Task) => void;
   canEdit: boolean;
+  /** Позиция в плоской очереди для j/k (S-TASKS-POLISH-1, з.4 — паттерн QueueRow/W2d). */
+  kbdIndex?: number;
+  focused?: boolean;
 }
 
-export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit }: TaskStreamRowProps) {
+export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex, focused }: TaskStreamRowProps) {
   const updateTask = useUpdateTask();
   const done = task.lane === 'done';
   const href = projectHref(task);
@@ -53,8 +56,12 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit }: TaskStr
   return (
     <div
       onClick={() => onEdit(task)}
-      className="group/row flex items-center gap-3 rounded-lg border border-transparent px-2 py-2
-                 transition-colors hover:border-border/60 hover:bg-surface2/50 cursor-pointer"
+      data-row-index={kbdIndex}
+      aria-selected={focused}
+      className={cn(
+        'group/row flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 cursor-pointer transition-colors',
+        focused ? 'kbd-focus-row' : 'hover:border-border/60 hover:bg-surface2/50',
+      )}
     >
       {/* Чекбокс «Готово» */}
       <button
@@ -125,9 +132,14 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit }: TaskStr
         </span>
       )}
 
-      {/* Quick actions на hover */}
+      {/* Quick actions на hover|focus (F-12: не теряются при kbd-навигации) */}
       {canEdit && (
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
+        <div
+          className={cn(
+            'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100',
+            focused && 'opacity-100',
+          )}
+        >
           <button
             type="button"
             onClick={pushToTomorrow}

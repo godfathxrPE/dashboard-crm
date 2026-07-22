@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { LayoutList, Table2, Plus, Loader2, Check } from 'lucide-react';
+import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -10,10 +10,11 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { TaskStream } from './TaskStream';
 import { TasksTable } from './TasksTable';
 import { TaskModal } from './TaskModal';
-import { taskSource, isMine, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
+import { taskSource, isMine, matchesQuery, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
 import type { Task } from '@/types/entities';
 
 const DEFAULT_SOURCES: TaskSource[] = ['deal', 'personal'];
@@ -21,6 +22,8 @@ const DEFAULT_SOURCES: TaskSource[] = ['deal', 'personal'];
 function isSource(v: string): v is TaskSource {
   return (TASK_SOURCES as readonly string[]).includes(v);
 }
+
+type EmptyReason = 'no-source' | 'no-search' | 'no-tasks' | null;
 
 export function TasksView() {
   const router = useRouter();
@@ -35,6 +38,9 @@ export function TasksView() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  // Поиск — общий на оба вида (S-TASKS-POLISH-1, з.3). Локальный стейт, НЕ в URL
+  // (learnings: q в URL сознательно не переносим — blast radius).
+  const [query, setQuery] = useState('');
 
   // ─── URL-состояние ───
   const view: 'stream' | 'table' = searchParams.get('view') === 'table' ? 'table' : 'stream';
@@ -102,6 +108,21 @@ export function TasksView() {
     const bySource = all.filter((t) => activeSources.includes(taskSource(t)));
     return doneModeOf(mineOf(bySource));
   }, [all, activeSources, mineOf, doneModeOf]);
+
+  // + поиск (общий шаг для обоих видов, з.3)
+  const queried = useMemo(
+    () => (query.trim() ? visible.filter((t) => matchesQuery(t, query)) : visible),
+    [visible, query],
+  );
+
+  // Причина пустого результата — определяет, какой empty-state показать (з.2).
+  // Порядок важен: пустой источник первичнее пустого поиска.
+  const emptyReason: EmptyReason = useMemo(() => {
+    if (activeSources.length === 0) return 'no-source';
+    if (queried.length > 0) return null;
+    if (query.trim()) return 'no-search';
+    return 'no-tasks';
+  }, [activeSources, queried, query]);
 
   // Счётчики: каждый — по набору, отфильтрованному всем, КРОМЕ своей оси
   const sourceOptions: ChipOption[] = useMemo(() => {
@@ -241,6 +262,20 @@ export function TasksView() {
         <SavedViewChips />
       </div>
 
+      {/* Поиск — паритет Список/Таблица (S-TASKS-POLISH-1, з.3) */}
+      <div className="relative mb-3 max-w-sm">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-mute" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск задач…"
+          className="w-full rounded-lg border border-input bg-surface py-1.5 pl-8 pr-3
+                     text-sm text-text-main placeholder:text-text-mute
+                     focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        />
+      </div>
+
       {/* Подпись про скрытые WBS-задачи проектов */}
       {!activeSources.includes('project') && (
         <p className="mb-3 text-xs text-text-mute">
@@ -252,10 +287,19 @@ export function TasksView() {
       )}
 
       {/* Контент */}
-      {view === 'table' ? (
-        <TasksTable tasks={visible} now={now} onEdit={openEdit} canEdit={canEdit} />
+      {emptyReason ? (
+        <TasksEmptyState
+          reason={emptyReason}
+          query={query}
+          showDone={showDone}
+          canEdit={canEdit}
+          onClearQuery={() => setQuery('')}
+          onCreateTask={openCreate}
+        />
+      ) : view === 'table' ? (
+        <TasksTable tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} />
       ) : (
-        <TaskStream tasks={visible} now={now} onEdit={openEdit} canEdit={canEdit} />
+        <TaskStream tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} modalOpen={modalOpen} />
       )}
 
       <TaskModal
@@ -264,5 +308,58 @@ export function TasksView() {
         editTask={editTask}
       />
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Пустые состояния (S-TASKS-POLISH-1, з.2) — общие для Списка и Таблицы,
+// на общем EmptyState-примитиве (см. TodayView-паттерн). Три причины,
+// проверяются в порядке приоритета: пустой источник → пустой поиск → нет задач.
+
+interface TasksEmptyStateProps {
+  reason: EmptyReason;
+  query: string;
+  showDone: boolean;
+  canEdit: boolean;
+  onClearQuery: () => void;
+  onCreateTask: () => void;
+}
+
+function TasksEmptyState({ reason, query, showDone, canEdit, onClearQuery, onCreateTask }: TasksEmptyStateProps) {
+  if (reason === 'no-source') {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-8">
+        <EmptyState
+          icon={<Filter size={24} />}
+          title="Ничего не выбрано"
+          description="Включи хотя бы один источник — Сделки, Проекты или Личное — в чипах выше."
+        />
+      </div>
+    );
+  }
+
+  if (reason === 'no-search') {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-8">
+        <EmptyState
+          icon={<SearchX size={24} />}
+          title="Ничего не найдено"
+          description={`По запросу «${query.trim()}» задач нет.`}
+          action={{ label: 'Очистить поиск', onClick: onClearQuery }}
+        />
+      </div>
+    );
+  }
+
+  // reason === 'no-tasks'
+  return (
+    <div className="rounded-xl border border-dashed border-border py-8">
+      <EmptyState
+        icon={<ListChecks size={24} />}
+        title={showDone ? 'Выполненных нет' : 'Задач нет — чисто'}
+        description={showDone ? 'В этом наборе ещё нет выполненных задач.' : 'Всё разобрано либо ещё не заведено.'}
+        action={!showDone && canEdit ? { label: 'Задача', onClick: onCreateTask } : undefined}
+      />
+    </div>
   );
 }

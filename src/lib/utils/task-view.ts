@@ -93,7 +93,21 @@ export function daysOverdue(task: Task, now: Date): number {
   return diff > 0 ? diff : 0;
 }
 
-/** Группировка задач по бакетам в порядке BUCKET_ORDER; пустые бакеты опущены. */
+// ─── Единый компаратор внутри бакета ────────────────────────────────────────
+// ЕДИНСТВЕННЫЙ источник порядка строк для Списка И Таблицы — иначе overdue
+// сортируется по-разному (List брал порядок выборки, Table — свой sort).
+// overdue/будущее → дедлайн ASC: в «Просрочено» старейшая (= самая просроченная)
+// сверху; в будущих бакетах ближайший срок сверху. no_date → порядок как пришёл
+// (created_at-порядок выборки) — там дат нет, сортировать нечем.
+export function compareInBucket(a: Task, b: Task, bucket: DateBucket): number {
+  if (bucket === 'no_date') return 0;
+  const da = a.deadline ? Date.parse(a.deadline) : Infinity;
+  const db = b.deadline ? Date.parse(b.deadline) : Infinity;
+  return da - db;
+}
+
+/** Группировка задач по бакетам в порядке BUCKET_ORDER; пустые бакеты опущены.
+ *  Внутри бакета — единый compareInBucket (Список и Таблица берут этот результат). */
 export function groupByBucket(
   tasks: Task[],
   now: Date,
@@ -103,5 +117,20 @@ export function groupByBucket(
     const b = taskDateBucket(t, now);
     (map.get(b) ?? map.set(b, []).get(b)!).push(t);
   }
-  return BUCKET_ORDER.filter((b) => map.has(b)).map((b) => ({ bucket: b, tasks: map.get(b)! }));
+  return BUCKET_ORDER.filter((b) => map.has(b)).map((b) => ({
+    bucket: b,
+    tasks: map.get(b)!.sort((x, y) => compareInBucket(x, y, b)),
+  }));
+}
+
+// ─── Текстовый поиск по задаче ──────────────────────────────────────────────
+// Плоский регистронезависимый матч по тексту + имени связанной сделки/проекта/
+// компании. Пустой запрос — матч всех. q — сырой ввод (пробелы допустимы).
+export function matchesQuery(task: Task, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  if (task.text.toLowerCase().includes(needle)) return true;
+  if (task.project?.name?.toLowerCase().includes(needle)) return true;
+  if (task.company?.name?.toLowerCase().includes(needle)) return true;
+  return false;
 }
