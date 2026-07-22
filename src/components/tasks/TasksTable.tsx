@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, Repeat } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
@@ -101,8 +101,16 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
         key: 'text',
         label: 'Задача',
         render: (t) => (
-          <span className={cn('text-sm', t.lane === 'done' ? 'text-text-mute line-through' : 'text-text-main')}>
-            {t.text}
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <span className={cn('truncate text-sm', t.lane === 'done' ? 'text-text-mute line-through' : 'text-text-main')}>
+              {t.text}
+            </span>
+            {/* S-RECUR-1: бейдж спавненной задачи (069) */}
+            {t.recurrence_template_id && (
+              <span title="Повторяющаяся" className="shrink-0 text-text-mute">
+                <Repeat size={12} aria-label="Повторяющаяся" />
+              </span>
+            )}
           </span>
         ),
         searchValue: (t) => t.text,
