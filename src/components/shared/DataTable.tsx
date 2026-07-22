@@ -41,6 +41,8 @@ interface DataTableProps<T> {
   onRowClick?: (item: T) => void;
   pageSize?: number;
   searchPlaceholder?: string;
+  /** Скрыть встроенную строку поиска (когда поиск поднят в родителя). */
+  hideSearch?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
   selectable?: boolean;
@@ -58,6 +60,7 @@ export function DataTable<T>({
   onRowClick,
   pageSize = 20,
   searchPlaceholder = 'Поиск...',
+  hideSearch = false,
   emptyMessage = 'Нет данных',
   emptyIcon,
   selectable,
@@ -202,24 +205,26 @@ export function DataTable<T>({
       onMouseEnter={() => { activeKbdTable = tableId; }}
     >
       {/* Search bar */}
-      <div className="mb-3 flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-mute" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder={searchPlaceholder}
-            data-search-input
-            className="w-full rounded-lg border border-input bg-surface py-1.5 pl-8 pr-3
-                       text-sm text-text-main placeholder:text-text-mute
-                       focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          />
+      {!hideSearch && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative flex-1 max-w-sm">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-mute" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              data-search-input
+              className="w-full rounded-lg border border-input bg-surface py-1.5 pl-8 pr-3
+                         text-sm text-text-main placeholder:text-text-mute
+                         focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+          </div>
+          <span className="text-xs text-text-mute">
+            {filtered.length} из {data.length}
+          </span>
         </div>
-        <span className="text-xs text-text-mute">
-          {filtered.length} из {data.length}
-        </span>
-      </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-border">
