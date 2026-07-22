@@ -13,6 +13,18 @@ export function taskSource(task: Task): TaskSource {
   return task.project.type === 'client' ? 'deal' : 'project';
 }
 
+// ─── Предикат «Мои» ─────────────────────────────────────────────────────────
+// «Мои» = назначенные мне ИЛИ ничьи, что я создал сам. Неназначенная задача,
+// которую создал я (единственный оператор по сделке), — тоже моя работа; иначе
+// вся просрочка sales-задач (assigned_to=NULL) выпадает из дефолтного Список/Мои.
+// Делегированное другому (assigned_to=чужой) не подхватывается — второе условие
+// требует assigned_to IS NULL. `== null` намеренно ловит и optimistic-undefined.
+export function isMine(task: Task, userId: string | null): boolean {
+  if (!userId) return false;
+  if (task.assigned_to === userId) return true;
+  return task.assigned_to == null && task.created_by === userId;
+}
+
 export const TASK_SOURCES: readonly TaskSource[] = ['deal', 'project', 'personal'];
 
 export const SOURCE_LABELS: Record<TaskSource, string> = {

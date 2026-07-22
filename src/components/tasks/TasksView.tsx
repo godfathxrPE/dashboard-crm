@@ -13,7 +13,7 @@ import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { TaskStream } from './TaskStream';
 import { TasksTable } from './TasksTable';
 import { TaskModal } from './TaskModal';
-import { taskSource, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
+import { taskSource, isMine, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
 import type { Task } from '@/types/entities';
 
 const DEFAULT_SOURCES: TaskSource[] = ['deal', 'personal'];
@@ -89,7 +89,7 @@ export function TasksView() {
   const now = useMemo(() => new Date(), [tasks]);
 
   const mineOf = useCallback(
-    (list: Task[]) => (who === 'mine' ? list.filter((t) => t.assigned_to === currentUserId) : list),
+    (list: Task[]) => (who === 'mine' ? list.filter((t) => isMine(t, currentUserId)) : list),
     [who, currentUserId],
   );
   const doneModeOf = useCallback(
@@ -119,7 +119,7 @@ export function TasksView() {
     const whoScope = mineOf(bySource); // для done-счётчика — в текущем who
     return {
       allCount: scoped.length,
-      mineCount: scoped.filter((t) => t.assigned_to === currentUserId).length,
+      mineCount: scoped.filter((t) => isMine(t, currentUserId)).length,
       doneCount: whoScope.filter((t) => t.lane === 'done').length,
       activeCount: whoScope.filter((t) => t.lane !== 'done').length,
     };
