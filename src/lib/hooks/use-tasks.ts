@@ -225,6 +225,9 @@ export function useCreateTask() {
         // S-WBS-1: иерархия (Task требует поля → optimistic обязан их нести)
         parent_task_id: input.parent_task_id ?? null,
         wbs_code: input.wbs_code ?? null,
+        // S-RECUR-1: линк спавнится только сервером (spawn_recurring_tasks) — у
+        // рукотворных задач всегда null.
+        recurrence_template_id: null,
       };
 
       // Личный борд ['tasks'] — всегда; доска ['tasks','board',pid] отфильтрована

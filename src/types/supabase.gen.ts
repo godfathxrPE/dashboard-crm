@@ -1246,6 +1246,55 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          org_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          org_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          org_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "project_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -1597,56 +1646,6 @@ export type Database = {
           },
         ]
       }
-      message_reactions: {
-        Row: {
-          id: string
-          org_id: string
-          message_id: string
-          user_id: string
-          emoji: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          org_id?: string
-          message_id: string
-          user_id?: string
-          emoji: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          org_id?: string
-          message_id?: string
-          user_id?: string
-          emoji?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "message_reactions_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "project_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_reactions_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      // STOPGAP S-CHAT-2 — заменить regenerated после apply 068 (гейт Cowork)
       project_messages: {
         Row: {
           author_id: string | null
@@ -1998,6 +1997,112 @@ export type Database = {
           },
         ]
       }
+      recurring_task_templates: {
+        Row: {
+          assigned_to: string | null
+          cadence: string
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          lane: Database["public"]["Enums"]["task_lane"]
+          last_spawned_at: string | null
+          monthly_dom: number | null
+          next_run_date: string
+          org_id: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          project_id: string | null
+          text: string
+          updated_at: string
+          weekly_dow: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          cadence: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          lane?: Database["public"]["Enums"]["task_lane"]
+          last_spawned_at?: string | null
+          monthly_dom?: number | null
+          next_run_date: string
+          org_id: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
+          text: string
+          updated_at?: string
+          weekly_dow?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          cadence?: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          lane?: Database["public"]["Enums"]["task_lane"]
+          last_spawned_at?: string | null
+          monthly_dom?: number | null
+          next_run_date?: string
+          org_id?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          project_id?: string | null
+          text?: string
+          updated_at?: string
+          weekly_dow?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_task_templates_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_task_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_task_templates_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_task_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_task_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_task_templates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_calls: {
         Row: {
           company_id: string | null
@@ -2219,6 +2324,7 @@ export type Database = {
           parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          recurrence_template_id: string | null
           remind_min: number | null
           sort_order: number | null
           start_date: string | null
@@ -2242,6 +2348,7 @@ export type Database = {
           parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          recurrence_template_id?: string | null
           remind_min?: number | null
           sort_order?: number | null
           start_date?: string | null
@@ -2265,6 +2372,7 @@ export type Database = {
           parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          recurrence_template_id?: string | null
           remind_min?: number | null
           sort_order?: number | null
           start_date?: string | null
@@ -2327,6 +2435,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_recurrence_template_id_fkey"
+            columns: ["recurrence_template_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_task_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -2497,6 +2612,15 @@ export type Database = {
         Returns: undefined
       }
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
+      rtt_next_occurrence: {
+        Args: {
+          p_cadence: string
+          p_dom: number
+          p_dow: number
+          p_from: string
+        }
+        Returns: string
+      }
       run_overdue_automations: { Args: never; Returns: undefined }
       session_gate: { Args: never; Returns: Json }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
@@ -2509,6 +2633,7 @@ export type Database = {
         }
         Returns: string
       }
+      spawn_recurring_tasks: { Args: never; Returns: undefined }
       wf_eval_conditions: {
         Args: { p_conds: Json; p_row: Json }
         Returns: boolean

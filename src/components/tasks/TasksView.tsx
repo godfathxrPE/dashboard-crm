@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX } from 'lucide-react';
+import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { TaskStream } from './TaskStream';
 import { TasksTable } from './TasksTable';
 import { TaskModal } from './TaskModal';
+import { RecurringTemplatesModal } from './RecurringTemplatesModal';
 import { taskSource, isMine, matchesQuery, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
 import type { Task } from '@/types/entities';
 
@@ -38,6 +39,7 @@ export function TasksView() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [recurringOpen, setRecurringOpen] = useState(false);
   // Поиск — общий на оба вида (S-TASKS-POLISH-1, з.3). Локальный стейт, НЕ в URL
   // (learnings: q в URL сознательно не переносим — blast radius).
   const [query, setQuery] = useState('');
@@ -179,10 +181,19 @@ export function TasksView() {
           </span>
         </div>
         {canEdit && (
-          <CTAButton onClick={openCreate}>
-            <Plus size={16} />
-            Задача
-          </CTAButton>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRecurringOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-text-dim transition-colors hover:bg-surface2"
+            >
+              <Repeat size={16} />
+              Повторяющиеся
+            </button>
+            <CTAButton onClick={openCreate}>
+              <Plus size={16} />
+              Задача
+            </CTAButton>
+          </div>
         )}
       </div>
 
@@ -307,6 +318,8 @@ export function TasksView() {
         onClose={() => { setModalOpen(false); setEditTask(null); }}
         editTask={editTask}
       />
+
+      {recurringOpen && <RecurringTemplatesModal onClose={() => setRecurringOpen(false)} />}
     </>
   );
 }

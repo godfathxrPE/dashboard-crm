@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, CalendarClock, CalendarDays, Building2, Briefcase } from 'lucide-react';
+import { Check, CalendarClock, CalendarDays, Building2, Briefcase, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import { daysOverdue } from '@/lib/utils/task-view';
@@ -97,6 +97,13 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex,
       >
         {task.text}
       </span>
+
+      {/* S-RECUR-1: бейдж спавненной задачи (069) */}
+      {task.recurrence_template_id && (
+        <span title="Повторяющаяся" className="shrink-0 text-text-mute">
+          <Repeat size={12} aria-label="Повторяющаяся" />
+        </span>
+      )}
 
       {/* Чип связи (проект/компания) */}
       {href && task.project ? (

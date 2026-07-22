@@ -340,6 +340,13 @@ export interface TaskDependency {
   created_at: string;
 }
 
+// ═══ Sprint S-RECUR-1 (миграция 069): повторяющиеся задачи ═══
+// recurring_task_templates — в автогенерации (069 применена); cadence — text-колонка
+// с CHECK (не PG-enum) → автогенерация даёт `string`. Сужаем до RecurringCadence
+// тем же приёмом, что ColumnCategory/project_columns (см. RecurringTaskTemplate
+// в entities.ts).
+export type RecurringCadence = 'daily' | 'weekdays' | 'weekly' | 'monthly';
+
 // ═══ Sprint 2: Leads ═══
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';

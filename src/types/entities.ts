@@ -1,5 +1,5 @@
 import type { Database } from './database';
-import type { ColumnCategory, ProjectType } from './database';
+import type { ColumnCategory, ProjectType, RecurringCadence } from './database';
 // `org_id` уже ослаблен до optional в ./database (RelaxOrgId) — здесь прямые ссылки.
 
 // Удобные алиасы для Row-типов из Supabase
@@ -37,6 +37,15 @@ export type ContactInsert = Database['public']['Tables']['contacts']['Insert'];
 export type MeetingInsert = Database['public']['Tables']['meetings']['Insert'];
 export type ActivityLog = Database['public']['Tables']['activity_log']['Row'];
 export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert'];
+
+// ═══ S-RECUR-1: recurring_task_templates (069 применена) ═══
+// `cadence` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
+// Сужаем до RecurringCadence тем же приёмом, что ProjectColumn/category выше.
+export type RecurringTaskTemplate = Omit<Database['public']['Tables']['recurring_task_templates']['Row'], 'cadence'> & {
+  cadence: RecurringCadence;
+};
+export type RecurringTaskTemplateInsert = Database['public']['Tables']['recurring_task_templates']['Insert'];
+export type RecurringTaskTemplateUpdate = Database['public']['Tables']['recurring_task_templates']['Update'];
 
 // ═══ S-QUOTE-1: quotes (КП на сделке) ═══
 // WARNING: таблица `quotes` — РУЧНОЙ стаб в supabase.gen.ts (миграция 053 на гейте
