@@ -50,7 +50,7 @@ export function useTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('*, project:projects(id, name), company:companies(id, name)')
+        .select('*, project:projects(id, name, type), company:companies(id, name)')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -98,7 +98,7 @@ export function useProjectBoard(projectId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('*, project:projects(id, name), company:companies(id, name)')
+        .select('*, project:projects(id, name, type), company:companies(id, name)')
         .eq('project_id', projectId)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });

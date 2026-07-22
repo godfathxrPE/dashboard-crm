@@ -1,5 +1,5 @@
 import type { Database } from './database';
-import type { ColumnCategory } from './database';
+import type { ColumnCategory, ProjectType } from './database';
 // `org_id` уже ослаблен до optional в ./database (RelaxOrgId) — здесь прямые ссылки.
 
 // Удобные алиасы для Row-типов из Supabase
@@ -8,7 +8,10 @@ export type Company = Database['public']['Tables']['companies']['Row'];
 export type Contact = Database['public']['Tables']['contacts']['Row'];
 export type Project = Database['public']['Tables']['projects']['Row'];
 export type Task = Database['public']['Tables']['tasks']['Row'] & {
-  project?: { id: string; name: string } | null;
+  // S-TASKS-RESTRUCTURE-1: projects.type прилетает из join → классификатор источника
+  // (client=сделка, internal/delivery=проект внедрения). Тип-опционален: борды/Гант
+  // селектят тот же join, но старый кэш мог не нести type — читатели гейтят по null.
+  project?: { id: string; name: string; type?: ProjectType | null } | null;
   company?: { id: string; name: string } | null;
 };
 // `category` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
