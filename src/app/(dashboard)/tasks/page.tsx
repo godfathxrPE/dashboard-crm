@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { KanbanBoard } from '@/components/tasks/KanbanBoard';
+import { TasksView } from '@/components/tasks/TasksView';
 
 export default async function TasksPage() {
   const supabase = await createServerSupabaseClient();
@@ -8,5 +8,8 @@ export default async function TasksPage() {
 
   if (!user) redirect('/login');
 
-  return <KanbanBoard />;
+  // S-TASKS-RESTRUCTURE-1: DnD-борд лейнов (KanbanBoard) выведен из дефолта.
+  // Компонент оставлен на диске неиспользуемым — дешёвый откат (git revert),
+  // финальное удаление — отдельным PR.
+  return <TasksView />;
 }
