@@ -1,5 +1,5 @@
 import type { Database } from './database';
-import type { ColumnCategory, ProjectType } from './database';
+import type { ColumnCategory, ProjectType, RecurringCadence } from './database';
 // `org_id` уже ослаблен до optional в ./database (RelaxOrgId) — здесь прямые ссылки.
 
 // Удобные алиасы для Row-типов из Supabase
@@ -13,9 +13,6 @@ export type Task = Database['public']['Tables']['tasks']['Row'] & {
   // селектят тот же join, но старый кэш мог не нести type — читатели гейтят по null.
   project?: { id: string; name: string; type?: ProjectType | null } | null;
   company?: { id: string; name: string } | null;
-  // S-RECUR-1 (069 — на гейте): линк на шаблон-источник спавна (задел под бейдж 🔁).
-  // Колонки ещё нет в автогенерации — ручное расширение, как project/company выше.
-  recurrence_template_id?: string | null;
 };
 // `category` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
 // Сужаем до ColumnCategory (значения гарантированы CHECK-инвариантом в БД).
@@ -40,6 +37,15 @@ export type ContactInsert = Database['public']['Tables']['contacts']['Insert'];
 export type MeetingInsert = Database['public']['Tables']['meetings']['Insert'];
 export type ActivityLog = Database['public']['Tables']['activity_log']['Row'];
 export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert'];
+
+// ═══ S-RECUR-1: recurring_task_templates (069 применена) ═══
+// `cadence` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
+// Сужаем до RecurringCadence тем же приёмом, что ProjectColumn/category выше.
+export type RecurringTaskTemplate = Omit<Database['public']['Tables']['recurring_task_templates']['Row'], 'cadence'> & {
+  cadence: RecurringCadence;
+};
+export type RecurringTaskTemplateInsert = Database['public']['Tables']['recurring_task_templates']['Insert'];
+export type RecurringTaskTemplateUpdate = Database['public']['Tables']['recurring_task_templates']['Update'];
 
 // ═══ S-QUOTE-1: quotes (КП на сделке) ═══
 // WARNING: таблица `quotes` — РУЧНОЙ стаб в supabase.gen.ts (миграция 053 на гейте

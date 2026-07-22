@@ -340,33 +340,12 @@ export interface TaskDependency {
   created_at: string;
 }
 
-// ═══ Sprint S-RECUR-1 (миграция 069 — на гейте): повторяющиеся задачи ═══
-// Шаблон повторения + daily-cron спавн (spawn_recurring_tasks). Таблицы ещё нет
-// в автогенерации (гейт применит 069) — рукописный интерфейс, как AutomationRule/
-// TaskDependency выше на момент их первых миграций.
-
+// ═══ Sprint S-RECUR-1 (миграция 069): повторяющиеся задачи ═══
+// recurring_task_templates — в автогенерации (069 применена); cadence — text-колонка
+// с CHECK (не PG-enum) → автогенерация даёт `string`. Сужаем до RecurringCadence
+// тем же приёмом, что ColumnCategory/project_columns (см. RecurringTaskTemplate
+// в entities.ts).
 export type RecurringCadence = 'daily' | 'weekdays' | 'weekly' | 'monthly';
-
-export interface RecurringTaskTemplate {
-  id: string;
-  org_id: string;
-  text: string;
-  cadence: RecurringCadence;
-  weekly_dow: number | null;   // 0=Вс..6=Сб (pg EXTRACT(dow)), нужен только для 'weekly'
-  monthly_dom: number | null;  // 1..28, нужен только для 'monthly'
-  priority: TaskPriority;
-  lane: TaskLane;
-  project_id: string | null;
-  company_id: string | null;
-  contact_id: string | null;
-  assigned_to: string | null;
-  next_run_date: string;       // date, YYYY-MM-DD
-  is_active: boolean;
-  last_spawned_at: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}
 
 // ═══ Sprint 2: Leads ═══
 

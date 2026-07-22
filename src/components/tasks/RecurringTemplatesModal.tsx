@@ -27,7 +27,7 @@ import {
 } from '@/lib/validators/recurring';
 import { PRIORITY_CONFIG, taskPriorities } from '@/lib/validators/task';
 import { computeInitialNextRunDate } from '@/lib/utils/recurring';
-import type { RecurringTaskTemplate } from '@/types/database';
+import type { RecurringTaskTemplate } from '@/types/entities';
 
 interface RecurringTemplatesModalProps {
   onClose: () => void;
