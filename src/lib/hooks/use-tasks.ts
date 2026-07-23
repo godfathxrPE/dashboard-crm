@@ -231,6 +231,9 @@ export function useCreateTask() {
         // S-RECUR-1: линк спавнится только сервером (spawn_recurring_tasks) — у
         // рукотворных задач всегда null.
         recurrence_template_id: null,
+        // S-ANALYTICS-1 (072): стемпит только БД-триггер на переходе в done; новая
+        // задача (lane по умолчанию 'now') — ещё не завершена. Истину даст рефетч onSettled.
+        completed_at: null,
       };
 
       // Личный борд ['tasks'] — всегда; доска ['tasks','board',pid] отфильтрована
