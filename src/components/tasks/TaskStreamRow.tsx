@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, CalendarClock, CalendarDays, Building2, Briefcase, Repeat } from 'lucide-react';
+import { Check, CalendarClock, CalendarDays, Building2, Briefcase, Repeat, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import { daysOverdue } from '@/lib/utils/task-view';
+import { mskTimeRange } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 
 // Точка приоритета — семантические токены темы (inline var, без bg-хардкода).
@@ -40,6 +41,7 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex,
   const done = task.lane === 'done';
   const href = projectHref(task);
   const overdueBy = isOverdue ? daysOverdue(task, now) : 0;
+  const timeBlock = mskTimeRange(task.scheduled_start, task.scheduled_end);
 
   function toggleDone(e: React.MouseEvent) {
     e.stopPropagation();
@@ -127,6 +129,14 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex,
           <span className="truncate">{task.company.name}</span>
         </Link>
       ) : null}
+
+      {/* S-TIMEBLOCK-A1: чип тайм-блока «когда делаю» (ЧЧ:ММ–ЧЧ:ММ, МСК) */}
+      {timeBlock && (
+        <span className="hidden shrink-0 items-center gap-1 text-xs tabular-nums text-text-mute sm:inline-flex">
+          <Clock size={11} className="shrink-0" />
+          {timeBlock}
+        </span>
+      )}
 
       {/* Срок */}
       {task.deadline && (

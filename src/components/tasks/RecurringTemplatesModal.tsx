@@ -151,6 +151,8 @@ function defaultsFor(template?: RecurringTaskTemplate): RecurringTemplateFormVal
       contact_id: null,
       assigned_to: null,
       is_active: true,
+      start_time: null,
+      duration_min: null,
     };
   }
   return {
@@ -165,6 +167,9 @@ function defaultsFor(template?: RecurringTaskTemplate): RecurringTemplateFormVal
     contact_id: template.contact_id,
     assigned_to: template.assigned_to,
     is_active: template.is_active,
+    // start_time из БД — 'HH:MM:SS'; форма/CHECK работают с 'HH:MM'.
+    start_time: template.start_time ? template.start_time.slice(0, 5) : null,
+    duration_min: template.duration_min,
   };
 }
 
@@ -195,6 +200,7 @@ function RecurringTemplateEditor({
   const cadence = watch('cadence');
   const weeklyDow = watch('weekly_dow');
   const priority = watch('priority');
+  const startTime = watch('start_time');
 
   const pending = create.isPending || update.isPending;
 
@@ -315,6 +321,38 @@ function RecurringTemplateEditor({
             {errors.monthly_dom && <p className="mt-1 text-xs text-red">{errors.monthly_dom.message}</p>}
           </div>
         )}
+
+        {/* S-TIMEBLOCK-A1: время (МСК) + длительность — спавн кладёт тайм-блок.
+            Оба опциональны; длительность недоступна, пока не задано время. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">Время (МСК)</label>
+            <input
+              type="time"
+              {...register('start_time', {
+                setValueAs: (v) => (v === '' ? null : v),
+                // сброс времени должен обнулить и длительность (зеркало CHECK)
+                onChange: (e) => {
+                  if (e.target.value === '') setValue('duration_min', null, { shouldDirty: true });
+                },
+              })}
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main tabular-nums focus:border-accent focus:outline-none"
+            />
+            {errors.start_time && <p className="mt-1 text-xs text-red">{errors.start_time.message}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">Длительность, мин</label>
+            <input
+              type="number"
+              min={1}
+              disabled={!startTime}
+              {...register('duration_min', { setValueAs: (v) => (v === '' ? null : Number(v)) })}
+              placeholder={startTime ? '30' : '—'}
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main tabular-nums placeholder:text-text-mute focus:border-accent focus:outline-none disabled:opacity-50"
+            />
+            {errors.duration_min && <p className="mt-1 text-xs text-red">{errors.duration_min.message}</p>}
+          </div>
+        </div>
 
         {/* Приоритет */}
         <div>

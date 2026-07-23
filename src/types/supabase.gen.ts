@@ -2005,6 +2005,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           created_by: string
+          duration_min: number | null
           id: string
           is_active: boolean
           lane: Database["public"]["Enums"]["task_lane"]
@@ -2014,6 +2015,7 @@ export type Database = {
           org_id: string
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string | null
+          start_time: string | null
           text: string
           updated_at: string
           weekly_dow: number | null
@@ -2025,6 +2027,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           created_by?: string
+          duration_min?: number | null
           id?: string
           is_active?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
@@ -2034,6 +2037,7 @@ export type Database = {
           org_id: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          start_time?: string | null
           text: string
           updated_at?: string
           weekly_dow?: number | null
@@ -2045,6 +2049,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           created_by?: string
+          duration_min?: number | null
           id?: string
           is_active?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
@@ -2054,6 +2059,7 @@ export type Database = {
           org_id?: string
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string | null
+          start_time?: string | null
           text?: string
           updated_at?: string
           weekly_dow?: number | null
@@ -2326,6 +2332,8 @@ export type Database = {
           project_id: string | null
           recurrence_template_id: string | null
           remind_min: number | null
+          scheduled_end: string | null
+          scheduled_start: string | null
           sort_order: number | null
           start_date: string | null
           text: string
@@ -2350,6 +2358,8 @@ export type Database = {
           project_id?: string | null
           recurrence_template_id?: string | null
           remind_min?: number | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
           sort_order?: number | null
           start_date?: string | null
           text: string
@@ -2374,6 +2384,8 @@ export type Database = {
           project_id?: string | null
           recurrence_template_id?: string | null
           remind_min?: number | null
+          scheduled_end?: string | null
+          scheduled_start?: string | null
           sort_order?: number | null
           start_date?: string | null
           text?: string

@@ -213,6 +213,9 @@ export function useCreateTask() {
         deadline: input.deadline ?? null,
         start_date: input.start_date ?? null,
         end_date: input.end_date ?? null,
+        // S-TIMEBLOCK-A1: тайм-блок «когда делаю» (optimistic несёт все поля Task)
+        scheduled_start: input.scheduled_start ?? null,
+        scheduled_end: input.scheduled_end ?? null,
         remind_min: input.remind_min ?? null,
         sort_order: input.sort_order ?? 0,
         assigned_to: input.assigned_to ?? null,
