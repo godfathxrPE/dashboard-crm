@@ -5,9 +5,12 @@
 // (A2a/A2b/A2c): константы оси, геометрия, упаковка колонки, read-only MeetingBlock.
 // .tsx (не .ts) — модуль экспортирует React-компонент MeetingBlock.
 
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useDraggable } from '@dnd-kit/core';
 import { Calendar } from 'lucide-react';
 import type { Task } from '@/types/entities';
 import type { Meeting } from '@/lib/hooks/use-meetings';
+import { mskTimeRange } from '@/lib/utils/date-helpers';
 
 // Ось времени сетки: 07:00–22:00 (15 часовых полос). hourHeight в rem — вся
 // вертикаль (top/height блоков, линии, линия «сейчас») считается от неё.
@@ -171,6 +174,138 @@ export function MeetingBlock({ p, meeting, onMeetingClick }: MeetingBlockProps) 
           {meeting.location}
         </span>
       )}
+    </button>
+  );
+}
+
+// B2: полезная нагрузка dnd-kit для перетаскиваемого блока. `colIndex` нейтрально
+// над обеими сетками: в WeekGrid = индекс дня, в TeamDayGrid = индекс дорожки-человека.
+// Дельту Δx интерпретирует РОДИТЕЛЬ (день vs человек), блок её не трактует.
+export interface MoveData {
+  mode: 'move';
+  task: Task;
+  startMin: number;
+  endMin: number;
+  colIndex: number;
+}
+
+interface DraggableTimeBlockProps {
+  p: Placed;
+  task: Task;
+  colIndex: number;
+  dayDate: Date;
+  renderEndMin: number; // высота с учётом live-превью resize
+  onBlockClick: (taskId: string) => void;
+  readPxPerMin: () => number;
+  onResizePreview: (id: string | null, endMin: number) => void;
+  onResizeCommit: (task: Task, dayDate: Date, newEndMin: number) => void;
+}
+
+// B2: общий блок задачи для обеих сеток (доедена унификация B1). Draggable-перенос
+// (dnd-kit, live transform) + нативный resize нижнего края (точный live-preview
+// высоты). Клик <5px → onBlockClick. Родитель трактует Δ (день/человек) и коммитит.
+export function DraggableTimeBlock({
+  p, task, colIndex, dayDate, renderEndMin,
+  onBlockClick, readPxPerMin, onResizePreview, onResizeCommit,
+}: DraggableTimeBlockProps) {
+  const { startMin, endMin, lane, cols } = p;
+  const { setNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { mode: 'move', task, startMin, endMin, colIndex } satisfies MoveData,
+  });
+
+  const topRem = remOfMin(startMin);
+  const hRem = Math.max((renderEndMin - startMin) / 60 * HOUR_REM, MIN_BLOCK_REM);
+  const widthPct = 100 / cols;
+  const range = mskTimeRange(task.scheduled_start, task.scheduled_end);
+
+  // Нативный resize нижнего края: pointerdown на хвате не должен стартовать
+  // dnd-move (stopPropagation), геометрию берём в момент захвата (px→мин).
+  const onHandlePointerDown = (e: ReactPointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startY = e.clientY;
+    const pxPerMin = readPxPerMin();
+    const onMove = (ev: PointerEvent) => {
+      const preview = clamp(endMin + (ev.clientY - startY) / pxPerMin, startMin + MIN_DUR, END_MIN);
+      onResizePreview(task.id, preview);
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      onResizePreview(null, 0);
+      const dMin = Math.round(((ev.clientY - startY) / pxPerMin) / SNAP) * SNAP;
+      const newEndMin = clamp(endMin + dMin, startMin + MIN_DUR, END_MIN);
+      if (newEndMin !== endMin) onResizeCommit(task, dayDate, newEndMin);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={() => onBlockClick(task.id)}
+      {...listeners}
+      {...attributes}
+      style={{
+        position: 'absolute',
+        top: `${topRem}rem`,
+        height: `${hRem}rem`,
+        left: `calc(${lane * widthPct}% + 0.125rem)`,
+        width: `calc(${widthPct}% - 0.25rem)`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.0625rem',
+        overflow: 'hidden',
+        textAlign: 'left',
+        padding: '0.1875rem 0.375rem',
+        borderRadius: '0.25rem',
+        border: '0.5px solid var(--border)',
+        borderLeft: `2px solid ${PRIORITY_ACCENT[task.priority] ?? 'var(--text-mute)'}`,
+        background: 'var(--surface2, var(--surface))',
+        color: 'var(--text)',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        fontFamily: 'inherit',
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+        zIndex: isDragging ? 5 : 1,
+        touchAction: 'none',
+      }}
+    >
+      {range && (
+        <span style={{ fontSize: '0.625rem', color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
+          {range}
+        </span>
+      )}
+      <span
+        style={{
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          lineHeight: 1.2,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}
+      >
+        {task.text}
+      </span>
+      {/* Хват resize нижнего края */}
+      <div
+        onPointerDown={onHandlePointerDown}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: '0.4rem',
+          cursor: 'ns-resize',
+          touchAction: 'none',
+        }}
+      />
     </button>
   );
 }
