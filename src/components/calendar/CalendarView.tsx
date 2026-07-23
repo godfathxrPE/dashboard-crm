@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus, Sparkles } from 'lucide-react';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
-import { useTasks } from '@/lib/hooks/use-tasks';
+import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { isMine } from '@/lib/utils/task-view';
@@ -48,6 +48,7 @@ export function CalendarView() {
   const { data: projects = [] } = useProjects();
   const { user } = useAuth();
   const currentUserId = user?.id ?? null;
+  const updateTask = useUpdateTask();
 
   // Модалки: редактирование события и создание на выбранный день
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -119,6 +120,11 @@ export function CalendarView() {
   function handleBlockClick(taskId: string) {
     const t = tasks.find((x) => x.id === taskId);
     if (t) { setEditTask(t); setSlotDefaults(null); setTaskModalOpen(true); }
+  }
+
+  // A2b: drag/resize блока → оптимистичный патч scheduled_start/end (onMutate уже optimistic).
+  function handleReschedule(id: string, scheduled_start: string, scheduled_end: string) {
+    updateTask.mutate({ id, scheduled_start, scheduled_end });
   }
 
   // Build events map for the month
@@ -253,7 +259,7 @@ export function CalendarView() {
 
       {view === 'week' ? (
         <div style={{ overflowX: 'auto' }}>
-          <WeekGrid weekStart={weekStart} tasks={weekTasks} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} />
+          <WeekGrid weekStart={weekStart} tasks={weekTasks} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} onReschedule={handleReschedule} />
         </div>
       ) : (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
