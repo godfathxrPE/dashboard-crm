@@ -10,7 +10,9 @@ import {
   useDraggable,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import { Calendar } from 'lucide-react';
 import type { Task } from '@/types/entities';
+import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
   mskMinutesOfDay,
   mskDateKey,
@@ -31,6 +33,10 @@ const END_MIN = END_HOUR * 60;
 const MIN_BLOCK_REM = 1.25; // чтобы текст короткого блока не схлопывался
 const SNAP = 15;            // шаг привязки drag/resize, мин
 const MIN_DUR = 15;         // минимальная длительность блока, мин
+// Схема meetings без end/duration → номинальная высота для отрисовки. Реальную
+// длительность даст будущая миграция (meetings.end_time/duration_min) — тогда
+// встречи станут настоящими интервалами; сейчас держим место.
+const MEETING_NOMINAL_MIN = 30;
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -43,6 +49,17 @@ const PRIORITY_ACCENT: Record<string, string> = {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const remOfMin = (min: number) => ((min - START_MIN) / 60) * HOUR_REM;
+
+// naive `time` ('HH:MM' | 'HH:MM:SS') → минуты от полуночи; null/битое → null.
+// Это `time without time zone` (МСК wall-clock как ввели) — прямой парс, БЕЗ
+// mskMinutesOfDay (та ждёт ISO-timestamp и сдвинула бы TZ).
+function timeToMin(t: string | null): number | null {
+  if (!t) return null;
+  const m = /^(\d{2}):(\d{2})/.exec(t);
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  return h >= 0 && h < 24 && min >= 0 && min < 60 ? h * 60 + min : null;
+}
 
 // Локальный Date для (день, минута-от-полуночи-МСК). Ввод трактуется как
 // browser-local — тот же путь, что при создании (browser==МСК; полная TZ-
@@ -63,26 +80,36 @@ interface WeekGridProps {
   weekStart: Date;
   /** Уже отфильтрованные задачи: scheduled_start задан + isMine. */
   tasks: Task[];
+  /** A2c: встречи недели (org-scoped RLS). Read-only слой отдельным классом. */
+  meetings: Meeting[];
   onSlotClick: (dayDate: Date, hour: number) => void;
   onBlockClick: (taskId: string) => void;
   /** A2b: применить новое расписание задачи (drag/resize). Мутирует родитель. */
   onReschedule: (taskId: string, startIso: string, endIso: string) => void;
+  /** A2c: открыть встречу (существующая MeetingModal в родителе). */
+  onMeetingClick: (meetingId: string) => void;
 }
 
+// A2c: единая упаковка — задача (draggable) или встреча (read-only), два рендер-класса.
+type GridItem =
+  | { kind: 'task'; task: Task }
+  | { kind: 'meeting'; meeting: Meeting };
+
 interface Placed {
-  task: Task;
+  item: GridItem;
   startMin: number;
   endMin: number;
   lane: number;
   cols: number;
 }
 
-// Раскладка блоков одного дня по под-колонкам: кластеры пересекающихся интервалов,
+// Раскладка блоков одной колонки по под-дорожкам: кластеры пересекающихся интервалов,
 // внутри — жадное назначение дорожки (первая свободная). cols = ширина кластера.
-function layoutDay(items: { task: Task; startMin: number; endMin: number }[]): Placed[] {
+// A2c: обобщено над GridItem — алгоритм тот же, меняется только payload (task→item).
+function layoutColumn(items: { item: GridItem; startMin: number; endMin: number }[]): Placed[] {
   const sorted = [...items].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
   const placed: Placed[] = [];
-  let cluster: { task: Task; startMin: number; endMin: number; lane: number }[] = [];
+  let cluster: { item: GridItem; startMin: number; endMin: number; lane: number }[] = [];
   let clusterMaxEnd = -Infinity;
   let laneEnds: number[] = [];
 
@@ -108,6 +135,7 @@ function layoutDay(items: { task: Task; startMin: number; endMin: number }[]): P
 
 interface TimeBlockProps {
   p: Placed;
+  task: Task;
   dayIndex: number;
   dayDate: Date;
   renderEndMin: number; // высота с учётом live-превью resize
@@ -120,10 +148,10 @@ interface TimeBlockProps {
 // Один блок задачи: draggable-перенос (dnd-kit, live transform) + нативный
 // resize нижнего края (точный live-preview высоты). Клик <5px → onBlockClick.
 function TimeBlock({
-  p, dayIndex, dayDate, renderEndMin,
+  p, task, dayIndex, dayDate, renderEndMin,
   onBlockClick, readPxPerMin, onResizePreview, onResizeCommit,
 }: TimeBlockProps) {
-  const { task, startMin, endMin, lane, cols } = p;
+  const { startMin, endMin, lane, cols } = p;
   const { setNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: task.id,
     data: { mode: 'move', task, startMin, endMin, dayIndex } satisfies MoveData,
@@ -225,7 +253,92 @@ function TimeBlock({
   );
 }
 
-export function WeekGrid({ weekStart, tasks, onSlotClick, onBlockClick, onReschedule }: WeekGridProps) {
+interface MeetingBlockProps {
+  p: Placed;
+  meeting: Meeting;
+  onMeetingClick: (meetingId: string) => void;
+}
+
+// Встреча в сетке: read-only (внешнее событие, не задача) — обычный <button> БЕЗ
+// useDraggable/resize. Визуально отдельный класс: пунктирная рамка var(--accent),
+// иконка Calendar, naive-время. Клик → MeetingModal в родителе. Высота номинальная.
+function MeetingBlock({ p, meeting, onMeetingClick }: MeetingBlockProps) {
+  const { startMin, endMin, lane, cols } = p;
+  const topRem = remOfMin(startMin);
+  const hRem = Math.max((endMin - startMin) / 60 * HOUR_REM, MIN_BLOCK_REM);
+  const widthPct = 100 / cols;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onMeetingClick(meeting.id)}
+      style={{
+        position: 'absolute',
+        top: `${topRem}rem`,
+        height: `${hRem}rem`,
+        left: `calc(${lane * widthPct}% + 0.125rem)`,
+        width: `calc(${widthPct}% - 0.25rem)`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.0625rem',
+        overflow: 'hidden',
+        textAlign: 'left',
+        padding: '0.1875rem 0.375rem',
+        borderRadius: '0.25rem',
+        border: '1px dashed var(--accent)',
+        background: 'var(--surface)',
+        color: 'var(--text)',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        zIndex: 1,
+      }}
+    >
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.1875rem',
+          fontSize: '0.625rem',
+          color: 'var(--accent)',
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1.2,
+        }}
+      >
+        <Calendar size={11} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+        {meeting.time?.slice(0, 5)}
+      </span>
+      <span
+        style={{
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          lineHeight: 1.2,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+        }}
+      >
+        {meeting.title}
+      </span>
+      {meeting.location && (
+        <span
+          style={{
+            fontSize: '0.625rem',
+            color: 'var(--text-dim)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {meeting.location}
+        </span>
+      )}
+    </button>
+  );
+}
+
+export function WeekGrid({ weekStart, tasks, meetings, onSlotClick, onBlockClick, onReschedule, onMeetingClick }: WeekGridProps) {
   const colRef = useRef<HTMLDivElement>(null);
   const [resize, setResize] = useState<{ id: string; endMin: number } | null>(null);
 
@@ -244,9 +357,13 @@ export function WeekGrid({ weekStart, tasks, onSlotClick, onBlockClick, onResche
     [weekStart],
   );
 
-  // Задачи по дню недели, разложенные по под-колонкам.
-  const perDay = useMemo(() => {
-    const buckets: Record<string, { task: Task; startMin: number; endMin: number }[]> = {};
+  // По дню недели: задачи + timed-встречи в единой упаковке (Placed[]), плюс
+  // all-day-встречи (time===null) отдельным набором для чипов сверху колонки.
+  const { perDay, allDay } = useMemo(() => {
+    const dayKeys = new Set(days.map((d) => d.key));
+    const buckets: Record<string, { item: GridItem; startMin: number; endMin: number }[]> = {};
+    const allDayBuckets: Record<string, Meeting[]> = {};
+
     for (const t of tasks) {
       if (!t.scheduled_start) continue;
       const key = mskDateKey(t.scheduled_start);
@@ -255,12 +372,28 @@ export function WeekGrid({ weekStart, tasks, onSlotClick, onBlockClick, onResche
       // Клампим в диапазон 07–22, не теряем задачу вне окна (схлопнется к краю с min-высотой).
       const startMin = clamp(rawStart, START_MIN, END_MIN);
       const endMin = clamp(Math.max(rawEnd, rawStart + MIN_DUR), START_MIN, END_MIN);
-      (buckets[key] ??= []).push({ task: t, startMin, endMin });
+      (buckets[key] ??= []).push({ item: { kind: 'task', task: t }, startMin, endMin });
     }
+
+    // Встречи: день = date.slice(0,10) (как в month-view). Время — naive `time`,
+    // прямой парс (не ISO-путь). Без времени → all-day чип, не теряем.
+    for (const m of meetings) {
+      const key = m.date?.slice(0, 10);
+      if (!key || !dayKeys.has(key)) continue;
+      const s = timeToMin(m.time);
+      if (s === null) {
+        (allDayBuckets[key] ??= []).push(m);
+        continue;
+      }
+      const startMin = clamp(s, START_MIN, END_MIN);
+      const endMin = clamp(s + MEETING_NOMINAL_MIN, START_MIN, END_MIN);
+      (buckets[key] ??= []).push({ item: { kind: 'meeting', meeting: m }, startMin, endMin });
+    }
+
     const out: Record<string, Placed[]> = {};
-    for (const key of Object.keys(buckets)) out[key] = layoutDay(buckets[key]);
-    return out;
-  }, [tasks]);
+    for (const key of Object.keys(buckets)) out[key] = layoutColumn(buckets[key]);
+    return { perDay: out, allDay: allDayBuckets };
+  }, [tasks, meetings, days]);
 
   // «Сегодня» и линия «сейчас» — по МСК.
   const now = new Date();
@@ -402,19 +535,64 @@ export function WeekGrid({ weekStart, tasks, onSlotClick, onBlockClick, onResche
                   />
                 )}
 
-                {/* Блоки задач */}
-                {(perDay[d.key] ?? []).map((p) => (
-                  <TimeBlock
-                    key={p.task.id}
-                    p={p}
-                    dayIndex={dayIndex}
-                    dayDate={d.date}
-                    renderEndMin={resize?.id === p.task.id ? resize.endMin : p.endMin}
-                    onBlockClick={onBlockClick}
-                    readPxPerMin={readPxPerMin}
-                    onResizePreview={handleResizePreview}
-                    onResizeCommit={handleResizeCommit}
-                  />
+                {/* Блоки: задачи (draggable) + встречи (read-only), единая упаковка */}
+                {(perDay[d.key] ?? []).map((p) =>
+                  p.item.kind === 'task' ? (
+                    <TimeBlock
+                      key={p.item.task.id}
+                      p={p}
+                      task={p.item.task}
+                      dayIndex={dayIndex}
+                      dayDate={d.date}
+                      renderEndMin={resize?.id === p.item.task.id ? resize.endMin : p.endMin}
+                      onBlockClick={onBlockClick}
+                      readPxPerMin={readPxPerMin}
+                      onResizePreview={handleResizePreview}
+                      onResizeCommit={handleResizeCommit}
+                    />
+                  ) : (
+                    <MeetingBlock
+                      key={p.item.meeting.id}
+                      p={p}
+                      meeting={p.item.meeting}
+                      onMeetingClick={onMeetingClick}
+                    />
+                  ),
+                )}
+
+                {/* All-day встречи (без времени): чипы сверху колонки, read-only.
+                    Полноценная all-day-полоса над телом — refinement (см. долги). */}
+                {(allDay[d.key] ?? []).map((m, i) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onMeetingClick(m.id)}
+                    title={m.title}
+                    style={{
+                      position: 'absolute',
+                      top: `${i * 1.1}rem`,
+                      left: '0.125rem',
+                      right: '0.125rem',
+                      height: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.1875rem',
+                      padding: '0 0.25rem',
+                      borderRadius: '0.25rem',
+                      border: '1px dashed var(--accent)',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      fontSize: '0.625rem',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      zIndex: 2,
+                    }}
+                  >
+                    <Calendar size={10} strokeWidth={1.5} style={{ flexShrink: 0, color: 'var(--accent)' }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</span>
+                  </button>
                 ))}
               </div>
             );
