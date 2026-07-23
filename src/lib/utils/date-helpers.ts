@@ -41,6 +41,30 @@ export function isoToDatetimeLocal(iso: string | null | undefined): string | nul
   return isNaN(d.getTime()) ? null : localDateTimeKey(d);
 }
 
+/** Время ЧЧ:ММ в таймзоне Europe/Moscow из ISO UTC (timestamptz). Client-аналог
+ *  `to_char(ts AT TIME ZONE 'Europe/Moscow', 'HH24:MI')`. Не хардкодим toLocaleTimeString
+ *  — MSK-зависимый формат в одном месте (S-TIMEBLOCK-A1, чип тайм-блока в стриме/таблице). */
+export function mskTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d);
+}
+
+/** «ЧЧ:ММ–ЧЧ:ММ» (МСК) для тайм-блока задачи; если конца нет — только начало «ЧЧ:ММ».
+ *  Возвращает null, когда начала нет. Тире — U+2013 (как в диапазонах дат по проекту). */
+export function mskTimeRange(startIso: string | null | undefined, endIso: string | null | undefined): string | null {
+  const start = mskTime(startIso);
+  if (!start) return null;
+  const end = mskTime(endIso);
+  return end ? `${start}–${end}` : start;
+}
+
 /** Календарная дата YYYY-MM-DD в таймзоне Europe/Moscow — для timestamptz-полей (напр. deadline).
  *  en-CA форматирует как YYYY-MM-DD. Client-аналог `(ts AT TIME ZONE 'Europe/Moscow')::date`. */
 export function mskDateKey(input: string | Date): string {

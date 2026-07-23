@@ -18,6 +18,14 @@ export const recurringTemplateFormSchema = z
     contact_id: z.string().nullable().default(null),
     assigned_to: z.string().uuid().nullable().default(null),
     is_active: z.boolean().default(true),
+    // S-TIMEBLOCK-A1: тайм-блок для спавненных задач. start_time — HH:MM (МСК
+    // wall-clock, spawn конвертит в timestamptz); duration_min — минуты > 0.
+    start_time: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Время в формате ЧЧ:ММ')
+      .nullable()
+      .default(null),
+    duration_min: z.number().int().positive().nullable().default(null),
   })
   .refine((d) => d.cadence !== 'weekly' || d.weekly_dow !== null, {
     message: 'Выбери день недели',
@@ -26,6 +34,11 @@ export const recurringTemplateFormSchema = z
   .refine((d) => d.cadence !== 'monthly' || d.monthly_dom !== null, {
     message: 'Выбери число месяца',
     path: ['monthly_dom'],
+  })
+  // Зеркалит CHECK rtt_duration_needs_time_chk: длительность без времени бессмысленна.
+  .refine((d) => d.duration_min === null || d.start_time !== null, {
+    message: 'Сначала укажи время',
+    path: ['duration_min'],
   });
 
 export type RecurringTemplateFormValues = z.infer<typeof recurringTemplateFormSchema>;

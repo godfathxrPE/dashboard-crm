@@ -25,6 +25,9 @@ export interface RecurringTemplateInput {
   assigned_to: string | null;
   next_run_date: string;
   is_active?: boolean;
+  // S-TIMEBLOCK-A1: время-суток (HH:MM) + длительность (мин) для спавна тайм-блоков.
+  start_time?: string | null;
+  duration_min?: number | null;
 }
 
 const QUERY_KEY = ['recurring-templates'] as const;

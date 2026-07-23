@@ -60,6 +60,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
       deadline: null,
       start_date: null,
       end_date: null,
+      scheduled_start: null,
+      scheduled_end: null,
       remind_min: null,
       assigned_to: null,
       parent_task_id: null,
@@ -115,6 +117,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         deadline: isoToDatetimeLocal(editTask.deadline),
         start_date: editTask.start_date ?? null,
         end_date: editTask.end_date ?? null,
+        scheduled_start: isoToDatetimeLocal(editTask.scheduled_start),
+        scheduled_end: isoToDatetimeLocal(editTask.scheduled_end),
         remind_min: editTask.remind_min,
         assigned_to: editTask.assigned_to ?? null,
         parent_task_id: editTask.parent_task_id ?? null,
@@ -131,6 +135,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         deadline: isoToDatetimeLocal(defaultDeadline),
         start_date: null,
         end_date: null,
+        scheduled_start: null,
+        scheduled_end: null,
         remind_min: null,
         assigned_to: null,
         parent_task_id: null,
@@ -140,9 +146,14 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
   }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, reset]);
 
   function onSubmit(values: TaskFormValues) {
-    // datetime-local (локальное время) → ISO UTC для timestamptz `deadline`;
+    // datetime-local (локальное время) → ISO UTC для timestamptz-полей;
     // пустая строка → null. start_date/end_date — date-only, идут как есть.
-    const payload = { ...values, deadline: datetimeLocalToIso(values.deadline) };
+    const payload = {
+      ...values,
+      deadline: datetimeLocalToIso(values.deadline),
+      scheduled_start: datetimeLocalToIso(values.scheduled_start),
+      scheduled_end: datetimeLocalToIso(values.scheduled_end),
+    };
     if (editTask) {
       updateTask.mutate(
         { id: editTask.id, ...payload },
@@ -280,6 +291,33 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
               {...register('deadline')}
               className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
             />
+          </div>
+
+          {/* S-TIMEBLOCK-A1: «когда делаю» — интервал времени (тайм-блок). Отдельно
+              от дедлайна «сделать к» и от дат Ганта ниже. Оба поля опциональны. */}
+          <div>
+            <label className="block text-xs font-medium text-text-dim mb-1">Запланировано</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <input
+                  type="datetime-local"
+                  aria-label="Начало тайм-блока"
+                  {...register('scheduled_start')}
+                  className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+                />
+              </div>
+              <div>
+                <input
+                  type="datetime-local"
+                  aria-label="Конец тайм-блока"
+                  {...register('scheduled_end')}
+                  className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+                />
+                {errors.scheduled_end && (
+                  <p className="mt-1 text-xs text-red">{errors.scheduled_end.message}</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Gantt: план по датам */}

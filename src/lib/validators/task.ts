@@ -13,6 +13,10 @@ export const taskFormSchema = z.object({
   deadline: z.string().nullable().default(null),
   start_date: z.string().nullable().default(null),
   end_date: z.string().nullable().default(null),
+  // S-TIMEBLOCK-A1: тайм-блок «когда делаю» (datetime-local в форме → ISO на сабмите).
+  // Отдельная ось от deadline «сделать к» и start_date/end_date (даты Ганта).
+  scheduled_start: z.string().nullable().default(null),
+  scheduled_end: z.string().nullable().default(null),
   remind_min: z.number().nullable().default(null),
   assigned_to: z.string().uuid().nullable().optional(),
   // PCT-1: колонка проектной доски (для задач с project_id)
@@ -23,6 +27,11 @@ export const taskFormSchema = z.object({
 }).refine(
   (d) => !d.start_date || !d.end_date || d.end_date >= d.start_date,
   { message: 'Конец не раньше начала', path: ['end_date'] },
+).refine(
+  // Зеркалит CHECK tasks_scheduled_order_chk (строго >). Значения — datetime-local
+  // 'YYYY-MM-DDTHH:mm', лексикографическое сравнение эквивалентно хронологическому.
+  (d) => !d.scheduled_start || !d.scheduled_end || d.scheduled_end > d.scheduled_start,
+  { message: 'Конец позже начала', path: ['scheduled_end'] },
 );
 
 export type TaskFormValues = z.infer<typeof taskFormSchema>;

@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Check, Repeat } from 'lucide-react';
+import { Check, Repeat, Clock } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useTeamMembers, type TeamMember } from '@/lib/hooks/use-team-members';
+import { mskTimeRange } from '@/lib/utils/date-helpers';
 import { PRIORITY_CONFIG } from '@/lib/validators/task';
 import {
   taskDateBucket,
@@ -111,6 +112,16 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
                 <Repeat size={12} aria-label="Повторяющаяся" />
               </span>
             )}
+            {/* S-TIMEBLOCK-A1: чип тайм-блока (ЧЧ:ММ–ЧЧ:ММ, МСК) */}
+            {(() => {
+              const tb = mskTimeRange(t.scheduled_start, t.scheduled_end);
+              return tb ? (
+                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] tabular-nums text-text-mute">
+                  <Clock size={11} className="shrink-0" />
+                  {tb}
+                </span>
+              ) : null;
+            })()}
           </span>
         ),
         searchValue: (t) => t.text,
