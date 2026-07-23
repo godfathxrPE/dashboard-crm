@@ -9,10 +9,6 @@ export type Contact = Database['public']['Tables']['contacts']['Row'];
 export type Project = Database['public']['Tables']['projects']['Row'];
 // S-TIMEBLOCK-A1: tasks.scheduled_start/scheduled_end (070 применена, типы регенерированы).
 export type Task = Database['public']['Tables']['tasks']['Row'] & {
-  // S-ANALYTICS-1 (072): completed_at ещё не в supabase.gen.ts (миграция на гейте).
-  // Держим руками до apply+реген; после регена gen даст ту же `string | null` — строка
-  // станет избыточной (идентичное пересечение) и удаляется. Стемпит только БД-триггер.
-  completed_at: string | null;
   // S-TASKS-RESTRUCTURE-1: projects.type прилетает из join → классификатор источника
   // (client=сделка, internal/delivery=проект внедрения). Тип-опционален: борды/Гант
   // селектят тот же join, но старый кэш мог не нести type — читатели гейтят по null.

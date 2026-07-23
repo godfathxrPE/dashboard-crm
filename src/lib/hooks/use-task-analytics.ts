@@ -9,7 +9,11 @@ import { createClient } from '@/lib/supabase/client';
  * tasks). Без realtime: аналитика низкочастотная, рефетч по смене дэйт-рейнджа.
  */
 
-// ── RPC-контракты (возвраты типизированы локально) ──────────────────────────
+// ── RPC-контракты ────────────────────────────────────────────────────────────
+// summary отдаёт jsonb → gen типизирует как Json (opaque). Здесь именованная
+// форма для потребителей; каст `as unknown as AnalyticsSummary` (Json → интерфейс).
+// throughput/aging возвращают table → gen даёт структурные row-типы, совместимые
+// с интерфейсами ниже (именуем для экспорта в TasksAnalytics).
 export interface AnalyticsSummary {
   open_total: number;
   done_total: number;
@@ -32,31 +36,18 @@ export interface AgingBucket {
   cnt: number;
 }
 
-// Миграция 072 применяется гейтом Cowork ПОСЛЕ ревью → её функций ещё нет в
-// supabase.gen.ts, генератор не знает имён. Узкий мост `as unknown as` (НЕ any):
-// типобезопасный per-Ret возврат. После apply+реген — убрать каст, звать
-// supabase.rpc('task_analytics_summary', …) напрямую (имя попадёт в gen).
-type RpcCaller = <Ret>(
-  fn: string,
-  args?: Record<string, string>,
-) => PromiseLike<{ data: Ret | null; error: { message: string } | null }>;
-
-function analyticsRpc(): RpcCaller {
-  return createClient().rpc as unknown as RpcCaller;
-}
-
 /** KPI-сводка задач за период [from, to] (даты YYYY-MM-DD). */
 export function useAnalyticsSummary(from: string, to: string) {
   return useQuery({
     queryKey: ['analytics', 'summary', from, to],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await analyticsRpc()<AnalyticsSummary>('task_analytics_summary', {
+      const { data, error } = await createClient().rpc('task_analytics_summary', {
         p_from: from,
         p_to: to,
       });
-      if (error) throw new Error(error.message);
-      return data as AnalyticsSummary;
+      if (error) throw error;
+      return data as unknown as AnalyticsSummary; // jsonb → именованная форма
     },
   });
 }
@@ -67,11 +58,11 @@ export function useThroughputSeries(from: string, to: string) {
     queryKey: ['analytics', 'throughput', from, to],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await analyticsRpc()<ThroughputPoint[]>('task_throughput_series', {
+      const { data, error } = await createClient().rpc('task_throughput_series', {
         p_from: from,
         p_to: to,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -83,8 +74,8 @@ export function useAgingBuckets() {
     queryKey: ['analytics', 'aging'],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await analyticsRpc()<AgingBucket[]>('task_aging_buckets');
-      if (error) throw new Error(error.message);
+      const { data, error } = await createClient().rpc('task_aging_buckets');
+      if (error) throw error;
       return data ?? [];
     },
   });

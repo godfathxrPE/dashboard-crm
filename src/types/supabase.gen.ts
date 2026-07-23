@@ -2318,6 +2318,7 @@ export type Database = {
           assigned_to: string | null
           column_id: string | null
           company_id: string | null
+          completed_at: string | null
           contact_id: string | null
           created_at: string | null
           created_by: string | null
@@ -2344,6 +2345,7 @@ export type Database = {
           assigned_to?: string | null
           column_id?: string | null
           company_id?: string | null
+          completed_at?: string | null
           contact_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -2370,6 +2372,7 @@ export type Database = {
           assigned_to?: string | null
           column_id?: string | null
           company_id?: string | null
+          completed_at?: string | null
           contact_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -2613,6 +2616,7 @@ export type Database = {
         Args: { p_column_id: string; p_target_column_id?: string }
         Returns: undefined
       }
+      is_meeting_attendee: { Args: { p_meeting_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org: string }; Returns: boolean }
       is_project_member: { Args: { p_project_id: string }; Returns: boolean }
       lane_to_category: {
@@ -2646,6 +2650,26 @@ export type Database = {
         Returns: string
       }
       spawn_recurring_tasks: { Args: never; Returns: undefined }
+      task_aging_buckets: {
+        Args: never
+        Returns: {
+          bucket: string
+          cnt: number
+          sort_key: number
+        }[]
+      }
+      task_analytics_summary: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      task_throughput_series: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          completed: number
+          created: number
+          week_start: string
+        }[]
+      }
       wf_eval_conditions: {
         Args: { p_conds: Json; p_row: Json }
         Returns: boolean
