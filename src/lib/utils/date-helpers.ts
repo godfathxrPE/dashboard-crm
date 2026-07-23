@@ -65,6 +65,24 @@ export function mskTimeRange(startIso: string | null | undefined, endIso: string
   return end ? `${start}–${end}` : start;
 }
 
+/** Минуты от 00:00 по МСК (0..1439) для ISO-таймстампа — вертикальная раскладка
+ *  блока в недельной сетке (top/height). Тот же Europe/Moscow-источник, что mskTime;
+ *  hourCycle h23 гарантирует 00..23 (без «24:00» на полуночи). Невалидный ISO → 0. */
+export function mskMinutesOfDay(iso: string | null | undefined): number {
+  if (!iso) return 0;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 0;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Moscow',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return hour * 60 + minute;
+}
+
 /** Календарная дата YYYY-MM-DD в таймзоне Europe/Moscow — для timestamptz-полей (напр. deadline).
  *  en-CA форматирует как YYYY-MM-DD. Client-аналог `(ts AT TIME ZONE 'Europe/Moscow')::date`. */
 export function mskDateKey(input: string | Date): string {

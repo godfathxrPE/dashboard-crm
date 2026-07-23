@@ -1,17 +1,22 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus, Sparkles } from 'lucide-react';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { isMine } from '@/lib/utils/task-view';
 import { projectHref } from '@/lib/utils/project-href';
-import { localDateKey } from '@/lib/utils/date-helpers';
+import { localDateKey, localDateTimeKey, mskDateKey } from '@/lib/utils/date-helpers';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
+import { TaskModal } from '@/components/tasks/TaskModal';
+import { WeekGrid } from '@/components/calendar/WeekGrid';
+import type { Task } from '@/types/entities';
 
 interface CalEvent {
   id: string;
@@ -28,8 +33,11 @@ const FULL_MONTHS = ['января','февраля','марта','апреля'
 
 export function CalendarView() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
+  // A2a: вью-режим в URL (?cal=week), дефолт month — обратная совместимость.
+  const view: 'month' | 'week' = searchParams.get('cal') === 'week' ? 'week' : 'month';
 
   const [currentDate, setCurrentDate] = useState(() => dateParam ? new Date(dateParam) : new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(dateParam);
@@ -38,6 +46,8 @@ export function CalendarView() {
   const { data: meetings = [] } = useMeetings();
   const { data: tasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
 
   // Модалки: редактирование события и создание на выбранный день
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -46,12 +56,70 @@ export function CalendarView() {
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   const [aiEvent, setAiEvent] = useState<{ type: 'call' | 'meeting'; id: string } | null>(null);
 
+  // A2a: TaskModal для тайм-блоков (создание по слоту / правка по клику на блок)
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [slotDefaults, setSlotDefaults] = useState<{ start: string; end: string } | null>(null);
+
+  const setView = (v: 'month' | 'week') => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v === 'week') params.set('cal', 'week'); else params.delete('cal');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const offset = firstDay === 0 ? 6 : firstDay - 1;
   const todayStr = localDateKey();
+
+  // A2a: недельная сетка — понедельник недели currentDate + метка диапазона.
+  const weekStart = useMemo(() => {
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const dow = d.getDay(); // 0=Вс
+    d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    return d;
+  }, [currentDate]);
+
+  const weekEnd = useMemo(
+    () => new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6),
+    [weekStart],
+  );
+
+  const weekLabel = weekStart.getMonth() === weekEnd.getMonth()
+    ? `${weekStart.getDate()}–${weekEnd.getDate()} ${FULL_MONTHS[weekStart.getMonth()]}`
+    : `${weekStart.getDate()} ${FULL_MONTHS[weekStart.getMonth()]} – ${weekEnd.getDate()} ${FULL_MONTHS[weekEnd.getMonth()]}`;
+
+  // Задачи недели: scheduled_start задан, мои, дата (МСК) в пределах недели.
+  const weekTasks = useMemo(() => {
+    if (view !== 'week') return [];
+    const keys = new Set(
+      Array.from({ length: 7 }, (_, i) =>
+        mskDateKey(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)),
+      ),
+    );
+    return tasks.filter(
+      (t) => t.scheduled_start && isMine(t, currentUserId) && keys.has(mskDateKey(t.scheduled_start)),
+    );
+  }, [view, weekStart, tasks, currentUserId]);
+
+  const shiftDays = (n: number) =>
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + n));
+
+  function handleSlotClick(dayDate: Date, hour: number) {
+    const start = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), hour, 0);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), hour + 1, 0);
+    setEditTask(null);
+    setSlotDefaults({ start: localDateTimeKey(start), end: localDateTimeKey(end) });
+    setTaskModalOpen(true);
+  }
+
+  function handleBlockClick(taskId: string) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (t) { setEditTask(t); setSlotDefaults(null); setTaskModalOpen(true); }
+  }
 
   // Build events map for the month
   const eventsMap = useMemo(() => {
@@ -155,20 +223,42 @@ export function CalendarView() {
 
   return (
     <div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
-      {/* Grid */}
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={prevMonth} style={navBtn}><ChevronLeft size={18} /></button>
-            <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text)', minWidth: 160, textAlign: 'center' }}>
-              {MONTH_NAMES[month]} {year}
-            </span>
-            <button onClick={nextMonth} style={navBtn}><ChevronRight size={18} /></button>
+      {/* Шапка: навигация + тумблер Месяц/Неделя (A2a) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => (view === 'week' ? shiftDays(-7) : prevMonth())} style={navBtn}><ChevronLeft size={18} /></button>
+          <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text)', minWidth: 160, textAlign: 'center' }}>
+            {view === 'week' ? weekLabel : `${MONTH_NAMES[month]} ${year}`}
+          </span>
+          <button onClick={() => (view === 'week' ? shiftDays(7) : nextMonth())} style={navBtn}><ChevronRight size={18} /></button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', border: '0.5px solid var(--border)' }}>
+            {(['month', 'week'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                style={{
+                  ...navBtn, border: 'none', fontSize: 12, padding: '4px 12px',
+                  ...(view === v ? { background: 'var(--accent)', color: 'var(--surface)' } : {}),
+                }}
+              >
+                {v === 'month' ? 'Месяц' : 'Неделя'}
+              </button>
+            ))}
           </div>
           <button onClick={goToday} style={{ ...navBtn, fontSize: 12, padding: '4px 12px' }}>Сегодня</button>
         </div>
+      </div>
 
+      {view === 'week' ? (
+        <div style={{ overflowX: 'auto' }}>
+          <WeekGrid weekStart={weekStart} tasks={weekTasks} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} />
+        </div>
+      ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
+      {/* Grid */}
+      <div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: 4 }}>
           {DAY_NAMES.map((d) => (
             <div key={d} style={{ fontSize: 11, color: 'var(--text-mute)', padding: '6px 0', fontWeight: 500, letterSpacing: '0.03em' }}>{d}</div>
@@ -282,6 +372,7 @@ export function CalendarView() {
         ))}
       </div>
     </div>
+      )}
 
     <CallModal
       isOpen={callModalOpen}
@@ -303,6 +394,13 @@ export function CalendarView() {
         entityId={aiEvent.id}
       />
     )}
+    <TaskModal
+      isOpen={taskModalOpen}
+      onClose={() => { setTaskModalOpen(false); setEditTask(null); setSlotDefaults(null); }}
+      editTask={editTask}
+      defaultScheduledStart={slotDefaults?.start ?? null}
+      defaultScheduledEnd={slotDefaults?.end ?? null}
+    />
     </div>
   );
 }
