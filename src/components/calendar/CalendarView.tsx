@@ -8,6 +8,9 @@ import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { useTeamMembers } from '@/lib/hooks/use-team-members';
+import { useMeetingAttendees } from '@/lib/hooks/use-meeting-attendees';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { isMine } from '@/lib/utils/task-view';
 import { projectHref } from '@/lib/utils/project-href';
 import { localDateKey, localDateTimeKey, mskDateKey } from '@/lib/utils/date-helpers';
@@ -16,6 +19,7 @@ import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { WeekGrid } from '@/components/calendar/WeekGrid';
+import { TeamDayGrid } from '@/components/calendar/TeamDayGrid';
 import type { Task } from '@/types/entities';
 
 interface CalEvent {
@@ -37,7 +41,10 @@ export function CalendarView() {
   const searchParams = useSearchParams();
   const dateParam = searchParams.get('date');
   // A2a: вью-режим в URL (?cal=week), дефолт month — обратная совместимость.
-  const view: 'month' | 'week' = searchParams.get('cal') === 'week' ? 'week' : 'month';
+  // B1: третий режим ?cal=team — командный день (колонки=люди).
+  const calParam = searchParams.get('cal');
+  const view: 'month' | 'week' | 'team' =
+    calParam === 'week' ? 'week' : calParam === 'team' ? 'team' : 'month';
 
   const [currentDate, setCurrentDate] = useState(() => dateParam ? new Date(dateParam) : new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(dateParam);
@@ -46,9 +53,13 @@ export function CalendarView() {
   const { data: meetings = [] } = useMeetings();
   const { data: tasks = [] } = useTasks();
   const { data: projects = [] } = useProjects();
+  const { data: members = [] } = useTeamMembers();
+  const { data: orgRole } = useOrgRole();
   const { user } = useAuth();
   const currentUserId = user?.id ?? null;
   const updateTask = useUpdateTask();
+  // B1: под ограниченной ролью RLS покажет чужие задачи только по общим проектам.
+  const limitedVisibility = orgRole !== 'owner' && orgRole !== 'admin';
 
   // Модалки: редактирование события и создание на выбранный день
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -62,9 +73,9 @@ export function CalendarView() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [slotDefaults, setSlotDefaults] = useState<{ start: string; end: string } | null>(null);
 
-  const setView = (v: 'month' | 'week') => {
+  const setView = (v: 'month' | 'week' | 'team') => {
     const params = new URLSearchParams(searchParams.toString());
-    if (v === 'week') params.set('cal', 'week'); else params.delete('cal');
+    if (v === 'month') params.delete('cal'); else params.set('cal', v);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
@@ -117,6 +128,31 @@ export function CalendarView() {
     );
     return meetings.filter((m) => m.date && keys.has(m.date.slice(0, 10)));
   }, [view, weekStart, meetings]);
+
+  // B1: командный день — отображаемый день (локальная полночь) + метка «Среда, 23 июля».
+  const dayDate = useMemo(
+    () => new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()),
+    [currentDate],
+  );
+  const dayLabel = `${FULL_DAYS[dayDate.getDay()]}, ${dayDate.getDate()} ${FULL_MONTHS[dayDate.getMonth()]}`;
+
+  // Задачи дня для командной сетки. ⚠️ БЕЗ isMine — team-вью показывает всё, что
+  // отдаст RLS. Коммент-долг: фильтр client-side из уже загруженных useTasks
+  // (не серверный range-query) — сознательно, чтобы optimistic-мутации A2b/B2
+  // патчили единый кэш ['tasks']; серверный range — B3 (единый рефактор m/w/team).
+  const teamTasks = useMemo(() => {
+    if (view !== 'team') return [];
+    const dayKey = mskDateKey(dayDate);
+    return tasks.filter((t) => t.scheduled_start && mskDateKey(t.scheduled_start) === dayKey);
+  }, [view, dayDate, tasks]);
+
+  const teamMeetings = useMemo(() => {
+    if (view !== 'team') return [];
+    const dayKey = mskDateKey(dayDate);
+    return meetings.filter((m) => m.date && m.date.slice(0, 10) === dayKey);
+  }, [view, dayDate, meetings]);
+
+  const { data: attendeesMap = {} } = useMeetingAttendees(teamMeetings.map((m) => m.id));
 
   const shiftDays = (n: number) =>
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + n));
@@ -250,15 +286,15 @@ export function CalendarView() {
       {/* Шапка: навигация + тумблер Месяц/Неделя (A2a) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => (view === 'week' ? shiftDays(-7) : prevMonth())} style={navBtn}><ChevronLeft size={18} /></button>
+          <button onClick={() => (view === 'week' ? shiftDays(-7) : view === 'team' ? shiftDays(-1) : prevMonth())} style={navBtn}><ChevronLeft size={18} /></button>
           <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text)', minWidth: 160, textAlign: 'center' }}>
-            {view === 'week' ? weekLabel : `${MONTH_NAMES[month]} ${year}`}
+            {view === 'week' ? weekLabel : view === 'team' ? dayLabel : `${MONTH_NAMES[month]} ${year}`}
           </span>
-          <button onClick={() => (view === 'week' ? shiftDays(7) : nextMonth())} style={navBtn}><ChevronRight size={18} /></button>
+          <button onClick={() => (view === 'week' ? shiftDays(7) : view === 'team' ? shiftDays(1) : nextMonth())} style={navBtn}><ChevronRight size={18} /></button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', border: '0.5px solid var(--border)' }}>
-            {(['month', 'week'] as const).map((v) => (
+            {(['month', 'week', 'team'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -267,7 +303,7 @@ export function CalendarView() {
                   ...(view === v ? { background: 'var(--accent)', color: 'var(--surface)' } : {}),
                 }}
               >
-                {v === 'month' ? 'Месяц' : 'Неделя'}
+                {v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'Команда'}
               </button>
             ))}
           </div>
@@ -275,7 +311,26 @@ export function CalendarView() {
         </div>
       </div>
 
-      {view === 'week' ? (
+      {view === 'team' ? (
+        <div>
+          {limitedVisibility && (
+            <div style={{ fontSize: 11, color: 'var(--text-mute)', marginBottom: 8 }}>
+              Ограниченная видимость: чужие задачи — только по общим проектам.
+            </div>
+          )}
+          <div style={{ overflowX: 'auto' }}>
+            <TeamDayGrid
+              dayDate={dayDate}
+              members={members}
+              tasks={teamTasks}
+              meetings={teamMeetings}
+              attendeesMap={attendeesMap}
+              onBlockClick={handleBlockClick}
+              onMeetingClick={handleMeetingClick}
+            />
+          </div>
+        </div>
+      ) : view === 'week' ? (
         <div style={{ overflowX: 'auto' }}>
           <WeekGrid weekStart={weekStart} tasks={weekTasks} meetings={weekMeetings} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} onReschedule={handleReschedule} onMeetingClick={handleMeetingClick} />
         </div>
