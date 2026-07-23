@@ -33,9 +33,12 @@ interface TaskModalProps {
   defaultDeadline?: string | null;
   /** P2a: lane при создании (фазовая доска delivery — 'next', статус «Не начата») */
   defaultLane?: TaskFormValues['lane'];
+  /** A2a: préfill интервала «Запланировано» при создании из слота недельной сетки, YYYY-MM-DDTHH:mm или ISO */
+  defaultScheduledStart?: string | null;
+  defaultScheduledEnd?: string | null;
 }
 
-export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { data: companies } = useCompanies();
@@ -135,15 +138,15 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         deadline: isoToDatetimeLocal(defaultDeadline),
         start_date: null,
         end_date: null,
-        scheduled_start: null,
-        scheduled_end: null,
+        scheduled_start: isoToDatetimeLocal(defaultScheduledStart),
+        scheduled_end: isoToDatetimeLocal(defaultScheduledEnd),
         remind_min: null,
         assigned_to: null,
         parent_task_id: null,
         wbs_code: null,
       });
     }
-  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, reset]);
+  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd, reset]);
 
   function onSubmit(values: TaskFormValues) {
     // datetime-local (локальное время) → ISO UTC для timestamptz-полей;
