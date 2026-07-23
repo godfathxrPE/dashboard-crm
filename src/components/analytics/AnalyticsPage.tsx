@@ -6,6 +6,7 @@ import { BarChart3, TrendingUp } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
+import { TasksAnalytics } from './TasksAnalytics';
 
 // W4a: recharts-чарты — dynamic-чанком, первый чанк /analytics без recharts.
 function ChartSkeleton() {
@@ -50,6 +51,8 @@ export function AnalyticsPage() {
         </div>
         {/* M6: pipeline на всю ширину; ExportPanel — утилита, ушла вниз строкой (ниже) */}
         <PipelineChart />
+        {/* S-ANALYTICS-1: task-аналитика (серверные RPC 072) — completion/throughput/cycle/aging */}
+        <TasksAnalytics />
         {/* Экспорт — служебная полоса, последним элементом страницы */}
         <ExportPanel />
       </div>
