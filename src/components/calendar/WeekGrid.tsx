@@ -7,7 +7,6 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  useDraggable,
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { Calendar } from 'lucide-react';
@@ -16,17 +15,18 @@ import type { Meeting } from '@/lib/hooks/use-meetings';
 import {
   mskMinutesOfDay,
   mskDateKey,
-  mskTimeRange,
   localDateTimeKey,
   datetimeLocalToIso,
 } from '@/lib/utils/date-helpers';
 // B1: механика сетки вынесена в общий модуль (константы, геометрия, упаковка,
 // GridItem/Placed, read-only MeetingBlock). Поведение недельной сетки не изменилось.
+// B2: draggable-блок тоже вынесен в grid-core как DraggableTimeBlock (доедена
+// унификация B1) — обе сетки используют один блок; интерпретация Δ живёт в родителе.
 import {
   START_HOUR, HOURS, HOUR_REM, GUTTER_REM, START_MIN, END_MIN,
-  MIN_BLOCK_REM, SNAP, MIN_DUR, MEETING_NOMINAL_MIN, PRIORITY_ACCENT,
-  clamp, remOfMin, timeToMin, layoutColumn, MeetingBlock,
-  type GridItem, type Placed,
+  SNAP, MIN_DUR, MEETING_NOMINAL_MIN,
+  clamp, remOfMin, timeToMin, layoutColumn, MeetingBlock, DraggableTimeBlock,
+  type GridItem, type Placed, type MoveData,
 } from '@/components/calendar/grid-core';
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -36,14 +36,6 @@ const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 // независимость — отдельный hardening, см. долги A2b).
 const atMin = (dayDate: Date, min: number) =>
   new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), Math.floor(min / 60), min % 60);
-
-interface MoveData {
-  mode: 'move';
-  task: Task;
-  startMin: number;
-  endMin: number;
-  dayIndex: number;
-}
 
 interface WeekGridProps {
   /** Понедельник отображаемой недели (локальная полночь). */
@@ -58,126 +50,6 @@ interface WeekGridProps {
   onReschedule: (taskId: string, startIso: string, endIso: string) => void;
   /** A2c: открыть встречу (существующая MeetingModal в родителе). */
   onMeetingClick: (meetingId: string) => void;
-}
-
-interface TimeBlockProps {
-  p: Placed;
-  task: Task;
-  dayIndex: number;
-  dayDate: Date;
-  renderEndMin: number; // высота с учётом live-превью resize
-  onBlockClick: (taskId: string) => void;
-  readPxPerMin: () => number;
-  onResizePreview: (id: string | null, endMin: number) => void;
-  onResizeCommit: (task: Task, dayDate: Date, newEndMin: number) => void;
-}
-
-// Один блок задачи: draggable-перенос (dnd-kit, live transform) + нативный
-// resize нижнего края (точный live-preview высоты). Клик <5px → onBlockClick.
-function TimeBlock({
-  p, task, dayIndex, dayDate, renderEndMin,
-  onBlockClick, readPxPerMin, onResizePreview, onResizeCommit,
-}: TimeBlockProps) {
-  const { startMin, endMin, lane, cols } = p;
-  const { setNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
-    id: task.id,
-    data: { mode: 'move', task, startMin, endMin, dayIndex } satisfies MoveData,
-  });
-
-  const topRem = remOfMin(startMin);
-  const hRem = Math.max((renderEndMin - startMin) / 60 * HOUR_REM, MIN_BLOCK_REM);
-  const widthPct = 100 / cols;
-  const range = mskTimeRange(task.scheduled_start, task.scheduled_end);
-
-  // Нативный resize нижнего края: pointerdown на хвате не должен стартовать
-  // dnd-move (stopPropagation), геометрию берём в момент захвата (px→мин).
-  const onHandlePointerDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const startY = e.clientY;
-    const pxPerMin = readPxPerMin();
-    const onMove = (ev: PointerEvent) => {
-      const preview = clamp(endMin + (ev.clientY - startY) / pxPerMin, startMin + MIN_DUR, END_MIN);
-      onResizePreview(task.id, preview);
-    };
-    const onUp = (ev: PointerEvent) => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      onResizePreview(null, 0);
-      const dMin = Math.round(((ev.clientY - startY) / pxPerMin) / SNAP) * SNAP;
-      const newEndMin = clamp(endMin + dMin, startMin + MIN_DUR, END_MIN);
-      if (newEndMin !== endMin) onResizeCommit(task, dayDate, newEndMin);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
-  return (
-    <button
-      ref={setNodeRef}
-      type="button"
-      onClick={() => onBlockClick(task.id)}
-      {...listeners}
-      {...attributes}
-      style={{
-        position: 'absolute',
-        top: `${topRem}rem`,
-        height: `${hRem}rem`,
-        left: `calc(${lane * widthPct}% + 0.125rem)`,
-        width: `calc(${widthPct}% - 0.25rem)`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.0625rem',
-        overflow: 'hidden',
-        textAlign: 'left',
-        padding: '0.1875rem 0.375rem',
-        borderRadius: '0.25rem',
-        border: '0.5px solid var(--border)',
-        borderLeft: `2px solid ${PRIORITY_ACCENT[task.priority] ?? 'var(--text-mute)'}`,
-        background: 'var(--surface2, var(--surface))',
-        color: 'var(--text)',
-        cursor: isDragging ? 'grabbing' : 'grab',
-        fontFamily: 'inherit',
-        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-        zIndex: isDragging ? 5 : 1,
-        touchAction: 'none',
-      }}
-    >
-      {range && (
-        <span style={{ fontSize: '0.625rem', color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
-          {range}
-        </span>
-      )}
-      <span
-        style={{
-          fontSize: '0.75rem',
-          fontWeight: 500,
-          lineHeight: 1.2,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-        }}
-      >
-        {task.text}
-      </span>
-      {/* Хват resize нижнего края */}
-      <div
-        onPointerDown={onHandlePointerDown}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: '0.4rem',
-          cursor: 'ns-resize',
-          touchAction: 'none',
-        }}
-      />
-    </button>
-  );
 }
 
 export function WeekGrid({ weekStart, tasks, meetings, onSlotClick, onBlockClick, onReschedule, onMeetingClick }: WeekGridProps) {
@@ -265,7 +137,7 @@ export function WeekGrid({ weekStart, tasks, meetings, onSlotClick, onBlockClick
 
     const dur = data.endMin - data.startMin;
     const newStartMin = clamp(data.startMin + deltaMin, START_MIN, END_MIN - dur);
-    const newDayDate = days[clamp(data.dayIndex + deltaDays, 0, 6)].date;
+    const newDayDate = days[clamp(data.colIndex + deltaDays, 0, 6)].date;
     const startDate = atMin(newDayDate, newStartMin);
     const startIso = datetimeLocalToIso(localDateTimeKey(startDate));
     const endIso = datetimeLocalToIso(localDateTimeKey(new Date(startDate.getTime() + dur * 60000)));
@@ -380,11 +252,11 @@ export function WeekGrid({ weekStart, tasks, meetings, onSlotClick, onBlockClick
                 {/* Блоки: задачи (draggable) + встречи (read-only), единая упаковка */}
                 {(perDay[d.key] ?? []).map((p) =>
                   p.item.kind === 'task' ? (
-                    <TimeBlock
+                    <DraggableTimeBlock
                       key={p.item.task.id}
                       p={p}
                       task={p.item.task}
-                      dayIndex={dayIndex}
+                      colIndex={dayIndex}
                       dayDate={d.date}
                       renderEndMin={resize?.id === p.item.task.id ? resize.endMin : p.endMin}
                       onBlockClick={onBlockClick}

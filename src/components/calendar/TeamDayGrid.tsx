@@ -1,17 +1,32 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { Calendar } from 'lucide-react';
 import type { Task } from '@/types/entities';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import type { TeamMember } from '@/lib/hooks/use-team-members';
-import { mskMinutesOfDay, mskDateKey, mskTimeRange } from '@/lib/utils/date-helpers';
+import {
+  mskMinutesOfDay, mskDateKey, localDateTimeKey, datetimeLocalToIso,
+} from '@/lib/utils/date-helpers';
 import {
   START_HOUR, HOURS, HOUR_REM, GUTTER_REM, START_MIN, END_MIN,
-  MIN_BLOCK_REM, MIN_DUR, MEETING_NOMINAL_MIN, PRIORITY_ACCENT,
-  clamp, remOfMin, timeToMin, layoutColumn, MeetingBlock,
-  type GridItem, type Placed,
+  SNAP, MIN_DUR, MEETING_NOMINAL_MIN,
+  clamp, remOfMin, timeToMin, layoutColumn, MeetingBlock, DraggableTimeBlock,
+  type GridItem, type Placed, type MoveData,
 } from '@/components/calendar/grid-core';
+
+// Локальный Date для (день, минута-от-полуночи-МСК) — путь A2b (browser==МСК).
+// Дублируется из WeekGrid намеренно: недельный drag-путь не трогаем (диф хирургический).
+const atMin = (dayDate: Date, min: number) =>
+  new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate(), Math.floor(min / 60), min % 60);
 
 // Служебная колонка для задач/встреч, чей владелец вне текущего состава org
 // (обычно пусто — рендерим только если реально встретится, не теряем данные).
@@ -43,6 +58,10 @@ interface TeamDayGridProps {
   attendeesMap: Record<string, string[]>;
   onBlockClick: (taskId: string) => void;
   onMeetingClick: (meetingId: string) => void;
+  /** B2: drag=reschedule (Δy) / reassign (Δx→assigned_to). Мутирует родитель (optimistic). */
+  onTeamReschedule: (taskId: string, patch: { scheduled_start: string; scheduled_end: string; assigned_to?: string }) => void;
+  /** B2: cross-lane reassign разрешён только owner/admin (UI-гейт; RLS — второй слой). */
+  canReassign: boolean;
 }
 
 interface ColumnDef {
@@ -55,79 +74,22 @@ interface ColumnData {
   allDay: Meeting[];
 }
 
-interface StaticTaskBlockProps {
-  p: Placed;
-  task: Task;
-  onBlockClick: (taskId: string) => void;
-}
-
-// Read-only блок задачи в командной сетке: тот же вид, что TimeBlock (время,
-// текст, priority-акцент), но обычный <button> БЕЗ useDraggable/resize.
-// Интерактив (drag=reschedule, drag между дорожками=reassign) — B2, там же
-// унификация со StaticTaskBlock из week-версии (TimeBlock).
-function StaticTaskBlock({ p, task, onBlockClick }: StaticTaskBlockProps) {
-  const { startMin, endMin, lane, cols } = p;
-  const topRem = remOfMin(startMin);
-  const hRem = Math.max((endMin - startMin) / 60 * HOUR_REM, MIN_BLOCK_REM);
-  const widthPct = 100 / cols;
-  const range = mskTimeRange(task.scheduled_start, task.scheduled_end);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onBlockClick(task.id)}
-      style={{
-        position: 'absolute',
-        top: `${topRem}rem`,
-        height: `${hRem}rem`,
-        left: `calc(${lane * widthPct}% + 0.125rem)`,
-        width: `calc(${widthPct}% - 0.25rem)`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.0625rem',
-        overflow: 'hidden',
-        textAlign: 'left',
-        padding: '0.1875rem 0.375rem',
-        borderRadius: '0.25rem',
-        border: '0.5px solid var(--border)',
-        borderLeft: `2px solid ${PRIORITY_ACCENT[task.priority] ?? 'var(--text-mute)'}`,
-        background: 'var(--surface2, var(--surface))',
-        color: 'var(--text)',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        zIndex: 1,
-      }}
-    >
-      {range && (
-        <span style={{ fontSize: '0.625rem', color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>
-          {range}
-        </span>
-      )}
-      <span
-        style={{
-          fontSize: '0.75rem',
-          fontWeight: 500,
-          lineHeight: 1.2,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-        }}
-      >
-        {task.text}
-      </span>
-    </button>
-  );
-}
-
 // Дневная сетка «Команда»: колонки = люди, та же вертикальная механика 07–22
 // из grid-core. Задача → дорожка assigned_to ?? created_by. Встреча → дорожки
 // участников (attendeesMap), при отсутствии профилей — дорожка created_by;
 // встреча может лечь в несколько дорожек (по блоку в каждой). Read-only.
 export function TeamDayGrid({
-  dayDate, members, tasks, meetings, attendeesMap, onBlockClick, onMeetingClick,
+  dayDate, members, tasks, meetings, attendeesMap,
+  onBlockClick, onMeetingClick, onTeamReschedule, canReassign,
 }: TeamDayGridProps) {
+  const colRef = useRef<HTMLDivElement>(null);
+  const [resize, setResize] = useState<{ id: string; endMin: number } | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
   const { columns, byColumn } = useMemo(() => {
     const memberIds = new Set(members.map((m) => m.id));
     const buckets: Record<string, ColumnData> = {};
@@ -176,6 +138,55 @@ export function TeamDayGrid({
 
     return { columns: cols, byColumn: { buckets, placed } };
   }, [members, tasks, meetings, attendeesMap]);
+
+  // Геометрия из runtime (первая человеко-колонка): высота → px/мин, ширина → px/колонку.
+  const readPxPerMin = () => {
+    const el = colRef.current;
+    return el ? el.clientHeight / (HOURS * 60) : 1;
+  };
+  const readColWidthPx = () => colRef.current?.clientWidth ?? 1;
+
+  // DRAG: Δy = reschedule времени (день фикс — единственный день вида), Δx = reassign
+  // (перенос в дорожку человека → assigned_to). Роль-гейт: не-owner/admin двигает только
+  // по времени (RLS tasks_update — второй слой). Цель «Прочие» (member=null) → reassign игнор.
+  function handleTeamDragEnd(e: DragEndEvent) {
+    const data = e.active.data.current as MoveData | undefined;
+    if (!data || data.mode !== 'move') return;
+    const pxPerMin = readPxPerMin();
+    const deltaMin = Math.round((e.delta.y / pxPerMin) / SNAP) * SNAP;
+    const deltaCol = canReassign ? Math.round(e.delta.x / readColWidthPx()) : 0;
+
+    const dur = data.endMin - data.startMin;
+    const newStartMin = clamp(data.startMin + deltaMin, START_MIN, END_MIN - dur);
+    const targetIndex = clamp(data.colIndex + deltaCol, 0, columns.length - 1);
+    const target = columns[targetIndex];
+
+    const changedTime = newStartMin !== data.startMin;
+    const reassign = !!target?.member && targetIndex !== data.colIndex;
+    if (!changedTime && !reassign) return;
+
+    const startDate = atMin(dayDate, newStartMin);
+    const startIso = datetimeLocalToIso(localDateTimeKey(startDate));
+    const endIso = datetimeLocalToIso(localDateTimeKey(new Date(startDate.getTime() + dur * 60000)));
+    if (!startIso || !endIso) return;
+
+    onTeamReschedule(data.task.id, {
+      scheduled_start: startIso,
+      scheduled_end: endIso,
+      assigned_to: reassign ? target!.member!.id : undefined,
+    });
+  }
+
+  // RESIZE-коммит: старт не меняется, конец из (день вида, новый конец); assigned_to не трогаем.
+  function handleResizeCommit(task: Task, dDate: Date, newEndMin: number) {
+    const endIso = datetimeLocalToIso(localDateTimeKey(atMin(dDate, newEndMin)));
+    if (task.scheduled_start && endIso) {
+      onTeamReschedule(task.id, { scheduled_start: task.scheduled_start, scheduled_end: endIso });
+    }
+  }
+
+  const handleResizePreview = (id: string | null, endMin: number) =>
+    setResize(id ? { id, endMin } : null);
 
   // Линия «сейчас» — во всех колонках, если показываемый день = сегодня (МСК).
   const now = new Date();
@@ -254,7 +265,8 @@ export function TeamDayGrid({
         ))}
       </div>
 
-      {/* Тело: линейка часов + колонки людей. */}
+      {/* Тело: линейка часов + колонки людей (draggable-блоки внутри DndContext). */}
+      <DndContext sensors={sensors} onDragEnd={handleTeamDragEnd}>
       <div style={{ display: 'grid', gridTemplateColumns: gridCols }}>
         {/* Линейка часов */}
         <div style={{ position: 'relative', height: bodyHeight }}>
@@ -277,9 +289,10 @@ export function TeamDayGrid({
         </div>
 
         {/* Колонки людей */}
-        {columns.map((c) => (
+        {columns.map((c, idx) => (
           <div
             key={c.id}
+            ref={idx === 0 ? colRef : undefined}
             style={{
               position: 'relative',
               height: bodyHeight,
@@ -317,14 +330,20 @@ export function TeamDayGrid({
               />
             )}
 
-            {/* Блоки: задачи (read-only) + встречи (импортированный MeetingBlock) */}
+            {/* Блоки: задачи (draggable=reschedule/reassign) + встречи (read-only MeetingBlock) */}
             {(byColumn.placed[c.id] ?? []).map((p) =>
               p.item.kind === 'task' ? (
-                <StaticTaskBlock
+                <DraggableTimeBlock
                   key={p.item.task.id}
                   p={p}
                   task={p.item.task}
+                  colIndex={idx}
+                  dayDate={dayDate}
+                  renderEndMin={resize?.id === p.item.task.id ? resize.endMin : p.endMin}
                   onBlockClick={onBlockClick}
+                  readPxPerMin={readPxPerMin}
+                  onResizePreview={handleResizePreview}
+                  onResizeCommit={handleResizeCommit}
                 />
               ) : (
                 <MeetingBlock
@@ -372,6 +391,7 @@ export function TeamDayGrid({
           </div>
         ))}
       </div>
+      </DndContext>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus, Sparkles } from 'lucide-react';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
@@ -175,6 +176,20 @@ export function CalendarView() {
     updateTask.mutate({ id, scheduled_start, scheduled_end });
   }
 
+  // B2: командный drag → reschedule (+ опц. reassign). assigned_to в патче → оптимистичный
+  // onMutate перекладывает блок в дорожку нового исполнителя; триггер notify_task_assigned
+  // шлёт ему уведомление сам. Обратимо драгом назад — модалка подтверждения не нужна.
+  function handleTeamReschedule(
+    id: string,
+    patch: { scheduled_start: string; scheduled_end: string; assigned_to?: string },
+  ) {
+    updateTask.mutate({ id, ...patch });
+    if (patch.assigned_to) {
+      const who = members.find((m) => m.id === patch.assigned_to)?.full_name;
+      if (who) toast.success(`Переназначено → ${who}`);
+    }
+  }
+
   // A2c: клик по встрече в сетке → существующая MeetingModal (тот же путь, что month-view).
   function handleMeetingClick(id: string) {
     const m = meetings.find((x) => x.id === id);
@@ -327,6 +342,8 @@ export function CalendarView() {
               attendeesMap={attendeesMap}
               onBlockClick={handleBlockClick}
               onMeetingClick={handleMeetingClick}
+              onTeamReschedule={handleTeamReschedule}
+              canReassign={!limitedVisibility}
             />
           </div>
         </div>
