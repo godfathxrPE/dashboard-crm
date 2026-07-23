@@ -106,6 +106,18 @@ export function CalendarView() {
     );
   }, [view, weekStart, tasks, currentUserId]);
 
+  // A2c: встречи недели (org-scoped RLS). Скоуп — все встречи недели; персональный
+  // фильтр по вовлечённости — под фазу B/команду. Матч по календарной дате.
+  const weekMeetings = useMemo(() => {
+    if (view !== 'week') return [];
+    const keys = new Set(
+      Array.from({ length: 7 }, (_, i) =>
+        mskDateKey(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)),
+      ),
+    );
+    return meetings.filter((m) => m.date && keys.has(m.date.slice(0, 10)));
+  }, [view, weekStart, meetings]);
+
   const shiftDays = (n: number) =>
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + n));
 
@@ -125,6 +137,12 @@ export function CalendarView() {
   // A2b: drag/resize блока → оптимистичный патч scheduled_start/end (onMutate уже optimistic).
   function handleReschedule(id: string, scheduled_start: string, scheduled_end: string) {
     updateTask.mutate({ id, scheduled_start, scheduled_end });
+  }
+
+  // A2c: клик по встрече в сетке → существующая MeetingModal (тот же путь, что month-view).
+  function handleMeetingClick(id: string) {
+    const m = meetings.find((x) => x.id === id);
+    if (m) { setEditMeeting(m); setMeetingModalOpen(true); }
   }
 
   // Build events map for the month
@@ -259,7 +277,7 @@ export function CalendarView() {
 
       {view === 'week' ? (
         <div style={{ overflowX: 'auto' }}>
-          <WeekGrid weekStart={weekStart} tasks={weekTasks} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} onReschedule={handleReschedule} />
+          <WeekGrid weekStart={weekStart} tasks={weekTasks} meetings={weekMeetings} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} onReschedule={handleReschedule} onMeetingClick={handleMeetingClick} />
         </div>
       ) : (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
