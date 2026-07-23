@@ -7,9 +7,7 @@ export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Company = Database['public']['Tables']['companies']['Row'];
 export type Contact = Database['public']['Tables']['contacts']['Row'];
 export type Project = Database['public']['Tables']['projects']['Row'];
-// S-TIMEBLOCK-A1: колонки tasks.scheduled_start/scheduled_end добавлены РУКАМИ в
-// supabase.gen.ts (миграция 070 на гейте Cowork, не применена). После apply →
-// `npx supabase gen types` регенерит gen-файл, эти алиасы продолжат работать 1:1.
+// S-TIMEBLOCK-A1: tasks.scheduled_start/scheduled_end (070 применена, типы регенерированы).
 export type Task = Database['public']['Tables']['tasks']['Row'] & {
   // S-TASKS-RESTRUCTURE-1: projects.type прилетает из join → классификатор источника
   // (client=сделка, internal/delivery=проект внедрения). Тип-опционален: борды/Гант
@@ -44,8 +42,7 @@ export type ActivityLogInsert = Database['public']['Tables']['activity_log']['In
 // ═══ S-RECUR-1: recurring_task_templates (069 применена) ═══
 // `cadence` — text-колонка с CHECK (не PG-enum) → автогенерация даёт `string`.
 // Сужаем до RecurringCadence тем же приёмом, что ProjectColumn/category выше.
-// S-TIMEBLOCK-A1: start_time/duration_min добавлены РУКАМИ в supabase.gen.ts
-// (миграция 070 на гейте Cowork). После apply regen снимет ручную правку 1:1.
+// S-TIMEBLOCK-A1: start_time/duration_min (070 применена, типы регенерированы).
 export type RecurringTaskTemplate = Omit<Database['public']['Tables']['recurring_task_templates']['Row'], 'cadence'> & {
   cadence: RecurringCadence;
 };
