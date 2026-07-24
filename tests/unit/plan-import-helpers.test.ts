@@ -87,6 +87,19 @@ describe('parsePlanDate', () => {
     expect(parsePlanDate(null)).toBeNull();
     expect(parsePlanDate(undefined)).toBeNull();
   });
+
+  test('«{день недели} ДД.ММ.ГГ» (двузначный год) → нормализация', () => {
+    expect(parsePlanDate('Пн 28.07.25')).toBe('2025-07-28');   // день недели + 2-значный год
+    expect(parsePlanDate('Чт 29.01.26')).toBe('2026-01-29');
+    expect(parsePlanDate('Вт 02.09.25')).toBe('2025-09-02');
+    expect(parsePlanDate('28.07.25')).toBe('2025-07-28');       // без дня недели
+    expect(parsePlanDate('Пн. 28.07.25')).toBe('2025-07-28');   // с точкой после дня
+    // регресс — старые форматы целы:
+    expect(parsePlanDate('2026-07-20')).toBe('2026-07-20');
+    expect(parsePlanDate('31.12.2026')).toBe('2026-12-31');
+    expect(parsePlanDate('мусор')).toBeNull();
+    expect(parsePlanDate('99.99.25')).toBeNull();               // невалидные день/месяц
+  });
 });
 
 describe('parseMilestone', () => {

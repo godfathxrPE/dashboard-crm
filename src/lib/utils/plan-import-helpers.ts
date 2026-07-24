@@ -56,8 +56,9 @@ export function parsePlanDate(cell: unknown): string | null {
   }
 
   if (typeof cell === 'string') {
-    const s = cell.trim();
+    let s = cell.trim();
     if (!s) return null;
+    s = s.replace(/^(?:Пн|Вт|Ср|Чт|Пт|Сб|Вс)\.?\s+/i, '').trim();   // «Пн 28.07.25» → «28.07.25»
 
     // гггг-мм-дд (допускаем однозначные месяц/день)
     const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
@@ -73,6 +74,14 @@ export function parsePlanDate(cell: unknown): string | null {
       const [, day, m, y] = ru;
       if (Number(m) < 1 || Number(m) > 12 || Number(day) < 1 || Number(day) > 31) return null;
       return `${y}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    // дд.мм.гг (двузначный год → 2000+; MS Project ru-экспорт)
+    const ru2 = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
+    if (ru2) {
+      const [, day, m, yy] = ru2;
+      if (Number(m) < 1 || Number(m) > 12 || Number(day) < 1 || Number(day) > 31) return null;
+      return `20${yy}-${m.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
 
     return null;
