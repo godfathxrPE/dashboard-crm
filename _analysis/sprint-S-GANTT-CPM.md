@@ -25,7 +25,14 @@ git checkout -b feat/gantt-cpm
 grep -n "S-CRIT-PATH" -A 60 src/components/tasks/GanttTimeline.tsx
 grep -n "critSig\|showCritical\|durDays" src/components/tasks/GanttTimeline.tsx
 grep -n "export" src/lib/utils/gantt-schedule.ts
+ls tests/unit/gantt-schedule.test.ts
 ```
+
+**STOP-условия (проверить до первой правки):**
+
+1. Нет `src/lib/utils/gantt-schedule.ts` → 1B не смёржен в `main`. Не начинать, сказать.
+2. Нет `computeCascade` / `ScheduleNode` в экспортах модуля → ветка не та. Не начинать, сказать.
+3. `tests/unit/gantt-schedule.test.ts` отсутствует → тоже 1B не смёржен. Не начинать.
 
 ## WHY
 
@@ -93,6 +100,13 @@ export function computeCpm(
 
 ## ЗАДАЧА 2: vitest
 
+**Файл — только `tests/unit/gantt-schedule.test.ts`** (дописать в существующий, созданный в 1B).
+`vitest.config.ts` содержит `include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx']` —
+тест, положенный под `src/`, не запустится и даст exit 0 при нуле кейсов, то есть ложную зелень.
+`include` не менять.
+
+Кейсы:
+
 - линейная цепочка без запасов → все `TF = 0`, все критические;
 - параллельная ветка короче на 3 дня → у неё `TF = 3`, у длинной `TF = 0`;
 - **две** независимые критические цепочки одинаковой длины → обе подсвечены (кейс, который
@@ -118,11 +132,28 @@ export function computeCpm(
   Цвет — только через CSS-переменные темы, никаких хардкод-хексов.
 - Тумблер `showCritical` и его текущее поведение сохраняются как есть.
 
+**Бейдж «Крит. путь: N дн» (GanttTimeline L964).** Сейчас читает `critical.totalDays` —
+поле longest-path DP, которого в новой сигнатуре `computeCpm` нет (возвращается
+`{ byId, projectFinish }`). Считать N как сумму длительностей критических задач НЕЛЬЗЯ:
+при двух параллельных критических цепочках сумма удвоится, а горизонт проекта не изменится.
+
+Правило: N — горизонт критического пути в календарных днях включительно,
+
+```ts
+const criticalDays =
+  cpm.projectFinish && minES ? diffDaysKey(minES, cpm.projectFinish) + 1 : 0;
+```
+
+где `minES` — минимальный `ES` по критическим узлам (`cpm.byId`, `v.critical`).
+Для одной цепочки число совпадает со старым `totalDays` — регресс базового кейса виден
+в смоуке п.1. Для N параллельных цепочек одинаковой длины остаётся корректным.
+Условие показа бейджа не меняется: `showCritical && criticalIds.size > 0`.
+
 ## VERIFY
 
 ```bash
 npx tsc --noEmit && npx eslint src/lib/utils src/components/tasks
-npx vitest run src/lib/utils
+npx vitest run tests/unit/gantt-schedule
 grep -n "durDays" src/components/tasks/GanttTimeline.tsx     # пусто — дубль удалён
 grep -rn "\bany\b" src/lib/utils/gantt-schedule.ts           # пусто
 git diff --stat main
@@ -132,7 +163,8 @@ git diff --stat main
 
 1. Проект с явной длинной цепочкой → подсветка совпала со старой (регресс базового кейса).
 2. Проект с двумя параллельными ветками равной длины → **обе** подсвечены (новое поведение,
-   старое подсвечивало одну — это и есть цель).
+   старое подсвечивало одну — это и есть цель). Бейдж «Крит. путь: N дн» показывает горизонт,
+   а не удвоенную сумму: N совпадает с длиной одной ветки.
 3. Наведение на бар в короткой ветке → «запас: N дн», число сходится с ручным счётом.
 4. Задача с FS-нарушением из 1a → «просрочка», бар критический, красная стрелка на месте.
 5. Тумблер крит-пути вкл/выкл, зумы day/week/month, сворачивание WBS-узлов → рёбра не мигают,
@@ -143,7 +175,7 @@ git diff --stat main
 ## КОММИТ
 
 ```bash
-git add src/lib/utils/gantt-schedule.ts src/components/tasks/GanttTimeline.tsx src/lib/utils/__tests__
+git add src/lib/utils/gantt-schedule.ts src/components/tasks/GanttTimeline.tsx tests/unit/gantt-schedule.test.ts
 git commit -m "feat(gantt): полный CPM — ES/EF/LS/LF, total float, крит-путь по нулевому запасу
 
 - computeCpm в gantt-schedule.ts: прямой/обратный проход с ограничением
