@@ -794,6 +794,38 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     [updateDates.mutate, proposeCascade],
   );
 
+  // S-GANTT-POLISH: индексы выходных — ТОЛЬКО zoom==='day' (в неделе/месяце выходные
+  // внутри бакета, красить нечего). День недели из ключа бакета по конвенции проекта —
+  // UTC-полдень (new Date(key) напрямую нельзя: ключ парсится как UTC-полночь и в MSK
+  // отъезжает на день назад).
+  const weekendIdx = useMemo(() => {
+    if (zoom !== 'day') return [] as number[];
+    const out: number[] = [];
+    model.buckets.forEach((b, i) => {
+      const dow = new Date(`${b.key}T12:00:00Z`).getUTCDay();
+      if (dow === 0 || dow === 6) out.push(i);
+    });
+    return out;
+  }, [model.buckets, zoom]);
+
+  // S-GANTT-POLISH: скролл к «сегодня». Ref на ту же колонку, что рисует линию.
+  // block:'nearest' обязателен — иначе scrollIntoView уводит вертикальный скролл
+  // всей страницы к таймлайну.
+  const todayColRef = useRef<HTMLDivElement>(null);
+  const scrollToToday = useCallback(() => {
+    todayColRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, []);
+
+  // Автоскролл ровно ОДИН раз за жизнь компонента: иначе позиция уезжала бы после
+  // каждого драга и каждого переключения фильтра (model пересчитывается часто).
+  const autoScrolledRef = useRef(false);
+  useLayoutEffect(() => {
+    if (autoScrolledRef.current) return;
+    if (model.buckets.length === 0 || model.todayIdx === -1) return;
+    autoScrolledRef.current = true;
+    scrollToToday();
+  }, [model.buckets.length, model.todayIdx, scrollToToday]);
+
   // S-GANTT-POLISH: печать. Класс снимаем в afterprint, а НЕ сразу после print():
   // в части браузеров print() возвращает управление до отрисовки, и правила успели
   // бы отвалиться на середине предпросмотра. once — снятие ровно один раз.
@@ -1026,6 +1058,17 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           Крит. путь: {criticalDays} дн
         </span>
       )}
+      {/* S-GANTT-POLISH: скролл к сегодняшнему дню. Вне горизонта — disabled, а не
+          скролл в никуда. */}
+      <button
+        type="button"
+        onClick={scrollToToday}
+        disabled={todayIdx === -1}
+        className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-mute transition-colors hover:text-text-main disabled:opacity-40 disabled:hover:text-text-mute"
+        title={todayIdx === -1 ? 'Сегодня вне горизонта проекта' : 'Прокрутить к сегодняшнему дню'}
+      >
+        Сегодня
+      </button>
       {/* S-GANTT-POLISH: печать таймлайна. window.print() печатает документ целиком,
           поэтому класс на <html> включает print-правила из globals.css (сайдбар/шапка
           скрыты, палитра форсится в светлую). */}
@@ -1160,7 +1203,10 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
           {/* data-print-scroll: на печати overflow снимается, иначе горизонт обрежется */}
           <div data-print-scroll className="flex-1 overflow-x-auto">
-            <div ref={bodyRef} className="relative min-w-max">
+            {/* isolate: стек-контекст для оверлеев. Заливка выходных уходит под
+                контент через -z-10, и без изоляции отрицательный z-index провалился бы
+                под фон карточки Ганта. */}
+            <div ref={bodyRef} className="relative min-w-max isolate">
               {/* Шапка бакетов (ref — мерим ширину бакета для drag) */}
               <div ref={gridRef} className="grid" style={{ ...gridCols, height: ROW_H }}>
                 {buckets.map((b, i) => (
@@ -1240,10 +1286,24 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 <div className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }} />
               )}
 
+              {/* S-GANTT-POLISH: затенение выходных (только zoom='day'). Оверлей идёт
+                  ПОСЛЕ рядов, а bg-surface2 непрозрачен, поэтому одного порядка в JSX
+                  мало — без -z-10 заливка накрывала бары (на дневном зуме они рвались
+                  пробелами по выходным). -z-10 кладёт её под ряды, под today-линию и
+                  под стрелки; стек-контекст даёт isolate на bodyRef.
+                  Не производственный календарь — праздники и переносы РФ вне скоупа. */}
+              {weekendIdx.length > 0 && (
+                <div className="pointer-events-none absolute inset-0 -z-10 grid" style={gridCols} aria-hidden>
+                  {weekendIdx.map((i) => (
+                    <div key={i} style={{ gridColumn: `${i + 1}` }} className="bg-surface2" />
+                  ))}
+                </div>
+              )}
+
               {/* Today line — оверлей поверх шапки+рядов, выровнен по той же бакет-сетке */}
               {todayIdx !== -1 && (
                 <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
-                  <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
+                  <div ref={todayColRef} style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
                 </div>
               )}
 
