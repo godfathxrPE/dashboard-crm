@@ -26,6 +26,13 @@ import {
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
 import { computeCascade, computeCpm, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
+import {
+  useProjectBaselines,
+  useBaselineTasks,
+  useCreateBaseline,
+  useDeleteBaseline,
+} from '@/lib/hooks/use-project-baselines';
+import { BaselineNameModal } from './BaselineNameModal';
 import type { Task } from '@/types/entities';
 
 interface GanttTimelineProps {
@@ -71,7 +78,8 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
 
 // S-SCHEDULE-1a: assignee/status опциональны — тултип FS-нарушения на стрелке несёт только text
 // S-GANTT-CPM: float — строка запаса/сдвига бара (запас: N дн / запаса нет / старт раньше расчётного: N дн)
-type Tip = { x: number; y: number; text: string; assignee?: string; status?: string; float?: string };
+// S-GANTT-BASELINE-1: plan — маркер «вне плана» на основном баре (задача создана после слепка)
+type Tip = { x: number; y: number; text: string; assignee?: string; status?: string; float?: string; plan?: string };
 
 // S-SCHEDULE-1a: измеренный путь стрелки + данные для lag-бейджа/поповера/soft-warn
 type EdgePath = {
@@ -116,15 +124,34 @@ interface GanttBarProps {
   isLinkSource: boolean;           // подсвечен как выбранный predecessor
   isCritical: boolean;             // S-CRIT-PATH: бар на критическом пути
   floatText?: string;              // S-GANTT-CPM: строка запаса/сдвига для тултипа
+  planNote?: string;               // S-GANTT-BASELINE-1: «вне плана», если задачи нет в слепке
   onLinkSelect: (taskId: string) => void;
   canManage: boolean;              // S-GANTT-UX-2: гейт drag/resize и hover-Trash
   onDeleteTask: (task: Task, isSummary: boolean) => void;
 }
 
+// S-GANTT-BASELINE-1: ghost-бар плана — под основным баром, в той же строке-гриде, у низа.
+// Позиция по тем же bucketIndexOf, что и бар (gs..ge). Слоем ниже (рендерится ДО GanttBar),
+// тоньше (~⅓ ROW_H). Цвет — токен темы с пониженной непрозрачностью, без хардкода. Ховер даёт
+// свой тултип «План: … · сдвиг +N дн» (отдельная цель — экспонированная нижняя кромка под баром).
+function GhostBar({ gs, ge, planText, setTip }: { gs: number; ge: number; planText: string; setTip: (t: Tip | null) => void }) {
+  const show = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: planText });
+  return (
+    <div
+      style={{ gridColumn: `${gs + 1} / ${ge + 2}`, gridRow: 1, alignSelf: 'end' }}
+      className="mb-0.5 h-2 rounded-sm bg-text-mute opacity-40"
+      onMouseEnter={show}
+      onMouseMove={show}
+      onMouseLeave={() => setTip(null)}
+      aria-hidden
+    />
+  );
+}
+
 // Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
 // Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
 // S-DEPS-1: в linkMode drag-хендлеры не навешиваются — клик выбирает конец связи.
-function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, floatText, onLinkSelect, canManage, onDeleteTask }: GanttBarProps) {
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, floatText, planNote, onLinkSelect, canManage, onDeleteTask }: GanttBarProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const spanBuckets = e - s; // 0 у однобакетных / вех
 
@@ -204,8 +231,8 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
     else width = `calc(100% + ${dx}px)`;
   }
 
-  const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText });
-  const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText });
+  const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText, plan: planNote });
+  const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText, plan: planNote });
   const onKey = (ev: React.KeyboardEvent) => {
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
@@ -356,6 +383,13 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const { data: team = [] } = useTeamMembers();
   const updateDates = useUpdateTaskDates();
   const shiftTasks = useShiftTasks();   // S-SCHEDULE-1B: батч-каскад зависимых задач
+  // S-GANTT-BASELINE-1: план/факт — слепки сроков + выбранный для отображения план (в state, не URL — v1).
+  const [selectedBaselineId, setSelectedBaselineId] = useState<string | null>(null);
+  const [baselinePrompt, setBaselinePrompt] = useState(false);
+  const baselines = useProjectBaselines(projectId);
+  const baselineTasks = useBaselineTasks(selectedBaselineId);
+  const createBaseline = useCreateBaseline(projectId);
+  const deleteBaseline = useDeleteBaseline(projectId);
   // S-GANTT-UX-2: удаление задачи/фазы из Ганта — те же мутации, что на доске
   // (FK-cleanup на БД: deps CASCADE 048, parent_task_id SET NULL 052; RPC 032/033).
   const deleteTask = useDeleteTask();
@@ -942,6 +976,46 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           Крит. путь: {criticalDays} дн
         </span>
       )}
+      {/* S-GANTT-BASELINE-1: зафиксировать план (canManage) + выбор отображаемого слепка */}
+      {canManage && (
+        <button
+          type="button"
+          onClick={() => setBaselinePrompt(true)}
+          className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-mute transition-colors hover:text-text-main"
+          title="Зафиксировать текущие сроки как план (для сравнения план/факт)"
+        >
+          Зафиксировать план
+        </button>
+      )}
+      {(baselines.data?.length ?? 0) > 0 && (
+        <div className="flex items-center gap-1">
+          <label htmlFor="baseline-select" className="text-xs text-text-mute">Базовый план:</label>
+          <select
+            id="baseline-select"
+            value={selectedBaselineId ?? ''}
+            onChange={(ev) => setSelectedBaselineId(ev.target.value || null)}
+            className="rounded-lg border border-input bg-surface px-2 py-1 text-xs text-text-main focus:border-accent focus:outline-none"
+          >
+            <option value="">—</option>
+            {baselines.data?.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+          {selectedBaselineId && canManage && (
+            <button
+              type="button"
+              onClick={() =>
+                deleteBaseline.mutate(selectedBaselineId, { onSuccess: () => setSelectedBaselineId(null) })
+              }
+              className="rounded p-1 text-text-mute transition-colors hover:text-red"
+              title="Удалить выбранный план"
+              aria-label="Удалить выбранный план"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -1050,8 +1124,20 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                     const e = idxByKey.get(bucketKeyOf(gt.end, zoom)) ?? s;
                     const assignee = nameById.get(gt.task.assigned_to ?? '') ?? '—';
                     const status = laneLabel(gt.task.lane, phaseMode);
+                    // S-GANTT-BASELINE-1: план из выбранного слепка. Ghost — только если задача
+                    // в слепке И даты уехали. «вне плана» — слепок загружен, а задачи в нём нет.
+                    const plan = baselineTasks.data?.get(gt.task.id);
+                    const ghost = plan && (plan.start !== gt.start || plan.end !== gt.end) ? plan : null;
+                    const gs = ghost ? (idxByKey.get(bucketKeyOf(ghost.start, zoom)) ?? 0) : 0;
+                    const ge = ghost ? (idxByKey.get(bucketKeyOf(ghost.end, zoom)) ?? gs) : 0;
+                    const shift = ghost ? diffDaysKey(ghost.start, gt.start) : 0;
+                    const planText = ghost
+                      ? `План: ${ddmm(ghost.start)} – ${ddmm(ghost.end)} · сдвиг ${shift >= 0 ? '+' : ''}${shift} дн`
+                      : '';
+                    const outOfPlan = !!selectedBaselineId && !!baselineTasks.data && !plan;
                     return (
                       <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
+                        {ghost && <GhostBar gs={gs} ge={ge} planText={planText} setTip={setTip} />}
                         <GanttBar
                           gt={gt}
                           zoom={zoom}
@@ -1067,6 +1153,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                           isLinkSource={pendingPred === gt.task.id}
                           isCritical={showCritical && criticalIds.has(gt.task.id)}
                           floatText={floatTextFor(gt)}
+                          planNote={outOfPlan ? 'вне плана' : undefined}
                           onLinkSelect={onLinkSelect}
                           canManage={canManage}
                           onDeleteTask={handleDeleteTask}
@@ -1308,6 +1395,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           {tip.float !== undefined && (
             <div className={tip.float.startsWith('старт раньше расчётного') ? 'text-yellow' : 'text-text-dim'}>{tip.float}</div>
           )}
+          {/* S-GANTT-BASELINE-1: «вне плана» — задача создана после выбранного слепка. */}
+          {tip.plan !== undefined && <div className="text-text-dim">{tip.plan}</div>}
         </div>
       )}
 
@@ -1357,6 +1446,23 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             </button>
           </div>
         </div>
+      )}
+
+      {/* S-GANTT-BASELINE-1: prompt имени при фиксации плана. На успехе — сразу показываем слепок. */}
+      {baselinePrompt && (
+        <BaselineNameModal
+          defaultName={`План от ${new Date().toLocaleDateString('ru-RU')}`}
+          pending={createBaseline.isPending}
+          onSubmit={(name) =>
+            createBaseline.mutate(name, {
+              onSuccess: (id) => {
+                setBaselinePrompt(false);
+                setSelectedBaselineId(id);
+              },
+            })
+          }
+          onClose={() => setBaselinePrompt(false)}
+        />
       )}
     </div>
   );
