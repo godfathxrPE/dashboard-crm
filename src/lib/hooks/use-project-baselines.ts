@@ -68,6 +68,8 @@ function baselineError(err: unknown): string {
   switch (e?.code) {
     case '42501':
       return 'Недостаточно прав для этого действия с планом';
+    case '22023':
+      return 'Название плана обязательно';
     case '23503':
       return 'Проект или задача не найдены';
     default:
@@ -117,6 +119,9 @@ export function useCreateBaseline(projectId: string) {
   const supabase = baselineDb();
   const queryClient = useQueryClient();
   return useMutation({
+    // Тост об ошибке зовём сами (baselineError) — глушим глобальный MutationCache.onError,
+    // иначе на каждую ошибку два тоста.
+    meta: { silentError: true },
     mutationFn: async (name: string) => {
       const { data, error } = await supabase.rpc('create_project_baseline', {
         p_project_id: projectId,
@@ -137,6 +142,8 @@ export function useDeleteBaseline(projectId: string) {
   const supabase = baselineDb();
   const queryClient = useQueryClient();
   return useMutation({
+    // Тост об ошибке зовём сами (baselineError) — глушим глобальный MutationCache.onError.
+    meta: { silentError: true },
     mutationFn: async (baselineId: string) => {
       // .select() обязателен: RLS-deny (manager/viewer) удаляет 0 строк и НЕ отдаёт error.
       // Пустой data ⇒ прав нет ⇒ бросаем 42501, чтобы оптимистик откатился и всплыл тост.

@@ -1,6 +1,12 @@
 -- 074: project_baselines — зафиксированный слепок сроков проекта (план) для план/факт.
 -- Hard delete: deleted_at-инфраструктуры в проекте нет (см. 067). Слепок иммутабелен:
 -- UPDATE-политик нет, переснять = новый baseline. Аддитивно — правок существующих таблиц нет.
+--
+-- Осознанные отклонения от конвенции таблиц:
+--   updated_at нет нигде — слепок иммутабелен, UPDATE-политик не существует;
+--   у baseline_tasks нет created_at/created_by — строки создаются только RPC вместе с
+--   заголовком, автор и время лежат в project_baselines;
+--   гранты сужены (select+delete на заголовок, только select на строки) — записи клиентом нет.
 
 create table if not exists public.project_baselines (
   id          uuid primary key default gen_random_uuid(),
@@ -105,14 +111,29 @@ set search_path = public, pg_temp
 as $$
 declare v_id uuid;
 begin
+  -- Видимость первой: невидимый проект = «не найден», иначе id-зонд подтверждает существование.
+  -- Предикат дословно совпадает с project_baselines_select — расхождение = запись вслепую
+  -- (manager вне проекта создал бы слепок в проекте, который сам не видит).
   if not exists (
     select 1 from public.projects p
-    where p.id = p_project_id and p.org_id = public.current_org_id()
+    where p.id = p_project_id
+      and p.org_id = public.current_org_id()
+      and (
+        coalesce(public.current_org_role(), '') in ('owner', 'admin')
+        or p.owner_id = auth.uid()
+        or p.created_by = auth.uid()
+        or public.is_project_member(p.id)
+      )
   ) then
     raise exception 'Проект не найден' using errcode = '42501';
   end if;
+
   if coalesce(public.current_org_role(), '') not in ('owner', 'admin', 'manager') then
     raise exception 'Недостаточно прав' using errcode = '42501';
+  end if;
+
+  if p_name is null or char_length(trim(p_name)) = 0 then
+    raise exception 'Название плана обязательно' using errcode = '22023';
   end if;
 
   insert into public.project_baselines (project_id, name, created_by)
