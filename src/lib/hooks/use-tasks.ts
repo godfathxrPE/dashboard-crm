@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import {
   useQuery,
   useMutation,
@@ -12,7 +13,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
 import type { TaskLane, Json } from '@/types/database';
-import type { CascadeShift } from '@/lib/utils/gantt-schedule';
 import { logActivity } from './use-activity-log';
 
 const QUERY_KEY = ['tasks'] as const;
@@ -382,6 +382,27 @@ export function useUpdateTaskDates() {
 }
 
 /**
+ * S-GANTT-POLISH: минимум, нужный для записи дат. `CascadeShift` (deltaDays>0 +
+ * reason) удовлетворяет структурно, поэтому существующий вызов каскада
+ * компилируется без правок; обратному батчу undo reason/дельта не нужны, а
+ * дельта у него вообще отрицательная — под `CascadeShift` он не лёг бы.
+ */
+export interface DateWrite {
+  id: string;
+  start: string;
+  end: string;
+}
+
+export interface ShiftTasksVars {
+  shifts: DateWrite[];
+  /** false — это и есть обратный батч undo: повторный undo не предлагаем */
+  undoable?: boolean;
+  /** строки, дописываемые в обратный батч: якорь драга писался через
+   *  useUpdateTaskDates и в shifts не входит, но вернуть его надо вместе с хвостом */
+  undoExtra?: DateWrite[];
+}
+
+/**
  * S-SCHEDULE-1B: батч-сдвиг дат зависимых задач (авто-каскад). Один
  * оптимистичный патч по всем срезам префикса ['tasks'] (мапой по id, как
  * useUpdateTaskDates), затем N параллельных UPDATE через allSettled.
@@ -392,14 +413,25 @@ export function useUpdateTaskDates() {
  *
  * projectId не нужен: как useUpdateTaskDates, патчим/инвалидируем весь префикс
  * ['tasks'] (ловит и board ['tasks','board',id], и личный борд).
+ *
+ * S-GANTT-POLISH: тост успеха несёт `cancel: Вернуть как было` — обратный батч
+ * тем же хуком. Undo только при ПОЛНОМ успехе: батч не атомарен, и при failed>0
+ * обратная запись «вернула» бы и те строки, что не менялись, отрапортовав об
+ * отмене того, чего не было.
  */
 export function useShiftTasks() {
   const supabase = createClient();
   const queryClient = useQueryClient();
+  // Самоссылка для undo (обратный батч — та же мутация). Взять mutate прямо в
+  // onSuccess нельзя: ссылка на `mutation` внутри собственного инициализатора даёт
+  // циклический вывод типа. Присваивание — строго в эффекте, не в рендере: мутация
+  // ref'а во время рендера нечиста, и при конкурентном рендере коммит может быть
+  // отброшен уже после записи. mutate у React Query стабилен → эффект по сути разовый.
+  const selfRef = useRef<((vars: ShiftTasksVars) => void) | null>(null);
 
-  return useMutation({
+  const mutation = useMutation({
     meta: { silentError: true },   // тостим сами (частичный отказ ≠ throw)
-    mutationFn: async (shifts: CascadeShift[]) => {
+    mutationFn: async ({ shifts }: ShiftTasksVars) => {
       const results = await Promise.allSettled(
         shifts.map((s) =>
           supabase
@@ -414,9 +446,23 @@ export function useShiftTasks() {
       const failed = results.filter((r) => r.status === 'rejected').length;
       return { ok: shifts.length - failed, failed, total: shifts.length };
     },
-    onMutate: async (shifts) => {
+    onMutate: async ({ shifts }: ShiftTasksVars) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
       const snapshots = snapshotTaskCaches(queryClient);
+      // Значения ДО патча — источник обратного батча undo. snapshotTaskCaches для
+      // этого не годится: это снимок для отката кеша, а не строки для записи в БД.
+      // Пустые start/end не берём — вернуть их этой мутацией нечем (NOT NULL в апдейте).
+      const wanted = new Set(shifts.map((s) => s.id));
+      const seen = new Set<string>();
+      const prev: DateWrite[] = [];
+      for (const [, rows] of queryClient.getQueriesData<Task[]>({ queryKey: QUERY_KEY })) {
+        for (const t of rows ?? []) {
+          if (!wanted.has(t.id) || seen.has(t.id)) continue;   // первое попадание по id
+          seen.add(t.id);
+          if (!t.start_date || !t.end_date) continue;
+          prev.push({ id: t.id, start: t.start_date, end: t.end_date });
+        }
+      }
       const byId = new Map(shifts.map((s) => [s.id, s]));
       patchTaskCaches(queryClient, (old) =>
         (old ?? []).map((t) => {
@@ -424,7 +470,7 @@ export function useShiftTasks() {
           return s ? { ...t, start_date: s.start, end_date: s.end } : t;
         }),
       );
-      return { snapshots };
+      return { snapshots, prev };
     },
     onError: (_err, _vars, context) => {
       // Полный откат — сюда попадаем только при неожиданном throw самой мутации
@@ -432,9 +478,24 @@ export function useShiftTasks() {
       rollbackTaskCaches(queryClient, context?.snapshots);
       toast.error('Не удалось сдвинуть задачи');
     },
-    onSuccess: ({ ok, failed, total }) => {
-      if (failed === 0) toast.success(`Сдвинуто задач: ${ok}`);
-      else toast.error(`Сдвинуто ${ok} из ${total} — остальные отклонены (нет прав)`);
+    onSuccess: ({ ok, failed, total }, vars, context) => {
+      if (failed > 0) {
+        toast.error(`Сдвинуто ${ok} из ${total} — остальные отклонены (нет прав)`);
+        return;
+      }
+      // Обратный батч = якорь драга (undoExtra) + prev сдвинутых
+      const reverse = [...(vars.undoExtra ?? []), ...(context?.prev ?? [])];
+      if (vars.undoable === false || reverse.length === 0) {
+        toast.success(`Сдвинуто задач: ${ok}`);
+        return;
+      }
+      toast.success(`Сдвинуто задач: ${ok}`, {
+        duration: 12_000,
+        cancel: {
+          label: 'Вернуть как было',
+          onClick: () => selfRef.current?.({ shifts: reverse, undoable: false }),
+        },
+      });
     },
     onSettled: () => {
       // Один invalidate префикса ['tasks'] — ловит и board, и личный борд, и
@@ -444,6 +505,12 @@ export function useShiftTasks() {
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
     },
   });
+
+  useEffect(() => {
+    selfRef.current = mutation.mutate;
+  }, [mutation.mutate]);
+
+  return mutation;
 }
 
 /**

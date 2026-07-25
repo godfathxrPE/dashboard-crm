@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
-import { useDeleteTask, useUpdateTaskDates, useShiftTasks } from '@/lib/hooks/use-tasks';
+import { useDeleteTask, useUpdateTaskDates, useShiftTasks, type DateWrite } from '@/lib/hooks/use-tasks';
 import { useProjectColumns, useDeleteColumn } from '@/lib/hooks/use-project-columns';
 import {
   useTaskDependencies,
@@ -117,7 +117,9 @@ interface GanttBarProps {
   e: number;               // индекс конечного бакета
   getBucketPx: () => number;
   onEditTask: (task: Task) => void;
-  onDates: (v: { id: string; start_date: string; end_date: string }) => void;
+  // S-GANTT-POLISH: undo — даты ДО драга (из замыкания обработчика). undefined =
+  // обратной записи не существует, кнопку «Вернуть как было» не предлагаем.
+  onDates: (v: { id: string; start_date: string; end_date: string }, undo?: DateWrite) => void;
   setTip: (t: Tip | null) => void;
   assignee: string;
   status: string;
@@ -182,7 +184,15 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
       }
       // Материализация deadline-only: gt.start/end уже вычислены effectiveSpan из
       // deadline → первый drag пишет явные start_date/end_date (фича, кормит KPI).
-      onDates({ id: gt.task.id, start_date: start, end_date: end });
+      // S-GANTT-POLISH: undo берём из СЫРОЙ строки, а не из gt.start/gt.end — у
+      // deadline-only спан вычислен, и «возврат» записал бы его как явные даты,
+      // то есть материализовал бы задачу вместо отката. Обратной операции у этого
+      // драга нет (как у chip'а из «Без дат») → undo не предлагаем.
+      const undo =
+        gt.task.start_date && gt.task.end_date
+          ? { id: gt.task.id, start: gt.task.start_date, end: gt.task.end_date }
+          : undefined;
+      onDates({ id: gt.task.id, start_date: start, end_date: end }, undo);
     },
     [gt, zoom, onDates],
   );
@@ -727,12 +737,25 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   }, [scheduleNodes, dependencies]);
 
   // Предложить каскад после записи дат якоря. canManage-гейт: без прав не считаем.
+  // S-GANTT-POLISH: тост на перемещение ровно ОДИН — предложение каскада и undo
+  // живут на нём вместе (action=«Сдвинуть», cancel=«Вернуть как было»). Два тоста
+  // рядом дали бы кнопки про разное: отменил драг — предложение каскада продолжает
+  // висеть и указывает на якорь, которого уже нет.
   const proposeCascade = useCallback(
-    (anchorId: string) => {
+    (anchorId: string, undo?: DateWrite) => {
       if (!canManage) return;
+      // Откат одиночного драга — тем же батч-хуком (оптимистик/инвалидация уже есть).
+      // undoable:false — «вернуть возврат» не предлагаем.
+      const undoCancel = undo
+        ? { label: 'Вернуть как было', onClick: () => shiftTasks.mutate({ shifts: [undo], undoable: false }) }
+        : undefined;
       const { nodes, edges } = scheduleRef.current;
       const shifts = computeCascade(nodes, edges, new Set([anchorId]));
-      if (shifts.length === 0) return;                 // запас есть / нет зависимых — молча
+      if (shifts.length === 0) {
+        // запас есть / нет зависимых: раньше молчали, теперь короткий тост ради undo
+        if (undoCancel) toast('Даты изменены', { duration: 8_000, cancel: undoCancel });
+        return;
+      }
       const n = shifts.length;
       toast(`Сдвинуть ${n} ${pluralDependent(n)}?`, {
         duration: 12_000,
@@ -742,9 +765,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             // пересчёт на клике по свежему ref (между показом и кликом даты могли уехать)
             const fresh = computeCascade(scheduleRef.current.nodes, scheduleRef.current.edges, new Set([anchorId]));
             if (fresh.length === 0) return;
-            shiftTasks.mutate(fresh);
+            // Клик закрывает тост вместе с единственной кнопкой undo — поэтому якорь
+            // едет в батч через undoExtra: тост успеха вернёт и хвост, и сам якорь.
+            shiftTasks.mutate({ shifts: fresh, undoExtra: undo ? [undo] : [] });
           },
         },
+        ...(undoCancel ? { cancel: undoCancel } : {}),
       });
     },
     [canManage, shiftTasks],
@@ -755,11 +781,15 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   // S-SCHEDULE-1B: только на onSuccess (сервер подтвердил даты якоря) предлагаем
   // каскад — иначе при 42501 откатится якорь, а тост уже позвал бы двигать хвост
   // под несдвинутую голову.
+  // S-GANTT-POLISH: undo прокидывается аргументом по цепочке
+  // GanttBar.commit → commitDates → proposeCascade. Отдельного хранилища (ref/state)
+  // не заводим: значение живёт в замыкании обработчика драга, лишний рендер в
+  // pointer-burst этому файлу знаком с S-GANTT-UX-2.
   const commitDates = useCallback(
-    (v: { id: string; start_date: string; end_date: string }) =>
+    (v: { id: string; start_date: string; end_date: string }, undo?: DateWrite) =>
       updateDates.mutate(v, {
         onError: () => toast.error('Не удалось изменить даты (нет прав или сеть)'),
-        onSuccess: () => proposeCascade(v.id),
+        onSuccess: () => proposeCascade(v.id, undo),
       }),
     [updateDates.mutate, proposeCascade],
   );
