@@ -137,6 +137,13 @@ export function shiftDateKeyByBuckets(dateKey: string, zoom: GanttZoom, n: numbe
   return d.toISOString().slice(0, 10);
 }
 
+/** Разница в календарных днях между YYYY-MM-DD (b − a). Та же UTC-полдень
+ *  математика, что shiftDateKeyByBuckets: diffDaysKey(a, shiftDateKeyByBuckets(a,'day',n)) === n.
+ *  Живёт здесь (а не в модуле расписания), т.к. noonMs/GANTT_DAY_MS приватны файлу. */
+export function diffDaysKey(a: string, b: string): number {
+  return Math.round((noonMs(b) - noonMs(a)) / GANTT_DAY_MS);
+}
+
 function bucketLabel(key: string, zoom: GanttZoom): string {
   if (zoom === 'day') return key.slice(8, 10);                    // DD
   if (zoom === 'week') return `${key.slice(8, 10)}.${key.slice(5, 7)}`; // DD.MM (Пн)
