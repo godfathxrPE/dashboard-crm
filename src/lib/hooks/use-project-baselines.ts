@@ -6,11 +6,10 @@ import { createClient } from '@/lib/supabase/client';
 
 // ═══════════════════════════════════════════════════════
 // S-GANTT-BASELINE-1: слепки сроков проекта (план) для план/факт.
-// Таблицы project_baselines + baseline_tasks и RPC create_project_baseline появятся
-// в gen-типах ПОСЛЕ apply миграции 074 гейтом — до этого локальные типы-стабы (та же
-// грабля database.ts≠supabase.gen.ts, что quotes/videos до регена).
-// Запись заголовка — ТОЛЬКО RPC (SECURITY DEFINER): прямой INSERT заблокирован (INSERT-политик
-// нет). Delete — hard, по RLS (owner/admin org), строки слепка уходят каскадом в БД.
+// Запись заголовка — ТОЛЬКО RPC create_project_baseline (SECURITY DEFINER): прямой INSERT
+// заблокирован (INSERT-политик нет). Delete — hard, по RLS (owner/admin org), строки слепка
+// уходят каскадом в БД. Типы project_baselines/baseline_tasks/RPC живут в gen-типах (074
+// применена, реген в дереве) — клиент типизирован напрямую, без стаб-кастов.
 // ═══════════════════════════════════════════════════════
 
 export interface ProjectBaseline {
@@ -21,42 +20,11 @@ export interface ProjectBaseline {
   created_at: string;
 }
 
-interface BaselineTaskRow {
-  task_id: string;
-  start_date: string;
-  end_date: string;
-}
-
 /** План-старт/финиш задачи из выбранного слепка (YYYY-MM-DD). */
 export interface BaselineSpan {
   start: string;
   end: string;
 }
-
-// Стаб-типизация до регена: узкий интерфейс ровно под используемые вызовы. project_baselines,
-// baseline_tasks и RPC create_project_baseline попадут в gen-типы ПОСЛЕ apply миграции 074
-// гейтом — тогда каст `as unknown as BaselineDb` можно снять. Моделируем через `unknown`
-// (никаких untyped-эскейпов), поэтому типы data корректны уже сейчас.
-type PgError = { code?: string; message?: string } | null;
-type SelectBuilder<T> = PromiseLike<{ data: T[] | null; error: PgError }> & {
-  eq(col: string, val: string): SelectBuilder<T>;
-  order(col: string, opts: { ascending: boolean }): SelectBuilder<T>;
-};
-interface FromBuilder<T> {
-  select(cols: string): SelectBuilder<T>;
-  // .delete().eq().select() — возвращаем удалённые строки: под RLS-deny их 0 БЕЗ error,
-  // поэтому «удалил ли» определяем по числу строк, а не по error (см. useDeleteBaseline).
-  delete(): { eq(col: string, val: string): { select(cols: string): PromiseLike<{ data: { id: string }[] | null; error: PgError }> } };
-}
-interface BaselineDb {
-  from(table: 'project_baselines'): FromBuilder<ProjectBaseline>;
-  from(table: 'baseline_tasks'): FromBuilder<BaselineTaskRow>;
-  rpc(
-    fn: 'create_project_baseline',
-    args: { p_project_id: string; p_name: string },
-  ): PromiseLike<{ data: string | null; error: PgError }>;
-}
-const baselineDb = (): BaselineDb => createClient() as unknown as BaselineDb;
 
 const baselinesKey = (projectId: string) => ['project_baselines', projectId] as const;
 const baselineTasksKey = (baselineId: string) => ['baseline_tasks', baselineId] as const;
@@ -78,11 +46,11 @@ function baselineError(err: unknown): string {
 
 /** Список слепков проекта, свежие сверху. */
 export function useProjectBaselines(projectId: string) {
-  const supabase = baselineDb();
+  const supabase = createClient();
   return useQuery({
     queryKey: baselinesKey(projectId),
     enabled: !!projectId,
-    queryFn: async () => {
+    queryFn: async (): Promise<ProjectBaseline[]> => {
       const { data, error } = await supabase
         .from('project_baselines')
         .select('id, project_id, name, created_by, created_at')
@@ -96,7 +64,7 @@ export function useProjectBaselines(projectId: string) {
 
 /** Строки выбранного слепка как Map<task_id, {start,end}> для ghost-баров. */
 export function useBaselineTasks(baselineId: string | null) {
-  const supabase = baselineDb();
+  const supabase = createClient();
   return useQuery({
     queryKey: baselineTasksKey(baselineId ?? ''),
     enabled: !!baselineId,
@@ -115,19 +83,20 @@ export function useBaselineTasks(baselineId: string | null) {
 
 /** Зафиксировать план: RPC create_project_baseline (атомарный слепок одним стейтментом). */
 export function useCreateBaseline(projectId: string) {
-  const supabase = baselineDb();
+  const supabase = createClient();
   const queryClient = useQueryClient();
   return useMutation({
     // Тост об ошибке зовём сами (baselineError) — глушим глобальный MutationCache.onError,
     // иначе на каждую ошибку два тоста.
     meta: { silentError: true },
     mutationFn: async (name: string) => {
+      // RPC типизирован Returns: string — id нового baseline, каст не нужен.
       const { data, error } = await supabase.rpc('create_project_baseline', {
         p_project_id: projectId,
         p_name: name,
       });
       if (error) throw error;
-      return data as string; // id нового baseline (RPC возвращает uuid при успехе)
+      return data;
     },
     onSuccess: () => {
       toast.success('План зафиксирован');
@@ -139,7 +108,7 @@ export function useCreateBaseline(projectId: string) {
 
 /** Удалить слепок (hard, owner/admin). Оптимистик по 5-шаговой конвенции; тост на 42501. */
 export function useDeleteBaseline(projectId: string) {
-  const supabase = baselineDb();
+  const supabase = createClient();
   const queryClient = useQueryClient();
   return useMutation({
     // Тост об ошибке зовём сами (baselineError) — глушим глобальный MutationCache.onError.
