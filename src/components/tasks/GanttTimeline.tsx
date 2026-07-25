@@ -70,7 +70,7 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
 }
 
 // S-SCHEDULE-1a: assignee/status опциональны — тултип FS-нарушения на стрелке несёт только text
-// S-GANTT-CPM: float — строка запаса/просрочки бара (запас: N дн / запаса нет / просрочка: N дн)
+// S-GANTT-CPM: float — строка запаса/сдвига бара (запас: N дн / запаса нет / старт раньше расчётного: N дн)
 type Tip = { x: number; y: number; text: string; assignee?: string; status?: string; float?: string };
 
 // S-SCHEDULE-1a: измеренный путь стрелки + данные для lag-бейджа/поповера/soft-warn
@@ -115,7 +115,7 @@ interface GanttBarProps {
   linkMode: boolean;               // S-DEPS-1: режим создания связей — drag отключён
   isLinkSource: boolean;           // подсвечен как выбранный predecessor
   isCritical: boolean;             // S-CRIT-PATH: бар на критическом пути
-  floatText?: string;              // S-GANTT-CPM: строка запаса/просрочки для тултипа
+  floatText?: string;              // S-GANTT-CPM: строка запаса/сдвига для тултипа
   onLinkSelect: (taskId: string) => void;
   canManage: boolean;              // S-GANTT-UX-2: гейт drag/resize и hover-Trash
   onDeleteTask: (task: Task, isSummary: boolean) => void;
@@ -1302,9 +1302,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           <div className="font-medium text-text-main">{tip.text}</div>
           {tip.assignee !== undefined && <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>}
           {tip.status !== undefined && <div className="text-text-dim">Статус: {tip.status}</div>}
-          {/* S-GANTT-CPM: запас / старт раньше расчётного. Нейтральный сигнал (сдвиг
-              наследуется по цепочке, ≠ FS-нарушение 1a), поэтому приглушённо, без алярма. */}
-          {tip.float !== undefined && <div className="text-text-dim">{tip.float}</div>}
+          {/* S-GANTT-CPM: запас / сдвиг. «Старт раньше расчётного» (бар нарисован раньше,
+              чем позволяет цепочка предшественников) — attention, токен темы text-yellow
+              (contrast-выверен, не алярм-красный 1a); запас/запаса-нет приглушённо. */}
+          {tip.float !== undefined && (
+            <div className={tip.float.startsWith('старт раньше расчётного') ? 'text-yellow' : 'text-text-dim'}>{tip.float}</div>
+          )}
         </div>
       )}
 
