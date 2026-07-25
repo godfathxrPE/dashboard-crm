@@ -22,9 +22,10 @@ import {
   bucketIndexOf,
   buildBuckets,
   shiftDateKeyByBuckets,
+  diffDaysKey,
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
-import { computeCascade, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
+import { computeCascade, computeCpm, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
 import type { Task } from '@/types/entities';
 
 interface GanttTimelineProps {
@@ -69,7 +70,8 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
 }
 
 // S-SCHEDULE-1a: assignee/status опциональны — тултип FS-нарушения на стрелке несёт только text
-type Tip = { x: number; y: number; text: string; assignee?: string; status?: string };
+// S-GANTT-CPM: float — строка запаса/сдвига бара (запас: N дн / запаса нет / старт раньше расчётного: N дн)
+type Tip = { x: number; y: number; text: string; assignee?: string; status?: string; float?: string };
 
 // S-SCHEDULE-1a: измеренный путь стрелки + данные для lag-бейджа/поповера/soft-warn
 type EdgePath = {
@@ -113,6 +115,7 @@ interface GanttBarProps {
   linkMode: boolean;               // S-DEPS-1: режим создания связей — drag отключён
   isLinkSource: boolean;           // подсвечен как выбранный predecessor
   isCritical: boolean;             // S-CRIT-PATH: бар на критическом пути
+  floatText?: string;              // S-GANTT-CPM: строка запаса/сдвига для тултипа
   onLinkSelect: (taskId: string) => void;
   canManage: boolean;              // S-GANTT-UX-2: гейт drag/resize и hover-Trash
   onDeleteTask: (task: Task, isSummary: boolean) => void;
@@ -121,7 +124,7 @@ interface GanttBarProps {
 // Бар/ромб с drag-to-resize/move (нативные Pointer Events, без @dnd-kit).
 // Живой фидбэк — CSS transform/width (снап к бакету); запись дат на pointerup.
 // S-DEPS-1: в linkMode drag-хендлеры не навешиваются — клик выбирает конец связи.
-function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, onLinkSelect, canManage, onDeleteTask }: GanttBarProps) {
+function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, assignee, status, linkMode, isLinkSource, isCritical, floatText, onLinkSelect, canManage, onDeleteTask }: GanttBarProps) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const spanBuckets = e - s; // 0 у однобакетных / вех
 
@@ -201,8 +204,8 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
     else width = `calc(100% + ${dx}px)`;
   }
 
-  const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
-  const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status });
+  const showTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText });
+  const moveTip = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: gt.task.text, assignee, status, float: floatText });
   const onKey = (ev: React.KeyboardEvent) => {
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
@@ -522,90 +525,82 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     return undated;
   }, [undated, filter]);
 
-  // S-CRIT-PATH: критический путь = самая длинная по сумме длительностей задач цепочка
-  // в DAG рёбер (longest path). НЕ полный CPM (ES/EF/LS/LF/float) — даты у нас
-  // пользовательские, не выводятся из длительностей; FS-констрейнт не enforced
-  // (см. S-DEPS-1 W7). Полный CPM — возможный v2. Чистый useMemo (не effect+setState)
-  // → лишний пересчёт по нестабильным ссылкам безвреден, лупа исключена (S-DEPS-1).
-  // Считаем по ВИДИМЫМ датированным задачам (у которых есть бар) — консистентно со
-  // стрелками (W4); полный путь — на фильтре «Все».
-  const critical = useMemo(() => {
-    // длительность в днях (inclusive), UTC-полдень — та же нормализация, что бары
-    // (noonMs в date-helpers: Date.parse(`${key}T12:00:00Z`)), TZ не прыгает через полночь.
-    const noon = (k: string) => Date.parse(`${k}T12:00:00Z`);
-    const durDays = (gt: GanttTask) =>
-      Math.max(1, Math.round((noon(gt.end) - noon(gt.start)) / 86_400_000) + 1);
+  // S-SCHEDULE-1B: узлы расписания — из СЫРЫХ свимлейнов (весь граф, не видимый срез).
+  // start/end = эффективный span (у сводных = обёртка детей); hasOwnDates=false у
+  // datesFromChildren-узлов (в БД писать нечего); parentTaskId — СЫРОЙ (кросс-лейн).
+  // Единый сбор на ДВА потребителя: каскад 1B (proposeCascade) и CPM (S-GANTT-CPM).
+  const scheduleNodes = useMemo<ScheduleNode[]>(
+    () =>
+      swimlanes.flatMap((sl) =>
+        sl.tasks.map((gt) => ({
+          id: gt.task.id,
+          start: gt.start,
+          end: gt.end,
+          hasOwnDates: !gt.datesFromChildren,
+          parentTaskId: gt.task.parent_task_id,
+        })),
+      ),
+    [swimlanes],
+  );
 
-    // узлы: только видимые датированные задачи (реально имеют бар; свёрнутые скрыты)
-    const nodes = new Map<string, GanttTask>();
-    for (const sl of visibleSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
+  // S-GANTT-CPM: полный CPM (ES/EF/LS/LF + total float) вместо longest-path DP.
+  // Критическая работа = НУЛЕВОЙ ЗАПАС (как MS Project Total Slack), а не «самая
+  // длинная цепь» — это ловит НЕСКОЛЬКО параллельных критических цепочек (longest-path
+  // подсвечивал одну). Считаем по всему графу (scheduleNodes, как каскад 1B), а не по
+  // видимому срезу: float обязан отражать все зависимости, а скрытый фильтром/свёрткой
+  // бар просто не отрисует контур. Чистый useMemo → лупа измерения исключена (S-DEPS-1).
+  const cpm = useMemo(() => computeCpm(scheduleNodes, dependencies), [scheduleNodes, dependencies]);
 
-    // рёбра только между видимыми узлами; заодно in-degree по succ для топосорта
-    const adjPreds = new Map<string, { edgeId: string; pred: string }[]>(); // succ → [{edge,pred}]
-    const adjSuccs = new Map<string, string[]>();                            // pred → [succ]
-    const indeg = new Map<string, number>();
-    for (const id of nodes.keys()) indeg.set(id, 0);
-    for (const d of dependencies) {
-      if (!nodes.has(d.predecessor_id) || !nodes.has(d.successor_id)) continue;
-      (adjPreds.get(d.successor_id) ?? adjPreds.set(d.successor_id, []).get(d.successor_id)!)
-        .push({ edgeId: d.id, pred: d.predecessor_id });
-      (adjSuccs.get(d.predecessor_id) ?? adjSuccs.set(d.predecessor_id, []).get(d.predecessor_id)!)
-        .push(d.successor_id);
-      indeg.set(d.successor_id, (indeg.get(d.successor_id) ?? 0) + 1);
-    }
-
-    // топосорт Kahn (DAG гарантирован триггером 048 → циклов нет)
-    const order: string[] = [];
-    const queue: string[] = [];
-    for (const [id, deg] of indeg) if (deg === 0) queue.push(id);
-    while (queue.length) {
-      const id = queue.shift()!;
-      order.push(id);
-      for (const succ of adjSuccs.get(id) ?? []) {
-        const d = (indeg.get(succ) ?? 0) - 1;
-        indeg.set(succ, d);
-        if (d === 0) queue.push(succ);
-      }
-    }
-
-    // longest-path DP: best[id] = макс. суммарная длительность цепи, кончающейся на id
-    const best = new Map<string, number>();
-    const from = new Map<string, { pred: string; edgeId: string } | null>();
-    for (const id of order) {
-      const gt = nodes.get(id)!;
-      let bestPredSum = 0;
-      let pick: { pred: string; edgeId: string } | null = null;
-      for (const { pred, edgeId } of adjPreds.get(id) ?? []) {
-        const s = best.get(pred) ?? 0;
-        if (s > bestPredSum) { bestPredSum = s; pick = { pred, edgeId }; }
-      }
-      best.set(id, bestPredSum + durDays(gt));
-      from.set(id, pick);
-    }
-
-    // глобальный максимум → бэктрек цепи
-    let endId: string | null = null;
-    let max = 0;
-    for (const [id, v] of best) if (v > max) { max = v; endId = id; }
-    const taskIds = new Set<string>();
-    const edgeIds = new Set<string>();
-    let cur: string | null = endId;
-    while (cur) {
-      taskIds.add(cur);
-      const step = from.get(cur);
-      if (!step) break;
-      edgeIds.add(step.edgeId);
-      cur = step.pred;
-    }
-    // критический путь имеет смысл только при ≥1 ребре (цепочка из 2+ задач)
-    return edgeIds.size
-      ? { taskIds, edgeIds, totalDays: max }
-      : { taskIds: new Set<string>(), edgeIds, totalDays: 0 };
-  }, [visibleSwimlanes, dependencies]);
+  // Множество критических id (totalFloat <= 0). Бар/стрелка/бейдж читают его.
+  // Без рёбер критический путь не имеет смысла: каждый узел одновременно исток и сток,
+  // EF = projectFinish ⇒ TF = 0, и подсветка/бейдж «Крит. путь» вспыхнули бы на проекте
+  // без единой связи. Гейт по dependencies.length держим в компоненте, а не в computeCpm
+  // (unit «одиночный узел без рёбер → TF = 0» остаётся верным — это свойство алгоритма).
+  const criticalIds = useMemo(
+    () =>
+      dependencies.length === 0
+        ? new Set<string>()
+        : new Set([...cpm.byId].filter(([, v]) => v.critical).map(([id]) => id)),
+    [cpm, dependencies],
+  );
 
   // Стабильная строковая сигнатура крит-множества для effect-deps измерения стрелок
-  // (НЕ объект critical — новый ref каждый рендер). '' когда подсветка выключена.
-  const critSig = showCritical ? [...critical.edgeIds].sort().join(',') : '';
+  // (НЕ Set-ref — новый каждый рендер). Строится по ОТСОРТИРОВАННЫМ id → детерминирована,
+  // иначе эффект измерения зациклится (грабля S-CRIT-PATH). '' когда подсветка выключена.
+  const critSig = showCritical ? [...criticalIds].sort().join(',') : '';
+
+  // Бейдж «Крит. путь: N дн» — ГОРИЗОНТ крит-пути (календарные дни включительно), а НЕ
+  // сумма длительностей критических задач: при двух параллельных цепочках сумма удвоилась
+  // бы, а горизонт проекта — нет. N = от min ES критических узлов до projectFinish.
+  // Для одной цепочки совпадает со старым longest-path totalDays (регресс базового кейса).
+  const criticalDays = useMemo(() => {
+    if (!cpm.projectFinish || criticalIds.size === 0) return 0;
+    let minES: string | null = null;
+    for (const id of criticalIds) {
+      const es = cpm.byId.get(id)?.es;
+      if (es && (minES === null || es < minES)) minES = es;
+    }
+    return minES ? diffDaysKey(minES, cpm.projectFinish) + 1 : 0;
+  }, [cpm, criticalIds]);
+
+  // S-GANTT-CPM: строка запаса/сдвига для тултипа бара. lateBy > 0 = бар стоит раньше
+  // расчётного ES (earliest по ВСЕЙ цепочке предшественников). Это НЕ тождественно
+  // FS-нарушению 1a на одном ребре: CPM считает EF от подтянутого ES, поэтому сдвиг
+  // наследуется вниз — узел с зелёной стрелкой (сам ничего не нарушает) может иметь
+  // lateBy > 0, если раньше earliest сидит его предшественник. Отсюда нейтральная
+  // формулировка «старт раньше расчётного», а не «просрочка». Цвет — токен темы (см.
+  // рендер тултипа), хардкода нет. Float в этой модели неотрицателен (см. computeCpm).
+  const floatTextFor = useCallback(
+    (gt: GanttTask): string | undefined => {
+      const c = cpm.byId.get(gt.task.id);
+      if (!c) return undefined;
+      const lateBy = diffDaysKey(gt.start, c.es);       // >0 ⟺ бар раньше расчётного earliest
+      if (lateBy > 0) return `старт раньше расчётного: ${lateBy} дн`;
+      if (c.totalFloat > 0) return `запас: ${c.totalFloat} дн`;
+      return 'запаса нет';
+    },
+    [cpm],
+  );
 
   // S-SCHEDULE-1a: soft-warn нарушения FS — succ.start < pred.end + lag (только сигнал,
   // без каскада/блокировки — это S-SCHEDULE-1b). Сравнение по date-key MSK; прибавка
@@ -680,23 +675,6 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     return model.buckets.length ? w / model.buckets.length : 0;
   }, [model.buckets.length]);
 
-  // S-SCHEDULE-1B: узлы расписания для каскада — из СЫРЫХ свимлейнов (не
-  // filtered/collapsed: каскад считает по всему графу, а не по видимому срезу).
-  // start/end = эффективный span (у сводных = обёртка детей); hasOwnDates=false у
-  // datesFromChildren-узлов (в БД писать нечего); parentTaskId — СЫРОЙ (кросс-лейн).
-  const scheduleNodes = useMemo<ScheduleNode[]>(
-    () =>
-      swimlanes.flatMap((sl) =>
-        sl.tasks.map((gt) => ({
-          id: gt.task.id,
-          start: gt.start,
-          end: gt.end,
-          hasOwnDates: !gt.datesFromChildren,
-          parentTaskId: gt.task.parent_task_id,
-        })),
-      ),
-    [swimlanes],
-  );
   // Ref с актуальными nodes+edges: тост-предложение живёт до 12с, за это время юзер
   // мог утащить ещё бар — на клике пересчитываем каскад по свежему ref, не по замыканию
   // (тот же приём, что undatedDragRef).
@@ -855,7 +833,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`,
           midX,
           midY: (from.y + to.y) / 2,                     // середина вертикального сегмента elbow
-          critical: showCritical && critical.edgeIds.has(dep.id), // S-CRIT-PATH
+          critical: showCritical && criticalIds.has(dep.predecessor_id) && criticalIds.has(dep.successor_id), // S-GANTT-CPM: ребро критично, если оба конца критические
           violated: violation.has(dep.id),               // S-SCHEDULE-1a: soft-warn FS
           lag_days: dep.lag_days,
         });
@@ -947,7 +925,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           {pendingPred ? 'Выберите задачу-последователь · Esc — отмена' : 'Выберите задачу-предшественник · Esc — выход'}
         </span>
       )}
-      {/* S-CRIT-PATH: тумблер подсветки критического пути (longest path в DAG). */}
+      {/* S-GANTT-CPM: тумблер подсветки критического пути (CPM — нулевой запас). */}
       <button
         type="button"
         aria-pressed={showCritical}
@@ -955,13 +933,13 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
           showCritical ? 'border-accent bg-accent-l text-accent' : 'border-border text-text-mute hover:text-text-main'
         }`}
-        title="Подсветить самую длинную цепочку зависимых задач (по текущему фильтру)"
+        title="Подсветить задачи с нулевым запасом (критический путь, CPM)"
       >
         Крит. путь
       </button>
-      {showCritical && critical.taskIds.size > 0 && (
+      {showCritical && criticalIds.size > 0 && (
         <span className="rounded bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
-          Крит. путь: {critical.totalDays} дн
+          Крит. путь: {criticalDays} дн
         </span>
       )}
     </div>
@@ -1087,7 +1065,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                           status={status}
                           linkMode={linkMode}
                           isLinkSource={pendingPred === gt.task.id}
-                          isCritical={showCritical && critical.taskIds.has(gt.task.id)}
+                          isCritical={showCritical && criticalIds.has(gt.task.id)}
+                          floatText={floatTextFor(gt)}
                           onLinkSelect={onLinkSelect}
                           canManage={canManage}
                           onDeleteTask={handleDeleteTask}
@@ -1323,6 +1302,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           <div className="font-medium text-text-main">{tip.text}</div>
           {tip.assignee !== undefined && <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>}
           {tip.status !== undefined && <div className="text-text-dim">Статус: {tip.status}</div>}
+          {/* S-GANTT-CPM: запас / сдвиг. «Старт раньше расчётного» (бар нарисован раньше,
+              чем позволяет цепочка предшественников) — attention, токен темы text-yellow
+              (contrast-выверен, не алярм-красный 1a); запас/запаса-нет приглушённо. */}
+          {tip.float !== undefined && (
+            <div className={tip.float.startsWith('старт раньше расчётного') ? 'text-yellow' : 'text-text-dim'}>{tip.float}</div>
+          )}
         </div>
       )}
 
