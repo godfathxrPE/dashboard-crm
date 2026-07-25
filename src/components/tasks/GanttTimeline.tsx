@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
-import { useDeleteTask, useUpdateTaskDates, useShiftTasks } from '@/lib/hooks/use-tasks';
+import { useDeleteTask, useUpdateTaskDates, useShiftTasks, type DateWrite } from '@/lib/hooks/use-tasks';
 import { useProjectColumns, useDeleteColumn } from '@/lib/hooks/use-project-columns';
 import {
   useTaskDependencies,
@@ -117,7 +117,9 @@ interface GanttBarProps {
   e: number;               // индекс конечного бакета
   getBucketPx: () => number;
   onEditTask: (task: Task) => void;
-  onDates: (v: { id: string; start_date: string; end_date: string }) => void;
+  // S-GANTT-POLISH: undo — даты ДО драга (из замыкания обработчика). undefined =
+  // обратной записи не существует, кнопку «Вернуть как было» не предлагаем.
+  onDates: (v: { id: string; start_date: string; end_date: string }, undo?: DateWrite) => void;
   setTip: (t: Tip | null) => void;
   assignee: string;
   status: string;
@@ -182,7 +184,15 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
       }
       // Материализация deadline-only: gt.start/end уже вычислены effectiveSpan из
       // deadline → первый drag пишет явные start_date/end_date (фича, кормит KPI).
-      onDates({ id: gt.task.id, start_date: start, end_date: end });
+      // S-GANTT-POLISH: undo берём из СЫРОЙ строки, а не из gt.start/gt.end — у
+      // deadline-only спан вычислен, и «возврат» записал бы его как явные даты,
+      // то есть материализовал бы задачу вместо отката. Обратной операции у этого
+      // драга нет (как у chip'а из «Без дат») → undo не предлагаем.
+      const undo =
+        gt.task.start_date && gt.task.end_date
+          ? { id: gt.task.id, start: gt.task.start_date, end: gt.task.end_date }
+          : undefined;
+      onDates({ id: gt.task.id, start_date: start, end_date: end }, undo);
     },
     [gt, zoom, onDates],
   );
@@ -727,12 +737,25 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   }, [scheduleNodes, dependencies]);
 
   // Предложить каскад после записи дат якоря. canManage-гейт: без прав не считаем.
+  // S-GANTT-POLISH: тост на перемещение ровно ОДИН — предложение каскада и undo
+  // живут на нём вместе (action=«Сдвинуть», cancel=«Вернуть как было»). Два тоста
+  // рядом дали бы кнопки про разное: отменил драг — предложение каскада продолжает
+  // висеть и указывает на якорь, которого уже нет.
   const proposeCascade = useCallback(
-    (anchorId: string) => {
+    (anchorId: string, undo?: DateWrite) => {
       if (!canManage) return;
+      // Откат одиночного драга — тем же батч-хуком (оптимистик/инвалидация уже есть).
+      // undoable:false — «вернуть возврат» не предлагаем.
+      const undoCancel = undo
+        ? { label: 'Вернуть как было', onClick: () => shiftTasks.mutate({ shifts: [undo], undoable: false }) }
+        : undefined;
       const { nodes, edges } = scheduleRef.current;
       const shifts = computeCascade(nodes, edges, new Set([anchorId]));
-      if (shifts.length === 0) return;                 // запас есть / нет зависимых — молча
+      if (shifts.length === 0) {
+        // запас есть / нет зависимых: раньше молчали, теперь короткий тост ради undo
+        if (undoCancel) toast('Даты изменены', { duration: 8_000, cancel: undoCancel });
+        return;
+      }
       const n = shifts.length;
       toast(`Сдвинуть ${n} ${pluralDependent(n)}?`, {
         duration: 12_000,
@@ -742,9 +765,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             // пересчёт на клике по свежему ref (между показом и кликом даты могли уехать)
             const fresh = computeCascade(scheduleRef.current.nodes, scheduleRef.current.edges, new Set([anchorId]));
             if (fresh.length === 0) return;
-            shiftTasks.mutate(fresh);
+            // Клик закрывает тост вместе с единственной кнопкой undo — поэтому якорь
+            // едет в батч через undoExtra: тост успеха вернёт и хвост, и сам якорь.
+            shiftTasks.mutate({ shifts: fresh, undoExtra: undo ? [undo] : [] });
           },
         },
+        ...(undoCancel ? { cancel: undoCancel } : {}),
       });
     },
     [canManage, shiftTasks],
@@ -755,14 +781,60 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   // S-SCHEDULE-1B: только на onSuccess (сервер подтвердил даты якоря) предлагаем
   // каскад — иначе при 42501 откатится якорь, а тост уже позвал бы двигать хвост
   // под несдвинутую голову.
+  // S-GANTT-POLISH: undo прокидывается аргументом по цепочке
+  // GanttBar.commit → commitDates → proposeCascade. Отдельного хранилища (ref/state)
+  // не заводим: значение живёт в замыкании обработчика драга, лишний рендер в
+  // pointer-burst этому файлу знаком с S-GANTT-UX-2.
   const commitDates = useCallback(
-    (v: { id: string; start_date: string; end_date: string }) =>
+    (v: { id: string; start_date: string; end_date: string }, undo?: DateWrite) =>
       updateDates.mutate(v, {
         onError: () => toast.error('Не удалось изменить даты (нет прав или сеть)'),
-        onSuccess: () => proposeCascade(v.id),
+        onSuccess: () => proposeCascade(v.id, undo),
       }),
     [updateDates.mutate, proposeCascade],
   );
+
+  // S-GANTT-POLISH: индексы выходных — ТОЛЬКО zoom==='day' (в неделе/месяце выходные
+  // внутри бакета, красить нечего). День недели из ключа бакета по конвенции проекта —
+  // UTC-полдень (new Date(key) напрямую нельзя: ключ парсится как UTC-полночь и в MSK
+  // отъезжает на день назад).
+  const weekendIdx = useMemo(() => {
+    if (zoom !== 'day') return [] as number[];
+    const out: number[] = [];
+    model.buckets.forEach((b, i) => {
+      const dow = new Date(`${b.key}T12:00:00Z`).getUTCDay();
+      if (dow === 0 || dow === 6) out.push(i);
+    });
+    return out;
+  }, [model.buckets, zoom]);
+
+  // S-GANTT-POLISH: скролл к «сегодня». Ref на ту же колонку, что рисует линию.
+  // block:'nearest' обязателен — иначе scrollIntoView уводит вертикальный скролл
+  // всей страницы к таймлайну.
+  const todayColRef = useRef<HTMLDivElement>(null);
+  const scrollToToday = useCallback(() => {
+    todayColRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, []);
+
+  // Автоскролл ровно ОДИН раз за жизнь компонента: иначе позиция уезжала бы после
+  // каждого драга и каждого переключения фильтра (model пересчитывается часто).
+  const autoScrolledRef = useRef(false);
+  useLayoutEffect(() => {
+    if (autoScrolledRef.current) return;
+    if (model.buckets.length === 0 || model.todayIdx === -1) return;
+    autoScrolledRef.current = true;
+    scrollToToday();
+  }, [model.buckets.length, model.todayIdx, scrollToToday]);
+
+  // S-GANTT-POLISH: печать. Класс снимаем в afterprint, а НЕ сразу после print():
+  // в части браузеров print() возвращает управление до отрисовки, и правила успели
+  // бы отвалиться на середине предпросмотра. once — снятие ровно один раз.
+  const handlePrint = useCallback(() => {
+    const root = document.documentElement;
+    root.classList.add('printing-gantt');
+    window.addEventListener('afterprint', () => root.classList.remove('printing-gantt'), { once: true });
+    window.print();
+  }, []);
 
   // S-GANTT-UX-2: drag chip из «Без дат» на таймлайн (нативные Pointer Events, как
   // бары VIEW-2). Дата = ключ бакета под курсором; запись строго через
@@ -922,7 +994,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const wideRange = zoom === 'day' && buckets.length > 180;
 
   const controls = (
-    <div className="mb-3 flex flex-wrap items-center gap-3">
+    // data-print-hide: тулбар — экранный орган управления, в печатный документ не идёт
+    <div data-print-hide className="mb-3 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-1">
         {ZOOMS.map((z) => (
           <button
@@ -985,6 +1058,28 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           Крит. путь: {criticalDays} дн
         </span>
       )}
+      {/* S-GANTT-POLISH: скролл к сегодняшнему дню. Вне горизонта — disabled, а не
+          скролл в никуда. */}
+      <button
+        type="button"
+        onClick={scrollToToday}
+        disabled={todayIdx === -1}
+        className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-mute transition-colors hover:text-text-main disabled:opacity-40 disabled:hover:text-text-mute"
+        title={todayIdx === -1 ? 'Сегодня вне горизонта проекта' : 'Прокрутить к сегодняшнему дню'}
+      >
+        Сегодня
+      </button>
+      {/* S-GANTT-POLISH: печать таймлайна. window.print() печатает документ целиком,
+          поэтому класс на <html> включает print-правила из globals.css (сайдбар/шапка
+          скрыты, палитра форсится в светлую). */}
+      <button
+        type="button"
+        onClick={handlePrint}
+        className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-mute transition-colors hover:text-text-main"
+        title="Печать: для широкого проекта выберите зум «Месяц»"
+      >
+        Печать
+      </button>
       {/* S-GANTT-BASELINE-1: зафиксировать план (canManage) + выбор отображаемого слепка */}
       {canManage && (
         <button
@@ -1038,11 +1133,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   }
 
   return (
-    <div className="mb-4 rounded-xl border border-border bg-surface p-3">
+    <div data-print-root className="mb-4 rounded-xl border border-border bg-surface p-3">
       {controls}
 
       {wideRange && (
-        <div className="mb-2 rounded-lg border border-yellow bg-yellow-l px-3 py-1.5 text-xs text-text-main">
+        // подсказка про зум — экранная, в печать не идёт (как и тулбар)
+        <div data-print-hide className="mb-2 rounded-lg border border-yellow bg-yellow-l px-3 py-1.5 text-xs text-text-main">
           Широкий диапазон — переключи на неделю или месяц для читаемости.
         </div>
       )}
@@ -1105,8 +1201,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           </div>
 
           {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
-          <div className="flex-1 overflow-x-auto">
-            <div ref={bodyRef} className="relative min-w-max">
+          {/* data-print-scroll: на печати overflow снимается, иначе горизонт обрежется */}
+          <div data-print-scroll className="flex-1 overflow-x-auto">
+            {/* isolate: стек-контекст для оверлеев. Заливка выходных уходит под
+                контент через -z-10, и без изоляции отрицательный z-index провалился бы
+                под фон карточки Ганта. */}
+            <div ref={bodyRef} className="relative min-w-max isolate">
               {/* Шапка бакетов (ref — мерим ширину бакета для drag) */}
               <div ref={gridRef} className="grid" style={{ ...gridCols, height: ROW_H }}>
                 {buckets.map((b, i) => (
@@ -1186,10 +1286,24 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 <div className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }} />
               )}
 
+              {/* S-GANTT-POLISH: затенение выходных (только zoom='day'). Оверлей идёт
+                  ПОСЛЕ рядов, а bg-surface2 непрозрачен, поэтому одного порядка в JSX
+                  мало — без -z-10 заливка накрывала бары (на дневном зуме они рвались
+                  пробелами по выходным). -z-10 кладёт её под ряды, под today-линию и
+                  под стрелки; стек-контекст даёт isolate на bodyRef.
+                  Не производственный календарь — праздники и переносы РФ вне скоупа. */}
+              {weekendIdx.length > 0 && (
+                <div className="pointer-events-none absolute inset-0 -z-10 grid" style={gridCols} aria-hidden>
+                  {weekendIdx.map((i) => (
+                    <div key={i} style={{ gridColumn: `${i + 1}` }} className="bg-surface2" />
+                  ))}
+                </div>
+              )}
+
               {/* Today line — оверлей поверх шапки+рядов, выровнен по той же бакет-сетке */}
               {todayIdx !== -1 && (
                 <div className="pointer-events-none absolute inset-0 grid" style={gridCols}>
-                  <div style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
+                  <div ref={todayColRef} style={{ gridColumn: `${todayIdx + 1}` }} className="border-l border-accent" />
                 </div>
               )}
 
