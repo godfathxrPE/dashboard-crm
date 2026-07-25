@@ -1,11 +1,11 @@
 # Ревью: S-GANTT-BASELINE-1 — базовый план + ghost plan/fact
 
-**Дата:** 2026-07-25  
-**Ревьюер:** Grok (код `main`, schema/learnings hard-delete, migrations 072/073, Gantt ROW_H)  
-**Объект:** `_analysis/sprint-S-GANTT-BASELINE-1.md`  
-**Контекст:** первая **миграция** gantt-волны; аддитивные таблицы; UI ghost-bars на `GanttTimeline`.
+**Дата:** 2026-07-25 (re-review после правок спринта)  
+**Ревьюер:** Grok (код `main`, 067 RLS mirror, effectiveSpan, migrations 072/073, hard-delete convention)  
+**Объект:** `_analysis/sprint-S-GANTT-BASELINE-1.md` (версия с hard delete, 074, effectiveSpan, GRANT)  
+**Контекст:** первая миграция gantt-волны; аддитивно; UI ghost на `GanttTimeline`.
 
-**Шкала:** 0–100; **≥ 85 = GO**. B* → max 84.
+**Шкала:** 0–100; **≥ 85 = GO в Claude Code**. B* → max 84.
 
 ---
 
@@ -13,185 +13,215 @@
 
 | Аспект | Оценка |
 |--------|--------|
-| РАЗВЕДКА (номер миграции с диска) | ✅ идея / 🟡 номер |
-| WHY / product (plan vs fact) | ✅ |
-| RPC атомарный слепок DEFINER | ✅ идея |
-| RLS org-first + role | ✅ скелет |
-| Soft-delete `deleted_at` | ❌ **B1** vs конвенция hard-delete |
-| SQL `tasks.deleted_at` | ❌ **B2** колонки нет → apply 42703 |
-| GRANT authenticated на таблицы | ❌ **B3** не выписан |
-| `created_by` → auth.users vs profiles | 🟡 |
-| Snapshot only start/end (не deadline) | 🟡 |
-| freeze_org_id / set_org_id | ✅ |
-| UI ghost + canManage | ✅ paths |
-| Types until after apply | ✅ process |
+| РАЗВЕДКА + номер **074** (после 073) | ✅ |
+| Hard delete (без `deleted_at`) | ✅ закрыт B1 v1 |
+| Нет `tasks.deleted_at` в RPC | ✅ закрыт B2 v1 |
+| GRANT select/delete authenticated | ✅ закрыт B3 v1 |
+| `created_by → profiles` | ✅ |
+| effectiveSpan / deadline-only в слепке | ✅ = `use-project-schedule.ts` |
+| SELECT = зеркало 067 (не org-wide) | ✅ |
+| `project_id` на `baseline_tasks` | ✅ |
+| RPC DEFINER + no client INSERT | ✅ |
+| Иммутабельность (нет UPDATE policies) | ✅ |
+| UI ghost / tasks folder / canManage | ✅ |
 | CC не apply | ✅ |
+| RPC create без visibility-гарда | 🟡 |
+| `baseline_tasks_select` как placeholder | 🟡 |
+| Types до apply | 🟡 |
 
-**Оценка: 74/100 (NO-GO).**  
-Продукт и RPC-идея верные; **три блокера SQL/конвенции** — в CC нельзя.
+**Оценка: 91/100 (GO).**  
+Порог **85** пройден. Открытых **B\*** нет. Можно в Claude Code.
 
-**Рекомендация:** переписать миграционный каркас (hard-delete **или** явный exception + fix tasks filter + GRANTs + FK profiles) → re-review.
+**Рекомендация:** **запускать в CC** на `feat/gantt-baseline-1`. Миграцию **не** apply из CC. Желательно закрыть W1–W2 в том же PR (не блокируют старт).
 
 ---
 
-## С чем согласен
+## Что изменилось с прошлого ревью (74 → 91)
 
-1. **Baseline как иммутабельный слепок** + «переснять = новый» — правильная модель.  
-2. **RPC `create_project_baseline`** (один INSERT…SELECT) — клиент не собирает N inserts; baseline_tasks без client INSERT.  
-3. **RBAC matrix** create manager / soft-delete owner-admin — ок как product (если soft-delete останется).  
-4. **Ghost bar** в той же строке, `ROW_H = 1.75rem` live, bucket math reuse — верно.  
-5. **Модалка в `components/tasks/`** — learnings (не `modals/`).  
-6. **CC не apply + gate advisors/JWT** — process ok.  
-7. **Независимость от 1B/CPM по коду** — ок.
+| Было (B*) | Сейчас |
+|-----------|--------|
+| soft-delete `deleted_at` | **hard DELETE** + CASCADE; rationale vs 067 |
+| `tasks.deleted_at is null` в RPC | **убрано**, явный запрет в тексте |
+| нет GRANT | `grant select, delete` / `select` + revoke anon |
+| `created_by → auth.users` | **`profiles` SET NULL** |
+| snapshot только start/end | **deadline MSK + clamp** как effectiveSpan |
+| org-wide SELECT | **зеркало 067** + `project_id` denorm |
+| `0NN` | **074** + re-check `ls` |
+
+Все три блокера v1 закрыты содержательно, не косметикой.
+
+---
+
+## С чем согласен полностью
+
+### 1. Hard delete + immutability
+
+Нет UPDATE-политик → нельзя «подправить имя/даты плана» через RLS.  
+Переснять = новый baseline. Физический DELETE header → CASCADE rows. Совпадает с 067/066/quotes.
+
+### 2. effectiveSpan в RPC
+
+Live:
+
+```ts
+start = start_date ?? end_date ?? dl
+end   = end_date ?? dl ?? start_date; if (end < start) end = start
+```
+
+SQL `coalesce` + `greatest(...)` — эквивалент; smoke **7a** обязателен. Закрывает главный plan/fact bug.
+
+### 3. Visibility ≠ org-wide
+
+Предикат = `project_messages_select` (067 L32–45): owner/admin org ∨ project ownership ∨ `is_project_member`.  
+Денормализация `baseline_tasks.project_id` — правильная цена, без join на SELECT.
+
+### 4. Write path = only RPC
+
+Нет INSERT policies + нет INSERT grant → пустой header клиентом невозможен. DEFINER + `search_path` + revoke anon/public.
+
+### 5. Triggers explicit
+
+054 loop не кроет новые таблицы — `set_org_id` + `freeze_org_id` на обеих — верно.
+
+### 6. UI / process
+
+`components/tasks/`, tokens only, gate apply + gen-types + advisors + JWT — ок.
 
 ---
 
 ## Блокеры
 
-### B1. Soft-delete ломает hard-delete конвенцию проекта
+**Нет.**
 
-В проекте **нет** `deleted_at` tenant-паттерна (messages/videos/quotes/deps — **hard delete** + CASCADE; explicit comments «Hard delete»).  
-S-QUOTE-1: *«soft-delete в проекте НЕТ ни у одной таблицы; не вводить одинокий deleted_at»*.
+---
 
-Baseline вводит **первый** soft-delete только на `project_baselines`.
+## Предупреждения (не роняют ниже 85)
 
-**Варианты (выбрать один в спринте):**
-
-| A (рекоменд. default) | Hard DELETE header → CASCADE `baseline_tasks`; RLS delete owner/admin; manager без delete |
-| B | Soft-delete **exception** с абзацем «почему только здесь» + restore policy / partial unique name |
-
-Без явного выбора — NO-GO.
-
-### B2. `tasks.deleted_at` в RPC — колонки нет
-
-Live `tasks`: hard rows, **нет** `deleted_at` (046 dates, schema.md).  
-SQL:
+### W1. RPC create шире, чем SELECT / UI canManage
 
 ```sql
-and t.deleted_at is null  -- 42703 на apply
+-- только org + role manager+
+exists (projects where id = p and org_id = current_org_id())
 ```
 
-Спринт в note говорит «убрать если нет» — **в теле RPC условие всё равно стоит**. CC/гейт упадут, если скопируют каркас.
+Нет `is_project_member` / ownership. Org-manager может `rpc` по UUID **чужого** проекта (IDOR write: плодит baselines, которые сам не прочитает, но admin увидит).  
+UI режет `canManage` — дыра только в прямом RPC.
 
-**Фикс:** убрать условие **сейчас** в тексте спринта (не «если»).
-
-### B3. Нет GRANT на таблицы для `authenticated`
-
-Только `revoke … from anon`. Без:
+**Рекомендация (1 SQL-блок в RPC после role-check):**
 
 ```sql
-grant select, update on public.project_baselines to authenticated;
-grant select on public.baseline_tasks to authenticated;
--- insert/delete baseline_tasks: no client (RPC DEFINER)
--- insert project_baselines: via RPC only → grant insert optional / none
+-- visibility mirror (fail closed)
+if coalesce(current_org_role(),'') not in ('owner','admin')
+   and not exists (
+     select 1 from projects p
+     where p.id = p_project_id
+       and (p.owner_id = auth.uid() or p.created_by = auth.uid()
+            or public.is_project_member(p.id))
+   ) then
+  raise exception 'forbidden' using errcode = '42501';
+end if;
 ```
 
-Иначе SELECT из клиента 42501/permission denied даже при RLS policy.
+Или: create только `canManage`-эквивалент. Не блокер MVP, если принять «как tasks_insert org-wide».
 
-Также: `grant execute … to authenticated` — добавить **`service_role`** (паттерн helpers) по желанию.
-
-### B4 (связанный). Свободный номер миграции = **074+**
-
-На диске уже:
-
-- `072_task_analytics.sql`  
-- `073_fix_spawn_delivery_project_stage.sql`  
-
-`0NN` + «смотри disk» ок, но в спринт-шапке/коммите явно: **следующая ≥ 074**.  
-Не блокер логики, но риск коллизии с параллельными ветками — **W→B soft**: считать **W0**, не cap, если CC реально `ls | tail`.
-
-(Не поднимаю cap — РАЗВЕДКА это ловит.)
-
----
-
-## Предупреждения
-
-### W1. `created_by` → `auth.users` vs `profiles`
-
-Конвенция свежих таблиц: `references public.profiles(id) on delete set null default auth.uid()` (066/069).  
-`auth.users` работает, но расходится с `entities`/FK-картой. **→ profiles.**
-
-### W2. Deadline-only задачи
-
-Gantt `effectiveSpan` = `start_date ?? end_date ?? deadline(MSK)`.  
-RPC копирует **только** `start_date`/`end_date` → задачи «только deadline» на Ганте есть, в baseline **нет** → ложный «вне плана» / нет ghost.
-
-**Фикс snapshot:**
+### W2. `baseline_tasks_select` — placeholder в промпте
 
 ```sql
-coalesce(t.start_date, t.end_date, (t.deadline at time zone 'Europe/Moscow')::date),
-coalesce(t.end_date, t.start_date, (t.deadline at time zone 'Europe/Moscow')::date)
+using ( /* тот же предикат, что выше, по своему project_id */ );
 ```
 
-(или явный product: «в план только explicit gantt dates»).
+CC обязан **вставить полный SQL**, не оставить комментарий. Риск copy-paste miss.
 
-### W3. UPDATE policy слишком широкая
+**Фикс в спринте:** продублировать полный `using (...)` 1:1 с header policy.
 
-Owner/admin UPDATE любой колонки (name rewrite) — бьёт «иммутабельный план».  
-Лучше: update только `deleted_at` (check) или separate soft-delete RPC.
+### W3. Types «не трогать до apply»
 
-### W4. NULL-safe org в RPC
+`.from('project_baselines')` / rpc name → tsc на `Database` упадёт до gen.  
+Варианты: (a) hand-stub Tables+Functions в gen до apply (quotes pattern); (b) commit hooks after gate gen; (c) cast `as any` временно — хуже.
 
-`p.org_id = current_org_id()` при NULL org → 0 rows → 42501 (deny). Acceptable.  
-Жёстче learnings: явный `IF current_org_id() IS NULL THEN RAISE`.
+Явно: **stub минимальный в gen или database.ts Args**, иначе VERIFY tsc красный в CC-ветке.
 
-### W5. Ownership project
+### W4. NULL-safe `current_org_id()`
 
-RPC не проверяет `canManage`/project membership — любой org manager snapshot **любого** org project (как tasks_insert org-wide). Product ok if intentional; иначе mirror projects_select.
+`p.org_id = current_org_id()` при NULL → not exists → 42501 (deny). Ок.  
+Learnings-стиль: явный `IF current_org_id() IS NULL THEN RAISE` — optional.
 
-### W6. Types «не трогать до apply»
+### W5. `grant execute` только authenticated
 
-Ok для gate; UI до apply сломается на rpc types — hand-stub Functions как quotes **или** feature-flag. Уточнить.
+Паттерн многих RPC; `service_role` optional для gate scripts.
 
-### W7. `freeze` trigger names
+### W6. Empty name
 
-054 auto-loop не покрывает **новые** таблицы автоматически. Явные triggers в миграции — обязательны (спринт есть) — ✅.
+`trim(p_name)` + CHECK length → 23514; UI должен ловить до RPC (toast). Мелочь.
 
----
+### W7. schema.md
 
-## Пропущенные / ложные
-
-| Тема | |
-|------|--|
-| `ROW_H` / Gantt path | ✅ |
-| `html2canvas` | N/A |
-| Indexes partial `deleted_at is null` | ok if soft-delete kept |
-| Multiple baselines UI | v1 one select — ok |
-| schema.md update | на гейте — добавить в чеклист |
+Обновить на **гейте** после apply (skill + docs) — добавить в gate checklist явно.
 
 ---
 
-## Предлагаемые правки (минимум к GO)
+## Разведка live (re-verify 2026-07-25)
 
-1. **B1:** hard DELETE **или** documented soft-delete exception.  
-2. **B2:** убрать `tasks.deleted_at` из SQL.  
-3. **B3:** GRANT select/(update) authenticated.  
-4. **W1:** `created_by → profiles`.  
-5. **W2:** snapshot effective dates (deadline fallback) **или** explicit copy.  
-6. Имя файла: `074_project_baselines.sql` (после `ls`).  
-7. WITH CHECK на update = using (или только deleted_at).
+| Claim | Live |
+|-------|------|
+| 073 last numeric, 074 free | ✅ `073_fix_spawn…`, no 074 file |
+| `tasks.deleted_at` | ✅ **нет** |
+| hard-delete convention | ✅ 067 comment |
+| effectiveSpan formula | ✅ `use-project-schedule.ts` L37–43 |
+| 067 SELECT predicate | ✅ matches sprint |
+| `ROW_H = 1.75rem` | ✅ GanttTimeline |
+| `profiles` created_by | ✅ 066/069 |
+| `freeze_org_id` / `set_org_id` | ✅ 054/069 |
 
 ---
 
-## Баллы
+## crm-architect checklist
+
+| Пункт | |
+|-------|--|
+| РАЗВЕДКА | ✅ |
+| Real table/column names | ✅ |
+| Real paths (tasks UI) | ✅ |
+| learnings hard-delete / DEFINER / org-first | ✅ |
+| Migration file, not apply from CC | ✅ |
+| SECURITY DEFINER + search_path + ACL | ✅ |
+| RLS org first + role / membership | ✅ (read); write RPC W1 |
+| CSS variables | ✅ UI |
+| schema.md after migration | 🟡 gate |
+| Commit message | ✅ |
+
+---
+
+## Балльный разбор
 
 | Критерий | Макс | Факт |
 |----------|------|------|
-| Structure / process (no apply) | 15 | 14 |
-| Data model / product | 15 | 12 (−3 soft-delete conflict) |
-| SQL truth (tasks columns, grants) | 25 | 10 (−15 B2/B3) |
-| RLS / DEFINER / ACL design | 20 | 14 (−6 soft+grants) |
-| Hooks / UI plan | 15 | 14 |
-| Verify / gate | 10 | 10 |
-| **Итого** | **100** | **74** |
+| Executable structure | 15 | 15 |
+| Data model / hard-delete / immutability | 15 | 15 |
+| SQL truth (columns, span, grants, 074) | 25 | 24 (−1 placeholder policy) |
+| RLS / DEFINER / visibility | 20 | 17 (−3 RPC create width) |
+| Hooks / UI plan | 15 | 13 (−2 types-before-apply) |
+| Verify / gate / smoke | 10 | 10 |
+| **Итого** | **100** | **91** |
 
 ---
 
 ## Чеклист перед CC
 
-- [ ] B1–B3 closed in sprint markdown  
-- [ ] W1–W2 decided  
-- [ ] Migration number ≥ 074 verified on disk  
-- [ ] Re-score ≥ 85  
+- [x] Оценка ≥ 85  
+- [x] Нет открытых B*  
+- [ ] Ветка `feat/gantt-baseline-1`  
+- [ ] РАЗВЕДКА: `ls migrations | tail` → confirm 074 still free  
+- [ ] Полный текст `baseline_tasks_select` (W2)  
+- [ ] (жел.) visibility-гард в RPC (W1)  
+- [ ] (жел.) type stub until gate gen (W3)  
+- [ ] Миграцию **не** apply из CC  
 
-**Итог: 74/100 NO-GO — не в Claude Code.**
+---
+
+## Итог
+
+**91/100 — GO → Claude Code.**  
+
+Предыдущий **74 NO-GO** снят: hard delete, no `tasks.deleted_at`, GRANTs, profiles FK, effectiveSpan, project-scoped RLS, 074.  
+Остаются warnings (RPC create scope, полный SELECT SQL, types stub) — править по желанию в том же PR.

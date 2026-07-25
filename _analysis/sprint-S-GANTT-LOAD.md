@@ -16,6 +16,8 @@ grep -n "type GanttFilter" -A 6 src/components/tasks/GanttTimeline.tsx
 grep -n "nameById\|assigned_to" src/components/tasks/GanttTimeline.tsx
 grep -n "datesFromChildren" src/components/tasks/GanttTimeline.tsx
 grep -n "export interface ScheduleNode" -A 10 src/lib/utils/gantt-schedule.ts
+grep -n "bucketIndexOf\|buildBuckets\|bucketKeyOf" src/lib/utils/date-helpers.ts
+grep -n "const model = useMemo" -A 20 src/components/tasks/GanttTimeline.tsx
 ls tests/unit/gantt-schedule.test.ts
 ```
 
@@ -24,6 +26,8 @@ ls tests/unit/gantt-schedule.test.ts
 1. `GanttFilter` содержит вариант с исполнителем → текст ниже устарел, сказать.
 2. Нет `datesFromChildren` в компоненте → изменилась модель сводных задач, сказать.
 3. Нет `tests/unit/gantt-schedule.test.ts` → предыдущие спринты не влиты.
+4. Нет `bucketIndexOf` в `date-helpers.ts` → изменилась модель бакетов, Ruling 3
+   ниже написан по устаревшему коду. Сказать.
 
 ---
 
@@ -44,8 +48,24 @@ ls tests/unit/gantt-schedule.test.ts
 В `src/lib/utils/gantt-schedule.ts`:
 
 ```ts
-computeLoad(nodes, assigneeById, buckets) → Map<bucketKey, Map<assigneeId, number>>
+export const UNASSIGNED = '__none__';
+
+export function computeLoad(
+  nodes: ScheduleNode[],                       // те же узлы, что уходят в computeCpm
+  assigneeById: Map<string, string | null>,    // taskId → task.assigned_to
+  buckets: { key: string }[],                  // model.buckets, как есть
+  zoom: GanttZoom,                             // нужен для bucketIndexOf
+): Map<string, Map<string, number>>            // bucketKey → assigneeKey → число задач
 ```
+
+`ScheduleNode` **не несёт** `assigned_to` (поля: `id`, `start`, `end`, `hasOwnDates`,
+`parentTaskId`) — исполнитель приходит отдельной картой, собранной в компоненте из
+`tasks`. Ключ строки для задач без исполнителя — строковая константа `UNASSIGNED`,
+а не `null`: смешанный `Map<string | null, …>` в дальнейшем рендере даёт лишние
+narrowing-ветки на пустом месте.
+
+`GanttZoom`, `bucketIndexOf`, `bucketKeyOf` импортируются из `date-helpers.ts` —
+своих аналогов в `gantt-schedule.ts` не писать.
 
 Vitest в `tests/unit/gantt-schedule.test.ts` — как весь остальной модуль.
 
@@ -71,7 +91,32 @@ Vitest в `tests/unit/gantt-schedule.test.ts` — как весь остальн
 Порог `MAX_PARALLEL` к этой строке **не применять** — перегруза ни у кого
 конкретно там нет, красить нечего.
 
-**Трудоёмкость:** ~2 ч. Риск низкий.
+### Ruling 3 — принадлежность бакету считается ровно так же, как у баров
+
+Это главное место, где реализация может разъехаться с картинкой. Правило одно:
+
+```
+from = bucketIndexOf(node.start, zoom, buckets)
+to   = bucketIndexOf(node.end,   zoom, buckets)
+задача даёт +1 в каждый бакет с индексом from..to включительно
+```
+
+То есть **задача занимает бакет целиком, если пересекает его хотя бы одним днём** —
+ровно так же, как бар занимает колонку сетки. Никакой пропорциональной или
+подневной нагрузки: `bucketIndexOf` уже сводит дату к ключу бакета через
+`bucketKeyOf`, и любая другая арифметика даст цифру, не совпадающую с тем,
+что человек видит на экране.
+
+Следствие, сказать вслух и не считать багом: в зуме `month` двухдневная задача
+и месячная весят одинаково, поэтому порог `MAX_PARALLEL` осмыслен прежде всего
+в `day` и `week`. Взвешивание по дням внутри бакета — отдельный разговор,
+и он потребует расходиться с отрисовкой баров. В этом спринте — нет.
+
+Краевые случаи: `bucketIndexOf` возвращает `-1` для даты вне горизонта; если
+`from === -1` и `to === -1` — узел пропускается, если один из концов `-1` —
+диапазон подрезается до границ массива `buckets`, а не отбрасывается целиком.
+
+**Трудоёмкость:** ~2,5 ч. Риск низкий.
 
 ---
 
@@ -86,6 +131,10 @@ state и прокидывание в расчёт пишутся с нуля.
   типа `GanttFilter`: это ортогональные оси (что показываем × чью загрузку считаем),
   склеивание их в один union даст комбинаторный взрыв вариантов.
 - Селект строится из `team` — того же массива, из которого собран `nameById`.
+- Строки загрузки строятся по ключам **из данных**, а не по списку `team`: исполнитель,
+  вышедший из орг, но оставшийся в `assigned_to`, обязан быть видимым. `team` даёт
+  подписи и содержимое селекта; для ключа без совпадения в `team` подпись —
+  fallback вида «— (id)», а не пропуск строки.
 - Фильтр влияет **только** на строку загрузки, не на набор баров. Иначе кнопка
   «показать загрузку Иванова» неожиданно спрячет половину диаграммы.
 
@@ -135,4 +184,4 @@ git --no-pager diff --stat
 
 Коммиты conventional, задача — коммит. Не пушить.
 
-**Трудоёмкость всего:** ~5,5 ч. Риск низкий — аддитивная строка, существующего не трогает.
+**Трудоёмкость всего:** ~6 ч. Риск низкий — аддитивная строка, существующего не трогает.
