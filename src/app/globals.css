@@ -1682,3 +1682,46 @@ table tbody tr[data-kbd-focused] {
 .t-frost  .chat-own { --chat-own-bg: #2D3C66; --chat-own-border: rgba(91,138,255,0.45); }
 .t-aurora .chat-own { --chat-own-bg: #3C2E61; --chat-own-border: rgba(160,96,255,0.45); }
 .t-tidal  .chat-own { --chat-own-bg: #1D4536; --chat-own-border: rgba(72,184,144,0.45); }
+
+/* ═══ S-GANTT-POLISH: печать Ганта (window.print) ═══ */
+/* html2canvas сознательно НЕ вводился: новая зависимость + снимок плывёт на
+   color-mix()/CSS-переменных, на которых стоят все темы проекта. */
+@page { size: landscape; margin: 10mm; }
+
+@media print {
+  /* Светлая палитра поверх ЛЮБОЙ темы: значения скопированы из блока
+     Claude (default, light) выше. Селектор html[class] (0,1,1) бьёт .t-aura (0,1,0),
+     поэтому одно правило накрывает все 7 тем. Форсим переменные, а не color на
+     элементах, — иначе тёмная тема уехала бы в тонер и нечитаемость.
+     Хардкод hex допустим ТОЛЬКО здесь: этот блок и ЕСТЬ определение палитры. */
+  html[class] {
+    --bg: #f5f4ef; --surface: #ffffff; --surface2: #f0efe9; --surface3: #e5e3dc;
+    --border: #e5e3dc; --border2: #d4d2ca;
+    --text: #1a1916; --text-dim: #6b6860; --text-mute: #6f6d68;
+    --accent: #b5622a; --accent-l: rgba(181,98,42,0.08);
+    /* Токены статусов: ими красятся бары приоритетов и плашки. Без них тёмная тема
+       уносит на белый лист свою палитру (frost --red #E8795A вместо #c0392b). */
+    --green: #2e7d52; --green-l: rgba(46,125,82,0.09);
+    --red: #c0392b; --red-l: rgba(192,57,43,0.09);
+    --blue: #2d6ab4; --blue-l: rgba(45,106,180,0.09);
+    --yellow: #a07020; --yellow-l: rgba(160,112,32,0.09); --yellow-text: #92661d;
+    --purple: #7c3aed; --purple-l: rgba(124,58,237,0.09);
+  }
+  /* Прячем через visibility, а НЕ display:none — display на предках рвёт раскладку
+     абсолютных оверлеев (стрелки зависимостей, линия «сегодня»). */
+  html.printing-gantt body * { visibility: hidden; }
+  html.printing-gantt [data-print-root],
+  html.printing-gantt [data-print-root] * { visibility: visible; }
+  html.printing-gantt [data-print-root] {
+    position: absolute; left: 0; top: 0; width: 100%;
+  }
+  /* …но абсолют считается от ближайшего позиционированного предка, а это <main>
+     (position:relative) внутри шелла с ml-[232px] под сайдбар: без сброса Гант
+     печатался со сдвигом вправо на ширину сайдбара и обрезался правым полем листа.
+     Именно position/padding, а не display:none — main предок корня (см. выше). */
+  html.printing-gantt main { position: static !important; padding: 0 !important; }
+  /* Экранные органы управления в документ не попадают */
+  html.printing-gantt [data-print-hide] { display: none; }
+  /* Горизонт не должен обрезаться правым краем скролл-контейнера */
+  html.printing-gantt [data-print-scroll] { overflow: visible !important; }
+}

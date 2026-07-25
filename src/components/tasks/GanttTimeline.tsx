@@ -794,6 +794,16 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     [updateDates.mutate, proposeCascade],
   );
 
+  // S-GANTT-POLISH: печать. Класс снимаем в afterprint, а НЕ сразу после print():
+  // в части браузеров print() возвращает управление до отрисовки, и правила успели
+  // бы отвалиться на середине предпросмотра. once — снятие ровно один раз.
+  const handlePrint = useCallback(() => {
+    const root = document.documentElement;
+    root.classList.add('printing-gantt');
+    window.addEventListener('afterprint', () => root.classList.remove('printing-gantt'), { once: true });
+    window.print();
+  }, []);
+
   // S-GANTT-UX-2: drag chip из «Без дат» на таймлайн (нативные Pointer Events, как
   // бары VIEW-2). Дата = ключ бакета под курсором; запись строго через
   // useUpdateTaskDates (patchTaskCaches уберёт chip и покажет бар во всех срезах).
@@ -952,7 +962,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const wideRange = zoom === 'day' && buckets.length > 180;
 
   const controls = (
-    <div className="mb-3 flex flex-wrap items-center gap-3">
+    // data-print-hide: тулбар — экранный орган управления, в печатный документ не идёт
+    <div data-print-hide className="mb-3 flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-1">
         {ZOOMS.map((z) => (
           <button
@@ -1015,6 +1026,17 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           Крит. путь: {criticalDays} дн
         </span>
       )}
+      {/* S-GANTT-POLISH: печать таймлайна. window.print() печатает документ целиком,
+          поэтому класс на <html> включает print-правила из globals.css (сайдбар/шапка
+          скрыты, палитра форсится в светлую). */}
+      <button
+        type="button"
+        onClick={handlePrint}
+        className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-text-mute transition-colors hover:text-text-main"
+        title="Печать: для широкого проекта выберите зум «Месяц»"
+      >
+        Печать
+      </button>
       {/* S-GANTT-BASELINE-1: зафиксировать план (canManage) + выбор отображаемого слепка */}
       {canManage && (
         <button
@@ -1068,11 +1090,12 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   }
 
   return (
-    <div className="mb-4 rounded-xl border border-border bg-surface p-3">
+    <div data-print-root className="mb-4 rounded-xl border border-border bg-surface p-3">
       {controls}
 
       {wideRange && (
-        <div className="mb-2 rounded-lg border border-yellow bg-yellow-l px-3 py-1.5 text-xs text-text-main">
+        // подсказка про зум — экранная, в печать не идёт (как и тулбар)
+        <div data-print-hide className="mb-2 rounded-lg border border-yellow bg-yellow-l px-3 py-1.5 text-xs text-text-main">
           Широкий диапазон — переключи на неделю или месяц для читаемости.
         </div>
       )}
@@ -1135,7 +1158,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           </div>
 
           {/* ── Timeline-body: скроллится по X, внутри — шапка, ряды, today-оверлей ── */}
-          <div className="flex-1 overflow-x-auto">
+          {/* data-print-scroll: на печати overflow снимается, иначе горизонт обрежется */}
+          <div data-print-scroll className="flex-1 overflow-x-auto">
             <div ref={bodyRef} className="relative min-w-max">
               {/* Шапка бакетов (ref — мерим ширину бакета для drag) */}
               <div ref={gridRef} className="grid" style={{ ...gridCols, height: ROW_H }}>
