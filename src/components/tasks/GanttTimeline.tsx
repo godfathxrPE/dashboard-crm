@@ -32,6 +32,7 @@ import {
   useCreateBaseline,
   useDeleteBaseline,
 } from '@/lib/hooks/use-project-baselines';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { BaselineNameModal } from './BaselineNameModal';
 import type { Task } from '@/types/entities';
 
@@ -389,6 +390,10 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const deleteBaseline = useDeleteBaseline(projectId);
   // Стабильная ссылка от React Query — расширяет горизонт оси, deps model'а без лишних пересчётов.
   const planByTask = baselineTasks.data ?? null;
+  // DELETE слепка — RLS owner/admin org. Кнопку прячем по роли (не ловим отказ): manager видит
+  // «Зафиксировать» (совпадает с гардом RPC), но не «Удалить». useOrgRole → current_org_role().
+  const { data: orgRole } = useOrgRole();
+  const canDeleteBaseline = orgRole === 'owner' || orgRole === 'admin';
   // S-GANTT-UX-2: удаление задачи/фазы из Ганта — те же мутации, что на доске
   // (FK-cleanup на БД: deps CASCADE 048, parent_task_id SET NULL 052; RPC 032/033).
   const deleteTask = useDeleteTask();
@@ -1005,7 +1010,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
-          {selectedBaselineId && canManage && (
+          {selectedBaselineId && canDeleteBaseline && (
             <button
               type="button"
               onClick={() =>

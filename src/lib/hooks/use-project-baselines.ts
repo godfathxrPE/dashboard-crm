@@ -25,7 +25,6 @@ interface BaselineTaskRow {
   task_id: string;
   start_date: string;
   end_date: string;
-  is_milestone: boolean;
 }
 
 /** План-старт/финиш задачи из выбранного слепка (YYYY-MM-DD). */
@@ -104,7 +103,7 @@ export function useBaselineTasks(baselineId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('baseline_tasks')
-        .select('task_id, start_date, end_date, is_milestone')
+        .select('task_id, start_date, end_date')
         .eq('baseline_id', baselineId!);
       if (error) throw error;
       return new Map<string, BaselineSpan>(
@@ -131,6 +130,7 @@ export function useCreateBaseline(projectId: string) {
       return data as string; // id нового baseline (RPC возвращает uuid при успехе)
     },
     onSuccess: () => {
+      toast.success('План зафиксирован');
       queryClient.invalidateQueries({ queryKey: baselinesKey(projectId) });
     },
     onError: (err) => toast.error(baselineError(err)),
@@ -169,7 +169,8 @@ export function useDeleteBaseline(projectId: string) {
       return { previous };
     },
     onError: (err, _id, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(baselinesKey(projectId), ctx.previous);
+      // !== undefined, а не truthy: пустой снапшот [] тоже нужно откатить.
+      if (ctx?.previous !== undefined) queryClient.setQueryData(baselinesKey(projectId), ctx.previous);
       toast.error(baselineError(err));
     },
     onSettled: () => {
