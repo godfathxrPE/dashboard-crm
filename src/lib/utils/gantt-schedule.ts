@@ -168,3 +168,151 @@ export function computeCascade(
 
   return [...result.values()];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-GANTT-CPM — полный CPM (ES/EF/LS/LF + total float) поверх того же FS-графа.
+// Заменяет longest-path DP в GanttTimeline: критическая работа = нулевой запас
+// (как MS Project Total Slack / Primavera Total Float), а не «самая длинная цепь».
+// Это ловит две параллельные критические цепочки, которые longest-path ронял.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const shiftDay = (key: string, n: number): string => shiftDateKeyByBuckets(key, 'day', n);
+
+/**
+ * Длительность в календарных днях включительно — та же нормализация, что бары Ганта
+ * (UTC-полдень; diffDaysKey использует ту же арифметику). Милстоун (start === end) = 1.
+ * Math.max(1, …) — защита от end < start (не должно случаться, но не роняем расчёт).
+ * Перенесено из локального durDays в GanttTimeline (дубль удалён).
+ */
+export function durationDays(start: string, end: string): number {
+  return Math.max(1, diffDaysKey(start, end) + 1);
+}
+
+export interface CpmNode {
+  es: string;               // earliest start (YYYY-MM-DD)
+  ef: string;               // earliest finish
+  ls: string;               // latest start
+  lf: string;               // latest finish
+  totalFloat: number;       // календарные дни; = LS − ES = LF − EF (в этой модели всегда ≥ 0)
+  critical: boolean;        // totalFloat <= 0
+}
+
+/**
+ * Прямой/обратный проход CPM с ограничением «не раньше собственной даты»
+ * (аналог Start No Earlier Than в MS Project) — даты у нас пользовательские, Гант их
+ * не пересчитывает без спроса, поэтому own_start работает нижней границей ES.
+ *
+ * Прямой:  ES(i) = max(own_start(i), max по FS-предшественникам p: shiftDay(EF(p), lag))
+ *          EF(i) = shiftDay(ES(i), dur(i) − 1)
+ *          projectFinish PF = max EF по всем узлам топопорядка
+ * Обратный: LF(i) = у стоков PF, иначе min по последователям s: shiftDay(LS(s), −lag)
+ *          LS(i) = shiftDay(LF(i), −(dur(i) − 1))
+ *          TF(i) = diffDaysKey(ES(i), LS(i)) = LF(i) − EF(i)
+ *
+ * ВАЖНО (расхождение с ранним текстом спринта S-GANTT-CPM): в этой модели TF ≥ 0
+ * для ВСЕХ узлов — доказуемо (TF = LF − EF; у стоков LF = PF = max EF ≥ EF, дальше
+ * индукция назад по топопорядку). FS-нарушение из 1a (пользователь поставил старт
+ * последователя раньше earliest) НЕ даёт отрицательный float: ES такого узла просто
+ * подтягивается к earliest (own_start < ES), и узел становится критическим (TF = 0),
+ * а не «−N». Признак нарушения для тултипа считается отдельно как (ES − own_start) > 0,
+ * см. GanttTimeline — это тот же конфликт, что 1a рисует красной стрелкой.
+ *
+ * Семантика earliest ИДЕНТИЧНА soft-warn 1a и каскаду 1B: shiftDay(EF(pred), lag),
+ * lag=0 ⇒ старт последователя в день финиша предшественника легален. Три места, где
+ * считается FS (warn/каскад/CPM), обязаны давать один earliest.
+ *
+ * Правила графа (те же, что computeCascade): только dep_type === 'FS'; висячие концы
+ * пропускаются; узлы вне топопорядка (цикл-мусор) присутствуют в byId с critical:false,
+ * totalFloat:0 (компонент не должен получить undefined). Пустой граф → projectFinish:null.
+ *
+ * Долг (v1): если одно ребро повешено и на сводную, и на её ребёнка, длительность
+ * учитывается дважды и float занижается — как и в каскаде, в v1 не решаем.
+ */
+export function computeCpm(
+  nodes: ScheduleNode[],
+  edges: ScheduleEdge[],
+): { byId: Map<string, CpmNode>; projectFinish: string | null } {
+  const byId = new Map<string, ScheduleNode>(nodes.map((n) => [n.id, n]));
+
+  // FS-рёбра с обоими концами в графе (тот же фильтр, что computeCascade).
+  const incoming = new Map<string, ScheduleEdge[]>();
+  const outgoing = new Map<string, ScheduleEdge[]>();
+  const indeg = new Map<string, number>();
+  for (const n of nodes) indeg.set(n.id, 0);
+  for (const e of edges) {
+    if (e.dep_type !== 'FS') continue;
+    if (!byId.has(e.predecessor_id) || !byId.has(e.successor_id)) continue;
+    (incoming.get(e.successor_id) ?? incoming.set(e.successor_id, []).get(e.successor_id)!).push(e);
+    (outgoing.get(e.predecessor_id) ?? outgoing.set(e.predecessor_id, []).get(e.predecessor_id)!).push(e);
+    indeg.set(e.successor_id, (indeg.get(e.successor_id) ?? 0) + 1);
+  }
+
+  // Kahn-топосорт (тот же, что computeCascade). Узлы в цикле indeg 0 не достигнут.
+  const queue: string[] = [];
+  for (const [id, d] of indeg) if (d === 0) queue.push(id);
+  const topo: string[] = [];
+  while (queue.length) {
+    const id = queue.shift()!;
+    topo.push(id);
+    for (const e of outgoing.get(id) ?? []) {
+      const d = (indeg.get(e.successor_id) ?? 0) - 1;
+      indeg.set(e.successor_id, d);
+      if (d === 0) queue.push(e.successor_id);
+    }
+  }
+
+  // Прямой проход: ES (нижняя граница = own_start), EF, projectFinish.
+  const es = new Map<string, string>();
+  const ef = new Map<string, string>();
+  let projectFinish: string | null = null;
+  for (const id of topo) {
+    const own = byId.get(id)!;
+    let start = own.start;
+    for (const e of incoming.get(id) ?? []) {
+      const predEf = ef.get(e.predecessor_id);
+      if (!predEf) continue;                                // предшественник в цикле → пропуск
+      const cand = shiftDay(predEf, e.lag_days);            // earliest от этого предшественника
+      if (cand > start) start = cand;                       // ключи YYYY-MM-DD сравнимы хронологически
+    }
+    const finish = shiftDay(start, durationDays(own.start, own.end) - 1);
+    es.set(id, start);
+    ef.set(id, finish);
+    if (projectFinish === null || finish > projectFinish) projectFinish = finish;
+  }
+
+  // Обратный проход: LF (у стоков = PF), LS, total float, critical.
+  const result = new Map<string, CpmNode>();
+  const ls = new Map<string, string>();
+  for (let k = topo.length - 1; k >= 0; k -= 1) {
+    const id = topo[k];
+    const own = byId.get(id)!;
+    let finish: string | null = null;
+    for (const e of outgoing.get(id) ?? []) {
+      const succLs = ls.get(e.successor_id);
+      if (!succLs) continue;                                // последователь в цикле → пропуск
+      const cand = shiftDay(succLs, -e.lag_days);
+      if (finish === null || cand < finish) finish = cand;
+    }
+    if (finish === null) finish = projectFinish ?? own.end; // сток → горизонт проекта
+    const lateStart = shiftDay(finish, -(durationDays(own.start, own.end) - 1));
+    ls.set(id, lateStart);
+    const earlyStart = es.get(id)!;
+    const totalFloat = diffDaysKey(earlyStart, lateStart);  // LS − ES (= LF − EF)
+    result.set(id, {
+      es: earlyStart,
+      ef: ef.get(id)!,
+      ls: lateStart,
+      lf: finish,
+      totalFloat,
+      critical: totalFloat <= 0,
+    });
+  }
+
+  // Узлы вне топопорядка (цикл-мусор) — присутствуют, но не критические (правило 7).
+  for (const n of nodes) {
+    if (result.has(n.id)) continue;
+    result.set(n.id, { es: n.start, ef: n.end, ls: n.start, lf: n.end, totalFloat: 0, critical: false });
+  }
+
+  return { byId: result, projectFinish };
+}
