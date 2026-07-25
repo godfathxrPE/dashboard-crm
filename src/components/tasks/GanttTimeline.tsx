@@ -552,9 +552,16 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const cpm = useMemo(() => computeCpm(scheduleNodes, dependencies), [scheduleNodes, dependencies]);
 
   // Множество критических id (totalFloat <= 0). Бар/стрелка/бейдж читают его.
+  // Без рёбер критический путь не имеет смысла: каждый узел одновременно исток и сток,
+  // EF = projectFinish ⇒ TF = 0, и подсветка/бейдж «Крит. путь» вспыхнули бы на проекте
+  // без единой связи. Гейт по dependencies.length держим в компоненте, а не в computeCpm
+  // (unit «одиночный узел без рёбер → TF = 0» остаётся верным — это свойство алгоритма).
   const criticalIds = useMemo(
-    () => new Set([...cpm.byId].filter(([, v]) => v.critical).map(([id]) => id)),
-    [cpm],
+    () =>
+      dependencies.length === 0
+        ? new Set<string>()
+        : new Set([...cpm.byId].filter(([, v]) => v.critical).map(([id]) => id)),
+    [cpm, dependencies],
   );
 
   // Стабильная строковая сигнатура крит-множества для effect-deps измерения стрелок
@@ -576,16 +583,19 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     return minES ? diffDaysKey(minES, cpm.projectFinish) + 1 : 0;
   }, [cpm, criticalIds]);
 
-  // S-GANTT-CPM: строка запаса/просрочки для тултипа бара. «Просрочка» = own_start раньше
-  // computed ES (узел подтянут к earliest — то самое FS-нарушение 1a). В этой модели float
-  // неотрицателен (доказуемо, см. computeCpm), поэтому нарушение ловим по ES − own_start,
-  // а НЕ по TF < 0. Цвет строки задаёт тема (см. рендер тултипа), хардкода нет.
+  // S-GANTT-CPM: строка запаса/сдвига для тултипа бара. lateBy > 0 = бар стоит раньше
+  // расчётного ES (earliest по ВСЕЙ цепочке предшественников). Это НЕ тождественно
+  // FS-нарушению 1a на одном ребре: CPM считает EF от подтянутого ES, поэтому сдвиг
+  // наследуется вниз — узел с зелёной стрелкой (сам ничего не нарушает) может иметь
+  // lateBy > 0, если раньше earliest сидит его предшественник. Отсюда нейтральная
+  // формулировка «старт раньше расчётного», а не «просрочка». Цвет — токен темы (см.
+  // рендер тултипа), хардкода нет. Float в этой модели неотрицателен (см. computeCpm).
   const floatTextFor = useCallback(
     (gt: GanttTask): string | undefined => {
       const c = cpm.byId.get(gt.task.id);
       if (!c) return undefined;
-      const lateBy = diffDaysKey(gt.start, c.es);       // >0 ⟺ бар раньше earliest → просрочка
-      if (lateBy > 0) return `просрочка: ${lateBy} дн`;
+      const lateBy = diffDaysKey(gt.start, c.es);       // >0 ⟺ бар раньше расчётного earliest
+      if (lateBy > 0) return `старт раньше расчётного: ${lateBy} дн`;
       if (c.totalFloat > 0) return `запас: ${c.totalFloat} дн`;
       return 'запаса нет';
     },
@@ -1292,11 +1302,9 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           <div className="font-medium text-text-main">{tip.text}</div>
           {tip.assignee !== undefined && <div className="mt-0.5 text-text-dim">Исполнитель: {tip.assignee}</div>}
           {tip.status !== undefined && <div className="text-text-dim">Статус: {tip.status}</div>}
-          {/* S-GANTT-CPM: запас/просрочка. Просрочка (бар раньше earliest, FS-нарушение 1a) —
-              токеном темы text-red, как красная стрелка; иначе приглушённо. */}
-          {tip.float !== undefined && (
-            <div className={tip.float.startsWith('просрочка') ? 'text-red' : 'text-text-dim'}>{tip.float}</div>
-          )}
+          {/* S-GANTT-CPM: запас / старт раньше расчётного. Нейтральный сигнал (сдвиг
+              наследуется по цепочке, ≠ FS-нарушение 1a), поэтому приглушённо, без алярма. */}
+          {tip.float !== undefined && <div className="text-text-dim">{tip.float}</div>}
         </div>
       )}
 
