@@ -379,6 +379,68 @@ export type Database = {
           },
         ]
       }
+      baseline_tasks: {
+        Row: {
+          baseline_id: string
+          end_date: string
+          id: string
+          is_milestone: boolean
+          org_id: string
+          project_id: string
+          start_date: string
+          task_id: string
+        }
+        Insert: {
+          baseline_id: string
+          end_date: string
+          id?: string
+          is_milestone?: boolean
+          org_id: string
+          project_id: string
+          start_date: string
+          task_id: string
+        }
+        Update: {
+          baseline_id?: string
+          end_date?: string
+          id?: string
+          is_milestone?: boolean
+          org_id?: string
+          project_id?: string
+          start_date?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baseline_tasks_baseline_id_fkey"
+            columns: ["baseline_id"]
+            isOneToOne: false
+            referencedRelation: "project_baselines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baseline_tasks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baseline_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baseline_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_tracker_days: {
         Row: {
           date: string
@@ -1491,6 +1553,55 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      project_baselines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          org_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          org_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_baselines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_baselines_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_baselines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_columns: {
         Row: {
@@ -2609,6 +2720,10 @@ export type Database = {
       copy_delivery_template: {
         Args: { p_project_id: string; p_template_id: string }
         Returns: undefined
+      }
+      create_project_baseline: {
+        Args: { p_name: string; p_project_id: string }
+        Returns: string
       }
       current_org_id: { Args: never; Returns: string }
       current_org_role: { Args: never; Returns: string }

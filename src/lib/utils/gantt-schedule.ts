@@ -316,3 +316,39 @@ export function computeCpm(
 
   return { byId: result, projectFinish };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S-GANTT-BASELINE-1 — горизонт оси Ганта. Чистая функция (тестируемо вне React):
+// min/max по спанам задач, расширенные спанами выбранного слепка. Слепок расширяет
+// ось, иначе перенесённый далеко от плана призрак не влезает в бакеты и падал бы в
+// первую колонку. Берём план ТОЛЬКО для переданных (видимых) задач — иначе фильтр
+// «мои задачи» перестал бы сужать ось (слепок держит весь проект).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HorizonItem {
+  id: string;
+  start: string;              // YYYY-MM-DD
+  end: string;
+}
+
+export function computeHorizon(
+  tasks: HorizonItem[],
+  planByTask: Map<string, { start: string; end: string }> | null,
+): { min: string; max: string } | null {
+  if (tasks.length === 0) return null;              // ось из задач не построить — ветку решает вызывающий
+  let min = tasks[0].start;
+  let max = tasks[0].end;
+  for (const t of tasks) {
+    if (t.start < min) min = t.start;
+    if (t.end > max) max = t.end;
+  }
+  if (planByTask) {
+    for (const t of tasks) {
+      const plan = planByTask.get(t.id);
+      if (!plan) continue;                          // задача без плана — только собственный спан
+      if (plan.start < min) min = plan.start;
+      if (plan.end > max) max = plan.end;
+    }
+  }
+  return { min, max };
+}
