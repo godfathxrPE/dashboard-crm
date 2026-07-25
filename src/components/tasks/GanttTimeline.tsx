@@ -25,7 +25,7 @@ import {
   diffDaysKey,
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
-import { computeCascade, computeCpm, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
+import { computeCascade, computeCpm, computeHorizon, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
 import {
   useProjectBaselines,
   useBaselineTasks,
@@ -132,17 +132,14 @@ interface GanttBarProps {
 
 // S-GANTT-BASELINE-1: ghost-бар плана — под основным баром, в той же строке-гриде, у низа.
 // Позиция по тем же bucketIndexOf, что и бар (gs..ge). Слоем ниже (рендерится ДО GanttBar),
-// тоньше (~⅓ ROW_H). Цвет — токен темы с пониженной непрозрачностью, без хардкода. Ховер даёт
-// свой тултип «План: … · сдвиг +N дн» (отдельная цель — экспонированная нижняя кромка под баром).
-function GhostBar({ gs, ge, planText, setTip }: { gs: number; ge: number; planText: string; setTip: (t: Tip | null) => void }) {
-  const show = (ev: React.MouseEvent) => setTip({ x: ev.clientX, y: ev.clientY, text: planText });
+// тоньше (~⅓ ROW_H). Цвет — токен темы с пониженной непрозрачностью, без хардкода. Чисто
+// визуальный маркер (pointer-events-none): текст «План: … · сдвиг +N дн» несёт тултип бара
+// факта, поэтому сдвиг виден, даже когда призрак не влез в ось.
+function GhostBar({ gs, ge }: { gs: number; ge: number }) {
   return (
     <div
       style={{ gridColumn: `${gs + 1} / ${ge + 2}`, gridRow: 1, alignSelf: 'end' }}
-      className="mb-0.5 h-2 rounded-sm bg-text-mute opacity-40"
-      onMouseEnter={show}
-      onMouseMove={show}
-      onMouseLeave={() => setTip(null)}
+      className="pointer-events-none mb-0.5 h-2 rounded-sm bg-text-mute opacity-40"
       aria-hidden
     />
   );
@@ -390,6 +387,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   const baselineTasks = useBaselineTasks(selectedBaselineId);
   const createBaseline = useCreateBaseline(projectId);
   const deleteBaseline = useDeleteBaseline(projectId);
+  // Стабильная ссылка от React Query — расширяет горизонт оси, deps model'а без лишних пересчётов.
+  const planByTask = baselineTasks.data ?? null;
   // S-GANTT-UX-2: удаление задачи/фазы из Ганта — те же мутации, что на доске
   // (FK-cleanup на БД: deps CASCADE 048, parent_task_id SET NULL 052; RPC 032/033).
   const deleteTask = useDeleteTask();
@@ -683,9 +682,14 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     const allTasks: GanttTask[] = visibleSwimlanes.flatMap((sl) => sl.tasks);
     let min: string;
     let max: string;
-    if (allTasks.length > 0) {
-      min = allTasks.reduce((m, t) => (t.start < m ? t.start : m), allTasks[0].start);
-      max = allTasks.reduce((m, t) => (t.end > m ? t.end : m), allTasks[0].end);
+    // Горизонт по видимым задачам, расширенный спанами выбранного слепка (см. computeHorizon).
+    const horizon = computeHorizon(
+      allTasks.map((gt) => ({ id: gt.task.id, start: gt.start, end: gt.end })),
+      planByTask,
+    );
+    if (horizon) {
+      min = horizon.min;
+      max = horizon.max;
     } else if (hasUndated) {
       // S-GANTT-UX-2 (B3): only-undated (проект из шаблона) — бакетов из задач нет,
       // а drop из «Без дат» без оси мёртв. Временная ось today±N; как только появится
@@ -700,7 +704,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     const idxByKey = new Map(buckets.map((b, i) => [b.key, i]));
     const todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets);
     return { buckets, idxByKey, todayIdx };
-  }, [visibleSwimlanes, hasUndated, zoom]);
+  }, [visibleSwimlanes, hasUndated, zoom, planByTask]);
 
   // Ширина бакета в рантайме (сетка minmax(28px,1fr) — динамическая, хардкод нельзя).
   // Снимаем с шапки бакетов на каждый pointerdown.
@@ -1128,16 +1132,23 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                     // в слепке И даты уехали. «вне плана» — слепок загружен, а задачи в нём нет.
                     const plan = baselineTasks.data?.get(gt.task.id);
                     const ghost = plan && (plan.start !== gt.start || plan.end !== gt.end) ? plan : null;
-                    const gs = ghost ? (idxByKey.get(bucketKeyOf(ghost.start, zoom)) ?? 0) : 0;
-                    const ge = ghost ? (idxByKey.get(bucketKeyOf(ghost.end, zoom)) ?? gs) : 0;
+                    // Честный промах: план вне оси (zoom-край / данные слепка обогнали пересчёт model)
+                    // → индекс undefined → призрак НЕ рисуем (иначе полоса «План» падала в колонку 1).
+                    const gsRaw = ghost ? idxByKey.get(bucketKeyOf(ghost.start, zoom)) : undefined;
+                    const geRaw = ghost ? idxByKey.get(bucketKeyOf(ghost.end, zoom)) : undefined;
                     const shift = ghost ? diffDaysKey(ghost.start, gt.start) : 0;
-                    const planText = ghost
-                      ? `План: ${ddmm(ghost.start)} – ${ddmm(ghost.end)} · сдвиг ${shift >= 0 ? '+' : ''}${shift} дн`
-                      : '';
+                    // Сдвиг живёт на баре ФАКТА (тултип) — известен, даже если призрак не влез в ось.
                     const outOfPlan = !!selectedBaselineId && !!baselineTasks.data && !plan;
+                    const planNote = ghost
+                      ? `План: ${ddmm(ghost.start)} – ${ddmm(ghost.end)} · сдвиг ${shift >= 0 ? '+' : ''}${shift} дн`
+                      : outOfPlan
+                        ? 'вне плана'
+                        : undefined;
                     return (
                       <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
-                        {ghost && <GhostBar gs={gs} ge={ge} planText={planText} setTip={setTip} />}
+                        {ghost && gsRaw !== undefined && geRaw !== undefined && (
+                          <GhostBar gs={gsRaw} ge={geRaw} />
+                        )}
                         <GanttBar
                           gt={gt}
                           zoom={zoom}
@@ -1153,7 +1164,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                           isLinkSource={pendingPred === gt.task.id}
                           isCritical={showCritical && criticalIds.has(gt.task.id)}
                           floatText={floatTextFor(gt)}
-                          planNote={outOfPlan ? 'вне плана' : undefined}
+                          planNote={planNote}
                           onLinkSelect={onLinkSelect}
                           canManage={canManage}
                           onDeleteTask={handleDeleteTask}
@@ -1395,7 +1406,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           {tip.float !== undefined && (
             <div className={tip.float.startsWith('старт раньше расчётного') ? 'text-yellow' : 'text-text-dim'}>{tip.float}</div>
           )}
-          {/* S-GANTT-BASELINE-1: «вне плана» — задача создана после выбранного слепка. */}
+          {/* S-GANTT-BASELINE-1: сдвиг от плана «План: … · сдвиг +N дн», либо «вне плана»
+              (задача создана после выбранного слепка). */}
           {tip.plan !== undefined && <div className="text-text-dim">{tip.plan}</div>}
         </div>
       )}
