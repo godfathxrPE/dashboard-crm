@@ -1,9 +1,9 @@
-# Ревью: sprint-delivery-projects-p1.md
+# Ревью: sprint-delivery-projects-p1.md (v2)
 
-**Дата:** 2026-07-10  
-**Ревьюер:** Grok (верификация по коду `feat/aura-theme` + миграция 032 + architecture D3 §8–§9)  
-**Объект:** `_analysis/sprint-delivery-projects-p1.md` — P1 «Лёгкая карточка» delivery-проектов  
-**Контекст:** `architecture-delivery-projects.md`, `review-architecture-delivery-projects.md`, `sprint-rename-deals.md`, skill `crm-architect`
+**Дата:** 2026-07-16  
+**Ревьюер:** Grok (верификация по коду `main` @ `71c613f`, `docs/schema.md`, crm-architect `schema.md` / `architecture.md` / `learnings.md`)  
+**Объект:** `_analysis/sprint-delivery-projects-p1.md` — P1 «Лёгкая карточка» delivery + routing split B0  
+**Контекст:** спринт датирован **2026-07-10** (ветка `feat/aura-theme`); handoff `_analysis/handoff-delivery-p1.md` (2026-07-11) фиксирует **P1 закрыт**; поверх — P2a/P2b/P3 (036–038), Волна 2, 047 DROP `projects.stage`, 048 deps, 050 workflow. Старое ревью v1: `_analysis/review-sprint-delivery-projects-p1.md` (2026-07-10).
 
 ---
 
@@ -11,216 +11,224 @@
 
 | Аспект | Оценка |
 |--------|--------|
-| SQL-миграция (тип, CHECK, RPC, reseed) | ✅ Сильная, сверена с 032 |
-| РАЗВЕДКА + гейт «не применять миграцию» | ✅ |
-| Модель `phase_group` (§9 ФИНАЛ) | ✅ Согласована с архитектурой |
-| Frontend scope | 🟡 Недооценён и неполно описан |
-| Навигация / роутинг | ❌ Блокер |
-| Переиспользование канбана | 🟡 Оптимистично |
+| Историческое качество v2 (B0, delivery-канбан, ownership RPC, schema.md) | ✅ Было сильным для 2026-07-10 |
+| Актуальность «СВЕРЕННЫЕ ФАКТЫ» vs `main` @ `71c613f` | ❌ Полностью устарели |
+| Миграция `035_delivery_projects.sql` «только файл» | ❌ Уже в archive + baseline + **applied** |
+| B0 routing `/deals` ↔ `/projects` | ✅ Уже в коде (коммит `4c1f2ad`) |
+| Frontend B1–B8 (фазы, канбан, spawn, hooks) | ✅ Уже в коде (`8706399`+) |
+| Пути `Sidebar` / `ScandiSidebar` / `stage-mapping` | ❌ Файлов нет (TextNavSidebar, stage DROP) |
+| `null_internal_stage` / `projects.stage` / `mapToLegacyStage` | ❌ Сняты в **047** |
+| Scope «P2+ не трогаем» | ❌ P2a/P2b/P3 уже в проде (036–038) |
+| Безопасность повторного запуска в CC | ❌ **Катастрофический регресс** |
 
-**Оценка: 7.5/10.** Миграцию можно брать в работу после правок. **В текущем виде спринт нельзя отдавать в Claude Code без доработки навигации и UI-контракта.**
-
----
-
-## С чем согласен полностью
-
-### 1. Миграция — зрелая и безопасная
-
-- Аддитивно: `type='delivery'`, новые поля, третья ветка `projects_type_pipeline_chk`, `ON DELETE RESTRICT` на `parent_deal_id` (исправление из архитектурного ревью — не SET NULL).
-- Критичный урок закрыт: все delivery-стадии `is_won=false, is_lost=false` — иначе `sync_project_stage` выставит `status='won'` и нарушит `projects_delivery_status_chk`.
-- `null_internal_stage` расширяется на `delivery` — без этого при DEFAULT `stage='new_lead'` появится мусорное legacy-зеркало.
-- RPC по образцу `convert_lead`: `SECURITY DEFINER`, `search_path = public, pg_temp`, NULL-safe org-гард, `REVOKE`/`GRANT`.
-- Reseed project-пайплайнов с фазами из §9 ФИНАЛ — логично при условии 0 ссылок на проде (как заявлено в спринте).
-
-### 2. Честный scope P1 vs P2
-
-Доска PCT-1 (колонки = фазы СДР), шаблоны, `project_members`, прогресс X/Y — корректно отложены в P2. Для P1 дефолтные колонки от `trg_zz_seed_columns` — осознанный компромисс с явной пометкой «P2 заменит».
-
-### 3. РАЗВЕДКА и проверки
-
-Есть grep-команды, 7 ручных сценариев, `tsc`/`build`, блок VERIFICATION. Формат близок к `crm-architect` / `sprint-example.md`.
-
-### 4. Согласованность с rename-спринтом
-
-Понимание, что `/projects` сейчас = сделки (`type='client'`), а delivery — отдельный модуль. Но **не зафиксировано, как это реализовать в роутинге** — см. блокеры.
+**Оценка: 9/10** как **архивный исполненный промпт 2026-07-10**; **1/10** как executable-спринт на `main` 2026-07-16.  
+**Рекомендация: не запускать в Claude Code.** P1 закрыт; повторный прогон перезапишет живую архитектуру и попытается воссоздать уже применённую миграцию/объекты.
 
 ---
 
-## Блокеры (исправить до запуска)
+## Статус (phased delivery)
 
-### 1. Навигация: нет решения по роуту
+| Заход | Статус в репо / проде |
+|-------|------------------------|
+| B0 routing split | ✅ `4c1f2ad` — `/deals` + `/projects`, redirect-бэкстопы, `projectHref` |
+| 035 delivery P1 (SQL) | ✅ archive + baseline; applied 2026-07-10 (`docs/schema.md`) |
+| P1 frontend (канбан, spawn, phases, hooks) | ✅ `8706399` + UX `005bf20` + тесты `9f43f26` |
+| P1 UX-фиксы | ✅ `sprint-delivery-p1-ux-fixes.md` / handoff |
+| P2a фазовая доска + шаблоны | ✅ 036, `ab3d870` / `079d98a` |
+| P2b members + progress | ✅ 037, `b04ba3a` / `c4cef1f` |
+| P3 completion gate | ✅ 038, `1481ead` / `b830121` |
+| Post-P1: Win Wizard, Deal Hub, health, won notify | ✅ 043–045 и UI-коммиты |
+| 047 DROP legacy `stage` | ✅ applied; `null_internal_stage` **нет** |
+| Ветка `feat/aura-theme` | ❌ Текущая ветка **`main`**, ahead origin |
 
-Спринт пишет:
+Handoff: `_analysis/handoff-delivery-p1.md` — «P1 закрыт полностью»; git: `4c1f2ad` → `8706399` → `005bf20`.
 
-> Раздел «Проекты» = `delivery` + `internal`; сделки — в «Сделках»
+---
 
-Но в коде уже:
+## С чем согласен полностью (как история v2)
 
-- `/projects` → Sidebar **«Сделки»** (после `sprint-rename-deals.md`)
-- `PipelineBoard` / `StageBoard` работают с `type === 'client'`
-- `sprint-rename-deals.md` явно запрещает менять роут `/projects`
+### 1. v2 закрыл блокеры старого ревью (2026-07-10)
 
-**В спринте отсутствует:**
+В v2 действительно были правильные решения, которые **уже исполнены**:
 
-- новый URL для delivery (например `/implementations`, `/delivery`)
-- или перенос сделок на `/deals` с возвратом `/projects` под delivery+internal
-- перечень правок: `Sidebar`, `ScandiSidebar`, `ScandiContentHeader`, `CommandPalette`, `Hotkeys`, `use-saved-views`, `dashboard-content.tsx`
+- B0: `/deals` = client, `/projects` = delivery+internal + type-redirects  
+- отдельный `DeliveryPipelineBoard` + `delivery-phases.ts`  
+- ownership-гард в `spawn_delivery_project` через `memberships`  
+- фильтр `useProjects(scope)` / `useDeals` / `useDeliveryProjects`  
+- `parent_deal_id ON DELETE RESTRICT`, delivery-стадии `is_won/is_lost = false`  
+- миграция «только файл, не apply из CC» — контракт гейта соблюдён **тогда**
 
-Без этого исполнитель не знает, **где** рендерить канбан delivery и **как** отделить от воронки сделок.
+### 2. Модель §9 (состояние = `phase_group`)
 
-**Рекомендация:** добавить **Задачу B0 — Routing contract**, например:
+`initiated/planning/execution/completed` + лейблы в `src/lib/constants/delivery-phases.ts` — совпадает с живым кодом и schema.
 
-```
-/deals            → client (воронка сделок) — бывший /projects
-/implementations  → delivery + internal (новый раздел «Проекты»)
-```
+### 3. РАЗВЕДКА / двухкоммитный порядок
 
-или явно выбрать другой вариант и перечислить все точки навигации.
+Исторически корректно: B0 отдельно, потом 035+UI. Это уже в истории git.
 
-### 2. Канбан нельзя «просто переиспользовать»
+---
 
-`PipelineBoard`, `StageBoard`, `ProjectModal` жёстко берут пайплайн **сделок**:
+## Блокеры (критично — не запускать)
 
-```ts
-// PipelineBoard.tsx:425, StageBoard.tsx:319, ProjectModal.tsx:96
-pipelines?.find((p) => p.direction === dir && p.entity_type === 'deal' && p.is_default)
-```
+### B1. Спринт уже выполнен — повтор = rewrite работающей системы
 
-Delivery нужен `entity_type === 'project'` и другие `phase_group`: `initiated/planning/execution/completed`, не `attraction/working/approval/closing`.
+Живой код **реализует весь scope P1**:
 
-Спринт B3 говорит «переиспользовать PipelineBoard», но не требует:
+| Спринт-задача | Факт на `main` |
+|---------------|----------------|
+| `/deals`, `/deals/[id]` | `src/app/(dashboard)/deals/page.tsx`, `[id]/page.tsx` + redirect non-client → `/projects` |
+| `/projects` = delivery+internal | `projects/page.tsx` → `ProjectsSection`; client → redirect `/deals` |
+| Nav «Сделки»/«Проекты» | `TextNavSidebar.tsx:27–28` (`/deals`, `/projects`) |
+| `projectHref` | `src/lib/utils/project-href.ts` |
+| saved-views migrate `/projects`→`/deals` | `use-saved-views.ts:33–34` |
+| `delivery-phases.ts` | существует |
+| `DeliveryPipelineBoard.tsx` | существует, drag → `moveToStageId` |
+| Spawn CTA + wizard | `ProjectDetail.tsx` ~386–392, 866–867 + `SpawnWizard.tsx` |
+| `useDeals` / `useDeliveryProjects` | `use-projects.ts:238–244` |
+| 035 SQL | `supabase/migrations/archive/035_delivery_projects.sql` (тело ≈ спринт) |
 
-- отдельного компонента (`DeliveryPipelineBoard`) **или** ветки `project.type === 'delivery'` с выбором пайплайна по `entity_type`
-- отдельного `PHASE_ORDER` для delivery
-- обновления **всех** копий маппинга (минимум 5 файлов):
+Коммиты: `4c1f2ad`, `8706399`. **Нечего имплементировать.**
 
-| Файл | Константы |
-|------|-----------|
-| `PipelineBoard.tsx` | `PHASE_ORDER`, `PHASE_LABELS`, цвета, watermark |
-| `StageBoard.tsx` | `PHASE_DOT_COLOR`, `PHASE_BG_CLASS` |
-| `ProjectCard.tsx` | `PHASE_COLOR` |
-| `StackedPipeline.tsx` | `PHASE_LABELS`, `PHASE_COLOR` |
-| `Charts.tsx` | `PHASE_GROUP_ORDER`, `PHASE_GROUP_LABEL` |
+### B2. Миграция 035 уже applied + archived — номер и DDL конфликтуют
 
-B2 («найти мапу в РАЗВЕДКЕ») — слишком размыто для такого объёма. Лучше: вынести delivery-мапу в `src/lib/constants/delivery-phases.ts` и импортировать оттуда.
+- В `supabase/migrations/` **нет** активного `035_*.sql` — он в `archive/` и внутри `20260712230000_baseline.sql`.  
+- Цепочка живых файлов: **040–050** (+ baseline).  
+- `docs/schema.md` / skill schema: **035 applied 2026-07-10**; поверх 036–038, 044 (`p_owner_id`), 047 DROP stage.  
 
-### 3. Internal-проекты в канбане по `phase_group`
+Повтор `CREATE`/`ADD COLUMN`/`reseed DELETE pipeline_stages` → падение гейта или **снос фаз**, на которые уже завязаны delivery-проекты/шаблоны P2.
 
-`internal` не имеет `pipeline_id` / `stage_id` (CHECK из 032). В канбане по 4 состояниям они **не попадут ни в одну колонку**.
+### B3. SQL-тело спринта противоречит схеме **после 047**
 
-Спринт обещает «delivery + internal в одном разделе», но не описывает UX для internal:
+Спринт требует:
 
-- только таблица / список?
-- отдельная вкладка «Внутренние»?
-- internal остаётся в «Сделках» до P2?
-
-Сейчас internal живёт в `/projects` (Сделки) с бейджем «Внутренний» — **миграция в новый раздел сломает текущий компромисс** без явного решения.
-
-### 4. `mapToLegacyStage` при drag delivery (IIoT)
-
-При переносе карточки `PipelineBoard` вызывает:
-
-```ts
-// PipelineBoard.tsx:572–573
-const legacyStage = mapToLegacyStage(targetStage, project.direction);
-moveToStageId(project.id, targetStage.id, legacyStage, ...);
+```sql
+-- null_internal_stage: NEW.stage := NULL для delivery
+-- INSERT ... stage, status ...
 ```
 
-Для `direction='iiot'` `order_index` project-пайплайна (3–7) мапится на **стадии сделки** (`waiting_materials`, `preparing_kp`…). У delivery `stage` должен оставаться `NULL` (как у internal).
+После 047:
 
-**Нужно явное правило:** для `type='delivery'` в `moveToStageId` передавать `stage: null`, не вызывать `mapToLegacyStage`.
+- колонки `projects.stage` **нет**  
+- типа `deal_stage` **нет**  
+- `null_internal_stage` / `trg_ab_null_internal_stage` **сняты**  
+- `stage_id → pipeline_stages` — единственный источник истины  
 
----
+Любой `CREATE OR REPLACE null_internal_stage` / запись в `stage` — **ошибка 42703 / мёртвый код**.
 
-## Предупреждения (желательно закрыть)
+Также `moveToStageId(project.id, stageId, null, …)` и `mapToLegacyStage` — файла `lib/utils/stage-mapping.ts` **нет**; `useMoveProject().moveToStageId` — 2–arg (id + stageId), legacy stage не пишется (`044253a`).
 
-### 5. РАЗВЕДКА №2 — неточная
+### B4. Ложные пути и символы навигации
 
-Ищет drag в `PipelineBoard` (верно), но в тексте фигурирует `StackedPipeline` — это **детальная страница** (`ProjectDetail`), не канбан списка. Уточнить: drag = `PipelineBoard.handleDragEnd`, грид фаз на карточке = `StackedPipeline`.
+Спринт ссылается на удалённый/переименованный layout:
 
-### 6. `useProjects()` — один кэш на всё
+| Спринт | Реальность |
+|--------|------------|
+| `Sidebar.tsx`, `ScandiSidebar.tsx` | **нет**; `TextNavSidebar.tsx` |
+| `ScandiContentHeader.tsx` | `ContentHeader.tsx` |
+| «`/projects` = Сделки» | **нет**; `/projects` = «Проекты», `/deals` = «Сделки» |
+| `Hotkeys p:'/projects'` → решить G D | **уже:** `l: '/deals'`, `p: '/projects'` (`Hotkeys.tsx:11–12`) |
+| ветка `feat/aura-theme` | текущая **`main`** |
 
-Хук грузит **все** строки `projects` без фильтра по `type` (`use-projects.ts:104–111`). После split разделов понадобится:
+CC по «инвентарю» спринта будет править несуществующие файлы или дублировать nav.
 
-- фильтрация в компонентах (`client` vs `delivery|internal`), или
-- `useDeals()` / `useDeliveryProjects()`, или
-- query key с параметром `type`
+### B5. RPC-контракт устарел (v1 vs v3)
 
-Иначе счётчики, Cmd+K и дашборд подтянут лишние записи.
+Спринт: `spawn_delivery_project(p_deal_id, p_kind)`.
 
-### 7. RPC spawn — только org-гард, без ownership
+Прод/schema: **v3** — `(p_deal_id, p_kind, p_template_id, p_owner_id)` (036 шаблоны + 044 owner). UI — `SpawnWizard`, не «диалог kind» из B4.  
+`CREATE OR REPLACE` из спринта **срежет** template/owner-контур Win Wizard.
 
-`convert_lead` (024) проверяет `user_id = auth.uid()`. `spawn_delivery_project` — только `org_id = current_org_id()`. Любой member org может спавнить из любой won-сделки. Если это не задумано — добавить `owner_id = auth.uid()` или роль admin/owner.
+### B6. «НЕ делаем P2+» — P2+ уже сделаны
 
-### 8. Нет обновления `docs/schema.md`
+Отложено в спринте, но в репо/проде:
 
-Чеклист `crm-architect` требует обновление schema после миграции. В спринте — только `database.ts` regen.
+- 036 phase board + templates  
+- 037 `project_members`, progress X/Y  
+- 038 completion gate + `DeliveryCompletionModal`  
 
-### 9. Spawn UI на won-сделке
-
-РАЗВЕДКА №7 ищет в `ProjectDetail`, но кнопку логичнее вешать рядом с бейджем won (~`ProjectDetail.tsx:394`). Стоит указать точный якорь и диалог выбора `launch` / `experiment`.
-
-### 10. `ProjectDetail` + `StackedPipeline`
-
-Для delivery детальная страница должна показывать **project-пайплайн** (8/7 фаз), не deal-воронку. B5 подразумевает, но не перечисляет: `StackedPipeline` с `pipelineId={project.pipeline_id}` и расширенными `PHASE_LABELS` для delivery-слагов.
-
-### 11. Optimistic updates / invalidate после spawn
-
-Для drag — `useMoveProject` уже с optimistic update. Для `spawn_delivery_project` стоит явно указать `queryClient.invalidateQueries({ queryKey: ['projects'] })` и навигацию на созданный проект.
-
----
-
-## Чеклист crm-architect
-
-| Пункт | Статус |
-|-------|--------|
-| РАЗВЕДКА в начале | ✅ |
-| Реальные имена таблиц/колонок | ✅ |
-| Реальные пути файлов | 🟡 неполно (навигация, 5 файлов phase map) |
-| learnings.md (mapToLegacyStage, ownership RPC) | 🟡 частично |
-| Миграция отдельно, не применять | ✅ |
-| `database.ts` + validators | ✅ |
-| Optimistic updates | 🟡 не для spawn |
-| `schema.md` update | ❌ |
-| org_id / RLS | ✅ |
-| SECURITY DEFINER + search_path | ✅ |
-| Коммит | ✅ |
+Промпт ведёт исполнителя в **прошлую** фазу roadmap.
 
 ---
 
-## Миграция SQL — мелочи
+## Предупреждения (не блокеры запуска — запуск и так запрещён)
 
-1. **`probability` на reseed-стадиях** — не задаётся. Триггеры, вероятно, переживут NULL; при желании — `0` для единообразия.
-2. **Имя проекта** — `name || ' — внедрение'` при 1:N даст дубликаты; для P1 ок, в P2 — суффикс kind/дата.
-3. **`activity_log`** — `convert_lead` пишет событие; для spawn не описано (nice-to-have).
+### W1. Часть deep-link residual всё ещё «упрощённая»
+
+Спринт правильно требовал `projectHref` везде. Сейчас:
+
+- ✅ `projectHref` + бэкстопы detail-роутов  
+- 🟡 `TaskCard.tsx` ~166: хардкод `` `/deals/${task.project_id}` `` (для delivery сработает только через redirect с `/deals/[id]`, лишний round-trip)  
+- 🟡 `NotificationBell` / timeline: часто `/deals/...` + серверный бэкстоп (осознанный компромисс в комментариях)
+
+Это **не** scope для повторного P1; точечный follow-up, если нужен.
+
+### W2. «Роли: только owner» — данные, не схема
+
+CHECK memberships: `owner|admin|manager|viewer` (schema). RPC-гард `IN ('owner','admin')` корректен; формулировка «только owner» устарела как описание продукта.
+
+### W3. Старое ревью v1 (7.5/10) не актуально как gate
+
+`_analysis/review-sprint-delivery-projects-p1.md` от 2026-07-10 говорило «править B0 и запускать». v2 это учёл **и был выполнен**. Не использовать ни v1-review, ни v2-sprint как очередь работ.
+
+### W4. `useProjects()` без scope в части consumers
+
+`CallModal`, `TodayView`, `CalendarView`, `use-alerts` зовут `useProjects()` без scope (все типы). Для alerts фильтр `type==='client'` есть; для модалок — осознанно «все проекты». Не регрессия P1, но QUERY STRATEGY спринта шире, чем «везде scope».
 
 ---
 
-## Рекомендуемые правки в sprint-delivery-projects-p1.md
+## Пропущенные места (если бы исполняли «как написано»)
 
-| # | Что добавить | Приоритет |
-|---|--------------|-----------|
-| 1 | **B0: Routing contract** — URL, Sidebar, redirects, saved views | Блокер |
-| 2 | Список файлов с `PHASE_*` + `delivery-phases.ts` | Блокер |
-| 3 | UX internal в новом разделе (таблица / вкладка / оставить в Сделках) | Блокер |
-| 4 | `mapToLegacyStage` → `null` для `type='delivery'` | Блокер |
-| 5 | `entity_type='project'` в компоненте канбана delivery | Блокер |
-| 6 | Строка про `docs/schema.md` | Warning |
-| 7 | Ownership-гард в RPC (если нужен) | Warning |
-| 8 | Якорь кнопки spawn + invalidate кэша | Warning |
+| Файл / объект | Строки / факт | Если CC пойдёт по спринту |
+|---------------|---------------|---------------------------|
+| `archive/035_delivery_projects.sql` | весь файл | Дубль миграции / конфликт имени |
+| `TextNavSidebar.tsx` | 27–28 | Спринт не знает файл — промах nav |
+| `moveToStageId` | `use-projects.ts` ~477+ | 3-й arg `stage:null` — API ушёл |
+| `null_internal_stage` | DROP 047 | Пересоздание невозможно осмысленно |
+| `SpawnWizard` / 044 | 4-arg RPC | Откат сигнатуры |
+| `TaskCard.tsx` | ~166 | Спринт хотел `projectHref` — gap остаётся вне «done P1» |
+
+Пропущенных **несделанных** задач P1 по design-intent **нет** — только post-P1 polish.
 
 ---
 
-## Итог
+## Предлагаемые правки в спринт
 
-Спринт **сильный на уровне БД** и хорошо интегрирует решения из architecture §8–§9 (phase_group, финальный мэппинг ERP/IIoT, статус `open/completed`). Главные дыры — **навигация после rename-deals** и **недооценка UI-ветвления** (отдельный роут, `entity_type='project'`, 5 копий phase map, internal без воронки, `stage: null` при drag).
+**Не править и не «допиливать» этот файл под CC.** Он — архив.
 
-**Минимум перед запуском Claude Code:**
+1. В шапке (если нужен маркер для людей/watcher):  
+   `> ⛔ SUPERSEDED 2026-07-11. P1 applied (035). Do not run. See handoff-delivery-p1.md + git 4c1f2ad/8706399.`  
+2. Новые работы — **новые** sprint/handoff от текущего `main` + schema 048/050, не ревизия P1.  
+3. Опциональный tiny-fix (отдельный мини-промпт, не этот спринт): `TaskCard` → `projectHref` / join type.
 
-1. Задача **B0: routing contract**
-2. Явный **UI-контракт канбана** + список файлов
-3. Поведение **internal** в новом разделе
-4. Правило **`mapToLegacyStage` → null для delivery**
-5. Строка про **`docs/schema.md`**
+---
 
-После этого — **готов к исполнению**. Оценка **1–1.5 спринта** реалистична.
+## Чеклист crm-architect (на документ как на **исторический** промпт)
+
+| Пункт | На момент v2 (2026-07-10) | Сейчас как runnable |
+|-------|---------------------------|---------------------|
+| РАЗВЕДКА в начале | ✅ | 🟡 команды ок, выводы устарели |
+| Реальные table/column | ✅ для pre-035 | ❌ stage / null_internal_stage |
+| Реальные file paths | 🟡 (Sidebar/Scandi) | ❌ |
+| learnings (DEFINER, search_path, ACL) | ✅ RPC-паттерн | ❌ тело RPC устарело vs 044 |
+| SQL отдельным файлом, не apply из CC | ✅ | N/A (уже applied) |
+| org_id / ownership | ✅ | ✅ (и расширено) |
+| schema.md после миграции | ✅ требовалось | ✅ сделано + дальше 036–048 |
+| CSS variables only | ✅ (delivery-phases) | ✅ |
+
+---
+
+## Чеклист перед CC
+
+- [x] Подтвердить: P1 в git (`4c1f2ad`, `8706399`) и handoff «закрыт»  
+- [x] Подтвердить: 035 в archive/baseline, не в pending  
+- [x] Подтвердить: `/deals` + `/projects` + `DeliveryPipelineBoard` + `SpawnWizard`  
+- [x] Подтвердить: 047 убрал `projects.stage` — SQL спринта мёртв  
+- [ ] **Не** создавать `035_delivery_projects.sql` заново  
+- [ ] **Не** отдавать этот файл в Claude Code  
+- [ ] Для новой работы: свежий спринт от `main` + `docs/schema.md` (048/050), не P1 v2  
+
+---
+
+## Итог одной строкой
+
+**P1 delivery + B0 routing — давно в `main` и в проде; `sprint-delivery-projects-p1.md` v2 — архивный промпт. Запуск в CC запрещён (дубль 035, DROP stage, откат spawn v3, ложные пути layout).**

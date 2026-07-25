@@ -55,7 +55,7 @@ interface GanttTimelineProps {
 }
 
 const DAY_MS = 86_400_000;
-const LABEL_W = '12.5rem'; // колонка названий (rem — конвенция проекта, не px)
+const LABEL_W = 200; // px — колонка названий
 
 // цвет бара по приоритету; done — приглушённо
 function barClass(task: Task): string {
@@ -138,7 +138,7 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                   }`}
                 >
                   {d.slice(8, 10)}
-                  {(i === 0 || d.slice(8, 10) === '01') && <div className="text-text-dim">{d.slice(5, 7)}</div>}
+                  {d.slice(8, 10) === '01' && <div className="text-text-dim">{d.slice(5, 7)}</div>}
                 </div>
               ))}
             </div>
@@ -164,7 +164,6 @@ export function GanttTimeline({ projectId, onEditTask }: GanttTimelineProps) {
                     style={{ gridColumn: `${s + 1} / ${e + 2}`, gridRow: 1 }}
                     className={`my-1 h-4 rounded ${barClass(task)} ${task.lane === 'done' ? 'opacity-50' : 'opacity-90'} transition-opacity hover:opacity-100`}
                     title={`${start} → ${end}`}
-                    aria-label={`${task.text}: ${start} → ${end}`}
                   />
                 </div>
               </div>
@@ -229,10 +228,8 @@ npx tsc --noEmit          # главный гейт (union таба, index-Map �
 Ручной смок (в проекте с задачами):
 - Задать паре задач start/end → в табе «Таймлайн» бары на нужных днях, цвет по приоритету.
 - Задача только с deadline (без start/end) → бар на дне дедлайна (MSK, не съезжает у полуночных).
-- Задача **только со start_date** (без end и без deadline) → однодневный бар на дне начала (проверка fallback `end = start`).
 - Задача без дат и дедлайна → в группе «Без дат», без бара.
-- **Delivery-проект** (`type='delivery'`) → таб «Таймлайн» рядом с «План», те же задачи что на фазовой доске (основной потребитель Gantt).
-- Клик по бару → открывается TaskModal на редактирование (тот же `task.id`).
+- Клик по бару → открывается TaskModal на редактирование.
 - Сегодняшняя колонка в шапке — акцентом. Широкий диапазон → горизонтальный скролл (колонки ≥28px).
 
 ## КОММИТ
@@ -250,6 +247,4 @@ git add -A && git commit -m "feat(gantt): v0 таблица-таймлайн (т
 - **Типы Task derived** — start_date/end_date уже в gen.ts (спринт DATES). Ничего в типах не трогать.
 - **`index` в model инициализирован пустой Map в обеих ветках** — иначе tsc ругнётся на union формы возврата useMemo.
 - **Место монтирования — таб проекта.** Если CC решит иначе (глобальная страница) — стоп, сверься: v0 намеренно per-project (данные useProjectBoard, RLS, «план во времени» = план проекта).
-- **Широкий диапазон (>~120 дней) — НЕ оптимизировать в v0.** `buildDays` даёт колонку на день, шапка = N узлов; горизонтальный скролл — ок для spike. Window/padding оси — долг v1, не трогать сейчас.
-- **a11y:** бар — пустая кнопка → `aria-label` обязателен (добавлен). Чипы «Без дат» уже содержат видимый текст `task.text` → им aria-label НЕ нужен (accessible name из содержимого).
 - build через мост невозможен (SWC linux/arm64 vs macOS node_modules) — только нативно на Маке.

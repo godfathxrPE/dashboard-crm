@@ -1,9 +1,9 @@
 # Ревью: handoff-gantt-v0 (S-GANTT-V0-1)
 
-**Дата:** 2026-07-15  
-**Ревьюер:** Grok (верификация по коду `main`, миграция 046, handoff S-GANTT-DATES, skill `crm-architect`)  
-**Объект:** `_analysis/handoff-gantt-v0.md` — v0 Gantt (CSS-grid, таб «Таймлайн» на `ProjectDetail`)  
-**Контекст:** `claude/handoff-gantt-dates-form.md` (046 + форма дат, коммит `7b3172c`), `supabase/migrations/046_gantt_dates_on_tasks.sql`
+**Дата:** 2026-07-16  
+**Ревьюер:** Grok (верификация по коду `main`, ahead of origin/main на 4 коммита Gantt; schema/architecture/learnings crm-architect)  
+**Объект:** `_analysis/handoff-gantt-v0.md` — spike Gantt v0: CSS-grid без либы, таб на `ProjectDetail`, read-only + клик → `TaskModal`  
+**Контекст:** зависимость 046 (`supabase/migrations/046_gantt_dates_on_tasks.sql`, S-GANTT-DATES-1); предыдущее ревью `_analysis/review-handoff-gantt-v0.md` (2026-07-15); после v0 в репо уже VIEW-1/2, S-DEPS-1, S-CRIT-PATH
 
 ---
 
@@ -11,125 +11,213 @@
 
 | Аспект | Оценка |
 |--------|--------|
-| Scope v0 (spike, read-only, без либы) | ✅ Чёткий |
-| РАЗВЕДКА + привязка к реальным файлам | ✅ |
-| Дата-математика (MSK, UTC-полдень, inversion fix) | ✅ Сильная |
-| Интеграция в `ProjectDetail` | ✅ Точки совпадают с кодом |
-| Зависимость от 046 / типов | ✅ Закрыта предшествующим спринтом |
-| a11y / UX-полировка | 🟡 Минимально для v0 |
-| Производительность на широких диапазонах | 🟡 Не оговорена (допустимо для spike) |
+| Историческое качество промпта (как handoff до CC) | ✅ Зрелый UI-spike |
+| РАЗВЕДКА + реальные пути/хуки (на момент v0) | ✅ |
+| Schema truth (`tasks.start_date`/`end_date`/`deadline`, CHECK 046) | ✅ |
+| Дата-математика (MSK, UTC-полдень, inversion clamp) | ✅ |
+| Интеграция `ProjectDetail` + `TaskModal` | ✅ |
+| crm-architect checklist (UI, без миграций из CC) | ✅ |
+| **Актуальность для запуска сейчас** | ❌ **Уже реализовано и сильно расширено** |
+| Риск повторного запуска в CC | ❌ Перезапишет 769-строчный Gantt + сломает Волна 2 |
 
-**Оценка: 8.5/10.** **Можно отдавать в Claude Code** — блокеров нет. Рекомендую 4 точечных дополнения до запуска (см. ниже); без них риск только косметический / edge-case.
+**Оценка: 9/10** как handoff-спека (качество дизайна/гейт-нот).  
+**Рекомендация: не запускать в Claude Code.** Работа v0 уже в `main` (`685864d`); текущий `GanttTimeline.tsx` — post-VIEW-2/DEPS/CRIT-PATH. Повторная «реализация» handoff уничтожит последующие фичи.
+
+---
+
+## Статус
+
+| Заход | Статус в репо |
+|-------|---------------|
+| 046 `start_date`/`end_date` + CHECK | ✅ файл + типы + `TaskModal` форма |
+| `mskDateKey` в `date-helpers.ts` | ✅ идентичен snippet handoff (`:21–24`) |
+| `GanttTimeline` + таб `timeline` | ✅ `685864d` (`feat(gantt): v0 таблица-таймлайн…`) |
+| Лейбл таба «Таймлайн» | 🔄 переименован в **«Гант»** (`bbfdffd`, `ProjectDetail.tsx:768`) |
+| Данные `useProjectBoard` внутри Gantt | 🔄 Gantt → `useProjectSchedule` (обёртка над board+columns, swimlanes) |
+| Zoom day/week/month | ✅ post-v0 (`0ea9f1d`, `buildBuckets`) |
+| Drag resize/move | ✅ VIEW-2 (`6d86d37`) |
+| Зависимости / critical path | ✅ S-DEPS-1 + S-CRIT-PATH (текущий tip `main`) |
+| Следующие handoff | `handoff-gantt-view1*.md`, `handoff-gantt-view2-drag.md` — отдельные этапы |
 
 ---
 
 ## С чем согласен полностью
 
-### 1. Scope и границы v0
+### 1. Scope v0
 
-- Явно отложены zoom, drag, сторонняя либа и темизация под 9 тем — правильное разделение spike / Волна 2.
-- Per-project монтирование через `useProjectBoard(projectId)` — совпадает с моделью «план во времени = план проекта», RLS уже на хуке.
-- Переиспользование смонтированного `TaskModal` (`editingTask` / `taskModalOpen` на строках 214–215, 897–904 `ProjectDetail.tsx`) — без дублирования модалки.
+- Spike без либы, day-колонки, read-only + edit via modal — правильный минимальный гейт.
+- Zoom/drag явно out-of-scope v0; в репо они пришли отдельными коммитами — граница handoff соблюдена.
+- Per-project таб, не глобальная страница — совпадает с моделью «план во времени = план проекта» и RLS на `useProjectBoard`.
 
-### 2. РАЗВЕДКА сверена с кодом
+### 2. Schema / типы (crm-architect `schema.md`)
 
-| Проверка | Факт в репо |
-|----------|-------------|
-| `useState<'activity' \| 'board'>` | `ProjectDetail.tsx:207` — совпадает |
-| Табы `activity` / `board` + `isDelivery ? 'План' : 'Доска задач'` | `ProjectDetail.tsx:828–831` — совпадает |
-| `useProjectBoard` → `tasks`, spread `useQuery` (`isLoading`, `isError`) | `use-tasks.ts:66–93` — совпадает |
-| `start_date` / `end_date` в типах | `supabase.gen.ts:1877+` → `Task` через `entities.ts` / re-export `database.ts` — совпадает |
-| Токены `bg-accent`, `bg-red`, `bg-yellow`, `bg-green`, `border-accent/30` | `TaskModal.tsx`, `TaskCard.tsx`, `ProjectBoard.tsx` — используются, opacity-модификаторы в проекте приняты |
+- `tasks.start_date` / `end_date` date nullable, CHECK `tasks_dates_order_chk` — в schema.md (блок 046) и в `supabase.gen.ts` (`tasks.Row`, ~1928–1938).
+- `deadline` — `timestamptz` (не `date`) — handoff верно требует `mskDateKey`, не `.slice(0,10)`.
+- CHECK покрывает только пару start/end; inversion с deadline — на рендере: handoff явно клэмпит `if (end < start) end = start` — **обязательно и верно**.
+- Типы derived: «не трогать entities» — согласуется с learnings (аддитивная колонка = regen only).
 
-Замечание: в РАЗВЕДКЕ путь `../src/components/...` при `cd .../src` работает, но путает исполнителя. Лучше `components/projects/ProjectDetail.tsx` — не блокер.
+### 3. Дата-математика = ядро (learnings Волна 2)
 
-### 3. Дата-математика — ядро промпта сделано правильно
+Живой код сохранил ту же семантику:
 
-- **`mskDateKey`** для `deadline timestamptz` — обязателен. В проекте уже есть `localDateKey` / `localDateTimeKey` (`date-helpers.ts`) с явным комментарием «НЕ UTC»; для дедлайнов browser-local / `.slice(0,10)` дали бы off-by-one у полуночных MSK — промпт это закрывает.
-- **`buildDays` на `T12:00:00Z`** — классический фикс дрейфа при инкременте календарного дня; переписывать на `new Date(y,m,d)` не надо.
-- **`taskSpan` + `if (end < start) end = start`** — критично: CHECK `tasks_dates_order_chk` (046) не покрывает пару start/end с «инвертированным» deadline. Секция «Заметки гейта» верно выделяет этот смок.
-- **Fallback-цепочка** (`start_date ?? end_date ?? dl`, `end_date ?? dl ?? start_date`) даёт однодневный бар для задач только с одной датой или только с deadline — логика согласована с комментарием в 046 («fallback на deadline — на уровне рендера»).
+| Правило handoff | Факт |
+|-----------------|------|
+| `mskDateKey` = Intl `en-CA` + `Europe/Moscow` | `date-helpers.ts:21–24` — байт-в-байт |
+| `buildDays` на `T12:00:00Z` | v0; сейчас обобщено в `buildBuckets` / `noonMs` с тем же UTC-полднем |
+| Fallback span | `use-project-schedule.ts` `effectiveSpan` — та же цепочка, что `taskSpan` в handoff |
+| `today` через `mskDateKey` | `GanttTimeline.tsx:431` |
 
-### 4. Задача 3 — точечные правки в верных местах
+### 4. Точки интеграции (сверка с кодом)
 
-- Union таба `'timeline'`, лейбл «Таймлайн», conditional render после блока `board` — соответствует текущей структуре (вкладка `activity` остаётся через `hidden`, `board` и новый `timeline` — mount/unmount).
-- `onEditTask` дублирует уже существующий паттерн `setEditingTask(t); setTaskModalOpen(true)` (`ProjectDetail.tsx:227`).
+| Утверждение handoff | Факт сейчас |
+|---------------------|-------------|
+| `ProjectDetail.tsx` | `src/components/projects/ProjectDetail.tsx` |
+| `editingTask` / `taskModalOpen` + `TaskModal` | `:172–173`, mount `:841–844` |
+| `onEditTask` → `setEditingTask` + `setTaskModalOpen(true)` | `:794` — как в handoff 3.4 |
+| `useProjectBoard` → `{ tasks, isLoading, isError }` (spread query) | `use-tasks.ts:66–93` — совпадает; Gantt теперь ходит через schedule-обёртку |
+| Импорт рядом с `ProjectBoard` | `:51–52` |
+| Union таба включает `'timeline'` | `:165` |
+| Delivery: `isDelivery` + лейбл «План» | `:215`, `:767` |
 
-### 5. Чеклист `crm-architect` для UI-спринта
+### 5. CSS / темы
 
-- Без миграций / без правок RLS — уместно **не** требовать Supabase MCP в РАЗВЕДКЕ.
-- CSS через семантические токены (`bg-accent`, `border-border`, `text-text-mute`) — без hardcoded Tailwind palette.
-- `npx tsc --noEmit` как главный гейт + честная оговорка про build через мост — согласуется с learnings и handoff DATES.
-- Коммит + «не пушить до нативного build Волны 2» — согласовано с wave2-progress.
+- Токены `bg-accent` / `bg-red` / `bg-yellow` / `bg-green`, `border-border`, `text-text-*` — семантические, через CSS variables (`globals.css`).
+- Opacity-модификаторы (`border-accent/30`, `border-border/40`) уже приняты в кодовой базе; fallback в handoff уместен.
+- `LABEL_W = '12.5rem'` — rem-конвенция; live Gantt оставил ту же константу (`GanttTimeline.tsx:32`).
 
-### 6. Realtime
+### 6. a11y / гейт-ноты
 
-`useProjectBoard` уже вызывает `useRealtimeSync('tasks')` — после сохранения дат в `TaskModal` таймлайн обновится без доп. инвалидации. В промпте не сказано явно, но поведение получится правильным.
+- `aria-label` на барах — в handoff есть; live — то же (`:215`, `:231`).
+- Чипы «Без дат» с видимым `task.text` — aria-label не нужен — корректно.
+- `npx tsc --noEmit` как главный гейт + отказ от bridge-build (SWC arm64) — согласуется с handoff DATES / практикой репо.
+- «Не оптимизировать >~120 дней в v0» — правильный anti-scope для CC.
+
+### 7. crm-architect checklist
+
+- [x] РАЗВЕДКА в начале  
+- [x] Реальные table/column names  
+- [x] Реальные file paths (с оговоркой architecture.md мог устареть на момент написания — handoff это честно говорит; **сейчас** architecture.md уже описывает post-v0 Gantt)  
+- [x] learnings gotchas (MSK, UTC-полдень)  
+- [x] Нет SQL-миграций из CC  
+- [x] org_id/RLS — через существующий хук, не новый surface  
+- [x] Нет `flowType: 'implicit'`  
+- [x] CSS variables / theme tokens  
+- [x] schema.md не требует обновления этим спринтом (046 уже отражён)
 
 ---
 
-## Рекомендации (не блокеры, желательно до CC)
+## Блокеры (для запуска **сейчас**)
 
-### 1. a11y: бары и чипы «Без дат»
+### B1. Handoff уже исполнен — повторный прогон деструктивен
 
-Кнопки-бары не содержат видимого текста — только `title`. Для v0 достаточно одной строки в Задаче 2:
+Репо:
 
-```tsx
-aria-label={`${task.text}: ${start} → ${end}`}
+- `mskDateKey` уже в `date-helpers.ts`
+- `GanttTimeline.tsx` — **769 строк** (не ~150 из snippet)
+- данные: `useProjectSchedule`, zoom, swimlanes, drag, deps, critical path
+- таб value `timeline`, label **«Гант»**
+
+Задачи handoff:
+
+1. «добавить `mskDateKey`» → дубль export / конфликт  
+2. «новый `GanttTimeline.tsx`» → **полная перезапись** текущего файла  
+3. правки `ProjectDetail` → no-op или регресс лейбла «Гант» → «Таймлайн»
+
+**Не отдавать в CC как «сделай спринт».** Исторический артефакт / reference для gate notes.
+
+### B2. РАЗВЕДКА ожидает pre-v0 состояние — на `main` она «красная» по смыслу
+
+Команды handoff ждут:
+
+```text
+useState<'activity' | 'board'>
 ```
 
-на `<button>` бара и аналогично на чипах undated. Иначе screen reader видит пустую кнопку.
+Факт:
 
-### 2. Расширить ручной смок (2 кейса)
+```text
+ProjectDetail.tsx:165  useState<'activity' | 'board' | 'timeline'>
+```
 
-Добавить в ПРОВЕРКУ:
-
-- **Только `start_date`** (без `end_date` и без deadline) → однодневный бар на дне начала.
-- **Delivery-проект** (`type === 'delivery'`) → таб «Таймлайн» рядом с «План», данные те же задачи что на фазовой доске.
-
-Это основной потребитель Gantt и неочевидный fallback в `taskSpan`.
-
-### 3. Производительность (запись в «Долг v1»)
-
-При диапазоне 365+ дней `buildDays` создаст сотни колонок `minmax(28px, 1fr)` — горизонтальный скролл ок для spike, но стоит одной строкой зафиксировать в заметках гейта: «если > N дней — в v1 window/padding оси», чтобы CC не пытался «оптимизировать» в v0.
-
-### 4. `isLoading` vs кэш React Query v5
-
-При повторном открытии таба «Таймлайн» с закэшированными `tasks` `isLoading` может быть `false` при фоновом refetch — для v0 приемлемо. Если заметите мигание пустого состояния — в v1 заменить на `isPending && !tasks` или показать skeleton; в промпт можно не вносить.
+Исполнитель, слепо сверяющий «ожидаем», либо остановится, либо «исправит» уже эволюционировавший код. Для re-run нужен явный статус **DONE / SUPERSEDED** в шапке handoff (правка файла — по запросу, сейчас не делалась).
 
 ---
 
-## Мелкие замечания (можно не трогать в v0)
+## Предупреждения (исторические / косметика)
 
-| Тема | Комментарий |
-|------|-------------|
-| `LABEL_W = 200` в `px` | В learnings — rem вместо px; здесь inline width для выравнивания grid — прагматично, в кодовой базе уже есть `text-[10px]` / `text-[11px]` в соседних табах |
-| Лейбл таба всегда «Таймлайн» | Для delivery можно было бы «График» / «Сроки», но единый лейбл проще и не ломает client/internal |
-| Нет URL-state для таба | Согласовано с текущим `ProjectDetail` (`activity`/`board` тоже не в query) |
-| Дублирование fetch | `GanttTimeline` и `ProjectBoard` оба зовут `useProjectBoard`, но табы взаимоисключающие — лишнего параллельного запроса нет |
+### W1. «9 тем» vs 6 живых
+
+Handoff: «не дефолтим под **9** тем».  
+Факт: `THEMES` = 6 (`t-aura`…`t-tidal`, `theme-store.ts`); architecture.md / learnings — **6 тем**. Смысл (без сторонней Gantt-либы) верный, число устарело.
+
+### W2. Путь в РАЗВЕДКЕ
+
+```bash
+cd …/src
+grep … ../src/components/projects/ProjectDetail.tsx
+```
+
+При `cd src` корректнее `components/projects/…`. Не блокер, путает.
+
+### W3. architecture.md на момент v0 vs сейчас
+
+Handoff справедливо писал, что architecture устарел. **Сейчас** `architecture.md:158–164` уже фиксирует post-v0 PM-Гант (`GanttTimeline`, `use-project-schedule`, бакеты, fixed-tooltip). Для ретро-ревью v0 это не ошибка промпта.
+
+### W4. Лейбл «Таймлайн» vs «Гант»
+
+v0-контракт handoff — «Таймлайн»; продукт ушёл на «Гант». При архивации handoff не переписывать историю; при новых спринтах ссылаться на текущий UI.
+
+### W5. `useProjectBoard` vs schedule
+
+v0-дизайн «звать `useProjectBoard` прямо из Gantt» — валиден для spike. Эволюция в `useProjectSchedule` (фаза = `column_id` / `category='phase'`, **не** `phase_group`) — learnings; не регресс v0-спеки.
+
+### W6. Предыдущее ревью (2026-07-15)
+
+Рекомендации (aria-label, смок only-start / delivery, долг wide range) **уже в текущем тексте handoff** (mtime handoff позже review). Исторические W из старого review закрыты на уровне документа; implementation ушла дальше.
 
 ---
 
-## Потенциальные риски (промпт уже закрывает или допустимы)
+## Пропущенные места
 
-1. **Opacity на семантических токенах** — промпт предупреждает про fallback `border-border` / `bg-green` без `/40` / `/70`; в проекте `border-accent/30` уже есть → риск низкий.
-2. **Пустой `index` в ветке `dated.length === 0`** — явно инициализирован `new Map()` в обеих ветках `useMemo` → tsc-гейт из заметок гейта корректен.
-3. **Зависимость от 046 на проде** — в контексте указано; handoff DATES подтверждает applied. Если гонять на стенде без 046 — бары fallback-нут только на `deadline`, start/end в форме не сохранятся (вне скоупа этого спринта).
+Для **исходного** v0-scope grep не находит обязательных gaps: интеграция только `ProjectDetail` + новый компонент + helper.
+
+| Файл | Замечание | Действие при re-run |
+|------|-----------|---------------------|
+| `src/components/tasks/GanttTimeline.tsx` | Уже 769 LOC post-v0 | **Не перезаписывать** |
+| `src/lib/hooks/use-project-schedule.ts` | `effectiveSpan` = taskSpan v0 | Не дублировать span в двух местах |
+| `src/lib/utils/date-helpers.ts` | `mskDateKey` + bucket API | Не добавлять второй `mskDateKey` |
+| `src/components/projects/ProjectDetail.tsx:768` | label «Гант» | Не откатывать на «Таймлайн» без отдельного UX-решения |
+
+Ложных «надо ещё сюда» для v0 нет (не Sidebar, не global `/gantt`, не новые RPC).
 
 ---
 
-## Сводка для гейта Cowork
+## Предлагаемые правки в спринт
 
-После реализации CC гейтить в первую очередь:
+1. **Шапка статуса (рекомендуется при следующем касании файла):**
+   ```markdown
+   > **STATUS (2026-07-16): DONE** — `685864d`. SUPERSEDED by VIEW-1/2, S-DEPS-1, S-CRIT-PATH.
+   > **Do not re-run in Claude Code** — clobber risk on `GanttTimeline.tsx`.
+   ```
+2. Исправить «9 тем» → «6 тем» (косметика).
+3. В РАЗВЕДКЕ путь без `../src` при `cd src`.
+4. Не менять тело задач 1–3 — они остаются корректной **исторической** спекой v0.
 
-1. `npx tsc --noEmit`
-2. Смок **inversion**: `start_date=15-е`, `deadline=10-е` (MSK) → бар не ломается, `end >= start`
-3. Смок **полуночный deadline** в MSK vs UTC — колонка совпадает с ожиданием CRM
-4. Клик по бару → `TaskModal` с тем же `task.id`
-5. Нативный `npm run build` на Маке перед пушем Волны 2 (как в промпте)
+---
+
+## Чеклист перед CC
+
+- [x] 046 / gen types / `TaskModal` start-end — prerequisite выполнен  
+- [x] Качество промпта (математика, scope, gate notes) — достаточно для исторического «можно было запускать»  
+- [ ] **Запуск v0 сейчас** — **запрещён** (B1)  
+- [ ] Если цель — новая работа: брать актуальные handoff (`view1` / `view2` / deps), не v0  
+- [ ] Нативный `npm run build` на Маке — по-прежнему gate перед пушем волны (как в handoff)  
+- [ ] Не пушить / не force-rewrite Gantt «под v0»
 
 ---
 
 ## Итог
 
-Промпт **зрелый UI-spike**: правильная TZ-математика, верные точки интеграции, честный scope, сильные gate notes. Отличие от DB-спринтов (без MCP/миграций) — уместно. **Рекомендация: запускать** с опциональным дополнением `aria-label` и двух смок-кейсов в секции ПРОВЕРКА.
+`_analysis/handoff-gantt-v0.md` — **сильный, корректный UI-handoff**: schema-truth, TZ-математика, точечная интеграция, честный out-of-scope, хорошие gate notes. На момент 2026-07-15 его можно было отдавать в CC (что и произошло: `685864d`).
+
+**На 2026-07-16:** спринт **закрыт и пережит**. Вердикт гейта Cowork — **архив / reference only; Claude Code не запускать.**

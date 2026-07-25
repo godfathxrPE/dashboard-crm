@@ -1,8 +1,9 @@
-# Review: sprint-rename-deals.md
+# Ревью: sprint-rename-deals.md (v2) — UI «Проекты» → «Сделки»
 
-**Дата:** 2026-07-10  
-**Ревьюер:** Grok (верификация по коду `feat/aura-theme`)  
-**Объект:** `_analysis/sprint-rename-deals.md` — UI-переименование «Проекты» → «Сделки»
+**Дата:** 2026-07-16  
+**Ревьюер:** Grok (верификация по коду `main`, `origin/main` ahead 5; schema/architecture/learnings crm-architect)  
+**Объект:** `_analysis/sprint-rename-deals.md` — v2 handoff: UI-лейблы «Проекты» → «Сделки» + conditional-by-type  
+**Контекст:** предыдущее ревью `_analysis/review-sprint-rename-deals.md` (2026-07-10, ветка `feat/aura-theme`); коммиты `e3839ee` (rename labels) и `4c1f2ad` (nav split `/deals` vs `/projects`); delivery P1+ (`8706399` и далее)
 
 ---
 
@@ -10,226 +11,247 @@
 
 | Аспект | Оценка |
 |--------|--------|
-| Идея и scope (только UI, роуты/схема не трогаем) | ✅ Согласен |
-| Границы «не трогать» (фаза-трек, PCT-1 доски) | ✅ Согласен |
-| Перечисленные файлы в Задачах 1–4 | ✅ В основном верны |
-| Ошибка по `ProjectsTable.tsx:99` | ❌ Исправить до запуска |
-| Полнота инвентаря | 🟡 ~60% — много пропусков |
-| `ProjectModal` | ❌ Нужна отдельная подзадача |
-| Оценка трудоёмкости 0.5–1 ч | 🟡 Реалистично 1.5–2.5 ч с полным охватом |
+| Идея v1/v2 (только UI-лейблы, схема/ids не трогать) | ✅ Исторически верно |
+| Conditional-by-type для per-record | ✅ Уже реализовано |
+| Актуальный routing-контракт (`/deals` vs `/projects`) | ❌ Спринт устарел — моделирует pre-split мир |
+| Файлы/строки Задач 1–5 | ❌ ~80% путей/номеров неверны или уже сделаны |
+| РАЗВЕДКА (grep-инвентарь) | 🟡 Команды ок, ожидаемый результат другой |
+| «ЖЁСТКО НЕ ТРОГАТЬ» | ❌ Неполное и частично перевёрнутое post-split |
+| Риск запуска «как есть» в CC | ❌ **Регрессия**: переименует delivery-раздел «Проекты» в «Сделки» |
 
-**Спринт можно выполнять** после правок инвентаря. Концепция верная и согласуется с gap-анализом HubSpot (`projects(type='client')` = сделки).
+**Оценка: 2/10** как runnable handoff на текущем `main`. Как исторический снимок — полезен только для аудита.  
+**Рекомендация:** **не запускать** в Claude Code. Работа **уже сделана** (`e3839ee`) и **архитектурно превзойдена** (`4c1f2ad` + delivery). Нужен новый sprint только на остаточные cosmetic-дыры (ниже), не v2 rename.
+
+---
+
+## Статус
+
+| Заход | Статус в репо |
+|-------|---------------|
+| v1 rename (лейблы) | ✅ Закоммичено `e3839ee` (2026-07-10 15:56) — **тот же commit message**, что в разделе КОММИТ спринта |
+| v2 conditional-by-type | ✅ В `e3839ee` + доработки (ProjectModal/Detail/adapters) |
+| Nav split: client → `/deals`, delivery+internal → `/projects` | ✅ `4c1f2ad` (2026-07-10 23:31); architecture.md отражает это |
+| Delivery-модуль «Проекты» (P1+) | ✅ `ProjectsSection`, `DeliveryPipelineBoard`, SpawnWizard, type=`delivery` |
+| Спринт v2 vs live code | ❌ **Stale** — описывает мир до split |
 
 ---
 
 ## С чем согласен полностью
 
-### Стратегия
+### 1. Исходная семантика (pre-split)
 
-Раздел `/projects` по факту — **пресейл-сделки** (`projects.type = 'client'`). Переименование только пользовательских подписей без смены URL, таблиц и идентификаторов — правильный минимальный шаг до отдельного модуля delivery («Проекты» внедрения).
+`projects.type='client'` = пресейл-сделки; UI «Проекты» для них вводил в заблуждение. Это совпадает со schema.md (`projects` — «сделки/проекты», `type` client/internal/delivery) и gap-логикой HubSpot-like deals.
 
-### Границы «ЖЁСТКО НЕ ТРОГАТЬ» — корректны
+### 2. Conditional-by-type — правильное правило
 
-- Роут `/projects` — bookmarks, saved views (`use-saved-views.ts` хранит `route: '/projects'`).
-- `projects`, `project_id`, `project_columns`, `entity_type`, хуки, типы.
-- Фаза-трек `getTrack()` → `'Проект'` в `ProjectsTable.tsx` (строки 27, 73, 91) — это **трек воронки IIoT** (Подготовка / Эксперимент / Проект), не название раздела.
-- Вкладка **«Доска задач»** в `ProjectDetail` — PCT-1, исполнение, не продажи.
-- Осознанный компромисс: `type='internal'` остаётся в списке «Сделки» с бейджем «Внутренний» — честно и правильно задокументировано.
+Per-record строки: `client` → «сделка», `internal` → «проект». В live-коде уже так:
 
-### Осторожность с DashboardHome
+- `ProjectModal.tsx:268–290` — заголовок / submit / label name через `isInternal`
+- `ProjectDetail.tsx:236` — confirm удаления conditional
+- `lib/timeline/adapters.ts:107` — `` `Сделка:` / `Проект:` `` по `p.type`
+- `lib/utils/activity-events.ts:24` — `'Сделка обновлена'`
 
-Ключ `'Активные проекты'` в `SCANDI_KPI_META` / `FUJI_KPI_META` / `WASHI_KPI_META` используется для lookup метрик. Менять только вложенные `label` / `short` / `watermark`, **не ключ** — верно.
+### 3. Не трогать ids / PCT-1 / phase-track
 
-### Cmd+K
+Правильно не менять `project_id`, таблицу `projects`, `entity_type`, `project_columns`.  
+Фаза-трек `'Проект'` в `stage-track.ts` / `ProjectsTable` (`track_proj`) — **не** лейбл раздела; в live `ProjectsTable.tsx:71,89` chip «Проект» для track — оставить.
 
-`act-project` уже `'Новая сделка'` — консистентно, не трогать.
+### 4. Lookup-ключ KPI DashboardHome
 
----
+Ключи `'Активные проекты'` в `FUJI_KPI_META` / `WASHI_KPI_META` — lookup; watermark/short уже «СДЕЛКИ»/«Сделки». Менять только display `label` карточки (и синхронно ключи meta, если переименовывать) — принцип верный.
 
-## Ошибка в спринте (критично)
+### 5. Schema / SQL
 
-В **Задаче 2** для `ProjectsTable.tsx` указано **не трогать строку :99** как фаза-трек. Это неверно.
-
-```tsx
-// ProjectsTable.tsx — строка 99
-const columns: Column<Project>[] = [
-  {
-    key: 'name',
-    label: 'Проект',   // ← колонка таблицы name, МЕНЯТЬ на 'Сделка'
-```
-
-| Строка | Что это | Действие |
-|--------|---------|----------|
-| :27 | `getTrack()` return `'Проект'` | **НЕ трогать** (фаза-трек) |
-| :73 | `track_proj` filter | **НЕ трогать** |
-| :91 | chip `label: 'Проект'` для `track_proj` | **НЕ трогать** |
-| :99 | column `name` label | **Менять** → `'Сделка'` |
-| :315 | CSV export column `name` | **Менять** → `'Сделка'` (уже в спринте) |
+Спринт не трогает миграции, RLS, RPC — корректно для UI-only.  
+`schema.md`: `projects.type` ∈ `client`|`internal`|`delivery` — после P1 трёхзначный type, не только client/internal как в компромиссе спринта.
 
 ---
 
-## Пропущенные места (дополнить инвентарь)
+## Блокеры (критично — не запускать)
 
-Спринт покрывает примерно 60% user-facing строк. Ниже — полный дополнительный список по результатам `grep -ri "проект" src/components src/lib`.
+### B1. Работа уже выполнена — повторный прогон бессмысленен и опасен
 
-### Критично (видно сразу при работе)
+Коммит `e3839ee` с **идентичным** message из спринта уже в истории. Повторный apply «Проекты»→«Сделки» по списку задач попадёт в **другой** nav-мир (см. B2).
 
-| Файл | Строки | Было → Стало (пример) |
-|------|--------|------------------------|
-| `PipelineBoard.tsx` | 315 | «Перетащи проект сюда» → «Перетащи сделку сюда» |
-| `PipelineBoard.tsx` | 585, 625 | fallback/ошибка «проект» / «проектов» |
-| `PipelineBoard.tsx` | 645, 649 | watermark `ПРОЕКТЫ`, h1 «Воронка проектов» → «СДЕЛКИ» / «Воронка сделок» |
-| `PipelineBoard.tsx` | 674 | кнопка «Проект» → «Сделка» (уже в спринте) |
-| `StageBoard.tsx` | 247, 409, 425, 468, 477, 484 | drag-hint, confirm, empty, кнопки |
-| `ProjectDetail.tsx` | 302 | «Удалить проект?» → «Удалить сделку?» (для client; internal — см. ниже) |
-| `ProjectDetail.tsx` | 318 | «Воронка проектов» → «Воронка сделок» |
-| `CompanyDetail.tsx` | 182 | `+ Проект` → `+ Сделка` |
-| `CompanyDetail.tsx` | 186 | «Нет проектов…» → «Нет сделок…» |
-| `ContactDetail.tsx` | 203 | «Нет проектов с этим контактом» → «Нет сделок…» |
-| `ProjectsTable.tsx` | 225, 283, 292 | ошибка, empty, bulk confirm |
-| `lib/utils/activity-events.ts` | 24 | `'Проект обновлён'` → `'Сделка обновлена'` (**общий источник**, не только DashboardHome:748) |
-| `lib/timeline/adapters.ts` | 108 | `` `Проект: ${p.name}` `` → `` `Сделка: ${p.name}` `` (или conditional по type) |
+### B2. Архитектура post-split противоречит модели спринта
 
-### Дашборд и виджеты
+| Спринт v2 (устарело) | Live (`architecture.md` + код) |
+|----------------------|--------------------------------|
+| Раздел продаж = `/projects`, лейбл «Сделки» | **Сделки** = `/deals` (`ProjectsView`, client only) |
+| Delivery-«Проекты» — «позже, НЕ трогаем» | **Проекты** = `/projects` (`ProjectsSection`, delivery + internal) — **уже есть** |
+| Internal временно в разделе «Сделки» | Internal в `/projects`, не в deals |
+| G P → «Проекты» (как deals) | G L → «Сделки» (`/deals`), G P → «Проекты» (`/projects`) |
 
-| Файл | Строки | Что менять |
-|------|--------|------------|
-| `DashboardHome.tsx` | 150 | FUJI watermark `'ПРОЕКТЫ'` → `'СДЕЛКИ'` |
-| `DashboardHome.tsx` | 243 | `label: 'Активные проекты'` → `'Активные сделки'` (если ключ lookup позволяет — иначе только display label) |
-| `DashboardHome.tsx` | 720 | `projects: 'проект'` → `'сделка'` |
-| `DashboardHome.tsx` | 818 | «Создать проект →» → «Создать сделку →» |
-| `StatsWidget.tsx` | 76 | «Активных проектов» → «Активных сделок» |
-| `FunnelWidget.tsx` | 27 | «Воронка проектов» → «Воронка сделок» |
-| `WeeklyReview.tsx` | 96 | «проект(ов)» → «сделок» |
-| `CompaniesTable.tsx` | 103 | чип «Есть проекты» → «Есть сделки» |
-| `CommandPalette.tsx` | 329–330 | placeholder «проектам» → «сделкам» |
-| `TasksSidebar.tsx` | 176 | kanji-meta `label: 'проектов'` → `'сделок'` |
+Доказательства:
 
-### Валидация и мелочи
+- `src/app/(dashboard)/deals/page.tsx` → `ProjectsView`
+- `src/app/(dashboard)/projects/page.tsx` → `ProjectsSection`
+- `use-projects.ts:128–129,237–242` — срезы `'deals'` / `'projects'`
+- `project-href.ts` — client→`/deals`, delivery/internal→`/projects`
+- Sidebar live: `TextNavSidebar.tsx:27–28` — оба пункта уже корректны
 
-| Файл | Строки | Что |
-|------|--------|-----|
-| `validators/project.ts` | 174 | `'Введи название проекта'` — conditional по type |
-| `TaskCard.tsx` | 121 | fallback `'проект'` → `'сделка'` |
+Если CC выполнит Задачу 1 «`/projects` label → Сделки» — **сломает** delivery-nav.
 
----
+### B3. Файлы из Задачи 1 не существуют
 
-## ProjectModal — отдельная подзадача (обязательно)
+| Спринт | Live |
+|--------|------|
+| `layout/Sidebar.tsx` | **удалён** (architecture: AUDIT C) |
+| `layout/ScandiSidebar.tsx` | **удалён** |
+| `layout/ScandiContentHeader.tsx` | → `ContentHeader.tsx` |
+| (нет) | `TextNavSidebar.tsx` — единый sidebar |
 
-Спринт **не описывает** модалку создания/редактирования. После переименования кнопки «Сделка» пользователь увидит «Новый проект» — разрыв UX.
+`rg` на эти пути: `No such file or directory`.
 
-**Рекомендация: conditional copy по `type`**
+### B4. Номера строк и «ещё не сделано» — ложные
 
-| Поле / действие | `type === 'client'` (default) | `type === 'internal'` |
-|-----------------|-------------------------------|------------------------|
-| Заголовок create | Новая сделка | Новый проект |
-| Заголовок edit | Редактировать сделку | Редактировать проект |
-| Label name | Название сделки * | Название проекта * |
-| Submit | Создать сделку | Создать проект |
-| Подсказка client | Сделка в воронке продаж | — |
-| Подсказка internal | — | Внутренний проект — вне воронки… (**оставить**) |
-| Селектор «Тип проекта» | **оставить** (PCT-1) | **оставить** |
+Выборочная сверка (live vs спринт):
 
-Файл: `src/components/projects/ProjectModal.tsx` (строки 269, 284, 303, 326–327, 571).
+| Утверждение спринта | Live |
+|---------------------|------|
+| ProjectsTable `:99` label `'Проект'` → Сделка | `:97` уже `label: 'Сделка'`; h1 `:233` «Сделки» |
+| PipelineBoard «Перетащи проект» / watermark ПРОЕКТЫ | `:294` «Перетащи сделку»; h1 `:601` «Воронка сделок» |
+| CallModal/MeetingModal «Проект» | уже «Сделка» (`:228` / `:177`) |
+| EntityTimeline tab «Проекты» | `:45` уже `'Сделки'` |
+| QuickActions «Проект» | `:8` уже `'Сделка'`, href `/deals` |
+| activity-events «Проект обновлён» | уже «Сделка обновлена» |
+| ProjectModal conditional | **уже** (см. выше) |
+| adapters conditional | **уже** |
+| CommandPalette `/projects`→Сделки | **неверно**: `/projects` остаётся «Проекты»; `/deals` уже «Сделки» (`:46–47,156–157`) |
+| Hotkeys G P «Проекты»→«Сделки» | **неверно**: G L = Сделки, G P = Проекты (`Hotkeys.tsx:32–33`) |
 
-Для `ProjectDetail` confirm delete и back-link «Воронка…» — аналогично: для `project.type === 'internal'` можно оставить «проект», для `client` — «сделка».
+### B5. Ветка в шапке спринта не совпадает
 
----
+Спринт: `feat/aura-theme`.  
+Текущая ветка: **`main`**.  
+Старое ревью (2026-07-10) тоже на `feat/aura-theme` — не переносить вердикт «можно выполнять» без re-verify.
 
-## Уточнить ПРОВЕРКУ в спринте
+### B6. Компромисс «internal в разделе Сделки» — снят
 
-### Grep — два прохода
-
-```bash
-# Заглавная П (UI-строки)
-grep -rnE "['\">][^'\"<]*Проект" src/components src/lib --include="*.tsx" --include="*.ts" \
-  | grep -vE "//|project_id|projectId|getTrack|track_proj|phase_group|Доска задач|PCT-1|internal"
-
-# Строчная п (пропуски спринта v1)
-grep -rnE "['\">][^'\"<]*проект" src/components --include="*.tsx" \
-  | grep -vE "//|project_id|projectId|PCT-1|internal|Внутренн"
-```
-
-### Ручной чек (дополнить)
-
-- [ ] PipelineBoard: заголовок «Воронка сделок», watermark
-- [ ] ProjectModal: client → «Новая сделка», internal → «Новый проект»
-- [ ] Timeline: событие «Сделка: …» (не «Проект: …»)
-- [ ] Activity feed: «Сделка обновлена»
-- [ ] Empty states в таблице/воронке/StageBoard
-- [ ] Saved views в localStorage: старые имена видов не обновятся автоматически (ожидаемо)
+Спринт документирует temporary: internal в «Сделки» с бейджем.  
+Live: internal на `/projects` (`ProjectsSection`, empty «Нет внутренних проектов»).  
+Правило спринта «раздел/агрегаты всегда Сделки» **не применяется** к `/projects`.
 
 ---
 
-## Предлагаемая Задача 5 (добавить в спринт)
+## Предупреждения (желательно учесть в новом scope, не в v2)
 
-### Задача 5: Модалка и карточка сделки (conditional)
+### W1. Единственный заметный residual на deals-KPI
 
-- `ProjectModal.tsx` — conditional strings по `currentType` / `editProject?.type`
-- `ProjectDetail.tsx` — back-link, confirm delete
-- `lib/timeline/adapters.ts` — prefix в title (или передавать type в row)
-- `lib/utils/activity-events.ts` — единый источник «обновлена»
-- `validators/project.ts` — message по type
+`DashboardHome.tsx:223` display `label: 'Активные проекты'` (и lookup-ключи `:149,:157`) — при том что:
 
-### Задача 6: Воронка и empty states
+- watermark/short уже «СДЕЛКИ»/«Сделки»
+- `StatsWidget` / `dashboard-content` / `TasksSidebar` / `ActivityDrawer` уже «Активных сделок» / «Сделок»
+- `href` KPI уже `/deals`
 
-- `PipelineBoard.tsx`, `StageBoard.tsx` — заголовки, watermarks, drag-hints, empty, errors
-- `ProjectsTable.tsx` — :99, :225, :283, :292 (помимо уже перечисленного)
-- `CompanyDetail.tsx`, `ContactDetail.tsx` — секции и empty (заголовки уже в Задаче 3)
+Мелкий cosmetic; **не** требует v2 rename-спринта. Если править — синхронно ключи `FUJI_KPI_META`/`WASHI_KPI_META` и `cards[].label`.
 
-### Задача 7: Виджеты и shared utilities
+### W2. TaskCard fallback + deep-link
 
-- `DashboardHome.tsx` — FUJI watermark, feed labels, CTA
-- `StatsWidget.tsx`, `FunnelWidget.tsx`, `WeeklyReview.tsx`
-- `CompaniesTable.tsx`, `CommandPalette.tsx` placeholder
-- `TaskCard.tsx` fallback
+`TaskCard.tsx:167,171`: всегда `router.push(\`/deals/${task.project_id}\`)`, fallback `'проект'`.  
+Для delivery/internal корректнее `projectHref` + fallback «проект»/«сделка» по type. Бэкстоп на detail-роутах смягчает, но это не scope rename-v2.
 
----
+### W3. Comments / non-user strings
 
-## Что НЕ менять (напоминание)
+- `Charts.tsx:148` comment «Проекты по фазам» (UI h3 уже «Сделки по фазам»)
+- JSDoc/comments в hooks — не user-facing; grep спринта их может шуметь
 
-```
-getTrack() → 'Проект'                    # фаза IIoT-воронки
-chip track_proj label: 'Проект'          # фильтр по фазе
-ProjectModal: «Внутренний проект»        # PCT-1 delivery
-ProjectDetail tab: «Доска задач»         # PCT-1 execution board
-project_columns, column_id, resolve_task_board  # код PCT-1
-AutomationsSection — уже «сделка»        # не трогать
-TodayView — уже «Сделки без шага»        # не трогать
-STAGE_CONFIG won/lost — «Сделка выиграна» # уже ок
-```
+### W4. Delivery UI должен **сохранять** «проект»
 
----
+Корректно (не трогать как «остатки rename»):
 
-## Связь с архитектурой
+- `ProjectsSection`, `DeliveryPipelineBoard`, `SpawnWizard`, `DeliveryCompletionModal`
+- `ProjectDetail` «Завершить проект», «Создать проект внедрения»
+- `stage-track` / phase chip «Проект»
+- PCT-1 «Тип проекта», подсказки internal
 
-После этого спринта терминология UI совпадёт с моделью данных:
+Спринтовый post-check grep **без** exclude delivery-файлов будет «красным» — это false positive.
 
-```
-HubSpot Deals  ≈  dashboard-crm projects WHERE type='client'
-HubSpot Projects (PM)  →  будущий модуль / projects WHERE type='internal' (позже — отдельный раздел)
-```
+### W5. Трудоёмкость 1.5–2.5 ч
 
-До выноса internal в отдельный раздел компромисс с бейджем «Внутренний» в списке «Сделки» — приемлемый и должен оставаться в документации спринта.
+Для текущего `main` актуальна оценка **0 ч** (noop) или **0.5 ч** на residual KPI label + TaskCard `projectHref`, не 1.5–2.5 ч полного rename.
+
+### W6. Предыдущий review-файл
+
+`_analysis/review-sprint-rename-deals.md` (2026-07-10) говорит «можно выполнять» — **устарел** так же, как sprint v2. Не использовать как green light.
 
 ---
 
-## Рекомендуемый коммит (без изменений)
+## Пропущенные места (относительно цели «сделки в UI»)
 
-```bash
-git commit -m "chore(ui): переименование раздела «Проекты» → «Сделки» (только лейблы; роут/схема/доски PCT-1 не тронуты)"
-```
+Не «пропуски спринта», а **что осталось** после e3839ee + split:
 
----
+| Файл | Строки | Действие |
+|------|--------|----------|
+| `dashboard/DashboardHome.tsx` | 149, 157, 223 | Опционально: display «Активные сделки» (+ синхрон ключей meta) |
+| `tasks/TaskCard.tsx` | 167, 171 | Опционально: `projectHref` + type-aware fallback |
+| `projects/ProjectModal.tsx` | 333 | Косметика: «Клиентский проект — сделка…» → можно «Клиентская сделка…» (низкий приоритет) |
+| Delivery / internal / phase-track | — | **Не менять** на «сделка» |
 
-## Action items для Claude Code
-
-1. Исправить в `sprint-rename-deals.md` инструкцию про `ProjectsTable :99` (менять, не исключать).
-2. Добавить Задачи 5–7 или расширить Задачи 2–4 таблицами из этого review.
-3. Добавить conditional logic для `ProjectModal` / `ProjectDetail`.
-4. Расширить grep в блоке ПРОВЕРКА.
-5. Пересмотреть оценку: **1.5–2.5 ч** вместо 0.5–1 ч.
+Задачи 1–5 спринта по deals-surface — **закрыты**.
 
 ---
 
-*Файлы: `_analysis/sprint-rename-deals.md` (исходный спринт), `_analysis/hubspot-map-and-gap-v2.md` (контекст терминологии).*
+## РАЗВЕДКА (факт 2026-07-16)
+
+Команды спринта на live:
+
+**Uppercase «Проект*» (после exclude спринта)** — в основном:
+
+- nav `/projects` «Проекты» (правильно для delivery)
+- delivery: SpawnWizard, ProjectsSection, WonDeals
+- phase-track `stage-track.ts`, ProjectsTable `track_proj`
+- adapters internal-ветка `Проект:`
+- ProjectDetail backLabel non-client `'Проекты'`
+
+**Lowercase «проект*»** — delivery errors, ProjectBoard phases, members hooks, TaskCard fallback, health-утилиты — **не** deals rename backlog.
+
+Ожидаемый «длинный список Задач 1–4» **отсутствует** — уже переименовано.
+
+---
+
+## Предлагаемые правки в спринт
+
+1. **Не править v2 — закрыть как DONE / SUPERSEDED** с ссылками на `e3839ee` + `4c1f2ad`.
+2. Если нужен follow-up handoff — **новый** файл, например `_analysis/sprint-deals-copy-polish.md`:
+   - scope: `DashboardHome` KPI label; `TaskCard` → `projectHref`; опционально copy ProjectModal client-hint
+   - **жёстко не трогать** `/projects` labels, delivery UI, phase-track, identifiers
+   - ветка: `main` (или актуальная feature-ветка)
+3. Удалить/пометить obsolete: «internal в разделе Сделки», «роут `/projects` = продажи», файлы Sidebar/Scandi*.
+4. CommandPalette / Hotkeys: документировать **два** раздела (G L / G P), не один rename.
+
+---
+
+## Чеклист перед CC
+
+- [ ] **Не запускать** `_analysis/sprint-rename-deals.md` v2 as-is
+- [x] Verify: rename commit `e3839ee` в истории
+- [x] Verify: `/deals` + `/projects` split `4c1f2ad` + architecture.md
+- [x] Verify: ProjectModal/Detail/adapters conditional уже есть
+- [x] Verify: Sidebar.tsx / Scandi* отсутствуют; TextNavSidebar актуален
+- [ ] Если residual polish — написать **новый** узкий sprint, не править v2 «вслепую»
+- [ ] Не коммитить review/sprint без запроса; не edit sprint file (по инструкции)
+
+---
+
+## crm-architect checklist
+
+| Пункт | Статус |
+|-------|--------|
+| Starts with РАЗВЕДКА | ✅ |
+| Real table/column names | ✅ (SQL нет; type client/internal ок; delivery не учтён в компромиссе) |
+| Real file paths from architecture.md | ❌ Sidebar/Scandi* / единый `/projects` |
+| learnings.md gotchas | ✅ N/A для string-only (window.confirm convention ок) |
+| SQL migrations separate / not applied from CC | ✅ N/A |
+| org_id / RLS | ✅ N/A |
+| SECURITY DEFINER | ✅ N/A |
+| No flowType implicit | ✅ N/A |
+| DELETE CASCADE | ✅ N/A |
+| CSS variables | ✅ N/A |
+| schema.md after migration | ✅ N/A |
+
+---
+
+## Итог одной строкой
+
+**Спринт v2 — post-factum документ уже сделанной работы; на `main` 2026-07-16 запуск в CC даст ложные diffs и риск сломать delivery-«Проекты». Вердикт: не запускать; residual ≤1–2 cosmetic fix'а — отдельным mini-handoff.**

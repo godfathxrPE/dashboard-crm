@@ -114,15 +114,14 @@ export function useProjectSchedule(projectId: string): ProjectSchedule {
 ## ФАЗА B — zoom day/week/month + ось на бакетах
 GanttTimeline: заменить «ось из дней» на **бакеты**. Состояние `const [zoom, setZoom] = useState<'day'|'week'|'month'>('week')` (§9.2 — week/month; day = наследие v0). Переключатель — 3 кнопки над таймлайном (токены как у таб-кнопок).
 
-**Бакет-хелперы — вынести в `src/lib/utils/date-helpers.ts`** (pure, тестируемые; меньше дубля с `buildDays`, off-by-one недели/месяца гейтится отдельно). **ВСЯ математика на UTC-полдне** (как v0 `buildDays`), иначе off-by-one на границе недели/месяца:
+**Бакет-хелперы (в компоненте или `date-helpers.ts`) — ВСЯ математика на UTC-полдне (как v0 `buildDays`), иначе off-by-one на границе недели/месяца:**
 - `bucketKeyOf(dateKey, zoom)`:
   - day → сам `dateKey`;
   - week → понедельник недели (ISO, floor к Mon) как `YYYY-MM-DD`;
   - month → `YYYY-MM-01`.
 - `buildBuckets(minKey, maxKey, zoom)` → `{ key, label }[]`: итерировать от `bucketKeyOf(min)` до `bucketKeyOf(max)` шагом (day=+1день / week=+7дней / month=+1месяц через UTC), label: day=`DD`(+месяц на 1-м/нулевом), week=`DD.MM`, month=`MMM YYYY` (ru).
 - `bucketIndexOf(dateKey, zoom, buckets)` → индекс через Map по `bucketKeyOf`.
-- Бар: `gridColumn: idx(start)+1 / idx(end)+2` (как v0, но idx — по бакетам).
-- **Источник `min`/`max` диапазона:** в Фазе B компонент ещё на `useProjectBoard` (плоский dated-список, как v0) → min/max по нему. **После Фазы C** источник — `schedule.swimlanes.flatMap(sl => sl.tasks)`. (Не ссылаться на `swimlanes` в B — их ещё нет.)
+- Бар: `gridColumn: idx(start)+1 / idx(end)+2` (как v0, но idx — по бакетам). `min`/`max` диапазона — из всех `swimlanes[].tasks` (min start, max end).
 
 **Виртуализация — числовой триггер (§10):** если `zoom==='day'` и `buckets.length > 180` → показать неблокирующую плашку «Широкий диапазон — переключи на неделю/месяц» (не резать молча). Реальную виртуализацию НЕ делаем (v1 долг: >365 дн / >200 задач).
 
@@ -131,18 +130,14 @@ GanttTimeline: заменить «ось из дней» на **бакеты**. 
 ---
 
 ## ФАЗА C — swimlane (фазы) + milestone-ромб + today line
-### C0. Layout-контракт (иначе sticky не работает — Grok-ревью)
-v0 кладёт колонку названий и ось в ОДИН `overflow-x-auto` (`shrink-0`-колонка уедет при скролле → «липкая» не липнет). Переструктурировать:
-**фиксированная левая колонка названий (`LABEL_W`, `shrink-0`, вне скролла) + ОТДЕЛЬНЫЙ scrollable timeline-body (`overflow-x-auto` только на оси)** — `flex`-обёртка. Шапка бакетов, ряды и today-оверлей живут внутри timeline-body, названия строк/фаз — в левой колонке (выровнены по высоте рядов). Это разблокирует C1/C3.
-
 ### C1. Swimlane
-GanttTimeline перевести с `useProjectBoard` на **`useProjectSchedule(projectId)`**. **Удалить локальные `taskSpan`/`buildDays` из компонента** (span теперь в хуке, ось — бакет-хелперы из date-helpers) — не оставлять два источника правды. Рендер: для каждой `swimlane` — заголовок (`label`, если не null; `text-text-mute`, в ЛЕВОЙ колонке) + её `tasks` рядами. Плоский режим (`label===null`) — без заголовка. `isLoading` → рендерить только «Загрузка…» (из schedule), не тело (иначе флеш плоского режима, пока грузятся колонки).
+GanttTimeline перевести с `useProjectBoard` на **`useProjectSchedule(projectId)`**. Рендер: для каждой `swimlane` — заголовок-строка (`label`, если не null; токен `text-text-mute`, липкая слева вместе с колонкой названий) + её `tasks` строками (как v0-ряды). Плоский режим (`label===null`) — без заголовка.
 
 ### C2. Milestone
-Если `gt.isMilestone` — вместо бара **ромб** на колонке `start`: **`<button>` (не `<div>` — клик по вехе должен открывать TaskModal, как бар)** `onClick={() => onEditTask(task)}`, внутри `rotate-45` ~10px, токен по приоритету (`barClass`), `gridColumn: idx(start)+1`. `aria-label` = `${task.text} (веха): ${start}`.
+Если `gt.isMilestone` — вместо бара-полосы рендерить **ромб** на колонке `start`: `<div className="rotate-45 ...">` размером ~10px, токен `bg-accent` (или по приоритету), в ячейке `gridColumn: idx(start)+1`. `aria-label` = `${task.text} (веха): ${start}`.
 
 ### C3. Today line
-Вертикальная линия на колонке текущего бакета: `todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets)`. Абсолютный оверлей **внутри timeline-body** (C0), тонкий `border-l border-accent`. `todayIdx === -1` (сегодня вне диапазона) → не рисовать.
+Вертикальная линия на колонке текущего бакета: `todayIdx = bucketIndexOf(mskDateKey(new Date()), zoom, buckets)`. Абсолютный оверлей поверх тела таймлайна (или тонкий `border-l border-accent` в шапке+фоновой ячейке колонки). `todayIdx === -1` (сегодня вне диапазона) → не рисовать.
 
 **Коммит C:** `feat(gantt): swimlane по фазам + milestone-ромб + today line`. Смок: delivery-проект → 4 фазовые дорожки; задача-веха → ромб; client-проект → плоско; сегодня-колонка помечена.
 
@@ -150,10 +145,7 @@ GanttTimeline перевести с `useProjectBoard` на **`useProjectSchedule
 
 ## ФАЗА D — tooltip + фильтр
 ### D1. Tooltip (§9.2: название, исполнитель, lane-статус)
-На баре/ромбе — hover-tooltip (`group-hover`-поповер, без либы). Поля:
-- `task.text`;
-- **исполнитель:** `useProjectBoard` НЕ джойнит `assigned_to→profiles` → взять `useTeamMembers()` (есть, `{id, full_name}`, staleTime 5м), один раз в компоненте: `const nameById = new Map(team.map(m => [m.id, m.full_name]))`; `nameById.get(task.assigned_to ?? '') ?? '—'`. Никаких N+1 на бар.
-- **lane-статус с fallback** (иначе на client/internal `next`/`now` → `undefined`): `phaseMode ? DELIVERY_TASK_STATUS_LABELS[task.lane] : (LANE_CONFIG[task.lane]?.label ?? task.lane)` (`LANE_CONFIG` из `validators/task.ts`; `phaseMode` из schedule).
+На баре/ромбе — hover-tooltip. Мин. вариант: обогатить `title`/aria + кастомный поповер (`group-hover`), поля: `task.text`, исполнитель (`assigned_to` → имя; если нет данных профиля в задаче — показать «—» или подтянуть через существующий хук профилей, НЕ новый fetch на бар), lane-статус (`DELIVERY_TASK_STATUS_LABELS[task.lane]` из delivery-phases). Без тяжёлой либы.
 
 ### D2. Фильтр (§9.2: только открытые / все / только milestones)
 `const [filter, setFilter] = useState<'open'|'all'|'milestones'>('open')`, 3 кнопки рядом с zoom. Фильтрация НАД `schedule.swimlanes` (в компоненте, useMemo):
@@ -182,9 +174,7 @@ npx tsc --noEmit        # главный гейт
 - **Фаза = `column_id`→фаза-колонка** (`category='phase'`, `isPhaseBoard`), НЕ `phase_group` пайплайна. Swimlane data-driven от `useProjectColumns`, «4» не хардкодить.
 - **Вся бакет-математика на UTC-полдне** — иначе бар выпадает из недели/месяца на границе (та же дисциплина, что v0 `buildDays`). Гейтить кейс «задача 28–31 марта при month-zoom».
 - **`useProjectSchedule` — селектор, не новый fetch:** реюзит `useProjectBoard`+`useProjectColumns` (оба уже с realtime/RLS). Не дублировать запрос.
-- **Milestone** — `is_milestone` уже в схеме `tasks` (derived-тип, regen не нужен). Ромб = `rotate-45` `<button>` (кликабелен→TaskModal), не картинка/не `<div>`. Веха БЕЗ дат (нет start/end/deadline) → в секцию «Без дат», НЕ в фильтр milestones (для delivery-вех дедлайн обычно есть — ок).
-- **Sticky-колонка требует split-layout** (C0): фикс.левая колонка вне скролла + отдельный `overflow-x-auto` на оси. В одном `overflow-x-auto` `sticky left:0` не держится.
-- **Порядок фаз A→B→C→D:** min/max в B — по плоскому dated-списку (v0), НЕ по swimlanes (их вводит C). Правка учтена.
+- **Milestone** — `is_milestone` уже в схеме `tasks` (derived-тип, regen не нужен). Ромб = `rotate-45`, не картинка.
 - **Read-only** — никаких мутаций дат в этом спринте (drag = VIEW-2). Клик по бару → существующий `onEditTask`→TaskModal (как v0).
 - **Оценка ~2–3 сессии CC** (Grok); коммить по фазам, гейт после каждой.
 - build через мост невозможен (SWC arm64) — нативно на Маке.

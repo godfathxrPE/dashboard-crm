@@ -1,9 +1,9 @@
 # Ревью: handoff-gantt-view1 (S-GANTT-VIEW-1)
 
-**Дата:** 2026-07-15  
-**Ревьюер:** Grok (верификация по коду `main`, `GanttTimeline.tsx`, roadmap §9.2, `review-spike-gantt-lib-vs-custom.md`)  
-**Объект:** `_analysis/handoff-gantt-view1.md` — read-only PM-Гант (фазы A→D)  
-**Контекст:** v0 `685864d`, спайк «растить кастом», `useProjectColumns` / `isPhaseBoard` / `is_milestone` в схеме
+**Дата:** 2026-07-16  
+**Ревьюер:** Grok (верификация по коду `main`, ahead 3; schema/architecture/learnings crm-architect)  
+**Объект:** `_analysis/handoff-gantt-view1.md` — read-only PM-Гант v1 (фазы A→D)  
+**Контекст:** v0 `685864d` → A–D (`bbfdffd`…`aebdd48`) → tooltip fix `3c06735` → VIEW-2 drag `6d86d37` → S-DEPS-1 `0463596`/`4a5eeab` → uncommitted S-CRIT-PATH в `GanttTimeline.tsx`. Предыдущее ревью `_analysis/review-handoff-gantt-view1.md` (2026-07-16 00:09) — handoff новее (00:11), блокер B учтён.
 
 ---
 
@@ -12,187 +12,201 @@
 | Аспект | Оценка |
 |--------|--------|
 | Контракт §9.2 (scope in/out) | ✅ |
-| Согласованность со спайком (кастом, drag→VIEW-2) | ✅ |
-| Фазирование A→D + коммиты по фазам | ✅ |
-| `useProjectSchedule` / swimlane data-driven | ✅ |
-| Бакет-математика UTC-полдень + MSK | ✅ |
 | РАЗВЕДКА vs живой код | ✅ |
-| Порядок фаз B/C (ссылка на swimlanes до C) | ❌ Блокер |
-| Tooltip: исполнитель + lane на client | 🟡 Недоспецифицировано |
-| Sticky + `overflow-x-auto` | 🟡 Риск без layout-контракта |
+| Схема (`is_milestone`, `start_date`/`end_date`) | ✅ |
+| `useProjectSchedule` / phase = `column_id` | ✅ |
+| Бакет-математика UTC-полдень + MSK deadline | ✅ |
+| Фаза B min/max (после правки) | ✅ |
+| Sticky C0 / tooltip / milestone-click | ✅ в промпте; ✅ в коде (+ fixed tooltip) |
+| Миграции / RLS | ✅ нет DDL — ок |
+| Актуальность для запуска CC сейчас | ❌ уже сделано; повтор ломает VIEW-2/DEPS/CRIT |
 
-**Оценка: 8/10.** Архитектура и scope сильные, roadmap §9.2 закрыт. **Перед CC — исправить одну строку в Фазе B** (см. блокер). Остальное — уточнения в промпт, не переписывание.
+**Оценка: 9.5/10** как промпт (после правок гейта).  
+**Рекомендация:** **не запускать в CC повторно** — S-GANTT-VIEW-1 закрыт на `main`. Handoff годится как исторический контракт / регрессионный чеклист, не как новый спринт.
+
+---
+
+## Статус
+
+| Заход | Статус в репо |
+|-------|---------------|
+| A — таб «Гант» + `useProjectSchedule` | ✅ `bbfdffd` |
+| B — zoom day/week/month + бакеты | ✅ `0ea9f1d` (`date-helpers.ts`) |
+| C — swimlane + milestone + today + C0 split | ✅ `17a7e1e` |
+| D — tooltip + filter open/all/milestones | ✅ `aebdd48` |
+| Post-D tooltip clip | ✅ `3c06735` (`position: fixed`) |
+| VIEW-2 drag | ✅ `6d86d37` (вне scope VIEW-1) |
+| S-DEPS-1 стрелки | ✅ `0463596` + loop fix `4a5eeab` |
+| S-CRIT-PATH | 🟡 WIP uncommitted diff в `GanttTimeline.tsx` (+124/−8) |
 
 ---
 
 ## С чем согласен полностью
 
-### 1. Продуктовый контракт §9.2 — сведён корректно
+### 1. Продуктовый контракт §9.2
 
-Сверка с `improvements/CRM-ROADMAP-projects-deals.md` §9.2:
+Включено: swimlane по фазе, bar=task, milestone-ромб, today line, zoom week/month (+ day), tooltip, фильтр open/all/milestones.  
+Исключено: drag, critical path, histogram, baseline, export — корректно для v1; drag/deps/crit пришли отдельными спринтами.
 
-| Требование roadmap | Handoff |
-|--------------------|---------|
-| Swimlane по фазе СДР | Фаза C + `useProjectSchedule` |
-| Bar = task с датами | `effectiveSpan` (наследие v0) |
-| Milestone-ромб | C2, `is_milestone` |
-| Today line | C3 |
-| Zoom week/month | B (+ day как наследие v0) |
-| Tooltip | D1 |
-| Фильтр open/all/milestones | D2 |
-| Drag исключён | Явно → VIEW-2 |
+### 2. РАЗВЕДКА — совпадает с кодом (2026-07-16)
 
-Расхождение review-spike (drag в технике v1) **закрыто** — read-only, drag отложен. Оценка «~2–3 сессии CC» реалистична при фазовых коммитах.
-
-### 2. Решения Cowork — уместны
-
-- Таб **«Гант»** на всех типах проектов (`ProjectDetail.tsx:833` сейчас `Таймлайн`) — ок; `value: 'timeline'` не трогать — правильно (URL/bookmarks не ломаем).
-- Fallback `end_date ?? mskDateKey(deadline)` вместо наивного `?? deadline` из §9.5 roadmap — **обязательно** для timestamptz.
-- Фаза = `column_id` + `isPhaseBoard(columns)`, не `phase_group` пайплайна — совпадает с `delivery-phases.ts:85–88`.
-
-### 3. РАЗВЕДКА подтверждена по коду
-
-| Команда | Факт |
-|---------|------|
+| Утверждение handoff | Факт |
+|---------------------|------|
 | `isPhaseBoard` | `delivery-phases.ts:86–88` — `columns.every(c => c.category === 'phase')` |
-| `useProjectColumns` | `use-project-columns.ts:16–34` — `useQuery`, `order position`, realtime |
-| `ColumnCategory` `'phase'` | `database.ts:165` |
-| `is_milestone` на tasks | `supabase.gen.ts` Row/Insert/Update |
-| Таб timeline + `GanttTimeline` | `ProjectDetail.tsx:208, 833, 856–857` |
-| v0 для расширения | `GanttTimeline.tsx` 153 строки, `taskSpan`/`buildDays`/`mskDateKey` |
+| `useProjectColumns` | `use-project-columns.ts:16–31` — query + realtime + `order position` |
+| `ColumnCategory` + `'phase'` | `database.ts:159` |
+| `is_milestone` | `supabase.gen.ts` Row/Insert/Update (~1931+) |
+| `start_date`/`end_date` | schema.md 046; gen types; `effectiveSpan` в хуке |
+| Таб `value: 'timeline'`, label **«Гант»** | `ProjectDetail.tsx:768` |
+| `<GanttTimeline` | `ProjectDetail.tsx:792–796` |
+| Хук + бакеты | `use-project-schedule.ts` (73 строки ≈ сниппет A2); `bucketKeyOf`/`buildBuckets`/`bucketIndexOf` в `date-helpers.ts` |
 
-### 4. `useProjectSchedule` — правильный слой
+Handoff честно помечает: **architecture.md мог устаревать** — сейчас architecture.md уже отражает VIEW-1 (таб «Гант», `use-project-schedule`, бакеты). На момент написания handoff разведка по `src/` была правильной тактикой.
 
-- Реюз `useProjectBoard` + `useProjectColumns`, без нового fetch — совпадает с паттерном хуков CRM.
-- Сортировка задач внутри swimlane, orphan `__none__` / «Без фазы», плоский `__flat__` для non-phase досок — логично для client/internal (колонки `backlog|started|…` → `isPhaseBoard` = false).
-- `effectiveSpan` дублирует v0 `taskSpan` — осознанно; после Фазы C дубль в `GanttTimeline` удалить.
+### 3. Data-layer `useProjectSchedule`
 
-### 5. Фаза A как безопасный первый коммит
+Живой хук = сниппет handoff почти 1:1:
+- реюз `useProjectBoard` + `useProjectColumns` (не новый fetch);
+- `effectiveSpan`: `end = end_date ?? mskDateKey(deadline) ?? start_date` (не наивный `?? deadline`);
+- phase → `column_id` / `__none__` / `__flat__`; orphan «Без фазы»;
+- `isMilestone: task.is_milestone === true`.
 
-Хук + переименование таба, **GanttTimeline ещё на `useProjectBoard`** — UI не ломается, `tsc` проходит. Соответствует гейту «коммить по фазам».
+Совпадает с learnings: **фаза = `column_id` + `isPhaseBoard`, не `phase_group`**.
 
-### 6. Заметки гейта Cowork
+### 4. Порядок A→B→C→D и правка B (бывший блокер)
 
-- UTC-полдень для бакетов — must (кейс 28–31 марта при month-zoom).
-- Виртуализация отложена, плашка при `day && buckets > 180` — из review-spike, хорошо.
-- Milestone = `rotate-45`, не картинка — согласуется с `TaskCard.tsx:125–132` (там Lucide `Diamond`, на Ганте CSS-ромб тоже ок).
-- Read-only + клик → `TaskModal` — как v0.
+Предыдущий блокер («min/max из swimlanes до C») **снят** в handoff L125:
+
+> в Фазе B … `useProjectBoard` … После Фазы C — `schedule.swimlanes.flatMap…`
+
+Заметка гейта L187 подтверждает. Можно было отдавать в CC — и **уже отдали**.
+
+### 5. C0 sticky / D1 tooltip / C2 milestone — в промпте и в коде
+
+- Split-layout: `LABEL_W` + `overflow-x-auto` только на timeline-body (`GanttTimeline.tsx:594–622`).
+- `isLoading` → только «Загрузка…» (L498–499) — нет флеша плоского режима.
+- Исполнитель: `useTeamMembers` + `nameById` (L264, 278); lane: `DELIVERY_TASK_STATUS_LABELS` / `LANE_CONFIG` fallback (L56–61).
+- Milestone: `rotate-45` + клик → TaskModal (через GanttBar; `aria-label` с «(веха)»).
+- Today: `bucketIndexOf(mskDateKey(new Date()), …)`; `todayIdx === -1` → не рисовать (L673–677).
+- Wide day range: `zoom==='day' && buckets.length > 180` (L505–590).
+- CSS: токены (`border-accent`, `text-text-mute`, `bg-surface`) — ок.
+
+### 6. Процесс / crm-architect
+
+- Нет миграций, нет apply из CC.
+- `org_id`/RLS не трогаем — селектор поверх существующих хуков.
+- DELETE/CASCADE N/A.
+- Коммиты только `src/`; `_analysis` отдельно — грабля V0 учтена.
+- «Не пушить — Волна 2 отдельным заходом» — процессный ок.
 
 ---
 
-## Блокер (исправить до запуска CC)
+## Блокеры (критично — исправить до запуска)
 
-### Фаза B ссылается на `swimlanes` до Фазы C
+### B1. Повторный запуск handoff в CC — **запрещён**
 
-В Фазе B (строка ~124):
+Все A–D уже в истории `main`. Повторное «наращивание v0» поверх текущего `GanttTimeline.tsx` (~756 строк: drag + deps + crit path) даст:
 
-> `min`/`max` диапазона — из всех `swimlanes[].tasks`
+- откат/конфликт с VIEW-2 (`useUpdateTaskDates`, pointer drag);
+- лом S-DEPS-1 (link-mode, SVG edges, `depSig`);
+- лом WIP S-CRIT-PATH (uncommitted);
+- дубли хука/хелперов.
 
-Но переход на `useProjectSchedule` — только в **Фазе C**. В B компонент ещё на `useProjectBoard` с плоским списком (как v0).
+**Не блокер качества промпта** — блокер **операционный**: статус = done, не todo.
 
-**Исправление (одна строка в handoff):**
-
-```
-min/max диапазона — из всех dated-задач (плоский список, как v0 taskSpan);
-после Фазы C источник — schedule.swimlanes.flatMap(sl => sl.tasks).
-```
-
-Либо переставить порядок **A → C → B → D** (swimlane раньше zoom) — но тогда zoom придётся сразу считать по swimlanes; текущий порядок A→B→C→D логичнее, если поправить источник min/max в B.
+*Блокеров к содержанию handoff (как к промпту до первого запуска) нет.*
 
 ---
 
-## Рекомендации (не блокеры)
+## Предупреждения (желательно учесть)
 
-### 1. Tooltip D1 — назвать хук и lane-labels для non-delivery
+### W1. Handoff D1: `group-hover` vs production `fixed`
 
-`useProjectBoard` **не** джойнит `assigned_to → profiles` (`use-tasks.ts:75` — только project/company).
+Промпт: «`group-hover`-поповер, без либы».  
+Реальность + learnings: `overflow-x-auto` клиппит tooltip → `position: fixed` (`3c06735`, L756–764). Для регрессии/копирования промпта лучше одна строка: **tooltip только `fixed`/портал, не CSS group-hover внутри scroll**.
 
-Для исполнителя без N+1:
+### W2. «4 фазовые дорожки» в смоке
 
-```ts
-// один раз в GanttTimeline
-const { data: team = [] } = useTeamMembers();
-const nameById = useMemo(() => new Map(team.map(m => [m.id, m.full_name])), [team]);
-// tooltip: nameById.get(task.assigned_to ?? '') ?? '—'
-```
+Handoff: «delivery → 4 фазовые дорожки». Код: data-driven от `project_columns`; `laneRows` **скрывает** swimlane с `tasks.length === 0` всегда (не только после фильтра). Пустая фаза без датированных задач не рисуется — «4» только если во всех фазах есть dated-задачи (или смотреть «Все» при задачах во всех фазах). Смок формулировать: «дорожки = фазы с видимыми dated-задачами, порядок = `position`».
 
-`useTeamMembers` (`use-team-members.ts`) уже есть, staleTime 5 мин — подходит.
+### W3. `bucketIndexOf` — findIndex, не Map
 
-**Lane-статус:** в D1 указан только `DELIVERY_TASK_STATUS_LABELS`. На client/internal нужен fallback:
+Handoff: «индекс через Map». Реализация: `findIndex` по `bucketKeyOf` — корректно, O(n); Map — микрооптимизация. Не дефект.
 
-```ts
-phaseMode
-  ? DELIVERY_TASK_STATUS_LABELS[task.lane]
-  : (LANE_CONFIG[task.lane]?.label ?? task.lane)  // validators/task.ts
-```
+### W4. День-лейбл месяца
 
-Иначе tooltip на сделке покажет `undefined` для `next`/`now`.
+Handoff: `day=DD(+месяц на 1-м)`. В `bucketLabel` только `DD`; месяц — отдельный span в шапке (`i===0 || day==='01'`). Эквивалентно по UX.
 
-### 2. Sticky labels + today line внутри `overflow-x-auto`
+### W5. Документ не помечен «DONE»
 
-v0 оборачивает грид в `overflow-x-auto` (`GanttTimeline.tsx:82`). `position: sticky; left: 0` на колонке названий **часто не работает** при горизонтальном скролле в одном контейнере.
+Файл всё ещё читается как исполнимый спринт. Имеет смысл шапка-баннер:
 
-**Минимальный layout-контракт для C1/C3** (добавить в промпт):
+`**STATUS: DONE** (bbfdffd…aebdd48). Не перезапускать. Регрессия — §ПРОВЕРКА.`
 
-- split: фиксированная левая колонка (`LABEL_W`) + отдельный scrollable timeline body;
-- или wrapper `flex` с `shrink-0` labels и `overflow-x-auto` только на grid оси.
+(Правка handoff — по запросу; в этом прогоне файл не меняем.)
 
-Без этого «липкая колонка названий» может не пройти смок на широком диапазоне.
+### W6. Uncommitted S-CRIT-PATH
 
-### 3. Флеш `phaseMode` пока грузятся колонки
+Не scope VIEW-1, но соседствует в том же файле. Ревью VIEW-1 не смешивать с WIP crit path; коммитить отдельно.
 
-`isPhaseBoard([])` → `false` (`columns.length > 0` guard). Пока `useProjectColumns` loading, UI кратко в плоском режиме, потом переключится на swimlane.
+---
 
-Для v1 приемлемо; в смоке не считать багом. При желании: `isLoading` → не рендерить тело, только «Загрузка…» (уже есть в schedule).
+## Пропущенные места
 
-### 4. Фильтр `milestones` и задачи без дат
+| Файл | Строки / факт | Действие |
+|------|----------------|----------|
+| `src/lib/hooks/use-project-schedule.ts` | целиком = A2 | уже есть — не создавать заново |
+| `src/lib/utils/date-helpers.ts` | L26–97 бакеты; + `shiftDateKeyByBuckets` (VIEW-2) | VIEW-1 API закрыт |
+| `src/components/tasks/GanttTimeline.tsx` | 756 строк ≫ v1 | не «расширять v0» с нуля |
+| `src/components/projects/ProjectDetail.tsx` | L768 label «Гант» | A1 done |
+| `src/lib/hooks/use-team-members.ts` | export есть | D1 ok |
+| `_analysis/spike-gantt-lib-vs-custom.md` | решение «кастом» | согласовано |
+| `architecture.md` (skill) | PM-Гант, schedule, бакеты | post-factum актуален |
 
-`effectiveSpan === null` → `undated`. Веха без дат попадёт в «Без дат», не в фильтр milestones — для delivery-гейтов вехи обычно с deadline; ок. Одной строкой в гейте: «веха без дат — в секции „Без дат“, не в фильтре milestones».
+Пропущенных файлов для *исполнения* VIEW-1 нет — всё на месте.
 
-### 5. Фаза B: вынести бакет-хелперы в `date-helpers.ts`
+---
 
-Промпт допускает «в компоненте или date-helpers». Рекомендую **`date-helpers.ts`** + unit-friendly pure functions — меньше дубля с `buildDays`, проще гейтить month/week off-by-one отдельным grep/тестом.
+## Предлагаемые правки в спринт
 
-### 6. Дублирование `effectiveSpan` / `taskSpan`
+1. **Баннер STATUS: DONE** + хеши коммитов A–D (и ссылка: drag → VIEW-2, deps → S-DEPS-1).  
+2. D1: заменить «group-hover» на **`position: fixed`** (learnings).  
+3. Смоки: «N фаз data-driven», не хардкод «4».  
+4. Опционально: «пустые фазы без задач не показываем» — зафиксировать как принятое UI-решение.  
+5. Не открывать этот handoff в CC watcher как «новый спринт» без done-гейтa.
 
-После Фазы C удалить локальные `taskSpan`/`buildDays` из `GanttTimeline.tsx` — явная подзадача в C1, иначе CC оставит два источника правды.
-
-### 7. Milestone-ромб и клик
-
-C2: ромб `<div>` без `onClick` — клик по вехе не откроет TaskModal. v0 кликал по `<button>` бару. **Добавить:** ромб тоже `button` + `onClick={() => onEditTask(task)}` (как бар).
-
-### 8. Пустые swimlane до фильтра
-
-Сейчас колонки фаз рендерятся с `tasks: []`. Roadmap demo подразумевает «4 фазы» — показывать пустые дорожки **до** фильтра — плюс для PM; после фильтра D2 скрывать — согласовано.
+*(Пункты — для сопровождения доков; повторная имплементация не нужна.)*
 
 ---
 
 ## Чеклист crm-architect
 
-- [x] РАЗВЕДКА с реальными путями
-- [x] Без миграций / без apply из CC
-- [x] Типы из `supabase.gen` / derived `Task` — regen не нужен
-- [x] CSS-токены, без hardcoded palette
-- [x] Optimistic mutations — нет (read-only) ✅
-- [x] `npx tsc --noEmit` + нативный build
-- [x] Roadmap §9.2 интегрирован (gap из review-spike закрыт)
-- [ ] Фаза B: источник min/max — **исправить**
+- [x] РАЗВЕДКА в начале  
+- [x] Реальные table/column (`tasks.is_milestone`, `start_date`/`end_date`, `project_columns.category='phase'`)  
+- [x] Реальные пути (`GanttTimeline`, `ProjectDetail`, hooks, `date-helpers`)  
+- [x] learnings: MSK deadline, UTC-полдень, phase≠phase_group, fixed tooltip  
+- [x] SQL-миграций нет (046/is_milestone уже в схеме)  
+- [x] org_id/RLS: без новых политик  
+- [x] Нет `flowType: 'implicit'`  
+- [x] CSS variables / theme tokens  
+- [x] schema.md: миграций в спринте нет — обновление N/A  
+- [x] Read-only scope для v1 (мутации дат — VIEW-2)  
 
 ---
 
-## Сводка для гейта Cowork (после D)
+## Чеклист перед CC
 
-1. `npx tsc --noEmit`
-2. **Delivery:** 4 фазовые дорожки (data-driven, не хардкод «4»), веха → ромб, клик → TaskModal
-3. **Client:** плоский режим, tooltip lane из `LANE_CONFIG`
-4. **Zoom:** задача 28–31.03, month-zoom — один бакет марта; week-zoom — не съезжает на пн ISO
-5. **Deadline MSK:** полуночный timestamptz → правильный бакет
-6. **Фильтры:** open скрывает `lane === 'done'`; milestones — только `is_milestone` с датами
-7. **Day-zoom >180 бакетов:** плашка-подсказка, не молчаливый кап
-8. **Sticky labels** при горизонтальном скролле — проверить на проекте с длинным планом
+- [x] ~~Исправить B min/max~~ — уже в handoff  
+- [x] ~~Реализовать A–D~~ — в `main`  
+- [ ] **Не** запускать handoff повторно  
+- [ ] Регрессия (при сомнениях): `npx tsc --noEmit`; delivery phase board + client flat + week/month + today + filter + tooltip + undated  
+- [ ] WIP S-CRIT-PATH — отдельный гейт/коммит, не смешивать с «доделкой VIEW-1»  
+- [ ] Опционально: пометить handoff DONE  
 
 ---
 
 ## Итог
 
-Handoff — **зрелый спринт-промпт**: закрывает review-spike (§9.2, read-only, кастом), хорошо декомпозирован на коммиты, data-layer (`useProjectSchedule`) отделён от view. **Единственный блокер** — противоречие Фазы B (`swimlanes` до C). После правки одной строки + 2–3 уточнения (tooltip/lane, sticky layout, milestone click) — **можно отдавать в Claude Code**.
+Handoff **S-GANTT-VIEW-1** — сильный, гейтовый промпт: §9.2, кастом без либы, селектор-хук, фазы A→D, UTC/MSK, C0 sticky, D1 assignee/lane. Блокер прошлого ревью (min/max в B) **закрыт** в тексте. По live codebase **весь scope уже реализован** (и надстроен VIEW-2 / DEPS / crit).  
+
+**Вердикт: в Claude Code не отправлять. Документ — архив контракта + регрессионный чеклист, оценка промпта 9.5/10.**
