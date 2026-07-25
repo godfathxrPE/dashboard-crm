@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProjectSchedule, type GanttTask } from '@/lib/hooks/use-project-schedule';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
-import { useDeleteTask, useUpdateTaskDates } from '@/lib/hooks/use-tasks';
+import { useDeleteTask, useUpdateTaskDates, useShiftTasks } from '@/lib/hooks/use-tasks';
 import { useProjectColumns, useDeleteColumn } from '@/lib/hooks/use-project-columns';
 import {
   useTaskDependencies,
@@ -24,6 +24,7 @@ import {
   shiftDateKeyByBuckets,
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
+import { computeCascade, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
 import type { Task } from '@/types/entities';
 
 interface GanttTimelineProps {
@@ -336,10 +337,22 @@ function GanttBar({ gt, zoom, s, e, getBucketPx, onEditTask, onDates, setTip, as
   );
 }
 
+// S-SCHEDULE-1B: плюрализация «N зависимую задачу / зависимые задачи / зависимых
+// задач» для тоста-предложения каскада. Общего хелпера в проекте нет
+// (pluralAction локален в TodayView) — inline, как договорено в спринте.
+function pluralDependent(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'зависимую задачу';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'зависимые задачи';
+  return 'зависимых задач';
+}
+
 export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelineProps) {
   const { swimlanes, undated, phaseMode, isLoading, isError } = useProjectSchedule(projectId);
   const { data: team = [] } = useTeamMembers();
   const updateDates = useUpdateTaskDates();
+  const shiftTasks = useShiftTasks();   // S-SCHEDULE-1B: батч-каскад зависимых задач
   // S-GANTT-UX-2: удаление задачи/фазы из Ганта — те же мутации, что на доске
   // (FK-cleanup на БД: deps CASCADE 048, parent_task_id SET NULL 052; RPC 032/033).
   const deleteTask = useDeleteTask();
@@ -667,14 +680,67 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     return model.buckets.length ? w / model.buckets.length : 0;
   }, [model.buckets.length]);
 
+  // S-SCHEDULE-1B: узлы расписания для каскада — из СЫРЫХ свимлейнов (не
+  // filtered/collapsed: каскад считает по всему графу, а не по видимому срезу).
+  // start/end = эффективный span (у сводных = обёртка детей); hasOwnDates=false у
+  // datesFromChildren-узлов (в БД писать нечего); parentTaskId — СЫРОЙ (кросс-лейн).
+  const scheduleNodes = useMemo<ScheduleNode[]>(
+    () =>
+      swimlanes.flatMap((sl) =>
+        sl.tasks.map((gt) => ({
+          id: gt.task.id,
+          start: gt.start,
+          end: gt.end,
+          hasOwnDates: !gt.datesFromChildren,
+          parentTaskId: gt.task.parent_task_id,
+        })),
+      ),
+    [swimlanes],
+  );
+  // Ref с актуальными nodes+edges: тост-предложение живёт до 12с, за это время юзер
+  // мог утащить ещё бар — на клике пересчитываем каскад по свежему ref, не по замыканию
+  // (тот же приём, что undatedDragRef).
+  const scheduleRef = useRef<{ nodes: ScheduleNode[]; edges: ScheduleEdge[] }>({ nodes: [], edges: [] });
+  useLayoutEffect(() => {
+    scheduleRef.current = { nodes: scheduleNodes, edges: dependencies };
+  }, [scheduleNodes, dependencies]);
+
+  // Предложить каскад после записи дат якоря. canManage-гейт: без прав не считаем.
+  const proposeCascade = useCallback(
+    (anchorId: string) => {
+      if (!canManage) return;
+      const { nodes, edges } = scheduleRef.current;
+      const shifts = computeCascade(nodes, edges, new Set([anchorId]));
+      if (shifts.length === 0) return;                 // запас есть / нет зависимых — молча
+      const n = shifts.length;
+      toast(`Сдвинуть ${n} ${pluralDependent(n)}?`, {
+        duration: 12_000,
+        action: {
+          label: 'Сдвинуть',
+          onClick: () => {
+            // пересчёт на клике по свежему ref (между показом и кликом даты могли уехать)
+            const fresh = computeCascade(scheduleRef.current.nodes, scheduleRef.current.edges, new Set([anchorId]));
+            if (fresh.length === 0) return;
+            shiftTasks.mutate(fresh);
+          },
+        },
+      });
+    },
+    [canManage, shiftTasks],
+  );
+
   // S-GANTT-UX-2 (W4): единая запись дат с toast'ом — canManage лишь UI-гейт,
   // RLS-отказ (42501) не должен молча откатывать бар без объяснения.
+  // S-SCHEDULE-1B: только на onSuccess (сервер подтвердил даты якоря) предлагаем
+  // каскад — иначе при 42501 откатится якорь, а тост уже позвал бы двигать хвост
+  // под несдвинутую голову.
   const commitDates = useCallback(
     (v: { id: string; start_date: string; end_date: string }) =>
       updateDates.mutate(v, {
         onError: () => toast.error('Не удалось изменить даты (нет прав или сеть)'),
+        onSuccess: () => proposeCascade(v.id),
       }),
-    [updateDates.mutate],
+    [updateDates.mutate, proposeCascade],
   );
 
   // S-GANTT-UX-2: drag chip из «Без дат» на таймлайн (нативные Pointer Events, как

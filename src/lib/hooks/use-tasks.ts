@@ -7,10 +7,12 @@ import {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
 import type { TaskLane, Json } from '@/types/database';
+import type { CascadeShift } from '@/lib/utils/gantt-schedule';
 import { logActivity } from './use-activity-log';
 
 const QUERY_KEY = ['tasks'] as const;
@@ -372,6 +374,71 @@ export function useUpdateTaskDates() {
     },
     onSettled: () => {
       // префикс ['tasks'] инвалидирует и board, и личный борд
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
+    },
+  });
+}
+
+/**
+ * S-SCHEDULE-1B: батч-сдвиг дат зависимых задач (авто-каскад). Один
+ * оптимистичный патч по всем срезам префикса ['tasks'] (мапой по id, как
+ * useUpdateTaskDates), затем N параллельных UPDATE через allSettled.
+ *
+ * Долг: батч НЕ атомарен — при RLS-отказе на части строк применится часть.
+ * Осознанно (атомарность стоит миграции RPC shift_tasks_dates + apply-гейт, а
+ * спринт UI-only). Частичный отказ ресинкается инвалидацией из onSettled.
+ *
+ * projectId не нужен: как useUpdateTaskDates, патчим/инвалидируем весь префикс
+ * ['tasks'] (ловит и board ['tasks','board',id], и личный борд).
+ */
+export function useShiftTasks() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { silentError: true },   // тостим сами (частичный отказ ≠ throw)
+    mutationFn: async (shifts: CascadeShift[]) => {
+      const results = await Promise.allSettled(
+        shifts.map((s) =>
+          supabase
+            .from('tasks')
+            .update({ start_date: s.start, end_date: s.end })
+            .eq('id', s.id)
+            .then(({ error }) => {
+              if (error) throw error;   // RLS 42501 / CHECK → rejected в allSettled
+            }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      return { ok: shifts.length - failed, failed, total: shifts.length };
+    },
+    onMutate: async (shifts) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const snapshots = snapshotTaskCaches(queryClient);
+      const byId = new Map(shifts.map((s) => [s.id, s]));
+      patchTaskCaches(queryClient, (old) =>
+        (old ?? []).map((t) => {
+          const s = byId.get(t.id);
+          return s ? { ...t, start_date: s.start, end_date: s.end } : t;
+        }),
+      );
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      // Полный откат — сюда попадаем только при неожиданном throw самой мутации
+      // (allSettled частичные отказы не бросает; их ловит onSuccess + инвалидация).
+      rollbackTaskCaches(queryClient, context?.snapshots);
+      toast.error('Не удалось сдвинуть задачи');
+    },
+    onSuccess: ({ ok, failed, total }) => {
+      if (failed === 0) toast.success(`Сдвинуто задач: ${ok}`);
+      else toast.error(`Сдвинуто ${ok} из ${total} — остальные отклонены (нет прав)`);
+    },
+    onSettled: () => {
+      // Один invalidate префикса ['tasks'] — ловит и board, и личный борд, и
+      // вернёт правду из БД при частичном отказе. Рёбра не менялись → deps не трогаем.
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
