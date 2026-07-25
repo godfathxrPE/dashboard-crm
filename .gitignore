@@ -54,3 +54,17 @@ sprint results/
 /_*.mjs
 tests/RESULTS-*.md
 .obsidian/
+
+# локальная инфра/кэши/дампы — не место в репо (chore(git) 2026-07-25)
+.grok/
+scripts/__pycache__/
+supabase/.temp/
+_analysis/auto-sprint-review-artifacts/
+_analysis/*.sh
+*.skill
+# генерируемый выход audit-contrast.py (out_path) — не baseline, цифры в review/
+scripts/audit-contrast-results.json
+# крупные бинарники без ссылок в репо
+docs/grok_CRM.pdf
+docs/grok_report.pdf
+screenshots/
