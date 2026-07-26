@@ -21,6 +21,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Хвост: в дереве два lockfile'а (корневой + реликтовый .netlify/plugins/
+  // package-lock.json от первого Netlify-деплоя 2026-03-30). Next по второму
+  // угадывает workspace root и ворчит на каждом старте. Пиним корень явно —
+  // реликт .netlify/ трогать не надо (это путь отката).
+  outputFileTracingRoot: __dirname,
   images: {
     unoptimized: true,
   },
