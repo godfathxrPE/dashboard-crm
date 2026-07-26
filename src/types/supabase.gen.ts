@@ -1424,6 +1424,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          settings: Json
           updated_at: string | null
         }
         Insert: {
@@ -1431,6 +1432,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          settings?: Json
           updated_at?: string | null
         }
         Update: {
@@ -1438,6 +1440,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          settings?: Json
           updated_at?: string | null
         }
         Relationships: [
@@ -2300,6 +2303,60 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      segments: {
+        Row: {
+          created_at: string
+          entity: string
+          id: string
+          is_shared: boolean
+          name: string
+          org_id: string
+          owner_id: string | null
+          predicate: Json
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity: string
+          id?: string
+          is_shared?: boolean
+          name: string
+          org_id: string
+          owner_id?: string | null
+          predicate?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity?: string
+          id?: string
+          is_shared?: boolean
+          name?: string
+          org_id?: string
+          owner_id?: string | null
+          predicate?: Json
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segments_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -14,9 +14,6 @@ const QUERY_KEY = ['org-settings'] as const;
  * ⚠️ Права: UPDATE на organizations — owner-only (`org_update_owner`, baseline + 054).
  * Читают все члены org (`organizations` SELECT org-scoped), правит только владелец.
  * Расширение под admin — отдельное продуктовое решение, не в этом спринте.
- *
- * ⚠️ Типы: 076 ещё не в `supabase.gen.ts` (регенерация идёт на гейте после apply),
- * поэтому колонка `settings` берётся через каст. После регена касты уходят.
  */
 export function useOrgSettings() {
   return useQuery({
@@ -34,7 +31,7 @@ export function useOrgSettings() {
         .eq('id', orgId as string)
         .single();
       if (error) throw error;
-      return parseOrgSettings((data as unknown as { settings?: unknown } | null)?.settings);
+      return parseOrgSettings(data.settings);
     },
   });
 }
@@ -62,18 +59,18 @@ export function useUpdateOrgSettings() {
       if (readErr) throw readErr;
 
       const merged: OrgSettings = {
-        ...parseOrgSettings((current as unknown as { settings?: unknown } | null)?.settings),
+        ...parseOrgSettings(current.settings),
         ...patch,
       };
 
       const { data, error } = await supabase
         .from('organizations')
-        .update({ settings: merged as unknown as Json } as never)
+        .update({ settings: merged as unknown as Json })
         .eq('id', orgId as string)
         .select('settings')
         .single();
       if (error) throw error;
-      return parseOrgSettings((data as unknown as { settings?: unknown } | null)?.settings);
+      return parseOrgSettings(data.settings);
     },
     onSuccess: (settings) => qc.setQueryData(QUERY_KEY, settings),
     onSettled: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),

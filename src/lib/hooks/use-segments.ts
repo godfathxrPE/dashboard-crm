@@ -1,16 +1,19 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
-import type { Database, Segment, SegmentEntity, SegmentPredicate } from '@/types/database';
+import type {
+  Json,
+  Segment,
+  SegmentEntity,
+  SegmentPredicate,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from '@/types/database';
 
 /**
  * Сегменты (Smart Views, R2-P0-B, миграция 077).
- *
- * ⚠️ Типы: 077 ещё не в `supabase.gen.ts` — регенерация идёт на гейте ПОСЛЕ apply,
- * а код пишется до. Таблица объявлена локальным стабом `DatabaseWithSegments`; после
- * регенерации стаб и `segmentsClient()` удаляются, `createClient()` используется напрямую.
  *
  * ⚠️ org_id пишем ЯВНО: на `segments` нет триггера set_org_id (паттерн stage_requirements /
  * invitations — org-скоуп приходит из UI, а не проставляется в БД).
@@ -18,42 +21,6 @@ import type { Database, Segment, SegmentEntity, SegmentPredicate } from '@/types
  * Ключ кеша без org_id — конвенция проекта (см. use-stage-requirements): смена организации
  * в этом приложении означает перелогин, кеш поднимается заново.
  */
-
-interface SegmentRowDb {
-  id: string;
-  org_id: string;
-  name: string;
-  entity: string;
-  predicate: unknown;
-  is_shared: boolean;
-  owner_id: string | null;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-type SegmentInsertDb = Omit<SegmentRowDb, 'id' | 'created_at' | 'updated_at'> & {
-  id?: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-type DatabaseWithSegments = Omit<Database, 'public'> & {
-  public: Omit<Database['public'], 'Tables'> & {
-    Tables: Database['public']['Tables'] & {
-      segments: {
-        Row: SegmentRowDb;
-        Insert: SegmentInsertDb;
-        Update: Partial<SegmentInsertDb>;
-        Relationships: [];
-      };
-    };
-  };
-};
-
-function segmentsClient(): SupabaseClient<DatabaseWithSegments> {
-  return createClient() as unknown as SupabaseClient<DatabaseWithSegments>;
-}
 
 const EMPTY_PREDICATE: SegmentPredicate = { version: 1, and: [] };
 
@@ -65,18 +32,12 @@ function toPredicate(raw: unknown): SegmentPredicate {
   return { version: 1, and: obj.and as SegmentPredicate['and'] };
 }
 
-function toSegment(row: SegmentRowDb): Segment {
+/** Строка БД → домен. Спред, а не перечисление полей: новые колонки приходят из регена. */
+function toSegment(row: Tables<'segments'>): Segment {
   return {
-    id: row.id,
-    org_id: row.org_id,
-    name: row.name,
+    ...row,
     entity: row.entity as SegmentEntity,
     predicate: toPredicate(row.predicate),
-    is_shared: row.is_shared,
-    owner_id: row.owner_id,
-    sort_order: row.sort_order,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
   };
 }
 
@@ -91,7 +52,7 @@ export function useSegments(entity: SegmentEntity) {
     queryKey: segmentsKey(entity),
     staleTime: 1000 * 60 * 5,
     queryFn: async (): Promise<Segment[]> => {
-      const supabase = segmentsClient();
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('segments')
         .select('*')
@@ -121,7 +82,7 @@ export function useCreateSegment() {
 
   return useMutation({
     mutationFn: async (input: SegmentInput): Promise<Segment> => {
-      const supabase = segmentsClient();
+      const supabase = createClient();
 
       const [{ data: orgId, error: orgErr }, { data: auth, error: authErr }] = await Promise.all([
         supabase.rpc('current_org_id'),
@@ -140,19 +101,18 @@ export function useCreateSegment() {
           org_id: orgId as string,
           name: input.name,
           entity: input.entity,
-          predicate: input.predicate,
+          // Реген типизирует jsonb как `Json`; AST предиката — доменный тип, отсюда каст.
+          predicate: input.predicate as unknown as Json,
           is_shared: input.is_shared,
           // Инвариант segments_owner_shape (077): у общего сегмента владельца нет —
           // право правки даёт роль owner/admin, а не авторство.
           owner_id: input.is_shared ? null : uid,
           sort_order: input.sort_order ?? 0,
-          // `as never` — идиома репозитория (use-contacts/use-companies): postgrest-js@2.100
-          // не выводит Insert через SupabaseClient-generic; строка проверена типом выше.
-        } satisfies SegmentInsertDb as never)
+        } satisfies TablesInsert<'segments'>)
         .select('*')
         .single();
       if (error) throw error;
-      return toSegment(data as SegmentRowDb);
+      return toSegment(data);
     },
     onSettled: (_data, _err, input) =>
       qc.invalidateQueries({ queryKey: segmentsKey(input.entity) }),
@@ -167,7 +127,7 @@ export function useUpdateSegment() {
       id,
       ...patch
     }: Partial<SegmentInput> & { id: string; entity: SegmentEntity }): Promise<Segment> => {
-      const supabase = segmentsClient();
+      const supabase = createClient();
 
       // Перевод личного сегмента в общий обязан обнулить owner_id в том же патче —
       // иначе WITH CHECK политики segments_update / CHECK segments_owner_shape откажут.
@@ -181,14 +141,21 @@ export function useUpdateSegment() {
         ownerPatch = { owner_id: auth.user.id };
       }
 
+      // predicate вынесен из спреда: в БД это jsonb (`Json`), в домене — AST.
+      const { predicate, ...rest } = patch;
+
       const { data, error } = await supabase
         .from('segments')
-        .update({ ...patch, ...ownerPatch } satisfies Partial<SegmentInsertDb> as never)
+        .update({
+          ...rest,
+          ...(predicate ? { predicate: predicate as unknown as Json } : {}),
+          ...ownerPatch,
+        } satisfies TablesUpdate<'segments'>)
         .eq('id', id)
         .select('*')
         .single();
       if (error) throw error;
-      return toSegment(data as SegmentRowDb);
+      return toSegment(data);
     },
     onSettled: (_data, _err, vars) => qc.invalidateQueries({ queryKey: segmentsKey(vars.entity) }),
   });
@@ -199,7 +166,7 @@ export function useDeleteSegment() {
 
   return useMutation({
     mutationFn: async ({ id }: { id: string; entity: SegmentEntity }): Promise<void> => {
-      const supabase = segmentsClient();
+      const supabase = createClient();
       // RLS-deny на DELETE возвращает 0 строк БЕЗ ошибки (грабля S-GANTT-BASELINE-1):
       // просим строку назад и по пустому ответу отличаем «нет прав» от успеха.
       const { data, error } = await supabase.from('segments').delete().eq('id', id).select('id');
