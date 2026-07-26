@@ -979,6 +979,23 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           y: r.top + r.height / 2 - base.top,
         };
       };
+      // ШАГ ряда в пикселях — нужен, чтобы понять чётность разноса рядов (см. yMid ниже).
+      // Считаем как минимальную положительную разницу между центрами баров, а НЕ из
+      // ROW_H (константа в rem — пикселя из неё не получить) и НЕ из высоты обёртки
+      // бара: обёртка 27px, а шаг 28px (между рядами лежит 1px border). На этой разнице
+      // деление копит ~3.7% ошибки на ряд, и уже с ~14 рядов Math.round даёт неверную
+      // чётность — то есть возвращает ровно тот баг, который здесь и чинится.
+      const rowPitch = (() => {
+        const ys = [...b.querySelectorAll<HTMLElement>('[data-task-bar]')]
+          .map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; })
+          .sort((p, q) => p - q);
+        let min = Infinity;
+        for (let i = 1; i < ys.length; i += 1) {
+          const gap = ys[i] - ys[i - 1];
+          if (gap > 0.5 && gap < min) min = gap;          // >0.5 — отсев баров одного ряда
+        }
+        return Number.isFinite(min) ? min : 0;
+      })();
       const STUB = 10;
       const next: EdgePath[] = [];
       for (const dep of dependencies) {
@@ -991,7 +1008,20 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         // его конец, и в succ входим с той стороны, куда смотрит его.
         const exitX = predSide === 'end' ? from.x + STUB : from.x - STUB;
         const entryX = succSide === 'start' ? to.x - STUB : to.x + STUB;
-        const yMid = (from.y + to.y) / 2;
+        const isFS = predSide === 'end' && succSide === 'start';
+        // Перемычка не-FS не должна лечь ВДОЛЬ бара промежуточной задачи. Ряды идут
+        // равномерно, центры баров = центры рядов, поэтому при ЧЁТНОМ разносе рядов
+        // середина между двумя центрами — это ровно центр третьего ряда, и хит-путь
+        // ребра (strokeWidth=10 при высоте бара 10px) перехватил бы pointerdown у чужой
+        // задачи: она перестала бы таскаться, а клик по ней открывал бы поповер связи.
+        // Уводим перемычку в межрядный зазор. При нечётном разносе она и так в зазоре.
+        // Сторона сдвига (вниз) произвольна — оба зазора одинаково свободны.
+        const yMidRaw = (from.y + to.y) / 2;
+        const evenRowSpan =
+          rowPitch > 0 && Math.round(Math.abs(to.y - from.y) / rowPitch) % 2 === 0;
+        // FS перемычки не имеет: у него midY — середина вертикального сегмента elbow,
+        // сдвигать её нельзя (уехал бы якорь бейджа). Сдвиг только для не-FS.
+        const yMid = !isFS && evenRowSpan ? yMidRaw + rowPitch / 2 : yMidRaw;
         // FS сохраняет доспринтовый трёхсегментный elbow (max(from+STUB, to−STUB)) —
         // байт-в-байт, он отсмокан. Для остальных типов этот же роут ЛЁГ БЫ НА БАР:
         // при predSide='start' первый сегмент идёт от левого края pred вправо к midX,
@@ -1000,7 +1030,6 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         // бар перестал бы таскаться, а клик по нему открывал бы поповер связи.
         // Поэтому для не-FS — канонический пятисегментный роут (стаб → вертикаль на
         // полпути → перемычка → стаб → вход), он не пересекает ни один бар.
-        const isFS = predSide === 'end' && succSide === 'start';
         const midX = isFS ? Math.max(exitX, entryX) : (exitX + entryX) / 2;
         next.push({
           id: dep.id,
