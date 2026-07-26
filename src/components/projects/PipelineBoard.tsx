@@ -40,6 +40,7 @@ import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { compareByNextAction } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
+import { applySegment } from '@/lib/domain/segment-eval';
 import { dealMetrics } from '@/lib/selectors/deal-metrics';
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
@@ -47,7 +48,7 @@ import { LostDeals } from './LostDeals';
 import { WonDeals } from './WonDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
-import type { PipelineStage, Direction } from '@/types/database';
+import type { PipelineStage, Direction, SegmentPredicate } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // Phase visual config — keyed by phase_group from DB
@@ -309,10 +310,12 @@ function PhaseColumn({
 interface PipelineBoardProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
   quickFilter?: ProjectQuickFilter | null;
+  /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
+  segment?: SegmentPredicate | null;
   onSwitchView?: () => void;
 }
 
-export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: PipelineBoardProps = {}) {
+export function PipelineBoard({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: PipelineBoardProps = {}) {
   const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
@@ -359,11 +362,14 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, onS
 
   // Direction-filtered projects + быстрые пресеты (?q=attention|nobudget)
   const projects = useMemo(
-    () => applyProjectQuickFilter(
-      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
-      quickFilter,
+    () => applySegment(
+      applyProjectQuickFilter(
+        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        quickFilter,
+      ),
+      segment,
     ),
-    [rawProjects, directionFilter, quickFilter],
+    [rawProjects, directionFilter, quickFilter, segment],
   );
 
   // Effective pipeline: when 'all', show IIoT pipeline

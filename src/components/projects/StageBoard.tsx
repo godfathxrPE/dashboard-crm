@@ -36,13 +36,14 @@ import {
 import { formatBudget } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
+import { applySegment } from '@/lib/domain/segment-eval';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { WonDeals } from './WonDeals';
 import { Badge } from '@/components/ui/Badge';
-import type { PipelineStage, Direction } from '@/types/database';
+import type { PipelineStage, Direction, SegmentPredicate } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // Phase group colors for column header tint
@@ -258,10 +259,12 @@ function StageColumn({
 interface StageBoardProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
   quickFilter?: ProjectQuickFilter | null;
+  /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
+  segment?: SegmentPredicate | null;
   onSwitchView: () => void;
 }
 
-export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwitchView }: StageBoardProps) {
+export function StageBoard({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: StageBoardProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
@@ -280,11 +283,14 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, onSwit
 
   // Direction-filtered projects
   const projects = useMemo(
-    () => applyProjectQuickFilter(
-      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
-      quickFilter,
+    () => applySegment(
+      applyProjectQuickFilter(
+        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        quickFilter,
+      ),
+      segment,
     ),
-    [rawProjects, directionFilter, quickFilter],
+    [rawProjects, directionFilter, quickFilter, segment],
   );
 
   // Active pipeline

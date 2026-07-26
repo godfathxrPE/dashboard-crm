@@ -11,7 +11,7 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
-import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
+import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { formatBudget } from '@/lib/validators/project';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
@@ -35,6 +35,7 @@ export function CompaniesTable() {
   const { data: allContacts } = useContacts();
   const { data: allProjects } = useProjects();
   const lastTouch = useLastTouchMap();
+  const reconnectDays = useReconnectDays();
   const updateCompany = useUpdateCompany();
   const deleteCompany = useDeleteCompany();
   const { data: role } = useOrgRole();
@@ -98,8 +99,8 @@ export function CompaniesTable() {
     has_projects: (c) => c.projects_count > 0,
     has_contacts: (c) => c.contacts_count > 0,
     recent: (c) => c.created_at >= sevenDaysAgo,
-    cooling: (c) => !c.last_touch || daysSince(c.last_touch) > RECONNECT_THRESHOLD_DAYS,
-  }), [sevenDaysAgo]);
+    cooling: (c) => !c.last_touch || daysSince(c.last_touch) > reconnectDays,
+  }), [sevenDaysAgo, reconnectDays]);
 
   const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(rows, chipFilters);
 
@@ -214,7 +215,7 @@ export function CompaniesTable() {
       render: (c) => {
         if (!c.last_touch) return <span className="text-xs text-text-mute">—</span>;
         const days = daysSince(c.last_touch);
-        const level = touchLevel(days);
+        const level = touchLevel(days, reconnectDays);
         if (level === 'ok') {
           return (
             <span className="text-xs text-text-dim">

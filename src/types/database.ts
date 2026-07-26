@@ -465,3 +465,55 @@ export interface Invitation {
   accepted_at: string | null;
   created_at: string;
 }
+
+// ═══ R2-P0-D: настройки организации (organizations.settings, миграция 076) ═══
+// Стаб до регенерации: gen-типы 076/077 не знают (gen types идёт на гейте ПОСЛЕ apply).
+// После регенерации `organizations.settings` появится в supabase.gen.ts как Json —
+// этот тип останется как прикладная схема значения. Зеркало Zod — validators/org-settings.ts.
+// Неизвестные ключи (записанные будущей версией) не валидируются, но и не теряются:
+// запись идёт merge'ом {...current, ...patch}, а не литералом.
+
+export interface OrgSettings {
+  /** Порог тишины по контакту, дни. Дефолт — DEFAULT_RECONNECT_DAYS (21). */
+  reconnect_days?: number;
+  /** Норматив «сколько дней сделке жить в стадии»: default + переопределения по phase_group. */
+  stage_dwell_defaults?: { default?: number; [phaseGroup: string]: number | undefined };
+}
+
+// ═══ R2-P0-B: сегменты (Smart Views, миграция 077) ═══
+// Стаб до регенерации (та же причина, что у OrgSettings). Whitelist полей по сущностям —
+// src/lib/constants/segments.ts; вычислитель — src/lib/domain/segment-eval.ts.
+
+export type SegmentEntity = 'deals' | 'deliveries' | 'contacts' | 'companies' | 'tasks' | 'leads';
+
+export type SegmentOp =
+  | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
+  | 'in' | 'contains' | 'is_null' | 'not_null'
+  | 'days_since_gt' | 'days_since_lt';
+
+export interface SegmentClause {
+  field: string;
+  op: SegmentOp;
+  value?: string | number | boolean | string[];
+}
+
+/** v1: только AND-конъюнкция (F5 ревью). OR-группы — отдельное решение. */
+export interface SegmentPredicate {
+  version: 1;
+  and: SegmentClause[];
+}
+
+export interface Segment {
+  id: string;
+  org_id: string;
+  name: string;
+  entity: SegmentEntity;
+  predicate: SegmentPredicate;
+  /** true — конфиг org (owner_id null, правит owner/admin); false — личный фильтр автора. */
+  is_shared: boolean;
+  /** Владелец личного сегмента. У общих — null (инвариант segments_owner_shape, 077). */
+  owner_id: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

@@ -423,7 +423,7 @@ PK = (id, user_id). RLS: `auth.uid() = user_id`.
 > тенант-модели (аналог `user_settings`) — `org_id` не добавляется. Снапшот
 > дашборда привязан к пользователю, а не к организации.
 
-### organizations _(021)_ — корень тенанта
+### organizations _(021, +076 settings)_ — корень тенанта
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -431,6 +431,15 @@ PK = (id, user_id). RLS: `auth.uid() = user_id`.
 | name | text | NOT NULL |
 | created_by | uuid | → profiles |
 | created_at / updated_at | timestamptz | |
+| settings | jsonb NOT NULL | **076 (R2-P0-D)**, DEFAULT `'{}'`. Настройки org. Известные ключи: `reconnect_days` int 3..90 (порог тишины, был хардкодом `RECONNECT_THRESHOLD_DAYS`), `stage_dwell_defaults` `{default,<phase_group>: int 1..365}`. CHECK'а на схему значения **нет** (ключи растут по спринтам) — форму держит клиентский Zod `validators/org-settings.ts` |
+
+> **⚠️ Настройки правит только owner.** UPDATE на `organizations` — политика
+> `org_update_owner` (`id = current_org_id() AND current_org_role() = 'owner'`,
+> + WITH CHECK из 054). 076 политики **не трогает**: admin читает `settings`, но не пишет.
+> Расширение под admin — отдельное продуктовое решение.
+>
+> **Запись — merge, не перезапись** (`useUpdateOrgSettings`): литерал целиком затёр бы ключ,
+> который параллельно правит другая вкладка/другой ключ будущей версии.
 
 ### memberships _(021)_
 
@@ -1088,6 +1097,58 @@ DELETE-событие под RLS не долетает до клиентов и 
 **Гранты (075):** ровно `select, delete` на заголовок и `select` на строки. 074 объявлял это
 грантами, но **не сузил** — дефолт Supabase выдаёт `authenticated` всё; сужение сделал явный
 `revoke insert, update, truncate, references, trigger` в 075.
+
+### segments _(077, R2-P0-B, S-R2-SEGMENTS-1)_ — Smart Views (именованный предикат)
+
+Определение фильтра, **не результат**: предикат хранится в jsonb, а вычисляется на клиенте
+(`src/lib/domain/segment-eval.ts`) поверх уже загруженного списка. Порог пересмотра в пользу
+SQL-RPC — ~5 000 строк на сущность (записан в шапке вычислителя).
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE. **`set_org_id` НЕ вешается** — org_id приходит явно из UI (паттерн `stage_requirements`/`invitations`). Заморозка — `trg_aa_freeze_org_id` (дословная копия автоцикла 054: `BEFORE UPDATE OF org_id`, `WHEN old IS DISTINCT FROM new`) |
+| name | text NOT NULL | `CHECK char_length(trim(name)) between 1 and 80` |
+| entity | text NOT NULL | `CHECK in ('deals','deliveries','contacts','companies','tasks','leads')`. **UI v1 — только `deals`**: whitelist полей `src/lib/constants/segments.ts`; прочие сущности объявлены ради форвард-совместимости хранилища |
+| predicate | jsonb NOT NULL | DEFAULT `{"version":1,"and":[]}`, `CHECK jsonb_typeof(predicate->'and') = 'array'`. v1 — **только AND** (F5 ревью), OR-групп нет |
+| is_shared | boolean NOT NULL | DEFAULT true. true — конфиг org; false — личный фильтр автора |
+| owner_id | uuid | → **profiles** ON DELETE **CASCADE**; владелец личного сегмента, у общих — NULL |
+| sort_order | int NOT NULL | DEFAULT 0 |
+| created_at / updated_at | timestamptz NOT NULL | `trg_set_updated_at` → `update_updated_at()` |
+| — | — | `constraint segments_owner_shape CHECK ((is_shared AND owner_id IS NULL) OR (NOT is_shared AND owner_id IS NOT NULL))` |
+| — | — | Уникальность — **два partial-индекса**: `uq_segments_shared_name (org_id, entity, name) WHERE is_shared` и `uq_segments_personal_name (org_id, entity, owner_id, name) WHERE NOT is_shared`. Один общий `unique` не дал бы двум людям завести личный сегмент с одинаковым именем |
+| — | — | Индексы: `idx_segments_org_entity (org_id, entity, sort_order)`, `idx_segments_owner (owner_id) WHERE NOT is_shared` |
+
+**Почему `owner_id` — CASCADE, а не SET NULL** (отклонение от текста спринта): при `SET NULL`
+удаление профиля выполняет каскадный UPDATE, который проверяется CHECK'ами — и `segments_owner_shape`
+уронил бы удаление профиля. CASCADE даёт верную семантику: личные сегменты уходят с автором,
+общие (owner_id NULL, FK-ссылки нет) остаются. Побочно: авторство **общего** сегмента не хранится —
+право правки даёт роль owner/admin, а не авторство.
+
+**RLS (077, `TO authenticated`)** — везде `( select … )`-обёртка вокруг `auth.uid()` /
+`current_org_*()` (initplan, иначе advisor WARN):
+
+- `segments_select` — `org_id = current_org_id() AND (is_shared OR owner_id = auth.uid())`.
+  **Личные сегменты не видны всей org** (правка W1 ревью Грока: без второго конъюнкта полоса
+  сегментов светила бы чужие личные фильтры). Owner/admin в чужие личные тоже не заглядывают.
+- `segments_insert` / `segments_update` / `segments_delete` — один предикат:
+  `общий ∧ роль in (owner,admin)` ∨ `личный ∧ owner_id = auth.uid()`.
+  У UPDATE он стоит **и в USING, и в WITH CHECK** (паттерн 059) — иначе manager перекинул бы
+  свой личный сегмент в общие.
+- Следствие для UI: перевод личного сегмента в общий обязан обнулить `owner_id` тем же патчем.
+
+**Гранты (урок 075):** `revoke all … from anon`, `revoke truncate, references, trigger … from
+authenticated`, затем `grant select, insert, update, delete to authenticated` поверх RLS.
+
+**Сид (идемпотентный, по всем org):** 4 общих сегмента сделок — «Без next_step», «Без даты
+действия», «Просрочен next action», «ERP в работе». `on conflict do nothing` срабатывает по
+`uq_segments_shared_name` → повторный apply безопасен. Сегмент «Тихо >N дней» **не сидируется**:
+`last_touch` считается на клиенте (`useLastTouchMap`), в строке `contacts` его нет — это P1
+(`contact_last_touch`).
+
+**Не заменяет `saved-views`** (localStorage `{route, query}`, `SavedViewChips` на 4 страницах):
+там снимок URL, здесь — предикат; автоконвертации нет (F10). Полосы живут рядом, фильтры
+комбинируются по «И».
 
 ### activities _(006)_
 
@@ -1810,6 +1871,18 @@ exists pg_cron` (включено в 051).
   `useReorderTasks` (один optimistic-снапшот на батч). Смоуки гейта: member-батч
   своих задач → ok; батч с чужим id → 42501; anon → denied; порядок стабилен
   после рефетча; advisors.
+
+- **076, 077** _(S-R2-SEGMENTS-1, R2-P0-D + R2-P0-B — **НЕ применены, ждут гейта Cowork**)_ —
+  промежуточные 040–075 описаны блоками выше (ledger «Дельты 062–075»).
+  **076**: `organizations.settings jsonb NOT NULL DEFAULT '{}'` — политики не трогаются,
+  правка остаётся owner-only. **077**: таблица `segments` + 4 политики + два partial-unique
+  + сид 4 общих сегментов сделок + сужение грантов по уроку 075.
+  План смоуков гейта: owner создаёт общий сегмент → виден второму пользователю; manager
+  общий создать не может (RLS), личный создаёт; личный сегмент manager'а **не виден** owner'у
+  (`segments_select`); manager не переводит свой личный в общий (WITH CHECK); повторный сид
+  → `on conflict do nothing`, дублей нет; сегмент + чип `?direction` фильтруют вместе (AND);
+  порог тишины меняется в Настройках → «Сегодня → Остывают» реагирует; не-owner видит секцию
+  настроек read-only; advisors (ожидание: initplan-WARN на новых политиках нет — обёртки `( select … )`).
 
 ## Edge Functions
 

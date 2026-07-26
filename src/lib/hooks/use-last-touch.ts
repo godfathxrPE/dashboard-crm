@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { useCalls } from './use-calls';
 import { useMeetings } from './use-meetings';
 import { localDateKey } from '@/lib/utils/date-helpers';
-import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
+import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
 
 export interface LastTouch {
   /** ISO дата последнего состоявшегося касания */
@@ -28,11 +28,15 @@ export type TouchLevel = 'ok' | 'cooling' | 'cold';
  *  - cold  (red):    старше 2× порога;
  *  - cooling (yellow): старше порога ИЛИ касаний не было;
  *  - ok:    свежее порога.
+ *
+ * R2-P0-D: порог — настройка организации. Функция чистая, поэтому берёт его параметром;
+ * клиентские компоненты передают `useReconnectDays()`. Дефолт оставлен, чтобы вызов
+ * без порога (пока настройка грузится) вёл себя как раньше.
  */
-export function touchLevel(days: number | null): TouchLevel {
+export function touchLevel(days: number | null, thresholdDays: number = DEFAULT_RECONNECT_DAYS): TouchLevel {
   if (days === null) return 'cooling';
-  if (days > RECONNECT_THRESHOLD_DAYS * 2) return 'cold';
-  if (days > RECONNECT_THRESHOLD_DAYS) return 'cooling';
+  if (days > thresholdDays * 2) return 'cold';
+  if (days > thresholdDays) return 'cooling';
   return 'ok';
 }
 
