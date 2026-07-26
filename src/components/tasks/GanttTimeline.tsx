@@ -987,17 +987,28 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         const from = anchor(dep.predecessor_id, predSide);
         const to = anchor(dep.successor_id, succSide);
         if (!from || !to) continue;                      // конец скрыт фильтром → пропускаем стрелку
-        // Куда стрелка выходит из pred и с какой стороны входит в succ. Вертикальный
-        // сегмент elbow ставим правее обоих стабов: для succSide='start' наконечник
-        // входит слева (как было у FS), для 'end' — справа (канон FF/SF).
+        // Стабы наружу от связанных концов: из pred уходим в ту сторону, куда смотрит
+        // его конец, и в succ входим с той стороны, куда смотрит его.
         const exitX = predSide === 'end' ? from.x + STUB : from.x - STUB;
         const entryX = succSide === 'start' ? to.x - STUB : to.x + STUB;
-        const midX = Math.max(exitX, entryX);            // FS: тот же max(from+STUB, to−STUB), что до спринта
+        const yMid = (from.y + to.y) / 2;
+        // FS сохраняет доспринтовый трёхсегментный elbow (max(from+STUB, to−STUB)) —
+        // байт-в-байт, он отсмокан. Для остальных типов этот же роут ЛЁГ БЫ НА БАР:
+        // при predSide='start' первый сегмент идёт от левого края pred вправо к midX,
+        // то есть по телу бара на его вертикальном центре. Хит-путь ребра шириной 10px
+        // при высоте бара h-2.5 (10px) накрывает бар целиком и перехватывает pointerdown:
+        // бар перестал бы таскаться, а клик по нему открывал бы поповер связи.
+        // Поэтому для не-FS — канонический пятисегментный роут (стаб → вертикаль на
+        // полпути → перемычка → стаб → вход), он не пересекает ни один бар.
+        const isFS = predSide === 'end' && succSide === 'start';
+        const midX = isFS ? Math.max(exitX, entryX) : (exitX + entryX) / 2;
         next.push({
           id: dep.id,
-          d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`,
-          midX,
-          midY: (from.y + to.y) / 2,                     // середина вертикального сегмента elbow
+          d: isFS
+            ? `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`
+            : `M ${from.x} ${from.y} L ${exitX} ${from.y} L ${exitX} ${yMid} L ${entryX} ${yMid} L ${entryX} ${to.y} L ${to.x} ${to.y}`,
+          midX,                                          // якорь бейджа/поповера
+          midY: yMid,                                    // середина вертикального сегмента elbow
           critical: showCritical && criticalIds.has(dep.predecessor_id) && criticalIds.has(dep.successor_id), // S-GANTT-CPM: ребро критично, если оба конца критические
           violated: violation.has(dep.id),               // S-SCHEDULE-1a: soft-warn связи
           lag_days: dep.lag_days,

@@ -138,6 +138,16 @@ export function useUpdateTaskDependency(projectId: string) {
       const patch: { lag_days?: number; dep_type?: DepType } = {};
       if (input.lag_days !== undefined) patch.lag_days = normalizeLag(input.lag_days);
       if (input.dep_type !== undefined) patch.dep_type = input.dep_type;
+      // Оба поля не переданы — менять нечего. Сейчас недостижимо (единственный вызов
+      // шлёт оба), но пустой .update({}) — это 400 от PostgREST, а не no-op: выходим
+      // до сети, отдав текущее состояние ребра из кэша.
+      if (Object.keys(patch).length === 0) {
+        const cached = queryClient
+          .getQueryData<DependencyEdge[]>(key)
+          ?.find((e) => e.id === input.id);
+        if (cached) return cached;
+        throw new Error('useUpdateTaskDependency: пустой патч и ребра нет в кэше');
+      }
 
       const { data, error } = await supabase
         .from('task_dependencies')
