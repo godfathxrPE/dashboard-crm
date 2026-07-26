@@ -158,9 +158,15 @@ RLS:
 ```sql
 alter table public.segments enable row level security;
 
--- читают все члены org
+-- ПРАВКА по ревью Грока (W1): личные сегменты НЕ видны всей org.
+-- Было `using (org_id = current_org_id())` — SegmentsBar светил бы чужие личные фильтры.
 create policy segments_select on public.segments
-  for select using (org_id = ( select public.current_org_id() ));
+  for select using (
+    org_id = ( select public.current_org_id() )
+    and ( is_shared or owner_id = ( select auth.uid() ) )
+  );
+-- Owner/admin в чужие ЛИЧНЫЕ сегменты тоже не заглядывают: это персональные фильтры,
+-- не конфиг организации. Если понадобится админский обзор — отдельным решением.
 
 -- писать: shared — owner/admin; personal — только свой
 create policy segments_insert on public.segments
@@ -168,10 +174,15 @@ create policy segments_insert on public.segments
     org_id = ( select public.current_org_id() )
     and (
       ( is_shared and ( select public.current_org_role() ) in ('owner','admin') )
-      or ( not is_shared and owner_id = auth.uid() )
+      or ( not is_shared and owner_id = ( select auth.uid() ) )
     )
   );
 ```
+
+**Стиль обязателен (W3 ревью):** `auth.uid()` и `current_org_*()` в политиках — строго в
+обёртке `( select … )`. Это initplan-оптимизация: без неё функция вычисляется на каждую
+строку и Supabase-advisor даёт WARN. В живой БД так сделано везде (проверено на
+`ai_runs_*`, `meetings_select`) — не отступать.
 
 `segments_update` — тот же предикат **и в USING (старая строка), и в WITH CHECK (новая)**,
 как в 059: иначе manager перекинет свой личный сегмент в shared. `segments_delete` — USING
@@ -223,6 +234,12 @@ Whitelist полей — **только `deals`** в v1 (`src/lib/constants/segm
 `status`, `stage_id`, `direction`, `owner_id`, `budget`, `next_action_date`, `next_step`,
 `stage_entered_at`, `probability`, `company_id`. Остальные сущности объявлены в CHECK, но
 UI для них не подключаем — иначе спринт раздувается вчетверо.
+
+### Типы до регенерации (W4 ревью)
+
+`gen types` идёт на гейте **после** apply, а код пишется до. Поэтому `segments` и
+`organizations.settings` руками застабить в `src/types/database.ts` (паттерн baseline-таблиц
+074) и **не** трогать `supabase.gen.ts`. После гейта Олег регенерит, стабы уходят.
 
 ### Чистый вычислитель + тесты
 

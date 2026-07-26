@@ -8,8 +8,37 @@ R2-P0-E. Расширение работающего движка (050/051), **�
 
 **Трудоёмкость: ~6–8 ч. Риск низкий-средний** (новый cron-джоб + расширение CHECK'ов).
 
-Независим от `SEGMENTS` и `TRANSITION` — можно катить параллельно, но миграция должна встать
-после 078 по номеру.
+Независим от `SEGMENTS` и `TRANSITION` по коду, но **номер 079 занимает только после того,
+как 078 ушла в 1a** (W1 ревью: не «претендовать» на один номер из двух ветвей). Если 1a
+задерживается — либо ждём, либо dwell берёт 078, а 1a перенумеровывается; согласовать до старта.
+
+## Проверено по живой БД до старта (можно не перепроверять)
+
+**`stage_entered_at` действительно обновляется при смене стадии** — это был главный открытый
+вопрос ревью (W3: «если нет — dwell не работает вообще»). Механизм: триггер
+`trg_sync_project_stage` (BEFORE INSERT OR UPDATE) → `sync_project_stage()`, внутри
+`IF TG_OP='INSERT' OR NEW.stage_id IS DISTINCT FROM OLD.stage_id THEN NEW.stage_entered_at := now()`.
+Ключ идемпотентности `stage_id@stage_entered_at` рабочий.
+
+⚠️ **Но там же засада для действий:** на смене стадии работают **два** пересекающихся
+триггера — `trg_sync_deal_stage_fields` (BEFORE UPDATE OF stage_id: перезаписывает
+`probability` значением из стадии, ставит `status`/`actual_close_date`) и
+`trg_sync_project_stage` (BEFORE INSERT OR UPDATE: `stage_entered_at`, `status`,
+`actual_close_date`). Порядок алфавитный → `sync_project_stage` выигрывает конфликты.
+Следствие для этого спринта: действие `set_field` с полем `probability` на dwell-правиле
+**переживёт только до следующей смены стадии** — стадия его перезапишет. В UI редактора
+правил это не запрещаем, но в подсказку поля вынести.
+
+**Реальные имена констрейнтов (брать эти, не угадывать):**
+
+| Констрейнт | Текущее значение |
+|---|---|
+| `automation_rules_trigger_type_check` | `stage_entered`, `status_changed`, `field_changed`, `task_overdue` |
+| `automation_rules_action_type_check` | `create_task`, `notify`, `create_activity`, `set_field` |
+| `notifications_type_check` | `task_assigned`, `project_assigned`, `deal_won`, `automation` |
+
+**Живые cron-джобы:** `wf-overdue-daily` (`0 6 * * *`), `recurring-daily` (`5 6 * * *`) —
+`10 6` для dwell свободен.
 
 ---
 
@@ -57,8 +86,8 @@ alter table public.automation_rules add constraint <то_же_имя> check (
 -- notifications_type_check += 'spawn_suggest'
 ```
 
-**Имена констрейнтов брать из живой БД** (`pg_constraint`), а не угадывать: 050 и 051 их уже
-дропали/пересоздавали.
+Имена — из таблицы выше (сверено по `pg_constraint` 2026-07-26); всё равно перепроверить
+в разведке одним запросом, вдруг что-то поменялось между гейтами.
 
 ⚠️ **Обратимость:** откат (re-narrow CHECK) упадёт, если в таблицах уже есть строки с новыми
 значениями. Записать в шапку миграции: перед откатом — удалить правила с

@@ -25,11 +25,18 @@
 стадии B требует `budget`, — хотя патч его закрывает. Без этого фикса модалка с During-полями
 физически не работает.
 
-**F2. История смен стадий не пишется с 047.** 047 удалил legacy `projects.stage` вместе с
-`on_stage_change` / `log_stage_change`; нового триггера на `stage_id` нет. `stage_entered_at`
-хранит только текущее значение. Аналитика воронки (конверсия, median dwell) задним числом не
-считается — данные надо начинать копить сейчас, а не в P2. Baseline-файл ещё содержит
-удалённые функции — им не обманываться, проверять по живой БД.
+**F2. История смен стадий не пишется с 047.** ✅ **Подтверждено по живой БД 2026-07-26**
+(Грок ставил «plausible» — вопрос закрыт). Полный список триггеров на `projects` в проде:
+`set_updated_at`, `trg_aa_enforce_stage_gate`, `trg_aa_freeze_org_id`, `trg_log_delete_projects`,
+`trg_notify_deal_won`, `trg_notify_project_assigned`, `trg_set_org_id`,
+`trg_sync_deal_stage_fields`, `trg_sync_project_stage`, `trg_zz_delivery_completion_gate`,
+`trg_zz_run_automations`, `trg_zz_seed_columns`. **Ни один не пишет историю стадий.**
+`on_stage_change` / `log_stage_change` живут только в `baseline.sql` — 047 снял их вместе с
+legacy `projects.stage`, и в проде их нет.
+
+`stage_entered_at` хранит только текущее значение (его выставляет `sync_project_stage`).
+Значит аналитика воронки — конверсия стадий, median dwell — задним числом не считается
+вообще: данные надо начинать копить сейчас, а не в P2.
 
 ---
 
@@ -114,6 +121,10 @@ as $$ select public.check_stage_requirements_row($1, $2, null::jsonb) $$;
 
 ACL: `_row` — триггерная, не RPC → `revoke all from public, anon, authenticated`,
 `grant execute to service_role` (паттерн 056b). 2-арная сохраняет свои гранты.
+
+**Имя нового триггера — `trg_zy_log_stage_transition`** (проверено: порядок триггеров
+алфавитный, `zy` < `zz_run_automations` → история пишется до автоматизаций, после
+BEFORE-гейта `trg_aa_*`).
 
 `aa_enforce_stage_gate` — `create or replace`, единственное изменение:
 `v_unmet := public.check_stage_requirements_row(NEW.id, NEW.stage_id, to_jsonb(NEW));`
@@ -208,6 +219,21 @@ export type TransitionInput = {
 | Пометить проигранной | `ProjectDetail.tsx` (~555) | `stage_id` + `loss_reason` одним mutate |
 | Пометить выигранной | `ProjectDetail.tsx` (~494 `wonReasons`) | тот же паттерн |
 | `ProjectModal` (правка сделки) | `ProjectModal.tsx` | **решение:** для `type=client` поле стадии в форме сделать read-only с подсказкой «стадия меняется на воронке»; менять её из общей формы — путь, который потом обойдёт модалку |
+| Delivery/internal доски | `StageBoard.tsx`, `DeliveryPipelineBoard.tsx` | **тоже зовут `moveToStageId`** (W1 ревью). Сервис под хуком их покрывает автоматически; модалка (1b) на них **не** распространяется — это фазы, не воронка |
+
+⚠️ **Acceptance-grep не должен считать delivery-пути нарушением** (W1 ревью): в 1a они
+легально ходят через тот же сервис. Критерий формулировать как «прямых
+`.update({stage_id})` вне сервиса нет», а не «строки `stage_id:` отсутствуют в компонентах».
+
+⚠️ **Засада на смене стадии — два пересекающихся триггера.** `trg_sync_deal_stage_fields`
+(BEFORE UPDATE OF stage_id) перезаписывает `probability` значением из стадии и ставит
+`status`/`actual_close_date`; `trg_sync_project_stage` (BEFORE INSERT OR UPDATE) ставит
+`stage_entered_at`, `status` и **безусловно обнуляет `actual_close_date`** для не-won/lost
+стадий. Порядок алфавитный → `sync_project_stage` выигрывает конфликты. Отсюда правило для
+сервиса и модалки: **`status`, `probability`, `actual_close_date` в патч перехода не
+включать никогда** — их выставляет БД, и любой клиентский дубль либо будет затёрт, либо
+затрёт логику стадии. Само расхождение двух триггеров — отдельный хвост на потом, в этом
+спринте его не чиним.
 
 `useMoveProject().moveToStageId` остаётся, но внутри зовёт сервис — так все четыре точки
 `PipelineBoard` покрываются одной правкой.
