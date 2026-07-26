@@ -112,10 +112,20 @@ export function useCreateTaskDependency(projectId: string) {
   });
 }
 
+/** Целое ≥ 0 (v1 без lead-time / отрицательного lag); NaN из инпута → 0. */
+const normalizeLag = (lag: number): number => {
+  const n = Math.floor(lag);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
 /**
- * S-SCHEDULE-1a: правка lag_days ребра (FS + N календарных дней). Шлём СТРОГО
- * lag_days — смена predecessor/successor через UPDATE обошла бы DAG-валидатор
- * 048 (он BEFORE INSERT only, см. 062). Тот же оптимистик-паттерн.
+ * S-SCHEDULE-1a: правка ребра. Шлём СТРОГО lag_days и dep_type — смена
+ * predecessor/successor через UPDATE обошла бы DAG-валидатор 048 (он BEFORE INSERT
+ * only, см. 062), поэтому третьего поля в input быть не должно. Тот же
+ * оптимистик-паттерн.
+ *
+ * S-GANTT-DEPTYPES: оба поля опциональны и уезжают одним UPDATE — апдейт собирается
+ * только из переданных ключей, чтобы правка одного lag не переписывала тип (и наоборот).
  */
 export function useUpdateTaskDependency(projectId: string) {
   const supabase = createClient();
@@ -124,12 +134,14 @@ export function useUpdateTaskDependency(projectId: string) {
 
   return useMutation({
     meta: { silentError: true },
-    mutationFn: async (input: { id: string; lag_days: number }) => {
-      // клиентская валидация: целое ≥ 0 (v1 без lead-time / отрицательного lag)
-      const lag = Math.max(0, Math.floor(input.lag_days));
+    mutationFn: async (input: { id: string; lag_days?: number; dep_type?: DepType }) => {
+      const patch: { lag_days?: number; dep_type?: DepType } = {};
+      if (input.lag_days !== undefined) patch.lag_days = normalizeLag(input.lag_days);
+      if (input.dep_type !== undefined) patch.dep_type = input.dep_type;
+
       const { data, error } = await supabase
         .from('task_dependencies')
-        .update({ lag_days: lag })
+        .update(patch)
         .eq('id', input.id)
         .select('id, predecessor_id, successor_id, dep_type, lag_days')
         .single();
@@ -142,7 +154,13 @@ export function useUpdateTaskDependency(projectId: string) {
       const previous = queryClient.getQueryData<DependencyEdge[]>(key);
       queryClient.setQueryData<DependencyEdge[]>(key, (old) =>
         (old ?? []).map((e) =>
-          e.id === input.id ? { ...e, lag_days: Math.max(0, Math.floor(input.lag_days)) } : e,
+          e.id === input.id
+            ? {
+                ...e,
+                ...(input.lag_days !== undefined ? { lag_days: normalizeLag(input.lag_days) } : {}),
+                ...(input.dep_type !== undefined ? { dep_type: input.dep_type } : {}),
+              }
+            : e,
         ),
       );
       return { previous };
