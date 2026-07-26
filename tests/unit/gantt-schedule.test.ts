@@ -14,6 +14,13 @@ const summaryOwn = (id: string, start: string, end: string): ScheduleNode =>
   ({ id, start, end, hasOwnDates: true, parentTaskId: null });
 const fs = (predecessor_id: string, successor_id: string, lag_days = 0): ScheduleEdge =>
   ({ predecessor_id, successor_id, dep_type: 'FS', lag_days });
+// S-GANTT-DEPTYPES: ребро произвольного типа
+const dep = (
+  predecessor_id: string,
+  successor_id: string,
+  dep_type: string,
+  lag_days = 0,
+): ScheduleEdge => ({ predecessor_id, successor_id, dep_type, lag_days });
 
 const byId = (shifts: ReturnType<typeof computeCascade>) =>
   new Map(shifts.map((s) => [s.id, s]));
@@ -75,13 +82,12 @@ describe('computeCascade', () => {
     expect(shifts.get('D')).toMatchObject({ start: '2026-08-11', end: '2026-08-11' });
   });
 
-  it('dep_type SS полностью игнорируется', () => {
+  it('неизвестный dep_type полностью игнорируется (мусор мимо CHECK 048)', () => {
     const nodes = [
       leaf('A', '2026-08-04', '2026-08-05'),
       leaf('B', '2026-08-01', '2026-08-02'),
     ];
-    const edges: ScheduleEdge[] = [{ predecessor_id: 'A', successor_id: 'B', dep_type: 'SS', lag_days: 0 }];
-    expect(computeCascade(nodes, edges, new Set(['A']))).toEqual([]);
+    expect(computeCascade(nodes, [dep('A', 'B', 'XX')], new Set(['A']))).toEqual([]);
   });
 
   it('successor — сводный узел с двумя детьми → едут оба ребёнка + сам узел (hasOwnDates)', () => {
@@ -113,6 +119,74 @@ describe('computeCascade', () => {
 
     expect(shifts.has('B')).toBe(false);                 // якорь неподвижен
     expect(shifts.get('C')).toMatchObject({ start: '2026-08-09', end: '2026-08-09' }); // от B.end
+  });
+
+  // ── S-GANTT-DEPTYPES: SS / FF / SF в каскаде ───────────────────────────────
+  // Общая канва: A — якорь 08-05..08-09, B — 08-01..08-03 (длительность 3 дня).
+  // Меняется только тип ребра, поэтому видно, КАКОЙ конец B к КАКОМУ концу A тянется.
+
+  it('SS: B.start подтягивается к A.start (не к A.end), длительность цела', () => {
+    const nodes = [leaf('A', '2026-08-05', '2026-08-09'), leaf('B', '2026-08-01', '2026-08-03')];
+    const shifts = byId(computeCascade(nodes, [dep('A', 'B', 'SS')], new Set(['A'])));
+    // earliest = A.start 08-05 (НЕ A.end 08-09); Δ = 4, длительность 3 дня сохранена
+    expect(shifts.get('B')).toMatchObject({ start: '2026-08-05', end: '2026-08-07', deltaDays: 4 });
+  });
+
+  it('SS с lag 2: earliest = A.start + 2', () => {
+    const nodes = [leaf('A', '2026-08-05', '2026-08-09'), leaf('B', '2026-08-01', '2026-08-03')];
+    const shifts = byId(computeCascade(nodes, [dep('A', 'B', 'SS', 2)], new Set(['A'])));
+    expect(shifts.get('B')).toMatchObject({ start: '2026-08-07', end: '2026-08-09' });
+  });
+
+  it('FF: к A.end подтягивается ФИНИШ B, старт восстанавливается по длительности', () => {
+    const nodes = [leaf('A', '2026-08-05', '2026-08-09'), leaf('B', '2026-08-01', '2026-08-03')];
+    const shifts = byId(computeCascade(nodes, [dep('A', 'B', 'FF')], new Set(['A'])));
+    // B.end 08-03 → 08-09 (Δ = 6); старт = 08-09 − (3−1) = 08-07, а НЕ 08-09
+    expect(shifts.get('B')).toMatchObject({ start: '2026-08-07', end: '2026-08-09', deltaDays: 6 });
+  });
+
+  it('SF: финиш B подтягивается к A.start', () => {
+    const nodes = [leaf('A', '2026-08-05', '2026-08-09'), leaf('B', '2026-08-01', '2026-08-03')];
+    const shifts = byId(computeCascade(nodes, [dep('A', 'B', 'SF')], new Set(['A'])));
+    // B.end 08-03 → A.start 08-05 (Δ = 2); старт 08-03
+    expect(shifts.get('B')).toMatchObject({ start: '2026-08-03', end: '2026-08-05', deltaDays: 2 });
+  });
+
+  it('lag 0: ограничиваемый конец ровно на earliest → сдвига НЕТ (для всех четырёх типов)', () => {
+    const a = leaf('A', '2026-08-01', '2026-08-05');
+    const anchors = new Set(['A']);
+    // FS: B.start === A.end;  SS: B.start === A.start
+    expect(computeCascade([a, leaf('B', '2026-08-05', '2026-08-06')], [fs('A', 'B')], anchors)).toEqual([]);
+    expect(computeCascade([a, leaf('B', '2026-08-01', '2026-08-02')], [dep('A', 'B', 'SS')], anchors)).toEqual([]);
+    // FF: B.end === A.end;    SF: B.end === A.start
+    expect(computeCascade([a, leaf('B', '2026-08-04', '2026-08-05')], [dep('A', 'B', 'FF')], anchors)).toEqual([]);
+    expect(computeCascade([a, leaf('B', '2026-08-01', '2026-08-01')], [dep('A', 'B', 'SF')], anchors)).toEqual([]);
+  });
+
+  it('смешанный граф: у C рёбра FS и FF → едет по максимуму требуемого Δ, не по последнему', () => {
+    const nodes = [
+      leaf('A', '2026-08-01', '2026-08-04'),   // якорь: FS требует C.start ≥ 08-04 ⇒ Δ = 2
+      leaf('B', '2026-08-01', '2026-08-10'),   // якорь: FF требует C.end   ≥ 08-10 ⇒ Δ = 7
+      leaf('C', '2026-08-02', '2026-08-03'),
+    ];
+    const edges = [fs('A', 'C'), dep('B', 'C', 'FF')];
+    const shifts = byId(computeCascade(nodes, edges, new Set(['A', 'B'])));
+    // Δ = max(2, 7) = 7 — сравнивать «даты earliest» разных типов между собой нельзя,
+    // сопоставимы только требуемые сдвиги.
+    expect(shifts.get('C')).toMatchObject({ start: '2026-08-09', end: '2026-08-10', deltaDays: 7 });
+  });
+
+  it('SS-цепочка A→B→C: сдвиг стартов распространяется по топопорядку', () => {
+    const nodes = [
+      leaf('A', '2026-08-05', '2026-08-06'),   // якорь
+      leaf('B', '2026-08-01', '2026-08-02'),
+      leaf('C', '2026-08-01', '2026-08-01'),
+    ];
+    const edges = [dep('A', 'B', 'SS'), dep('B', 'C', 'SS', 1)];
+    const shifts = byId(computeCascade(nodes, edges, new Set(['A'])));
+    expect(shifts.get('B')).toMatchObject({ start: '2026-08-05', end: '2026-08-06' });
+    // C считается от УЖЕ сдвинутого B.start (08-05) + 1
+    expect(shifts.get('C')).toMatchObject({ start: '2026-08-06', end: '2026-08-06' });
   });
 
   it('искусственный цикл A→B→A → возвращает результат без зависания', () => {
@@ -251,5 +325,104 @@ describe('computeCpm', () => {
     const { byId, projectFinish } = computeCpm([], []);
     expect(byId.size).toBe(0);
     expect(projectFinish).toBeNull();
+  });
+
+  // ── S-GANTT-DEPTYPES: SS / FF / SF в обоих проходах ───────────────────────
+  // На каждый тип проверяем ES/EF (прямой) И LS/LF/TF (обратный) — расчёт границы
+  // «в старт» и обратный перевод «в финиш» несимметричны по коду и ломаются порознь.
+
+  it('SS: прямой берёт ES предшественника, обратный переводит границу LS→LF', () => {
+    const nodes = [
+      leaf('A', '2026-08-01', '2026-08-05'), // dur 5
+      leaf('B', '2026-08-01', '2026-08-02'), // dur 2
+    ];
+    const { byId, projectFinish } = computeCpm(nodes, [dep('A', 'B', 'SS')]);
+    expect(projectFinish).toBe('2026-08-05');
+    // прямой: ES(B) = ES(A) = 08-01 (НЕ EF(A) = 08-05)
+    expect(byId.get('B')).toMatchObject({ es: '2026-08-01', ef: '2026-08-02' });
+    // обратный: LF(B) = PF; запас 3 дня. LF(A) капнут горизонтом (SS не держит финиш A)
+    expect(byId.get('B')).toMatchObject({ ls: '2026-08-04', lf: '2026-08-05', totalFloat: 3, critical: false });
+    expect(byId.get('A')).toMatchObject({ lf: '2026-08-05', ls: '2026-08-01', totalFloat: 0, critical: true });
+  });
+
+  it('SS с lag 2: ES(B) = ES(A) + 2, та же lag назад в обратном проходе', () => {
+    const nodes = [leaf('A', '2026-08-01', '2026-08-05'), leaf('B', '2026-08-01', '2026-08-02')];
+    const { byId } = computeCpm(nodes, [dep('A', 'B', 'SS', 2)]);
+    expect(byId.get('B')!.es).toBe('2026-08-03');
+    expect(byId.get('B')!.totalFloat).toBe(1);            // LS 08-04 − ES 08-03
+    expect(byId.get('A')!.critical).toBe(true);
+  });
+
+  it('FF: прямой задаёт EF напрямую (старт восстановлен вычитанием длительности), оба конца критические', () => {
+    const nodes = [
+      leaf('A', '2026-08-01', '2026-08-05'), // dur 5
+      leaf('B', '2026-08-01', '2026-08-03'), // dur 3
+    ];
+    const { byId, projectFinish } = computeCpm(nodes, [dep('A', 'B', 'FF')]);
+    expect(projectFinish).toBe('2026-08-05');
+    // EF(B) ≥ EF(A) = 08-05 ⇒ ES(B) = 08-05 − (3−1) = 08-03 (own_start 08-01 перекрыт)
+    expect(byId.get('B')).toMatchObject({ es: '2026-08-03', ef: '2026-08-05' });
+    // обратный: LF(A) = LF(B) (конец к концу) ⇒ обе задачи без запаса
+    expect(byId.get('A')).toMatchObject({ lf: '2026-08-05', totalFloat: 0, critical: true });
+    expect(byId.get('B')).toMatchObject({ lf: '2026-08-05', totalFloat: 0, critical: true });
+  });
+
+  it('SF: прямой тянет ФИНИШ последователя к СТАРТУ предшественника', () => {
+    const nodes = [
+      leaf('A', '2026-08-10', '2026-08-12'), // dur 3
+      leaf('B', '2026-08-01', '2026-08-02'), // dur 2, own_start далеко слева
+    ];
+    const { byId, projectFinish } = computeCpm(nodes, [dep('A', 'B', 'SF')]);
+    expect(projectFinish).toBe('2026-08-12');
+    // EF(B) ≥ ES(A) = 08-10 ⇒ ES(B) = 08-10 − 1 = 08-09
+    expect(byId.get('B')).toMatchObject({ es: '2026-08-09', ef: '2026-08-10' });
+    // обратный: LF(B) = PF = 08-12 ⇒ запас 2; A задаёт горизонт ⇒ критическая
+    expect(byId.get('B')).toMatchObject({ lf: '2026-08-12', totalFloat: 2, critical: false });
+    expect(byId.get('A')).toMatchObject({ lf: '2026-08-12', totalFloat: 0, critical: true });
+  });
+
+  it('LF не уходит за горизонт проекта при SS (иначе крит-путь исчезал бы вовсе)', () => {
+    // Без капа LF(A) = LS(B) + (dur(A)−1) = 08-04 + 4 = 08-08 > PF 08-05, и у A
+    // появился бы фиктивный запас 3 дня — при том, что именно A задаёт горизонт.
+    const nodes = [leaf('A', '2026-08-01', '2026-08-05'), leaf('B', '2026-08-01', '2026-08-02')];
+    const { byId, projectFinish } = computeCpm(nodes, [dep('A', 'B', 'SS')]);
+    expect(byId.get('A')!.lf <= projectFinish!).toBe(true);
+    expect(byId.get('A')!.totalFloat).toBe(0);
+  });
+
+  it('смешанный граф: у C рёбра FS и FF → выигрывает более жёсткое FF, у A появляется запас', () => {
+    const nodes = [
+      leaf('A', '2026-08-01', '2026-08-03'), // dur 3
+      leaf('B', '2026-08-01', '2026-08-08'), // dur 8
+      leaf('C', '2026-08-01', '2026-08-02'), // dur 2
+    ];
+    const { byId, projectFinish } = computeCpm(nodes, [fs('A', 'C'), dep('B', 'C', 'FF')]);
+    expect(projectFinish).toBe('2026-08-08');
+    // FS(A) требует ES(C) ≥ 08-03, FF(B) требует EF(C) ≥ 08-08 ⇒ ES(C) = 08-07 (FF жёстче)
+    expect(byId.get('C')).toMatchObject({ es: '2026-08-07', ef: '2026-08-08', totalFloat: 0, critical: true });
+    expect(byId.get('B')).toMatchObject({ totalFloat: 0, critical: true });
+    // A уже не критическая: её FS-ветвь получила запас
+    expect(byId.get('A')).toMatchObject({ lf: '2026-08-07', totalFloat: 4, critical: false });
+  });
+
+  it('lag 0 легален для всех типов: узел ровно на границе → TF = 0, ES = own_start', () => {
+    const a = leaf('A', '2026-08-01', '2026-08-05');
+    const cases: Array<[string, ScheduleNode]> = [
+      ['FS', leaf('B', '2026-08-05', '2026-08-06')], // start === A.end
+      ['SS', leaf('B', '2026-08-01', '2026-08-02')], // start === A.start
+      ['FF', leaf('B', '2026-08-04', '2026-08-05')], // end   === A.end
+      ['SF', leaf('B', '2026-08-01', '2026-08-01')], // end   === A.start
+    ];
+    for (const [type, b] of cases) {
+      const { byId } = computeCpm([a, b], [dep('A', 'B', type)]);
+      expect(byId.get('B')!.es, type).toBe(b.start);     // граница не сдвинула узел
+    }
+  });
+
+  it('неизвестный dep_type не участвует в графе (TF считается как без ребра)', () => {
+    const nodes = [leaf('A', '2026-08-01', '2026-08-05'), leaf('B', '2026-08-01', '2026-08-02')];
+    const { byId } = computeCpm(nodes, [dep('A', 'B', 'XX')]);
+    expect(byId.get('B')!.es).toBe('2026-08-01');
+    expect(byId.get('B')!.totalFloat).toBe(3);           // сток, LF = PF 08-05
   });
 });

@@ -25,7 +25,16 @@ import {
   diffDaysKey,
   type GanttZoom,
 } from '@/lib/utils/date-helpers';
-import { computeCascade, computeCpm, computeHorizon, type ScheduleNode, type ScheduleEdge } from '@/lib/utils/gantt-schedule';
+import {
+  computeCascade,
+  computeCpm,
+  computeHorizon,
+  depPredSide,
+  depSuccSide,
+  DEP_TYPES,
+  type ScheduleNode,
+  type ScheduleEdge,
+} from '@/lib/utils/gantt-schedule';
 import {
   useProjectBaselines,
   useBaselineTasks,
@@ -34,6 +43,7 @@ import {
 } from '@/lib/hooks/use-project-baselines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { BaselineNameModal } from './BaselineNameModal';
+import type { DepType } from '@/types/database';
 import type { Task } from '@/types/entities';
 
 interface GanttTimelineProps {
@@ -77,7 +87,7 @@ function laneLabel(lane: Task['lane'], phaseMode: boolean): string {
     : (LANE_CONFIG[lane]?.label ?? lane);
 }
 
-// S-SCHEDULE-1a: assignee/status опциональны — тултип FS-нарушения на стрелке несёт только text
+// S-SCHEDULE-1a: assignee/status опциональны — тултип нарушения связи на стрелке несёт только text
 // S-GANTT-CPM: float — строка запаса/сдвига бара (запас: N дн / запаса нет / старт раньше расчётного: N дн)
 // S-GANTT-BASELINE-1: plan — маркер «вне плана» на основном баре (задача создана после слепка)
 type Tip = { x: number; y: number; text: string; assignee?: string; status?: string; float?: string; plan?: string };
@@ -89,15 +99,26 @@ type EdgePath = {
   midX: number;      // x вертикального сегмента elbow — якорь бейджа/поповера
   midY: number;      // середина вертикального сегмента
   critical: boolean;
-  violated: boolean; // FS-нарушение: succ.start < pred.end + lag
+  violated: boolean; // нарушение связи: succ[succSide] < pred[predSide] + lag
   lag_days: number;
+  dep_type: DepType; // S-GANTT-DEPTYPES: определяет концы стрелки и подпись поповера
 };
 
 // S-SCHEDULE-1a: состояние поповера ребра (lag-редактор + удаление); lag — строка инпута
-type EdgeMenu = { id: string; lag: string; x: number; y: number };
+// S-GANTT-DEPTYPES: + выбранный тип связи (сохраняется вместе с lag одной мутацией)
+type EdgeMenu = { id: string; lag: string; type: DepType; x: number; y: number };
 
-// DD.MM из date-key YYYY-MM-DD (для текста FS-нарушения)
+// DD.MM из date-key YYYY-MM-DD (для текста нарушения связи)
 const ddmm = (k: string) => `${k.slice(8, 10)}.${k.slice(5, 7)}`;
+
+// S-GANTT-DEPTYPES: подписи типов связи для поповера (расшифровка обязательна —
+// «FS/SS/FF/SF» вне PM-контекста нечитаемы).
+const DEP_TYPE_LABELS: Record<DepType, string> = {
+  FS: 'FS — финиш → старт',
+  SS: 'SS — старт → старт',
+  FF: 'FF — финиш → финиш',
+  SF: 'SF — старт → финиш',
+};
 
 const EDGE_PX = 6;    // ширина resize-зоны у краёв бара
 const CLICK_PX = 4;   // смещение < порога = клик (открыть модалку), не drag
@@ -498,8 +519,14 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   // при тех же зависимостях (dependencies дефолтится в новый [] при пустых данных).
   // S-SCHEDULE-1a: + lag_days — иначе optimistic-правка lag не перезапустит измерение
   // стрелок (бейдж/цвет не обновятся до случайного reflow, ревью W3).
+  // S-GANTT-DEPTYPES: + dep_type по той же причине — смена типа БЕЗ правки lag меняет
+  // концы стрелки и множество нарушений, но сигнатура осталась бы прежней, и путь завис
+  // бы старым (стрелка от не того края) до случайного reflow.
   const depSig = useMemo(
-    () => dependencies.map((d) => `${d.id}:${d.predecessor_id}>${d.successor_id}:${d.lag_days}`).join('|'),
+    () =>
+      dependencies
+        .map((d) => `${d.id}:${d.predecessor_id}>${d.successor_id}:${d.lag_days}:${d.dep_type}`)
+        .join('|'),
     [dependencies],
   );
 
@@ -531,10 +558,16 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
 
   // S-SCHEDULE-1a: сохранить lag из поповера ребра. Целое ≥ 0 (v1 без lead-time);
   // NaN/мусор из number-инпута → 0.
+  // S-GANTT-DEPTYPES: тип уезжает той же мутацией — два отдельных апдейта дали бы два
+  // оптимистика и промежуточный кадр «новый тип со старым lag».
   const saveEdgeLag = useCallback(() => {
     if (!edgeMenu) return;
     const n = Math.floor(Number(edgeMenu.lag));
-    updateDep.mutate({ id: edgeMenu.id, lag_days: Number.isFinite(n) && n > 0 ? n : 0 });
+    updateDep.mutate({
+      id: edgeMenu.id,
+      lag_days: Number.isFinite(n) && n > 0 ? n : 0,
+      dep_type: edgeMenu.type,
+    });
     setEdgeMenu(null);
   }, [edgeMenu, updateDep]);
 
@@ -650,10 +683,13 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
     [cpm],
   );
 
-  // S-SCHEDULE-1a: soft-warn нарушения FS — succ.start < pred.end + lag (только сигнал,
-  // без каскада/блокировки — это S-SCHEDULE-1b). Сравнение по date-key MSK; прибавка
-  // дней — shiftDateKeyByBuckets (UTC-полдень, та же арифметика, что бары/critical).
-  // Конец без бара (undated / скрыт свёрткой-фильтром) → нарушение не считаем.
+  // S-SCHEDULE-1a: soft-warn нарушения связи — succ[succSide] < pred[predSide] + lag
+  // (только сигнал, без каскада/блокировки — это S-SCHEDULE-1b). Сравнение по date-key
+  // MSK; прибавка дней — shiftDateKeyByBuckets (UTC-полдень, та же арифметика, что
+  // бары/critical). Конец без бара (undated / скрыт свёрткой-фильтром) → не считаем.
+  // S-GANTT-DEPTYPES: концы берём из depPredSide/depSuccSide — ТОЙ ЖЕ таблицы, что
+  // читают computeCascade и computeCpm. Формулировка тоже зависит от типа: для FF/SF
+  // ограничен ФИНИШ последователя, «должна начаться» было бы враньём.
   const violation = useMemo(() => {
     const nodes = new Map<string, GanttTask>();
     for (const sl of visibleSwimlanes) for (const gt of sl.tasks) nodes.set(gt.task.id, gt);
@@ -662,11 +698,16 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
       const pred = nodes.get(d.predecessor_id);
       const succ = nodes.get(d.successor_id);
       if (!pred || !succ) continue;
-      const earliest = shiftDateKeyByBuckets(pred.end, 'day', d.lag_days);
-      if (succ.start < earliest) {
+      const predIsStart = depPredSide(d.dep_type) === 'start';
+      const succIsEnd = depSuccSide(d.dep_type) === 'end';
+      const earliest = shiftDateKeyByBuckets(predIsStart ? pred.start : pred.end, 'day', d.lag_days);
+      const own = succIsEnd ? succ.end : succ.start;
+      if (own < earliest) {
+        const verb = succIsEnd ? 'завершиться' : 'начаться';
+        const from = predIsStart ? 'старта' : 'финиша';
         tips.set(
           d.id,
-          `FS-нарушение: «${succ.task.text}» должна начаться не раньше ${ddmm(earliest)} (после «${pred.task.text}»${d.lag_days > 0 ? ` + ${d.lag_days} дн` : ''})`,
+          `Нарушение связи ${d.dep_type}: «${succ.task.text}» должна ${verb} не раньше ${ddmm(earliest)} (после ${from} «${pred.task.text}»${d.lag_days > 0 ? ` + ${d.lag_days} дн` : ''})`,
         );
       }
     }
@@ -917,8 +958,10 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
   );
 
   // S-DEPS-1: измеряем позиции баров из DOM (бары позиционируются grid-column, не
-  // left/width — аналитический пересчёт хрупок). Стрелка: правый край pred → левый
-  // край succ, ортогональный elbow. Пересчёт на смену зума/фильтра/дат/размера.
+  // left/width — аналитический пересчёт хрупок). Стрелка идёт от того конца pred и к
+  // тому концу succ, которые связаны типом (depPredSide/depSuccSide): FS end→start,
+  // SS start→start, FF end→end, SF start→end. Ортогональный elbow.
+  // Пересчёт на смену зума/фильтра/дат/размера.
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body) { setEdges([]); return; }
@@ -936,33 +979,84 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           y: r.top + r.height / 2 - base.top,
         };
       };
+      // ШАГ ряда в пикселях — нужен, чтобы понять чётность разноса рядов (см. yMid ниже).
+      // Считаем как минимальную положительную разницу между центрами баров, а НЕ из
+      // ROW_H (константа в rem — пикселя из неё не получить) и НЕ из высоты обёртки
+      // бара: обёртка 27px, а шаг 28px (между рядами лежит 1px border). На этой разнице
+      // деление копит ~3.7% ошибки на ряд, и уже с ~14 рядов Math.round даёт неверную
+      // чётность — то есть возвращает ровно тот баг, который здесь и чинится.
+      const rowPitch = (() => {
+        const ys = [...b.querySelectorAll<HTMLElement>('[data-task-bar]')]
+          .map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; })
+          .sort((p, q) => p - q);
+        let min = Infinity;
+        for (let i = 1; i < ys.length; i += 1) {
+          const gap = ys[i] - ys[i - 1];
+          if (gap > 0.5 && gap < min) min = gap;          // >0.5 — отсев баров одного ряда
+        }
+        return Number.isFinite(min) ? min : 0;
+      })();
       const STUB = 10;
       const next: EdgePath[] = [];
       for (const dep of dependencies) {
-        const from = anchor(dep.predecessor_id, 'end');
-        const to = anchor(dep.successor_id, 'start');
+        const predSide = depPredSide(dep.dep_type);
+        const succSide = depSuccSide(dep.dep_type);
+        const from = anchor(dep.predecessor_id, predSide);
+        const to = anchor(dep.successor_id, succSide);
         if (!from || !to) continue;                      // конец скрыт фильтром → пропускаем стрелку
-        const midX = Math.max(from.x + STUB, to.x - STUB);
+        // Стабы наружу от связанных концов: из pred уходим в ту сторону, куда смотрит
+        // его конец, и в succ входим с той стороны, куда смотрит его.
+        const exitX = predSide === 'end' ? from.x + STUB : from.x - STUB;
+        const entryX = succSide === 'start' ? to.x - STUB : to.x + STUB;
+        const isFS = predSide === 'end' && succSide === 'start';
+        // Перемычка не-FS не должна лечь ВДОЛЬ бара промежуточной задачи. Ряды идут
+        // равномерно, центры баров = центры рядов, поэтому при ЧЁТНОМ разносе рядов
+        // середина между двумя центрами — это ровно центр третьего ряда, и хит-путь
+        // ребра (strokeWidth=10 при высоте бара 10px) перехватил бы pointerdown у чужой
+        // задачи: она перестала бы таскаться, а клик по ней открывал бы поповер связи.
+        // Уводим перемычку в межрядный зазор. При нечётном разносе она и так в зазоре.
+        // Сторона сдвига (вниз) произвольна — оба зазора одинаково свободны.
+        const yMidRaw = (from.y + to.y) / 2;
+        const evenRowSpan =
+          rowPitch > 0 && Math.round(Math.abs(to.y - from.y) / rowPitch) % 2 === 0;
+        // FS перемычки не имеет: у него midY — середина вертикального сегмента elbow,
+        // сдвигать её нельзя (уехал бы якорь бейджа). Сдвиг только для не-FS.
+        const yMid = !isFS && evenRowSpan ? yMidRaw + rowPitch / 2 : yMidRaw;
+        // FS сохраняет доспринтовый трёхсегментный elbow (max(from+STUB, to−STUB)) —
+        // байт-в-байт, он отсмокан. Для остальных типов этот же роут ЛЁГ БЫ НА БАР:
+        // при predSide='start' первый сегмент идёт от левого края pred вправо к midX,
+        // то есть по телу бара на его вертикальном центре. Хит-путь ребра шириной 10px
+        // при высоте бара h-2.5 (10px) накрывает бар целиком и перехватывает pointerdown:
+        // бар перестал бы таскаться, а клик по нему открывал бы поповер связи.
+        // Поэтому для не-FS — канонический пятисегментный роут (стаб → вертикаль на
+        // полпути → перемычка → стаб → вход), он не пересекает ни один бар.
+        const midX = isFS ? Math.max(exitX, entryX) : (exitX + entryX) / 2;
         next.push({
           id: dep.id,
-          d: `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`,
-          midX,
-          midY: (from.y + to.y) / 2,                     // середина вертикального сегмента elbow
+          d: isFS
+            ? `M ${from.x} ${from.y} L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`
+            : `M ${from.x} ${from.y} L ${exitX} ${from.y} L ${exitX} ${yMid} L ${entryX} ${yMid} L ${entryX} ${to.y} L ${to.x} ${to.y}`,
+          midX,                                          // якорь бейджа/поповера
+          midY: yMid,                                    // середина вертикального сегмента elbow
           critical: showCritical && criticalIds.has(dep.predecessor_id) && criticalIds.has(dep.successor_id), // S-GANTT-CPM: ребро критично, если оба конца критические
-          violated: violation.has(dep.id),               // S-SCHEDULE-1a: soft-warn FS
+          violated: violation.has(dep.id),               // S-SCHEDULE-1a: soft-warn связи
           lag_days: dep.lag_days,
+          dep_type: dep.dep_type,
         });
       }
       // дедуп: идентичные пути → возвращаем prev (React бейлит, re-render не идёт).
       // Без этого setEdges(новый массив) крутит render→effect→setEdges бесконечно.
       // S-CRIT-PATH: сравниваем и critical, иначе тумблер не перерисует стрелки.
       // S-SCHEDULE-1a: + violated/lag_days — иначе смена lag/нарушения не перекрасит.
+      // S-GANTT-DEPTYPES: + dep_type — путь `d` при смене типа может совпасть (концы
+      // бара в одной точке у милстоуна), а подпись поповера обязана поехать.
       setEdges((prev) => {
         if (
           prev.length === next.length &&
           prev.every((e, i) =>
             e.id === next[i].id && e.d === next[i].d && e.critical === next[i].critical &&
-            e.violated === next[i].violated && e.lag_days === next[i].lag_days,
+            e.violated === next[i].violated && e.lag_days === next[i].lag_days &&
+            e.dep_type === next[i].dep_type,
           )
         ) return prev;
         return next;
@@ -1388,7 +1482,13 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                         className="cursor-pointer"
                         style={{ pointerEvents: 'stroke' }}
                         onClick={(ev) =>
-                          setEdgeMenu({ id: edge.id, lag: String(edge.lag_days), x: ev.clientX, y: ev.clientY })
+                          setEdgeMenu({
+                            id: edge.id,
+                            lag: String(edge.lag_days),
+                            type: edge.dep_type,
+                            x: ev.clientX,
+                            y: ev.clientY,
+                          })
                         }
                         onMouseEnter={(ev) => {
                           const t = violation.get(edge.id);
@@ -1531,8 +1631,11 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
         </div>
       )}
 
-      {/* S-SCHEDULE-1a: поповер ребра — lag-редактор (FS + N дн) + удаление связи.
-          Fixed (эскейпит overflow), закрытие — Esc / pointerdown вне (effect выше). */}
+      {/* S-SCHEDULE-1a: поповер ребра — lag-редактор (тип + N дн) + удаление связи.
+          Fixed (эскейпит overflow), закрытие — Esc / pointerdown вне (effect выше).
+          S-GANTT-DEPTYPES: тип и lag сохраняются одной кнопкой (одна мутация). Концы
+          ребра здесь не редактируются — UPDATE обошёл бы DAG-валидатор 048 (BEFORE
+          INSERT only, см. 062 и комментарий над useUpdateTaskDependency). */}
       {edgeMenu && (
         <div
           ref={edgeMenuRef}
@@ -1540,8 +1643,20 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
           style={{ left: edgeMenu.x + 8, top: edgeMenu.y + 8 }}
         >
           <div className="flex items-center gap-1.5">
-            <span className="font-medium text-text-main">Связь FS</span>
-            <span className="text-text-mute">+</span>
+            <span className="font-medium text-text-main">Связь</span>
+            <select
+              value={edgeMenu.type}
+              onChange={(ev) => setEdgeMenu({ ...edgeMenu, type: ev.target.value as DepType })}
+              className="rounded border border-input bg-surface px-1.5 py-0.5 text-text-main focus:border-accent focus:outline-none"
+              aria-label="Тип связи"
+            >
+              {DEP_TYPES.map((t) => (
+                <option key={t} value={t}>{DEP_TYPE_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="text-text-mute">Задержка +</span>
             <input
               type="number"
               min={0}
