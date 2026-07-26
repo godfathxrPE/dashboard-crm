@@ -5,7 +5,14 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции 001–061 — вся цепочка в проде (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–075** — вся цепочка в проде
+> (**062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
+> **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
+> **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
+> **076**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
+> `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
+> Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
 > завершена: S23 мультитенантность (021/022), S24 org-scoped RLS (023), S25 командная
 > видимость + hardening (024), S26 notifications + invitations + write-политики memberships
 > (025/026 применены 2026-07-06, гейт пройден: FK SET NULL работает, инвайт-цикл
@@ -59,7 +66,7 @@
 > 7 фаз; `phase_group`-слаги `initiated`/`planning`/`execution`/`completed`, все
 > is_won=false/is_lost=false); RPC **`spawn_delivery_project`**.
 
-> **Applied:** вся цепочка 001–051 в проде (см. дельты 049/050/051 ниже). Открытый хвост
+> **Applied:** вся цепочка 001–051 в проде (см. дельты 049/050/051 ниже; 052–075 — блоками ниже). Открытый хвост
 > не-DDL: финальный генеративный смок S28 ждёт кредитов Anthropic (DDL/RLS применён).
 >
 > **040 `rls_hardening` (AUDIT-B2, applied 2026-07-13 · версия `20260713073955`):** org-гард в WITH CHECK
@@ -180,6 +187,166 @@
 > - **RPC `session_gate()`** (DEFINER, stable): `{org_id: current_org_id(), onboarded: exists…onboarded_at}` — заменил отдельный `current_org_id`-вызов в middleware.
 > - **RPC `complete_onboarding(full_name,phone,job_title)`** (DEFINER): гард пустого имени → `23514`, anon → `42501`, trim, own-row update, `onboarded_at=coalesce(…,now())`.
 > - Смок: `session_gate` под неонбордившимся → `onboarded:false`+org; пустое имя→23514; anon→42501; `wrong_email` не стемпит `accepted_at` (проверено на живом инвайте, тест-приглашение после смока удалено). Middleware: org-less→/invite, орг-есть-не-онбордился→/welcome (исключён из гейта).
+
+### Дельты 062–075 _(волна W/T + Gantt + тайм-блокинг; ledger сведён 2026-07-26, `S-DOCS-SCHEMA-SYNC`)_
+
+> Источник: файлы `supabase/migrations/0NN_*.sql` **сверенные с живой БД** (list_migrations +
+> `information_schema`/`pg_policies`/`pg_get_functiondef`/`pg_indexes`/`cron.job`). Все 14 миграций
+> в проде; расхождения файлов и прода — в конце блока.
+>
+> **062 `task_dep_update_policy` (S-SCHEDULE-1a, applied 2026-07-18 · `20260718161117`):** ребро
+> `task_dependencies` перестало быть иммутабельным — политика **`task_dep_update`** (org +
+> `current_org_role() in ('owner','admin','manager')`, WITH CHECK = USING по конвенции 054) +
+> `grant update … to authenticated` (идемпотентная фиксация намерения — дефолт Supabase его и так
+> давал). Ограничение «правится только `lag_days`/`dep_type`» — **клиентское** (RLS row-level,
+> не column-level). ⚠️ **`check_task_dependency_valid` стоит только на BEFORE INSERT** (048):
+> через UPDATE можно сменить `predecessor_id`/`successor_id` в обход DAG-валидации. Клиент шлёт
+> только `lag_days`/`dep_type` — v1 приемлемо; hardening (тот же валидатор на UPDATE OF концов) —
+> **открытый долг**, зафиксирован в комментарии миграции, теперь и здесь.
+>
+> **063 `project_member_roles_expand` (S-TEAM-ROLES-1, applied 2026-07-18 · `20260718185117`):**
+> swap CHECK `project_members_role_check` — 3 значения → **8**
+> (`pm`/`manager`/`analyst`/`architect`/`developer`/`implementer`/`installer`/`launch_lead`).
+> Аддитивно (новый набор — суперсет старого), DEFAULT `'manager'` не менялся. **`role` не участвует
+> ни в одной RLS-политике** — это ярлык в команде проекта, права дают `memberships.role` (org) и
+> `project_members` (факт членства через `is_project_member`).
+>
+> **064 `project_files_comment` (S-PROJECT-WORKSPACE-1, applied 2026-07-18 · `20260718190943`):**
+> `project_files += comment text` (nullable). Политик не касается — существующие own-path + org
+> покрывают колонку.
+>
+> **065 `team_visibility` (S-TEAM-VISIBILITY-1, applied 2026-07-18 · `20260718193531`):** участник
+> `project_members` видит проект целиком. Хелпер **`is_project_member(uuid)`** (SQL STABLE
+> **SECURITY DEFINER** `search_path=public,pg_temp`, revoke public/anon → grant
+> authenticated+service_role; DEFINER обходит RLS → нет рекурсии `projects↔project_members`) +
+> **три новые permissive SELECT-политики** `TO authenticated`: `projects_select_member`,
+> `project_files_select_member`, **`tasks_select_member`**. Существующие политики не тронуты —
+> доступ только расширяется. ⚠️ **`tasks_select_member` зеркалят DEFINER-RPC аналитики (072)** —
+> правка политик `tasks` обязана идти вместе с правкой тел RPC. НЕ покрыто: `tasks` write,
+> `task_dependencies`, download чужих файлов из `storage.objects` (own-path, хвост
+> S-TEAM-VISIBILITY-2).
+>
+> **066 `project_videos` (S-VIDEO-EMBED-1, applied 2026-07-18 · `20260718214701`):** таблица
+> видео-материалов проекта — см. раздел «project_videos» ниже.
+>
+> **067 `project_messages` (S-CHAT-1, applied 2026-07-18 · `20260718221549`):** чат проекта +
+> realtime — см. раздел «project_messages» ниже.
+>
+> **068 `message_reactions` (S-CHAT-2, applied 2026-07-19 · `20260719115436`):** junction
+> сообщение↔юзер↔эмодзи — см. раздел «message_reactions» ниже. Ключевое: **`REPLICA IDENTITY FULL`**
+> (без полного old-row realtime-DELETE под RLS не долетает до клиентов — «unreact» не гасился бы),
+> RLS DELETE — **только своя** реакция (чужую не модерирует даже admin), UPDATE-политики нет.
+>
+> **069 `recurring_tasks` (S-RECUR-1, applied 2026-07-22 · `20260722194733`, в history БЕЗ префикса
+> `069_`):** повторяющиеся задачи по расписанию.
+> — Таблица **`recurring_task_templates`** (раздел ниже): `cadence` CHECK
+> `daily|weekdays|weekly|monthly`, парные гарды `rtt_weekly_needs_dow` / `rtt_monthly_needs_dom`,
+> `monthly_dom` капнут 28 (безопасно для февраля), `next_run_date date NOT NULL`, `is_active`,
+> `created_by NOT NULL DEFAULT auth.uid()`; триггеры **`trg_set_org_id`** + **`trg_aa_freeze_org_id`**
+> + **`trg_set_updated_at`**, RLS `rtt_select/insert/update/delete`.
+> — `tasks += recurrence_template_id` (→ template ON DELETE SET NULL) + partial-индекс
+> `idx_tasks_recurrence`.
+> — **`rtt_next_occurrence(date,text,smallint,smallint)`** — IMMUTABLE, **не** DEFINER, чистая
+> функция следующей даты (`weekdays` пропускает Сб/Вс, `weekly` докручивает до dow, `monthly`
+> уходит в следующий месяц, если день уже прошёл).
+> — **`spawn_recurring_tasks()`** (DEFINER, revoke public/anon/**authenticated**, grant
+> service_role): день считается в **MSK** (`now() at time zone 'Europe/Moscow'`), **anti-pile-up** —
+> пока жив открытый инстанс шаблона (`lane <> 'done'`), задача не спавнится **и `next_run_date` не
+> двигается**; следующая дата считается **от сегодня**, поэтому пропущенные циклы не копятся;
+> per-шаблон subtxn + внешний EXCEPTION-swallow (из cron никогда не бросаем).
+> — **pg_cron job `recurring-daily` `'5 6 * * *'`** (06:05 UTC = 09:05 MSK, сразу после
+> `wf-overdue-daily`) → `select public.spawn_recurring_tasks();`.
+>
+> **070 `task_scheduling_a1` (S-TIMEBLOCK-A1, applied 2026-07-23 · `20260723073757`, в history без
+> префикса):** ось «когда делаю» **отдельно** от «сделать к».
+> — `tasks += scheduled_start / scheduled_end` (timestamptz, nullable) + CHECK
+> **`tasks_scheduled_order_chk`** (`scheduled_end > scheduled_start`, NULL-толерантный) + partial-индексы
+> **`idx_tasks_scheduled`** `(scheduled_start)` и **`idx_tasks_assignee_scheduled`**
+> `(assigned_to, scheduled_start)`.
+> — **Семантика (не «просто колонки»)**: `deadline` = «сделать к» (дата обязательства),
+> `scheduled_start/end` = «когда делаю» (тайм-блок в сетке дня/недели). Они независимы: пустые
+> `scheduled_*` = обычная задача, поведение доски не меняется.
+> — `recurring_task_templates += start_time time / duration_min int` + `rtt_duration_pos_chk`
+> (`> 0`) + `rtt_duration_needs_time_chk` (длительность без времени-суток запрещена).
+> — `spawn_recurring_tasks()` пересобран: есть `start_time` → тайм-блок
+> `(v_today + start_time) at time zone 'Europe/Moscow'` (MSK wall-clock → корректный timestamptz),
+> длина = `coalesce(duration_min, 30)` минут; иначе `scheduled_* = null`.
+>
+> **071 `meeting_attendee_visibility` (S-TIMEBLOCK-B1, applied 2026-07-23 · `20260723122548`, в
+> history без префикса):** участник встречи видит встречу и состав. Хелпер
+> **`is_meeting_attendee(uuid)`** (SQL STABLE DEFINER, revoke public/anon → grant
+> authenticated+service_role). ⚠️ **Прямой subquery к `meeting_attendees` в политике `meetings`
+> даёт взаимную рекурсию `42P17`** (`attendees_own` уже ссылается на `meetings`) — отсюда
+> DEFINER-хелпер (паттерн 065). `meetings_select` пересобрана: org + (owner/admin ∨ `created_by` ∨
+> `is_meeting_attendee(id)`); новая `attendees_select_visible` на `meeting_attendees` (видящий
+> встречу видит её состав). Attendee **видит, но не правит** — `meetings_update` не тронута
+> (Google Calendar semantics).
+>
+> **072 `task_analytics` (S-ANALYTICS-1, applied 2026-07-23 · `20260723191820`, в history без
+> префикса):** истина «когда завершено» + серверные агрегаты.
+> — `tasks += completed_at timestamptz` + триггер **`trg_stamp_completed_at`**
+> (`BEFORE INSERT OR UPDATE OF lane, column_id` → `stamp_task_completed_at()`): стемп на входе в
+> `done`, **очистка в NULL на реоткрытии**, прочие апдейты `completed_at` не трогают. Имя
+> сортируется ПОСЛЕ `trg_aa_resolve_board` → читает уже резолвнутый `lane`. Бэкфилл истории —
+> `completed_at := updated_at` для существующих `done`.
+> — Индекс **`idx_tasks_org_completed`** `(org_id, completed_at) WHERE completed_at IS NOT NULL`.
+> — Три RPC: **`task_analytics_summary(date,date) → jsonb`** (open/done/completed/created за период,
+> snapshot completion_rate, overdue, медиана цикла через `percentile_cont`),
+> **`task_throughput_series(date,date)`** (недельные бакеты, границы недели в **MSK**),
+> **`task_aging_buckets()`** (`<3д/3–7д/7–30д/>30д` по открытым).
+> — **Ключевое:** все три — **SECURITY DEFINER STABLE, они обходят RLS**, поэтому предикат
+> видимости собран внутри руками как **зеркало permissive-OR политик `tasks`**:
+> `tasks_select` (baseline: org + owner/admin ∨ `assigned_to` ∨ `created_by`) **OR**
+> `tasks_select_member` (065: org + `is_project_member(project_id)`). **Любая правка SELECT-политик
+> `tasks` требует правки тел этих RPC** — иначе аналитика тихо разойдётся с доской.
+> ACL: revoke public/anon → grant authenticated+service_role.
+>
+> **073 `fix_spawn_delivery_project_stage` (applied 2026-07-24 · `20260724064420`, в history без
+> префикса):** **прод-баг**: «Создать внедрение» падало **всегда** с
+> `column "stage" of relation "projects" does not exist` — `spawn_delivery_project()` перечисляла в
+> INSERT колонку `stage`, снятую в **047**. Лечение — убрать `stage` из INSERT (`stage_id` уже
+> ставился из `v_first_stage`), тело в остальном байт-в-байт как в проде, `create or replace`
+> сохранил GRANT. **Урок: DROP COLUMN не ломает DEFINER-функции при применении** — они компилируются
+> при вызове, и дрейф всплывает у пользователя, а не на миграции. После любого DROP/RENAME колонки
+> обязателен греп по телам функций (`pg_get_functiondef`), а не только по коду приложения.
+>
+> **074 `project_baselines` (S-GANTT-BASELINE-1, applied 2026-07-25 · `20260725193626`):** слепок
+> плановых сроков проекта под план/факт — таблицы **`project_baselines`** + **`baseline_tasks`**
+> (разделы ниже). **Слепок иммутабелен: UPDATE-политик нет ни на одной таблице, `updated_at`
+> сознательно отсутствует — «переснять» = новый baseline.** INSERT-политик тоже нет: единственный
+> путь записи — **RPC `create_project_baseline(uuid,text)`** (DEFINER; предикат видимости проекта
+> **дословно** совпадает с `project_baselines_select`, иначе manager вне проекта писал бы слепок
+> вслепую; роль записи — owner/admin/manager; пустое имя → `22023`, невидимый проект → `42501`).
+> Слепок повторяет `effectiveSpan` из `use-project-schedule.ts` (`start = start_date ?? end_date ??
+> deadline(MSK)`, `end` — зеркально + клэмп `end < start`), иначе задачи, нарисованные на Ганте
+> только по `deadline`, в план не попали бы. Видимость обеих таблиц — **зеркало
+> `project_messages_select` (067)**; `project_id` в `baseline_tasks` денормализован ровно для того,
+> чтобы предикат был тем же без джойна на каждую строку. Hard delete (owner/admin), строки уходят
+> каскадом. `org_id` — `trg_set_org_id_*` + `trg_freeze_org_id_*` **выписаны явно на обе таблицы**:
+> авто-цикл 054 новые таблицы не покрывает.
+>
+> **075 `baseline_grants_narrow` (S-GANTT-BASELINE-1 hardening, applied 2026-07-25 ·
+> `20260725201545`):** `grant select, delete` в 074 **ничего не сузил** — дефолтные привилегии
+> Supabase выдают `authenticated` ВСЕ права на новую таблицу в `public`. Явный
+> `revoke insert, update, truncate, references, trigger`. Осталось ровно: select+delete на заголовок,
+> select на строки. **Это конвенция для каждой новой таблицы R2** — см. «Конвенция: гранты новой
+> таблицы (урок 075)» в разделе RLS-модель.
+>
+> **Расхождения файлов и прода на 2026-07-26** (DDL сошёлся везде, остаточное — привилегии и стиль):
+> - **Гранты не сужены у 066/067/068/069** (урок 075 применён только к baseline-таблицам):
+>   `authenticated` держит на `project_videos`/`project_messages`/`message_reactions`/
+>   `recurring_task_templates`/`task_dependencies` полный набор, включая `TRUNCATE`/`REFERENCES`/
+>   `TRIGGER`. Запись данных ловит RLS, но **TRUNCATE под RLS не ходит** (RLS к нему не применяется).
+>   Через PostgREST такой запрос не выразить, роль напрямую пользователю не доступна — поэтому не
+>   инцидент, но хвост на «076 grants narrow» по образцу 075.
+> - **`rtt_*` (069) и `task_dep_update` (062) созданы без `TO authenticated`** (роль `public` в
+>   `pg_policies`) — отклонение от конвенции W1, которую соблюдают 066/067/068/074.
+> - **`stamp_task_completed_at()` (072)** — не DEFINER (ок, триггер), но EXECUTE остался у
+>   `anon`/`authenticated`: 056b снимал это у триггерных функций, для 072 шаг не повторили.
+> - **`meetings_select` (071)** зовёт `public.is_meeting_attendee(id)` **без обёртки `(select …)`** —
+>   per-row вызов, кандидат в initplan-WARN advisors (у 065/074 обёртки есть).
+> - **`create_project_baseline`** в проде исполним и `service_role` (074 грантовал только
+>   `authenticated`) — дефолтные привилегии, безвредно.
 
 ## Тенант-модель _(applied S23)_
 
@@ -596,7 +763,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -607,7 +774,12 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 | project_id | uuid | → projects ON DELETE SET NULL |
 | column_id | uuid | _032 (PCT-1)_ → project_columns ON DELETE SET NULL. **Истина** для задач с `project_id` (доска исполнения); для задач без проекта — NULL |
 | company_id / contact_id | uuid | _013_ → companies / contacts |
-| deadline | timestamptz | |
+| deadline | timestamptz | «**сделать к**» — дата обязательства (ось дедлайна, не расписания) |
+| scheduled_start | timestamptz | _070 (S-TIMEBLOCK-A1)_ nullable. «**когда делаю**» — начало тайм-блока в сетке дня/недели. Ось независима от `deadline` |
+| scheduled_end | timestamptz | _070_ nullable. Конец тайм-блока; `CHECK tasks_scheduled_order_chk` (`scheduled_end > scheduled_start`, NULL-толерантный). Partial-индексы `idx_tasks_scheduled`, `idx_tasks_assignee_scheduled` (assigned_to, scheduled_start) |
+| completed_at | timestamptz | _072 (S-ANALYTICS-1)_ nullable — истина «когда завершено». Стемпит триггер `trg_stamp_completed_at` на входе в `done`, **зануляет на реоткрытии**; прочие апдейты не трогают. Индекс `idx_tasks_org_completed (org_id, completed_at) WHERE completed_at IS NOT NULL`. Бэкфилл истории — `updated_at` |
+| recurrence_template_id | uuid | _069 (S-RECUR-1)_ nullable → `recurring_task_templates` ON DELETE SET NULL. Инстанс шаблона; partial-индекс `idx_tasks_recurrence`. Anti-pile-up `spawn_recurring_tasks` смотрит именно на него (`lane <> 'done'`) |
+| is_milestone | boolean | _038 (Delivery P3)_ NOT NULL DEFAULT false. Веха: гейт завершения delivery + ромб на Ганте; partial-индекс `idx_tasks_milestone (project_id) WHERE is_milestone` |
 | start_date | date | _046 (S-GANTT-DATES-1)_ nullable. Начало задачи (Gantt) |
 | end_date | date | _046 (S-GANTT-DATES-1)_ nullable. Конец задачи; `CHECK tasks_dates_order_chk` (end_date ≥ start_date). Fallback на `deadline::date` — на уровне рендера |
 | parent_task_id | uuid | _052 (S-WBS-1)_ nullable → tasks(id) ON DELETE SET NULL. Родитель WBS-иерархии. Валидатор `check_task_parent_valid` (DEFINER, триггер `trg_zz_check_task_parent` before insert/update of parent_task_id,project_id): self-ref/cross-org/cross-project/цикл (recursive CTE вверх к корню) → `23514`/`23503`/`42501`/`P0001`. Partial-индекс `idx_tasks_parent`. AFTER-триггер `orphan_children_on_project_move` (upd project_id родителя) обнуляет `parent_task_id` осиротевших детей |
@@ -650,9 +822,16 @@ ProjectModal, convert_lead() и будущих писателей. Бэкфил�
 ### task_dependencies _(048, applied; +049 created_by DEFAULT `auth.uid()` applied 2026-07-16)_ — рёбра DAG между задачами (Gantt-зависимости, FS v1)
 
 M:N self-ref на `tasks` (прецедент — `contact_company`): ребро графа зависимостей одного
-проекта, **hard-delete** (не бизнес-запись с историей). v1 — только тип **FS** (finish-to-start:
-стрелка `predecessor.end → successor.start`); БД/UI НЕ enforce'ят FS и НЕ двигают даты каскадно
-(scheduling engine / critical path — roadmap v2). `org_id` ставит `trg_set_org_id`.
+проекта, **hard-delete** (не бизнес-запись с историей). `org_id` ставит `trg_set_org_id`.
+
+**Состояние на 2026-07-26 (было «v1 — только FS, задел под lag/critical path» — устарело):**
+реализованы **все четыре типа** `FS`/`SS`/`FF`/`SF` и **лаг**; UI пишет и `lag_days`, и `dep_type`
+(`use-task-dependencies.ts` → `updateDependency` шлёт строго эти два поля). На них работают
+soft-warn нарушенных связей, **каскадный сдвиг** (`computeCascade`) и **CPM с критическим путём**
+(`computeCpm`) — всё в `src/lib/utils/gantt-schedule.ts`, вместе с `depPredSide`/`depSuccSide`
+(таблица «какая сторона бара у предшественника/последователя»). **БД связи не enforce'ит** — даты
+задач остаются пользовательскими, движок только предупреждает и предлагает сдвиг; тип и лаг для
+БД — просто атрибуты ребра под CHECK.
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -660,13 +839,13 @@ M:N self-ref на `tasks` (прецедент — `contact_company`): ребро
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (`trg_set_org_id`) |
 | predecessor_id | uuid | NOT NULL → tasks ON DELETE CASCADE |
 | successor_id | uuid | NOT NULL → tasks ON DELETE CASCADE |
-| dep_type | text | NOT NULL CHECK `FS`/`SS`/`FF`/`SF`, DEFAULT `FS` (v1 — только FS; задел под типы связей) |
-| lag_days | int | NOT NULL DEFAULT 0 (задел под lag/critical path) |
+| dep_type | text | NOT NULL CHECK `FS`/`SS`/`FF`/`SF`, DEFAULT `FS`. **Все четыре типа в работе** (S-GANTT-DEPTYPES): предупреждение, каскад и CPM разбирают тип через `depPredSide`/`depSuccSide`. Правится через UPDATE (062) |
+| lag_days | int | NOT NULL DEFAULT 0. **Лаг в днях** между концами ребра (S-SCHEDULE-1a): участвует в soft-warn, каскаде и CPM. Правится через UPDATE (062) |
 | created_by | uuid | → profiles ON DELETE SET NULL; **DEFAULT `auth.uid()` (049, applied 2026-07-16)** |
 | created_at | timestamptz | NOT NULL DEFAULT now() |
 | — | — | Constraints: `task_dep_no_self` (pred ≠ succ), `task_dep_uniq` UNIQUE(pred, succ). Индексы: `idx_task_dep_org`, `idx_task_dep_successor`, `idx_task_dep_predecessor` |
 
-**Валидатор (BEFORE INSERT)**: `trg_zz_check_task_dependency` → `check_task_dependency_valid()`
+**Валидатор (только BEFORE INSERT — см. долг ниже)**: `trg_zz_check_task_dependency` → `check_task_dependency_valid()`
 (SECURITY DEFINER, `search_path=public,pg_temp`; имя `zz_` → срабатывает ПОСЛЕ `trg_set_org_id`,
 org_id уже заполнен). Проверки: self-loop → `23514`; task-not-found → `23503`; cross-org → `42501`
 (**B1 NULL-safe org-гард**: DEFINER читает `tasks` в обход RLS → обе задачи обязаны принадлежать
@@ -674,11 +853,18 @@ org_id уже заполнен). Проверки: self-loop → `23514`; task-n
 cross-project → `23514`; **цикл** через рекурсивный CTE `reach` (успешор уже достигает
 предшественника) → `P0001`. **DAG-инвариант держит триггер: граф ацикличен by construction.**
 
-**RLS (048)**: `task_dep_select` — **org-wide** (`org_id = current_org_id()`; все члены org видят
+**RLS (048 + 062)**: `task_dep_select` — **org-wide** (`org_id = current_org_id()`; все члены org видят
 стрелки чужих задач на Гантте). `task_dep_insert`/`task_dep_delete` — org + `current_org_role()
-IN ('owner','admin','manager')` (viewer — read-only). **UPDATE-политики НЕТ — ребро иммутабельно**
-(изменение = delete + create). `GRANT select/insert/delete authenticated`, `REVOKE anon`.
+IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062)** — тот же предикат
++ WITH CHECK = USING (конвенция 054): ребро **больше не иммутабельно**, из Ганта правятся
+`lag_days`/`dep_type`. `GRANT select/insert/delete/update authenticated`, `REVOKE anon`.
 Функция-валидатор: `REVOKE public/anon`, `GRANT execute service_role`.
+
+> ⚠️ **Открытый долг (W5): `check_task_dependency_valid` стоит только на BEFORE INSERT.** RLS
+> row-level, не column-level — ограничение «правим только `lag_days`/`dep_type`» держит **клиент**.
+> Через API UPDATE можно сменить `predecessor_id`/`successor_id` и обойти DAG-валидацию (цикл,
+> cross-project, cross-org). Hardening — тот же валидатор на `BEFORE UPDATE OF predecessor_id,
+> successor_id`. Зафиксировано в комментарии 062.
 
 ### calls _(005, +028 ai_summary)_
 
@@ -802,6 +988,106 @@ IN ('owner','admin','manager')` (viewer — read-only). **UPDATE-политик�
 Триггеры: `trg_set_org_id` (before insert).
 **Realtime:** в publication `supabase_realtime` (чат live; клиент — общий `useRealtimeSync('project_messages')`). RLS применяется к realtime — участник получает события только своих проектов, не всей org.
 **RLS (067):** `project_messages_select` — зеркало `projects_select` + member (кто видит проект — читает чат). `project_messages_insert` — **ВСЯ команда проекта (participant), НЕ только canManage**: `org AND author_id=auth.uid() AND (owner/admin OR project ownership OR is_project_member)` (жёсткая привязка автора — подмена → 42501). `project_messages_update` — свои (`author_id=auth.uid()`, зеркальный WITH CHECK — автора не переназначить). `project_messages_delete` — свои + модерация owner/admin. GRANT authenticated / REVOKE anon. **Hard delete** (soft-delete «сообщение удалено» — follow-up). Гейт-смок verified: участник пишет → ok; подмена автора → 42501; UPDATE чужого рядовым → deny; admin DELETE чужого → ok; посторонний SELECT → 0.
+
+### message_reactions _(068, S-CHAT-2)_ — реакции на сообщения чата
+
+Junction сообщение↔юзер↔эмодзи. **Эфемерная сущность, не бизнес-запись** → hard delete, без
+`updated_at`/`created_by`-аудита. Новых функций миграция не вводит (`org_id` — существующий
+`set_org_id()`).
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; ставит `trg_set_org_id` |
+| message_id | uuid NOT NULL | → `project_messages` ON DELETE CASCADE |
+| user_id | uuid NOT NULL | DEFAULT `auth.uid()` → profiles ON DELETE CASCADE |
+| emoji | text NOT NULL | `CHECK char_length(emoji) between 1 and 16` |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| — | — | `UNIQUE (message_id, user_id, emoji)` (`message_reactions_uniq`) — одна реакция одного вида от одного юзера. Индексы: `idx_message_reactions_org`, `idx_message_reactions_user` (`message_id` покрыт ведущей колонкой UNIQUE) |
+
+**Realtime:** в publication `supabase_realtime` + **`REPLICA IDENTITY FULL`** — без полного old-row
+DELETE-событие под RLS не долетает до клиентов и «unreact» не гасился бы у остальных.
+
+**RLS (068, все политики `TO authenticated`):** `message_reactions_select` — org + `EXISTS` по
+`project_messages` **под её RLS** (видит реакцию тот, кто видит сообщение — логика видимости не
+дублируется). `_insert` — org + `user_id = auth.uid()` + то же EXISTS. `_delete` — **только своя**
+(реакция личная, чужую не модерирует и admin; при удалении сообщения уходит каскадом).
+**UPDATE-политики нет** — реакции не редактируются. `REVOKE anon`.
+
+### recurring_task_templates _(069 S-RECUR-1, +070 время/длительность)_ — шаблоны повторяющихся задач
+
+Расписание, по которому `spawn_recurring_tasks()` (pg_cron `recurring-daily`) создаёт обычные
+`tasks`. Инстанс связан обратно через `tasks.recurrence_template_id`. Модель — **schedule-based с
+одним открытым инстансом**: пока предыдущая задача шаблона не в `done`, новая не создаётся.
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; `trg_set_org_id` + **`trg_aa_freeze_org_id`** |
+| text | text NOT NULL | текст будущей задачи |
+| cadence | text NOT NULL | CHECK `daily`/`weekdays`/`weekly`/`monthly` |
+| weekly_dow | smallint | CHECK 0–6 (0=Вс…6=Сб, как `EXTRACT(dow)`); гард `rtt_weekly_needs_dow` — обязателен при `cadence='weekly'` |
+| monthly_dom | smallint | CHECK 1–**28** (кап безопасен для февраля); гард `rtt_monthly_needs_dom` — обязателен при `cadence='monthly'` |
+| priority / lane | enum | `task_priority` DEFAULT `normal` / `task_lane` DEFAULT `now` — переносятся в задачу |
+| project_id / company_id / contact_id / assigned_to | uuid | nullable, ON DELETE SET NULL — связи будущей задачи |
+| next_run_date | date NOT NULL | дата следующего спавна; двигает только сам спавн (`rtt_next_occurrence` **от сегодня**) |
+| is_active | boolean NOT NULL | DEFAULT true — пауза без удаления |
+| last_spawned_at | timestamptz | nullable, факт последнего спавна |
+| start_time | time | _070_ nullable — время-суток тайм-блока (**MSK wall-clock**) |
+| duration_min | int | _070_ nullable — длительность; `rtt_duration_pos_chk` (`> 0`) + `rtt_duration_needs_time_chk` (длительность без `start_time` запрещена). В спавне дефолт при пустом — 30 мин |
+| created_by | uuid NOT NULL | DEFAULT `auth.uid()` → profiles ON DELETE SET NULL (NOT NULL + SET NULL — осознанное отклонение, унаследовано из 069) |
+| created_at / updated_at | timestamptz | NOT NULL DEFAULT now(); `updated_at` — `trg_set_updated_at` |
+| — | — | Индексы: `idx_rtt_org (org_id)`, **`idx_rtt_due (next_run_date) WHERE is_active`** (под ежедневный скан) |
+
+**RLS (069):** `rtt_select` — org-wide. `rtt_insert` — org + `created_by = auth.uid()`.
+`rtt_update`/`rtt_delete` — org + (**свой** `created_by` ∨ `current_org_role() in ('owner','admin')`);
+у UPDATE WITH CHECK — только org-граница (смена автора не блокируется намеренно).
+`GRANT select/insert/update/delete authenticated`, `REVOKE anon`.
+⚠️ Политики созданы **без `TO authenticated`** (роль `public` в `pg_policies`) — отклонение от
+конвенции W1, безопасность держит org-предикат.
+
+### project_baselines / baseline_tasks _(074, +075 гранты; S-GANTT-BASELINE-1)_ — базовый план (слепок сроков)
+
+План/факт на Ганте: `project_baselines` — заголовок слепка, `baseline_tasks` — строки со сроками
+задач на момент съёма (ghost-бары). **Слепок иммутабелен:** UPDATE-политик нет ни на одной таблице,
+`updated_at` **сознательно отсутствует**, «переснять» = создать новый baseline. Запись — **только
+через RPC `create_project_baseline`** (INSERT-политик нет вообще), удаление — hard delete заголовка,
+строки уходят каскадом.
+
+**project_baselines**
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; `trg_set_org_id_project_baselines` + `trg_freeze_org_id_project_baselines` (**выписаны явно — авто-цикл 054 новые таблицы не покрывает**) |
+| project_id | uuid NOT NULL | → projects ON DELETE CASCADE |
+| name | text NOT NULL | `CHECK char_length(trim(name)) between 1 and 120` |
+| created_by | uuid | nullable → **profiles** (не `auth.users` — конвенция проекта) ON DELETE SET NULL, DEFAULT `auth.uid()` — слепок переживает ушедшего автора |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| — | — | Индекс `idx_project_baselines_org_project (org_id, project_id, created_at DESC)` |
+
+**baseline_tasks**
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; свои `trg_set_org_id_baseline_tasks` / `trg_freeze_org_id_baseline_tasks` |
+| baseline_id | uuid NOT NULL | → project_baselines ON DELETE CASCADE |
+| project_id | uuid NOT NULL | → projects ON DELETE CASCADE. **Денормализация осознанная**: без неё SELECT-политика либо джойнит заголовок на каждую строку, либо вырождается в org-широкую |
+| task_id | uuid NOT NULL | → tasks ON DELETE CASCADE |
+| start_date / end_date | date NOT NULL | плановые границы на момент съёма |
+| is_milestone | boolean NOT NULL | DEFAULT false — копия флага задачи |
+| — | — | `UNIQUE (baseline_id, task_id)`. Индексы: `idx_baseline_tasks_baseline`, `idx_baseline_tasks_org_project`, `idx_baseline_tasks_task`. **Нет `created_at`/`created_by`** — строки пишет RPC вместе с заголовком, автор и время лежат там |
+
+**RLS (074, `TO authenticated`):** `project_baselines_select` и `baseline_tasks_select` — **дословное
+зеркало `project_messages_select` (067)**: org-граница первым конъюнктом, далее owner/admin org ∨
+владелец/создатель проекта (`owner_id`/`created_by`) ∨ `is_project_member(project_id)`. Один и тот же
+предикат на обеих таблицах — ради этого и денормализован `project_id`.
+`project_baselines_delete` — org + owner/admin. **INSERT/UPDATE-политик нет.**
+
+**Гранты (075):** ровно `select, delete` на заголовок и `select` на строки. 074 объявлял это
+грантами, но **не сузил** — дефолт Supabase выдаёт `authenticated` всё; сужение сделал явный
+`revoke insert, update, truncate, references, trigger` в 075.
 
 ### activities _(006)_
 
@@ -1127,6 +1413,8 @@ USING — org-граница автоматически запрещает пе�
 | `is_org_member(uuid)` | 021 | членство в org (обход self-referencing recursion) |
 | `current_org_role()` | 023 | роль пользователя в его текущей org |
 | `shares_org_with(uuid)` | 023 | делят ли профиль и текущий юзер общую org |
+| `is_project_member(uuid)` | 065 | текущий юзер в `project_members` проекта (обход рекурсии `projects↔project_members`); зеркалится в RPC аналитики 072 |
+| `is_meeting_attendee(uuid)` | 071 | текущий юзер во `meeting_attendees` встречи (обход взаимной рекурсии `42P17` с `attendees_own`) |
 
 `public.user_role()` и `profiles.role` — **удалены в 024** _(applied S25)_:
 все политики переехали на `current_org_role()` ещё в 023, код/UI роль читает
@@ -1232,14 +1520,67 @@ USING — org-граница автоматически запрещает пе�
   модалка `DeliveryCompletionModal` вместо `confirm()` в ProjectDetail,
   ромб-глиф вехи в TaskCard (phaseMode).
 
+### Командная видимость (062/065/071, applied 2026-07-18…23)
+
+- **`is_project_member(uuid)`** _(065, SQL STABLE **SECURITY DEFINER**, `search_path=public,pg_temp`,
+  revoke public/anon → grant authenticated+service_role)_ — «текущий юзер в `project_members`
+  проекта?». DEFINER обязателен: политика на `projects`, читающая `project_members`, при обычной
+  функции даёт рекурсию.
+- **Три permissive SELECT-политики 065** (`TO authenticated`, org-граница первым конъюнктом,
+  существующие политики не тронуты — доступ только расширяется):
+  `projects_select_member`, `project_files_select_member`, **`tasks_select_member`**
+  (участник видит **всю** доску проекта, не только свои задачи).
+  Write-политики (`tasks_update`/`tasks_delete`, `task_dependencies`) НЕ расширены; download чужих
+  файлов остаётся own-path в `storage.objects` — хвост S-TEAM-VISIBILITY-2.
+- ⚠️ **`tasks_select` + `tasks_select_member` зеркалят DEFINER-RPC аналитики (072)** — они обходят
+  RLS и держат тот же OR-предикат в теле. Любая правка SELECT-политик `tasks` = обязательная правка
+  `task_analytics_summary` / `task_throughput_series` / `task_aging_buckets`.
+- **`is_meeting_attendee(uuid)`** _(071, SQL STABLE DEFINER, тот же ACL)_ + пересобранная
+  `meetings_select` (org + owner/admin ∨ `created_by` ∨ участник) + `attendees_select_visible` на
+  `meeting_attendees`. ⚠️ **Прямой subquery к `meeting_attendees` в политике `meetings` → `42P17`**
+  (взаимная рекурсия с `attendees_own`); DEFINER-хелпер — единственный рабочий путь. Attendee
+  **видит, но не правит**: `meetings_update` не тронута.
+- **`task_dep_update`** _(062)_ — org + owner/admin/manager, WITH CHECK = USING. Ребро больше не
+  иммутабельно; **column-level ограничения у RLS нет** — «только `lag_days`/`dep_type`» держит клиент,
+  а DAG-валидатор стоит только на INSERT (долг W5, см. раздел `task_dependencies`).
+
+### Конвенция: гранты новой таблицы (урок 075)
+
+**Дефолтные привилегии Supabase выдают `authenticated` ВСЕ права на любую новую таблицу в
+`public`.** Поэтому `grant select, insert on ...` в миграции **ничего не сужает** — это лишь
+декларация намерения. Чтобы права действительно совпали с обещанием шапки миграции, нужен явный
+revoke лишнего:
+
+```sql
+revoke insert, update, truncate, references, trigger on public.<table> from authenticated;
+grant  <нужное> on public.<table> to authenticated;
+revoke all on public.<table> from anon;
+```
+
+Почему это не только косметика: **RLS не применяется к `TRUNCATE`, `REFERENCES` и `TRIGGER`** —
+эти привилегии политиками не перекрываются. Записи данных RLS не пропустит и без revoke, а вот
+`TRUNCATE` под ролью с полным грантом — да.
+
+**Статус на 2026-07-26:** сужено только у `project_baselines`/`baseline_tasks` (075). У
+`project_videos` (066), `project_messages` (067), `message_reactions` (068),
+`recurring_task_templates` (069) и `task_dependencies` (048/062) `authenticated` держит полный набор,
+включая `TRUNCATE` — хвост «grants narrow» на будущую миграцию. **Каждая новая таблица R2 обязана
+приходить с явным revoke.**
+
 ## Ключевые функции / триггеры (тенантность)
 
 - `public.current_org_id()` / `is_org_member()` _(021)_, `current_org_role()` /
   `shares_org_with()` _(023)_ — см. таблицу helpers выше.
 - `public.set_org_id()` — `BEFORE INSERT` триггер `trg_set_org_id` на всех
-  tenant-таблицах (17 с учётом transcripts/ai_runs _030_ и **project_columns** _032_);
+  tenant-таблицах (17 с учётом transcripts/ai_runs _030_ и **project_columns** _032_;
+  далее +`project_videos` _066_, +`project_messages` _067_, +`message_reactions` _068_,
+  +`recurring_task_templates` _069_, +`project_baselines`/`baseline_tasks` _074_);
   проставляет `NEW.org_id := current_org_id()`, если он не задан явно.
   **На invitations/notifications НЕ вешается** — org_id явный.
+  ⚠️ **Новую таблицу нужно подписывать на `set_org_id()` И на `freeze_org_id()` (054) руками** —
+  бэкфилл 054 прошёл по 29 таблицам, существовавшим на тот момент, автоматики для новых нет
+  (074 выписывает `trg_set_org_id_*` + `trg_freeze_org_id_*` явно; 069 — `trg_set_org_id` +
+  `trg_aa_freeze_org_id`).
 - `public.notify_task_assigned()` / `notify_project_assigned()` _(026, applied)_
   — SECURITY DEFINER, `AFTER INSERT OR UPDATE OF assigned_to`/`owner_id` на
   tasks/projects. При смене исполнителя на другого (не себя) пишут
@@ -1287,6 +1628,70 @@ USING — org-граница автоматически запрещает пе�
   уровне БД: у `type='internal'` зануляет legacy `stage` (DEFAULT `new_lead` сохранён
   ради convert_lead, но фантомная legacy-стадия у проекта вне воронки недопустима).
 - `public.delete_project_column(uuid, uuid)` _(032, security-fix 033)_ — см. RLS-раздел.
+
+### Повторяющиеся задачи (069/070, applied) — шаблон → задача по расписанию
+
+- **`public.rtt_next_occurrence(p_from date, p_cadence text, p_dow smallint, p_dom smallint) → date`**
+  _(069, **IMMUTABLE**, НЕ DEFINER, `search_path=public,pg_temp`, revoke public/anon → grant
+  authenticated+service_role)_ — чистая функция следующей даты: `daily` → +1; `weekdays` → +1 с
+  пропуском Сб/Вс; `weekly` → докручивает до `p_dow`; `monthly` → `p_dom`-е число, при уже прошедшем
+  дне уходит в следующий месяц.
+- **`public.spawn_recurring_tasks()`** _(069, тело пересобрано в 070; SECURITY DEFINER,
+  `search_path=public,pg_temp`; **revoke public/anon/authenticated → grant только service_role** —
+  зовёт pg_cron, не клиент)_. Контракт:
+  - день — **MSK** (`(now() at time zone 'Europe/Moscow')::date`), отбор `is_active AND next_run_date <= today`;
+  - **anti-pile-up**: если у шаблона есть задача с `lane <> 'done'` — не спавним **и `next_run_date`
+    не двигаем** (иначе пропуск цикла), т.е. в любой момент живёт **один открытый инстанс**;
+  - `next_run_date` считается **от сегодня**, а не от старого значения → пропущенные циклы не копятся;
+  - `deadline` новой задачи = сегодня; **тайм-блок (070)** — только при заданном `start_time`:
+    `(today + start_time) at time zone 'Europe/Moscow'` → `scheduled_start`,
+    `+ coalesce(duration_min, 30) минут` → `scheduled_end`; иначе `scheduled_* = NULL`;
+  - изоляция: per-шаблон subtxn + внешний `EXCEPTION WHEN OTHERS → RETURN` — один битый шаблон не
+    рушит проход, из cron не бросаем никогда.
+
+### Task-аналитика (072, applied) — `completed_at` + агрегаты
+
+- **`public.stamp_task_completed_at()`** _(072, НЕ DEFINER, `search_path` задан)_ + триггер
+  **`trg_stamp_completed_at`** `BEFORE INSERT OR UPDATE OF lane, column_id ON tasks`: вход в `done` →
+  `completed_at := now()`, реоткрытие → `NULL`, прочие апдейты не трогают. Имя сортируется **после**
+  `trg_aa_resolve_board` → триггер читает уже резолвнутый `lane` (для задач с проектом `lane`
+  деривативен). _Хвост: EXECUTE у `anon`/`authenticated` не снят — 056b такие функции чистил._
+- **`public.task_analytics_summary(date,date) → jsonb`**, **`task_throughput_series(date,date)
+  → table(week_start, completed, created)`**, **`task_aging_buckets() → table(bucket, sort_key, cnt)`**
+  _(072, все SECURITY DEFINER **STABLE**, `search_path=public,pg_temp`, revoke public/anon → grant
+  authenticated+service_role)_. Границы недели и бакеты дней — в **MSK**.
+  **Главное: DEFINER обходит RLS, поэтому предикат видимости собран в теле руками как зеркало
+  permissive-OR политик `tasks`** — `tasks_select` (org + owner/admin ∨ `assigned_to` ∨ `created_by`)
+  OR `tasks_select_member` (065, `is_project_member(project_id)`). При правке политик `tasks` тела
+  этих трёх функций правятся тем же PR.
+
+### Базовый план (074, applied) — единственный путь записи слепка
+
+- **`public.create_project_baseline(p_project_id uuid, p_name text) → uuid`** _(074, SECURITY DEFINER
+  VOLATILE, `search_path=public,pg_temp`, revoke public/anon → grant authenticated)_ — атомарный
+  слепок: заголовок + строки одним `INSERT..SELECT`, `org_id` ставят триггеры.
+  - Гарды по порядку: **видимость проекта** (предикат **дословно** равен `project_baselines_select`,
+    иначе manager вне проекта писал бы слепок в невидимый ему проект) → `42501`; роль записи
+    owner/admin/**manager** → `42501`; пустое имя → `22023`.
+  - Срок строки повторяет `effectiveSpan` из `use-project-schedule.ts`:
+    `start = start_date ?? end_date ?? (deadline at MSK)::date`,
+    `end = greatest(end_date ?? dl ?? start_date, start)` (клэмп `end < start`); задачи без всех трёх
+    дат в слепок не попадают. Иначе задачи, нарисованные на Ганте только по `deadline`, после первого
+    сдвига получали бы «вне плана».
+  - Прямого INSERT у клиента нет (политик нет) — заголовок без строк невозможен by construction.
+
+### Планировщик (pg_cron) — два ежедневных задания
+
+| Job | Расписание (UTC) | Команда | Введён |
+|---|---|---|---|
+| `wf-overdue-daily` | `0 6 * * *` (09:00 MSK) | `select public.run_overdue_automations();` | 051, S-WF-2C-A |
+| `recurring-daily` | `5 6 * * *` (09:05 MSK) | `select public.spawn_recurring_tasks();` | 069, S-RECUR-1 |
+
+Оба — `active=true` в `cron.job` (сверено 2026-07-26). `recurring-daily` намеренно идёт **через 5
+минут после** overdue-скана. Обе функции — DEFINER с `grant execute` **только `service_role`**:
+клиент их не зовёт. Обе глотают исключения наружу (`EXCEPTION WHEN OTHERS → RETURN`) — упавший
+проход не оставляет cron-job в ошибке, ценой тихого пропуска; расширение — `create extension if not
+exists pg_cron` (включено в 051).
 
 ## Порядок применения
 
