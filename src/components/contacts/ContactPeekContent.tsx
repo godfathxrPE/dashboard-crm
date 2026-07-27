@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { Building2, Mail, Phone } from 'lucide-react';
 import type { Contact } from '@/lib/hooks/use-contacts';
 import { daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { formatPhone } from '@/lib/utils/phone';
 
 /** Содержимое peek-панели контакта (Sprint W2d) — статичная композиция без новых запросов */
 export function ContactPeekContent({ contact }: { contact: Contact & { last_touch?: string | null } }) {
+  const reconnectDays = useReconnectDays();
   const days = contact.last_touch ? daysSince(contact.last_touch) : null;
-  const level = touchLevel(days);
+  const level = touchLevel(days, reconnectDays);
 
   return (
     <div className="space-y-4 text-sm">

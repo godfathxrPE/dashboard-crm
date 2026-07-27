@@ -7,6 +7,7 @@ import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { GatesSection } from '@/components/settings/GatesSection';
 import { AutomationsSection } from '@/components/settings/AutomationsSection';
+import { OrgSettingsSection } from '@/components/settings/OrgSettingsSection';
 import { ProfileForm } from '@/components/settings/ProfileForm';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useMyProfile } from '@/lib/hooks/use-profile';
@@ -104,6 +105,9 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Automations (owner/admin only) */}
         <AutomationsSection />
+
+        {/* Org settings — правит owner, остальные видят значение (R2-P0-D) */}
+        <OrgSettingsSection />
 
         {/* Theme */}
         <div className="rounded-xl border border-border bg-surface p-4">

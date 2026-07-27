@@ -16,10 +16,11 @@ import { Badge } from '@/components/ui/Badge';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
+import { applySegment } from '@/lib/domain/segment-eval';
 import { projectHref } from '@/lib/utils/project-href';
 import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
-import type { PipelineStage } from '@/types/database';
+import type { PipelineStage, SegmentPredicate } from '@/types/database';
 
 // Путь B: 3-трек из phase_group стадии (stage_id → pipeline_stages), не legacy `stage`.
 function getTrack(p: Project, stagesMap: Map<string, PipelineStage>): string | null {
@@ -39,10 +40,12 @@ type ViewMode = 'pipeline' | 'board' | 'table';
 interface ProjectsTableProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
   quickFilter?: ProjectQuickFilter | null;
+  /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
+  segment?: SegmentPredicate | null;
   onSwitchView?: (view: ViewMode) => void;
 }
 
-export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onSwitchView }: ProjectsTableProps) {
+export function ProjectsTable({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: ProjectsTableProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading, error } = useProjects('deals');
   const { data: allStages } = usePipelineStages();
@@ -56,11 +59,14 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, onS
   }, [allStages]);
 
   const projects = useMemo(
-    () => applyProjectQuickFilter(
-      directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
-      quickFilter,
+    () => applySegment(
+      applyProjectQuickFilter(
+        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        quickFilter,
+      ),
+      segment,
     ),
-    [rawProjects, directionFilter, quickFilter],
+    [rawProjects, directionFilter, quickFilter, segment],
   );
 
   const today = useMemo(() => new Date(new Date().toDateString()), []);

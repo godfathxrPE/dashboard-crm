@@ -4,13 +4,13 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Users, Loader2, Building2, Trash2, Download, Phone } from 'lucide-react';
 import { useUiStore } from '@/lib/stores/ui-store';
-import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useContacts, useUpdateContact, useDeleteContact, type Contact } from '@/lib/hooks/use-contacts';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { formatPhone } from '@/lib/utils/phone';
@@ -24,18 +24,22 @@ import { localDateKey } from '@/lib/utils/date-helpers';
 
 type ContactRow = Contact & { last_touch: string | null };
 
-const CHIP_FILTERS: Record<string, (c: ContactRow) => boolean> = {
-  has_email: (c) => !!c.email,
-  has_phone: (c) => !!c.phone,
-  // Порог как в «Сегодня → Остывают» (lib/constants/reconnect)
-  cooling: (c) => !c.last_touch || daysSince(c.last_touch) > RECONNECT_THRESHOLD_DAYS,
-};
+/** Порог «Остывают» — настройка организации (R2-P0-D), поэтому фильтры строятся в рантайме. */
+function chipFiltersFor(reconnectDays: number): Record<string, (c: ContactRow) => boolean> {
+  return {
+    has_email: (c) => !!c.email,
+    has_phone: (c) => !!c.phone,
+    // Порог как в «Сегодня → Остывают» (organizations.settings.reconnect_days)
+    cooling: (c) => !c.last_touch || daysSince(c.last_touch) > reconnectDays,
+  };
+}
 
 export function ContactsTable() {
   const router = useRouter();
   const openModal = useUiStore((s) => s.openModal);
   const { data: contacts, isLoading, error } = useContacts();
   const lastTouch = useLastTouchMap();
+  const reconnectDays = useReconnectDays();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
   const { data: role } = useOrgRole();
@@ -65,7 +69,10 @@ export function ContactsTable() {
       }, {});
   }, [contacts]);
 
-  const allFilters = useMemo(() => ({ ...CHIP_FILTERS, ...positionFilters }), [positionFilters]);
+  const allFilters = useMemo(
+    () => ({ ...chipFiltersFor(reconnectDays), ...positionFilters }),
+    [positionFilters, reconnectDays],
+  );
   const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(rows, allFilters);
 
   const chipOptions: ChipOption[] = useMemo(() => [
@@ -159,7 +166,7 @@ export function ContactsTable() {
       render: (c) => {
         if (!c.last_touch) return <span className="text-xs text-text-mute">—</span>;
         const days = daysSince(c.last_touch);
-        const level = touchLevel(days);
+        const level = touchLevel(days, reconnectDays);
         if (level === 'ok') {
           return (
             <span className="text-xs text-text-dim">

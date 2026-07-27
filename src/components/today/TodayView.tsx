@@ -16,7 +16,7 @@ import { projectHref } from '@/lib/utils/project-href';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
-import { RECONNECT_THRESHOLD_DAYS } from '@/lib/constants/reconnect';
+import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
@@ -50,6 +50,7 @@ export function TodayView() {
   const { data: contacts = [] } = useContacts();
   const isProjectActive = useIsProjectActive();
   const lastTouch = useLastTouchMap();
+  const reconnectDays = useReconnectDays();
   const openModal = useUiStore((s) => s.openModal);
   const updateCall = useUpdateCall();
   const updateTask = useUpdateTask();
@@ -116,9 +117,9 @@ export function TodayView() {
         const touch = lastTouch.get(c.id) ?? null;
         return { contact: c, days: touch ? daysSince(touch.date) : null };
       })
-      .filter((r) => r.days === null || r.days > RECONNECT_THRESHOLD_DAYS)
+      .filter((r) => r.days === null || r.days > reconnectDays)
       .sort((a, b) => (b.days ?? Infinity) - (a.days ?? Infinity)); // холоднее сверху
-  }, [contacts, projects, isProjectActive, lastTouch]);
+  }, [contacts, projects, isProjectActive, lastTouch, reconnectDays]);
 
   const total = overdueCalls.length + todayCalls.length + staleLeads.length + nowTasks.length
     + rottingDeals.length + todayMeetings.length + coolingContacts.length;
@@ -340,7 +341,7 @@ export function TodayView() {
           <Section title="Остывают" count={coolingContacts.length} icon={<Snowflake size={13} />}>
             {coolingSlice.map(({ contact: c, days }, i) => {
               const company = (c.companies ?? [])[0]?.company?.name;
-              const cold = touchLevel(days) === 'cold';
+              const cold = touchLevel(days, reconnectDays) === 'cold';
               const color = cold ? RED : YELLOW;
               return (
                 <QueueRow

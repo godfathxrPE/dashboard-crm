@@ -15,6 +15,7 @@ import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { projectHref } from '@/lib/utils/project-href';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
+import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { formatBudget } from '@/lib/validators/project';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
@@ -147,6 +148,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const stagesMap = usePipelineStagesMap();
   const { data: allCalls } = useCalls();
   const lastTouch = useLastTouchMap();
+  const reconnectDays = useReconnectDays();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
   const linkCompany = useLinkContactCompany();
@@ -214,7 +216,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   // Reconnect-индикатор: дней с последнего касания (тот же язык, что «Здоровье» в DealFocusPanel)
   const touch = lastTouch.get(contactId) ?? null;
   const touchDays = touch ? daysSince(touch.date) : null;
-  const touchLvl = touchLevel(touchDays);
+  const touchLvl = touchLevel(touchDays, reconnectDays);
   const touchDot = touchLvl === 'cold' ? 'bg-red' : touchLvl === 'cooling' ? 'bg-yellow' : 'bg-text-mute';
   const touchText = touchLvl === 'cold' ? 'text-red' : touchLvl === 'cooling' ? 'text-yellow' : 'text-text-mute';
 

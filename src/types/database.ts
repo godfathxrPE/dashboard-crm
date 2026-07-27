@@ -465,3 +465,56 @@ export interface Invitation {
   accepted_at: string | null;
   created_at: string;
 }
+
+// ═══ R2-P0-D: настройки организации (organizations.settings, миграция 076) ═══
+// В gen-типах `organizations.settings` — просто `Json`; здесь прикладная схема значения.
+// Зеркало Zod — validators/org-settings.ts. Неизвестные ключи (записанные будущей версией)
+// не валидируются, но и не теряются: запись идёт merge'ом {...current, ...patch},
+// а не литералом.
+
+export interface OrgSettings {
+  /** Порог тишины по контакту, дни. Дефолт — DEFAULT_RECONNECT_DAYS (21). */
+  reconnect_days?: number;
+  /** Норматив «сколько дней сделке жить в стадии»: default + переопределения по phase_group. */
+  stage_dwell_defaults?: { default?: number; [phaseGroup: string]: number | undefined };
+}
+
+// ═══ R2-P0-B: сегменты (Smart Views, миграция 077) ═══
+// Доменные надстройки над строкой `segments`. Whitelist полей по сущностям —
+// src/lib/constants/segments.ts; вычислитель — src/lib/domain/segment-eval.ts.
+
+export type SegmentEntity = 'deals' | 'deliveries' | 'contacts' | 'companies' | 'tasks' | 'leads';
+
+export type SegmentOp =
+  | 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
+  | 'in' | 'contains' | 'is_null' | 'not_null'
+  | 'days_since_gt' | 'days_since_lt';
+
+export interface SegmentClause {
+  field: string;
+  op: SegmentOp;
+  value?: string | number | boolean | string[];
+}
+
+/** v1: только AND-конъюнкция (F5 ревью). OR-группы — отдельное решение. */
+export interface SegmentPredicate {
+  version: 1;
+  and: SegmentClause[];
+}
+
+type SegmentRow = Database['public']['Tables']['segments']['Row'];
+
+/**
+ * Строка `segments` с доменным уточнением двух колонок. Форма (новые колонки,
+ * nullability) приходит из регенерации — ручной слепок разъезжался бы с БД:
+ * - `entity` в БД `text` + CHECK → в домене union `SegmentEntity`;
+ * - `predicate` в БД `jsonb` → `Json` → в домене AST `SegmentPredicate`.
+ *
+ * Прочее по инвариантам 077: `is_shared` true — конфиг org (`owner_id` null, правит
+ * owner/admin); false — личный фильтр автора, `owner_id` = автор (CHECK
+ * segments_owner_shape).
+ */
+export interface Segment extends Omit<SegmentRow, 'entity' | 'predicate'> {
+  entity: SegmentEntity;
+  predicate: SegmentPredicate;
+}

@@ -8,6 +8,8 @@ import { StageBoard } from './StageBoard';
 import { ProjectsTable } from './ProjectsTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
+import { SegmentsBar, useActiveSegment } from '@/components/shared/SegmentsBar';
+import { applySegment } from '@/lib/domain/segment-eval';
 import { applyProjectQuickFilter, isQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import type { Direction } from '@/types/database';
 
@@ -84,16 +86,22 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
     }));
   }, [allProjects]);
 
-  // Быстрые пресеты: гниющие / без бюджета (в рамках выбранного направления)
+  // Сегмент (Smart View) из URL `?segment=<uuid>`. Комбинируется с ?direction / ?q по «И»;
+  // применяют его сами доски — они читают список и фильтруют, ProjectsView только раздаёт.
+  const activeSegment = useActiveSegment('deals');
+  const segment = activeSegment?.predicate ?? null;
+
+  // Быстрые пресеты: гниющие / без бюджета (в рамках выбранного направления и сегмента)
   const quickOptions: ChipOption[] = useMemo(() => {
-    const all = (allProjects ?? []).filter(
-      (p) => directionFilter === 'all' || p.direction === directionFilter,
+    const all = applySegment(
+      (allProjects ?? []).filter((p) => directionFilter === 'all' || p.direction === directionFilter),
+      segment,
     );
     return [
       { label: 'Требуют внимания', value: 'attention', count: applyProjectQuickFilter(all, 'attention').length },
       { label: 'Без бюджета', value: 'nobudget', count: applyProjectQuickFilter(all, 'nobudget').length },
     ];
-  }, [allProjects, directionFilter]);
+  }, [allProjects, directionFilter, segment]);
 
   return (
     <div>
@@ -117,12 +125,17 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
         <SavedViewChips />
       </div>
 
+      {/* Сегменты — отдельной строкой: их имена длиннее чипов и полоса растёт со временем */}
+      <div className="mb-4">
+        <SegmentsBar entity="deals" />
+      </div>
+
       {view === 'table' ? (
-        <ProjectsTable directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={switchTo} />
+        <ProjectsTable directionFilter={directionFilter} quickFilter={quickFilter} segment={segment} onSwitchView={switchTo} />
       ) : view === 'board' ? (
-        <StageBoard directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={() => switchTo('pipeline')} />
+        <StageBoard directionFilter={directionFilter} quickFilter={quickFilter} segment={segment} onSwitchView={() => switchTo('pipeline')} />
       ) : (
-        <PipelineBoard directionFilter={directionFilter} quickFilter={quickFilter} onSwitchView={() => switchTo('board')} />
+        <PipelineBoard directionFilter={directionFilter} quickFilter={quickFilter} segment={segment} onSwitchView={() => switchTo('board')} />
       )}
     </div>
   );
