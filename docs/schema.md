@@ -5,14 +5,14 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–079** — вся цепочка в проде
-> (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948` —
-> сверены по `schema_migrations` 2026-07-27**; **080 `grants_narrow` закоммичена, НО НЕ ПРИМЕНЕНА**
-> — ждёт гейта; ⚠️ **ledger-блока по 079 ниже ещё нет** — долг спринта `S-R2-WF-DWELL`;
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–080** — вся цепочка в проде
+> (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948`,
+> 080 `20260727191507` — сверены по `schema_migrations` 2026-07-27**;
+> **081 `grants_tail` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
-> **081**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> **082**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
 > `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
 > `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
 > Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
@@ -1728,7 +1728,7 @@ revoke all on public.<table> from anon;
 эти привилегии политиками не перекрываются. Записи данных RLS не пропустит и без revoke, а вот
 `TRUNCATE` под ролью с полным грантом — да.
 
-**Статус на 2026-07-27 (080, ждёт гейта):** хвост закрыт **сплошь**. Это оказался не дефект пяти
+**Статус на 2026-07-27 (080 applied):** хвост закрыт **сплошь**. Это оказался не дефект пяти
 миграций 062–075, а состояние практически всех пользовательских таблиц: полный набор держали 33
 таблицы с `org_id`. 080 снимает `TRUNCATE` / `REFERENCES` / `TRIGGER` со всех них разом — **через
 каталог**, а не по списку имён, чтобы новая таблица не забылась. DML (`SELECT`/`INSERT`/`UPDATE`/
@@ -1738,9 +1738,20 @@ R2 конвенция соблюдалась. **Каждая новая табл
 отменяет правило, а лишь подчищает накопленное.
 
 Вне охвата 080 — таблицы **без** колонки `org_id`: `dashboard_sync`, `meeting_attendees`,
-`organizations`, `pipeline_stages`, `pipelines`, `profiles`, `user_settings`. У них тоже полный
-набор; тенантность у них другая (`id`, join, глобальный словарь), поэтому каталожный фильтр их не
-берёт — отдельным решением.
+`organizations`, `pipeline_stages`, `pipelines`, `profiles`, `user_settings`. Каталожный фильтр их
+не берёт по построению: тенантность у них другая (`id`, join, глобальный словарь, per-user).
+**Закрыто 081** (`S-SEC-GRANTS-TAIL`, ждёт гейта) — явным списком, потому что фильтром их и не
+поймать.
+
+**Второе правило, добытое на 081: грант не должен быть шире политик.** У четырёх из семи таблиц
+`authenticated` держал DML, на который политики нет вообще: `pipelines` / `pipeline_stages`
+(единственная политика — SELECT), `organizations` и `profiles` (SELECT + UPDATE, INSERT/DELETE
+политик нет). Операция и так блокируется RLS, но грант остаётся ложным обещанием — и станет
+реальным доступом в тот день, когда кто-нибудь добавит политику «чтобы починить» и не посмотрит на
+гранты. 081 сводит гранты к политикам; **для пользователя меняется только текст ошибки** — было
+«0 строк / RLS violation», стало `42501 permission denied`. ⚠️ Если UI когда-нибудь начнёт ветвиться
+на этом различии — сначала грепать клиент, потом снимать грант (в 081 греп по `src/` и по
+edge-функциям дал только `.select()` у словарей и `.update()` у `organizations`/`profiles`).
 
 ### Принятое решение: `TO public` в политиках — норма проекта, не отклонение
 
@@ -2031,7 +2042,52 @@ exists pg_cron` (включено в 051).
   (порядок триггеров не сломан); **(e)** ролевые: viewer/manager видят только свою org, `insert`
   руками → отказ (политики нет); **(f)** advisors без новых WARN, повторный apply идемпотентен.
 
-- **080** _(S-SEC-GRANTS-NARROW — **НЕ применена, ждёт гейта Cowork**)_ — гигиена привилегий,
+- **079** _(S-R2-WF-DWELL, R2-P0-E — **applied 2026-07-27, `20260727075948`**; ledger внесён
+  задним числом спринтом `S-SEC-GRANTS-TAIL` — бриф 080 успел утверждать, что 079 не применена,
+  и это стоило одной ошибки: **сверять `schema_migrations`, а не память**)_ — расширение движка
+  автоматизаций 050/051, не переписывание. Шесть частей:
+  **(1)** CHECK'и расширены полным списком (`drop constraint if exists` + `add`, имена сверены по
+  `pg_constraint`): `automation_rules_trigger_type_check` += `days_in_stage`,
+  `automation_rules_action_type_check` += `suggest_spawn`, `notifications_type_check` +=
+  `spawn_suggest`. ⚠️ **Откат (re-narrow) упадёт**, если строки с новыми значениями уже есть —
+  порядок зачистки выписан в шапке миграции.
+  **(2)** `idx_projects_dwell` — partial-индекс под ежедневный скан (зеркало `idx_tasks_overdue`
+  из 051): предикат константный по `type`/`status`, иначе seq scan по всем `projects`.
+  **(3)** **`wf_apply_project_action(uuid, uuid, uuid, text)`** _(DEFINER, НЕ триггер)_ — общая
+  часть действий над сделкой, вынесена из блоков (d)+(e) `run_stage_automations` (050)
+  один-в-один, чтобы dwell-планировщик не дублировал код действий. **Параметры — id, а не
+  composite**: PL/pgSQL-record из `for v_rule in select *` не типизирован, а перечитать
+  rule/project по PK — два index-lookup'а на РЕАЛЬНО сработавшем правиле. Знает про
+  `suggest_spawn`. `revoke all … from public, anon, authenticated` + `grant execute … service_role`.
+  **(4)** `run_stage_automations()` — тело 050 с одной правкой: (d)+(e) заменены вызовом
+  `wf_apply_project_action`. Матч триггеров, conditions, re-entrancy guard (`wf.ran`) и
+  идемпотентный run — без изменений. ⚠️ `create or replace` перезаписывает security attrs →
+  `DEFINER` + `search_path` выписаны заново обязательно. **Регресс `stage_entered` — главный риск
+  079**: прод-функция переписана целиком.
+  **(5)** **`run_dwell_automations()`** _(DEFINER, НЕ триггер — зовётся pg_cron)_ — «сделка
+  застряла на стадии N дней». Скоуп: `status='open'` client-сделки (won/lost не «застревают»),
+  порог `now() - stage_entered_at >= min_days`, опциональный `stage_id` в `trigger_config` сужает
+  до одной стадии.
+  **(6)** pg_cron `wf-dwell-daily` = `10 6 * * *` — после `wf-overdue-daily` (0 6) и
+  `recurring-daily` (5 6), чтобы джобы не дрались за минуту (сверено в `cron.job` 2026-07-27).
+  ⚠️ **Грабля, которая стоит записи в схеме, а не только в отчёте:** ключ идемпотентности —
+  `stage_id || '@' || to_char(stage_entered_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS.US')`,
+  **а не `::text`**. `timestamptz::text` рендерится по session `TimeZone`/`DateStyle`, поэтому
+  cron-прогон (UTC) и ручной вызов из psql/дашборда (MSK) дали бы РАЗНЫЕ `trigger_key` на одном и
+  том же пребывании в стадии — существующий `unique (rule_id, project_id, trigger_key)` из 050 их
+  не склеит, и правило стрельнет дважды. Два следствия ключа — это НЕ баги: смена `min_days` не
+  вызывает повторного срабатывания на том же пребывании (ключ не зависит от порога), а возврат на
+  ту же стадию обновляет `stage_entered_at` → правило срабатывает снова (желаемое).
+  ⚠️ **Инвариант I8:** авто-спавн внедрения запрещён — `suggest_spawn` создаёт ТОЛЬКО
+  `notification` (`type='spawn_suggest'`, deep link `?spawn=1` открывает визард лишь на
+  won-сделке); вызова `spawn_delivery_project` из автоматизаций нет и не будет, `delivery_kind`
+  выбирает РП руками.
+  ⚠️ **Развилка не закрыта:** в `organizations.settings` (076) уже лежит параллельный
+  `stage_dwell_defaults` — org-дефолты порога и правила `days_in_stage` пока живут двумя
+  независимыми механизмами.
+  Смоук-матрица 1–6 гейтом **не прогнана** (миграция применена, поведенческий смок остался долгом).
+
+- **080** _(S-SEC-GRANTS-NARROW — **applied 2026-07-27, `20260727191507`**)_ — гигиена привилегий,
   поведения не меняет. **(1)** Сплошной `revoke truncate, references, trigger … from authenticated`
   по всем таблицам с `org_id` (на момент написания — 33 штуки), исполняется DO-блоком через каталог,
   а не по списку имён. DML не трогается. **(2)** Хвост 056b: `stamp_task_completed_at` (072) и
@@ -2047,6 +2103,44 @@ exists pg_cron` (включено в 051).
   задачам и базовым планам — ничего не сломалось; отдельными пунктами **переход стадии через модалку
   на сделке с активным требованием** и **создание личного сегмента**; **(f)** advisors без новых
   WARN, повторный apply идемпотентен.
+
+- **081** _(S-SEC-GRANTS-TAIL — **НЕ применена, ждёт гейта Cowork**)_ — семь таблиц **без** колонки
+  `org_id`, которые каталожный фильтр 080 не видел по построению: `organizations`, `profiles`,
+  `pipelines`, `pipeline_stages`, `user_settings`, `meeting_attendees`, `dashboard_sync`. Поведения
+  не меняет. Две части:
+  **(1)** `revoke truncate, references, trigger … from authenticated` по всем семи — **явным
+  списком**, не через каталог (фильтром их и не поймать). Плюс `revoke all … from anon` страховкой,
+  симметрично 080. Самый дорогой пункт всей темы грантов: у `organizations` тенант живёт в `id`, и
+  `TRUNCATE` там **игнорирует RLS целиком** — одна команда сносит корень всех org; `TRIGGER` даёт
+  навесить свой триггер на таблицу профилей и организаций.
+  **(2)** DML сведён к политикам у четырёх таблиц, где грант был шире: `revoke insert, update,
+  delete` у `pipelines` / `pipeline_stages` (глобальные словари, единственная политика — SELECT,
+  запись идёт миграциями) и `revoke insert, delete` у `organizations` / `profiles` (политики
+  SELECT + UPDATE, INSERT/DELETE политик нет). **UPDATE у обеих сохранён** — им живут
+  `useUpdateOrgSettings` (076 `settings`, owner-only) и `useUpdateProfile` / `useUploadAvatar`.
+  DML у `user_settings` (политика ALL), `meeting_attendees` (ALL + SELECT) и `dashboard_sync` (все
+  четыре cmd) **не тронут** — там политики есть, значит операции задуманы.
+  Каждому revoke предшествует `do $$ … raise exception` guard: появилась политика на снимаемую
+  операцию — миграция падает целиком (одна транзакция), а не отбирает вслепую нужное право.
+  `'ALL'` в списке `cmd` guard'а обязателен: политика `FOR ALL` покрывает и INSERT, и DELETE.
+  ⚠️ **Поправка к брифу, добытая разведкой:** организацию **не** создаёт `complete_onboarding` —
+  та функция только доштампывает профиль (`update public.profiles … onboarded_at`). В живой БД
+  вообще нет функции, пишущей в `organizations` (проверено `pg_get_functiondef` по всем функциям
+  `public`/`auth`), и такого кода нет ни в `src/`, ни в edge-функциях: **org заводится вне
+  приложения** (SQL/дашборд под service_role). Профиль, в отличие от неё, действительно заводит
+  `handle_new_user()` — DEFINER-триггер на `auth.users`, owner `postgres`.
+  План смоуков гейта: **(a)** `TRUNCATE`/`REFERENCES`/`TRIGGER` у `authenticated` по всей `public` —
+  0 строк; **(b)** `user_settings`/`meeting_attendees`/`dashboard_sync` = `DELETE,INSERT,SELECT,
+  UPDATE` у всех трёх; **(c)** `pipelines`/`pipeline_stages` = `SELECT`, `profiles`/`organizations`
+  = `SELECT,UPDATE`; **(d)** `anon` пуст по всей `public` — 0 строк; **(e)** ролевой смок под JWT
+  **с записью**: `update profiles set full_name = full_name where id = <свой>` → 1 строка; чтение и
+  запись своей строки `user_settings` → ok; `select` из `organizations` виден, `update organizations
+  set name = name` под owner → 1 строка, под manager → 0 строк (`org_update_owner`); `select` из
+  `pipelines`/`pipeline_stages` отдаёт словарь, а `insert` руками → **`42501`, а не тихие 0 строк**
+  (это и есть подтверждение части 2); чтение `meeting_attendees` + добавление участника на своей
+  встрече → ok; **(f)** UI-смок на dev: вход, настройки профиля и организации, доска сделок (читает
+  `pipeline_stages`), переход стадии через модалку; **(g)** advisors без новых WARN, повторный apply
+  идемпотентен.
 
 ## Edge Functions
 
