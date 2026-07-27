@@ -1804,16 +1804,38 @@ alter default privileges for role postgres in schema public
 `authenticated=arwdm`, а вью отдаёт ровно `DELETE,INSERT,SELECT,UPDATE`; `privilege_type='MAINTAIN'`
 не находится нигде — 0 строк по всей схеме). Это вью стандарта SQL, нестандартной привилегии в нём
 нет, поэтому «MAINTAIN-запрос» через `information_schema` вернёт 0 и будет выглядеть зелёным
-независимо от реального состояния. Правильная метрика:
+независимо от реального состояния.
+
+**И вторая ловушка, ровно в противоположную сторону.** Каталожная проверка через склеенный
+`relacl` — тоже неверна:
 
 ```sql
-select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r'
-  and array_to_string(c.relacl, ',') like '%authenticated=%m%';        -- ожидание: 0
+-- ❌ НЕ ИСПОЛЬЗОВАТЬ: даёт 44 и до, и после revoke
+where array_to_string(c.relacl, ',') like '%authenticated=%m%'
 ```
 
+`relacl` — это массив `aclitem`, и после склейки в строку права одной роли неотличимы от прав
+соседней: `%` жадно матчит через запятую, находя `m` не у `authenticated`, а в идущем следом
+`service_role=arwdDxtm`. Проверено на гейте 082 — запрос вернул 44 при уже снятом `MAINTAIN`.
+Разбирать ACL только поэлементно, через `unnest`:
+
+```sql
+-- ✅ правильная метрика: различает состояния (0 после 082, 44 до неё)
+select count(*)
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace,
+     lateral unnest(coalesce(c.relacl, '{}'::aclitem[])) a
+where n.nspname = 'public' and c.relkind = 'r'
+  and a::text like 'authenticated=%'
+  and split_part(split_part(a::text, '=', 2), '/', 1) like '%m%';      -- ожидание: 0
+```
+
+Тот же приём — для любой другой привилегии: буква меняется в последнем `like`
+(`D` — TRUNCATE, `x` — REFERENCES, `t` — TRIGGER, `m` — MAINTAIN).
+
 Для `TRUNCATE`/`REFERENCES`/`TRIGGER` `information_schema` пригодна (они стандартные) — так
-сформулированы VERIFY 080/081, — но каталожный вариант надёжнее и покрывает все четыре разом.
+сформулированы VERIFY 080/081, — но каталожный вариант с `unnest` надёжнее и покрывает все
+четыре разом.
 
 ### Принятое решение: `TO public` в политиках — норма проекта, не отклонение
 
@@ -2219,8 +2241,9 @@ exists pg_cron` (включено в 051).
   `MAINTAIN` с 44 существующих таблиц; сплошь, а не точечно, иначе метрика «широких привилегий 0»
   не сойдётся. **(3)** Дефолты `supabase_admin` недоступны (`postgres` не член) → зафиксирована
   конвенция «таблицы только миграциями»; дефолты на функции и sequences осознанно не тронуты.
-  План смоуков гейта: **(a)** `MAINTAIN` не осталось ни у одной таблицы — **каталожный** запрос по
-  `relacl` (через `information_schema` эта проверка бессмысленна, см. раздел выше); **(b)** дефолты
+  План смоуков гейта: **(a)** `MAINTAIN` не осталось ни у одной таблицы — каталожный запрос по
+  `relacl` **через `unnest`, не через `array_to_string` + `like`** (первый вариант бессмыслен через
+  `information_schema`, второй ложно-красен — обе ловушки разобраны в разделе выше); **(b)** дефолты
   `postgres` на таблицы = `authenticated=arwd`, `postgres`/`service_role` без изменений;
   **(c)** DML жив у `projects`/`tasks`/`ai_runs`/`segments` (`DELETE,INSERT,SELECT,UPDATE`);
   **(d)** `TRUNCATE`/`REFERENCES`/`TRIGGER` по-прежнему 0 — 080/081 не откатились;
@@ -2229,6 +2252,13 @@ exists pg_cron` (включено в 051).
   (без `D`, `x`, `t`, `m`) → `drop table`; **(f)** ролевой смок под JWT owner — чтение и запись по
   сделкам, задачам, файлам, сегментам, настройкам профиля и организации; **(g)** advisors без новых
   WARN, повторный apply идемпотентен.
+  **Результат гейта (2026-07-27, `20260727201...`): применена, 7/7.** Дефолты `postgres` →
+  `{postgres=arwdDxtm, authenticated=arwd, service_role=arwdDxtm}`; `MAINTAIN` — 0 по каталогу
+  (`unnest`-проверкой), наборы прав `authenticated` по всем 44 таблицам сократились до `arwd` / `r`
+  / `rd` / `rw`; проба `__grants_root_probe` пришла с `authenticated=arwd/postgres` **без единого
+  `revoke` в своей миграции** — корень закрыт; `TRUNCATE`/`REFERENCES`/`TRIGGER` и `anon` — 0;
+  INSERT/DELETE под owner на `tasks` живы. На гейте же вскрыта ложно-красная метрика (см. раздел
+  выше) — исправлена этим коммитом.
 
 ## Edge Functions
 
