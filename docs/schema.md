@@ -5,13 +5,14 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–078** — вся цепочка в проде
-> (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832` — сверены по
-> `schema_migrations` 2026-07-27**; **079 `wf_dwell` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–079** — вся цепочка в проде
+> (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948` —
+> сверены по `schema_migrations` 2026-07-27**; **080 `grants_narrow` закоммичена, НО НЕ ПРИМЕНЕНА**
+> — ждёт гейта; ⚠️ **ledger-блока по 079 ниже ещё нет** — долг спринта `S-R2-WF-DWELL`;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
-> **080**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> **081**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
 > `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
 > `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
 > Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
@@ -543,7 +544,7 @@ IN ('owner','admin')`.
 contact_id; «Договор» → файл + next_step). Стадия не нашлась — пропуск.
 На гейте проставлено **8 требований**.
 
-### automation_rules / automation_runs _(029, applied; обобщены в 050 S-WF-2A; +task_overdue 051 S-WF-2C-A; +days_in_stage/suggest_spawn 079 S-R2-WF-DWELL, НЕ применена)_ — Workflow Engine
+### automation_rules / automation_runs _(029, applied; обобщены в 050 S-WF-2A; +task_overdue 051 S-WF-2C-A; +days_in_stage/suggest_spawn 079 S-R2-WF-DWELL, applied 2026-07-27)_ — Workflow Engine
 
 Org-scoped конфиг правил «триггер → действие» + журнал срабатываний. Настраивается
 из UI (Settings → Автоматизации, owner/admin). `org_id` задаётся **явно** из UI —
@@ -1727,11 +1728,28 @@ revoke all on public.<table> from anon;
 эти привилегии политиками не перекрываются. Записи данных RLS не пропустит и без revoke, а вот
 `TRUNCATE` под ролью с полным грантом — да.
 
-**Статус на 2026-07-26:** сужено только у `project_baselines`/`baseline_tasks` (075). У
-`project_videos` (066), `project_messages` (067), `message_reactions` (068),
-`recurring_task_templates` (069) и `task_dependencies` (048/062) `authenticated` держит полный набор,
-включая `TRUNCATE` — хвост «grants narrow» на будущую миграцию. **Каждая новая таблица R2 обязана
-приходить с явным revoke.**
+**Статус на 2026-07-27 (080, ждёт гейта):** хвост закрыт **сплошь**. Это оказался не дефект пяти
+миграций 062–075, а состояние практически всех пользовательских таблиц: полный набор держали 33
+таблицы с `org_id`. 080 снимает `TRUNCATE` / `REFERENCES` / `TRIGGER` со всех них разом — **через
+каталог**, а не по списку имён, чтобы новая таблица не забылась. DML (`SELECT`/`INSERT`/`UPDATE`/
+`DELETE`) не трогается: там граница — RLS, и снятие сломало бы приложение. Уже были чисты до 080:
+`project_baselines`/`baseline_tasks` (075), `segments` (077), `stage_transitions` (078) — то есть в
+R2 конвенция соблюдалась. **Каждая новая таблица обязана приходить с явным revoke** — 080 не
+отменяет правило, а лишь подчищает накопленное.
+
+Вне охвата 080 — таблицы **без** колонки `org_id`: `dashboard_sync`, `meeting_attendees`,
+`organizations`, `pipeline_stages`, `pipelines`, `profiles`, `user_settings`. У них тоже полный
+набор; тенантность у них другая (`id`, join, глобальный словарь), поэтому каталожный фильтр их не
+берёт — отдельным решением.
+
+### Принятое решение: `TO public` в политиках — норма проекта, не отклонение
+
+По проду 2026-07-27: **87 политик с ролями `{public}` и 44 с `{authenticated}`**. То есть `{public}`
+— доминирующая практика, а не разовая небрежность отдельных миграций. Функционально разница почти
+нулевая: `anon` лишён табличных грантов (056 + default privileges), поэтому `TO public`-политика ему
+всё равно ничего не открывает — без гранта до проверки политики дело не доходит. Переписывать 87
+политик ради консистентности — не стоит миграции. **Вопрос закрыт: `TO public` допустим; в новых
+политиках предпочтителен `TO authenticated`, но переписывать существующие не нужно.**
 
 ## Ключевые функции / триггеры (тенантность)
 
@@ -1991,7 +2009,7 @@ exists pg_cron` (включено в 051).
   порог тишины меняется в Настройках → «Сегодня → Остывают» реагирует; не-owner видит секцию
   настроек read-only; advisors (ожидание: initplan-WARN на новых политиках нет — обёртки `( select … )`).
 
-- **078** _(S-R2-TRANSITION-1a, R2-P0-A — **НЕ применена, ждёт гейта Cowork**)_ —
+- **078** _(S-R2-TRANSITION-1a, R2-P0-A — **applied 2026-07-27, `20260727064832`**)_ —
   фундамент переходов стадии. Три части:
   **(1)** `check_stage_requirements_row(uuid, uuid, jsonb)` — гейт, принимающий строку-кандидата;
   2-арная `check_stage_requirements` становится делегатом `(…, null)`, её имя/аргументы/возврат/гранты
@@ -2012,6 +2030,23 @@ exists pg_cron` (включено в 051).
   в `stage_transitions` с верным `changed_by`, автоматизация `stage_entered` при этом **сработала**
   (порядок триггеров не сломан); **(e)** ролевые: viewer/manager видят только свою org, `insert`
   руками → отказ (политики нет); **(f)** advisors без новых WARN, повторный apply идемпотентен.
+
+- **080** _(S-SEC-GRANTS-NARROW — **НЕ применена, ждёт гейта Cowork**)_ — гигиена привилегий,
+  поведения не меняет. **(1)** Сплошной `revoke truncate, references, trigger … from authenticated`
+  по всем таблицам с `org_id` (на момент написания — 33 штуки), исполняется DO-блоком через каталог,
+  а не по списку имён. DML не трогается. **(2)** Хвост 056b: `stamp_task_completed_at` (072) и
+  `sync_project_stage` (S29.1) — единственные чисто триггерные функции, у которых EXECUTE оставался
+  у `anon`/`authenticated`; сняты, `service_role` выдан явно. **(3)** `check_stage_requirements(uuid,
+  uuid)` намеренно **сохраняет** EXECUTE у `authenticated` — её зовёт модалка перехода стадии для
+  превью невыполненных требований; защита внутри (`is_org_member` → 42501).
+  План смоуков гейта: **(a)** `TRUNCATE`/`REFERENCES`/`TRIGGER` у `authenticated` — 0 строк;
+  **(b)** DML на `tasks`/`projects`/`quotes` на месте (`DELETE,INSERT,SELECT,UPDATE`);
+  **(c)** ни одной триггерной функции с EXECUTE у `anon`; **(d)** `has_function_privilege(
+  'authenticated','public.check_stage_requirements(uuid,uuid)','EXECUTE')` = `true`;
+  **(e)** ролевой смок owner/manager/viewer по сделкам, задачам, файлам, чату, КП, повторяющимся
+  задачам и базовым планам — ничего не сломалось; отдельными пунктами **переход стадии через модалку
+  на сделке с активным требованием** и **создание личного сегмента**; **(f)** advisors без новых
+  WARN, повторный apply идемпотентен.
 
 ## Edge Functions
 

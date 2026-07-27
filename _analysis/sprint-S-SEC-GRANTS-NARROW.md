@@ -1,13 +1,15 @@
 # S-SEC-GRANTS-NARROW — сузить гранты `authenticated` и добить хвост 056b
 
-**Ветка:** `chore/sec-grants-narrow` от `main`. Миграция — **следующая свободная после
-занятых R2** (по плану 080; уточнить на старте). Один коммит.
+**Ветка:** `chore/sec-grants-narrow` от `main`. Миграция — **080**. Один коммит.
 
 Гигиена привилегий по итогам гейта `S-DOCS-SCHEMA-SYNC`. Не фича, поведения не меняет,
 откат — обратный `grant`.
 
-**Трудоёмкость: ~2–3 ч. Риск низкий.** Делать в любом окне между спринтами R2, но **не**
-занимать номера 076–079 (они за SEGMENTS / TRANSITION-1a / WF-DWELL).
+**Трудоёмкость: ~2–3 ч. Риск низкий.**
+
+Контекст на момент выдачи (2026-07-27): **R2-P0 закрыт целиком**, `main` = `18988ca`,
+в проде применены 076 (org_settings), 077 (segments), 078 (stage_transition_core),
+079 (wf_dwell). **080 свободна** — занимать её.
 
 ---
 
@@ -36,6 +38,19 @@ baseline-таблицам. По остальным — полный набор, 
 практически всех пользовательских таблиц проекта. Поэтому и правка — **сплошная**, по всем
 таблицам с `org_id`, а не патч на пять имён.
 
+**Перепроверено по проду 2026-07-27, после применения 076–079** — картина не ухудшилась,
+новые таблицы R2 пришли уже суженными, урок 075 в них учтён:
+
+| Таблица | Привилегии `authenticated` | |
+|---|---|---|
+| `segments` (077) | `DELETE, INSERT, SELECT, UPDATE` | ✅ чисто |
+| `stage_transitions` (078) | `SELECT` | ✅ чисто |
+
+Функции 078/079 (`check_stage_requirements_row`, `wf_apply_project_action`,
+`run_dwell_automations`, `run_stage_automations`, `log_stage_transition`) — все DEFINER
+с `EXECUTE` только у `service_role`, конвенция 056b соблюдена. Чинить в них нечего.
+Хвост `stamp_task_completed_at` — **подтверждён живым** (`=X/postgres` + `authenticated`).
+
 Почему это стоит миграции, хотя через PostgREST не выражается: `TRUNCATE` игнорирует RLS
 целиком, а `TRIGGER` позволяет навесить свой триггер на таблицу. Обе привилегии не нужны
 клиенту ни в одном сценарии; они становятся поверхностью атаки в момент, когда JWT
@@ -49,7 +64,7 @@ baseline-таблицам. По остальным — полный набор, 
 
 ```bash
 git branch --show-current && git status --short
-ls supabase/migrations/ | tail -3      # какие номера уже заняты R2 — берём следующий свободный
+ls supabase/migrations/ | tail -3      # ожидание: …077, 078, 079 → берём 080
 sed -n '1,20p' supabase/migrations/075_baseline_grants_narrow.sql   # эталон формулировок
 grep -rn "revoke" supabase/migrations/056_revoke_anon_defaults.sql | head
 ```
@@ -69,7 +84,16 @@ order by 1;
 1. В выборке оказались таблицы **без** `org_id` (`profiles`, `user_settings`, `pipelines`,
    `pipeline_stages`, `dashboard_sync`) → их трогать в этом спринте **не** надо, вынести
    отдельным решением и сказать.
-2. Номер миграции конфликтует с активной ветвью R2 → взять следующий, доложить.
+2. `ls supabase/migrations/` показал, что 080 уже занята → взять следующий свободный,
+   доложить в отчёте.
+3. 🔴 **`check_stage_requirements(uuid, uuid)` трогать запрещено.** Она DEFINER **и** с
+   `EXECUTE` у `authenticated` — это выглядит как нарушение 056b, но так и задумано: её
+   вызывает модалка перехода стадии, чтобы показать невыполненные требования до UPDATE.
+   Защита внутри есть — `IF auth.uid() IS NOT NULL AND NOT is_org_member(v_project.org_id)
+   THEN RAISE '42501'`, по чужому `project_id` она отдаёт отказ, а не данные. Снятие с неё
+   `EXECUTE` сломает переход стадии из UI. Под фильтр раздела 2 (`prorettype = 'trigger'`)
+   она не попадает, так как возвращает `jsonb` — но если возникнет соблазн «довести до
+   конвенции» вручную, **не поддаваться** и написать об этом в отчёте.
 
 ---
 
@@ -170,11 +194,18 @@ group by 1;                                                       -- ожида�
 select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 where n.nspname='public' and p.prorettype='trigger'::regtype
   and has_function_privilege('anon', p.oid, 'EXECUTE');            -- ожидание: 0
+
+-- 4. модалка перехода не сломана: EXECUTE у authenticated НА МЕСТЕ
+select has_function_privilege('authenticated',
+  'public.check_stage_requirements(uuid,uuid)', 'EXECUTE');        -- ожидание: true
 ```
 
 Плюс приложение: ролевой смок owner/manager/viewer по основным разделам (сделки, задачи,
 файлы, чат, КП, повторяющиеся задачи, базовые планы) — **ни одна операция не должна
-сломаться**; если сломалась, значит сняли лишнее, откат обратным grant.
+сломаться**; если сломалась, значит сняли лишнее, откат обратным grant. Отдельным пунктом
+в смоук — **переход стадии через модалку на сделке с активным требованием** (это прямой
+потребитель `check_stage_requirements`) и **создание личного сегмента** (077 — самая новая
+таблица под сплошным revoke).
 
 `advisors` — без новых WARN.
 
