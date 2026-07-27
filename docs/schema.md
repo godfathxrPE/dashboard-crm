@@ -662,7 +662,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 ---
 
-### transcripts / ai_runs _(030, applied, S-AI-1)_ — AI Hub
+### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ)_ — AI Hub
 
 Транскрипт как самостоятельная сущность (1 транскрипт → N прогонов пресетов; нужен и
 звонкам, и встречам) + журнал AI-прогонов. Обе — **обычные tenant-таблицы**: `org_id`
@@ -691,7 +691,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 |---------|-----|---------|
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
-| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`; реестр в коде edge) |
+| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_; реестр в коде edge, **CHECK'а нет** — новый пресет DDL не требует, только редеплой функции) |
 | entity_type / entity_id | text / uuid | NOT NULL |
 | transcript_id | uuid | NOT NULL → transcripts ON DELETE CASCADE |
 | status | text | NOT NULL DEFAULT `pending` CHECK `pending`\|`running`\|`done`\|`error` |
@@ -2053,10 +2053,38 @@ exists pg_cron` (включено в 051).
   только call).
 - **Реестр пресетов — ТОЛЬКО в коде функции** (`PRESETS: Record<string,Preset>`):
   `meeting_protocol` / `analytic_note` (needsEntity — подгружает сделку/компанию в
-  `<data kind="entity">`) / `spin_review`. У каждого: фикс. system с анти-injection
-  преамбулой + свой tool (structured output) + `maxInputChars` (120К) + `promptVersion`.
-  Промпт в БД/на клиенте НЕ живёт (injection-контур + QA-версионирование). Клиент знает
-  только метаданные — `src/lib/constants/ai-presets.ts`.
+  `<data kind="entity">`) / `spin_review` / **`deal_progression`** (R2-P0-C, needsEntity).
+  У каждого: фикс. system с анти-injection преамбулой + свой tool (structured output) +
+  `maxInputChars` (120К) + `promptVersion`. Промпт в БД/на клиенте НЕ живёт
+  (injection-контур + QA-версионирование). Клиент знает только метаданные —
+  `src/lib/constants/ai-presets.ts`. **Соответствие пресет↔тип сущности продублировано**
+  в `clientMeta` внутри функции и в `entityTypes` реестра клиента — правится синхронно.
+- **`deal_progression` (R2-P0-C, S-R2-SDP-1) — Smart Deal Progression**, единственный
+  пресет, чей вывод ПИШЕТСЯ в сделку (после явного подтверждения человеком).
+  `promptVersion: 1`, модель — sonnet, tool `submit_progression`.
+  — **`version`/`source`/`target_project_id` модель не возвращает** — их штампует
+  `stampProposal()` после ответа: `target_project_id` читается из `calls`/`meetings`
+  под RLS, поэтому транскрипт не может подсунуть чужую сделку.
+  — **В tool-схеме физически НЕТ `stage_id`** (подсказки стадии запрещены до конца P2 —
+  стадия только фразой в `summary`), а также `budget`/`owner_id`/`company_id`/
+  `contact_id`/`status`/`type`/`org_id`. Поля сделки — ровно whitelist `set_field`
+  движка автоматизаций (**инвариант I7**, третья копия списка после
+  `constants/automation.ts` и SQL 079; совпадение клиентских двух держит тип
+  `ProgressionFieldKey = AutomationSetFieldName` + exhaustive-гард, не комментарий).
+  — Клиент: Zod `validators/progression.ts` валидирует ответ **до** показа
+  (не-ISO дата, `probability` вне 0..100, битая задача выбрасываются поштучно);
+  применение — `lib/domain/apply-progression.ts`; UI — `AiProgressionPanel`
+  (все чекбоксы выключены на старте).
+  — **Свежесть:** перед записью снимок `projects.updated_at`, который видел
+  пользователь, сверяется со свежим чтением; расхождение → отказ, применение только
+  после повторного подтверждения (`force`).
+  — **Идемпотентность:** прогон «заклеймливается» условным UPDATE
+  `.is('result->>applied_at', null)` **до** записи в сделку — двойной клик не создаёт
+  вторую пачку задач; при падении записи клейм снимается best-effort. Пишет клиент,
+  RLS `ai_runs_update` это разрешает автору прогона (MERGE ключей, не литерал `result`).
+  — **Audit trail (I4):** `activity_log` `'ai_progression_applied'`
+  (`{run_id, source_entity_*, fields[], tasks, confidence}`); отдельной таблицы
+  «принятий» нет намеренно.
 - **Секреты / модели:** `ANTHROPIC_API_KEY` (обязателен). Модели через env
   `AI_RUN_MODEL_SONNET` (дефолт `claude-sonnet-5`) / `AI_RUN_MODEL_HAIKU` (дефолт
   `claude-haiku-4-5-20251001`) — **смена модели без редеплоя**. Дефолтные строки сверять

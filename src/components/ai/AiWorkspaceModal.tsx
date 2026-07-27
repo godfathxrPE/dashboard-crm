@@ -14,6 +14,11 @@ interface AiWorkspaceModalProps {
   projectId?: string | null;
   companyId?: string | null;
   contactId?: string | null;
+  /**
+   * R2-P0-C: модалку открыли по CTA «Обновить сделку» (а не по общей кнопке AI) —
+   * подсвечиваем пресет Smart Deal Progression.
+   */
+  focus?: 'progression';
 }
 
 /**
@@ -22,7 +27,7 @@ interface AiWorkspaceModalProps {
  * (транскрипт, пресеты, лента прогонов) ниже. Данные сущности здесь не редактируются.
  */
 export function AiWorkspaceModal({
-  isOpen, onClose, entityType, entityId, projectId, companyId, contactId,
+  isOpen, onClose, entityType, entityId, projectId, companyId, contactId, focus,
 }: AiWorkspaceModalProps) {
   const { data: calls } = useCalls();
   const { data: meetings } = useMeetings();
@@ -84,6 +89,7 @@ export function AiWorkspaceModal({
             defaultCompanyId={call?.company_id ?? meeting?.company_id ?? companyId ?? null}
             defaultContactId={call?.contact_id ?? meeting?.contact_id ?? contactId ?? null}
             defaultProjectId={call?.project_id ?? meeting?.project_id ?? projectId ?? null}
+            focusProgression={focus === 'progression'}
           />
         </div>
       </div>

@@ -2,7 +2,10 @@
 // (кнопки, оценка стоимости, выбор renderer). System-промпты и tool-схемы
 // живут ТОЛЬКО в edge-функции ai-run (injection-контур: промпт не в БД/не на клиенте).
 
-export type PresetKey = 'meeting_protocol' | 'analytic_note' | 'spin_review';
+export type PresetKey = 'meeting_protocol' | 'analytic_note' | 'spin_review' | 'deal_progression';
+
+/** R2-P0-C: пресет Smart Deal Progression — единственный, чей вывод пишется в сделку. */
+export const PROGRESSION_PRESET_KEY = 'deal_progression' satisfies PresetKey;
 
 export type PresetMeta = {
   key: PresetKey;
@@ -28,6 +31,18 @@ export const AI_PRESETS: PresetMeta[] = [
     key: 'analytic_note',
     title: 'Аналитическая записка',
     description: 'Ситуация клиента, боли, стейкхолдеры, риски сделки, рекомендации, аргументы для КП.',
+    input: 'transcript+entity',
+    entityTypes: ['call', 'meeting'],
+    model: 'sonnet',
+    maxInputChars: 120_000,
+  },
+  {
+    // R2-P0-C. entityTypes зеркалит clientMeta в edge ai-run — правится синхронно.
+    key: 'deal_progression',
+    title: 'Обновить сделку',
+    description:
+      'Черновик обновления сделки по разговору: следующий шаг, дата, заметка, вероятность, задачи. ' +
+      'Ничего не применяется само — вы отмечаете галочками, что записать.',
     input: 'transcript+entity',
     entityTypes: ['call', 'meeting'],
     model: 'sonnet',

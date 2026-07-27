@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, Pencil, Sparkles, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
+import { Phone, Pencil, Sparkles, Wand2, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
@@ -30,6 +30,8 @@ export function CallLog() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editCall, setEditCall] = useState<Call | null>(null);
   const [aiCall, setAiCall] = useState<Call | null>(null);
+  // R2-P0-C: одна модалка, два входа — общий «AI-анализ» и прямой CTA на SDP.
+  const [aiFocus, setAiFocus] = useState<'progression' | undefined>(undefined);
   const [tab, setTab] = useState<TabFilter>('all');
   const [taskSuggestion, setTaskSuggestion] = useState<{ text: string; projectId: string | null } | null>(null);
 
@@ -251,7 +253,17 @@ export function CallLog() {
 
                   {/* Actions */}
                   <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button onClick={() => setAiCall(call)}
+                    {/* R2-P0-C: прямой вход в Smart Deal Progression — только когда
+                        звонок привязан к сделке (иначе писать некуда). */}
+                    {call.project_id && (
+                      <button onClick={() => { setAiFocus('progression'); setAiCall(call); }}
+                        aria-label="Обновить сделку по разговору"
+                        title="Обновить сделку по разговору"
+                        className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+                        <Wand2 size={12} />
+                      </button>
+                    )}
+                    <button onClick={() => { setAiFocus(undefined); setAiCall(call); }}
                       aria-label="AI-анализ"
                       className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
                       <Sparkles size={12} />
@@ -286,6 +298,7 @@ export function CallLog() {
           projectId={aiCall.project_id}
           companyId={aiCall.company_id}
           contactId={aiCall.contact_id}
+          focus={aiFocus}
         />
       )}
 

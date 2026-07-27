@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { CalendarDays, Plus, Pencil, Sparkles, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
+import { CalendarDays, Plus, Pencil, Sparkles, Wand2, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -24,6 +24,8 @@ export function MeetingsList() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
   const [aiMeeting, setAiMeeting] = useState<Meeting | null>(null);
+  // R2-P0-C: одна модалка, два входа — общий «AI-анализ» и прямой CTA на SDP.
+  const [aiFocus, setAiFocus] = useState<'progression' | undefined>(undefined);
 
   // Toast «создать задачу?» по следующему шагу — паттерн CallLog
   const createTask = useCreateTask();
@@ -90,7 +92,8 @@ export function MeetingsList() {
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
                   onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
-                  onAi={() => setAiMeeting(m)}
+                  onAi={() => { setAiFocus(undefined); setAiMeeting(m); }}
+                  onProgression={() => { setAiFocus('progression'); setAiMeeting(m); }}
                   onDelete={() => handleDelete(m.id)}
                   isUpcoming
                 />
@@ -114,7 +117,8 @@ export function MeetingsList() {
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
                   onEdit={() => { setEditMeeting(m); setModalOpen(true); }}
-                  onAi={() => setAiMeeting(m)}
+                  onAi={() => { setAiFocus(undefined); setAiMeeting(m); }}
+                  onProgression={() => { setAiFocus('progression'); setAiMeeting(m); }}
                   onDelete={() => handleDelete(m.id)}
                 />
               </div>
@@ -139,6 +143,7 @@ export function MeetingsList() {
           projectId={aiMeeting.project_id}
           companyId={aiMeeting.company_id}
           contactId={aiMeeting.contact_id}
+          focus={aiFocus}
         />
       )}
 
@@ -176,12 +181,14 @@ function MeetingCard({
   meeting,
   onEdit,
   onAi,
+  onProgression,
   onDelete,
   isUpcoming = false,
 }: {
   meeting: Meeting;
   onEdit: () => void;
   onAi: () => void;
+  onProgression: () => void;
   onDelete: () => void;
   isUpcoming?: boolean;
 }) {
@@ -243,6 +250,15 @@ function MeetingCard({
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* R2-P0-C: прямой вход в Smart Deal Progression — только когда встреча
+            привязана к сделке (иначе писать некуда). */}
+        {meeting.project_id && (
+          <button onClick={onProgression} aria-label="Обновить сделку по встрече"
+            title="Обновить сделку по встрече"
+            className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+            <Wand2 size={12} />
+          </button>
+        )}
         <button onClick={onAi} aria-label="AI-анализ" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
           <Sparkles size={12} />
         </button>

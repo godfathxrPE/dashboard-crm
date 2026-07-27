@@ -10,9 +10,21 @@ import {
   useRunRating,
   type AiRunEntity,
 } from '@/lib/hooks/use-ai-run';
-import { presetsForEntity, presetByKey, estimateRunCostRub } from '@/lib/constants/ai-presets';
-import type { AiRunRow, ProtocolResult, AnalyticNoteResult, SpinReviewResult } from '@/types/database';
+import {
+  presetsForEntity,
+  presetByKey,
+  estimateRunCostRub,
+  PROGRESSION_PRESET_KEY,
+} from '@/lib/constants/ai-presets';
+import type {
+  AiRunRow,
+  ProtocolResult,
+  AnalyticNoteResult,
+  SpinReviewResult,
+  ProgressionProposal,
+} from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
+import { AiProgressionPanel } from './AiProgressionPanel';
 import type { ActionItem } from './renderers/ProtocolRenderer';
 
 interface AiRunPanelProps {
@@ -21,6 +33,11 @@ interface AiRunPanelProps {
   defaultCompanyId?: string | null;
   defaultContactId?: string | null;
   defaultProjectId?: string | null;
+  /**
+   * R2-P0-C: модалку открыли из CTA «Обновить сделку» — подсвечиваем секцию,
+   * чтобы пользователь не искал нужный пресет среди четырёх кнопок.
+   */
+  focusProgression?: boolean;
 }
 
 const STALE_MIN = 10;
@@ -55,6 +72,18 @@ function serializeRun(run: AiRunRow): string {
     out.push(`Счёт S/P/I/N: ${s.counts.situation}/${s.counts.problem}/${s.counts.implication}/${s.counts.need_payoff}`);
     push('Что упущено', s.missed ?? []);
     push('Вопросы к следующему звонку', s.next_questions ?? []);
+  } else if (run.preset_key === PROGRESSION_PRESET_KEY) {
+    const g = r as ProgressionProposal;
+    if (g.summary) out.push(`Итог разговора:\n${g.summary}`);
+    push(
+      'Предлагаемые правки',
+      Object.entries(g.fields ?? {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `${k}: ${String(v)}`),
+    );
+    push('Задачи', (g.tasks ?? []).map((t) => `${t.text}${t.due_in_days !== undefined ? ` (через ${t.due_in_days} дн.)` : ''}`));
+    push('Риски', g.risks ?? []);
+    push('Открытые вопросы', g.open_questions ?? []);
   }
   return out.join('\n\n');
 }
@@ -76,7 +105,9 @@ function StatusChip({ status }: { status: AiRunRow['status'] }) {
  * Sprint AI-1: секция «AI» карточки звонка/встречи — транскрипт, пресеты, лента прогонов.
  * Промпты и ключ Anthropic на клиент не попадают. Результат рендерится только как текст.
  */
-export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultContactId, defaultProjectId }: AiRunPanelProps) {
+export function AiRunPanel({
+  entityType, entityId, defaultCompanyId, defaultContactId, defaultProjectId, focusProgression,
+}: AiRunPanelProps) {
   const { data: transcript } = useTranscript(entityType, entityId);
   const { data: runs } = useEntityRuns(entityType, entityId);
   const start = useStartRun(entityType, entityId);
@@ -145,23 +176,37 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
 
       {/* Кнопки пресетов */}
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {presets.map((preset) => (
-          <button
-            key={preset.key}
-            type="button"
-            onClick={() => handleRun(preset.key)}
-            disabled={!hasText || start.isPending}
-            title={preset.description}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {start.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            {preset.title}
-            {hasText && (
-              <span className="text-text-mute">≈ {estimateRunCostRub(text.length, preset.model)} ₽</span>
-            )}
-          </button>
-        ))}
+        {presets.map((preset) => {
+          const isProgression = preset.key === PROGRESSION_PRESET_KEY;
+          return (
+            <button
+              key={preset.key}
+              type="button"
+              onClick={() => handleRun(preset.key)}
+              disabled={!hasText || start.isPending}
+              // R2-P0-C: SDP работает только по транскрипту (ai_runs.transcript_id
+              // NOT NULL) — без текста кнопка disabled и объясняет почему.
+              title={hasText ? preset.description : 'Нужен транскрипт — вставьте текст разговора выше'}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 ${
+                isProgression && focusProgression
+                  ? 'border-accent bg-accent-l text-accent'
+                  : 'border-border bg-surface text-text-main'
+              }`}
+            >
+              {start.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              {preset.title}
+              {hasText && (
+                <span className="text-text-mute">≈ {estimateRunCostRub(text.length, preset.model)} ₽</span>
+              )}
+            </button>
+          );
+        })}
       </div>
+      {!hasText && (
+        <p className="mt-1 text-meta text-text-mute">
+          Анализ идёт по транскрипту — вставьте текст разговора, чтобы включить пресеты.
+        </p>
+      )}
 
       {start.isError && (
         <div className="mt-2 flex items-start gap-1.5 text-xs text-red">
@@ -216,7 +261,14 @@ export function AiRunPanel({ entityType, entityId, defaultCompanyId, defaultCont
                       <p className="mt-2 text-meta text-yellow">Транскрипт был обрезан по лимиту — результат по началу.</p>
                     )}
                     <div className="mt-2">
-                      <AiResultRenderer run={run} onCreateTask={openTaskFromAction} />
+                      {/* R2-P0-C: у deal_progression не «рендерер результата», а диф-панель
+                          с применением в сделку — отдельная ветка, а не case в диспетчере
+                          (нужны мутации, выбор сделки и состояние выбора). */}
+                      {run.preset_key === PROGRESSION_PRESET_KEY ? (
+                        <AiProgressionPanel run={run} defaultProjectId={defaultProjectId} />
+                      ) : (
+                        <AiResultRenderer run={run} onCreateTask={openTaskFromAction} />
+                      )}
                     </div>
 
                     {/* Действия над результатом */}
