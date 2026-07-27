@@ -522,33 +522,10 @@ export function useDeleteProject() {
   });
 }
 
-/** Быстрое перемещение проекта в другую стадию (drag & drop) */
-export function useMoveProject() {
-  const update = useUpdateProject();
-
-  return {
-    ...update,
-    /**
-     * Sprint 1.5: move by stage_id — единственная истина стадии.
-     * B1 (S-LEGACY-STAGE-1): legacy `stage` больше НЕ пишем (колонка уходит в B2 DROP).
-     * Sprint 27: options пробрасываются в mutate — вызывающий ловит отказ гейта
-     * (parseStageGateError) поверх встроенного optimistic-rollback хука.
-     */
-    moveToStageId: (
-      id: string,
-      stageId: string,
-      options?: { onError?: (err: unknown) => void; onSuccess?: () => void },
-      /** S-WON-REASON-1: доп. поля пишутся тем же mutate (напр. won_reason при выигрыше) */
-      extra?: Partial<ProjectInsert>,
-    ) => {
-      update.mutate(
-        {
-          id,
-          stage_id: stageId,
-          ...(extra ?? {}),
-        },
-        options,
-      );
-    },
-  };
-}
+/**
+ * S-R2-TRANSITION-1a: `useMoveProject` переехал в `./use-stage-transition`.
+ * Единственный вход смены стадии — `useStageTransition().commitTransition`;
+ * держать здесь второй способ собрать payload стадии значило бы вернуть ту самую
+ * рассинхронизацию, ради устранения которой сервис и заводился. Импорт из этого
+ * модуля был бы циклом (use-stage-transition зависит от useUpdateProject выше).
+ */
