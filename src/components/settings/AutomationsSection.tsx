@@ -26,6 +26,7 @@ import type {
   StageEnteredConfig,
   StatusChangedConfig,
   FieldChangedConfig,
+  DaysInStageConfig,
   AutomationCreateTaskConfig,
   AutomationNotifyConfig,
   AutomationActivityConfig,
@@ -53,6 +54,12 @@ function describeTrigger(rule: AutomationRule, stageName: (id: string) => string
     }
     case 'task_overdue':
       return 'Просрочка задачи';
+    case 'days_in_stage': {
+      // 079: стадия опциональна (нет ключа ⇒ любая), порог обязателен
+      const cfg = rule.trigger_config as DaysInStageConfig;
+      const where = cfg.stage_id ? `на стадии «${stageName(cfg.stage_id)}»` : 'на стадии';
+      return `Висит ${where} ${cfg.min_days} дн.`;
+    }
   }
 }
 
@@ -78,6 +85,9 @@ function describeAction(rule: AutomationRule): string {
       const cfg = rule.action_config as AutomationSetFieldConfig;
       return `поле «${AUTOMATION_FIELD_LABEL[cfg.field] ?? cfg.field}» = «${cfg.value}»`;
     }
+    case 'suggest_spawn':
+      // I8: только уведомление владельцу, проект внедрения не создаётся
+      return 'предложить создать внедрение';
   }
 }
 

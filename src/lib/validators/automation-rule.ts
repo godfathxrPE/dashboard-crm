@@ -17,11 +17,16 @@ export const ruleSchema = z
     name: z.string().min(1, 'Название'),
 
     // ── trigger ──
-    trigger_type: z.enum(['stage_entered', 'status_changed', 'field_changed', 'task_overdue']),
+    trigger_type: z.enum([
+      'stage_entered', 'status_changed', 'field_changed', 'task_overdue', 'days_in_stage',
+    ]),
     t_pipeline_id: z.string().optional(),
     t_stage_id: z.string().optional(),
     t_status_to: z.string().optional(),   // '' = любой статус
     t_field: z.string().optional(),
+    // days_in_stage (079): порог обязателен, стадия — опциональный сузитель.
+    // t_stage_id переиспользуется (пусто ⇒ любая стадия).
+    t_min_days: z.coerce.number().int().min(1, 'От 1 дня').max(365, 'До 365 дней').optional(),
 
     // ── conditions (AND) ──
     conditions: z
@@ -35,7 +40,9 @@ export const ruleSchema = z
       .default([]),
 
     // ── action ──
-    action_type: z.enum(['create_task', 'notify', 'create_activity', 'set_field']),
+    action_type: z.enum([
+      'create_task', 'notify', 'create_activity', 'set_field', 'suggest_spawn',
+    ]),
     // create_task
     a_task_text: z.string().optional(),
     a_assignee: z.enum(['deal_owner', 'deal_creator']).optional(),
@@ -51,6 +58,8 @@ export const ruleSchema = z
       .enum(['next_step', 'pinned_note', 'next_action_date', 'probability'])
       .optional(),
     a_set_value: z.string().optional(),
+    // suggest_spawn
+    a_spawn_text: z.string().optional(),
   })
   .superRefine((v, ctx) => {
     // trigger
@@ -59,6 +68,9 @@ export const ruleSchema = z
     if (v.trigger_type === 'field_changed' && !v.t_field)
       ctx.addIssue({ code: 'custom', path: ['t_field'], message: 'Выберите поле' });
     // task_overdue — trigger-полей не требует (движок 051 сканирует по deadline)
+    // days_in_stage (079): порог обязателен, стадия — нет
+    if (v.trigger_type === 'days_in_stage' && !v.t_min_days)
+      ctx.addIssue({ code: 'custom', path: ['t_min_days'], message: 'Укажите срок в днях' });
 
     // task_overdue (051): движок умеет только notify / create_activity
     if (v.trigger_type === 'task_overdue' && !['notify', 'create_activity'].includes(v.action_type))
@@ -73,6 +85,8 @@ export const ruleSchema = z
       ctx.addIssue({ code: 'custom', path: ['a_title'], message: 'Заголовок' });
     if (v.action_type === 'set_field' && (!v.a_set_field || v.a_set_value === undefined))
       ctx.addIssue({ code: 'custom', path: ['a_set_value'], message: 'Поле и значение' });
+    if (v.action_type === 'suggest_spawn' && !v.a_spawn_text?.trim())
+      ctx.addIssue({ code: 'custom', path: ['a_spawn_text'], message: 'Текст предложения' });
   });
 
 export type RuleFormValues = z.infer<typeof ruleSchema>;

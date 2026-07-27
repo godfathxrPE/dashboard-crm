@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap } from 'lucide-react';
+import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import {
   useNotifications,
@@ -19,6 +19,9 @@ function entityRoute(n: Notification): string {
   // S-WF-2C-B: task_overdue-автоматизация несёт entity_type='tasks' → доска задач
   // (иначе ушла бы в /deals/{task_id} = 404). Проверять ДО общей automation-ветки.
   if (n.type === 'automation' && n.entity_type === 'tasks') return '/tasks';
+  // R2-P0-E (079): suggest_spawn — deep link сразу открывает мастер внедрения
+  // на сделке (?spawn=1 читает ProjectDetail). Автоспавна нет — I8.
+  if (n.type === 'spawn_suggest') return `/deals/${n.entity_id}?spawn=1`;
   // S-WON-AUTO-1: deal_won ведёт на сделку — там кнопка «Создать проект внедрения».
   // S-WF-2B: automation (entity_type='projects') ведёт на сделку (серверный бэкстоп deals→projects).
   if (n.type === 'project_assigned' || n.type === 'deal_won' || n.type === 'automation')
@@ -31,6 +34,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   project_assigned: 'Назначена сделка',
   deal_won: 'Сделка выиграна',
   automation: 'Автоматизация',
+  spawn_suggest: 'Пора создать внедрение',
 };
 
 function TypeIcon({ type }: { type: NotificationType }) {
@@ -38,6 +42,7 @@ function TypeIcon({ type }: { type: NotificationType }) {
     type === 'task_assigned' ? CheckSquare
     : type === 'deal_won' ? Rocket
     : type === 'automation' ? Zap
+    : type === 'spawn_suggest' ? Sparkles
     : Briefcase;
   return <Icon size={14} className="shrink-0 text-accent" />;
 }
@@ -64,8 +69,15 @@ function payloadTitle(n: Notification): string {
       : 'Сделка выиграна — создайте внедрение';
   }
   // S-WF-2B: notify-действие кладёт текст правила в payload.text
+  // 079: suggest_spawn — тот же payload {title, text}; пустой текст → CTA по имени сделки
   if (n.type === 'automation') {
     return p?.text?.trim() || title || TYPE_LABEL[n.type];
+  }
+  if (n.type === 'spawn_suggest') {
+    return (
+      p?.text?.trim() ||
+      (title ? `Сделка «${title}» — пора создать внедрение` : TYPE_LABEL[n.type])
+    );
   }
   return title || TYPE_LABEL[n.type];
 }
@@ -141,8 +153,9 @@ export function NotificationBell() {
                     <span
                       className={cn(
                         'block text-sm text-text-main',
-                        // deal_won — CTA-строка целиком (иначе truncate съест «создайте внедрение»)
-                        n.type === 'deal_won' ? '' : 'truncate',
+                        // deal_won / spawn_suggest — CTA-строка целиком
+                        // (иначе truncate съест «создайте внедрение»)
+                        n.type === 'deal_won' || n.type === 'spawn_suggest' ? '' : 'truncate',
                       )}
                     >
                       {payloadTitle(n)}

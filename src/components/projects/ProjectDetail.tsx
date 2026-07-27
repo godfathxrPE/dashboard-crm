@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   Pencil,
@@ -156,6 +156,7 @@ interface ProjectDetailProps {
 
 export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: project, isLoading, error } = useProject(projectId);
   // Delivery P1: родительская сделка (для ссылки на карточке внедрения)
   const { data: parentDeal } = useProject(project?.parent_deal_id ?? '');
@@ -174,7 +175,17 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
   // S-WIN-WIZARD-1: Win Wizard — контур/шаблон/owner при spawn внедрения
   // из won-сделки (заменил «голую» inline-панель шаблона + скролл-костыль).
-  const [spawning, setSpawning] = useState(false);
+  // R2-P0-E (079): ?spawn=1 — deep link из уведомления spawn_suggest. Это лишь
+  // начальное состояние: рендер визарда всё равно под гейтом client+won ниже,
+  // на открытой сделке ссылка просто приведёт на карточку.
+  const [spawning, setSpawning] = useState(searchParams.get('spawn') === '1');
+
+  // Клик по уведомлению, когда карточка этой же сделки уже открыта: soft-navigation
+  // не размонтирует компонент, поэтому начальное состояние выше не сработает.
+  const spawnParam = searchParams.get('spawn');
+  useEffect(() => {
+    if (spawnParam === '1') setSpawning(true);
+  }, [spawnParam]);
 
   // S-R2-TRANSITION-1b: локальное состояние отказа гейта снято — его владелец
   // теперь модалка перехода (StageTransitionModal), см. комментарий у баннера ниже.
