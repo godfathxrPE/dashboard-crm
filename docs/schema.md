@@ -5,14 +5,14 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–080** — вся цепочка в проде
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–081** — вся цепочка в проде
 > (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948`,
-> 080 `20260727191507` — сверены по `schema_migrations` 2026-07-27**;
-> **081 `grants_tail` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
+> 080 `20260727191507`, 081 `20260727195810` — сверены по `schema_migrations` 2026-07-27**;
+> **082 `grants_root` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
-> **082**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> **083**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
 > `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
 > `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
 > Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
@@ -1740,8 +1740,8 @@ R2 конвенция соблюдалась. **Каждая новая табл
 Вне охвата 080 — таблицы **без** колонки `org_id`: `dashboard_sync`, `meeting_attendees`,
 `organizations`, `pipeline_stages`, `pipelines`, `profiles`, `user_settings`. Каталожный фильтр их
 не берёт по построению: тенантность у них другая (`id`, join, глобальный словарь, per-user).
-**Закрыто 081** (`S-SEC-GRANTS-TAIL`, ждёт гейта) — явным списком, потому что фильтром их и не
-поймать.
+**Закрыто 081** (`S-SEC-GRANTS-TAIL`, applied `20260727195810`) — явным списком, потому что
+фильтром их и не поймать.
 
 **Второе правило, добытое на 081: грант не должен быть шире политик.** У четырёх из семи таблиц
 `authenticated` держал DML, на который политики нет вообще: `pipelines` / `pipeline_stages`
@@ -1752,6 +1752,68 @@ R2 конвенция соблюдалась. **Каждая новая табл
 «0 строк / RLS violation», стало `42501 permission denied`. ⚠️ Если UI когда-нибудь начнёт ветвиться
 на этом различии — сначала грепать клиент, потом снимать грант (в 081 греп по `src/` и по
 edge-функциям дал только `.select()` у словарей и `.update()` у `organizations`/`profiles`).
+
+### Корень: default privileges (082) — почему revoke приходилось повторять трижды
+
+075 / 080 / 081 лечили **последствие**. Причина — `pg_default_acl`: вот что раздаётся **каждой
+новой таблице** в `public` (снято с прода 2026-07-27, PG 17.6):
+
+| Грантор | Роли и права по умолчанию на таблицы |
+|---|---|
+| `postgres` | `postgres`, **`authenticated`**, `service_role` — `arwdDxtm` |
+| `supabase_admin` | `postgres`, **`anon`**, **`authenticated`**, `service_role` — `arwdDxtm` |
+
+Поэтому `grant select, insert …` в шапке миграции не сужал ничего, а revoke в 080/081 чистил лишь
+уже созданные таблицы: таблица №45 пришла бы такой же широкой. **082 сужает дефолт роли
+`postgres`:**
+
+```sql
+alter default privileges for role postgres in schema public
+  revoke truncate, references, trigger, maintain on tables from authenticated;
+```
+
+После этого новая таблица, созданная миграцией, приходит с `arwd` у `authenticated` — DML под RLS
+и ничего сверх; шапка миграции начинает означать то, что написано. `service_role` не трогается
+(он в обход RLS по назначению), `anon` в дефолтах `postgres` и не было.
+
+**`MAINTAIN` (`m`, новинка PG 17)** — четвёртая привилегия вне модели RLS, которую 075/080/081 не
+снимали, потому что искали по трём именам: держалась у `authenticated` на **всех 44 таблицах**.
+Даёт VACUUM / ANALYZE / REINDEX / CLUSTER / REFRESH MATVIEW. 082 снимает её сплошь
+(`revoke maintain on all tables in schema public from authenticated`). Это гигиена, а не заделка
+дыры: **PostgREST не исполняет utility-команды вообще** — только DML и вызовы функций, поэтому ни
+`VACUUM`, ни `ANALYZE`, ни `REINDEX` через REST не отправить. ⚠️ Не опираться на аргумент «их
+нельзя выполнить внутри транзакции»: он верен лишь для `VACUUM` и `REINDEX CONCURRENTLY`, а
+`ANALYZE` и обычный `REINDEX` транзакционны.
+
+> **⚠️ КОНВЕНЦИЯ: таблицы в `public` создаются ТОЛЬКО миграциями.** Дефолты `supabase_admin`
+> (вторая строка таблицы выше — та, что раздаёт полный набор **включая `anon`**) починить нельзя:
+> `postgres` не член `supabase_admin` (`pg_has_role(...,'MEMBER')` = `false`), а
+> `ALTER DEFAULT PRIVILEGES FOR ROLE` требует членства. Миграция применяется под `postgres` и
+> подчиняется его дефолтам, которые сужены. Таблица, созданная **через UI дашборда Supabase**,
+> идёт под `supabase_admin` и придёт с полным набором привилегий **у `anon` тоже** — в обход всей
+> работы 056/075/080/081/082. Таблиц с грантами `anon` сейчас 0: конвенция де-факто соблюдалась.
+
+Дефолты на **функции** (`f` = `X` у `authenticated`) 082 осознанно не трогает: большинство функций
+проекта — RPC, которые клиент обязан вызывать, и сужение дефолта потребовало бы явного
+`grant execute` у каждой. Цена принята: хвост 056b (чисто триггерные функции с лишним `EXECUTE`)
+придётся вычищать вручную и впредь. Дефолты на **sequences** не трогаются — в схеме 0
+последовательностей (все ключи `uuid`).
+
+**⚠️ Метрика «широких привилегий» — только по каталогу.** `information_schema.role_table_grants`
+**не показывает `MAINTAIN`** (проверено на проде 2026-07-27: у `projects` в `relacl` стоит
+`authenticated=arwdm`, а вью отдаёт ровно `DELETE,INSERT,SELECT,UPDATE`; `privilege_type='MAINTAIN'`
+не находится нигде — 0 строк по всей схеме). Это вью стандарта SQL, нестандартной привилегии в нём
+нет, поэтому «MAINTAIN-запрос» через `information_schema` вернёт 0 и будет выглядеть зелёным
+независимо от реального состояния. Правильная метрика:
+
+```sql
+select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r'
+  and array_to_string(c.relacl, ',') like '%authenticated=%m%';        -- ожидание: 0
+```
+
+Для `TRUNCATE`/`REFERENCES`/`TRIGGER` `information_schema` пригодна (они стандартные) — так
+сформулированы VERIFY 080/081, — но каталожный вариант надёжнее и покрывает все четыре разом.
 
 ### Принятое решение: `TO public` в политиках — норма проекта, не отклонение
 
@@ -2095,7 +2157,9 @@ exists pg_cron` (включено в 051).
   у `anon`/`authenticated`; сняты, `service_role` выдан явно. **(3)** `check_stage_requirements(uuid,
   uuid)` намеренно **сохраняет** EXECUTE у `authenticated` — её зовёт модалка перехода стадии для
   превью невыполненных требований; защита внутри (`is_org_member` → 42501).
-  План смоуков гейта: **(a)** `TRUNCATE`/`REFERENCES`/`TRIGGER` у `authenticated` — 0 строк;
+  План смоуков гейта: **(a)** `TRUNCATE`/`REFERENCES`/`TRIGGER` у `authenticated` — 0 строк
+  (⚠️ с 082 «широкие» = **четыре** привилегии, `MAINTAIN` четвёртая, и её видно только по
+  `pg_class.relacl` — см. раздел «Корень: default privileges (082)»);
   **(b)** DML на `tasks`/`projects`/`quotes` на месте (`DELETE,INSERT,SELECT,UPDATE`);
   **(c)** ни одной триггерной функции с EXECUTE у `anon`; **(d)** `has_function_privilege(
   'authenticated','public.check_stage_requirements(uuid,uuid)','EXECUTE')` = `true`;
@@ -2104,7 +2168,11 @@ exists pg_cron` (включено в 051).
   на сделке с активным требованием** и **создание личного сегмента**; **(f)** advisors без новых
   WARN, повторный apply идемпотентен.
 
-- **081** _(S-SEC-GRANTS-TAIL — **НЕ применена, ждёт гейта Cowork**)_ — семь таблиц **без** колонки
+- **081** _(S-SEC-GRANTS-TAIL — **applied 2026-07-27, `20260727195810`**; VERIFY (a)–(d) прогнаны
+  на живой БД 2026-07-27, все четыре сошлись: широких привилегий 0, `anon` 0 строк по всей схеме,
+  `user_settings`/`meeting_attendees`/`dashboard_sync` = `DELETE,INSERT,SELECT,UPDATE`,
+  `pipelines`/`pipeline_stages` = `SELECT`, `profiles`/`organizations` = `SELECT,UPDATE`; ролевой
+  смок под JWT и UI-смок — за гейтом)_ — семь таблиц **без** колонки
   `org_id`, которые каталожный фильтр 080 не видел по построению: `organizations`, `profiles`,
   `pipelines`, `pipeline_stages`, `user_settings`, `meeting_attendees`, `dashboard_sync`. Поведения
   не меняет. Две части:
@@ -2141,6 +2209,26 @@ exists pg_cron` (включено в 051).
   встрече → ok; **(f)** UI-смок на dev: вход, настройки профиля и организации, доска сделок (читает
   `pipeline_stages`), переход стадии через модалку; **(g)** advisors без новых WARN, повторный apply
   идемпотентен.
+
+- **082** _(S-SEC-GRANTS-ROOT — **НЕ применена, ждёт гейта Cowork**)_ — корень темы грантов,
+  поведения не меняет. Устройство и обоснование — в разделе «Корень: default privileges (082)»
+  выше; здесь только суть и смоуки. **(1)** `alter default privileges for role postgres in schema
+  public revoke truncate, references, trigger, maintain on tables from authenticated` — новая
+  таблица, созданная миграцией, приходит с `arwd`, и revoke в шапке перестаёт быть обязательным
+  ритуалом. **(2)** `revoke maintain on all tables in schema public from authenticated` — снятие
+  `MAINTAIN` с 44 существующих таблиц; сплошь, а не точечно, иначе метрика «широких привилегий 0»
+  не сойдётся. **(3)** Дефолты `supabase_admin` недоступны (`postgres` не член) → зафиксирована
+  конвенция «таблицы только миграциями»; дефолты на функции и sequences осознанно не тронуты.
+  План смоуков гейта: **(a)** `MAINTAIN` не осталось ни у одной таблицы — **каталожный** запрос по
+  `relacl` (через `information_schema` эта проверка бессмысленна, см. раздел выше); **(b)** дефолты
+  `postgres` на таблицы = `authenticated=arwd`, `postgres`/`service_role` без изменений;
+  **(c)** DML жив у `projects`/`tasks`/`ai_runs`/`segments` (`DELETE,INSERT,SELECT,UPDATE`);
+  **(d)** `TRUNCATE`/`REFERENCES`/`TRIGGER` по-прежнему 0 — 080/081 не откатились;
+  **(e)** ⭐ **проба, ради которой спринт и делался**: `create table public.__grants_root_probe
+  (id uuid primary key default gen_random_uuid())` → в `relacl` у `authenticated` ровно `arwd`
+  (без `D`, `x`, `t`, `m`) → `drop table`; **(f)** ролевой смок под JWT owner — чтение и запись по
+  сделкам, задачам, файлам, сегментам, настройкам профиля и организации; **(g)** advisors без новых
+  WARN, повторный apply идемпотентен.
 
 ## Edge Functions
 
