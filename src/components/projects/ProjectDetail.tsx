@@ -13,7 +13,6 @@ import {
   Plus,
   Loader2,
   AlertCircle,
-  AlertTriangle,
   Clock,
   Rocket,
   ExternalLink,
@@ -25,21 +24,14 @@ import {
   useProject,
   useUpdateProject,
   useDeleteProject,
-  parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
-import { useMoveProject, useStageTransition } from '@/lib/hooks/use-stage-transition';
-import type { ProjectType, UnmetRequirement } from '@/types/database';
+import { useMoveProject } from '@/lib/hooks/use-stage-transition';
+import { useTransitionStore } from '@/lib/stores/transition-store';
+import type { ProjectType } from '@/types/database';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
-import {
-  formatBudget,
-  parseBudgetInput,
-  lossReasons,
-  LOSS_REASON_CONFIG,
-  wonReasons,
-  WON_REASON_CONFIG,
-} from '@/lib/validators/project';
+import { formatBudget, parseBudgetInput } from '@/lib/validators/project';
 import { StackedPipeline } from './StackedPipeline';
 import { DeliveryCompletionModal } from './DeliveryCompletionModal';
 import { DealDeliveryHub } from './DealDeliveryHub';
@@ -169,10 +161,12 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const { data: parentDeal } = useProject(project?.parent_deal_id ?? '');
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  // S-R2-TRANSITION-1b: карточка не двигает стадию сама — открывает модалку
+  // перехода. Она же собирает причину won/lost, поэтому двухшаговые инлайн-панели
+  // «Выиграна»/«Проиграна» отсюда ушли (разрозненный UX, A5 роадмапа).
+  const openTransition = useTransitionStore((s) => s.open);
+  // Фазы delivery модалку не открывают (см. фазовый грид ниже) — им прямой вход 1a.
   const { moveToStageId } = useMoveProject();
-  // S-R2-TRANSITION-1a: переходы, которые пишут ещё и поля исхода (won/lost/возврат
-  // в работу), идут через сервис — раньше это были прямые updateProject.mutate.
-  const { commitTransition } = useStageTransition();
   // P2b (B0): права управления delivery (команда/шаблон/CRUD фаз) = контракт RLS,
   // НЕ role !== 'viewer' — иначе кнопки давали бы 42501
   const { data: orgRole } = useOrgRole();
@@ -182,12 +176,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   // из won-сделки (заменил «голую» inline-панель шаблона + скролл-костыль).
   const [spawning, setSpawning] = useState(false);
 
-  // Sprint 27: отказ стадийного гейта при переходе с детальной карточки
-  const [gateBlock, setGateBlock] = useState<UnmetRequirement[] | null>(null);
-  const onGateError = (err: unknown) => {
-    const unmet = parseStageGateError(err);
-    if (unmet) setGateBlock(unmet);
-  };
+  // S-R2-TRANSITION-1b: локальное состояние отказа гейта снято — его владелец
+  // теперь модалка перехода (StageTransitionModal), см. комментарий у баннера ниже.
 
   const { data: allPipelineStages } = usePipelineStages();
 
@@ -199,12 +189,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const [tab, setTab] = useState<Tab | null>(null);
   // M5 (F-10): материалы (1С:ДО/заметки/файлы/видео) свёрнуты по умолчанию — план к сгибу
   const [showMaterials, setShowMaterials] = useState(false);
-  // «Проиграна» — двухшаговый выбор причины (как отказ у лидов)
-  const [losing, setLosing] = useState(false);
-  // «Выиграна» — двухшаговый выбор причины (симметрия проигрышу, S-WON-REASON-1)
-  const [winning, setWinning] = useState(false);
-  // Опциональный комментарий к причине выигрыша (won_detail)
-  const [winDetail, setWinDetail] = useState('');
+  // S-R2-TRANSITION-1b: состояние двухшагового выбора причины (winning/losing/winDetail)
+  // снято — причину собирает модалка перехода.
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -384,7 +370,16 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               <>
                 {wonStage && (
                   <button
-                    onClick={() => { setLosing(false); setWinning((v) => !v); }}
+                    onClick={() =>
+                      openTransition({
+                        project,
+                        toStageId: wonStage.id,
+                        // S-WON-AUTO-1 сохранён: успешный выигрыш сразу предлагает
+                        // Win Wizard. Отказ гейта → onCommitted не вызовется, мастер
+                        // не откроется (как и раньше через onSuccess).
+                        onCommitted: () => setSpawning(true),
+                      })
+                    }
                     className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text-dim
                                transition-colors hover:border-green/40 hover:text-green hover:bg-green-l"
                   >
@@ -393,7 +388,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 )}
                 {lostStage && (
                   <button
-                    onClick={() => { setWinning(false); setLosing((v) => !v); }}
+                    onClick={() => openTransition({ project, toStageId: lostStage.id })}
                     className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text-dim
                                transition-colors hover:border-red/40 hover:text-red hover:bg-red-l"
                   >
@@ -445,17 +440,12 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                     ?.filter((s) => s.pipeline_id === project.pipeline_id && !s.is_won && !s.is_lost)
                     .sort((a, b) => a.order_index - b.order_index)[0];
                   if (!firstStage) return;
-                  if (!confirm('Вернуть сделку в работу (первая стадия)?')) return;
-                  commitTransition({
-                    projectId: project.id,
-                    fromStageId: project.stage_id,
+                  // Модалка нужна и здесь (это переход), но причина не требуется —
+                  // целевая стадия не won/lost; исход гасится тем же UPDATE.
+                  openTransition({
+                    project,
                     toStageId: firstStage.id,
-                    fieldPatches: {
-                      loss_reason: null,
-                      loss_detail: null,
-                      won_reason: null,
-                      won_detail: null,
-                    },
+                    resetOutcome: true,
                   });
                 }}
                 className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim
@@ -489,96 +479,10 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         </div>
       </div>
 
-      {/* «Выиграна» — выбор причины (обязателен, симметрия проигрышу) S-WON-REASON-1 */}
-      {winning && (project.status === 'open' || project.status === 'on_hold') && (() => {
-        const wonStage = allPipelineStages?.find((s) => s.pipeline_id === project.pipeline_id && s.is_won);
-        if (!wonStage) return null;
-        return (
-          <div className="mb-4 rounded-lg border border-green/30 bg-green-l/40 px-3 py-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-xs text-text-dim">Причина выигрыша:</span>
-              {wonReasons.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => {
-                    moveToStageId(
-                      project.id,
-                      wonStage.id,
-                      // S-WON-AUTO-1: успешный выигрыш → сразу предлагаем Win Wizard (HITL,
-                      // у него есть «Пока не создавать»). Гейт S27 не прошёл → onError, wizard
-                      // НЕ откроется. Панель причины закрываем синхронно ниже (до onSuccess).
-                      { onError: onGateError, onSuccess: () => setSpawning(true) },
-                      {
-                        won_reason: r,
-                        won_detail: winDetail.trim() || null,
-                        loss_reason: null,
-                        loss_detail: null,
-                      },
-                    );
-                    setWinning(false);
-                    setWinDetail('');
-                  }}
-                  className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
-                             transition-colors hover:border-green hover:text-green"
-                >
-                  {WON_REASON_CONFIG[r].label}
-                </button>
-              ))}
-              <button
-                onClick={() => { setWinning(false); setWinDetail(''); }}
-                className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
-              >
-                Отмена
-              </button>
-            </div>
-            <textarea
-              value={winDetail}
-              onChange={(e) => setWinDetail(e.target.value)}
-              placeholder="Комментарий (необязательно)"
-              rows={2}
-              aria-label="Комментарий к причине выигрыша"
-              className="mt-2 w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm
-                         text-text-main placeholder:text-text-mute
-                         focus:border-green focus:outline-none focus:ring-1 focus:ring-green"
-            />
-          </div>
-        );
-      })()}
-
-      {/* «Проиграна» — выбор причины (обязателен, паттерн отказа лидов) */}
-      {losing && (project.status === 'open' || project.status === 'on_hold') && (() => {
-        const lostStage = allPipelineStages?.find((s) => s.pipeline_id === project.pipeline_id && s.is_lost);
-        if (!lostStage) return null;
-        return (
-          <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-red/30 bg-red-l/40 px-3 py-2">
-            <span className="mr-1 text-xs text-text-dim">Причина проигрыша:</span>
-            {lossReasons.map((r) => (
-              <button
-                key={r}
-                onClick={() => {
-                  commitTransition({
-                    projectId: project.id,
-                    fromStageId: project.stage_id,
-                    toStageId: lostStage.id,
-                    fieldPatches: { loss_reason: r },
-                  });
-                  setLosing(false);
-                }}
-                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-text-dim
-                           transition-colors hover:border-red hover:text-red"
-              >
-                {LOSS_REASON_CONFIG[r].label}
-              </button>
-            ))}
-            <button
-              onClick={() => setLosing(false)}
-              className="ml-auto rounded px-2 py-0.5 text-xs text-text-mute hover:text-text-main"
-            >
-              Отмена
-            </button>
-          </div>
-        );
-      })()}
+      {/* S-R2-TRANSITION-1b: инлайн-панели «Причина выигрыша/проигрыша» СНЯТЫ.
+          Причина исхода собирается в модалке перехода вместе с самим переходом —
+          два разных места для одного решения и были тем разрозненным UX, который
+          закрывает A5 роадмапа. Кнопки «Выиграна»/«Проиграна» выше открывают её. */}
 
       {/* Deal Progress Bar — client ERP only (IIoT uses StackedPipeline below) */}
       {project.type === 'client' && project.direction === 'erp' && project.pipeline_id && project.stage_id && (
@@ -599,7 +503,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
               }
 
-              moveToStageId(project.id, newStageId, { onError: onGateError });
+              openTransition({ project, toStageId: newStageId });
             }}
           />
         </div>
@@ -624,9 +528,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
               }
 
-              setGateBlock(null);
-              // S29.1 / B1: пишем ТОЛЬКО stage_id — legacy `stage` из чеврона больше не трогаем.
-              moveToStageId(project.id, newStageId, { onError: onGateError });
+              openTransition({ project, toStageId: newStageId });
             }}
           />
         </div>
@@ -652,9 +554,12 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 if (!confirm(`Вернуть проект на фазу «${targetStageObj.name}»?`)) return;
               }
 
-              setGateBlock(null);
-              // B6/B1: delivery живёт только на stage_id — legacy stage не пишем
-              moveToStageId(project.id, newStageId, { onError: onGateError });
+              // ⚠️ ЗДЕСЬ МОДАЛКИ ПЕРЕХОДА НЕТ И НЕ ДОЛЖНО БЫТЬ (S-R2-TRANSITION-1b).
+              // Это фазовый грид ПРОЕКТА ВНЕДРЕНИЯ (СДР), а не воронка продаж:
+              // ни причин won/lost, ни During-полей гейта у фаз нет. Модалка здесь
+              // спрашивала бы «причину выигрыша» у этапа монтажа. Запись идёт
+              // напрямую через сервис 1a — единый вход сохраняется.
+              moveToStageId(project.id, newStageId);
             }}
           />
         </div>
@@ -663,32 +568,10 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {/* Focus panel — рабочая зона «что дальше»; только для активных сделок (client) */}
       {project.type === 'client' && project.status === 'open' && <DealFocusPanel project={project} />}
 
-      {/* Sprint 27: отказ гейта при переходе стадии с детальной карточки */}
-      {gateBlock && (
-        <div role="alert" className="mb-4 rounded-lg border border-red/40 bg-red/5 p-3">
-          <div className="flex items-start gap-2.5">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-main">Переход заблокирован</p>
-              <ul className="mt-1.5 space-y-1">
-                {gateBlock.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-body text-text-dim">
-                    <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
-                    <span>{r.hint}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button
-              onClick={() => setGateBlock(null)}
-              aria-label="Скрыть"
-              className="rounded px-1 text-sm leading-none text-text-mute transition-colors hover:bg-surface2"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
+      {/* S-R2-TRANSITION-1b: баннер отказа гейта СНЯТ — отказ показывает модалка
+          перехода, там же, где требования можно закрыть. Диагностический чек-лист
+          готовности (StageReadiness) ниже остаётся: он про «что нужно сделать»,
+          а не про «переход отклонён». */}
 
       {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) — только client */}
       {project.type === 'client' && project.status === 'open' && <StageReadiness project={project} />}

@@ -8,6 +8,7 @@ import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
 import { CompanyModal } from '@/components/companies/CompanyModal';
+import { StageTransitionModal } from '@/components/projects/StageTransitionModal';
 
 /**
  * Единый host для модалок, открываемых из палитры команд (openModal из ui-store).
@@ -56,6 +57,14 @@ export function GlobalModals() {
       />
       <ContactModal isOpen={activeModal === 'contact'} onClose={closeModal} editContact={null} />
       <CompanyModal isOpen={activeModal === 'company'} onClose={closeModal} editCompany={null} />
+      {/*
+        S-R2-TRANSITION-1b: модалка перехода стадии живёт здесь, а НЕ на страницах.
+        Единственный инстанс на всё приложение + единственный стор — поэтому чеврон
+        на карточке и драг на доске физически не могут открыть две модалки. Свой
+        стор (не ui-store): у перехода есть контекст (сделка + целевая стадия),
+        которого в модель activeModal/modalContext не влезает.
+      */}
+      <StageTransitionModal />
     </>
   );
 }
