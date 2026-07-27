@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { ActivityLog } from '@/types/entities';
 import type { Json } from '@/types/database';
+import { TRANSITION_METRIC_EVENT } from '@/lib/domain/stage-transition';
 
 const QUERY_KEY = ['activity_log'] as const;
 
@@ -18,6 +19,9 @@ export function useActivityLog(projectId: string) {
       const { data, error } = await supabase
         .from('activity_log')
         .select('*')
+        // Техническое событие метрики переходов в человеческую ленту не пускаем:
+        // сам переход уже виден как stage_changed (см. TRANSITION_METRIC_EVENT).
+        .neq('event_type', TRANSITION_METRIC_EVENT)
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -40,6 +44,7 @@ export function useRecentActivity(limit = 10) {
       const { data, error } = await supabase
         .from('activity_log')
         .select('*, project:projects(id, name)')
+        .neq('event_type', TRANSITION_METRIC_EVENT)
         .order('created_at', { ascending: false })
         .limit(limit);
 

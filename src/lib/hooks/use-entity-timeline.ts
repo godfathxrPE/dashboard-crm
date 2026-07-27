@@ -15,6 +15,9 @@ import {
 } from '@/lib/timeline/adapters';
 import type { TimelineEvent } from '@/types/timeline';
 import { describeEvent } from '@/lib/utils/activity-events';
+// Техническое событие метрики переходов (S-R2-TRANSITION-1b) в таймлайн не пускаем:
+// сам переход там уже виден как stage_changed, комментарий — как comment_added.
+import { TRANSITION_METRIC_EVENT } from '@/lib/domain/stage-transition';
 import type { ActivityLog } from '@/types/entities';
 import { useActorMap } from './use-actor';
 
@@ -156,6 +159,7 @@ async function fetchActivity(
   const direct = await supabase
     .from('activity_log')
     .select('id, event_type, payload, created_at, user_id')
+    .neq('event_type', TRANSITION_METRIC_EVENT)
     .eq(col, id)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);
@@ -169,6 +173,7 @@ async function fetchActivity(
       const t = await supabase
         .from('activity_log')
         .select('id, event_type, payload, created_at, user_id')
+    .neq('event_type', TRANSITION_METRIC_EVENT)
         .in('project_id', projectIds)
         .order('created_at', { ascending: false })
         .limit(PER_SOURCE_LIMIT);

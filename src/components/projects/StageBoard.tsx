@@ -368,6 +368,9 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
 
     if (!targetStageId || project.stage_id === targetStageId) return;
 
+    // ⚠️ Модалки перехода здесь НЕТ сознательно (S-R2-TRANSITION-1b): это фазы
+    // доставки/внутренние проекты, а не воронка продаж — причин won/lost и
+    // During-полей гейта у них не бывает. Пишем через сервис 1a напрямую.
     moveToStageId(projectId, targetStageId);
   }
 

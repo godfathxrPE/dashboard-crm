@@ -249,6 +249,9 @@ export function DeliveryPipelineBoard() {
     if (!targetStage) return;
 
     // B1: пишем только stage_id (legacy `stage` больше не трогаем)
+    // ⚠️ Модалки перехода здесь НЕТ сознательно (S-R2-TRANSITION-1b): это фазы
+    // доставки/внутренние проекты, а не воронка продаж — причин won/lost и
+    // During-полей гейта у них не бывает. Пишем через сервис 1a напрямую.
     moveToStageId(project.id, targetStage.id);
   }
 

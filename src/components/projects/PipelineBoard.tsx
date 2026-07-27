@@ -24,17 +24,14 @@ import {
   Loader2,
   FolderKanban,
   X,
-  Lock,
 } from 'lucide-react';
 import {
   useProjects,
   useDeleteProject,
   useUpdateProject,
-  parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
-import { useMoveProject } from '@/lib/hooks/use-stage-transition';
-import type { UnmetRequirement } from '@/types/database';
+import { useTransitionStore } from '@/lib/stores/transition-store';
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -320,7 +317,10 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
-  const { moveToStageId } = useMoveProject();
+  // S-R2-TRANSITION-1b: доска больше не двигает стадию напрямую — открывает модалку
+  // перехода (гейт, During-поля, причина исхода). Стор один на приложение, поэтому
+  // драг и «следующая стадия» не могут открыть две модалки.
+  const openTransition = useTransitionStore((s) => s.open);
   const deleteProject = useDeleteProject();
   const { data: role } = useOrgRole();
   const canEdit = role !== 'viewer';
@@ -332,8 +332,10 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
   const [activeId, setActiveId] = useState<string | null>(null);
   // S-AGING-1: дефолт — «требуют внимания» (переопределяется select'ом ниже)
   const [sortBy, setSortBy] = useState<SortOption>('next_action');
-  // Sprint 27: отказ стадийного гейта — блокирующий баннер со списком требований
-  const [gateBlock, setGateBlock] = useState<{ name: string; unmet: UnmetRequirement[] } | null>(null);
+  // S-R2-TRANSITION-1b: баннер «переход заблокирован» (S27) СНЯТ. Отказ гейта
+  // теперь показывает модалка перехода — там же, где его можно закрыть. Показывать
+  // требования тостом после отката карточки значило оставлять пользователя без
+  // способа что-то с ними сделать; это и был acceptance-критерий P0.
 
   // Sprint W1a: авто-скрытие мягкой подсказки «запланируй шаг»
   useEffect(() => {
@@ -341,19 +343,6 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
     const t = setTimeout(() => setNextActionPrompt(null), 8000);
     return () => clearTimeout(t);
   }, [nextActionPrompt]);
-
-  // Sprint 27: авто-скрытие баннера блокировки (дольше — надо прочитать список)
-  useEffect(() => {
-    if (!gateBlock) return;
-    const t = setTimeout(() => setGateBlock(null), 10000);
-    return () => clearTimeout(t);
-  }, [gateBlock]);
-
-  // Sprint 27: onError для перемещений — «переход заблокирован» вместо тихого rollback
-  const onMoveError = (name: string) => (err: unknown) => {
-    const unmet = parseStageGateError(err);
-    if (unmet) setGateBlock({ name, unmet });
-  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -482,13 +471,16 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
       const stageId = String(over.id).slice(6);
       const targetStage = pipelineStages.find((s) => s.id === stageId);
       if (!targetStage || project.stage_id === targetStage.id) return;
-      moveToStageId(project.id, targetStage.id, {
-        onError: onMoveError(project.name),
-      });
       const todayStage = new Date(new Date().toDateString());
-      if (!project.next_action_date || new Date(project.next_action_date) < todayStage) {
-        setNextActionPrompt(project);
-      }
+      const needsPrompt =
+        !project.next_action_date || new Date(project.next_action_date) < todayStage;
+      openTransition({
+        project,
+        toStageId: targetStage.id,
+        // Подсказка «запланируй шаг» — ПОСЛЕ перехода: до 1b она всплывала сразу,
+        // теперь между драгом и записью стоит модалка (тост ушёл бы ей под оверлей).
+        onCommitted: needsPrompt ? () => setNextActionPrompt(project) : undefined,
+      });
       return;
     }
 
@@ -524,14 +516,15 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
     if (!targetCol || targetCol.stages.length === 0) return;
     const targetStage = targetCol.stages[0];
 
-    moveToStageId(project.id, targetStage.id, { onError: onMoveError(project.name) });
-
     // Sprint W1a: мягкая подсказка запланировать следующий шаг после переноса,
     // если дата шага пустая или в прошлом (drop-target — всегда активная фаза).
     const today = new Date(new Date().toDateString());
-    if (!project.next_action_date || new Date(project.next_action_date) < today) {
-      setNextActionPrompt(project);
-    }
+    const needsPrompt = !project.next_action_date || new Date(project.next_action_date) < today;
+    openTransition({
+      project,
+      toStageId: targetStage.id,
+      onCommitted: needsPrompt ? () => setNextActionPrompt(project) : undefined,
+    });
   }
 
   function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
@@ -546,7 +539,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
     if (!currentStage) return;
     const nextStage = pipelineStages.find((s) => s.order_index === currentStage.order_index + 1 && !s.is_won && !s.is_lost);
     if (!nextStage) return;
-    moveToStageId(id, nextStage.id, { onError: onMoveError(p.name) });
+    openTransition({ project: p, toStageId: nextStage.id });
   }
   // Клиентская навигация: window.location.href давал полную перезагрузку
   // (первый клик «обновлял» страницу, не переходя на сделку)
@@ -555,7 +548,10 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
     // Move to first stage of the pipeline
     const firstStage = pipelineStages.find((s) => s.order_index === 1);
     if (!firstStage) return;
-    moveToStageId(id, firstStage.id);
+    const p = projects?.find((pr) => pr.id === id);
+    if (!p) return;
+    // Возврат в работу — тот же переход, но с гашением исхода тем же UPDATE.
+    openTransition({ project: p, toStageId: firstStage.id, resetOutcome: true });
   }
 
   const phaseBudget = (phaseId: string) =>
@@ -712,39 +708,6 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
         </div>
       )}
 
-      {/* Sprint 27: блокирующий баннер стадийного гейта — карточка уже вернулась
-          на место (optimistic rollback хука), показываем «что доделать» */}
-      {gateBlock && (
-        <div
-          role="alert"
-          className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,26rem)] -translate-x-1/2 animate-appear
-                     rounded-lg border border-red/40 bg-surface px-4 py-3 elevation-3"
-        >
-          <div className="flex items-start gap-2.5">
-            <Lock size={15} className="mt-0.5 shrink-0 text-red" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-main">
-                Переход заблокирован — «{gateBlock.name}»
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {gateBlock.unmet.map((r, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-body text-text-dim">
-                    <span className="mt-1.5 inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-red" />
-                    <span>{r.hint}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button
-              onClick={() => setGateBlock(null)}
-              aria-label="Скрыть"
-              className="rounded p-0.5 text-text-mute transition-colors hover:bg-surface2"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

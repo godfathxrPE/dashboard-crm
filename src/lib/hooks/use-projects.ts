@@ -424,10 +424,16 @@ export function useCreateProject() {
 }
 
 /**
- * Поля, которые «производны» от смены стадии: пишутся тем же mutate, что и
- * stage_id (выигрыш — won_*, проигрыш — loss/lost_*, статус, дата закрытия).
- * Если changed ⊆ {stage_id} ∪ этот набор — событие смены стадии, а не
- * обезличенный project_updated (grok W3: одно перемещение — одно событие).
+ * Поля, «производные» от смены стадии, — попадают в payload события, но НЕ решают
+ * его тип (см. ниже).
+ *
+ * ⚠️ S-R2-TRANSITION-1b: правило типа события упрощено с «changed ⊆ {stage_id} ∪
+ * набор» до «в патче есть stage_id». Старое правило ломалось ровно на том, ради
+ * чего затевался R2-P0: переход с During-полем (`{stage_id, contact_id}`) не
+ * попадал в множество и логировался обезличенным `project_updated` — в ленте
+ * вместо «Стадия: Лид → Эксперимент» появлялось «Обновлено: контакт, стадия».
+ * Новое правило корректно, потому что с 1a `stage_id` пишет ТОЛЬКО
+ * `buildTransitionPatch`: наличие stage_id в патче и есть признак перехода.
  */
 const STAGE_DERIVED_FIELDS = new Set([
   'stage_id', 'status', 'won_reason', 'won_detail',
@@ -470,18 +476,20 @@ export function useUpdateProject() {
       const changed = Object.keys(vars).filter((k) => k !== 'id');
       if (changed.length === 0) return;
 
-      // Смена стадии (в т.ч. выигрыш/проигрыш) → явное stage_changed с from→to и
-      // именами; обезличенный project_updated для stage-only апдейта подавляем.
-      const isStageChange =
-        changed.includes('stage_id') && changed.every((k) => STAGE_DERIVED_FIELDS.has(k));
-      if (isStageChange) {
+      // Смена стадии (в т.ч. выигрыш/проигрыш и переход с During-полями) → явное
+      // stage_changed с from→to и именами; обезличенный project_updated подавляем.
+      if (changed.includes('stage_id')) {
         const fromStageId = ctx?.fromStageId ?? null;
         const toStageId = vars.stage_id ?? null;
+        // Непроизводные поля патча (бюджет, контакт, …) несём в payload: событие
+        // одно, но «что ещё закрыли этим переходом» из лога не теряется.
+        const alsoChanged = changed.filter((k) => k !== 'stage_id' && !STAGE_DERIVED_FIELDS.has(k));
         logActivity(vars.id, 'stage_changed', {
           from_stage_id: fromStageId,
           to_stage_id: toStageId,
           from_name: fromStageId ? stagesMap.get(fromStageId)?.name ?? null : null,
           to_name: toStageId ? stagesMap.get(toStageId)?.name ?? null : null,
+          ...(alsoChanged.length > 0 ? { fields_changed: alsoChanged } : {}),
         });
         return;
       }
