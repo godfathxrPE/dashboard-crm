@@ -206,20 +206,26 @@ grant execute on function public.aa_enforce_stage_gate() to service_role;
 -- ────────────────────────────────────────────────────────────────────────────
 -- 4. stage_transitions — история переходов стадии
 --
--- ⚠️ to_stage_id: NOT NULL + ON DELETE CASCADE (а НЕ SET NULL).
---    NOT NULL со SET NULL — противоречие: удаление стадии из словаря упало бы
---    на NOT NULL, то есть аудит-таблица заблокировала бы чистку
---    pipeline_stages. Тот же класс грабли, что в 077 с segments.owner_id.
---    Цена CASCADE — история переходов в удалённую стадию исчезает вместе с ней;
---    для аналитики воронки это корректно (стадии в отчёте всё равно нет).
---    from_stage_id nullable по существу (первый переход) → SET NULL безопасен.
+-- ⚠️ FK на pipeline_stages СНЯТ НА ГЕЙТЕ (правка к исходному тексту спринта).
+--    CC верно нашёл противоречие «NOT NULL + ON DELETE SET NULL» (удаление стадии
+--    упало бы на NOT NULL) и вылечил его через ON DELETE CASCADE. Лечение неверное:
+--    `pipeline_stages` — ГЛОБАЛЬНЫЙ словарь, общий для всех организаций, и в этом
+--    проекте он уже пересобирался (035 ресиднул delivery-пайплайны под фазы СДР).
+--    С CASCADE следующий такой ресид молча вынес бы историю переходов ПО ВСЕМ ORG —
+--    при том, что бэкфилл невозможен (см. шапку файла), то есть потеря необратима.
+--    Аудит-таблица не должна иметь ссылочной целостности на изменчивый словарь:
+--    FK снят у обеих stage-колонок, NOT NULL на to_stage_id сохранён, join по uuid
+--    работает как прежде. Цена — «висячие» id при удалении стадии; для аудита это
+--    норма и осознанный размен.
 -- ────────────────────────────────────────────────────────────────────────────
 create table if not exists public.stage_transitions (
   id            uuid primary key default gen_random_uuid(),
   org_id        uuid not null references public.organizations(id)  on delete cascade,
   project_id    uuid not null references public.projects(id)       on delete cascade,
-  from_stage_id uuid          references public.pipeline_stages(id) on delete set null,
-  to_stage_id   uuid not null references public.pipeline_stages(id) on delete cascade,
+  -- FK на pipeline_stages НЕТ сознательно (правка гейта, см. блок 4): аудит не
+  -- должен зависеть от изменчивого глобального словаря. Join по uuid работает и так.
+  from_stage_id uuid,
+  to_stage_id   uuid not null,
   changed_by    uuid          references public.profiles(id)        on delete set null,
   changed_at    timestamptz not null default now()
 );

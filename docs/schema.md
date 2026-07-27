@@ -1166,17 +1166,23 @@ legacy `projects.stage`) историю не писал **ни один** из 1
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; пишется триггером из `NEW.org_id` |
 | project_id | uuid NOT NULL | → projects ON DELETE CASCADE |
-| from_stage_id | uuid | → pipeline_stages ON DELETE **SET NULL**; NULL и по существу — первый переход |
-| to_stage_id | uuid NOT NULL | → pipeline_stages ON DELETE **CASCADE** (см. ниже) |
+| from_stage_id | uuid | **FK НЕТ** (см. ниже); NULL по существу — первый переход |
+| to_stage_id | uuid NOT NULL | **FK НЕТ** (см. ниже) — хранится голый uuid стадии |
 | changed_by | uuid | → profiles ON DELETE SET NULL. NULL — штатно для cron/service-контекста |
 | changed_at | timestamptz NOT NULL | default now() |
 | — | — | Индексы: `idx_stage_tr_project_at (project_id, changed_at desc)`, `idx_stage_tr_org_at (org_id, changed_at desc)`, `idx_stage_tr_to_stage (org_id, to_stage_id, changed_at desc)` |
 
-**Почему `to_stage_id` — CASCADE, а не SET NULL** (отклонение от текста спринта): `NOT NULL`
-вместе с `ON DELETE SET NULL` — противоречие, каскадный UPDATE упал бы на `NOT NULL` и
-аудит-таблица **заблокировала бы удаление стадии** из словаря `pipeline_stages`. Тот же класс
-грабли, что `segments.owner_id` в 077. Цена CASCADE — переходы в удалённую стадию уходят
-вместе с ней; для аналитики это корректно (стадии в отчёте всё равно нет).
+**Почему на stage-колонках нет FK** (правка гейта Cowork к тексту спринта и к первой
+редакции 078). Исходный `NOT NULL + ON DELETE SET NULL` действительно противоречив: каскадный
+UPDATE упал бы на `NOT NULL`, и аудит заблокировал бы удаление стадии из словаря. Первым
+лечением был `ON DELETE CASCADE`, но оно хуже болезни: **`pipeline_stages` — глобальный
+словарь, общий для всех организаций, и он уже пересобирался** (035 ресиднул delivery-пайплайны
+под фазы СДР). Следующий такой ресид с CASCADE молча вынес бы историю переходов **по всем
+org** — при том, что бэкфилл невозможен (см. выше), то есть потеря необратима.
+
+Решение: **FK снят у обеих stage-колонок**, `NOT NULL` на `to_stage_id` сохранён. Аудит-таблица
+не должна зависеть от ссылочной целостности изменчивого словаря; join по uuid работает как
+прежде. Цена — «висячие» id при удалении стадии, для аудита это норма и осознанный размен.
 
 **`log_stage_transition()`** _(078, SECURITY DEFINER, `search_path=public,pg_temp`)_ + триггер
 **`trg_zy_log_stage_transition`** `AFTER UPDATE OF stage_id ON projects FOR EACH ROW
