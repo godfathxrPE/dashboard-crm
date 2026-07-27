@@ -25,10 +25,10 @@ import {
   useProject,
   useUpdateProject,
   useDeleteProject,
-  useMoveProject,
   parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { useMoveProject, useStageTransition } from '@/lib/hooks/use-stage-transition';
 import type { ProjectType, UnmetRequirement } from '@/types/database';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
@@ -170,6 +170,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
   const { moveToStageId } = useMoveProject();
+  // S-R2-TRANSITION-1a: переходы, которые пишут ещё и поля исхода (won/lost/возврат
+  // в работу), идут через сервис — раньше это были прямые updateProject.mutate.
+  const { commitTransition } = useStageTransition();
   // P2b (B0): права управления delivery (команда/шаблон/CRUD фаз) = контракт RLS,
   // НЕ role !== 'viewer' — иначе кнопки давали бы 42501
   const { data: orgRole } = useOrgRole();
@@ -443,13 +446,16 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                     .sort((a, b) => a.order_index - b.order_index)[0];
                   if (!firstStage) return;
                   if (!confirm('Вернуть сделку в работу (первая стадия)?')) return;
-                  updateProject.mutate({
-                    id: project.id,
-                    stage_id: firstStage.id,
-                    loss_reason: null,
-                    loss_detail: null,
-                    won_reason: null,
-                    won_detail: null,
+                  commitTransition({
+                    projectId: project.id,
+                    fromStageId: project.stage_id,
+                    toStageId: firstStage.id,
+                    fieldPatches: {
+                      loss_reason: null,
+                      loss_detail: null,
+                      won_reason: null,
+                      won_detail: null,
+                    },
                   });
                 }}
                 className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim
@@ -550,10 +556,11 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               <button
                 key={r}
                 onClick={() => {
-                  updateProject.mutate({
-                    id: project.id,
-                    stage_id: lostStage.id,
-                    loss_reason: r,
+                  commitTransition({
+                    projectId: project.id,
+                    fromStageId: project.stage_id,
+                    toStageId: lostStage.id,
+                    fieldPatches: { loss_reason: r },
                   });
                   setLosing(false);
                 }}

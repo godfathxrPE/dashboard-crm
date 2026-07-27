@@ -18,9 +18,9 @@ import {
 import { GripVertical, Loader2, Rocket } from 'lucide-react';
 import {
   useDeliveryProjects,
-  useMoveProject,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import {
   DELIVERY_PHASE_ORDER,

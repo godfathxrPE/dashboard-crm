@@ -1150,6 +1150,46 @@ authenticated`, затем `grant select, insert, update, delete to authenticate
 там снимок URL, здесь — предикат; автоконвертации нет (F10). Полосы живут рядом, фильтры
 комбинируются по «И».
 
+### stage_transitions _(078, R2-P0-A, S-R2-TRANSITION-1a)_ — история смен стадии
+
+Аудит переходов воронки. **Заводится заново:** с 047 (снятие `log_stage_change` вместе с
+legacy `projects.stage`) историю не писал **ни один** из 12 триггеров на `projects`, а
+`stage_entered_at` хранит только текущее значение. Проверено по живой БД 2026-07-26.
+
+⚠️ **Бэкфилл невозможен** — прошлых переходов нет ни в одном источнике (клиентский
+`activity_log.stage_changed` пишется только из UI-сессий и не покрывает cron/service).
+Данные копятся **с даты apply 078**; аналитика воронки P2 (конверсия, median dwell)
+достоверна только по периоду после неё.
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; пишется триггером из `NEW.org_id` |
+| project_id | uuid NOT NULL | → projects ON DELETE CASCADE |
+| from_stage_id | uuid | → pipeline_stages ON DELETE **SET NULL**; NULL и по существу — первый переход |
+| to_stage_id | uuid NOT NULL | → pipeline_stages ON DELETE **CASCADE** (см. ниже) |
+| changed_by | uuid | → profiles ON DELETE SET NULL. NULL — штатно для cron/service-контекста |
+| changed_at | timestamptz NOT NULL | default now() |
+| — | — | Индексы: `idx_stage_tr_project_at (project_id, changed_at desc)`, `idx_stage_tr_org_at (org_id, changed_at desc)`, `idx_stage_tr_to_stage (org_id, to_stage_id, changed_at desc)` |
+
+**Почему `to_stage_id` — CASCADE, а не SET NULL** (отклонение от текста спринта): `NOT NULL`
+вместе с `ON DELETE SET NULL` — противоречие, каскадный UPDATE упал бы на `NOT NULL` и
+аудит-таблица **заблокировала бы удаление стадии** из словаря `pipeline_stages`. Тот же класс
+грабли, что `segments.owner_id` в 077. Цена CASCADE — переходы в удалённую стадию уходят
+вместе с ней; для аналитики это корректно (стадии в отчёте всё равно нет).
+
+**`log_stage_transition()`** _(078, SECURITY DEFINER, `search_path=public,pg_temp`)_ + триггер
+**`trg_zy_log_stage_transition`** `AFTER UPDATE OF stage_id ON projects FOR EACH ROW
+WHEN (new.stage_id IS DISTINCT FROM old.stage_id)`. Тело обёрнуто в
+`EXCEPTION WHEN OTHERS THEN RETURN NEW` — ⚠️ **аудит не имеет права ронять UPDATE** (образец —
+`run_stage_automations`, 050/I5): блокирует переход гейт, а не история. Префикс `zy` ставит
+запись **до** `trg_zz_run_automations`.
+
+**RLS (078):** единственная политика `stage_tr_select` — `org_id = ( select current_org_id() )`.
+**INSERT/UPDATE/DELETE-политик нет вовсе** — пишет только триггер под DEFINER.
+Гранты (урок 075): `revoke all … from anon`, `revoke insert, update, delete, truncate,
+references, trigger … from authenticated`, `grant select to authenticated`.
+
 ### activities _(006)_
 
 | Колонка | Тип | Заметки |
@@ -1362,9 +1402,21 @@ USING — org-граница автоматически запрещает пе�
 - **`stage_requirements`** (см. таблицу выше): SELECT — все члены org
   (`org_id = current_org_id()`), нужен для UI-чек-листа готовности;
   INSERT/UPDATE/DELETE — org + `current_org_role() IN ('owner','admin')`.
+- **`check_stage_requirements_row(p_project_id, p_target_stage_id, p_row jsonb) → jsonb`**
+  _(**078**, SECURITY DEFINER, `search_path=public,pg_temp`)_ — **носитель логики гейта с 078.**
+  `p_row IS NULL` → поля читаются из строки в БД (поведение до 078, для RPC-превью);
+  `p_row` задан (`to_jsonb(NEW)` из BEFORE-триггера) → поля берутся из **строки-кандидата**,
+  то есть гейт видит патч ТОГО ЖЕ `UPDATE`. **Зачем:** до 078 `update({stage_id: B, budget: 100})`
+  одним запросом падал, если стадия B требует `budget` — функция селектила старую строку.
+  Источник сведён к одному `v_src := coalesce(p_row, to_jsonb(v_project))`, поэтому
+  field-проверки остались **одним `CASE`**: разъезд двух списков колонок исключён конструктивно.
+  `file`-требования в обеих ветках читают `project_files` из БД (файлы тем же UPDATE не приходят).
+  ACL: REVOKE public/anon/authenticated → GRANT service_role (триггерная, не RPC-поверхность).
 - **`check_stage_requirements(p_project_id, p_target_stage_id) → jsonb`**
-  _(027, SECURITY DEFINER, `search_path=public,pg_temp`)_ — единая проверка для
-  триггера и UI. **Гард входа — только для auth-контекста**: проект существует, и
+  _(027; с **078** — тонкий делегат `check_stage_requirements_row($1,$2,null)`, `language sql`,
+  SECURITY DEFINER, `search_path=public,pg_temp`)_ — единая проверка для
+  триггера и UI; контракт (имя, аргументы, возврат, гранты) 078 **не менял**, RPC-превью
+  `use-stage-gate.ts` работает без правок. **Гард входа — только для auth-контекста**: проект существует, и
   если `auth.uid() IS NOT NULL` — вызывающий обязан быть `is_org_member(project.org_id)`,
   иначе `RAISE 42501` (защита RPC-поверхности от чужих org; SECURITY DEFINER обходит
   RLS — гард обязателен, урок convert_lead). **Service-контекст** (`auth.uid() IS NULL`:
@@ -1377,9 +1429,11 @@ USING — org-граница автоматически запрещает пе�
   неизвестная колонка = пункт не пройден. Возврат — jsonb-массив незакрытых
   требований `[{type,config,hint}]` (пустой = проход). ACL: REVOKE PUBLIC/anon,
   GRANT authenticated + service_role.
-- **`aa_enforce_stage_gate()`** _(027, SECURITY DEFINER)_ + триггер
+- **`aa_enforce_stage_gate()`** _(027, +**078**, SECURITY DEFINER)_ + триггер
   **`trg_aa_enforce_stage_gate`** `BEFORE UPDATE ON projects`. При
-  `NEW.stage_id IS DISTINCT FROM OLD.stage_id` зовёт `check_...`; непустой массив →
+  `NEW.stage_id IS DISTINCT FROM OLD.stage_id` зовёт
+  `check_stage_requirements_row(NEW.id, NEW.stage_id, to_jsonb(NEW))` _(078; до этого —
+  2-арную версию по старой строке)_; непустой массив →
   `RAISE EXCEPTION 'stage_gate_failed' USING DETAIL = <jsonb::text>, ERRCODE 'P0001'`
   (UI парсит message + DETAIL). **Без EXCEPTION-глотания** — гейт обязан блокировать.
   ACL триггерной функции — только service_role.
@@ -1387,6 +1441,11 @@ USING — org-граница автоматически запрещает пе�
   `set_updated_at` → **`trg_aa_enforce_stage_gate`** → `trg_set_org_id` (INSERT) →
   `trg_sync_deal_stage_fields` → `trg_sync_project_stage`. Префикс `trg_aa_`
   гарантирует срабатывание гейта ДО обоих `trg_sync_*`.
+  ⚠️ Следствие для 078: гейт видит `NEW` **до** `trg_sync_*`, то есть `probability`,
+  `status`, `actual_close_date` в нём — ещё клиентские/старые, а не выставленные стадией.
+  **Порядок AFTER-триггеров projects**: … → **`trg_zy_log_stage_transition`** _(078)_ →
+  `trg_zz_run_automations`. Префикс `zy` выбран так, чтобы история перехода была записана
+  ДО автоматизаций.
 - **~~Known issue (S27)~~ → закрыто S29.1:** IIoT-чеврон (`StackedPipeline` в
   ProjectDetail) раньше двигал сделку через legacy `stage`, минуя `stage_id` — гейт
   и автоматизация (обе на `stage_id`) не срабатывали. **S29.1**: чеврон переписан на
@@ -1872,7 +1931,9 @@ exists pg_cron` (включено в 051).
   своих задач → ok; батч с чужим id → 42501; anon → denied; порядок стабилен
   после рефетча; advisors.
 
-- **076, 077** _(S-R2-SEGMENTS-1, R2-P0-D + R2-P0-B — **НЕ применены, ждут гейта Cowork**)_ —
+- **076, 077** _(S-R2-SEGMENTS-1, R2-P0-D + R2-P0-B — **APPLIED 2026-07-26**; сверено по живой
+  БД 2026-07-27: `segments` и `organizations.settings` на месте, две записи в
+  `supabase_migrations.schema_migrations` за 2026-07-26)_ —
   промежуточные 040–075 описаны блоками выше (ledger «Дельты 062–075»).
   **076**: `organizations.settings jsonb NOT NULL DEFAULT '{}'` — политики не трогаются,
   правка остаётся owner-only. **077**: таблица `segments` + 4 политики + два partial-unique
@@ -1883,6 +1944,28 @@ exists pg_cron` (включено в 051).
   → `on conflict do nothing`, дублей нет; сегмент + чип `?direction` фильтруют вместе (AND);
   порог тишины меняется в Настройках → «Сегодня → Остывают» реагирует; не-owner видит секцию
   настроек read-only; advisors (ожидание: initplan-WARN на новых политиках нет — обёртки `( select … )`).
+
+- **078** _(S-R2-TRANSITION-1a, R2-P0-A — **НЕ применена, ждёт гейта Cowork**)_ —
+  фундамент переходов стадии. Три части:
+  **(1)** `check_stage_requirements_row(uuid, uuid, jsonb)` — гейт, принимающий строку-кандидата;
+  2-арная `check_stage_requirements` становится делегатом `(…, null)`, её имя/аргументы/возврат/гранты
+  не меняются (RPC-превью клиента работает без правок). Новая функция, а НЕ третий аргумент с
+  DEFAULT: иначе двухаргументный вызов стал бы неоднозначным (`function is not unique`), а drop
+  2-арной потребовал бы переGRANTа. `aa_enforce_stage_gate` начинает звать `_row(…, to_jsonb(NEW))`.
+  **(2)** таблица `stage_transitions` + `log_stage_transition()` + `trg_zy_log_stage_transition`
+  (см. раздел таблицы выше). **(3)** ничего больше: `stage_playbooks`, `stage_dwell_overrides`
+  и RPC `transition_project_stage` — это P4, в 078 их нет.
+  Клиент: единый вход `useStageTransition().commitTransition` (`src/lib/hooks/use-stage-transition.ts`)
+  поверх чистого `buildTransitionPatch` (`src/lib/domain/stage-transition.ts`); все шесть
+  write-path'ов стадии переведены на него, поведение не менялось.
+  ⚠️ **Бэкфилла нет** — история копится с даты apply.
+  План смоуков гейта: **(a)** стадия с требованием `budget`: `update({stage_id, budget})` одним
+  запросом **проходит** (до 078 отклонялся), `update({stage_id})` без бюджета — **отклоняется**
+  с тем же unmet-списком; **(b)** RPC `check_stage_requirements(project, stage)` из клиента отдаёт
+  то же, что до миграции; **(c)** `file`-требование работает по-прежнему; **(d)** переход → строка
+  в `stage_transitions` с верным `changed_by`, автоматизация `stage_entered` при этом **сработала**
+  (порядок триггеров не сломан); **(e)** ролевые: viewer/manager видят только свою org, `insert`
+  руками → отказ (политики нет); **(f)** advisors без новых WARN, повторный apply идемпотентен.
 
 ## Edge Functions
 

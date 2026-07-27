@@ -29,10 +29,10 @@ import {
 } from 'lucide-react';
 import {
   useProjects,
-  useMoveProject,
   useDeleteProject,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import { formatBudget } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';

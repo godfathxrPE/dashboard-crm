@@ -28,12 +28,12 @@ import {
 } from 'lucide-react';
 import {
   useProjects,
-  useMoveProject,
   useDeleteProject,
   useUpdateProject,
   parseStageGateError,
   type Project,
 } from '@/lib/hooks/use-projects';
+import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import type { UnmetRequirement } from '@/types/database';
 import { formatBudget, sortOptions, type SortOption } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';

@@ -274,6 +274,26 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
       payload = values;
     }
 
+    // S-R2-TRANSITION-1a: РЕДАКТИРОВАНИЕ существующей сделки стадию не двигает.
+    // Переход — отдельная операция (воронка/чеврон → useStageTransition): у него
+    // свой гейт, свои поля-требования и своя история. Если бы общая форма писала
+    // stage_id, она обходила бы модалку перехода (1b) мимо всей этой логики.
+    // На СОЗДАНИИ стадия остаётся: это INSERT стартовой стадии, а не переход.
+    //
+    // Ветка internal выше зануляет stage_id ради CHECK-инварианта «internal вне
+    // воронки» — снимать её отсюда безопасно: тип проекта после создания не
+    // меняется (селектор типа рендерится только при !editProject), значит у
+    // редактируемого internal-проекта stage_id уже null в БД.
+    if (editProject) {
+      // stage_id объявляем опциональным ровно ради `delete`: сама схема формы
+      // держит его обязательным (создание стадию выбирает).
+      const stripped: Omit<ProjectFormValues, 'stage_id'> & { stage_id?: string | null } = {
+        ...payload,
+      };
+      delete stripped.stage_id;
+      payload = stripped as ProjectFormValues;
+    }
+
     try {
       if (editProject) {
         await updateProject.mutateAsync({ id: editProject.id, ...payload });
@@ -400,9 +420,12 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               </label>
               <select
                 {...register('stage_id')}
+                disabled={!!editProject}
+                aria-describedby={editProject ? 'stage-readonly-hint' : undefined}
                 className="w-full rounded-lg border border-input bg-surface px-3 py-2
                            text-sm text-text-main
-                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
+                           disabled:cursor-not-allowed disabled:text-text-dim disabled:opacity-70"
               >
                 {pipelineStages.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -410,6 +433,13 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                   </option>
                 ))}
               </select>
+              {/* S-R2-TRANSITION-1a: стадию двигает воронка, а не общая форма — там
+                  гейт требований и история перехода. */}
+              {editProject && (
+                <p id="stage-readonly-hint" className="mt-1 text-xs text-text-mute">
+                  Стадия меняется на воронке
+                </p>
+              )}
             </div>
           )}
 
