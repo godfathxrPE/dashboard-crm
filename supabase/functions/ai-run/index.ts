@@ -57,6 +57,12 @@ type Preset = {
   needsEntity: boolean; // подгружать ли данные сделки в <data kind="entity">
   system: string;
   tool: AnthropicTool;
+  /**
+   * R2-P0-C: пресет-«предложение» — результат модели не кладётся в result как есть,
+   * а оборачивается служебными полями (version/source/target_project_id), которые
+   * модель НЕ вправе задавать. См. stampProposal.
+   */
+  proposal?: boolean;
 };
 
 const PRESETS: Record<string, Preset> = {
@@ -156,6 +162,90 @@ const PRESETS: Record<string, Preset> = {
           },
           recommendations: { type: 'array', items: { type: 'string' } },
           kp_arguments: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+
+  // R2-P0-C (S-R2-SDP-1) — Smart Deal Progression. Единственный пресет, чей вывод
+  // ПИШЕТСЯ в сделку (после явного подтверждения человеком в UI).
+  //
+  // ⚠️ В tool-схеме НЕТ и не должно быть: stage_id (подсказки стадии запрещены до
+  //    конца P2), budget, owner_id, company_id, contact_id, status, type, org_id.
+  //    Поля сделки — ровно whitelist `set_field` движка автоматизаций (I7).
+  // ⚠️ version/source/target_project_id модель не возвращает — их штампует
+  //    stampProposal() из транскрипта и строки звонка/встречи (иначе модель могла бы
+  //    выдумать uuid чужой сделки).
+  deal_progression: {
+    key: 'deal_progression',
+    model: MODEL.sonnet,
+    promptVersion: 1,
+    maxInputChars: 120_000,
+    needsEntity: true,
+    proposal: true,
+    system:
+      `${ANTI_INJECTION}\n\nЗадача: по транскрипту разговора и данным сделки из ` +
+      `<data kind="entity"> предложить, КАК обновить карточку сделки в CRM. Это ЧЕРНОВИК ` +
+      `предложения — человек подтвердит его вручную, поэтому не бойся оставить поле пустым, ` +
+      `но никогда не выдумывай факты.\n` +
+      `Правила:\n` +
+      `1. Заполняй поле, только если в транскрипте есть прямое основание. Нет основания — ` +
+      `не включай ключ вовсе. Пустая строка хуже отсутствия.\n` +
+      `2. next_step — одно конкретное действие продавца, не пересказ разговора.\n` +
+      `3. next_action_date — строго ISO YYYY-MM-DD. Относительные сроки («через неделю») ` +
+      `разрешай от переданной даты «Сегодня». Дата не названа и не выводится — не включай ключ.\n` +
+      `4. probability — целое 0–100, только если по разговору видно явное движение сделки ` +
+      `(бюджет подтверждён, ЛПР согласовал, наоборот — заморозка). Сомневаешься — не включай.\n` +
+      `5. pinned_note — короткая заметка «что важно помнить по этой сделке», 1–2 предложения.\n` +
+      `6. tasks — не больше 5, каждая с конкретной формулировкой; due_in_days — целое число ` +
+      `дней от сегодня.\n` +
+      `7. risks и open_questions — то, что реально прозвучало или прямо следует из разговора.\n` +
+      `8. О стадии сделки НЕ давай структурированных указаний — стадию человек меняет сам. ` +
+      `Если считаешь, что стадия должна измениться, скажи это ОДНОЙ фразой в summary.\n` +
+      `9. confidence: high — решения проговорены явно; medium — выводы косвенные; low — ` +
+      `разговор короткий/шумный/не по делу.\n` +
+      `Пиши по-русски, деловым тоном, без воды.`,
+    tool: {
+      name: 'submit_progression',
+      description: 'Вернуть черновик обновления сделки по итогам разговора',
+      input_schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['confidence', 'summary', 'fields', 'tasks', 'risks', 'open_questions'],
+        properties: {
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+          summary: {
+            type: 'string',
+            description: '1–3 предложения: что произошло и что это значит для сделки',
+          },
+          fields: {
+            type: 'object',
+            additionalProperties: false,
+            // required пуст намеренно: любое поле можно не включать
+            properties: {
+              next_step: { type: 'string', description: 'Одно конкретное следующее действие' },
+              next_action_date: { type: 'string', description: 'ISO-дата YYYY-MM-DD' },
+              pinned_note: { type: 'string', description: 'Короткая заметка по сделке' },
+              probability: { type: 'integer', minimum: 0, maximum: 100 },
+            },
+          },
+          tasks: {
+            type: 'array',
+            maxItems: 5,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['text'],
+              properties: {
+                text: { type: 'string' },
+                due_in_days: { type: 'integer', minimum: 0, maximum: 365 },
+                priority: { type: 'string', enum: ['normal', 'important', 'critical'] },
+                lane: { type: 'string', enum: ['now', 'next', 'wait', 'done'] },
+              },
+            },
+          },
+          risks: { type: 'array', maxItems: 10, items: { type: 'string' } },
+          open_questions: { type: 'array', maxItems: 10, items: { type: 'string' } },
         },
       },
     },
@@ -282,6 +372,27 @@ async function loadEntityBlock(
   return blocks.filter(Boolean).join('\n\n');
 }
 
+/**
+ * R2-P0-C: служебные поля предложения ставит СЕРВЕР, не модель.
+ * `target_project_id` берётся из строки звонка/встречи под RLS — модель не может
+ * подсунуть чужую сделку, даже если транскрипт её об этом попросил.
+ */
+async function stampProposal(
+  supabase: SupabaseClient,
+  result: Record<string, unknown>,
+  entityType: 'call' | 'meeting',
+  entityId: string,
+): Promise<Record<string, unknown>> {
+  const table = entityType === 'call' ? 'calls' : 'meetings';
+  const { data } = await supabase.from(table).select('project_id').eq('id', entityId).maybeSingle();
+  return {
+    ...result,
+    version: 1,
+    source: { entity_type: entityType, entity_id: entityId },
+    target_project_id: (data as { project_id?: string | null } | null)?.project_id ?? null,
+  };
+}
+
 /** Фоновый прогон: running → Claude API → done/error. Никогда не бросает наружу. */
 async function processRun(
   supabase: SupabaseClient,
@@ -345,7 +456,10 @@ async function processRun(
     const toolUse = claudeData.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
     if (!toolUse?.input) throw new Error('Модель не вернула структурированный результат');
 
-    const result = toolUse.input as Record<string, unknown>;
+    let result = toolUse.input as Record<string, unknown>;
+    if (preset.proposal) {
+      result = await stampProposal(supabase, result, entityType, entityId);
+    }
     if (truncated) {
       const meta = (result.meta ?? {}) as Record<string, unknown>;
       result.meta = { ...meta, truncated: true };
@@ -424,7 +538,11 @@ Deno.serve(async (req: Request) => {
   const entityId = transcript.entity_id as string;
 
   // Пресет должен подходить типу сущности (SPIN — только для call).
-  const clientMeta = { call: ['meeting_protocol', 'analytic_note', 'spin_review'], meeting: ['meeting_protocol', 'analytic_note'] };
+  // Зеркало entityTypes в src/lib/constants/ai-presets.ts — правится синхронно.
+  const clientMeta = {
+    call: ['meeting_protocol', 'analytic_note', 'spin_review', 'deal_progression'],
+    meeting: ['meeting_protocol', 'analytic_note', 'deal_progression'],
+  };
   if (!clientMeta[entityType]?.includes(presetKey)) {
     return json({ error: 'Пресет неприменим к этому типу сущности' }, 400);
   }

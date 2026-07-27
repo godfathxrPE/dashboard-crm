@@ -133,7 +133,44 @@ export interface SpinReviewResult {
   score: { value: number; rationale: string };
   meta?: { truncated?: boolean };
 }
-export type AiRunResult = ProtocolResult | AnalyticNoteResult | SpinReviewResult;
+/**
+ * R2-P0-C (S-R2-SDP-1) — Smart Deal Progression. Предложение AI по обновлению
+ * сделки после звонка/встречи. Строго HITL: применяется только то, что пользователь
+ * отметил галочкой.
+ *
+ * ⚠️ **`stage_id` в контракте отсутствует физически** — не «не заполняем», а поля нет.
+ * Подсказки стадии запрещены до конца P2; стадия упоминается только текстом в `summary`.
+ *
+ * `version`/`source`/`target_project_id` модель НЕ возвращает — их штампует edge после
+ * ответа (`target_project_id` = `project_id` звонка/встречи). Иначе модель могла бы
+ * выдумать uuid чужой сделки.
+ */
+export interface ProgressionProposal {
+  version: 1;
+  source: { entity_type: 'call' | 'meeting'; entity_id: string };
+  target_project_id: string | null;      // null → пользователь выбирает сделку
+  confidence: 'high' | 'medium' | 'low';
+  summary: string;                       // 1–3 предложения RU
+  fields: {
+    next_step?: string;
+    next_action_date?: string;           // YYYY-MM-DD
+    pinned_note?: string;
+    probability?: number;                // 0–100
+  };
+  tasks: { text: string; due_in_days?: number; priority?: TaskPriority; lane?: TaskLane }[];
+  risks: string[];
+  open_questions: string[];
+  /**
+   * Идемпотентность применения. Пишет клиент MERGE'ем в `ai_runs.result` после
+   * успешного применения (RLS `ai_runs_update`: автор своё обновить может).
+   * Непусто ⇒ панель применения заблокирована.
+   */
+  applied_at?: string;
+  applied?: { fields: string[]; tasks: number };
+  meta?: { truncated?: boolean };
+}
+
+export type AiRunResult = ProtocolResult | AnalyticNoteResult | SpinReviewResult | ProgressionProposal;
 
 // ═══ Sprint 1: Pipelines & Directions ═══
 

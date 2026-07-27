@@ -91,6 +91,18 @@ export function describeEvent(entry: ActivityLog): string {
       const label = trigger ? AUTOMATION_TRIGGER_LABEL[trigger] ?? trigger : undefined;
       return label ? `Сработала автоматизация: ${label}` : 'Сработала автоматизация';
     }
+    case 'ai_progression_applied': {
+      // R2-P0-C: audit trail HITL-применения AI-предложения (I4). Показываем ЧТО
+      // применили — «AI обновил сделку» без деталей в ленте бесполезно.
+      const fields = (p.fields as string[] | undefined) ?? [];
+      const tasks = typeof p.tasks === 'number' ? p.tasks : 0;
+      const parts: string[] = [];
+      if (fields.length > 0) parts.push([...new Set(fields.map(fieldLabel))].join(', '));
+      if (tasks > 0) parts.push(`задач: ${tasks}`);
+      return parts.length > 0
+        ? `Применено предложение AI: ${parts.join('; ')}`
+        : 'Применено предложение AI';
+    }
     case 'ai_summary_generated': {
       const kind = ENTITY_TYPE_LABEL[p.entity_type as string];
       return kind ? `AI-резюме готово: ${kind}` : 'AI-резюме готово';
