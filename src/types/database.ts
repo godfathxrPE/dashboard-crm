@@ -232,10 +232,12 @@ export interface UnmetRequirement {
 // 3 триггера × 4 действия + conditions (AND-предикаты). Осмысленность union держим
 // через отдельные config-типы; внешний payload из Supabase — jsonb (см. хук: unknown+каст).
 
-/** Триггеры движка (050 + task_overdue из 051, S-WF-2C). */
-export type AutomationTriggerType = 'stage_entered' | 'status_changed' | 'field_changed' | 'task_overdue';
-/** Действия движка 050. */
-export type AutomationActionType = 'create_task' | 'notify' | 'create_activity' | 'set_field';
+/** Триггеры движка (050 + task_overdue из 051 + days_in_stage из 079, R2-P0-E). */
+export type AutomationTriggerType =
+  | 'stage_entered' | 'status_changed' | 'field_changed' | 'task_overdue' | 'days_in_stage';
+/** Действия движка (050 + suggest_spawn из 079). */
+export type AutomationActionType =
+  | 'create_task' | 'notify' | 'create_activity' | 'set_field' | 'suggest_spawn';
 /** Кому назначить задачу / кому уведомление. */
 export type AutomationAssignee = 'deal_owner' | 'deal_creator';
 
@@ -252,11 +254,21 @@ export interface FieldChangedConfig {
 }
 /** task_overdue (051) — триггер без конфигурации (pg_cron сканирует по deadline). */
 export type TaskOverdueConfig = Record<string, never>;
+/**
+ * days_in_stage (079) — «сделка застряла на стадии». pg_cron сканирует открытые
+ * client-сделки: now() - stage_entered_at >= min_days. stage_id опционален
+ * (пусто ⇒ любая стадия), поэтому на submit пустое значение в конфиг НЕ пишем.
+ */
+export interface DaysInStageConfig {
+  stage_id?: string;
+  min_days: number;            // 1..365
+}
 export type AutomationTriggerConfig =
   | StageEnteredConfig
   | StatusChangedConfig
   | FieldChangedConfig
-  | TaskOverdueConfig;
+  | TaskOverdueConfig
+  | DaysInStageConfig;
 
 // ── Conditions (AND-предикаты; совпадает с wf_eval_conditions 050) ──
 export type AutomationConditionOp =
@@ -294,11 +306,20 @@ export interface AutomationSetFieldConfig {
   field: AutomationSetFieldName;
   value: string;                   // SQL кастит per-field (date/int/text)
 }
+/**
+ * suggest_spawn (079) — HITL-предложение создать внедрение. Инвариант I8:
+ * автоматизация НИКОГДА не зовёт spawn_delivery_project, только шлёт уведомление
+ * (тип 'spawn_suggest') с deep link на визард — контур/шаблон выбирает РП.
+ */
+export interface AutomationSuggestSpawnConfig {
+  text: string;                    // {deal} → имя сделки
+}
 export type AutomationActionConfig =
   | AutomationCreateTaskConfig
   | AutomationNotifyConfig
   | AutomationActivityConfig
-  | AutomationSetFieldConfig;
+  | AutomationSetFieldConfig
+  | AutomationSuggestSpawnConfig;
 
 export interface AutomationRule {
   id: string;
@@ -436,7 +457,9 @@ export interface Membership {
 // ═══ Sprint 26: Notifications & Invitations ═══
 
 // S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
-export type NotificationType = 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation';
+// R2-P0-E (079): spawn_suggest — действие suggest_spawn предлагает создать внедрение
+export type NotificationType =
+  | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;

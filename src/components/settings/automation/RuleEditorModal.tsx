@@ -22,6 +22,8 @@ import {
   AUTOMATION_PRIORITY_OPTIONS,
   AUTOMATION_SET_FIELD_OPTIONS,
   AUTOMATION_NULLARY_OPS,
+  AUTOMATION_DWELL_MIN_DAYS,
+  AUTOMATION_DWELL_MAX_DAYS,
 } from '@/lib/constants/automation';
 import { ruleSchema, type RuleFormValues } from '@/lib/validators/automation-rule';
 import { ConditionRow } from './ConditionRow';
@@ -32,10 +34,12 @@ import type {
   StageEnteredConfig,
   StatusChangedConfig,
   FieldChangedConfig,
+  DaysInStageConfig,
   AutomationCreateTaskConfig,
   AutomationNotifyConfig,
   AutomationActivityConfig,
   AutomationSetFieldConfig,
+  AutomationSuggestSpawnConfig,
 } from '@/types/database';
 
 const labelCls = 'block text-meta font-medium text-text-dim mb-1';
@@ -53,9 +57,17 @@ function fromRule(rule: AutomationRule): RuleFormValues {
     name: rule.name,
     trigger_type: rule.trigger_type,
     t_pipeline_id: rule.trigger_type === 'stage_entered' ? (tc as StageEnteredConfig).pipeline_id : '',
-    t_stage_id: rule.trigger_type === 'stage_entered' ? (tc as StageEnteredConfig).stage_id : '',
+    // t_stage_id переиспользуется двумя триггерами: обязателен у stage_entered,
+    // опционален у days_in_stage (пусто ⇒ любая стадия).
+    t_stage_id:
+      rule.trigger_type === 'stage_entered'
+        ? (tc as StageEnteredConfig).stage_id
+        : rule.trigger_type === 'days_in_stage'
+          ? ((tc as DaysInStageConfig).stage_id ?? '')
+          : '',
     t_status_to: rule.trigger_type === 'status_changed' ? ((tc as StatusChangedConfig).to ?? '') : '',
     t_field: rule.trigger_type === 'field_changed' ? (tc as FieldChangedConfig).field : '',
+    t_min_days: rule.trigger_type === 'days_in_stage' ? (tc as DaysInStageConfig).min_days : 14,
     conditions: rule.conditions ?? [],
     action_type: rule.action_type,
     a_task_text: rule.action_type === 'create_task' ? (ac as AutomationCreateTaskConfig).task_text : '',
@@ -73,6 +85,8 @@ function fromRule(rule: AutomationRule): RuleFormValues {
       rule.action_type === 'create_activity' ? ((ac as AutomationActivityConfig).description ?? '') : '',
     a_set_field: rule.action_type === 'set_field' ? (ac as AutomationSetFieldConfig).field : 'next_step',
     a_set_value: rule.action_type === 'set_field' ? (ac as AutomationSetFieldConfig).value : '',
+    a_spawn_text:
+      rule.action_type === 'suggest_spawn' ? (ac as AutomationSuggestSpawnConfig).text : '',
   };
 }
 
@@ -86,6 +100,13 @@ function toInput(v: RuleFormValues): AutomationRuleInput {
     trigger_config = v.t_status_to ? { to: v.t_status_to } : {};
   } else if (v.trigger_type === 'field_changed') {
     trigger_config = { field: v.t_field ?? '' };
+  } else if (v.trigger_type === 'days_in_stage') {
+    // stage_id пишем ТОЛЬКО когда стадия выбрана: SQL трактует отсутствие ключа
+    // как «любая стадия», а `{stage_id:''}` уронил бы каст ''::uuid.
+    trigger_config = {
+      min_days: v.t_min_days ?? AUTOMATION_DWELL_MIN_DAYS,
+      ...(v.t_stage_id ? { stage_id: v.t_stage_id } : {}),
+    };
   } else {
     trigger_config = {}; // task_overdue — без конфигурации
   }
@@ -103,6 +124,8 @@ function toInput(v: RuleFormValues): AutomationRuleInput {
     action_config = { recipient: v.a_assignee ?? 'deal_owner', text: v.a_notify_text?.trim() ?? '' };
   } else if (v.action_type === 'create_activity') {
     action_config = { title: v.a_title?.trim() ?? '', description: v.a_description?.trim() || undefined };
+  } else if (v.action_type === 'suggest_spawn') {
+    action_config = { text: v.a_spawn_text?.trim() ?? '' };
   } else {
     action_config = { field: v.a_set_field ?? 'next_step', value: v.a_set_value ?? '' };
   }
@@ -129,6 +152,7 @@ function emptyDefaults(firstPipelineId: string): RuleFormValues {
     t_stage_id: '',
     t_status_to: '',
     t_field: '',
+    t_min_days: 14,
     conditions: [],
     action_type: 'create_task',
     a_task_text: '',
@@ -140,6 +164,7 @@ function emptyDefaults(firstPipelineId: string): RuleFormValues {
     a_description: '',
     a_set_field: 'next_step',
     a_set_value: '',
+    a_spawn_text: '',
   };
 }
 
@@ -181,7 +206,9 @@ export function RuleEditorModal({
   const setFieldName = watch('a_set_field');
 
   const isOverdue = triggerType === 'task_overdue';
-  // Поля условий: task_overdue матчит по полям ЗАДАЧИ, остальные — по projects.
+  const isDwell = triggerType === 'days_in_stage';
+  // Поля условий: task_overdue матчит по полям ЗАДАЧИ, остальные — по projects
+  // (days_in_stage — тоже projects, планировщик 079 зовёт общую часть действий).
   const fieldOptions = isOverdue ? AUTOMATION_TASK_FIELD_OPTIONS : AUTOMATION_FIELD_OPTIONS;
   // task_overdue (движок 051) умеет только notify / create_activity.
   const actionOptions = isOverdue
@@ -197,7 +224,7 @@ export function RuleEditorModal({
 
   // Переключение на task_overdue с несовместимым действием → notify (whitelist 051).
   useEffect(() => {
-    if (isOverdue && (actionType === 'create_task' || actionType === 'set_field')) {
+    if (isOverdue && actionType !== 'notify' && actionType !== 'create_activity') {
       setValue('action_type', 'notify', { shouldDirty: true });
     }
   }, [isOverdue, actionType, setValue]);
@@ -214,6 +241,28 @@ export function RuleEditorModal({
         .map((s) => ({ value: s.id, label: s.name })),
     [allStages, pipelineId],
   );
+
+  /**
+   * days_in_stage (079): стадия — опциональный сузитель, и воронку правило не
+   * хранит (конфиг = {stage_id?, min_days}). Поэтому здесь один комбобокс по
+   * ВСЕМ стадиям; название воронки уходит во вторую строку опции, когда воронок
+   * больше одной. Пусто ⇒ «любая стадия».
+   */
+  const dwellStageOptions = useMemo(() => {
+    const pipelineName = new Map(pipelines.map((p) => [p.id, p.name]));
+    const multi = pipelines.length > 1;
+    return [...allStages]
+      .sort(
+        (a, b) =>
+          (pipelineName.get(a.pipeline_id) ?? '').localeCompare(pipelineName.get(b.pipeline_id) ?? '') ||
+          a.order_index - b.order_index,
+      )
+      .map((s) => ({
+        value: s.id,
+        label: s.name,
+        sub: multi ? pipelineName.get(s.pipeline_id) : undefined,
+      }));
+  }, [allStages, pipelines]);
 
   const setFieldMeta = AUTOMATION_SET_FIELD_OPTIONS.find((o) => o.value === setFieldName);
   const setInputType = setFieldMeta?.input ?? 'text';
@@ -352,6 +401,46 @@ export function RuleEditorModal({
                 Срабатывает, когда дедлайн задачи прошёл, а она не выполнена.
                 Проверяется ежедневно, напоминаем <strong className="text-text-dim">один раз</strong> на задачу.
               </p>
+            )}
+
+            {isDwell && (
+              <>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className={labelCls}>Стадия (необязательно)</label>
+                    <Controller
+                      control={control}
+                      name="t_stage_id"
+                      render={({ field }) => (
+                        <Combobox
+                          options={dwellStageOptions}
+                          value={field.value || null}
+                          onChange={(v) => field.onChange(v ?? '')}
+                          placeholder="Любая стадия"
+                        />
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="t-min-days" className={labelCls}>Дней на стадии</label>
+                    <input
+                      id="t-min-days"
+                      type="number"
+                      min={AUTOMATION_DWELL_MIN_DAYS}
+                      max={AUTOMATION_DWELL_MAX_DAYS}
+                      {...register('t_min_days')}
+                      className={selectCls}
+                    />
+                    {errors.t_min_days && <p className={errCls}>{errors.t_min_days.message}</p>}
+                  </div>
+                </div>
+                <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
+                  Срабатывает для <strong className="text-text-dim">открытых</strong> сделок, которые
+                  висят на стадии дольше указанного срока. Проверяется ежедневно,
+                  напоминаем <strong className="text-text-dim">один раз</strong> за пребывание на
+                  стадии: вернётся на ту же стадию — сработает снова.
+                </p>
+              </>
             )}
           </fieldset>
 
@@ -526,7 +615,33 @@ export function RuleEditorModal({
                   />
                   {errors.a_set_value && <p className={errCls}>{errors.a_set_value.message}</p>}
                 </div>
+                {setFieldMeta?.hint && (
+                  <p className="text-meta text-text-mute sm:col-span-2">{setFieldMeta.hint}</p>
+                )}
               </div>
+            )}
+
+            {actionType === 'suggest_spawn' && (
+              <>
+                <div>
+                  <label htmlFor="a-spawn-text" className={labelCls}>Текст предложения</label>
+                  <input
+                    id="a-spawn-text"
+                    type="text"
+                    {...register('a_spawn_text')}
+                    placeholder="Напр. «По {deal} пора заводить внедрение»"
+                    className={inputCls}
+                  />
+                  {errors.a_spawn_text && <p className={errCls}>{errors.a_spawn_text.message}</p>}
+                </div>
+                {/* I8: автоспавна нет — движок только уведомляет владельца сделки. */}
+                <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
+                  Уведомление уйдёт владельцу сделки со ссылкой на мастер создания внедрения.
+                  Проект <strong className="text-text-dim">не создаётся автоматически</strong> —
+                  контур, шаблон и владельца выбирает руководитель. Мастер открывается
+                  на выигранной сделке.
+                </p>
+              </>
             )}
 
             <p className="text-xs text-text-mute">

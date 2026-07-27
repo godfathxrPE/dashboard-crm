@@ -5,11 +5,13 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–075** — вся цепочка в проде
-> (**062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–078** — вся цепочка в проде
+> (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832` — сверены по
+> `schema_migrations` 2026-07-27**; **079 `wf_dwell` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
+> **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
-> **076**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> **080**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
 > `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
 > `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
 > Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
@@ -473,13 +475,15 @@ membership создаётся при signup по совпадению email (`ap
 **RLS**: `inv_select`/`inv_insert`/`inv_delete` — `org_id = current_org_id()` И
 `current_org_role() IN ('owner','admin')`.
 
-### notifications _(026, applied; +045 `deal_won`; +050 `automation`)_ — уведомления «тебе назначили»
+### notifications _(026, applied; +045 `deal_won`; +050 `automation`; +079 `spawn_suggest`)_ — уведомления «тебе назначили»
 v1: `task_assigned` (task.assigned_to) / `project_assigned` (project.owner_id);
 _045_: `deal_won` (сделка выиграна → owner); _050_: `automation` (действие
 `notify` Workflow Engine → owner/creator, `entity_type='projects'`); _051_: `automation`
 c `entity_type='tasks'` — task_overdue уведомляет исполнителя задачи (клиент роутит
-такое уведомление на `/tasks`, не `/deals`). Пишутся только definer-триггерами/планировщиком
-(INSERT-политики нет). Email-канал — S30.
+такое уведомление на `/tasks`, не `/deals`); _079_: **`spawn_suggest`** (действие
+`suggest_spawn` → владелец сделки, `entity_type='projects'`; клиент роутит на
+`/deals/{id}?spawn=1` — deep link открывает `SpawnWizard`). Пишутся только
+definer-триггерами/планировщиком (INSERT-политики нет). Email-канал — S30.
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -487,7 +491,7 @@ c `entity_type='tasks'` — task_overdue уведомляет исполните
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE |
 | recipient_id | uuid | NOT NULL → profiles ON DELETE CASCADE (получатель) |
 | actor_id | uuid | → profiles ON DELETE SET NULL (кто назначил) |
-| type | text | CHECK `task_assigned`/`project_assigned`/**`deal_won`**/**`automation`** _(+`deal_won` 045, +`automation` 050)_ |
+| type | text | CHECK `task_assigned`/`project_assigned`/**`deal_won`**/**`automation`**/**`spawn_suggest`** _(+`deal_won` 045, +`automation` 050, +`spawn_suggest` 079)_ |
 | entity_type | text | NOT NULL (`tasks`/`projects`) |
 | entity_id | uuid | NOT NULL |
 | payload | jsonb | DEFAULT `{}` (`{title}` — text задачи / name сделки) |
@@ -539,7 +543,7 @@ IN ('owner','admin')`.
 contact_id; «Договор» → файл + next_step). Стадия не нашлась — пропуск.
 На гейте проставлено **8 требований**.
 
-### automation_rules / automation_runs _(029, applied; обобщены в 050 S-WF-2A; +task_overdue 051 S-WF-2C-A)_ — Workflow Engine
+### automation_rules / automation_runs _(029, applied; обобщены в 050 S-WF-2A; +task_overdue 051 S-WF-2C-A; +days_in_stage/suggest_spawn 079 S-R2-WF-DWELL, НЕ применена)_ — Workflow Engine
 
 Org-scoped конфиг правил «триггер → действие» + журнал срабатываний. Настраивается
 из UI (Settings → Автоматизации, owner/admin). `org_id` задаётся **явно** из UI —
@@ -555,10 +559,10 @@ Org-scoped конфиг правил «триггер → действие» + �
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE |
 | name | text | NOT NULL — человекочитаемое имя правила |
-| trigger_type | text | **050 CHECK** `stage_entered\|status_changed\|field_changed`; **051** += `task_overdue` |
-| trigger_config | jsonb | stage_entered `{"stage_id":uuid}`; status_changed `{"to":"won"\|null}`; field_changed `{"field":"budget"}`; **task_overdue `{}`** (без конфигурации) |
-| action_type | text | **050 CHECK** `create_task\|notify\|create_activity\|set_field` (task_overdue ограничен до `notify\|create_activity` UI-валидатором) |
-| action_config | jsonb | create_task `{"task_text":"…{deal}…","assignee":"deal_owner"\|"deal_creator","lane","priority","due_in_days"}`; notify `{"recipient","text"}`; create_activity `{"title","description"}`; set_field `{"field","value"}` |
+| trigger_type | text | **050 CHECK** `stage_entered\|status_changed\|field_changed`; **051** += `task_overdue`; **079** += `days_in_stage` |
+| trigger_config | jsonb | stage_entered `{"stage_id":uuid}`; status_changed `{"to":"won"\|null}`; field_changed `{"field":"budget"}`; **task_overdue `{}`** (без конфигурации); **079 days_in_stage `{"min_days":int 1..365,"stage_id":uuid?}`** — `stage_id` опционален, ключа НЕТ ⇒ любая стадия (UI не пишет `""`: каст `''::uuid` уронил бы правило) |
+| action_type | text | **050 CHECK** `create_task\|notify\|create_activity\|set_field`; **079** += `suggest_spawn` (task_overdue ограничен до `notify\|create_activity` UI-валидатором И движком 051) |
+| action_config | jsonb | create_task `{"task_text":"…{deal}…","assignee":"deal_owner"\|"deal_creator","lane","priority","due_in_days"}`; notify `{"recipient","text"}`; create_activity `{"title","description"}`; set_field `{"field","value"}`; **079 suggest_spawn `{"text":"…{deal}…"}`** |
 | conditions | jsonb | **050** NOT NULL DEFAULT `'[]'` — массив AND-предикатов `{field,op,value}`; ops `eq/neq/gt/lt/gte/lte/contains/is_null/not_null`; вычисляет `wf_eval_conditions()` (fail-closed) |
 | is_active | boolean | NOT NULL DEFAULT true (выкл → правило не стреляет) |
 | created_at | timestamptz | default now() |
@@ -573,7 +577,7 @@ Org-scoped конфиг правил «триггер → действие» + �
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE |
 | project_id | uuid | **051 → nullable** (было NOT NULL → projects ON DELETE CASCADE; task_overdue персональных задач пишет NULL) |
 | stage_id | uuid | **050 → nullable** (заполняется только для `stage_entered`; иначе NULL) |
-| trigger_key | text | **050** NOT NULL — ключ идемпотентности, обобщённый со `stage_id` (stage_id::text для stage_entered; new.status / изменённое поле; **051** task_id::text для task_overdue; COALESCE `'__null__'`) |
+| trigger_key | text | **050** NOT NULL — ключ идемпотентности, обобщённый со `stage_id` (stage_id::text для stage_entered; new.status / изменённое поле; **051** task_id::text для task_overdue; **079** `stage_id\|\|'@'\|\|stage_entered_at` (UTC-рендер через `to_char`) для days_in_stage; COALESCE `'__null__'`) |
 | task_id | uuid | → tasks ON DELETE SET NULL (созданная задача; для task_overdue — просроченная) |
 | fired_at | timestamptz | default now() |
 | — | — | **UNIQUE(rule_id, project_id, trigger_key)** — 050, было `(rule_id,project_id,stage_id)` |
@@ -587,13 +591,49 @@ Org-scoped конфиг правил «триггер → действие» + �
 **Движок `run_stage_automations()` (050 обобщён, DEFINER, триггер `trg_zz_run_automations`
 AFTER UPDATE ON projects)**: re-entrancy guard `wf.ran` (v1 — один проход на txn,
 `set_field`-UPDATE не зацикливает) → per-rule матч триггера+`trigger_key` → `wf_eval_conditions`
-(AND) → идемпотентный run (`ON CONFLICT trigger_key DO NOTHING`) → диспатч действия
-(create_task S29 1:1 / notify → notifications `type='automation'` / create_activity →
-activities `type='note'` / **set_field whitelist** `next_step/pinned_note/next_action_date/
-probability`, НИКОГДА stage_id/status/type/org_id) → аудит `activity_log 'automation_fired'`.
+(AND) → идемпотентный run (`ON CONFLICT trigger_key DO NOTHING`) → **`wf_apply_project_action()`**
+(079; до 079 диспатч был инлайном) → аудит `activity_log 'automation_fired'`.
 **Двойной EXCEPTION-swallow** (per-rule subtxn + внешний) — автоматизация НИКОГДА не
 блокирует UPDATE (противоположность гейту S27). ACL: revoke public/anon/authenticated,
-grant `service_role`.
+grant `service_role`. **079** сузил выборку правил (`trigger_type <> 'days_in_stage'`) —
+cron-триггер здесь всё равно не матчился.
+
+**Общая часть действий `wf_apply_project_action(rule_id, project_id, run_id, trigger_key)`
+(079, DEFINER, НЕ триггер)**: вынесена из `run_stage_automations` один-в-один, чтобы
+dwell-планировщик не дублировал код действий. Перечитывает `automation_rules`/`projects`
+по PK (в AFTER UPDATE это та же строка, что NEW; из cron — актуальная) и диспатчит:
+create_task S29 1:1 / notify → notifications `type='automation'` / create_activity →
+activities `type='note'` / **set_field whitelist** `next_step/pinned_note/next_action_date/
+probability` (НИКОГДА stage_id/status/type/org_id) / **079 suggest_spawn** → notifications
+`type='spawn_suggest'`, получатель `COALESCE(owner_id, created_by)`; в конце — аудит
+`activity_log 'automation_fired'`. Actor — `COALESCE(auth.uid(), owner_id, created_by)`
+(из cron `auth.uid()` = NULL). ACL: revoke public/anon/authenticated, grant `service_role`.
+**Инвариант I8:** `suggest_spawn` создаёт ТОЛЬКО уведомление — `spawn_delivery_project`
+из автоматизаций не зовётся никогда, контур/шаблон/владельца выбирает РП руками.
+**Грабля:** `set_field` с полем `probability` на dwell-правиле живёт до следующей смены
+стадии — `trg_sync_deal_stage_fields` перезапишет вероятность значением стадии
+(в UI-редакторе это подсказка у поля, не запрет).
+
+**Планировщик `run_dwell_automations()` (079, DEFINER, НЕ триггер — зовётся pg_cron)**:
+job **`wf-dwell-daily`** `'10 6 * * *'` (после `wf-overdue-daily` `0 6` и `recurring-daily`
+`5 6` — чтобы джобы не дрались за минуту). Ставит `wf.ran='1'` на всю транзакцию скана:
+`set_field`-UPDATE из dwell-действия НЕ поднимает каскад `trg_zz_run_automations`
+(та же семантика «один проход автоматизаций на txn», что у 050). Далее: `days_in_stage`-правила
+всех org → `projects WHERE type='client' AND status='open' AND now() - stage_entered_at >=
+min_days` (+ опциональный `stage_id`; partial-idx **`idx_projects_dwell`**
+`(org_id, stage_entered_at) WHERE type='client' AND status='open' AND stage_entered_at IS NOT NULL`)
+→ `wf_eval_conditions(conditions, to_jsonb(project))` (условия по полям **сделки**) →
+идемпотентный run → `wf_apply_project_action`. Правило без `min_days` / с `min_days < 1`
+пропускается. **Идемпотентность — один раз за ПРЕБЫВАНИЕ на стадии**:
+`trigger_key = stage_id||'@'||to_char(stage_entered_at AT TIME ZONE 'UTC','YYYY-MM-DD HH24:MI:SS.US')`
+(**не** `stage_entered_at::text` — рендер timestamptz зависит от session `TimeZone`/`DateStyle`,
+ключ cron-прогона и ручного разъехался бы → двойное срабатывание), покрыт существующим 3-колоночным
+UNIQUE (project_id здесь всегда NOT NULL, partial-unique 051 не нужен). Два следствия —
+**не баги**: смена `min_days` не вызовет повторного срабатывания на том же пребывании
+(ключ не зависит от порога); возврат на ту же стадию обновляет `stage_entered_at`
+(`sync_project_stage()`) → правило сработает снова. Двойной EXCEPTION-swallow
+(per-rule + per-project subtxn) + внешний — планировщик никогда не падает.
+ACL: revoke public/anon/authenticated, grant `service_role`.
 
 **Планировщик `run_overdue_automations()` (051, DEFINER, НЕ триггер — зовётся pg_cron)**:
 job **`wf-overdue-daily`** `'0 6 * * *'` (06:00 UTC = 09:00 MSK) сканирует

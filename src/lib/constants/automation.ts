@@ -48,7 +48,12 @@ export const AUTOMATION_TRIGGER_OPTIONS: { value: AutomationTriggerType; label: 
   { value: 'status_changed', label: 'Смена статуса' },
   { value: 'field_changed', label: 'Изменение поля' },
   { value: 'task_overdue', label: 'Просрочка задачи' },
+  { value: 'days_in_stage', label: 'Застряла на стадии' },
 ];
+
+/** Границы порога days_in_stage (079) — совпадают с Zod-схемой правила. */
+export const AUTOMATION_DWELL_MIN_DAYS = 1;
+export const AUTOMATION_DWELL_MAX_DAYS = 365;
 
 export const AUTOMATION_TRIGGER_LABEL: Record<AutomationTriggerType, string> = Object.fromEntries(
   AUTOMATION_TRIGGER_OPTIONS.map((o) => [o.value, o.label]),
@@ -59,6 +64,7 @@ export const AUTOMATION_ACTION_OPTIONS: { value: AutomationActionType; label: st
   { value: 'notify', label: 'Уведомить' },
   { value: 'create_activity', label: 'Создать заметку' },
   { value: 'set_field', label: 'Изменить поле' },
+  { value: 'suggest_spawn', label: 'Предложить создать внедрение' },
 ];
 
 export const AUTOMATION_ACTION_LABEL: Record<AutomationActionType, string> = Object.fromEntries(
@@ -148,9 +154,17 @@ export const AUTOMATION_SET_FIELD_OPTIONS: {
   value: AutomationSetFieldName;
   label: string;
   input: 'text' | 'number' | 'date';
+  hint?: string;
 }[] = [
   { value: 'next_step', label: 'Следующий шаг', input: 'text' },
   { value: 'pinned_note', label: 'Закреплённая заметка', input: 'text' },
   { value: 'next_action_date', label: 'Дата следующего действия', input: 'date' },
-  { value: 'probability', label: 'Вероятность, %', input: 'number' },
+  {
+    value: 'probability',
+    label: 'Вероятность, %',
+    input: 'number',
+    // 079: на смене стадии trg_sync_deal_stage_fields перезаписывает probability
+    // значением стадии — записанное автоматизацией живёт до следующего перехода.
+    hint: 'Сбросится при следующей смене стадии — её значение перезапишет вероятность.',
+  },
 ];
