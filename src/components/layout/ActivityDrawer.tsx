@@ -12,6 +12,7 @@ import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { useActorMap } from '@/lib/hooks/use-actor';
 import { Bracket } from '@/components/ui/Bracket';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { describeEvent } from '@/lib/utils/activity-events';
 
 // ═══════════════════════════════════════════════════════
 // Main Drawer
@@ -256,8 +257,12 @@ function ActivityWidget() {
           borderBottom: '0.5px solid var(--border)',
           color: 'var(--text-dim)',
         }}>
+          {/* Текст события — общий describeEvent (те же формулировки, что в ленте
+              сущности); сырой event_type пользователю не показываем. Имя проекта
+              рядом, когда оно есть: `useRecentActivity` уже отдаёт его типизированно. */}
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {(entry as any).project?.name ?? entry.event_type}
+            {describeEvent(entry)}
+            {entry.project?.name && <span style={{ color: 'var(--text-mute)' }}> · {entry.project.name}</span>}
             {actorName && <span style={{ color: 'var(--text-mute)' }}> • {actorName}</span>}
           </span>
           <span style={{ color: 'var(--text-mute)', fontSize: 10, flexShrink: 0, marginLeft: 6 }}>

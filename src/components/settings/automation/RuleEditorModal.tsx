@@ -213,6 +213,14 @@ export function RuleEditorModal({
   // правила независимы — бейдж отвечает «на что смотреть», правило «когда пнуть».
   // Плейсхолдер лишь показывает норматив org, чтобы пороги не разошлись по недосмотру.
   const dwellHint = dwellThresholds.default ?? AUTOMATION_DWELL_MIN_DAYS;
+  // Плейсхолдер выше рендерится только на ПУСТОМ поле, а поле всегда предзаполнено
+  // (emptyDefaults / fromRule) — норматив пользователь не видел никогда. Показываем его
+  // отдельной строкой, и только когда он расходится с текущим значением: совпал —
+  // строка была бы шумом. Предзаполнение при этом не трогаем (см. коммент выше:
+  // связки нет, показать норматив ≠ применить его).
+  const minDaysValue = watch('t_min_days');
+  const showDwellNorm =
+    isDwell && dwellThresholds.default != null && Number(minDaysValue) !== dwellThresholds.default;
   // Поля условий: task_overdue матчит по полям ЗАДАЧИ, остальные — по projects
   // (days_in_stage — тоже projects, планировщик 079 зовёт общую часть действий).
   const fieldOptions = isOverdue ? AUTOMATION_TASK_FIELD_OPTIONS : AUTOMATION_FIELD_OPTIONS;
@@ -441,6 +449,11 @@ export function RuleEditorModal({
                     {errors.t_min_days && <p className={errCls}>{errors.t_min_days.message}</p>}
                   </div>
                 </div>
+                {showDwellNorm && (
+                  <p className="text-meta text-text-mute">
+                    Норматив организации — <strong className="text-text-dim">{dwellThresholds.default} дн.</strong>
+                  </p>
+                )}
                 <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
                   Срабатывает для <strong className="text-text-dim">открытых</strong> сделок, которые
                   висят на стадии дольше указанного срока. Проверяется ежедневно,

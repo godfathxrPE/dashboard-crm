@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   DndContext,
   closestCenter,
@@ -45,6 +45,7 @@ import { DataTable, type Column } from '@/components/shared/DataTable';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { formatPhone } from '@/lib/utils/phone';
 import { LeadModal } from './LeadModal';
+import { LeadPeekContent } from './LeadPeekContent';
 import { LeadConversionModal } from './LeadConversionModal';
 import type { Lead, LeadStatus } from '@/types/database';
 
@@ -355,6 +356,8 @@ function DroppableColumn({ status, children }: { status: LeadStatus; children: R
 // ═══════════════════════════════════════════════════════
 
 export function LeadsView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: leads, isLoading, error } = useLeads();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
@@ -411,6 +414,41 @@ export function LeadsView() {
     setEditLead(lead);
     setModalOpen(true);
   }, []);
+
+  // ═══ Deep link ?lead=<id> (S-R2-PEEK-2) ═══
+  // «Полная карточка» лида — это LeadModal: страницы `leads/[id]` в проекте нет,
+  // а обязательный `href` у PeekConfig есть. Приём тот же, что `?spawn=1`/`?ai=1`
+  // на карточке сделки. Побочная польза — лид стал адресуемым ссылкой.
+  const leadParam = searchParams.get('lead');
+  // Ключ уже отработанного параметра: рефетч списка не должен повторно открывать
+  // модалку после того, как пользователь её закрыл.
+  const handledLeadParam = useRef<string | null>(null);
+
+  const clearLeadParam = useCallback(() => {
+    if (leadParam) router.replace('/leads', { scroll: false });
+  }, [leadParam, router]);
+
+  useEffect(() => {
+    if (!leadParam) {
+      handledLeadParam.current = null;
+      return;
+    }
+    // Ждём список: снять параметр раньше загрузки — значит «ссылка не работает
+    // при холодном заходе».
+    if (isLoading) return;
+    if (handledLeadParam.current === leadParam) return;
+    handledLeadParam.current = leadParam;
+
+    const target = leads?.find((l) => l.id === leadParam);
+    if (target) {
+      setEditLead(target);
+      setModalOpen(true);
+      return;
+    }
+    // Конвертированный лид (useLeads его отфильтровала) или мусорный id —
+    // молча снимаем параметр: пустая модалка хуже, чем её отсутствие.
+    router.replace('/leads', { scroll: false });
+  }, [leadParam, isLoading, leads, router]);
 
   const handleConvert = useCallback((lead: Lead) => {
     setConvertLead(lead);
@@ -608,6 +646,11 @@ export function LeadsView() {
           columns={columns}
           keyField="id"
           onRowClick={handleEdit}
+          peek={(l) => ({
+            title: l.title,
+            href: `/leads?lead=${l.id}`,
+            content: <LeadPeekContent lead={l} />,
+          })}
           searchPlaceholder="Поиск по названию, компании..."
           emptyMessage="Нет лидов"
           emptyIcon={<Target size={32} className="text-text-mute" />}
@@ -664,7 +707,7 @@ export function LeadsView() {
       {/* Modals */}
       <LeadModal
         isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditLead(null); }}
+        onClose={() => { setModalOpen(false); setEditLead(null); clearLeadParam(); }}
         editLead={editLead}
       />
       {convertLead && (
