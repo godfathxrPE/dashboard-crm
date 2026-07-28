@@ -5,14 +5,15 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–081** — вся цепочка в проде
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–084** — вся цепочка в проде
 > (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948`,
-> 080 `20260727191507`, 081 `20260727195810` — сверены по `schema_migrations` 2026-07-27**;
-> **082 `grants_root` закоммичена, НО НЕ ПРИМЕНЕНА** — ждёт гейта;
+> 080 `20260727191507`, 081 `20260727195810`, 082 `20260727201726`,
+> 083 `20260728075030`, 084 `20260728075144` — сверены по `schema_migrations` 2026-07-28**;
+> следующая свободная — **085**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
-> **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**; следующая свободная —
-> **083**; **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
+> **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
+> **069–073 записаны в `schema_migrations` без числового префикса** (`recurring_tasks`,
 > `task_scheduling_a1`, `meeting_attendee_visibility`, `task_analytics`,
 > `fix_spawn_delivery_project_stage`) — нумерация живёт только в именах файлов репо).
 > Ранняя часть (**052 task_wbs, 053 quotes, 054 rls_update_with_check, 055 storage_project_files, 056/056b revoke_anon, 057 backfill_datetime_tz, 058 accept_invitation, 059 membership_role_guard, 061 onboarding+T1c — applied 2026-07-16…18, см. блоки ниже**; 060 зарезервирована под W3 `contact_last_touch`, ещё не занята; 035–038 delivery, 039 reorder_tasks применены 2026-07-12; **040 rls_hardening + 041 multi_phone применены 2026-07-13**; **042 activity_log entity-links, 043 won_reason, 044/044b spawn owner, 045 notify_deal_won, 046 tasks Gantt-даты — Волна 2, применены/сверены по проду 2026-07-15**; **047 DROP legacy `projects.stage`/`deal_stage` — применено через MCP, файла миграции в репо нет; 048 task_dependencies (Gantt-зависимости), 049 task_dep created_by default, 050 workflow engine (S-WF-2A) применены 2026-07-16** — 048/049/050 файлы в репо; verified через MCP list_migrations + интроспекция живой БД 2026-07-14; **051 task_overdue (S-WF-2C-A) — pg_cron + `run_overdue_automations`, applied 2026-07-17**). Фаза 1 multi-user
@@ -1237,6 +1238,72 @@ WHEN (new.stage_id IS DISTINCT FROM old.stage_id)`. Тело обёрнуто в
 Гранты (урок 075): `revoke all … from anon`, `revoke insert, update, delete, truncate,
 references, trigger … from authenticated`, `grant select to authenticated`.
 
+### checklist_templates / project_checklists _(083, R2-P1-G, S-R2-SIGNOFF-1, applied 2026-07-28 · `20260728075030`)_ — sign-off чеклисты внедрения
+
+Шаблон (org-словарь) + экземпляр (на проекте). Разделение — уже принятый в проекте паттерн
+`delivery_templates` → `tasks`: экземпляр после создания живёт своей жизнью и на шаблон не
+смотрит, поэтому дуального состояния не возникает и правка шаблона не переписывает историю
+отметок. Паттерн-аналоги: Salesforce Approval Process, Zoho Blueprint transitions — переход в
+терминальный статус блокируется до отметки обязательных пунктов, а сама отметка **штампуется
+сервером**, не клиентом.
+
+**`checklist_templates`**
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE. **`set_org_id` НЕ вешается** — org_id приходит явно (паттерн `segments`/`stage_requirements`/`invitations`). Заморозка — `trg_aa_freeze_org_id` (копия автоцикла 054) |
+| direction | **`public.direction_t`** | NULL = любое направление. ⚠️ Тип именно `direction_t` — enum'а `project_direction` в схеме НЕТ (в `public` всего 7 enum, см. раздел «Enums») |
+| delivery_kind | text | `CHECK (is null or in ('launch','experiment'))`; NULL = любой вид |
+| checklist_type | text NOT NULL | `CHECK in ('doc_review','handover_support','erp_stage_accept','custom')`. `erp_stage_accept` заведён forward-compat, **шаблон под него не сидируется** — это P1-I (ERP parity) |
+| title | text NOT NULL | `CHECK char_length(trim(title)) between 1 and 120` |
+| items | jsonb NOT NULL | DEFAULT `'[]'`, `CHECK jsonb_typeof(items)='array'`. Форма — `[{key,label,required}]` |
+| is_active | boolean NOT NULL | DEFAULT true. Разворачивается на новых внедрениях только активный |
+| created_by | uuid | → **profiles** ON DELETE SET NULL, DEFAULT `auth.uid()` |
+| created_at / updated_at | timestamptz NOT NULL | `trg_set_updated_at` → `update_updated_at()` |
+| — | — | **`uq_checklist_templates_slot`** UNIQUE `(org_id, checklist_type, direction, delivery_kind) **NULLS NOT DISTINCT** WHERE is_active`. Обычный unique не дал бы ограничения на «шаблон на всё» (`NULL != NULL`), и инстанцирование стало бы недетерминированным. ⚠️ **Не через `coalesce(direction::text,'*')`** (так было в тексте спринта): `enum_out` помечен **STABLE**, прямого `pg_cast direction_t→text` нет — приведение идёт I/O-конверсией, и Postgres отклонил бы индекс с «functions in index expression must be marked IMMUTABLE». `NULLS NOT DISTINCT` — PG15+, в проде 17.6 |
+| — | — | Индекс `idx_checklist_templates_org (org_id, checklist_type)` |
+
+**`project_checklists`**
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | default gen_random_uuid() |
+| org_id | uuid NOT NULL | → organizations ON DELETE CASCADE; явный, `trg_aa_freeze_org_id` |
+| project_id | uuid NOT NULL | → projects ON DELETE CASCADE |
+| checklist_type | text NOT NULL | тот же CHECK, что у шаблона |
+| title | text NOT NULL | копия `title` шаблона на момент инстанцирования |
+| items | jsonb NOT NULL | `[{key,label,required,checked,checked_by,checked_at}]`. `checked_at` — ISO-строка UTC из `to_char`, НЕ `::text` (грабля 079: `::text` зависит от session TimeZone/DateStyle) |
+| completed_at | timestamptz | не NULL ⇔ все `required` отмечены; ставит `toggle_checklist_item`. При отметке необязательного пункта на уже закрытом чеклисте **не переставляется** (`coalesce` со старым значением) |
+| created_by | uuid | → profiles ON DELETE SET NULL, DEFAULT `auth.uid()` |
+| created_at / updated_at | timestamptz NOT NULL | `trg_set_updated_at` |
+| — | — | `unique (project_id, checklist_type)` — один чеклист типа на проект; на нём же стоит `on conflict do nothing` инстанцирования |
+| — | — | Индексы: `idx_project_checklists_project (project_id)` — **обязателен**, гейт читает чеклисты на каждом завершении; `idx_project_checklists_org (org_id)` |
+
+**RLS (083, `TO authenticated`)** — `( select … )`-обёртка обязательна (initplan):
+
+- `checklist_templates_select` / `project_checklists_select` — `org_id = current_org_id()`, читают **все члены org**.
+- `checklist_templates_write` (FOR ALL) — org + `current_org_role() in ('owner','admin')`, один предикат в USING и WITH CHECK.
+- **`project_checklists_write` (FOR ALL) — тоже только owner/admin, и это НЕ опечатка.** Рядовой участник отмечает пункты не прямым UPDATE, а через DEFINER-RPC `toggle_checklist_item`. Дай участнику прямой UPDATE на `items` — он перепишет чужие `checked_by`, и sign-off перестанет быть accountability.
+
+**Гранты:** `revoke all … from anon` + `grant select, insert, update, delete … to authenticated`
+поверх RLS. **`revoke truncate, references, trigger` НЕ пишется** — 082 сузил дефолтные
+привилегии `postgres` в корне (`pg_default_acl`: `authenticated=arwd`), новая таблица приходит
+ровно с нужным набором. `revoke … from anon` остаётся: default ACL роли `supabase_admin` в
+`public` всё ещё раздаёт `anon` полный набор.
+
+**Сид (идемпотентный, по всем org, `on conflict do nothing`):** два шаблона —
+`doc_review` «Проверка документов перед сдачей» (4 пункта, 3 обязательных) и
+`handover_support` «Передача на сопровождение» (4 пункта, 2 обязательных), оба с
+`direction/delivery_kind = NULL`. ⚠️ **Формулировки — рабочие заглушки**: реальных пунктов из
+1С:ДО на момент коммита нет. Правятся из Настроек (`ChecklistTemplatesSection`) без миграции —
+labels лежат в jsonb.
+
+⚠️ **Бэкфилла на существующие внедрения НЕТ** (на 2026-07-28 в проде 3 открытых delivery-проекта).
+Сид обязательных пунктов на идущие проекты сделал бы их незавершаемыми без действия РП — это
+regression, даже если продуктово «правильно». Чеклист добавляется точечно кнопкой «Добавить
+чеклист» на карточке проекта (owner/admin).
+
 ### activities _(006)_
 
 | Колонка | Тип | Заметки |
@@ -1344,6 +1411,12 @@ references, trigger … from authenticated`, `grant select to authenticated`.
 | `activity_type` | call, meeting, email, note, task_completed, stage_change, kp_sent |
 | `direction_t` | erp, iiot |
 | `pipeline_entity_t` | deal, project |
+| `quote_status` | draft, sent, accepted, rejected, expired _(053; в этом списке отсутствовал, добавлено при сверке `pg_type` 2026-07-28)_ |
+
+Это **весь** список — 7 типов, сверено по `pg_type`/`pg_enum` живой БД 2026-07-28.
+⚠️ **Enum'а `project_direction` не существует**: направление проекта — `direction_t`. Ошибка
+частая, потому что колонка называется `projects.direction`; новая функция с параметром
+направления обязана объявлять `public.direction_t` (см. `instantiate_project_checklists`, 084).
 
 ## RLS-модель
 
@@ -1686,6 +1759,67 @@ USING — org-граница автоматически запрещает пе�
   `useUpdateTask`), `parseDeliveryGateError` (симметрия `parseStageGateError`),
   модалка `DeliveryCompletionModal` вместо `confirm()` в ProjectDetail,
   ромб-глиф вехи в TaskCard (phaseMode).
+
+### Sign-off чеклисты в гейте завершения (084, R2-P1-G, applied 2026-07-28 · `20260728075144`)
+
+Второе основание отказа гейта — незакрытые обязательные пункты `project_checklists` (083).
+Правится **живой** гейт: через него уже проходят 3 открытых внедрения, поэтому тела
+`check_delivery_completion` / `enforce_delivery_completion` / `spawn_delivery_project` взяты
+из **живой БД** (`pg_proc.prosrc`), а не из файлов миграций, и расширены точечно.
+
+- **`toggle_checklist_item(p_checklist_id uuid, p_item_key text, p_checked boolean) → jsonb`**
+  _(DEFINER, `search_path=public,pg_temp`)_ — **единственный путь отметки**. Штампует
+  `checked_by = auth.uid()` и `checked_at = to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
+  серверно; клиент эти поля не передаёт и оптимистично не подставляет. Guard членства внутри
+  (как `check_stage_requirements`): не найден / не член org → `42501`; неизвестный `key` или
+  `p_checked IS NULL` → `22023`. Пересборка массива — `jsonb_agg(… order by ord)` над
+  `jsonb_array_elements(…) with ordinality`: **без `with ordinality` пункты переставлялись бы
+  на каждой отметке**. ACL: `revoke all from public, anon` → `grant execute to authenticated`.
+  ⚠️ **Чтение строки идёт `… where id = p_checklist_id FOR UPDATE`** _(правка гейта)_: `items` —
+  read-modify-write по jsonb, и без блокировки две одновременные отметки **разных** пунктов
+  дают last-write-wins, одна молча теряется — ровно в сценарии, ради которого фича и делается
+  (команда проходит sign-off вместе перед сдачей). Блокируется строка, не таблица.
+- **`check_delivery_completion`** возвращает теперь три ключа:
+  `{ready, open_milestones, open_checklist_items}`. `open_checklist_items` —
+  `[{checklist_id, checklist, key, label}]` по `required AND NOT checked`.
+  ⚠️ **`open_milestones` сохраняет имя и форму** — его читают `useDeliveryGate` и
+  `DeliveryCompletionModal`; переименование или вложение сломало бы обе поверхности молча.
+  `ready = (нет открытых вех) AND (нет неотмеченных обязательных пунктов)`; проект без
+  чеклистов даёт `'[]'` и `ready` считается ровно как до 084.
+- **`enforce_delivery_completion`** кладёт в `DETAIL` **весь результат** (объект), а не
+  `v_result->'open_milestones'`. Причина: `ready` теперь может быть false из-за чеклиста, и
+  голый массив вех рисовал бы «заблокировано, но закрывать нечего». **Это breaking change
+  для клиента** — `parseDeliveryGateError` переучен переживать оба формата
+  (`Array.isArray(parsed) ? {open_milestones: parsed} : parsed`): между apply миграции и
+  деплоем фронта есть окно.
+- **`instantiate_project_checklists(uuid, public.direction_t, text) → int`** _(DEFINER)_ —
+  разворачивает активные шаблоны org в `project_checklists` (пункты шаблона + `checked:false`,
+  `checked_by/checked_at: null`), `on conflict (project_id, checklist_type) do nothing`.
+  Служебная: `revoke all … from public, anon, authenticated` (паттерн 056b) — `revoke` у
+  `authenticated` обязателен, дефолтные привилегии 082 дают `X` новой функции.
+  ⚠️ **Выборка — `select distinct on (t.checklist_type)`** с
+  `order by t.checklist_type, (t.direction is not null) desc, (t.delivery_kind is not null) desc, t.created_at desc`
+  _(правка гейта)_. `uq_checklist_templates_slot` различает шаблоны по `(direction, delivery_kind)`,
+  поэтому общий (`direction = null`) и адресный (`direction = 'erp'`) шаблоны **одного**
+  `checklist_type` сосуществуют легально. Оба матчатся ERP-внедрению, обе строки летят в один
+  `unique (project_id, checklist_type)` — и `on conflict do nothing` оставлял бы произвольную,
+  то есть адресный шаблон мог молча проиграть общему. Приоритет: больше непустых
+  квалификаторов → выигрывает; `created_at desc` — тай-брейк для детерминизма.
+  ⚠️ Функция **попадает** в `supabase.gen.ts` (`Functions.instantiate_project_checklists`),
+  хотя `EXECUTE` у `authenticated` снят: CLI-генератор читает каталог Postgres, а не ACL
+  PostgREST. Наличие типа не даёт права вызова — RPC из браузера вернёт `42501`.
+- **`spawn_delivery_project`** переписана целиком через `create or replace` (тело 073
+  дословно, сигнатура та же → GRANT'ы целы) с одной добавленной строкой
+  `perform public.instantiate_project_checklists(v_new_id, v_deal.direction, p_kind);`
+  **строго после** `copy_delivery_template`. Отсутствие шаблонов — не ошибка спавна.
+- **UI**: `use-project-checklists.ts` (`['project-checklists', projectId]`; toggle
+  инвалидирует и `['delivery-gate', projectId]`), `ChecklistCard` + `ProjectChecklists` на
+  карточке внедрения, второй блок и кликабельные пункты в `DeliveryCompletionModal`,
+  `ChecklistTemplatesSection` + `ChecklistTemplateEditorModal` в Настройках.
+- Ожидаемая дельта advisors: **+1 WARN** `authenticated_security_definer_function_executable`
+  (`toggle_checklist_item`; `check_delivery_completion` уже в списке,
+  `instantiate_project_checklists` в него не попадает — у неё нет EXECUTE у `authenticated`).
+  Это RPC проекта, снимать EXECUTE нельзя.
 
 ### Командная видимость (062/065/071, applied 2026-07-18…23)
 
