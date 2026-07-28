@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Pencil, Trash2, Building2, Phone, Mail, Globe, MapPin, FileText,
-  Users, FolderKanban, Loader2, AlertCircle, Activity,
+  Users, FolderKanban, Loader2, AlertCircle, Activity, Rocket,
 } from 'lucide-react';
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
@@ -12,7 +12,13 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { projectHref } from '@/lib/utils/project-href';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { getDealHealth } from '@/lib/utils/deal-health';
+import { getDealHealth, compareByNextAction } from '@/lib/utils/deal-health';
+import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
+import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
+import {
+  splitCompanyProjects, countCompany360, formatCompany360Summary, isTerminalDeal,
+} from '@/lib/utils/company-360';
+import { formatDateShort } from '@/lib/utils/dates';
 import { formatBudget } from '@/lib/validators/project';
 import { Bracket } from '@/components/ui/Bracket';
 import { PhoneList } from '@/components/shared/PhoneList';
@@ -80,8 +86,14 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
     c.companies?.some((cc) => cc.company_id === companyId)
   );
 
-  // Проекты этой компании
+  // Проекты этой компании — один массив из кеша `useProjects()`, делится на
+  // продажи и внедрения на клиенте (S-R2-CO360: новых запросов не заводим).
   const linkedProjects = (allProjects ?? []).filter((p) => p.company_id === companyId);
+  const { deals: linkedDeals, deliveries: linkedDeliveries } = splitCompanyProjects(linkedProjects);
+  const counts = countCompany360({ deals: linkedDeals, deliveries: linkedDeliveries }, linkedContacts.length);
+
+  // Открытые сделки вверх, терминальные вниз — тот же порядок, что в воронке.
+  const sortedDeals = [...linkedDeals].sort(compareByNextAction);
 
   function handleDelete() {
     if (confirm('Удалить компанию? Связанные контакты и сделки сохранятся.')) {
@@ -153,6 +165,9 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         </div>
       )}
 
+      {/* S-R2-CO360: итоговая строка фактов — читается без прокрутки */}
+      <p className="mb-3 text-sm text-text-dim tabular-nums">{formatCompany360Summary(counts)}</p>
+
       {/* Linked contacts & projects */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Contacts */}
@@ -192,7 +207,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           <div className="mb-3 flex items-center gap-2">
             <FolderKanban size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Сделки</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{linkedProjects.length}</span>
+            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{counts.deals}</span>
             {canCreate && (
               <button onClick={() => setProjectModalOpen(true)}
                 className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
@@ -200,15 +215,18 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               </button>
             )}
           </div>
-          {linkedProjects.length === 0 ? (
+          {sortedDeals.length === 0 ? (
             <p className="text-xs text-text-mute italic">Нет сделок. Привяжи компанию при создании сделки.</p>
           ) : (
             <div className="space-y-1.5">
-              {linkedProjects.map((p) => {
+              {sortedDeals.map((p) => {
                 // Стадия из pipeline_stages (stage_id — истина, legacy `stage` не читаем)
                 const stageName = (p.stage_id ? allStages?.find((s) => s.id === p.stage_id)?.name : null)
                   ?? '—';
                 const dh = getDealHealth(p);
+                // Закрытые сделки приглушены — вес строки отделяет их от открытых
+                // без отдельного заголовка (S-R2-CO360).
+                const closed = isTerminalDeal(p.status);
                 return (
                   <button key={p.id} onClick={() => router.push(projectHref(p))}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
@@ -221,11 +239,17 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                           : { border: '1px solid var(--yellow-text, var(--yellow))' }}
                       />
                     )}
-                    <span className="text-sm text-text-main">{p.name}</span>
-                    <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
+                    <span className={closed ? 'text-sm text-text-mute' : 'text-sm text-text-main'}>{p.name}</span>
+                    <span data-tag className={closed
+                      ? 'rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute'
+                      : 'rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent'}>
                       {stageName}
                     </span>
-                    {p.budget != null && <span className="ml-auto text-xs text-text-dim">{formatBudget(p.budget)}</span>}
+                    {p.budget != null && (
+                      <span className={closed ? 'ml-auto text-xs text-text-mute' : 'ml-auto text-xs text-text-dim'}>
+                        {formatBudget(p.budget)}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -233,6 +257,58 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           )}
         </Bracket>
       </div>
+
+      {/* ═══ Внедрения компании (S-R2-CO360) ═══
+          «продали → делаем»: секция стоит между сделками и лентой активности.
+          Внедрений нет → секции нет вовсе: пустой блок на каждой второй карточке — шум. */}
+      {linkedDeliveries.length > 0 && (
+        <Bracket className="mt-4 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Rocket size={14} className="text-text-dim" />
+            <span className="text-xs font-semibold text-text-main">Внедрения</span>
+            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{counts.deliveries}</span>
+          </div>
+          <div className="space-y-1.5">
+            {linkedDeliveries.map((p) => {
+              const stage = p.stage_id ? allStages?.find((s) => s.id === p.stage_id) : undefined;
+              const stageName = stage?.name ?? '—';
+              // Health — из project-level полей строки; isTerminal из стадии+статуса
+              // (дословно как в DealDeliveryHub/PortfolioView — пороги не форкаем).
+              const health = getDeliveryHealth({
+                progress_done: p.progress_done,
+                progress_total: p.progress_total,
+                stage_entered_at: p.stage_entered_at,
+                deadline: p.deadline,
+                updated_at: p.updated_at,
+                isTerminal: isDeliveryTerminal(stage, p.status),
+              });
+              return (
+                <button key={p.id} onClick={() => router.push(projectHref(p))}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
+                  <DeliveryHealthDot health={health} />
+                  <span className="text-sm text-text-main">{p.name}</span>
+                  {/* Внутренний проект (stage_id=null, вне воронки) — называем вещи
+                      своими именами, чтобы секция «Внедрения» не выдавала его за внедрение. */}
+                  {p.type === 'internal' ? (
+                    <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">
+                      Внутренний
+                    </span>
+                  ) : (
+                    <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
+                      {stageName}
+                    </span>
+                  )}
+                  {p.deadline && (
+                    <span className="ml-auto text-xs text-text-dim" title={`Дедлайн: ${p.deadline}`}>
+                      {formatDateShort(p.deadline)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </Bracket>
+      )}
 
       {/* ═══ Активность компании (единая лента всех связанных событий) ═══ */}
       <div className="mt-6">
