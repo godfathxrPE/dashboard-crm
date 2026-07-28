@@ -19,6 +19,7 @@ import {
   Link2,
   StickyNote,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import {
   useProject,
@@ -51,6 +52,7 @@ import { PlanImportButton } from '@/components/tasks/PlanImport';
 import dynamic from 'next/dynamic';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
+import { AiDealModal } from '@/components/ai/AiDealModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
@@ -187,6 +189,14 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   useEffect(() => {
     if (spawnParam === '1') setSpawning(true);
   }, [spawnParam]);
+
+  // 085: ?ai=1 — deep link на AI по сделке (бриф/сводка). Тот же приём, что ?spawn=1:
+  // палитра команд не знает про локальный стейт карточки и открывает панель ссылкой.
+  const [aiOpen, setAiOpen] = useState(searchParams.get('ai') === '1');
+  const aiParam = searchParams.get('ai');
+  useEffect(() => {
+    if (aiParam === '1') setAiOpen(true);
+  }, [aiParam]);
 
   // S-R2-TRANSITION-1b: локальное состояние отказа гейта снято — его владелец
   // теперь модалка перехода (StageTransitionModal), см. комментарий у баннера ниже.
@@ -470,6 +480,18 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           {/* S-IA-DELIVERY-1 (§3.2): модалка редактирует и delivery (name/связи/owner,
               partial-payload). do_url/deadline остаются инлайн на карточке.
               Для delivery карандаш — по canManage (контракт RLS/RPC, не 42501 в лоб). */}
+          {/* 085: AI по сделке — только на клиентской сделке. Бриф к встрече и сводка
+              собираются из полей сделки; у delivery/internal своя фактура и своих
+              пресетов пока нет. */}
+          {project.type === 'client' && (
+            <button
+              onClick={() => setAiOpen(true)}
+              className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs
+                         font-medium text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Sparkles size={12} /> AI
+            </button>
+          )}
           {(!isDelivery || canManage) && (
             <button
               onClick={() => setModalOpen(true)}
@@ -892,6 +914,13 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         onClose={() => { setMeetingModalOpen(false); setEditingMeeting(null); }}
         editMeeting={editingMeeting}
         defaultProjectId={projectId}
+      />
+      {/* 085: AI по сделке — бриф к встрече и сводка (read-only) */}
+      <AiDealModal
+        isOpen={aiOpen && project.type === 'client'}
+        onClose={() => setAiOpen(false)}
+        projectId={projectId}
+        projectName={project.name}
       />
       {/* P3: завершение delivery — чеклист вех + backstop-баннер (гейт 038) */}
       {completing && (

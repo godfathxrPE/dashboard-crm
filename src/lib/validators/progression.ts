@@ -42,12 +42,19 @@ const taskSchema = z.object({
   lane: z.enum(['now', 'next', 'wait', 'done']).optional().catch(undefined),
 });
 
+/**
+ * D1 (S-R2-AI-HARDEN). `.max(maxItems)` ЗДЕСЬ БЫЛ БАГОМ: перебор лимита ронял
+ * `safeParse` целиком, и пользователь вместо 10 нормальных рисков видел «модель
+ * вернула некорректный ответ». Лишнее усекается, а не отменяет предложение.
+ * Счётчика для этих списков нет намеренно — они read-only и потерять 11-й риск
+ * несопоставимо дешевле, чем потерять всё предложение (у задач счётчик есть:
+ * их пользователь отмечает галочками, см. truncatedTasks).
+ */
 const stringList = (maxLen: number, maxItems: number) =>
   z
     .array(z.string().trim().min(1).max(maxLen).catch(''))
-    .max(maxItems)
     .default([])
-    .transform((xs) => xs.filter(Boolean));
+    .transform((xs) => xs.filter(Boolean).slice(0, maxItems));
 
 export const progressionProposalSchema = z.object({
   version: z.literal(1),
@@ -60,9 +67,14 @@ export const progressionProposalSchema = z.object({
   summary: z.string().trim().max(2000),
   fields: fieldsSchema,
   // Битая задача выбрасывается поштучно: `.catch(null)` + filter, а не отказ от всего списка.
+  //
+  // D1 (S-R2-AI-HARDEN): `.max(PROGRESSION_MAX_TASKS)` отсюда СНЯТ — 6-я задача роняла
+  // safeParse, parseProposal возвращал null, и пять нормальных задач не показывались
+  // вовсе. Усечение до лимита делает parseProposal, а не схема: только так можно
+  // развести «выброшено как битое» (droppedTasks) и «отрезано сверх лимита»
+  // (truncatedTasks) — после усечения внутри схемы разница неразличима.
   tasks: z
     .array(taskSchema.nullable().catch(null))
-    .max(PROGRESSION_MAX_TASKS)
     .default([])
     .transform((xs) => xs.filter((t): t is z.infer<typeof taskSchema> => t !== null)),
   risks: stringList(500, 10),
@@ -76,8 +88,15 @@ export type ParsedProposal = {
   proposal: ProgressionProposal;
   /** Ключи полей, которые модель прислала, но они не прошли валидацию. */
   droppedFields: string[];
-  /** Сколько задач выброшено как некорректные. */
+  /** Сколько задач выброшено как НЕКОРРЕКТНЫЕ (пустой текст, не тот тип). */
   droppedTasks: number;
+  /**
+   * Сколько ВАЛИДНЫХ задач отрезано сверх PROGRESSION_MAX_TASKS. Отдельно от
+   * droppedTasks: это разные вещи и в UI звучат по-разному — «часть скрыта, она
+   * битая» против «модель вернула 7, показаны первые 5». Молча резать нельзя —
+   * это то же враньё, что и молчаливый отказ, только в другую сторону.
+   */
+  truncatedTasks: number;
 };
 
 /**
@@ -101,9 +120,15 @@ export function parseProposal(raw: unknown): ParsedProposal | null {
     return sent !== null && sent !== undefined && sent !== '' && kept === undefined;
   });
 
+  // Схема оставила все ВАЛИДНЫЕ задачи (сколько бы их ни было); лимит применяем здесь,
+  // чтобы оба счётчика считались от разных величин и не смешивались.
+  const validTasks = parsed.data.tasks;
+  const keptTasks = validTasks.slice(0, PROGRESSION_MAX_TASKS);
+
   return {
-    proposal: parsed.data as ProgressionProposal,
+    proposal: { ...parsed.data, tasks: keptTasks } as ProgressionProposal,
     droppedFields,
-    droppedTasks: Math.max(0, rawTaskCount - parsed.data.tasks.length),
+    droppedTasks: Math.max(0, rawTaskCount - validTasks.length),
+    truncatedTasks: Math.max(0, validTasks.length - keptTasks.length),
   };
 }

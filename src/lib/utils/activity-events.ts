@@ -69,7 +69,11 @@ export function describeEvent(entry: ActivityLog): string {
     case 'call_logged':
       return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
     case 'task_created':
-      return `Задача: ${p.title ?? ''}`;
+      // D4: задачи из принятого AI-предложения пишут тот же `task_created` (иначе
+      // в ленте была бы дыра), но помечены source — происхождение не теряется.
+      return p.source === 'ai_progression_applied'
+        ? `Задача (из предложения AI): ${p.title ?? ''}`
+        : `Задача: ${p.title ?? ''}`;
     case 'task_completed':
       return `Выполнено: ${p.title ?? ''}`;
     case 'meeting_scheduled':

@@ -2,17 +2,38 @@
 // (кнопки, оценка стоимости, выбор renderer). System-промпты и tool-схемы
 // живут ТОЛЬКО в edge-функции ai-run (injection-контур: промпт не в БД/не на клиенте).
 
-export type PresetKey = 'meeting_protocol' | 'analytic_note' | 'spin_review' | 'deal_progression';
+export type PresetKey =
+  | 'meeting_protocol'
+  | 'analytic_note'
+  | 'spin_review'
+  | 'deal_progression'
+  | 'meeting_prep'
+  | 'deal_summary';
 
 /** R2-P0-C: пресет Smart Deal Progression — единственный, чей вывод пишется в сделку. */
 export const PROGRESSION_PRESET_KEY = 'deal_progression' satisfies PresetKey;
+
+/**
+ * 085. Сущность, к которой привязан прогон. `project` добавлен под read-only пресеты
+ * по сделке. Три места обязаны совпадать: CHECK `ai_runs_entity_type_check` в БД,
+ * `entityTypes` в реестре PRESETS edge-функции, `entityTypes` здесь.
+ */
+export type AiEntityType = 'call' | 'meeting' | 'project';
 
 export type PresetMeta = {
   key: PresetKey;
   title: string;
   description: string;
-  input: 'transcript' | 'transcript+entity';
-  entityTypes: ('call' | 'meeting')[];
+  input: 'transcript' | 'transcript+entity' | 'entity';
+  entityTypes: AiEntityType[];
+  /**
+   * 085. Транскрипт обязателен — зеркало `needsTranscript` в edge и списка пресетов
+   * в CHECK `ai_runs_transcript_required`. UI по этому флагу решает, блокировать ли
+   * кнопку при пустом транскрипте.
+   */
+  needsTranscript: boolean;
+  /** Read-only пресет: результат показывается, в сделку ничего не пишется. */
+  readOnly: boolean;
   model: 'sonnet' | 'haiku';
   maxInputChars: number;
 };
@@ -24,6 +45,8 @@ export const AI_PRESETS: PresetMeta[] = [
     description: 'Участники, повестка, решения, задачи с ответственными и сроками, открытые вопросы.',
     input: 'transcript',
     entityTypes: ['call', 'meeting'],
+    needsTranscript: true,
+    readOnly: true,
     model: 'sonnet',
     maxInputChars: 120_000,
   },
@@ -33,11 +56,14 @@ export const AI_PRESETS: PresetMeta[] = [
     description: 'Ситуация клиента, боли, стейкхолдеры, риски сделки, рекомендации, аргументы для КП.',
     input: 'transcript+entity',
     entityTypes: ['call', 'meeting'],
+    // 085: без транскрипта записка строится по заметкам/договорённостям сущности.
+    needsTranscript: false,
+    readOnly: true,
     model: 'sonnet',
     maxInputChars: 120_000,
   },
   {
-    // R2-P0-C. entityTypes зеркалит clientMeta в edge ai-run — правится синхронно.
+    // R2-P0-C. entityTypes зеркалит реестр PRESETS в edge ai-run — правится синхронно.
     key: 'deal_progression',
     title: 'Обновить сделку',
     description:
@@ -45,6 +71,10 @@ export const AI_PRESETS: PresetMeta[] = [
       'Ничего не применяется само — вы отмечаете галочками, что записать.',
     input: 'transcript+entity',
     entityTypes: ['call', 'meeting'],
+    // 085: смена решения S-R2-SDP-1 — ограничение переехало в UI (кнопка disabled,
+    // когда нет ни транскрипта, ни заметок), а не исчезло.
+    needsTranscript: false,
+    readOnly: false,
     model: 'sonnet',
     maxInputChars: 120_000,
   },
@@ -54,12 +84,41 @@ export const AI_PRESETS: PresetMeta[] = [
     description: 'Счёт S/P/I/N с цитатами, что упущено, 3 вопроса к следующему звонку, оценка 1–10.',
     input: 'transcript',
     entityTypes: ['call'],
+    needsTranscript: true,
+    readOnly: true,
     model: 'sonnet',
+    maxInputChars: 120_000,
+  },
+  {
+    // S-R2-AI-HARDEN (085). Read-only пресеты по сделке: транскрипта нет по определению.
+    key: 'meeting_prep',
+    title: 'Бриф к встрече',
+    description:
+      'С кем предстоит говорить, о чём встреча, что открыто и висит, что спросить. ' +
+      'Только чтение — в сделку ничего не пишется.',
+    input: 'entity',
+    entityTypes: ['project'],
+    needsTranscript: false,
+    readOnly: true,
+    model: 'sonnet',
+    maxInputChars: 120_000,
+  },
+  {
+    key: 'deal_summary',
+    title: 'Сводка по сделке',
+    description:
+      'Где сделка сейчас, что произошло, следующий шаг, флаги внимания — коротко, для руководителя. ' +
+      'Только чтение.',
+    input: 'entity',
+    entityTypes: ['project'],
+    needsTranscript: false,
+    readOnly: true,
+    model: 'haiku',
     maxInputChars: 120_000,
   },
 ];
 
-export function presetsForEntity(entityType: 'call' | 'meeting'): PresetMeta[] {
+export function presetsForEntity(entityType: AiEntityType): PresetMeta[] {
   return AI_PRESETS.filter((p) => p.entityTypes.includes(entityType));
 }
 

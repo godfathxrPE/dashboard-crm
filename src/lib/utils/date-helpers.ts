@@ -90,6 +90,23 @@ export function mskDateKey(input: string | Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(d);
 }
 
+/** Конец календарного дня YYYY-MM-DD по МСК → ISO UTC (timestamptz).
+ *  Дедлайн «сегодня» обязан быть концом дня, а не моментом клика: иначе задача
+ *  просрочена через секунду после создания (D2, S-R2-AI-HARDEN).
+ *  Смещение задаём СУФФИКСОМ `+03:00`, а не арифметикой над UTC: Россия без DST
+ *  с 2014, но арифметика «−3 часа» — ровно та грабля off-by-one на границах суток,
+ *  из-за которой в проекте появился mskDateKey. */
+export function mskEndOfDayIso(dateKey: string): string {
+  return new Date(`${dateKey}T23:59:59.999+03:00`).toISOString();
+}
+
+/** Дедлайн задачи «через N дней» — конец N-го дня по МСК, считая сегодня нулевым.
+ *  n = 0 → конец сегодняшнего дня, n = 1 → конец завтрашнего. Сдвиг дня — той же
+ *  UTC-полуденной математикой, что и остальная календарная ось проекта. */
+export function mskDeadlineInDays(days: number, now: Date = new Date()): string {
+  return mskEndOfDayIso(shiftDateKeyByBuckets(mskDateKey(now), 'day', days));
+}
+
 // ─── Gantt бакет-ось (S-GANTT-VIEW-1) ──────────────────────────────────────
 // Вся математика на UTC-полдне (T12:00:00Z), как buildDays v0 — инкремент дня/
 // недели/месяца в любой TZ не прыгает через полночь (off-by-one на границах).

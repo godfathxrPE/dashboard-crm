@@ -16,13 +16,8 @@ import {
   estimateRunCostRub,
   PROGRESSION_PRESET_KEY,
 } from '@/lib/constants/ai-presets';
-import type {
-  AiRunRow,
-  ProtocolResult,
-  AnalyticNoteResult,
-  SpinReviewResult,
-  ProgressionProposal,
-} from '@/types/database';
+import { serializeRun } from '@/lib/utils/ai-run-serialize';
+import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
 import { AiProgressionPanel } from './AiProgressionPanel';
 import type { ActionItem } from './renderers/ProtocolRenderer';
@@ -38,55 +33,16 @@ interface AiRunPanelProps {
    * чтобы пользователь не искал нужный пресет среди четырёх кнопок.
    */
   focusProgression?: boolean;
+  /**
+   * 085. У звонка/встречи есть заметки (`agreements` / `notes`) — значит пресетам
+   * с `needsTranscript: false` есть по чему работать даже без транскрипта.
+   * Ограничение «SDP только при транскрипте» переехало из схемы БД сюда: пусто и
+   * там, и там → кнопка честно disabled с подсказкой, а не 400 после клика.
+   */
+  hasEntityNotes?: boolean;
 }
 
 const STALE_MIN = 10;
-
-/** Читаемый текст результата для «Копировать» (без markdown — plain text). */
-function serializeRun(run: AiRunRow): string {
-  const r = run.result;
-  if (!r) return '';
-  const out: string[] = [];
-  const push = (title: string, lines: string[]) => {
-    if (lines.length) out.push(`${title}:\n` + lines.map((l) => `— ${l}`).join('\n'));
-  };
-  if (run.preset_key === 'meeting_protocol') {
-    const p = r as ProtocolResult;
-    push('Участники', p.participants ?? []);
-    push('Повестка', p.agenda ?? []);
-    push('Обсуждалось', p.discussed ?? []);
-    push('Решения', p.decisions ?? []);
-    push('Поручения', (p.action_items ?? []).map((a) => `${a.what}${a.who ? ` (${a.who})` : ''}${a.due ? ` до ${a.due}` : ''}`));
-    push('Открытые вопросы', p.open_questions ?? []);
-  } else if (run.preset_key === 'analytic_note') {
-    const n = r as AnalyticNoteResult;
-    if (n.client_situation) out.push(`Ситуация клиента:\n${n.client_situation}`);
-    push('Потребности и боли', (n.needs ?? []).map((x) => `${x.claim}${x.quote ? ` «${x.quote}»` : ''}`));
-    push('Стейкхолдеры', (n.stakeholders ?? []).map((s) => `${s.name}${s.role ? ` — ${s.role}` : ''}`));
-    push('Риски сделки', (n.deal_risks ?? []).map((x) => `${x.claim}${x.quote ? ` «${x.quote}»` : ''}`));
-    push('Рекомендации', n.recommendations ?? []);
-    push('Аргументы для КП', n.kp_arguments ?? []);
-  } else if (run.preset_key === 'spin_review') {
-    const s = r as SpinReviewResult;
-    out.push(`Оценка: ${s.score.value}/10${s.score.rationale ? ` — ${s.score.rationale}` : ''}`);
-    out.push(`Счёт S/P/I/N: ${s.counts.situation}/${s.counts.problem}/${s.counts.implication}/${s.counts.need_payoff}`);
-    push('Что упущено', s.missed ?? []);
-    push('Вопросы к следующему звонку', s.next_questions ?? []);
-  } else if (run.preset_key === PROGRESSION_PRESET_KEY) {
-    const g = r as ProgressionProposal;
-    if (g.summary) out.push(`Итог разговора:\n${g.summary}`);
-    push(
-      'Предлагаемые правки',
-      Object.entries(g.fields ?? {})
-        .filter(([, v]) => v !== undefined && v !== null && v !== '')
-        .map(([k, v]) => `${k}: ${String(v)}`),
-    );
-    push('Задачи', (g.tasks ?? []).map((t) => `${t.text}${t.due_in_days !== undefined ? ` (через ${t.due_in_days} дн.)` : ''}`));
-    push('Риски', g.risks ?? []);
-    push('Открытые вопросы', g.open_questions ?? []);
-  }
-  return out.join('\n\n');
-}
 
 function StatusChip({ status }: { status: AiRunRow['status'] }) {
   if (status === 'pending') return <span className="text-xs text-text-mute">В очереди</span>;
@@ -107,6 +63,7 @@ function StatusChip({ status }: { status: AiRunRow['status'] }) {
  */
 export function AiRunPanel({
   entityType, entityId, defaultCompanyId, defaultContactId, defaultProjectId, focusProgression,
+  hasEntityNotes = false,
 }: AiRunPanelProps) {
   const { data: transcript } = useTranscript(entityType, entityId);
   const { data: runs } = useEntityRuns(entityType, entityId);
@@ -133,8 +90,25 @@ export function AiRunPanel({
   const presets = presetsForEntity(entityType);
   const hasText = text.trim().length > 0;
 
+  // 085: пресету с needsTranscript транскрипт обязателен; остальным хватает заметок
+  // сущности — прогон уйдёт по пути { entity_type, entity_id } без транскрипта.
+  const canRun = (preset: { needsTranscript: boolean }) =>
+    preset.needsTranscript ? hasText : hasText || hasEntityNotes;
+
+  const runHint = (preset: { needsTranscript: boolean; description: string }) => {
+    if (canRun(preset)) {
+      return preset.needsTranscript || hasText
+        ? preset.description
+        : `${preset.description}\n\nТранскрипта нет — анализ пойдёт по заметкам звонка/встречи.`;
+    }
+    return preset.needsTranscript
+      ? 'Нужен транскрипт — вставьте текст разговора выше'
+      : 'Нет ни транскрипта, ни заметок — анализировать нечего';
+  };
+
   const handleRun = (presetKey: string) => {
-    if (!hasText || start.isPending) return;
+    const preset = presetByKey(presetKey);
+    if (!preset || !canRun(preset) || start.isPending) return;
     start.mutate({ preset_key: presetKey, text });
   };
 
@@ -183,10 +157,8 @@ export function AiRunPanel({
               key={preset.key}
               type="button"
               onClick={() => handleRun(preset.key)}
-              disabled={!hasText || start.isPending}
-              // R2-P0-C: SDP работает только по транскрипту (ai_runs.transcript_id
-              // NOT NULL) — без текста кнопка disabled и объясняет почему.
-              title={hasText ? preset.description : 'Нужен транскрипт — вставьте текст разговора выше'}
+              disabled={!canRun(preset) || start.isPending}
+              title={runHint(preset)}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 ${
                 isProgression && focusProgression
                   ? 'border-accent bg-accent-l text-accent'
@@ -204,7 +176,9 @@ export function AiRunPanel({
       </div>
       {!hasText && (
         <p className="mt-1 text-meta text-text-mute">
-          Анализ идёт по транскрипту — вставьте текст разговора, чтобы включить пресеты.
+          {hasEntityNotes
+            ? 'Транскрипта нет — доступны пресеты, работающие по заметкам. Протокол и SPIN-разбор требуют текста разговора.'
+            : 'Анализ идёт по транскрипту — вставьте текст разговора, чтобы включить пресеты.'}
         </p>
       )}
 
@@ -232,8 +206,8 @@ export function AiRunPanel({
                     <span className="text-xs text-text-mute">{run.error ?? 'Ошибка выполнения'}</span>
                     <button
                       type="button"
-                      onClick={() => start.mutate({ preset_key: run.preset_key, text })}
-                      disabled={!hasText || start.isPending}
+                      onClick={() => handleRun(run.preset_key)}
+                      disabled={!preset || !canRun(preset) || start.isPending}
                       className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
                     >
                       <RotateCw size={12} /> Повторить
@@ -246,8 +220,8 @@ export function AiRunPanel({
                     <span className="text-xs text-yellow">Прогон завис — можно повторить</span>
                     <button
                       type="button"
-                      onClick={() => start.mutate({ preset_key: run.preset_key, text })}
-                      disabled={!hasText || start.isPending}
+                      onClick={() => handleRun(run.preset_key)}
+                      disabled={!preset || !canRun(preset) || start.isPending}
                       className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
                     >
                       <RotateCw size={12} /> Повторить

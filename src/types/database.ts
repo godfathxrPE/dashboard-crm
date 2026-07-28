@@ -88,9 +88,12 @@ export type AiRunRow = {
   id: string;
   org_id: string;
   preset_key: string;
-  entity_type: 'call' | 'meeting';
+  // 085: 'project' — сущность read-only пресетов по сделке (meeting_prep/deal_summary).
+  entity_type: 'call' | 'meeting' | 'project';
   entity_id: string;
-  transcript_id: string;
+  // 085: NULL для прогонов по полям сущности. Обязательность держит CHECK
+  // ai_runs_transcript_required (meeting_protocol / spin_review).
+  transcript_id: string | null;
   status: AiRunStatus;
   result: AiRunResult | null;
   error: string | null;
@@ -170,7 +173,34 @@ export interface ProgressionProposal {
   meta?: { truncated?: boolean };
 }
 
-export type AiRunResult = ProtocolResult | AnalyticNoteResult | SpinReviewResult | ProgressionProposal;
+/**
+ * S-R2-AI-HARDEN (085) — read-only пресеты по сделке. Write-back есть ТОЛЬКО у
+ * deal_progression: у этих двух нет ни `applied_at`, ни чекбоксов, ни кнопки
+ * «применить» — результат показывается и копируется.
+ */
+export interface MeetingPrepResult {
+  context: string;
+  participants: { name: string; note: string }[];
+  open_items: string[];
+  questions: string[];
+  watch_outs: string[];
+  meta?: { truncated?: boolean };
+}
+export interface DealSummaryResult {
+  state: string;
+  highlights: string[];
+  next_step: string | null;
+  flags: string[];
+  meta?: { truncated?: boolean };
+}
+
+export type AiRunResult =
+  | ProtocolResult
+  | AnalyticNoteResult
+  | SpinReviewResult
+  | ProgressionProposal
+  | MeetingPrepResult
+  | DealSummaryResult;
 
 // ═══ Sprint 1: Pipelines & Directions ═══
 

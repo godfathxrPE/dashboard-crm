@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark, UserPlus, Rocket,
+  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles,
 } from 'lucide-react';
 import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -142,6 +142,24 @@ export function CommandPalette() {
       );
     }
 
+    // 085: AI по СДЕЛКЕ, открытой прямо сейчас. Палитра не знает про локальный стейт
+    // карточки, поэтому открывает панель deep link'ом ?ai=1 — тот же приём, что ?spawn=1.
+    // Пункт появляется только на /deals/<id> и только для клиентской сделки.
+    const openDealId = /^\/deals\/([0-9a-f-]{36})$/i.exec(pathname)?.[1];
+    const openDeal = openDealId
+      ? (projects ?? []).find((p) => p.id === openDealId && p.type === 'client')
+      : undefined;
+    if (openDeal) {
+      items.push({
+        id: 'act-ai-deal',
+        label: 'AI по этой сделке',
+        sub: 'бриф к встрече, сводка',
+        icon: Sparkles,
+        href: `/deals/${openDeal.id}?ai=1`,
+        section: 'Действия',
+      });
+    }
+
     // Saved views (все страницы) — после действий
     for (const v of savedViews) {
       items.push({
@@ -272,7 +290,7 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews, canCreate]);
+  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews, canCreate, pathname]);
 
   // Filter
   const filtered = useMemo(() => {
