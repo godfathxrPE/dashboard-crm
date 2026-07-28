@@ -19,10 +19,13 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
 import { CompanyModal } from './CompanyModal';
+import { CompanyPeekContent } from './CompanyPeekContent';
 import { ExcelImportButton } from './ExcelImport';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
-type CompanyRow = Company & {
+/** Строка таблицы = компания + агрегаты, посчитанные ниже в `rows`.
+ *  Экспортируется для peek-панели: второе объявление тех же полей разъехалось бы. */
+export type CompanyRow = Company & {
   contacts_count: number;
   projects_count: number;
   pipeline_budget: number;
@@ -285,6 +288,11 @@ export function CompaniesTable() {
         columns={columns}
         keyField="id"
         onRowClick={(c) => router.push(`/companies/${c.id}`)}
+        peek={(c) => ({
+          title: c.name,
+          href: `/companies/${c.id}`,
+          content: <CompanyPeekContent company={c} />,
+        })}
         searchPlaceholder="Поиск по названию, ИНН..."
         emptyMessage="Нет компаний. Создай первую!"
         emptyIcon={<Building2 size={32} className="text-text-mute" />}
