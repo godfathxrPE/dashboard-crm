@@ -13,6 +13,13 @@
 //       { preset_key, entity_type, entity_id }     — прогон по полям сущности (085).
 //     `entity_type` из тела проверяется по whitelist — телу запроса не доверяем.
 //
+// fix-S-R2-AI-SHAPE: ответ модели проверяется на ФОРМУ (./shape.ts) и при претензии
+// делается РОВНО ОДИН ретрай. Безопасность смоук 28.07 подтвердил (9 прогонов,
+// 0 пробитий) — чинится доступность: модель срывается со структурированного вывода
+// и упаковывает правильные данные неправильно (~25% на инъекционном входе,
+// 2 из 7 живых прогонов на чистом). Экранирования `<`/`>` во ВХОДЕ здесь нет и не
+// будет: смоук показал, что вход чистый, а разметку модель генерирует сама.
+//
 // ⚠️ ТРИ МЕСТА ПРО ТИПЫ СУЩНОСТЕЙ обязаны совпадать (085):
 //     • CHECK `ai_runs_entity_type_check` в БД        — call | meeting | project
 //     • `entityTypes` у пресетов в этом файле         — ниже, в реестре PRESETS
@@ -25,6 +32,12 @@
 // Прогон никогда не виснет в running: любая ошибка фонового шага → status='error'.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import {
+  checkResultShape,
+  hardClaims,
+  softClaims,
+  SHAPE_RETRY_HINT,
+} from './shape.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 
@@ -680,6 +693,58 @@ async function stampProposal(
   };
 }
 
+type ClaudeUsage = { input_tokens?: number; output_tokens?: number };
+type ClaudeAttempt = { input: Record<string, unknown>; usage: ClaudeUsage };
+
+/** Сумма токенов по всем попыткам. null, если API не отдал ни одного значения —
+ *  ноль тут врал бы («прогон был бесплатным»), а null честно говорит «неизвестно». */
+function sumUsage(usages: ClaudeUsage[], key: keyof ClaudeUsage): number | null {
+  const known = usages.map((u) => u[key]).filter((v): v is number => typeof v === 'number');
+  return known.length > 0 ? known.reduce((a, b) => a + b, 0) : null;
+}
+
+/**
+ * Один вызов модели с форсированным tool_choice. Вынесено из processRun, чтобы
+ * звать дважды (fix-S-R2-AI-SHAPE): параметры запроса не изменились ни на байт,
+ * единственная переменная часть — userTurn.
+ */
+async function callClaude(
+  apiKey: string,
+  preset: Preset,
+  userTurn: string,
+): Promise<ClaudeAttempt> {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: preset.model,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: preset.system,
+      messages: [{ role: 'user', content: userTurn }],
+      tools: [preset.tool],
+      tool_choice: { type: 'tool', name: preset.tool.name },
+    }),
+  });
+
+  if (!resp.ok) {
+    const detail = await resp.text();
+    throw new Error(`Claude API ${resp.status}: ${detail.slice(0, 300)}`);
+  }
+
+  const claudeData = await resp.json() as {
+    content?: Array<{ type: string; name?: string; input?: Record<string, unknown> }>;
+    usage?: ClaudeUsage;
+  };
+  const toolUse = claudeData.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
+  if (!toolUse?.input) throw new Error('Модель не вернула структурированный результат');
+
+  return { input: toolUse.input, usage: claudeData.usage ?? {} };
+}
+
 /** Фоновый прогон: running → Claude API → done/error. Никогда не бросает наружу. */
 async function processRun(
   supabase: SupabaseClient,
@@ -719,52 +784,85 @@ async function processRun(
       `Сегодня: ${today} (для разрешения относительных сроков в ISO-даты).\n\n` +
       blocks.join('\n\n');
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: preset.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system: preset.system,
-        messages: [{ role: 'user', content: userTurn }],
-        tools: [preset.tool],
-        tool_choice: { type: 'tool', name: preset.tool.name },
-      }),
-    });
+    // ── Попытка 1 ──
+    const first = await callClaude(apiKey, preset, userTurn);
+    const schema = preset.tool.input_schema;
+    let chosen = first;
+    let claims = checkResultShape(schema, first.input);
+    let retried = false;
+    const usages: ClaudeUsage[] = [first.usage];
 
-    if (!resp.ok) {
-      const detail = await resp.text();
-      throw new Error(`Claude API ${resp.status}: ${detail.slice(0, 300)}`);
+    // ── Попытка 2: ровно одна ──
+    // При ~25% независимых отказов один ретрай даёт ~6% брака, второй — ~1.5%.
+    // Второй покупает 4.5 п.п. ценой третьего вызова под wall-clock изолята
+    // (STALE_RUN_MINUTES = 10 мин) — не окупается.
+    if (claims.length > 0) {
+      retried = true;
+      const second = await callClaude(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`);
+      usages.push(second.usage);
+      const secondClaims = checkResultShape(schema, second.input);
+
+      // Берём попытку БЕЗ жёстких претензий, при прочих равных — вторую (свежее).
+      // Отход от блок-схемы фикса, и намеренный: у неё случай «первая была
+      // пригодна, вторая сломалась» уходит в error, то есть мы выбрасываем
+      // читаемый ответ и делаем ХУЖЕ, чем до правки. Ровно то, что фикс запрещает
+      // делать из-за мягкой претензии.
+      if (hardClaims(secondClaims).length === 0 || hardClaims(claims).length > 0) {
+        chosen = second;
+        claims = secondClaims;
+      }
     }
 
-    const claudeData = await resp.json() as {
-      content?: Array<{ type: string; name?: string; input?: Record<string, unknown> }>;
-      usage?: { input_tokens?: number; output_tokens?: number };
-    };
-    const toolUse = claudeData.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
-    if (!toolUse?.input) throw new Error('Модель не вернула структурированный результат');
+    // Жёсткие претензии пережили ретрай — клиент этот ответ всё равно не разберёт.
+    // Пишем error и НЕ пишем result: сегодня мусор доезжает до БД, после правки — нет.
+    if (hardClaims(claims).length > 0) {
+      console.error(
+        'ai-run shape rejected:',
+        JSON.stringify({ runId, preset: preset.key, claims: claims.map((c) => c.message) }),
+      );
+      await supabase.from('ai_runs').update({
+        status: 'error',
+        error: 'Модель вернула ответ в неверном формате. Попробуйте повторить.',
+        input_tokens: sumUsage(usages, 'input_tokens'),
+        output_tokens: sumUsage(usages, 'output_tokens'),
+        duration_ms: Date.now() - started,
+        finished_at: new Date().toISOString(),
+      }).eq('id', runId);
+      return;
+    }
 
-    let result = toolUse.input as Record<string, unknown>;
+    let result = chosen.input;
     // Штамп предложения — только для call/meeting: target_project_id берётся из
     // строки звонка/встречи. Пресетов-предложений на сущности 'project' нет
     // (write-back есть только у deal_progression), но гард оставлен явным.
     if (preset.proposal && entityType !== 'project') {
       result = await stampProposal(supabase, result, entityType, entityId);
     }
-    if (truncated) {
+
+    // meta собираем одним куском: truncated (было) + retried/shape_warning (fix).
+    // `retried` — единственный способ померить частоту брака в проде: без флага мы
+    // узнаем о деградации от пользователя, а не из журнала.
+    // Срез на 10: маркер `</` широкий, и записка с двумя десятками цитат может дать
+    // столько же претензий. meta едет в каждом чтении строки — раздувать её незачем,
+    // для диагностики хватает первых.
+    const softMessages = softClaims(claims).map((c) => c.message).slice(0, 10);
+    if (truncated || retried || softMessages.length > 0) {
       const meta = (result.meta ?? {}) as Record<string, unknown>;
-      result.meta = { ...meta, truncated: true };
+      result.meta = {
+        ...meta,
+        ...(truncated ? { truncated: true } : {}),
+        ...(retried ? { retried: true } : {}),
+        ...(softMessages.length > 0 ? { shape_warning: softMessages } : {}),
+      };
     }
 
     await supabase.from('ai_runs').update({
       status: 'done',
       result,
-      input_tokens: claudeData.usage?.input_tokens ?? null,
-      output_tokens: claudeData.usage?.output_tokens ?? null,
+      // Оплачены обе попытки — журнал обязан показывать обе, иначе метрика
+      // стоимости прогона занизит расход.
+      input_tokens: sumUsage(usages, 'input_tokens'),
+      output_tokens: sumUsage(usages, 'output_tokens'),
       duration_ms: Date.now() - started,
       finished_at: new Date().toISOString(),
     }).eq('id', runId);
