@@ -5,11 +5,13 @@
 > (34 таблицы, RLS на всех, 41 функция, 53 триггера, 97 политик, 113 индексов; см.
 > `supabase/migrations/README.md`).
 >
-> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–084** — вся цепочка в проде
+> **Applied (в живой БД, ref `uoiavcabxgdjugzryrmj`):** миграции **001–085** — вся цепочка в проде
 > (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948`,
 > 080 `20260727191507`, 081 `20260727195810`, 082 `20260727201726`,
-> 083 `20260728075030`, 084 `20260728075144` — сверены по `schema_migrations` 2026-07-28**;
-> **085 (S-R2-AI-HARDEN) — НАПИСАНА, НЕ ПРИМЕНЕНА, ждёт гейта Cowork**; следующая свободная после неё — **086**;
+> 083 `20260728075030`, 084 `20260728075144`, 085 `20260728085826` — сверены по
+> `schema_migrations` 2026-07-28**;
+> **086 (S-R2-DWELL-CFG) — НАПИСАНА, НЕ ПРИМЕНЕНА, ждёт гейта Cowork**; схемы она не меняет —
+> только сид-строка в `segments`; следующая свободная после неё — **087**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -435,7 +437,7 @@ PK = (id, user_id). RLS: `auth.uid() = user_id`.
 | name | text | NOT NULL |
 | created_by | uuid | → profiles |
 | created_at / updated_at | timestamptz | |
-| settings | jsonb NOT NULL | **076 (R2-P0-D)**, DEFAULT `'{}'`. Настройки org. Известные ключи: `reconnect_days` int 3..90 (порог тишины, был хардкодом `RECONNECT_THRESHOLD_DAYS`), `stage_dwell_defaults` `{default,<phase_group>: int 1..365}`. CHECK'а на схему значения **нет** (ключи растут по спринтам) — форму держит клиентский Zod `validators/org-settings.ts` |
+| settings | jsonb NOT NULL | **076 (R2-P0-D)**, DEFAULT `'{}'`. Настройки org. Известные ключи: `reconnect_days` int 3..90 (порог тишины, был хардкодом `RECONNECT_THRESHOLD_DAYS`), `stage_dwell_defaults` `{default,<phase_group>: int 1..365}` — **с S-R2-DWELL-CFG питает бейдж «залипла»** через `resolveDwellThreshold` (`deal-health.ts`), правится owner'ом в «Настройки организации»; **отсутствие ключа ≠ `null`**: пустое поле формы ключ НЕ пишет, иначе `??`-цепочка резолвера не дошла бы до фолбэка `STALE_BY_PHASE`. CHECK'а на схему значения **нет** (ключи растут по спринтам) — форму держит клиентский Zod `validators/org-settings.ts` |
 
 > **⚠️ Настройки правит только owner.** UPDATE на `organizations` — политика
 > `org_update_owner` (`id = current_org_id() AND current_org_role() = 'owner'`,
@@ -1198,6 +1200,14 @@ authenticated`, затем `grant select, insert, update, delete to authenticate
 `uq_segments_shared_name` → повторный apply безопасен. Сегмент «Тихо >N дней» **не сидируется**:
 `last_touch` считается на клиенте (`useLastTouchMap`), в строке `contacts` его нет — это P1
 (`contact_last_touch`).
+
+**Сид 086 (S-R2-DWELL-CFG):** пятый общий сегмент сделок — **«Залипли >14 дней»**
+(`sort_order = 50`, последним среди сидированных), предикат
+`status eq open ∧ stage_entered_at days_since_gt 14`. Схема не меняется: поле и оператор уже
+в whitelist `src/lib/constants/segments.ts`, миграция вставляет **только данные**.
+⚠️ Число 14 сидит в предикате **константой и вынесено в имя намеренно**: предикат считается
+на клиенте и про `organizations.settings.stage_dwell_defaults` не знает — имя без числа
+обещало бы согласованность с настройкой, которой нет. Пользователь правит его руками.
 
 **Не заменяет `saved-views`** (localStorage `{route, query}`, `SavedViewChips` на 4 страницах):
 там снимок URL, здесь — предикат; автоконвертации нет (F10). Полосы живут рядом, фильтры
@@ -2311,9 +2321,11 @@ exists pg_cron` (включено в 051).
   `notification` (`type='spawn_suggest'`, deep link `?spawn=1` открывает визард лишь на
   won-сделке); вызова `spawn_delivery_project` из автоматизаций нет и не будет, `delivery_kind`
   выбирает РП руками.
-  ⚠️ **Развилка не закрыта:** в `organizations.settings` (076) уже лежит параллельный
-  `stage_dwell_defaults` — org-дефолты порога и правила `days_in_stage` пока живут двумя
-  независимыми механизмами.
+  ✅ **Развилка закрыта (S-R2-DWELL-CFG, 2026-07-28):** `stage_dwell_defaults` — единственный
+  источник порога для **UI-сигнала** (бейдж «залипла» на `ProjectCard`), `min_days` правила
+  остаётся **независимым**. Бейдж отвечает «на что смотреть», правило — «когда пнуть»; связки
+  нет, в `RuleEditorModal` порог из настроек показан только плейсхолдером. Четвёртая сущность
+  (`stage_dwell_overrides`, `pipeline_stages.rotting_days`) не заводится.
   Смоук-матрица 1–6 гейтом **не прогнана** (миграция применена, поведенческий смок остался долгом).
 
 - **080** _(S-SEC-GRANTS-NARROW — **applied 2026-07-27, `20260727191507`**)_ — гигиена привилегий,

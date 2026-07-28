@@ -7,6 +7,7 @@ import { formatBudget } from '@/lib/validators/project';
 import { getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { useDwellThresholds } from '@/lib/hooks/use-org-settings';
 import { Badge } from '@/components/ui/Badge';
 
 // phase_group (pipeline_stages) → color-токен, как в StackedPipeline
@@ -84,6 +85,8 @@ export function ProjectCard({
   };
 
   const { data: allPipelineStages } = usePipelineStages();
+  // Пороги «залипания» из настроек org; пустые ⇒ хардкод-фолбэк в resolveDwellThreshold.
+  const dwellThresholds = useDwellThresholds();
 
   // Путь B: стадия — только из pipeline_stages (stage_id); legacy `stage`/STAGE_CONFIG не читаем.
   const pipelineStage = allPipelineStages?.find((s) => s.id === project.stage_id);
@@ -204,7 +207,9 @@ export function ProjectCard({
         {(() => {
           const dh = getDealHealth(project);
           const aging = !isTerminal && project.stage_entered_at
-            ? getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null)
+            ? getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null, {
+                thresholds: dwellThresholds,
+              })
             : null;
 
           // 1. шаг просрочен (red)

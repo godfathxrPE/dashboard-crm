@@ -38,11 +38,88 @@ export const orgSettingsSchema = z
 
 export type OrgSettingsInput = z.input<typeof orgSettingsSchema>;
 
-/** Форма секции настроек: одно поле, отдельная схема — сообщения об ошибках в RHF. */
+/**
+ * phase_group воронки продаж — порядок и подписи как в `PipelineBoard`/`StackedPipeline`.
+ * Живёт рядом со схемой: ключи формы и ключи jsonb — один список, чтобы не разъехались.
+ * Групп внедрения (initiated/planning/execution/completed) здесь нет намеренно —
+ * бейдж «залипла» настраивается для сделок; внедрения падают на `default`/фолбэк.
+ */
+export const DWELL_PHASE_GROUPS = [
+  { key: 'attraction', label: 'Привлечение' },
+  { key: 'working', label: 'Проработка' },
+  { key: 'approval', label: 'Согласование' },
+  { key: 'closing', label: 'Закрытие' },
+] as const;
+
+export type DwellPhaseGroup = (typeof DWELL_PHASE_GROUPS)[number]['key'];
+
+/**
+ * Поле норматива в форме — СТРОКА, не число: пустое значение обязано остаться пустым,
+ * а `valueAsNumber` превращает '' в NaN и ломает «не заполнено ⇒ как по умолчанию».
+ * Пустая строка валидна и означает «ключ не писать».
+ */
+const dwellFieldSchema = z
+  .string()
+  .trim()
+  .refine((s) => s === '' || /^\d+$/.test(s), 'Только целое число дней')
+  .refine(
+    (s) => s === '' || (Number(s) >= STAGE_DWELL_MIN && Number(s) <= STAGE_DWELL_MAX),
+    `Допустимо ${STAGE_DWELL_MIN}–${STAGE_DWELL_MAX}`,
+  );
+
+/** Форма секции настроек: порог тишины + четыре норматива дней в стадии. */
 export const orgSettingsFormSchema = z.object({
   reconnect_days: reconnectDaysSchema,
+  stage_dwell: z.object({
+    attraction: dwellFieldSchema,
+    working: dwellFieldSchema,
+    approval: dwellFieldSchema,
+    closing: dwellFieldSchema,
+  }),
 });
 export type OrgSettingsFormValues = z.infer<typeof orgSettingsFormSchema>;
+
+/** jsonb-настройки → строковые значения полей формы (отсутствие ключа ⇒ пустое поле). */
+export function stageDwellToForm(
+  thresholds: OrgSettings['stage_dwell_defaults'],
+): OrgSettingsFormValues['stage_dwell'] {
+  const read = (key: DwellPhaseGroup) => {
+    const v = thresholds?.[key];
+    return typeof v === 'number' ? String(v) : '';
+  };
+  return {
+    attraction: read('attraction'),
+    working: read('working'),
+    approval: read('approval'),
+    closing: read('closing'),
+  };
+}
+
+/**
+ * Значения формы → объект для `settings.stage_dwell_defaults`.
+ *
+ * ⚠️ Пустое поле НЕ пишется ключом со значением `null`/`undefined` — ключа просто нет.
+ * Иначе `resolveDwellThreshold` получил бы `null`, `??` его не пропустил бы дальше,
+ * и фолбэк `STALE_BY_PHASE` не сработал.
+ *
+ * Ключ `default` в форме не редактируется, но если он уже лежит в настройках (заведён
+ * руками или будущей версией) — сохраняется: перезапись ключа целиком его бы стёрла.
+ */
+export function buildStageDwellDefaults(
+  values: OrgSettingsFormValues['stage_dwell'],
+  current?: OrgSettings['stage_dwell_defaults'],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof current?.default === 'number') out.default = current.default;
+
+  for (const { key } of DWELL_PHASE_GROUPS) {
+    const raw = values[key]?.trim() ?? '';
+    if (raw === '') continue; // «как по умолчанию» — ключа нет
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= STAGE_DWELL_MIN && n <= STAGE_DWELL_MAX) out[key] = n;
+  }
+  return out;
+}
 
 /**
  * Разбор значения из БД (`unknown` — jsonb): невалидные/чужие ключи не роняют чтение.

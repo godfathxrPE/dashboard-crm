@@ -101,7 +101,9 @@ export interface StageAging {
 }
 
 // Пороги «залипания» по phase_group (ранние стадии должны двигаться быстрее).
-// Тюнятся здесь; кандидат в per-org настройку позже (roadmap К8/configurable threshold).
+// ⚠️ ФОЛБЭК И КОНТРАКТ ОБРАТНОЙ СОВМЕСТИМОСТИ (S-R2-DWELL-CFG): при пустых
+// `organizations.settings.stage_dwell_defaults` поведение обязано остаться ровно таким.
+// Не удалять — резолвер падает сюда, когда org ничего не настроила.
 const STALE_BY_PHASE: Record<string, number> = {
   attraction: 14,
   working: 21,
@@ -111,20 +113,52 @@ const STALE_BY_PHASE: Record<string, number> = {
 const STALE_DEFAULT = 21;
 
 /**
+ * Пороги «залипания» из настроек организации
+ * (`organizations.settings.stage_dwell_defaults`): ключ — `phase_group`,
+ * плюс необязательный `default` для групп без своего значения.
+ */
+export type DwellThresholds = Record<string, number | undefined> & { default?: number };
+
+/**
+ * Порог «залипания» для phase_group. Приоритет:
+ *   settings[phaseGroup] → settings.default → STALE_BY_PHASE[phaseGroup] → STALE_DEFAULT
+ * Пустые настройки ⇒ ровно нынешнее поведение (H2).
+ */
+export function resolveDwellThreshold(
+  phaseGroup: string | null,
+  thresholds?: DwellThresholds,
+): number {
+  const key = phaseGroup ?? '';
+  const fromSettings = key ? thresholds?.[key] : undefined;
+  return (
+    fromSettings ??
+    thresholds?.default ??
+    STALE_BY_PHASE[key] ??
+    STALE_DEFAULT
+  );
+}
+
+/**
  * Возраст сделки в текущей стадии и флаг «залипла».
  * @param stageEnteredAt ISO-время входа в стадию (`projects.stage_entered_at`)
  * @param phaseGroup     `pipeline_stages.phase_group` — задаёт порог
+ * @param opts.thresholds пороги организации (`useDwellThresholds()`); пусто ⇒ хардкод-фолбэк
+ * @param opts.now       точка отсчёта (тесты); по умолчанию — сейчас
+ *
+ * ⚠️ Третий параметр — ОБЪЕКТ опций, не `Date`. Позиционный `now` из прежней сигнатуры
+ * дал бы тихий `NaN`, а не ошибку компиляции.
  */
 export function getStageAging(
   stageEnteredAt: string | null,
   phaseGroup: string | null,
-  now = new Date(),
+  opts?: { thresholds?: DwellThresholds; now?: Date },
 ): StageAging {
   if (!stageEnteredAt) return { daysInStage: null, isStale: false };
   const t = new Date(stageEnteredAt).getTime();
   if (Number.isNaN(t)) return { daysInStage: null, isStale: false };
+  const now = opts?.now ?? new Date();
   const daysInStage = Math.floor((now.getTime() - t) / 86400000);
-  const threshold = STALE_BY_PHASE[phaseGroup ?? ''] ?? STALE_DEFAULT;
+  const threshold = resolveDwellThreshold(phaseGroup, opts?.thresholds);
   return { daysInStage, isStale: daysInStage > threshold };
 }
 
