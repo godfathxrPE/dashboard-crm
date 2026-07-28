@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import { isProgressionField, type ProgressionFieldKey } from '@/lib/constants/ai-progression';
+import { mskDeadlineInDays } from '@/lib/utils/date-helpers';
 import type { Json, ProgressionProposal } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -158,31 +159,50 @@ export async function applyProgressionPatch(
         project_id: projectId,
         company_id: fresh.company_id,
         contact_id: fresh.contact_id,
-        deadline:
-          t.due_in_days === undefined
-            ? null
-            : new Date(Date.now() + t.due_in_days * 86_400_000).toISOString(),
+        // D2: дедлайн — КОНЕЦ ДНЯ по МСК, а не «момент клика + N×24ч». Со старой
+        // арифметикой `due_in_days: 0` давал задачу, просроченную через секунду
+        // после создания, а `1..N` — дедлайн в случайное время суток.
+        deadline: t.due_in_days === undefined ? null : mskDeadlineInDays(t.due_in_days),
       }));
       const { error } = await supabase.from('tasks').insert(rows);
       if (error) throw error;
     }
 
     // ── 5. Audit trail (I4) ──
+    // D4: агрегат `ai_progression_applied` фиксирует САМО применение (что принял
+    // человек), но задачи, созданные вручную, дают в ленте `task_created` с текстом,
+    // а созданные из предложения не давали ничего — таймлайн проекта показывал
+    // «задач: 3» без единого следа, ЧТО это за задачи. Пишем и то, и другое; у
+    // AI-задач в payload есть `source`/`run_id`, поэтому происхождение не теряется.
     const { data: auth } = await supabase.auth.getUser();
-    await supabase.from('activity_log').insert({
-      project_id: projectId,
-      user_id: auth.user?.id ?? null,
-      event_type: PROGRESSION_EVENT,
-      payload: {
-        run_id: runId,
-        source_entity_type: proposal.source.entity_type,
-        source_entity_id: proposal.source.entity_id,
-        fields: Object.keys(patch),
-        tasks: tasks.length,
-        confidence: proposal.confidence,
-        ...(force ? { forced_stale: true } : {}),
+    const userId = auth.user?.id ?? null;
+    await supabase.from('activity_log').insert([
+      {
+        project_id: projectId,
+        user_id: userId,
+        event_type: PROGRESSION_EVENT,
+        payload: {
+          run_id: runId,
+          source_entity_type: proposal.source.entity_type,
+          source_entity_id: proposal.source.entity_id,
+          fields: Object.keys(patch),
+          tasks: tasks.length,
+          confidence: proposal.confidence,
+          ...(force ? { forced_stale: true } : {}),
+        },
       },
-    });
+      ...tasks.map((t) => ({
+        project_id: projectId,
+        user_id: userId,
+        event_type: 'task_created',
+        payload: {
+          title: t.text,
+          priority: t.priority ?? 'normal',
+          source: PROGRESSION_EVENT,
+          run_id: runId,
+        },
+      })),
+    ]);
 
     return { appliedFields: Object.keys(patch) as ProgressionFieldKey[], createdTasks: tasks.length };
   } catch (err) {

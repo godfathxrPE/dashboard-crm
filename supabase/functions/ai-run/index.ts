@@ -8,7 +8,17 @@
 //  2. Доступ — клиент под JWT вызывающего, RLS решает. Сервисный ключ НЕ используется.
 //     Транскрипт не нашёлся (нет / чужое) → 404.
 //  3. Ключ — только Deno.env.get('ANTHROPIC_API_KEY').
-//  4. Вход — { preset_key: <из реестра>, transcript_id: uuid }, иначе 400.
+//  4. Вход — ОДИН из двух взаимоисключающих вариантов, иначе 400:
+//       { preset_key, transcript_id }              — сущность берётся из транскрипта;
+//       { preset_key, entity_type, entity_id }     — прогон по полям сущности (085).
+//     `entity_type` из тела проверяется по whitelist — телу запроса не доверяем.
+//
+// ⚠️ ТРИ МЕСТА ПРО ТИПЫ СУЩНОСТЕЙ обязаны совпадать (085):
+//     • CHECK `ai_runs_entity_type_check` в БД        — call | meeting | project
+//     • `entityTypes` у пресетов в этом файле         — ниже, в реестре PRESETS
+//     • `entityTypes` в src/lib/constants/ai-presets.ts
+//    И ЧЕТВЁРТОЕ — про транскрипт: `needsTranscript` здесь ↔ список пресетов в CHECK
+//    `ai_runs_transcript_required` (085). Добавляешь пресет — правь оба.
 //
 // Отличие от ai-summarize — АСИНХРОННОСТЬ: INSERT ai_runs (pending) → сразу вернуть { run_id },
 // а Claude API дёргается в EdgeRuntime.waitUntil. Статус живёт в строке ai_runs (Realtime на клиент).
@@ -27,6 +37,13 @@ const CORS = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STALE_RUN_MINUTES = 10; // pending/running старше → зомби (isolate убит по wall-clock)
 const MAX_OUTPUT_TOKENS = 4096;
+
+// 085: сколько строк контекста тянем в <data> для пресетов по сделке. Лимиты жёсткие
+// и осознанные: без них meeting_prep по старой сделке упирался бы в maxInputChars
+// на ленте активности, а не на содержательных данных.
+const RECENT_ACTIVITY_LIMIT = 15;
+const OPEN_TASKS_LIMIT = 20;
+const DELIVERY_CHILDREN_LIMIT = 5;
 
 // Смена модели без редеплоя (как AI_SUMMARY_MODEL в S28).
 // Дефолты СВЕРИТЬ с актуальным списком моделей перед деплоем (гейт).
@@ -49,12 +66,28 @@ type AnthropicTool = {
   input_schema: Record<string, unknown>;
 };
 
+type EntityType = 'call' | 'meeting' | 'project';
+
+const ENTITY_TYPES: EntityType[] = ['call', 'meeting', 'project'];
+
+function isEntityType(v: unknown): v is EntityType {
+  return typeof v === 'string' && (ENTITY_TYPES as string[]).includes(v);
+}
+
 type Preset = {
   key: string;
   model: string;
   promptVersion: number;
   maxInputChars: number;
   needsEntity: boolean; // подгружать ли данные сделки в <data kind="entity">
+  /**
+   * 085. Транскрипт обязателен (протокол встречи, SPIN-разбор) — без него прогон
+   * бессмыслен, и запрос отбивается 400 ещё до INSERT. Зеркало CHECK
+   * `ai_runs_transcript_required`: там перечислены пресеты с needsTranscript = false.
+   */
+  needsTranscript: boolean;
+  /** К каким сущностям пресет применим. Зеркало entityTypes в ai-presets.ts. */
+  entityTypes: EntityType[];
   system: string;
   tool: AnthropicTool;
   /**
@@ -72,6 +105,8 @@ const PRESETS: Record<string, Preset> = {
     promptVersion: 1,
     maxInputChars: 120_000,
     needsEntity: false,
+    needsTranscript: true,
+    entityTypes: ['call', 'meeting'],
     system:
       `${ANTI_INJECTION}\n\nЗадача: составить деловой ПРОТОКОЛ встречи по транскрипту. ` +
       `Структура секций: участники, повестка, что обсуждалось, принятые решения, поручения ` +
@@ -111,16 +146,25 @@ const PRESETS: Record<string, Preset> = {
   analytic_note: {
     key: 'analytic_note',
     model: MODEL.sonnet,
-    promptVersion: 1,
+    // 085: v2 — «цитата из транскрипта» → «цитата из переданных данных». Без этого
+    // прогон без транскрипта возвращал бы пустую записку: цитировать нечего.
+    // Версия поднята намеренно, чтобы прогоны v1 и v2 в журнале не сравнивались вслепую.
+    promptVersion: 2,
     maxInputChars: 120_000,
     needsEntity: true,
+    // 085: записка по звонку без транскрипта строится по заметкам/договорённостям —
+    // именно этот путь и есть боевой вектор инъекции (поля сущности, не транскрипт).
+    needsTranscript: false,
+    entityTypes: ['call', 'meeting'],
     system:
       `${ANTI_INJECTION}\n\nЗадача: аналитическая записка по сделке на основе транскрипта ` +
       `разговора и данных сделки из <data kind="entity">. Разделы: текущая ситуация клиента, ` +
       `потребности и боли, стейкхолдеры и их роли, риски сделки, рекомендации, аргументы для КП. ` +
       `КРИТИЧНО: каждое утверждение о потребности/боли и каждый риск подкрепляй ДОСЛОВНОЙ цитатой ` +
-      `из транскрипта (поле quote). Нет цитаты-основания — не включай утверждение. Данные сделки — ` +
-      `контекст. Не выдумывай факты, которых нет в данных.`,
+      `из переданных данных (поле quote) — из транскрипта, а если транскрипта нет, из заметок ` +
+      `и договорённостей сущности. Нет цитаты-основания — не включай утверждение. ` +
+      `Не выдумывай фактов, которых нет в данных. Данных мало — верни короткую записку ` +
+      `с пустыми списками, это нормальный ответ.`,
     tool: {
       name: 'submit_note',
       description: 'Вернуть аналитическую записку',
@@ -179,9 +223,15 @@ const PRESETS: Record<string, Preset> = {
   deal_progression: {
     key: 'deal_progression',
     model: MODEL.sonnet,
-    promptVersion: 1,
+    // 085: v2 — правило 1 больше не завязано на наличие транскрипта (см. ниже).
+    promptVersion: 2,
     maxInputChars: 120_000,
     needsEntity: true,
+    // 085: смена решения S-R2-SDP-1. Заметки звонка в этом проекте — не три строки;
+    // ограничение «нужен транскрипт» переехало из схемы в UI (кнопка disabled, когда
+    // и заметок нет), а не исчезло. Обоснование — в отчёте спринта.
+    needsTranscript: false,
+    entityTypes: ['call', 'meeting'],
     proposal: true,
     system:
       `${ANTI_INJECTION}\n\nЗадача: по транскрипту разговора и данным сделки из ` +
@@ -189,8 +239,9 @@ const PRESETS: Record<string, Preset> = {
       `предложения — человек подтвердит его вручную, поэтому не бойся оставить поле пустым, ` +
       `но никогда не выдумывай факты.\n` +
       `Правила:\n` +
-      `1. Заполняй поле, только если в транскрипте есть прямое основание. Нет основания — ` +
-      `не включай ключ вовсе. Пустая строка хуже отсутствия.\n` +
+      `1. Заполняй поле, только если в переданных данных есть прямое основание — в ` +
+      `транскрипте, а если транскрипта нет, в заметках и договорённостях звонка/встречи. ` +
+      `Нет основания — не включай ключ вовсе. Пустая строка хуже отсутствия.\n` +
       `2. next_step — одно конкретное действие продавца, не пересказ разговора.\n` +
       `3. next_action_date — строго ISO YYYY-MM-DD. Относительные сроки («через неделю») ` +
       `разрешай от переданной даты «Сегодня». Дата не названа и не выводится — не включай ключ.\n` +
@@ -257,6 +308,8 @@ const PRESETS: Record<string, Preset> = {
     promptVersion: 1,
     maxInputChars: 120_000,
     needsEntity: false,
+    needsTranscript: true,
+    entityTypes: ['call'],
     system:
       `${ANTI_INJECTION}\n\nЗадача: SPIN-разбор звонка по методологии Нила Рекхема (SPIN Selling). ` +
       `Классифицируй вопросы продавца по типам S/P/I/N, приведи цитаты-примеры каждого типа, укажи ` +
@@ -304,6 +357,106 @@ const PRESETS: Record<string, Preset> = {
       },
     },
   },
+
+  // ── S-R2-AI-HARDEN (085): два READ-ONLY пресета по сделке ───────────────────
+  // Инвариант: write-back есть только у deal_progression. У обоих ниже
+  // `proposal` не выставлен, stampProposal не зовётся, в UI нет ни чекбоксов,
+  // ни кнопки «применить» — результат только показывается и копируется.
+  meeting_prep: {
+    key: 'meeting_prep',
+    model: MODEL.sonnet, // рассуждение по разнородному контексту
+    promptVersion: 1,
+    maxInputChars: 120_000,
+    needsEntity: true,
+    needsTranscript: false, // бриф ГОТОВИТСЯ ДО встречи — транскрипта не существует
+    entityTypes: ['project'],
+    system:
+      `${ANTI_INJECTION}\n\nЗадача: подготовить БРИФ К ПРЕДСТОЯЩЕЙ ВСТРЕЧЕ по сделке. ` +
+      `Данные сделки, компании, открытых задач, недавних событий и проектов внедрения ` +
+      `переданы в блоках <data>. Собери из них: с кем предстоит говорить и что о них известно; ` +
+      `о чём встреча (текущий контекст сделки); что открыто и висит; что спросить. ` +
+      `КРИТИЧНО: только то, что есть в данных. Нет информации о стейкхолдерах — верни пустой ` +
+      `список, не выдумывай людей и должности. Вопросы формулируй конкретно, под эту сделку, ` +
+      `а не общими словами. Пиши по-русски, деловым тоном, без воды.`,
+    tool: {
+      name: 'submit_meeting_prep',
+      description: 'Вернуть бриф к предстоящей встрече по сделке',
+      input_schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['context', 'participants', 'open_items', 'questions', 'watch_outs'],
+        properties: {
+          context: { type: 'string', description: '2–4 предложения: где сделка и что происходит' },
+          participants: {
+            type: 'array',
+            maxItems: 10,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['name', 'note'],
+              properties: {
+                name: { type: 'string' },
+                note: { type: 'string', description: 'Роль/что известно из данных' },
+              },
+            },
+          },
+          open_items: {
+            type: 'array',
+            maxItems: 15,
+            items: { type: 'string', description: 'Что открыто и висит: задачи, обещания, сроки' },
+          },
+          questions: {
+            type: 'array',
+            maxItems: 10,
+            items: { type: 'string', description: 'Конкретный вопрос к этой встрече' },
+          },
+          watch_outs: {
+            type: 'array',
+            maxItems: 10,
+            items: { type: 'string', description: 'На что обратить внимание: риски, больные места' },
+          },
+        },
+      },
+    },
+  },
+
+  deal_summary: {
+    key: 'deal_summary',
+    model: MODEL.haiku, // короткая сводка — рассуждать не о чем
+    promptVersion: 1,
+    maxInputChars: 120_000,
+    needsEntity: true,
+    needsTranscript: false,
+    entityTypes: ['project'],
+    system:
+      `${ANTI_INJECTION}\n\nЗадача: краткая СВОДКА ПО СДЕЛКЕ для руководителя. ` +
+      `Данные сделки и недавних событий переданы в блоках <data>. Верни: одно-два предложения ` +
+      `«где сделка сейчас»; 3–6 пунктов «что произошло»; следующий шаг (если он есть в данных — ` +
+      `иначе null); флаги внимания. Ничего не додумывай: нет данных о движении — так и скажи ` +
+      `в state. Пиши по-русски, деловым тоном, без воды.`,
+    tool: {
+      name: 'submit_deal_summary',
+      description: 'Вернуть краткую сводку по сделке',
+      input_schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['state', 'highlights', 'next_step', 'flags'],
+        properties: {
+          state: { type: 'string', description: '1–2 предложения: где сделка сейчас' },
+          highlights: { type: 'array', maxItems: 6, items: { type: 'string' } },
+          next_step: {
+            type: ['string', 'null'],
+            description: 'Следующий шаг из данных сделки, либо null',
+          },
+          flags: {
+            type: 'array',
+            maxItems: 6,
+            items: { type: 'string', description: 'Что требует внимания руководителя' },
+          },
+        },
+      },
+    },
+  },
 };
 
 function json(body: unknown, status = 200): Response {
@@ -322,12 +475,146 @@ function dataBlock(kind: string, fields: Record<string, unknown>): string {
   return `<data kind="${kind}">\n${lines.join('\n')}\n</data>`;
 }
 
+/**
+ * 085. Контекст сделки для meeting_prep / deal_summary: сама сделка + компания +
+ * контакт + недавние события; для meeting_prep дополнительно открытые задачи и
+ * проекты внедрения. Всё под RLS вызывающего.
+ *
+ * `rich` = meeting_prep: брифу нужны «что открыто» и «как идут внедрения»;
+ * сводке руководителю — нет, там лишний шум и лишние токены.
+ */
+async function loadProjectBlock(
+  supabase: SupabaseClient,
+  projectId: string,
+  rich: boolean,
+): Promise<string> {
+  const { data: project } = await supabase
+    .from('projects')
+    .select(
+      'id, name, type, direction, status, budget, deadline, next_step, next_action_date, ' +
+        'pinned_note, probability, stage_entered_at, company_id, contact_id, ' +
+        'progress_done, progress_total, stage:pipeline_stages(name)',
+    )
+    .eq('id', projectId)
+    .maybeSingle();
+  if (!project) return '';
+
+  const p = project as Record<string, unknown>;
+  const stageName = Array.isArray(p.stage)
+    ? (p.stage[0] as { name?: string } | undefined)?.name
+    : (p.stage as { name?: string } | null)?.name;
+
+  const blocks: string[] = [
+    dataBlock('deal', {
+      'Сделка': p.name,
+      'Тип': p.type,
+      'Направление': p.direction,
+      'Стадия': stageName ?? null,
+      'В стадии с': p.stage_entered_at,
+      'Статус': p.status,
+      'Бюджет': p.budget,
+      'Дедлайн': p.deadline,
+      'Вероятность, %': p.probability,
+      'Следующий шаг': p.next_step,
+      'Дата следующего действия': p.next_action_date,
+      'Закреплённая заметка': p.pinned_note,
+    }),
+  ];
+
+  if (p.company_id) {
+    const { data: company } = await supabase
+      .from('companies').select('name, industry').eq('id', p.company_id as string).maybeSingle();
+    if (company) {
+      blocks.push(dataBlock('company', { 'Компания': company.name, 'Отрасль': company.industry }));
+    }
+  }
+
+  if (p.contact_id) {
+    const { data: contact } = await supabase
+      .from('contacts').select('first_name, last_name, position')
+      .eq('id', p.contact_id as string).maybeSingle();
+    if (contact) {
+      blocks.push(dataBlock('contact', {
+        'Контакт': `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim(),
+        'Должность': contact.position,
+      }));
+    }
+  }
+
+  // Недавние события ленты. payload не разворачиваем — это недоверенный jsonb
+  // произвольной формы, а типа события и даты для контекста достаточно.
+  const { data: events } = await supabase
+    .from('activity_log')
+    .select('event_type, created_at')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+    .limit(RECENT_ACTIVITY_LIMIT);
+  if (events && events.length > 0) {
+    blocks.push(
+      `<data kind="recent_activity">\n` +
+        events
+          .map((e) => `${String(e.created_at).slice(0, 10)}: ${String(e.event_type)}`)
+          .join('\n') +
+        `\n</data>`,
+    );
+  }
+
+  if (rich) {
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('text, lane, priority, deadline')
+      .eq('project_id', projectId)
+      .neq('lane', 'done')
+      .order('deadline', { ascending: true, nullsFirst: false })
+      .limit(OPEN_TASKS_LIMIT);
+    if (tasks && tasks.length > 0) {
+      blocks.push(
+        `<data kind="open_tasks">\n` +
+          tasks
+            .map((t) => {
+              const due = t.deadline ? ` (до ${String(t.deadline).slice(0, 10)})` : '';
+              return `[${String(t.lane)}/${String(t.priority)}] ${String(t.text)}${due}`;
+            })
+            .join('\n') +
+          `\n</data>`,
+      );
+    }
+
+    // Здоровье внедрений, порождённых этой сделкой (1 сделка → 0..N проектов).
+    const { data: children } = await supabase
+      .from('projects')
+      .select('name, status, deadline, progress_done, progress_total')
+      .eq('parent_deal_id', projectId)
+      .limit(DELIVERY_CHILDREN_LIMIT);
+    if (children && children.length > 0) {
+      blocks.push(
+        `<data kind="delivery">\n` +
+          children
+            .map((c) => {
+              const done = Number(c.progress_done ?? 0);
+              const total = Number(c.progress_total ?? 0);
+              const due = c.deadline ? `, дедлайн ${String(c.deadline).slice(0, 10)}` : '';
+              return `${String(c.name)}: ${String(c.status)}, задач ${done}/${total}${due}`;
+            })
+            .join('\n') +
+          `\n</data>`,
+      );
+    }
+  }
+
+  return blocks.filter(Boolean).join('\n\n');
+}
+
 /** Контекст сделки для analytic_note: сущность + компания + сделка (+стадия). Всё под RLS. */
 async function loadEntityBlock(
   supabase: SupabaseClient,
-  entityType: 'call' | 'meeting',
+  entityType: EntityType,
   entityId: string,
+  presetKey: string,
 ): Promise<string> {
+  if (entityType === 'project') {
+    return await loadProjectBlock(supabase, entityId, presetKey === 'meeting_prep');
+  }
   const table = entityType === 'call' ? 'calls' : 'meetings';
   const sel = entityType === 'call'
     ? 'id, date, status, next_step, agreements, duration_s, company_id, contact_id, project_id'
@@ -399,8 +686,8 @@ async function processRun(
   apiKey: string,
   preset: Preset,
   runId: string,
-  transcriptContent: string,
-  entityType: 'call' | 'meeting',
+  transcriptContent: string | null,
+  entityType: EntityType,
   entityId: string,
 ): Promise<void> {
   const started = Date.now();
@@ -414,11 +701,16 @@ async function processRun(
       truncated = true;
     }
 
-    const blocks: string[] = [`<data kind="transcript">\n${content}\n</data>`];
+    // 085: транскрипта может не быть вовсе — тогда блока нет. Пустой
+    // <data kind="transcript"></data> хуже отсутствия: модель принимает его за
+    // «разговор был, но пустой» и начинает извиняться вместо анализа полей.
+    const blocks: string[] = [];
+    if (content.trim() !== '') blocks.push(`<data kind="transcript">\n${content}\n</data>`);
     if (preset.needsEntity) {
-      const entityBlock = await loadEntityBlock(supabase, entityType, entityId);
+      const entityBlock = await loadEntityBlock(supabase, entityType, entityId, preset.key);
       if (entityBlock) blocks.push(entityBlock);
     }
+    if (blocks.length === 0) throw new Error('Нет данных для анализа');
 
     const today = new Date().toISOString().slice(0, 10);
     const userTurn =
@@ -457,7 +749,10 @@ async function processRun(
     if (!toolUse?.input) throw new Error('Модель не вернула структурированный результат');
 
     let result = toolUse.input as Record<string, unknown>;
-    if (preset.proposal) {
+    // Штамп предложения — только для call/meeting: target_project_id берётся из
+    // строки звонка/встречи. Пресетов-предложений на сущности 'project' нет
+    // (write-back есть только у deal_progression), но гард оставлен явным.
+    if (preset.proposal && entityType !== 'project') {
       result = await stampProposal(supabase, result, entityType, entityId);
     }
     if (truncated) {
@@ -489,19 +784,61 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'Метод не поддерживается' }, 405);
 
   // Security №4 — строгая валидация тела.
-  let payload: { preset_key?: unknown; transcript_id?: unknown };
+  let payload: {
+    preset_key?: unknown;
+    transcript_id?: unknown;
+    entity_type?: unknown;
+    entity_id?: unknown;
+  };
   try {
     payload = await req.json();
   } catch {
     return json({ error: 'Некорректное тело запроса' }, 400);
   }
   const presetKey = payload?.preset_key;
-  const transcriptId = payload?.transcript_id;
-  if (typeof presetKey !== 'string' || !PRESETS[presetKey] ||
-      typeof transcriptId !== 'string' || !UUID_RE.test(transcriptId)) {
-    return json({ error: 'Ожидается { preset_key: <из реестра>, transcript_id: uuid }' }, 400);
+  if (typeof presetKey !== 'string' || !PRESETS[presetKey]) {
+    return json({ error: 'Неизвестный пресет' }, 400);
   }
   const preset = PRESETS[presetKey];
+
+  // 085. Два взаимоисключающих пути входа. Пришло и то, и другое (или ничего) → 400:
+  // «угадывать» приоритет нельзя, разные пути дают разный ключ дедупликации.
+  const hasTranscriptPath = payload.transcript_id !== undefined && payload.transcript_id !== null;
+  const hasEntityPath =
+    (payload.entity_type !== undefined && payload.entity_type !== null) ||
+    (payload.entity_id !== undefined && payload.entity_id !== null);
+  if (hasTranscriptPath === hasEntityPath) {
+    return json(
+      { error: 'Ожидается ровно одно: { transcript_id } либо { entity_type, entity_id }' },
+      400,
+    );
+  }
+
+  let bodyTranscriptId: string | null = null;
+  let bodyEntityType: EntityType | null = null;
+  let bodyEntityId: string | null = null;
+
+  if (hasTranscriptPath) {
+    if (typeof payload.transcript_id !== 'string' || !UUID_RE.test(payload.transcript_id)) {
+      return json({ error: 'transcript_id должен быть uuid' }, 400);
+    }
+    bodyTranscriptId = payload.transcript_id;
+  } else {
+    // entity_type из тела — ТОЛЬКО по whitelist, телу запроса не доверяем.
+    if (!isEntityType(payload.entity_type)) {
+      return json({ error: 'entity_type должен быть один из: call, meeting, project' }, 400);
+    }
+    if (typeof payload.entity_id !== 'string' || !UUID_RE.test(payload.entity_id)) {
+      return json({ error: 'entity_id должен быть uuid' }, 400);
+    }
+    bodyEntityType = payload.entity_type;
+    bodyEntityId = payload.entity_id;
+    // B5: пресет требует транскрипт, а пришли по сущности → внятное 400 здесь,
+    // а не 500 и не падение на CHECK ai_runs_transcript_required.
+    if (preset.needsTranscript) {
+      return json({ error: 'Этому пресету нужен транскрипт разговора' }, 400);
+    }
+  }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Требуется авторизация' }, 401);
@@ -523,27 +860,49 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: userErr } = await supabase.auth.getUser();
   if (userErr || !user) return json({ error: 'Требуется авторизация' }, 401);
 
-  // Загрузка транскрипта под RLS. Не нашлось (нет / чужое) → 404.
-  const { data: transcript, error: trErr } = await supabase
-    .from('transcripts')
-    .select('id, entity_type, entity_id, content')
-    .eq('id', transcriptId)
-    .maybeSingle();
-  if (trErr) {
-    console.error('transcript load error:', trErr.message);
-    return json({ error: 'Не удалось загрузить транскрипт' }, 500);
-  }
-  if (!transcript) return json({ error: 'Транскрипт не найден' }, 404);
-  const entityType = transcript.entity_type as 'call' | 'meeting';
-  const entityId = transcript.entity_id as string;
+  // Разрешение сущности прогона. Оба пути кончаются одинаково: (entityType, entityId)
+  // получены ПОД RLS — из строки транскрипта либо из самой сущности. Не нашлось
+  // (нет / чужое) → 404, как и было для транскрипта.
+  let entityType: EntityType;
+  let entityId: string;
+  let transcriptId: string | null = null;
+  let transcriptContent: string | null = null;
 
-  // Пресет должен подходить типу сущности (SPIN — только для call).
-  // Зеркало entityTypes в src/lib/constants/ai-presets.ts — правится синхронно.
-  const clientMeta = {
-    call: ['meeting_protocol', 'analytic_note', 'spin_review', 'deal_progression'],
-    meeting: ['meeting_protocol', 'analytic_note', 'deal_progression'],
-  };
-  if (!clientMeta[entityType]?.includes(presetKey)) {
+  if (bodyTranscriptId) {
+    const { data: transcript, error: trErr } = await supabase
+      .from('transcripts')
+      .select('id, entity_type, entity_id, content')
+      .eq('id', bodyTranscriptId)
+      .maybeSingle();
+    if (trErr) {
+      console.error('transcript load error:', trErr.message);
+      return json({ error: 'Не удалось загрузить транскрипт' }, 500);
+    }
+    if (!transcript) return json({ error: 'Транскрипт не найден' }, 404);
+    if (!isEntityType(transcript.entity_type)) {
+      return json({ error: 'Транскрипт указывает на неизвестный тип сущности' }, 400);
+    }
+    entityType = transcript.entity_type;
+    entityId = transcript.entity_id as string;
+    transcriptId = transcript.id as string;
+    transcriptContent = (transcript.content as string | null) ?? '';
+  } else {
+    entityType = bodyEntityType!;
+    entityId = bodyEntityId!;
+    const table = entityType === 'call' ? 'calls' : entityType === 'meeting' ? 'meetings' : 'projects';
+    const { data: entity, error: entErr } = await supabase
+      .from(table).select('id').eq('id', entityId).maybeSingle();
+    if (entErr) {
+      console.error('entity load error:', entErr.message);
+      return json({ error: 'Не удалось загрузить сущность' }, 500);
+    }
+    if (!entity) return json({ error: 'Сущность не найдена' }, 404);
+  }
+
+  // Пресет должен подходить типу сущности (SPIN — только для call, бриф/сводка —
+  // только для сделки). Источник истины — реестр PRESETS; зеркало entityTypes в
+  // src/lib/constants/ai-presets.ts правится синхронно.
+  if (!preset.entityTypes.includes(entityType)) {
     return json({ error: 'Пресет неприменим к этому типу сущности' }, 400);
   }
 
@@ -559,6 +918,20 @@ Deno.serve(async (req: Request) => {
       created_by: user.id,
     }).select('id').single();
 
+  /**
+   * B4 (085). Ключ активного прогона зависит от пути: по транскрипту — пара
+   * (transcript_id, preset_key) (uniq ux_ai_runs_active), по сущности —
+   * (entity_type, entity_id, preset_key) при transcript_id IS NULL
+   * (uniq ux_ai_runs_active_entity). `.eq('transcript_id', null)` в PostgREST не
+   * находит НИЧЕГО (NULL = NULL не true), поэтому для второго пути — `.is(…, null)`.
+   */
+  const activeRunQuery = () => {
+    const q = supabase.from('ai_runs').select('id, created_at').eq('preset_key', presetKey);
+    return transcriptId
+      ? q.eq('transcript_id', transcriptId)
+      : q.is('transcript_id', null).eq('entity_type', entityType).eq('entity_id', entityId);
+  };
+
   // INSERT ai_runs (pending). 23505 = уже есть активный прогон → анти-залипание.
   let runId: string | null = null;
   const first = await insertRun();
@@ -567,12 +940,8 @@ Deno.serve(async (req: Request) => {
       console.error('run insert error:', first.error.message);
       return json({ error: 'Не удалось запустить прогон' }, 500);
     }
-    // Достаём активный прогон этой пары (transcript, preset).
-    const { data: active } = await supabase
-      .from('ai_runs')
-      .select('id, created_at')
-      .eq('transcript_id', transcriptId)
-      .eq('preset_key', presetKey)
+    // Достаём активный прогон по ключу своего пути (см. activeRunQuery).
+    const { data: active } = await activeRunQuery()
       .in('status', ['pending', 'running'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -595,9 +964,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (!reclaimed) {
         // Кто-то реклеймнул раньше и, возможно, создал новый активный — вернём его.
-        const { data: fresh } = await supabase
-          .from('ai_runs').select('id')
-          .eq('transcript_id', transcriptId).eq('preset_key', presetKey)
+        const { data: fresh } = await activeRunQuery()
           .in('status', ['pending', 'running'])
           .order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (fresh) return json({ run_id: fresh.id, existing: true });
@@ -616,7 +983,7 @@ Deno.serve(async (req: Request) => {
 
   // Фоновое исполнение — ответ юзеру < 1 сек.
   EdgeRuntime.waitUntil(
-    processRun(supabase, apiKey, preset, runId, transcript.content ?? '', entityType, entityId),
+    processRun(supabase, apiKey, preset, runId, transcriptContent, entityType, entityId),
   );
 
   return json({ run_id: runId });

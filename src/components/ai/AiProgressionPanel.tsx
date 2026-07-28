@@ -66,6 +66,14 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
   const [pending, setPending] = useState(false);
   const [staleWarning, setStaleWarning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * D3 (S-R2-AI-HARDEN). `applied_at` приезжает из `run.result` после рефетча
+   * ai_runs — между успешным применением и рефетчем есть окно, в котором чекбоксы
+   * и кнопка снова кликабельны вхолостую (повторный клик получит AlreadyAppliedError).
+   * Локальный флаг закрывает окно сразу и, в отличие от точечных `disabled`,
+   * закрывает его СРАЗУ ДЛЯ ВСЕХ контролов — они все смотрят на isApplied.
+   */
+  const [appliedLocally, setAppliedLocally] = useState(false);
 
   const { data: project } = useProject(pickedProjectId ?? '');
 
@@ -83,8 +91,8 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
     );
   }
 
-  const { proposal, droppedFields, droppedTasks } = parsed;
-  const isApplied = !!proposal.applied_at;
+  const { proposal, droppedFields, droppedTasks, truncatedTasks } = parsed;
+  const isApplied = !!proposal.applied_at || appliedLocally;
 
   // Показываем только поля из whitelist, которые модель реально предложила.
   const offeredFields = PROGRESSION_FIELDS.filter(
@@ -125,6 +133,7 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
         force,
       });
       setStaleWarning(false);
+      setAppliedLocally(true); // D3: контролы гаснут сразу, не дожидаясь рефетча ai_runs
       qc.invalidateQueries({ queryKey: ['projects'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['ai_runs'] });
@@ -279,6 +288,15 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
           Модель вернула некорректные значения — часть предложения скрыта
           {droppedFields.length > 0 ? ` (полей: ${droppedFields.length})` : ''}
           {droppedTasks > 0 ? ` (задач: ${droppedTasks})` : ''}.
+        </p>
+      )}
+
+      {/* D1: усечение сверх лимита — отдельной строкой от «битых». Раньше 6-я задача
+          роняла разбор целиком и пользователь не видел ни одной. */}
+      {truncatedTasks > 0 && (
+        <p className="text-meta text-text-mute">
+          Модель вернула {proposal.tasks.length + truncatedTasks} задач — показаны первые{' '}
+          {proposal.tasks.length}.
         </p>
       )}
 

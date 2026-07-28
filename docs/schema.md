@@ -9,7 +9,7 @@
 > (**076 `20260726201039`, 077 `20260726201104`, 078 `20260727064832`, 079 `20260727075948`,
 > 080 `20260727191507`, 081 `20260727195810`, 082 `20260727201726`,
 > 083 `20260728075030`, 084 `20260728075144` — сверены по `schema_migrations` 2026-07-28**;
-> следующая свободная — **085**;
+> **085 (S-R2-AI-HARDEN) — НАПИСАНА, НЕ ПРИМЕНЕНА, ждёт гейта Cowork**; следующая свободная после неё — **086**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -664,7 +664,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 ---
 
-### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ)_ — AI Hub
+### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**)_ — AI Hub
 
 Транскрипт как самостоятельная сущность (1 транскрипт → N прогонов пресетов; нужен и
 звонкам, и встречам) + журнал AI-прогонов. Обе — **обычные tenant-таблицы**: `org_id`
@@ -693,9 +693,10 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 |---------|-----|---------|
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
-| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_; реестр в коде edge, **CHECK'а нет** — новый пресет DDL не требует, только редеплой функции) |
-| entity_type / entity_id | text / uuid | NOT NULL |
-| transcript_id | uuid | NOT NULL → transcripts ON DELETE CASCADE |
+| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_\|**`meeting_prep`**\|**`deal_summary`** _(085)_; реестр в коде edge, **CHECK'а на сам ключ нет** — но с 085 ключ участвует в `ai_runs_transcript_required`, поэтому пресет без транскрипта DDL уже требует) |
+| entity_type | text | NOT NULL CHECK `call`\|`meeting`\|**`project`** _(085 — сущность read-only пресетов по сделке)_ |
+| entity_id | uuid | NOT NULL |
+| transcript_id | uuid | **NULL допустим (085)** → transcripts ON DELETE CASCADE. CHECK `ai_runs_transcript_required`: `transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep','deal_summary')` — транскрипт обязателен там, где пресет без него бессмыслен (`meeting_protocol`, `spin_review`), и это дефолт для любого будущего ключа |
 | status | text | NOT NULL DEFAULT `pending` CHECK `pending`\|`running`\|`done`\|`error` |
 | result | jsonb | structured output пресета (рендерится ТОЛЬКО как текст) |
 | error | text | нейтральный текст при status=error |
@@ -710,7 +711,12 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 **Идемпотентность + анти-залипание**: partial unique `ux_ai_runs_active (transcript_id,
 preset_key) WHERE status IN ('pending','running')` — один активный прогон на пару
-(транскрипт, пресет); двойной клик/гонка → 23505. Зомби-прогон (isolate убит по
+(транскрипт, пресет); двойной клик/гонка → 23505. **085: второй partial unique
+`ux_ai_runs_active_entity (entity_type, entity_id, preset_key) WHERE transcript_id IS NULL
+AND status IN ('pending','running')`** — для безтранскриптного пути. Первый индекс на нём
+не работает: NULL в btree-uniq различимы (`NULLS DISTINCT` по умолчанию), и каждый клик
+плодил бы новый прогон. `NULLS NOT DISTINCT` на первом индексе не годится — схлопнул бы все
+безтранскриптные прогоны одного пресета по всей таблице в одну строку. Зомби-прогон (isolate убит по
 wall-clock, `catch` не выполнился) реклеймится в edge при 23505, если старше 10 мин:
 **условный CAS-UPDATE** `... WHERE status IN ('pending','running')` — гонка двух
 «Повторить» безопасна (кто первым сделал CAS, тот пересоздаёт; проигравший получает
@@ -718,14 +724,19 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 **RLS «по сущности»** (org-граница первым конъюнктом, initplan-обёртки `( SELECT ... )`):
 - `*_select` — `org_id = ( SELECT current_org_id() )` И **EXISTS-подзапрос** к
-  `calls`/`meetings` по `entity_id`. Подзапрос исполняется ПОД RLS calls/meetings →
+  `calls`/`meetings` по `entity_id` (**с 085 у `ai_runs_select` третья ветка — `projects`**).
+  Подзапрос исполняется ПОД RLS calls/meetings/projects →
   строка видна, только если пользователь реально видит родительскую сущность. Так
   «видит тот, кто видит звонок/встречу» реализовано **без дублирования**
   owner/admin/manager-логики (берётся транзитивно из RLS родителя).
 - `transcripts_insert` — `created_by = auth.uid()` + тот же EXISTS; `transcripts_delete`
-  — автор. `ai_runs_insert` — `created_by = auth.uid()` + EXISTS транскрипта той же
-  сущности (пишет edge под JWT). `ai_runs_update` — `owner`/`admin` ∨ автор (смена
-  статуса из edge + rating).
+  — автор. `ai_runs_update` — `owner`/`admin` ∨ автор (смена статуса из edge + rating).
+- **`ai_runs_insert` переписана в 085** — две ветки под два пути прогона:
+  `transcript_id IS NOT NULL` → EXISTS транскрипта ТОЙ ЖЕ сущности (как было);
+  `transcript_id IS NULL` → EXISTS самой сущности в `calls`/`meetings`/`projects`.
+  ⚠️ Без этой правки снятие `NOT NULL` было бы бесполезно: политика 030 требовала
+  EXISTS по `transcripts`, то есть INSERT с `transcript_id = NULL` отбивался бы
+  RLS (42501) при формально «разрешающей» схеме.
 
 **Realtime**: `ai_runs` в publication `supabase_realtime` — строка pending→running→done
 переезжает на клиент без поллинга (в хуке — страховка-refetch при активном прогоне на
@@ -2394,6 +2405,47 @@ exists pg_cron` (включено в 051).
   INSERT/DELETE под owner на `tasks` живы. На гейте же вскрыта ложно-красная метрика (см. раздел
   выше) — исправлена этим коммитом.
 
+- **085** _(S-R2-AI-HARDEN, R2-P1 — **НЕ применена, ждёт гейта Cowork**)_ — `ai_runs` учится
+  жить без транскрипта. Пять частей, ни одна не опциональна:
+  **(1)** `transcript_id` → nullable + CHECK `ai_runs_transcript_required`
+  (`transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep',
+  'deal_summary')`). Список — зеркало `needsTranscript` реестра edge; любой БУДУЩИЙ ключ по
+  умолчанию требует транскрипт, и это осознанный безопасный дефолт.
+  **(2)** `ai_runs_entity_type_check` расширен до `('call','meeting','project')` — бриф к встрече
+  готовится, когда встречи в CRM ещё нет, поэтому сущность брифа — сделка, а не встреча.
+  **(3)** ⚠️ **Перезапись RLS — то, чего в брифе спринта не было и без чего первые два пункта
+  бесполезны.** `ai_runs_insert` (030) требовала `EXISTS` по `transcripts` — INSERT с
+  `transcript_id = NULL` отбивался бы RLS (42501) при формально разрешающей схеме;
+  `ai_runs_select` знала только `call`/`meeting` — строка с `entity_type='project'` была бы
+  невидима, и прогон уходил бы в никуда. Обе переписаны: у INSERT две ветки под два пути,
+  у SELECT третья ветка `projects`. Ветвление по колонке, а не по роли — org-граница и
+  initplan-обёртки на месте, модель доступа прежняя («видит тот, кто видит родителя»).
+  **(4)** Второй partial unique `ux_ai_runs_active_entity (entity_type, entity_id, preset_key)
+  WHERE transcript_id IS NULL AND status IN ('pending','running')` — дедупликация активного
+  прогона для безтранскриптного пути. `ux_ai_runs_active` там не работает: NULL в btree-uniq
+  различимы. `NULLS NOT DISTINCT` на первом индексе НЕ годится — схлопнул бы все прогоны
+  одного пресета по всей таблице.
+  **(5)** `comment on column` для `transcript_id` и `entity_type`.
+  ⚠️ **FK `transcript_id` НЕ переведён на `ON DELETE SET NULL`** (в брифе это был пункт B3).
+  SET NULL столкнулся бы с CHECK из (1): удаление транскрипта обнулило бы `transcript_id` у
+  прогона `meeting_protocol` → CHECK нарушен → **упал бы сам DELETE транскрипта**, на первом же
+  случае. Каскад оставлен: удаление транскрипта сносит его прогоны, как и до 085 — существующее
+  поведение, не регрессия.
+  **Обратимость:** строк с `transcript_id IS NULL` и с `entity_type='project'` на момент написания
+  0 (обе величины запрещены схемой), откат выполним без потерь; порядок зачистки выписан в шапке
+  миграции, включая возврат политик в редакцию 030.
+  План смоуков гейта: **(a)** INSERT `ai_runs` с `transcript_id = NULL` под JWT рядового
+  участника проходит для `deal_progression` и падает для `meeting_protocol` (CHECK), **(b)** тот
+  же INSERT для несуществующей/чужой сущности → 42501 (новая ветка политики), **(c)** прогон с
+  `entity_type='project'` ВИДЕН в SELECT автору и участнику org, **(d)** два подряд INSERT
+  `(project, deal_summary, NULL)` в статусе pending → второй 23505 (новый индекс работает),
+  **(e)** DELETE транскрипта, у которого есть прогоны, не падает и уносит прогоны каскадом,
+  **(f)** прогон по транскрипту (старый путь) не изменился, **(g)** advisors без новых WARN,
+  повторный apply идемпотентен.
+  ⚠️ **Порядок обязателен: apply 085 → `npx supabase functions deploy ai-run` → фронт.**
+  В обратном порядке (edge задеплоен, 085 нет) INSERT с `transcript_id = null` падает на NOT NULL,
+  а `entity_type='project'` — на старом CHECK.
+
 ## Edge Functions
 
 ### `ai-summarize` _(S28)_ — AI-резюме звонка/встречи
@@ -2423,26 +2475,49 @@ exists pg_cron` (включено в 051).
   → invalidate `['calls']`/`['meetings']`; UI — `AiSummaryPanel` (кнопка Sparkles
   в CallModal/MeetingModal, блок результата, «Применить» → next_step).
 
-### `ai-run` _(S-AI-1)_ — generic AI-прогон пресета по транскрипту
+### `ai-run` _(S-AI-1; **085 — второй путь входа, два read-only пресета**)_ — generic AI-прогон пресета
 
 - **Стек:** Supabase Edge Function (Deno), `supabase/functions/ai-run/index.ts`. Тот же
   security-контур, что `ai-summarize` (клиент под JWT, RLS решает, service_role НЕ
   используется, `verify_jwt=true`).
-- **Вход:** `{preset_key: <из реестра>, transcript_id: uuid}` — строгая валидация, иначе
-  400. Транскрипт грузится под RLS, `entity_type`/`entity_id` берутся ИЗ него (телу
-  запроса не доверяем). Не нашлось → 404. Пресет должен подходить типу сущности (SPIN —
-  только call).
+- **Вход (085) — ДВА взаимоисключающих варианта**, строгая валидация, иначе 400:
+  `{preset_key, transcript_id}` — как было: транскрипт грузится под RLS,
+  `entity_type`/`entity_id` берутся ИЗ него (телу запроса не доверяем);
+  `{preset_key, entity_type, entity_id}` — прогон по полям сущности, транскрипта нет.
+  `entity_type` из тела проверяется **по whitelist** (`call`\|`meeting`\|`project`), затем
+  сущность читается под RLS. Пришло и то, и другое (либо ничего) → 400: приоритет
+  «угадывать» нельзя, у путей разный ключ дедупликации. Не нашлось → 404. Пресет должен
+  подходить типу сущности; пресет с `needsTranscript`, пришедший по второму пути, → **400
+  с внятным текстом**, а не 500 и не падение на CHECK `ai_runs_transcript_required`.
 - **Реестр пресетов — ТОЛЬКО в коде функции** (`PRESETS: Record<string,Preset>`):
   `meeting_protocol` / `analytic_note` (needsEntity — подгружает сделку/компанию в
-  `<data kind="entity">`) / `spin_review` / **`deal_progression`** (R2-P0-C, needsEntity).
+  `<data kind="entity">`) / `spin_review` / **`deal_progression`** (R2-P0-C, needsEntity) /
+  **`meeting_prep`** / **`deal_summary`** (085, оба needsEntity, оба на сущности `project`).
   У каждого: фикс. system с анти-injection преамбулой + свой tool (structured output) +
-  `maxInputChars` (120К) + `promptVersion`. Промпт в БД/на клиенте НЕ живёт
-  (injection-контур + QA-версионирование). Клиент знает только метаданные —
-  `src/lib/constants/ai-presets.ts`. **Соответствие пресет↔тип сущности продублировано**
-  в `clientMeta` внутри функции и в `entityTypes` реестра клиента — правится синхронно.
+  `maxInputChars` (120К) + `promptVersion` + **`needsTranscript`** + **`entityTypes`** (085).
+  Промпт в БД/на клиенте НЕ живёт (injection-контур + QA-версионирование). Клиент знает
+  только метаданные — `src/lib/constants/ai-presets.ts`.
+  ⚠️ **Что с чем обязано совпадать (085):** `entityTypes` реестра ↔ `entityTypes` клиента ↔
+  CHECK `ai_runs_entity_type_check`; `needsTranscript` реестра ↔ список пресетов в CHECK
+  `ai_runs_transcript_required`. Прежний `clientMeta` (отдельная карта внутри функции)
+  **снят** — соответствие пресет↔сущность живёт в самом реестре, местом меньше.
+  Синхронность держится не комментарием, а тестом `tests/unit/ai-presets-sync.test.ts`
+  (он читает SQL миграции и текст edge-файла).
+- **`meeting_prep` / `deal_summary` (085) — READ-ONLY по сделке.** Контекст собирает
+  `loadProjectBlock` под RLS: сделка (+ стадия), компания, контакт, последние 15 событий
+  ленты, а для брифа ещё до 20 открытых задач и до 5 порождённых проектов внедрения.
+  `payload` событий в промпт НЕ разворачивается — это недоверенный jsonb произвольной
+  формы, для контекста хватает типа события и даты. `proposal` не выставлен,
+  `stampProposal` не зовётся, в UI ни чекбоксов, ни «применить»: **write-back остаётся
+  привилегией одного `deal_progression`** — это инвариант, а не текущее состояние.
+  UI — `AiDealPanel`/`AiDealModal`, кнопка на карточке клиентской сделки + deep link
+  `?ai=1` (им же пользуется пункт палитры команд «AI по этой сделке»).
 - **`deal_progression` (R2-P0-C, S-R2-SDP-1) — Smart Deal Progression**, единственный
   пресет, чей вывод ПИШЕТСЯ в сделку (после явного подтверждения человеком).
-  `promptVersion: 1`, модель — sonnet, tool `submit_progression`.
+  **`promptVersion: 2` с 085** (правило «основание в транскрипте» → «основание в
+  переданных данных», чтобы прогон без транскрипта не возвращал пустоту; версия поднята
+  намеренно — прогоны v1 и v2 в журнале не сравниваются вслепую; у `analytic_note` та же
+  правка и та же причина), модель — sonnet, tool `submit_progression`.
   — **`version`/`source`/`target_project_id` модель не возвращает** — их штампует
   `stampProposal()` после ответа: `target_project_id` читается из `calls`/`meetings`
   под RLS, поэтому транскрипт не может подсунуть чужую сделку.
@@ -2465,7 +2540,18 @@ exists pg_cron` (включено в 051).
   RLS `ai_runs_update` это разрешает автору прогона (MERGE ключей, не литерал `result`).
   — **Audit trail (I4):** `activity_log` `'ai_progression_applied'`
   (`{run_id, source_entity_*, fields[], tasks, confidence}`); отдельной таблицы
-  «принятий» нет намеренно.
+  «принятий» нет намеренно. **085 (D4):** к агрегату добавлен `'task_created'` НА КАЖДУЮ
+  созданную задачу с `payload.source = 'ai_progression_applied'` + `run_id` — рукотворные
+  задачи такое событие дают, а AI-задачи не давали, и лента проекта показывала «задач: 3»
+  без единого следа, ЧТО это за задачи.
+  — **085 (D2):** `due_in_days` → дедлайн = **конец календарного дня по МСК**
+  (`mskDeadlineInDays`), а не «момент клика + N×24ч»: со старой арифметикой
+  `due_in_days: 0` давал задачу, просроченную через секунду после создания.
+  — **085 (D1):** лимит задач в Zod-схеме больше не `.max()` — 6-я задача роняла
+  `safeParse` целиком, и пользователь вместо пяти нормальных задач видел «модель вернула
+  некорректный ответ». Усечение делает `parseProposal`, счётчики разведены:
+  `droppedTasks` — только невалидные, `truncatedTasks` — только сверхлимитные, в панели
+  это две разные строки. То же снятие `.max()` у `risks`/`open_questions`.
 - **Секреты / модели:** `ANTHROPIC_API_KEY` (обязателен). Модели через env
   `AI_RUN_MODEL_SONNET` (дефолт `claude-sonnet-5`) / `AI_RUN_MODEL_HAIKU` (дефолт
   `claude-haiku-4-5-20251001`) — **смена модели без редеплоя**. Дефолтные строки сверять

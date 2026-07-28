@@ -126,13 +126,57 @@ describe('parseProposal — валидация ответа модели', () =>
     expect(parsed!.droppedTasks).toBe(1);
   });
 
-  it('режет список задач по maxItems', () => {
+  // D1 (S-R2-AI-HARDEN): раньше 6-я задача роняла safeParse и пользователь не видел
+  // НИ ОДНОЙ. Теперь лишнее усекается, а факт усечения виден в truncatedTasks.
+  it('усекает список задач по лимиту, а не отменяет предложение', () => {
     const parsed = parseProposal({
       ...base,
       tasks: Array.from({ length: 9 }, (_, i) => ({ text: `Задача ${i}` })),
     });
-    // > 5 задач — схема массива не проходит целиком, каркас невалиден
-    expect(parsed).toBeNull();
+    expect(parsed).not.toBeNull();
+    expect(parsed!.proposal.tasks).toHaveLength(5);
+    expect(parsed!.proposal.tasks[0].text).toBe('Задача 0');
+    expect(parsed!.truncatedTasks).toBe(4);
+    expect(parsed!.droppedTasks).toBe(0);
+  });
+
+  it('разводит droppedTasks (битые) и truncatedTasks (сверхлимитные)', () => {
+    // 7 задач, из которых 2 битые → 5 валидных, лимит 5 → усекать нечего.
+    const parsed = parseProposal({
+      ...base,
+      tasks: [
+        { text: 'A' }, { text: '' }, { text: 'B' }, { text: 'C' },
+        { text: 42 }, { text: 'D' }, { text: 'E' },
+      ],
+    });
+    expect(parsed!.droppedTasks).toBe(2);
+    expect(parsed!.truncatedTasks).toBe(0);
+    expect(parsed!.proposal.tasks.map((t) => t.text)).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  it('считает оба счётчика одновременно', () => {
+    // 9 задач, из которых 2 битые → 7 валидных, показываем 5, усечено 2.
+    const parsed = parseProposal({
+      ...base,
+      tasks: [
+        { text: 'A' }, { text: '' }, { text: 'B' }, { text: 'C' }, { text: null },
+        { text: 'D' }, { text: 'E' }, { text: 'F' }, { text: 'G' },
+      ],
+    });
+    expect(parsed!.droppedTasks).toBe(2);
+    expect(parsed!.truncatedTasks).toBe(2);
+    expect(parsed!.proposal.tasks).toHaveLength(5);
+  });
+
+  it('усекает risks/open_questions вместо отказа от всего предложения', () => {
+    const parsed = parseProposal({
+      ...base,
+      risks: Array.from({ length: 14 }, (_, i) => `Риск ${i}`),
+      open_questions: Array.from({ length: 13 }, (_, i) => `Вопрос ${i}`),
+    });
+    expect(parsed).not.toBeNull();
+    expect(parsed!.proposal.risks).toHaveLength(10);
+    expect(parsed!.proposal.open_questions).toHaveLength(10);
   });
 
   it('возвращает null на сломанном каркасе', () => {

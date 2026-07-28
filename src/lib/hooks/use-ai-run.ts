@@ -3,9 +3,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import type { AiEntityType } from '@/lib/constants/ai-presets';
 import type { AiRunRow, TranscriptRow, TranscriptInsert } from '@/types/database';
 
-export type AiRunEntity = 'call' | 'meeting';
+// 085: 'project' — сущность read-only пресетов по сделке.
+export type AiRunEntity = AiEntityType;
+
+/** Разбор ошибки invoke: edge отдаёт человеческий текст в теле, а не в error.message. */
+async function invokeErrorMessage(error: unknown, fallback: string): Promise<string> {
+  try {
+    const body = await (error as { context?: Response }).context?.json();
+    if (body?.error) return body.error as string;
+  } catch { /* нейтральное сообщение по умолчанию */ }
+  return fallback;
+}
 
 /** Последний транскрипт сущности (по created_at). */
 export function useTranscript(entityType: AiRunEntity, entityId: string | null) {
@@ -61,15 +72,39 @@ export function useEntityRuns(entityType: AiRunEntity, entityId: string | null) 
 }
 
 /**
- * Запуск прогона: upsert транскрипта (изменился текст → новый транскрипт, история прогонов
- * остаётся) → invoke edge `ai-run`. Ключ Anthropic на клиент не попадает.
+ * Запуск прогона.
+ *
+ * Два пути (085), выбор — по наличию текста транскрипта:
+ *  • текст есть → upsert транскрипта (изменился текст → новый транскрипт, история
+ *    прогонов остаётся) → invoke `{ preset_key, transcript_id }`;
+ *  • текста нет → транскрипт НЕ создаётся, invoke `{ preset_key, entity_type, entity_id }`
+ *    и прогон идёт по полям сущности. Пресет, которому транскрипт обязателен, edge
+ *    отобьёт четырёхсоткой с внятным текстом.
+ *
+ * Ключ Anthropic на клиент не попадает ни в одном из путей.
  */
 export function useStartRun(entityType: AiRunEntity, entityId: string) {
   const supabase = createClient();
   const qc = useQueryClient();
 
-  return useMutation<{ run_id: string }, Error, { preset_key: string; text: string }>({
+  return useMutation<{ run_id: string }, Error, { preset_key: string; text?: string }>({
     mutationFn: async ({ preset_key, text }) => {
+      // Путь «по сущности»: транскрипта нет и создавать его нечем.
+      if (!text || text.trim() === '') {
+        const { data, error } = await supabase.functions.invoke('ai-run', {
+          body: { preset_key, entity_type: entityType, entity_id: entityId },
+        });
+        if (error) throw new Error(await invokeErrorMessage(error, 'Не удалось запустить прогон'));
+        return data as { run_id: string };
+      }
+
+      // Транскрипт у сделки невозможен: `transcripts.entity_type` — только call|meeting
+      // (политика transcripts_insert проверяет EXISTS по calls/meetings). Сюда можно
+      // попасть только по ошибке вызывающего — падаем явно, а не пишем мусор.
+      if (entityType === 'project') {
+        throw new Error('К сделке нельзя привязать транскрипт — запускайте прогон без текста');
+      }
+
       // 1. upsert транскрипта: переиспользуем последний, если текст совпал, иначе новый.
       const { data: last } = await supabase
         .from('transcripts')
@@ -104,14 +139,7 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
       const { data, error } = await supabase.functions.invoke('ai-run', {
         body: { preset_key, transcript_id: transcriptId },
       });
-      if (error) {
-        let message = 'Не удалось запустить прогон';
-        try {
-          const body = await (error as { context?: Response }).context?.json();
-          if (body?.error) message = body.error;
-        } catch { /* нейтральное сообщение по умолчанию */ }
-        throw new Error(message);
-      }
+      if (error) throw new Error(await invokeErrorMessage(error, 'Не удалось запустить прогон'));
       return data as { run_id: string };
     },
     onSuccess: () => {

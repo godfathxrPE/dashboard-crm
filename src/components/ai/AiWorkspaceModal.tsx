@@ -43,6 +43,11 @@ export function AiWorkspaceModal({
     ? !!call?.agreements?.trim()
     : !!meeting?.notes?.trim();
 
+  // 085: «есть по чему работать без транскрипта» — заметки ИЛИ черновик следующего
+  // шага. Отдельно от hasNotes: тот управляет S28-резюме по заметкам, у него своя
+  // семантика, и расширять её «заодно» — менять чужую фичу.
+  const hasEntityNotes = hasNotes || !!(entityType === 'call' ? call?.next_step : meeting?.next_step)?.trim();
+
   const typeLabel = entityType === 'call' ? 'Звонок' : 'Встреча';
   const subject = entityType === 'call'
     ? (call?.company?.name ?? (call?.contact ? `${call.contact.first_name} ${call.contact.last_name}` : null))
@@ -90,6 +95,7 @@ export function AiWorkspaceModal({
             defaultContactId={call?.contact_id ?? meeting?.contact_id ?? contactId ?? null}
             defaultProjectId={call?.project_id ?? meeting?.project_id ?? projectId ?? null}
             focusProgression={focus === 'progression'}
+            hasEntityNotes={hasEntityNotes}
           />
         </div>
       </div>
