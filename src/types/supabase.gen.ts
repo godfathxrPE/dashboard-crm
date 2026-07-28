@@ -585,6 +585,63 @@ export type Database = {
           },
         ]
       }
+      checklist_templates: {
+        Row: {
+          checklist_type: string
+          created_at: string
+          created_by: string | null
+          delivery_kind: string | null
+          direction: Database["public"]["Enums"]["direction_t"] | null
+          id: string
+          is_active: boolean
+          items: Json
+          org_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_type: string
+          created_at?: string
+          created_by?: string | null
+          delivery_kind?: string | null
+          direction?: Database["public"]["Enums"]["direction_t"] | null
+          id?: string
+          is_active?: boolean
+          items?: Json
+          org_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_type?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_kind?: string | null
+          direction?: Database["public"]["Enums"]["direction_t"] | null
+          id?: string
+          is_active?: boolean
+          items?: Json
+          org_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -1606,6 +1663,67 @@ export type Database = {
           },
         ]
       }
+      project_checklists: {
+        Row: {
+          checklist_type: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          items: Json
+          org_id: string
+          project_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_type: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          org_id: string
+          project_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_type?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          items?: Json
+          org_id?: string
+          project_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_checklists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklists_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_columns: {
         Row: {
           category: string
@@ -2419,6 +2537,58 @@ export type Database = {
           },
         ]
       }
+      stage_transitions: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_stage_id: string | null
+          id: string
+          org_id: string
+          project_id: string
+          to_stage_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage_id?: string | null
+          id?: string
+          org_id: string
+          project_id: string
+          to_stage_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage_id?: string | null
+          id?: string
+          org_id?: string
+          project_id?: string
+          to_stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_transitions_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_transitions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_transitions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_dependencies: {
         Row: {
           created_at: string
@@ -2754,6 +2924,10 @@ export type Database = {
         Args: { p_project_id: string; p_target_stage_id: string }
         Returns: Json
       }
+      check_stage_requirements_row: {
+        Args: { p_project_id: string; p_row: Json; p_target_stage_id: string }
+        Returns: Json
+      }
       complete_onboarding: {
         Args: { p_full_name: string; p_job_title: string; p_phone: string }
         Returns: undefined
@@ -2788,6 +2962,14 @@ export type Database = {
         Args: { p_column_id: string; p_target_column_id?: string }
         Returns: undefined
       }
+      instantiate_project_checklists: {
+        Args: {
+          p_direction: Database["public"]["Enums"]["direction_t"]
+          p_kind: string
+          p_project_id: string
+        }
+        Returns: number
+      }
       is_meeting_attendee: { Args: { p_meeting_id: string }; Returns: boolean }
       is_org_member: { Args: { p_org: string }; Returns: boolean }
       is_project_member: { Args: { p_project_id: string }; Returns: boolean }
@@ -2809,6 +2991,7 @@ export type Database = {
         }
         Returns: string
       }
+      run_dwell_automations: { Args: never; Returns: undefined }
       run_overdue_automations: { Args: never; Returns: undefined }
       session_gate: { Args: never; Returns: Json }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
@@ -2841,6 +3024,19 @@ export type Database = {
           created: number
           week_start: string
         }[]
+      }
+      toggle_checklist_item: {
+        Args: { p_checked: boolean; p_checklist_id: string; p_item_key: string }
+        Returns: Json
+      }
+      wf_apply_project_action: {
+        Args: {
+          p_project_id: string
+          p_rule_id: string
+          p_run_id: string
+          p_trigger_key: string
+        }
+        Returns: undefined
       }
       wf_eval_conditions: {
         Args: { p_conds: Json; p_row: Json }

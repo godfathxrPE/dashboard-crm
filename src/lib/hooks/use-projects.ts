@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
-import type { UnmetRequirement } from '@/types/database';
+import type { OpenChecklistItem, UnmetRequirement } from '@/types/database';
 import type { OpenMilestone } from './use-delivery-gate';
 import { logActivity } from './use-activity-log';
 import { usePipelineStagesMap } from './use-pipelines';
@@ -32,18 +32,43 @@ export function parseStageGateError(err: unknown): UnmetRequirement[] | null {
 
 /**
  * Delivery P3: разбор отказа гейта завершения (триггер 038, тот же шаблон).
- * message === 'delivery_gate_failed' → DETAIL содержит jsonb-массив открытых
- * вех (shape open_milestones из check_delivery_completion). null — другая ошибка.
+ * message === 'delivery_gate_failed' → DETAIL. null — другая ошибка.
+ *
+ * ⚠️ Формат DETAIL сменился в 084 и парсер обязан пережить ОБА:
+ * - до 084 — голый jsonb-массив открытых вех;
+ * - с 084 — весь результат `check_delivery_completion`
+ *   (`{ready, open_milestones, open_checklist_items}`), потому что `ready` теперь может
+ *   быть false из-за чеклиста, и один массив вех рисовал бы «заблокировано, но закрывать
+ *   нечего».
+ * Между apply миграции и деплоем фронта есть окно — старый формат не выкидывается.
  */
-export function parseDeliveryGateError(err: unknown): OpenMilestone[] | null {
+export interface DeliveryGateFailure {
+  open_milestones: OpenMilestone[];
+  open_checklist_items: OpenChecklistItem[];
+}
+
+export function parseDeliveryGateError(err: unknown): DeliveryGateFailure | null {
   if (!err || typeof err !== 'object') return null;
   const e = err as { message?: string; details?: string | null };
   if (e.message !== 'delivery_gate_failed') return null;
+
+  const empty: DeliveryGateFailure = { open_milestones: [], open_checklist_items: [] };
   try {
-    const parsed = JSON.parse(e.details ?? '[]');
-    return Array.isArray(parsed) ? (parsed as OpenMilestone[]) : [];
+    const parsed: unknown = JSON.parse(e.details ?? '[]');
+    // Legacy-формат (до 084): DETAIL = массив вех.
+    if (Array.isArray(parsed)) {
+      return { open_milestones: parsed as OpenMilestone[], open_checklist_items: [] };
+    }
+    if (!parsed || typeof parsed !== 'object') return empty;
+    const p = parsed as { open_milestones?: unknown; open_checklist_items?: unknown };
+    return {
+      open_milestones: Array.isArray(p.open_milestones) ? (p.open_milestones as OpenMilestone[]) : [],
+      open_checklist_items: Array.isArray(p.open_checklist_items)
+        ? (p.open_checklist_items as OpenChecklistItem[])
+        : [],
+    };
   } catch {
-    return [];
+    return empty;
   }
 }
 

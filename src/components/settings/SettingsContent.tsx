@@ -7,6 +7,7 @@ import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { GatesSection } from '@/components/settings/GatesSection';
 import { AutomationsSection } from '@/components/settings/AutomationsSection';
+import { ChecklistTemplatesSection } from '@/components/settings/ChecklistTemplatesSection';
 import { OrgSettingsSection } from '@/components/settings/OrgSettingsSection';
 import { ProfileForm } from '@/components/settings/ProfileForm';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -105,6 +106,9 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Automations (owner/admin only) */}
         <AutomationsSection />
+
+        {/* Sign-off чеклисты внедрения (owner/admin only, R2-P1-G) */}
+        <ChecklistTemplatesSection />
 
         {/* Org settings — правит owner, остальные видят значение (R2-P0-D) */}
         <OrgSettingsSection />

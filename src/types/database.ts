@@ -578,3 +578,63 @@ export interface Segment extends Omit<SegmentRow, 'entity' | 'predicate'> {
   entity: SegmentEntity;
   predicate: SegmentPredicate;
 }
+
+// ═══ R2-P1-G: sign-off чеклисты внедрения (миграции 083/084, applied 2026-07-28) ═══
+// Доменные надстройки над строками `checklist_templates` / `project_checklists`.
+// Форма (новые колонки, nullability) приходит из регенерации — ручной слепок разъезжался
+// бы с БД. Уточняются три колонки, которые в БД `text` + CHECK, а в домене union:
+// `checklist_type`, `delivery_kind`, и `items` (jsonb → типизированный массив).
+// Зеркало Zod — src/lib/validators/checklist.ts (держать синхронно).
+
+export type ChecklistType = 'doc_review' | 'handover_support' | 'erp_stage_accept' | 'custom';
+
+/** Пункт ШАБЛОНА: только описание. `key` — стабильный slug, по нему идёт toggle. */
+export interface ChecklistTemplateItem {
+  key: string;
+  label: string;
+  /** required=true блокирует завершение внедрения (check_delivery_completion, 084). */
+  required: boolean;
+}
+
+/**
+ * Пункт ЭКЗЕМПЛЯРА: то же + отметка. `checked_by`/`checked_at` штампует СЕРВЕР
+ * (toggle_checklist_item, DEFINER) — клиент их никогда не передаёт и не подставляет
+ * оптимистично.
+ */
+export interface ChecklistItem extends ChecklistTemplateItem {
+  checked: boolean;
+  /** uuid профиля. */
+  checked_by: string | null;
+  /** ISO-строка UTC (to_char, не `::text` — грабля 079). */
+  checked_at: string | null;
+}
+
+type ChecklistTemplateRow = Database['public']['Tables']['checklist_templates']['Row'];
+type ProjectChecklistRow = Database['public']['Tables']['project_checklists']['Row'];
+
+/**
+ * Шаблон чеклиста. `direction` приходит из генерации как enum `direction_t` (null —
+ * любое направление); `delivery_kind` в БД `text` + CHECK, поэтому уточняется здесь.
+ */
+export interface ChecklistTemplate
+  extends Omit<ChecklistTemplateRow, 'checklist_type' | 'delivery_kind' | 'items'> {
+  checklist_type: ChecklistType;
+  /** null — к любому виду внедрения. */
+  delivery_kind: 'launch' | 'experiment' | null;
+  items: ChecklistTemplateItem[];
+}
+
+/** Экземпляр на проекте. `completed_at` не null ⇔ все required отмечены (084). */
+export interface ProjectChecklist extends Omit<ProjectChecklistRow, 'checklist_type' | 'items'> {
+  checklist_type: ChecklistType;
+  items: ChecklistItem[];
+}
+
+/** Элемент `open_checklist_items` из check_delivery_completion (084). */
+export interface OpenChecklistItem {
+  checklist_id: string;
+  /** Заголовок чеклиста, а не пункта. */
+  checklist: string;
+  key: string;
+  label: string;
+}

@@ -38,6 +38,7 @@ import { DealDeliveryHub } from './DealDeliveryHub';
 import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
 import { StageReadiness } from './StageReadiness';
+import { ProjectChecklists } from './ProjectChecklists';
 import { ProjectFiles } from './ProjectFiles';
 import { ProjectVideos } from './ProjectVideos';
 import { ProjectChat } from './ProjectChat';
@@ -575,6 +576,11 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           />
         </div>
       )}
+
+      {/* R2-P1-G: sign-off чеклисты внедрения (083/084) — рядом с фазовым гридом и вехами,
+          в одной зоне с тем, что гейт завершения проверяет. Компонент сам скрыт, если
+          чеклистов нет и добавить нечего. */}
+      {isDelivery && <ProjectChecklists project={project} />}
 
       {/* Focus panel — рабочая зона «что дальше»; только для активных сделок (client) */}
       {project.type === 'client' && project.status === 'open' && <DealFocusPanel project={project} />}

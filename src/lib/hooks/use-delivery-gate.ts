@@ -2,9 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import type { OpenChecklistItem } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
-// Delivery P3: гейт завершения проекта внедрения (миграция 038)
+// Delivery P3: гейт завершения проекта внедрения (миграция 038;
+// + незакрытые обязательные пункты sign-off чеклистов — 084, R2-P1-G)
 // ═══════════════════════════════════════════════════════
 
 /** Открытая веха приёмки — элемент open_milestones из check_delivery_completion */
@@ -19,16 +21,28 @@ export interface OpenMilestone {
 export interface DeliveryGateResult {
   ready: boolean;
   open_milestones: OpenMilestone[];
+  /**
+   * 084: неотмеченные обязательные пункты чеклистов проекта. Проект без чеклистов
+   * (все три существующих внедрения — бэкфилла не было) отдаёт пустой массив, и
+   * `ready` считается ровно как до 084.
+   */
+  open_checklist_items: OpenChecklistItem[];
 }
 
 /** Narrowing ответа RPC (jsonb приходит как unknown — образец useStageGate) */
 function parseGateResult(data: unknown): DeliveryGateResult {
-  if (!data || typeof data !== 'object') return { ready: false, open_milestones: [] };
-  const d = data as { ready?: unknown; open_milestones?: unknown };
+  if (!data || typeof data !== 'object') {
+    return { ready: false, open_milestones: [], open_checklist_items: [] };
+  }
+  const d = data as { ready?: unknown; open_milestones?: unknown; open_checklist_items?: unknown };
   return {
     ready: d.ready === true,
     open_milestones: Array.isArray(d.open_milestones)
       ? (d.open_milestones as OpenMilestone[])
+      : [],
+    // Ключа нет, если фронт обогнал apply 084 — пустой список, а не падение.
+    open_checklist_items: Array.isArray(d.open_checklist_items)
+      ? (d.open_checklist_items as OpenChecklistItem[])
       : [],
   };
 }
