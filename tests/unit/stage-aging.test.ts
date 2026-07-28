@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { getStageAging, compareByNextAction } from '@/lib/utils/deal-health';
+import { getStageAging, compareByNextAction, resolveDwellThreshold } from '@/lib/utils/deal-health';
 
 // S-AGING-1 — регрессия чистых функций stage-aging + дефолтной сортировки.
 // Фиксированный `now` + относительные даты, чтобы тесты не зависели от прогона.
@@ -11,43 +11,99 @@ const dateInDays = (n: number) =>
 
 describe('getStageAging — возраст в стадии + флаг «залипла»', () => {
   test('null-дата → daysInStage null, не stale', () => {
-    expect(getStageAging(null, 'working', NOW)).toEqual({ daysInStage: null, isStale: false });
+    expect(getStageAging(null, 'working', { now: NOW })).toEqual({ daysInStage: null, isStale: false });
   });
 
   test('невалидная дата → null, не stale', () => {
-    expect(getStageAging('не-дата', 'working', NOW)).toEqual({ daysInStage: null, isStale: false });
+    expect(getStageAging('не-дата', 'working', { now: NOW })).toEqual({ daysInStage: null, isStale: false });
   });
 
   test('сегодня → 0 дней, не stale', () => {
-    const a = getStageAging(daysAgo(0), 'attraction', NOW);
+    const a = getStageAging(daysAgo(0), 'attraction', { now: NOW });
     expect(a.daysInStage).toBe(0);
     expect(a.isStale).toBe(false);
   });
 
   test('attraction: порог 14 — на 14 не stale, на 15 stale', () => {
-    expect(getStageAging(daysAgo(14), 'attraction', NOW).isStale).toBe(false);
-    expect(getStageAging(daysAgo(15), 'attraction', NOW).isStale).toBe(true);
+    expect(getStageAging(daysAgo(14), 'attraction', { now: NOW }).isStale).toBe(false);
+    expect(getStageAging(daysAgo(15), 'attraction', { now: NOW }).isStale).toBe(true);
   });
 
   test('working: порог 21 — на 21 не stale, на 22 stale', () => {
-    expect(getStageAging(daysAgo(21), 'working', NOW).isStale).toBe(false);
-    expect(getStageAging(daysAgo(22), 'working', NOW).isStale).toBe(true);
+    expect(getStageAging(daysAgo(21), 'working', { now: NOW }).isStale).toBe(false);
+    expect(getStageAging(daysAgo(22), 'working', { now: NOW }).isStale).toBe(true);
   });
 
   test('approval: порог 21', () => {
-    expect(getStageAging(daysAgo(21), 'approval', NOW).isStale).toBe(false);
-    expect(getStageAging(daysAgo(22), 'approval', NOW).isStale).toBe(true);
+    expect(getStageAging(daysAgo(21), 'approval', { now: NOW }).isStale).toBe(false);
+    expect(getStageAging(daysAgo(22), 'approval', { now: NOW }).isStale).toBe(true);
   });
 
   test('closing: порог 30 — на 30 не stale, на 31 stale', () => {
-    expect(getStageAging(daysAgo(30), 'closing', NOW).isStale).toBe(false);
-    expect(getStageAging(daysAgo(31), 'closing', NOW).isStale).toBe(true);
+    expect(getStageAging(daysAgo(30), 'closing', { now: NOW }).isStale).toBe(false);
+    expect(getStageAging(daysAgo(31), 'closing', { now: NOW }).isStale).toBe(true);
   });
 
   test('неизвестная/пустая phase_group → дефолтный порог 21', () => {
-    expect(getStageAging(daysAgo(21), null, NOW).isStale).toBe(false);
-    expect(getStageAging(daysAgo(22), null, NOW).isStale).toBe(true);
-    expect(getStageAging(daysAgo(22), 'wat', NOW).isStale).toBe(true);
+    expect(getStageAging(daysAgo(21), null, { now: NOW }).isStale).toBe(false);
+    expect(getStageAging(daysAgo(22), null, { now: NOW }).isStale).toBe(true);
+    expect(getStageAging(daysAgo(22), 'wat', { now: NOW }).isStale).toBe(true);
+  });
+});
+
+// S-R2-DWELL-CFG — порог приезжает из organizations.settings.stage_dwell_defaults.
+describe('resolveDwellThreshold — приоритет источников порога', () => {
+  test('пустые настройки ⇒ хардкод-фолбэк (контракт обратной совместимости)', () => {
+    expect(resolveDwellThreshold('attraction', {})).toBe(14);
+    expect(resolveDwellThreshold('working', {})).toBe(21);
+    expect(resolveDwellThreshold('approval', {})).toBe(21);
+    expect(resolveDwellThreshold('closing', {})).toBe(30);
+    expect(resolveDwellThreshold(null, {})).toBe(21);
+    expect(resolveDwellThreshold('новая_группа', {})).toBe(21);
+  });
+
+  test('настроек нет вовсе (undefined) ⇒ тот же фолбэк', () => {
+    expect(resolveDwellThreshold('attraction')).toBe(14);
+    expect(resolveDwellThreshold(null)).toBe(21);
+  });
+
+  test('значение группы важнее default, default важнее хардкода', () => {
+    expect(resolveDwellThreshold('working', { working: 7 })).toBe(7);
+    expect(resolveDwellThreshold('working', { default: 5 })).toBe(5);
+    expect(resolveDwellThreshold('working', { working: 7, default: 5 })).toBe(7);
+  });
+
+  test('default покрывает группу без своего значения, чужая группа не влияет', () => {
+    expect(resolveDwellThreshold('approval', { working: 7 })).toBe(21);
+    expect(resolveDwellThreshold('новая_группа', { default: 9 })).toBe(9);
+    // null-группа не должна ловить ключ '' из настроек
+    expect(resolveDwellThreshold(null, { '': 3 })).toBe(21);
+  });
+
+  test('undefined-значение ключа проваливается дальше по цепочке, а не в NaN', () => {
+    expect(resolveDwellThreshold('working', { working: undefined })).toBe(21);
+    expect(resolveDwellThreshold('working', { working: undefined, default: 5 })).toBe(5);
+  });
+});
+
+describe('getStageAging — пороги организации', () => {
+  test('порог из настроек побеждает хардкод', () => {
+    // attraction по хардкоду 14 — на 10 днях не stale; с порогом 7 становится stale
+    expect(getStageAging(daysAgo(10), 'attraction', { now: NOW }).isStale).toBe(false);
+    expect(
+      getStageAging(daysAgo(10), 'attraction', { now: NOW, thresholds: { attraction: 7 } }).isStale,
+    ).toBe(true);
+  });
+
+  test('пустые пороги ⇒ прежнее поведение', () => {
+    expect(getStageAging(daysAgo(15), 'attraction', { now: NOW, thresholds: {} }).isStale).toBe(true);
+    expect(getStageAging(daysAgo(14), 'attraction', { now: NOW, thresholds: {} }).isStale).toBe(false);
+  });
+
+  test('daysInStage не зависит от порога', () => {
+    expect(
+      getStageAging(daysAgo(40), 'working', { now: NOW, thresholds: { working: 3 } }).daysInStage,
+    ).toBe(40);
   });
 });
 

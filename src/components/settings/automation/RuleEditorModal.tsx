@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react';
 import { Modal } from '@/components/shared/Modal';
 import { Combobox } from '@/components/shared/Combobox';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { useDwellThresholds } from '@/lib/hooks/use-org-settings';
 import {
   useCreateAutomationRule,
   useUpdateAutomationRule,
@@ -182,6 +183,7 @@ export function RuleEditorModal({
 }) {
   const { data: pipelines = [] } = usePipelines();
   const { data: allStages = [] } = usePipelineStages();
+  const dwellThresholds = useDwellThresholds();
   const create = useCreateAutomationRule();
   const update = useUpdateAutomationRule();
 
@@ -207,6 +209,10 @@ export function RuleEditorModal({
 
   const isOverdue = triggerType === 'task_overdue';
   const isDwell = triggerType === 'days_in_stage';
+  // Подсказка-плейсхолдер порога (S-R2-DWELL-CFG). СВЯЗКИ НЕТ: норматив бейджа и порог
+  // правила независимы — бейдж отвечает «на что смотреть», правило «когда пнуть».
+  // Плейсхолдер лишь показывает норматив org, чтобы пороги не разошлись по недосмотру.
+  const dwellHint = dwellThresholds.default ?? AUTOMATION_DWELL_MIN_DAYS;
   // Поля условий: task_overdue матчит по полям ЗАДАЧИ, остальные — по projects
   // (days_in_stage — тоже projects, планировщик 079 зовёт общую часть действий).
   const fieldOptions = isOverdue ? AUTOMATION_TASK_FIELD_OPTIONS : AUTOMATION_FIELD_OPTIONS;
@@ -428,6 +434,7 @@ export function RuleEditorModal({
                       type="number"
                       min={AUTOMATION_DWELL_MIN_DAYS}
                       max={AUTOMATION_DWELL_MAX_DAYS}
+                      placeholder={String(dwellHint)}
                       {...register('t_min_days')}
                       className={selectCls}
                     />

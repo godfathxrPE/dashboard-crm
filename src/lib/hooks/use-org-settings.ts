@@ -4,9 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
 import { parseOrgSettings } from '@/lib/validators/org-settings';
+import type { DwellThresholds } from '@/lib/utils/deal-health';
 import type { Json, OrgSettings } from '@/types/database';
 
 const QUERY_KEY = ['org-settings'] as const;
+
+// Стабильная ссылка на «настроек нет» — новый литерал на каждый рендер ломал бы
+// мемоизацию у потребителей.
+const EMPTY_THRESHOLDS: DwellThresholds = {};
 
 /**
  * Настройки текущей организации (`organizations.settings`, миграция 076).
@@ -84,4 +89,14 @@ export function useUpdateOrgSettings() {
 export function useReconnectDays(): number {
   const { data } = useOrgSettings();
   return data?.reconnect_days ?? DEFAULT_RECONNECT_DAYS;
+}
+
+/**
+ * Пороги «залипания в стадии» организации (S-R2-DWELL-CFG). Пустой объект — валидное
+ * значение: `resolveDwellThreshold` падает на хардкод-фолбэк `STALE_BY_PHASE`, то есть
+ * ненастроенная org видит ровно прежние бейджи.
+ */
+export function useDwellThresholds(): DwellThresholds {
+  const { data } = useOrgSettings();
+  return data?.stage_dwell_defaults ?? EMPTY_THRESHOLDS;
 }
