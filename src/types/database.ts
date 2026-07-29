@@ -413,15 +413,16 @@ export interface AutomationRun {
 }
 
 // ═══ Sprint S-R2-WEBHOOK-TRANSPORT (миграции 088/089): исходящие вебхуки ═══
-// ⚠️ СТАБ ДО РЕГЕНЕРАЦИИ: 088 ещё не применена, поэтому webhook_endpoints /
-//    webhook_deliveries отсутствуют в supabase.gen.ts. Row-типы ниже — рукописные
-//    леса; после apply + `npm run db:gen-types` они заменяются на
-//    `Tables<'webhook_endpoints'>` / `Tables<'webhook_deliveries'>`, а стаб схемы
-//    в use-webhook-endpoints.ts удаляется целиком (образец — снятие стабов
-//    Segment*/Checklist* после 077 и 083/084).
+// Доменные надстройки над строками `webhook_endpoints` / `webhook_deliveries`.
+// Форма (новые колонки, nullability) приходит из регенерации — 088 применена в прод
+// 2026-07-29 (`20260729143305` + `20260729143728` перерегистрация pg_net), типы
+// перегенерены, леса сняты.
 //
 // В спринте 1 движок автоматизаций к вебхукам НЕ подключён: единственный вход в
 // очередь — send_test_webhook (event 'webhook.test'). action_type='webhook' — спринт 2.
+
+type WebhookEndpointRow = Database['public']['Tables']['webhook_endpoints']['Row'];
+type WebhookDeliveryRow = Database['public']['Tables']['webhook_deliveries']['Row'];
 
 /** Жизненный цикл доставки (CHECK `webhook_deliveries_status_check`, 088). */
 export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'dropped';
@@ -429,42 +430,19 @@ export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'droppe
 /**
  * Получатель исходящих вебхуков.
  *
- * ⚠️ Поля с секретом здесь НЕТ и быть не может: в таблице лежит только `secret_id`
- *    (ссылка в vault.secrets), а сам секрет отдаётся один раз при создании и при
- *    ротации. `secret_id` в домен не выносим — приложению он не нужен ни для чего.
+ * ⚠️ `secret_id` вырезан из домена НАМЕРЕННО, и это не косметика: приложению он не
+ *    нужен ни для чего, а его присутствие в типе — приглашение однажды показать
+ *    ссылку на секрет в UI. Самого секрета в таблице нет вовсе (он в vault.secrets),
+ *    наружу он выходит ровно дважды — при создании и при ротации.
  */
-export interface WebhookEndpoint {
-  id: string;
-  org_id: string;
-  name: string;
-  url: string;
-  is_active: boolean;
-  description: string | null;
-  last_delivery_at: string | null;
-  last_status_code: number | null;
-  consecutive_failures: number;
-  disabled_reason: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type WebhookEndpoint = Omit<WebhookEndpointRow, 'secret_id'>;
 
-/** Строка очереди и журнала доставок. `id` = заголовок X-Torii-Delivery у получателя. */
-export interface WebhookDelivery {
-  id: string;
-  org_id: string;
-  endpoint_id: string;
-  rule_id: string | null;              // null у тестовых отправок
-  event: string;                       // доменное имя: 'webhook.test', 'deal.stage_changed', …
-  payload: Json;
+/**
+ * Строка очереди и журнала доставок. `id` = заголовок X-Torii-Delivery у получателя.
+ * `status` в БД — `text` + CHECK (не enum), поэтому домен уточняет его до union.
+ */
+export interface WebhookDelivery extends Omit<WebhookDeliveryRow, 'status'> {
   status: WebhookDeliveryStatus;
-  attempt: number;
-  next_retry_at: string | null;
-  response_status: number | null;
-  response_body: string | null;
-  error: string | null;
-  created_at: string;
-  delivered_at: string | null;
 }
 
 /** Результат create_webhook_endpoint — секрет виден РОВНО ЗДЕСЬ и больше нигде. */

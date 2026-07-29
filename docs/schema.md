@@ -16,12 +16,15 @@
 > новых замечаний, смоки 8–12 пройдены); колонок и таблиц не
 > добавляет (⇒ реген типов не нужен) — функция `log_project_field_audit()` + триггер
 > `trg_zy_log_field_audit` на `projects` + индекс `idx_activity_log_org_created`;
-> **088/089 (S-R2-WEBHOOK-TRANSPORT, эпик B2) — НАПИСАНЫ, НЕ ПРИМЕНЕНЫ**; 088 ставит
-> расширение **`pg_net`** (первое HTTP-расширение проекта) и заводит `webhook_endpoints` /
-> `webhook_deliveries` + 7 RPC + шестое значение `notifications.type`; 089 — тик
-> `dispatch_webhooks_tick()` и **первая минутная cron-джоба** `webhook-retry`.
-> ⚠️ **Порядок деплоя: 088 → deploy edge `webhook-dispatch` → 089 → фронт** (089 содержит
-> вызов функции). Реген типов после 088 обязателен — две новые таблицы;
+> **088 (S-R2-WEBHOOK-TRANSPORT, эпик B2) — ПРИМЕНЕНА `20260729143305`**, следом
+> **`20260729143728 webhook_transport_pgnet_schema_fix` (088a)** — перерегистрация `pg_net`
+> из `public` в `extensions` по advisor'у `extension_in_public`; **файла 088a в репо нет**
+> (прецедент 047), в 088 это учтено через `create extension ... with schema extensions`.
+> Ставит **`pg_net`** (первое HTTP-расширение проекта), заводит `webhook_endpoints` /
+> `webhook_deliveries` + 7 RPC + шестое значение `notifications.type`. Типы перегенерены,
+> стабы сняты. **089 — НАПИСАНА, НЕ ПРИМЕНЕНА**: тик `dispatch_webhooks_tick()` и
+> **первая минутная cron-джоба** `webhook-retry`, ждёт деплоя edge `webhook-dispatch`.
+> ⚠️ **Порядок: 088 ✓ → deploy edge → 089 → фронт** (089 содержит вызов функции);
 > следующая свободная — **090**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -492,7 +495,7 @@ membership создаётся при signup по совпадению email (`ap
 **RLS**: `inv_select`/`inv_insert`/`inv_delete` — `org_id = current_org_id()` И
 `current_org_role() IN ('owner','admin')`.
 
-### notifications _(026, applied; +045 `deal_won`; +050 `automation`; +079 `spawn_suggest`; **+088 `webhook_disabled` — написана, не применена**)_ — уведомления «тебе назначили»
+### notifications _(026, applied; +045 `deal_won`; +050 `automation`; +079 `spawn_suggest`; **+088 `webhook_disabled`, applied 2026-07-29**)_ — уведомления «тебе назначили»
 v1: `task_assigned` (task.assigned_to) / `project_assigned` (project.owner_id);
 _045_: `deal_won` (сделка выиграна → owner); _050_: `automation` (действие
 `notify` Workflow Engine → owner/creator, `entity_type='projects'`); _051_: `automation`
@@ -762,7 +765,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ---
 
-### webhook_endpoints / webhook_deliveries _(088, S-R2-WEBHOOK-TRANSPORT, эпик B2 — **написаны, НЕ применены**)_ — исходящие вебхуки
+### webhook_endpoints / webhook_deliveries _(088, S-R2-WEBHOOK-TRANSPORT, эпик B2 — **applied 2026-07-29 `20260729143305`**)_ — исходящие вебхуки
 
 Транспорт отделён от движка правил намеренно: в спринте 1 единственный вход в очередь —
 `send_test_webhook` (`event = 'webhook.test'`). `action_type='webhook'` и ветка в
@@ -2610,27 +2613,33 @@ exists pg_cron` (включено в 051).
   service-контекста (мимо UI) → запись есть, `user_id = null` — **главный тест смысла эпика**;
   **(g)** advisors без новых WARN, повторный apply идемпотентен.
 
-- **088** _(S-R2-WEBHOOK-TRANSPORT, R2-P2, эпик B2 — **НЕ применена, ждёт гейта Cowork**)_ —
+- **088** _(S-R2-WEBHOOK-TRANSPORT, R2-P2, эпик B2 — **applied 2026-07-29 `20260729143305`**;
+  гейт зелёный: Vault, RLS, ролевые отказы, захват очереди с лизингом, авто-отключение с
+  уведомлением, ротация и удаление секрета)_ —
   транспорт исходящих вебхуков: `create extension pg_net`, таблицы `webhook_endpoints` /
   `webhook_deliveries` (описаны выше), семь RPC, шестое значение `notifications_type_check`.
-  **НЕ аддитивна для типов**: две новые таблицы ⇒ после apply обязателен реген
-  (`npm run db:gen-types`, **CLI, не MCP** — MCP не отдаёт блок `graphql_public`), и вместе с
-  ним снимаются леса `DatabaseWithWebhooks` в `use-webhook-endpoints.ts` и рукописные Row-типы
-  в `types/database.ts`.
-  ⚠️ **Два `NOT_VERIFIED` до гейта.** Первый — доступность `vault.create_secret` из миграции
-  под `postgres`: Vault 0.3.1 установлен, но в проекте не использован ни разу. Проверка первым
-  делом после apply — `select vault.create_secret('probe-value','probe_'||gen_random_uuid()::text,'проба');`
-  затем `select name, decrypted_secret from vault.decrypted_secrets where name like 'probe_%';`
-  и `delete from vault.secrets where name like 'probe_%';`. Если недоступно — план Б §4.2
-  арх-дока (ciphertext в колонке + `pgp_sym_encrypt` ключом из Function Secrets). Второй —
-  установка `pg_net` под `postgres`: при отказе по правам включать через Dashboard → Database →
-  Extensions (прецедент `pg_cron`, `051:128-129`), проверка
-  `select count(*) from pg_extension where extname='pg_net'` → 1.
+  **НЕ аддитивна для типов**: две новые таблицы ⇒ реген выполнен CLI 2026-07-29
+  (**CLI, не MCP** — MCP не отдаёт блок `graphql_public`), леса `DatabaseWithWebhooks` в
+  `use-webhook-endpoints.ts` и рукописные Row-типы в `types/database.ts` сняты.
+  ✅ **Оба `NOT_VERIFIED` закрыты гейтом.** `vault.create_secret` из миграции под `postgres`
+  работает (Vault 0.3.1, первое использование в проекте). `pg_net` встал без ручного
+  включения через Dashboard.
+  ⚠️ **Грабля `pg_net`, стоившая отдельной миграции.** «Объекты в схеме `net`» и
+  «регистрация расширения» — РАЗНЫЕ вещи. `extrelocatable = false` гарантирует первое
+  (`net.http_post` есть всегда, и 089 править не нужно), но БЕЗ `with schema extensions`
+  расширение регистрируется в `public`, и advisor поднимает `extension_in_public`.
+  Исходный файл 088 писался с ошибочным комментарием «`with schema` писать не нужно (и
+  нельзя — упадёт)» — `with schema extensions` не падает, проверено на проде.
+  Перерегистрация возможна, только пока зависимостей ноль: после 089 `drop extension`
+  утащил бы `dispatch_webhooks_tick`. Проверка:
+  `select extnamespace::regnamespace from pg_extension where extname='pg_net'` → `extensions`.
+  ⚠️ **НЕ переписывать вызовы на `extensions.http_post`** — такой функции не существует.
   **Обратимость:** drop обеих таблиц + 7 функций + `drop extension pg_net` + возврат
   `notifications_type_check` к редакции 079. Только ПОСЛЕ отката 089. Секреты, заведённые в
   Vault, откатом не удаляются — снимать вручную по имени `webhook_%`.
 
-- **089** _(S-R2-WEBHOOK-TRANSPORT — **НЕ применена; применять ТОЛЬКО после деплоя edge**)_ —
+- **089** _(S-R2-WEBHOOK-TRANSPORT — **НЕ применена; применять ТОЛЬКО после деплоя edge**;
+  на 2026-07-29 это единственная неприменённая миграция)_ —
   `dispatch_webhooks_tick()` (DEFINER, `service_role`) + cron **`webhook-retry` `* * * * *`**.
   **Первая минутная джоба в проекте**; остальные три суточные и разведены по минутам
   (06:00 / 06:05 / 06:10). Цена частоты оплачена телом: при пустой очереди это один

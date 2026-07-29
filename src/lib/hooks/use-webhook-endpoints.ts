@@ -1,11 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import type {
-  Database,
-  Json,
+  Tables,
   WebhookDelivery,
   WebhookDeliveryStatus,
   WebhookEndpoint,
@@ -25,115 +23,31 @@ import type {
  *    react-query, ни в состояние списка он не кладётся: живёт в локальном стейте
  *    модалки до её закрытия. Поведение GitHub/Stripe, и в UI это сказано словами.
  *
- * ⚠️ СТАБ СХЕМЫ ДО РЕГЕНЕРАЦИИ. 088 применяется на гейте, а код пишется до, так что
- *    таблиц и функций ещё нет в `supabase.gen.ts`. После apply + `npm run db:gen-types`
- *    стаб и `webhooksClient()` удаляются, вместо них — `createClient()` напрямую.
- *
- *    ⚠️⚠️ Стаб объявлен через `type`, а НЕ `interface`. postgrest-js требует
- *    `Row extends Record<string, unknown>`; `interface` неявной index signature не
- *    получает, констрейнт `GenericTable` не выполняется, и `.insert()/.update()/.rpc()`
- *    схлопываются в `never`/`undefined` с сообщением, которое на index signature не
- *    намекает никак. На этом уже потерян час в S-R2-SIGNOFF-1 — не «причёсывать».
- *
  * Ключи кеша без org_id — конвенция проекта (use-segments / use-automation-rules):
  * смена организации означает перелогин, кеш поднимается заново.
  */
 
 // ═══════════════════════════════════════════════════════
-// Стаб схемы до регенерации
-// ═══════════════════════════════════════════════════════
-
-type WebhookEndpointRowDb = {
-  id: string;
-  org_id: string;
-  name: string;
-  url: string;
-  secret_id: string;
-  is_active: boolean;
-  description: string | null;
-  last_delivery_at: string | null;
-  last_status_code: number | null;
-  consecutive_failures: number;
-  disabled_reason: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type WebhookDeliveryRowDb = {
-  id: string;
-  org_id: string;
-  endpoint_id: string;
-  rule_id: string | null;
-  event: string;
-  payload: Json;
-  status: string;
-  attempt: number;
-  next_retry_at: string | null;
-  response_status: number | null;
-  response_body: string | null;
-  error: string | null;
-  created_at: string;
-  delivered_at: string | null;
-};
-
-type DatabaseWithWebhooks = Omit<Database, 'public'> & {
-  public: Omit<Database['public'], 'Tables' | 'Functions'> & {
-    Tables: Database['public']['Tables'] & {
-      webhook_endpoints: {
-        Row: WebhookEndpointRowDb;
-        Insert: Partial<WebhookEndpointRowDb>;
-        Update: Partial<WebhookEndpointRowDb>;
-        Relationships: [];
-      };
-      webhook_deliveries: {
-        Row: WebhookDeliveryRowDb;
-        Insert: Partial<WebhookDeliveryRowDb>;
-        Update: Partial<WebhookDeliveryRowDb>;
-        Relationships: [];
-      };
-    };
-    Functions: Database['public']['Functions'] & {
-      create_webhook_endpoint: {
-        Args: { p_name: string; p_url: string; p_description?: string | null };
-        Returns: { endpoint_id: string; secret: string }[];
-      };
-      rotate_webhook_secret: { Args: { p_endpoint_id: string }; Returns: string };
-      delete_webhook_endpoint: { Args: { p_endpoint_id: string }; Returns: undefined };
-      send_test_webhook: { Args: { p_endpoint_id: string }; Returns: string };
-    };
-  };
-};
-
-function webhooksClient(): SupabaseClient<DatabaseWithWebhooks> {
-  return createClient() as unknown as SupabaseClient<DatabaseWithWebhooks>;
-}
-
-// ═══════════════════════════════════════════════════════
 // Row → домен
 // ═══════════════════════════════════════════════════════
+// 088 применена 2026-07-29, типы перегенерены — стаб схемы `DatabaseWithWebhooks`
+// и обёртка `webhooksClient()` сняты, клиент берётся напрямую.
 
-/** `secret_id` в домен НЕ выносим: приложению он не нужен ни для чего. */
-function toEndpoint(row: WebhookEndpointRowDb): WebhookEndpoint {
-  return {
-    id: row.id,
-    org_id: row.org_id,
-    name: row.name,
-    url: row.url,
-    is_active: row.is_active,
-    description: row.description,
-    last_delivery_at: row.last_delivery_at,
-    last_status_code: row.last_status_code,
-    consecutive_failures: row.consecutive_failures,
-    disabled_reason: row.disabled_reason,
-    created_by: row.created_by,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  };
-}
+/**
+ * `secret_id` не доезжает до домена (см. тип `WebhookEndpoint`), поэтому колонки
+ * перечислены в `select` явно: `select('*')` тянул бы его в память приложения без
+ * единого потребителя.
+ *
+ * ⚠️ Одной строкой, без склейки через `+`. postgrest выводит форму результата из
+ *    ЛИТЕРАЛЬНОГО типа аргумента `select`, а конкатенация расширяет его до `string` —
+ *    и результат схлопывается в `GenericStringError[]`. Тот же класс, что стаб через
+ *    `interface` вместо `type`: сообщение об ошибке на причину не намекает.
+ */
+const ENDPOINT_COLUMNS =
+  'id, org_id, name, url, is_active, description, last_delivery_at, last_status_code, consecutive_failures, disabled_reason, created_by, created_at, updated_at';
 
 /** `status` в БД — text + CHECK (не enum), поэтому уточняем union здесь. */
-function toDelivery(row: WebhookDeliveryRowDb): WebhookDelivery {
+function toDelivery(row: Tables<'webhook_deliveries'>): WebhookDelivery {
   return { ...row, status: row.status as WebhookDeliveryStatus };
 }
 
@@ -151,13 +65,13 @@ export function useWebhookEndpoints(enabled = true) {
     enabled,
     staleTime: 1000 * 30,
     queryFn: async (): Promise<WebhookEndpoint[]> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('webhook_endpoints')
-        .select('*')
+        .select(ENDPOINT_COLUMNS)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data ?? []).map(toEndpoint);
+      return data ?? [];
     },
   });
 }
@@ -184,7 +98,7 @@ export function useWebhookDelivery(deliveryId: string | null) {
       return !row || row.status === 'pending' ? 1500 : false;
     },
     queryFn: async (): Promise<WebhookDelivery | null> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('webhook_deliveries')
         .select('*')
@@ -216,11 +130,13 @@ export function useCreateWebhookEndpoint() {
 
   return useMutation({
     mutationFn: async (input: WebhookEndpointInput): Promise<WebhookEndpointCreated> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { data, error } = await supabase.rpc('create_webhook_endpoint', {
         p_name: input.name,
         p_url: input.url,
-        p_description: input.description?.trim() ? input.description.trim() : null,
+        // `undefined`, а не `null`: в сгенерированных Args параметр опционален
+        // (`p_description?: string`), и SQL-дефолт `null` подставляется сам.
+        p_description: input.description?.trim() || undefined,
       });
       if (error) throw error;
       // `returns table (…)` приезжает массивом даже на одной строке.
@@ -238,7 +154,7 @@ export function useRotateWebhookSecret() {
 
   return useMutation({
     mutationFn: async (endpointId: string): Promise<string> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { data, error } = await supabase.rpc('rotate_webhook_secret', {
         p_endpoint_id: endpointId,
       });
@@ -261,7 +177,7 @@ export function useDeleteWebhookEndpoint() {
 
   return useMutation({
     mutationFn: async (endpointId: string): Promise<void> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { error } = await supabase.rpc('delete_webhook_endpoint', {
         p_endpoint_id: endpointId,
       });
@@ -277,7 +193,7 @@ export function useSendTestWebhook() {
 
   return useMutation({
     mutationFn: async (endpointId: string): Promise<string> => {
-      const supabase = webhooksClient();
+      const supabase = createClient();
       const { data, error } = await supabase.rpc('send_test_webhook', {
         p_endpoint_id: endpointId,
       });

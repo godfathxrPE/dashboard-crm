@@ -2,6 +2,15 @@
 --      (S-R2-WEBHOOK-TRANSPORT, эпик B2, спринт 1 из трёх).
 --      Тик и cron — в 089, ПОСЛЕ деплоя edge-функции webhook-dispatch.
 --
+-- ⚠️ СОСТОЯНИЕ ПРОДА ≠ ЭТОТ ФАЙЛ ДОСЛОВНО. Применена 2026-07-29 как `20260729143305`;
+--    следом `20260729143728 webhook_transport_pgnet_schema_fix` перерегистрировала
+--    pg_net из `public` в `extensions` (advisor `extension_in_public`). В файле это
+--    учтено сразу — `create extension ... with schema extensions` в п. 1, — поэтому
+--    повторно на прод НИЧЕГО применять не нужно: там уже 088 + 088a. Правка нужна
+--    для чистого наката с нуля (новое окружение, локальная БД, восстановление),
+--    иначе там снова появится тот же WARN. Файла 088a в репозитории нет намеренно —
+--    прецедент 047 (применена через MCP, файла нет).
+--
 -- ⚠️ ПОРЯДОК ДЕПЛОЯ (менять нельзя): 088 → edge `webhook-dispatch` → 089 → фронт.
 --    089 содержит URL функции; звать несуществующую бессмысленно.
 --
@@ -38,15 +47,34 @@
 -- 1. Расширение pg_net
 ------------------------------------------------------------------------
 -- ⚠️ Первое HTTP-расширение в проекте (`net.http_post` — 0 совпадений в репо до 088).
---    pg_net объявлен relocatable = false со schema = 'net', поэтому схему создаёт сам:
---    `with schema` писать НЕ нужно (и нельзя — упадёт).
+--
+-- ⚠️ `with schema extensions` ОБЯЗАТЕЛЕН, и это не то же самое, что «где лежат объекты».
+--    Две разные вещи, которые легко спутать (спутаны и были — см. шапку):
+--
+--    • ОБЪЕКТЫ pg_net всегда живут в схеме `net`: расширение объявлено
+--      `extrelocatable = false`, схему оно создаёт само. Поэтому вызов пишется
+--      `net.http_post(...)` НЕЗАВИСИМО от `with schema` — правка этой строки на
+--      089 не влияет и влиять не может.
+--    • РЕГИСТРАЦИЯ расширения (`pg_extension.extnamespace`) — вот чем управляет
+--      `with schema`. Без него запись уходит в `public`, и advisor поднимает
+--      `extension_in_public`: «Extension pg_net is installed in the public schema».
+--
+--    ⚠️ НЕ переписывать вызовы в 089 на `extensions.http_post` — такой функции нет
+--       (проверено: `extensions.http_post` → 0 совпадений, `net.http_post` → 1).
+--
+--    ⚠️ Ставить правильно с первого раза. Перерегистрация (`drop extension` +
+--       `create ... with schema`) безопасна только пока зависимостей ноль; после 089
+--       `drop extension` утащил бы за собой `dispatch_webhooks_tick`.
+--
 --    Если apply споткнётся о права — включить через Dashboard → Database → Extensions
 --    руками; прецедент задокументирован для pg_cron (051:128-129).
---    Проверка после apply: select count(*) from pg_extension where extname = 'pg_net' → 1.
+--    Проверка после apply:
+--      select extnamespace::regnamespace from pg_extension where extname = 'pg_net';
+--      → extensions (а не public)
 --
 --    Здесь расширение только ставится. Единственный его потребитель — 089.
 
-create extension if not exists pg_net;
+create extension if not exists pg_net with schema extensions;
 
 ------------------------------------------------------------------------
 -- 2. webhook_endpoints — конфигурация получателя
