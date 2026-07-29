@@ -9,7 +9,7 @@
 
 ## 1. Одной фразой
 
-**Full-stack TypeScript SPA/SSR на Next.js 15 (App Router) + React 19, UI на Tailwind CSS, бэкенд-данные и auth — Supabase (PostgreSQL + RLS + Realtime + Storage + Edge Functions), деплой — Netlify, AI — Anthropic Claude через Deno Edge Functions.**
+**Full-stack TypeScript SPA/SSR на Next.js 15 (App Router) + React 19, UI на Tailwind CSS, бэкенд-данные и auth — Supabase (PostgreSQL + RLS + Realtime + Storage + Edge Functions), деплой — Vercel, AI — Anthropic Claude через Deno Edge Functions.**
 
 Это не «конструктор» (Bitrix/Amo/HubSpot): кастомное веб-приложение с собственной схемой БД, ролями и UI.
 
@@ -25,7 +25,7 @@
 └───────────────────────────┬─────────────────────────────────┘
                             │ HTTPS (Supabase JS / SSR cookies)
 ┌───────────────────────────▼─────────────────────────────────┐
-│  Next.js 15 (Netlify)                                       │
+│  Next.js 15 (Vercel)                                        │
 │  Middleware (сессия) · Server Components (auth-обёртки)      │
 │  Security headers · Route handlers (auth callback)          │
 └───────────────────────────┬─────────────────────────────────┘
@@ -57,7 +57,7 @@ UI (форма / drag) → Zod / RHF
 
 | Технология | Версия (package.json) | Роль |
 |------------|----------------------|------|
-| **Next.js** | `^15.1.0` | Framework: App Router, middleware, SSR/SSG-гибрид, деплой на Netlify |
+| **Next.js** | `^15.1.0` | Framework: App Router, middleware, SSR/SSG-гибрид, деплой на Vercel |
 | **React** | `^19.0.0` | UI-библиотека |
 | **React DOM** | `^19.0.0` | Рендер в браузере |
 | **TypeScript** | `^5.7.0` | Язык всего `src/` (`strict: true`) |
@@ -70,7 +70,8 @@ UI (форма / drag) → Zod / RHF
   - `(dashboard)` — рабочие экраны с sidebar / header.
 - Страницы-обёртки часто server-side: проверка `supabase.auth.getUser()` → `redirect('/login')`, контент — client components.
 - Path alias: `@/*` → `./src/*` (`tsconfig.json`).
-- `images.unoptimized: true` — без Next Image Optimization CDN (удобно для Netlify/static-подобных ограничений).
+- `images.unoptimized: true` — без Next Image Optimization CDN. Настройка родом из Netlify-периода; на Vercel
+  оптимизация была бы доступна — снятие флага не проверялось, трогать без замера не нужно.
 
 ### 3.2 Язык UI и i18n
 
@@ -238,12 +239,18 @@ Gantt: **кастомный** (`GanttTimeline.tsx`) — не dhtmlx/gantt-lib; P
 
 | Компонент | Выбор |
 |-----------|--------|
-| **Hosting** | **Netlify** |
-| **Next adapter** | `@netlify/plugin-nextjs` (SSR runtime) |
-| **Node (build)** | **20** (`netlify.toml` `NODE_VERSION`) |
+| **Hosting** | **Vercel** — авто-деплой из `main`. Прод: https://dashboard-crm-ten.vercel.app/ |
+| **Next adapter** | нативный (Vercel собирает Next без плагина) |
+| **Node (build)** | 20 |
 | **Package manager** | npm (`package-lock.json`) |
-| **Build** | `npm run build` → publish `.next` |
-| **Security headers** | `next.config.ts` + дубль в `netlify.toml` (XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS, CSP-lite) |
+| **Build** | `npm run build` |
+| **Security headers** | `next.config.ts` (XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS, CSP-lite) — единственный действующий источник |
+
+⚠️ **`netlify.toml` и `.netlify/` в репо — реликты Netlify-периода (июль 2026), НЕ актуальный
+конфиг** (то же сказано в `CLAUDE.md:10-11`). Переезд на Vercel — из-за исчерпания лимитов на
+деплои в Netlify. Файл оставлен как след истории; дубль security-заголовков в нём не применяется.
+Не считать его источником правды о хостинге — этот документ ошибочно опирался на него до
+2026-07-29 и вводил в заблуждение arch-разведку.
 
 ### 9.1 PWA-лёгкий слой
 
@@ -251,7 +258,7 @@ Gantt: **кастомный** (`GanttTimeline.tsx`) — не dhtmlx/gantt-lib; P
 
 ### 9.2 Не используется (явно)
 
-- Vercel (хотя Next совместим);
+- Netlify (был хостингом до 2026-07; `netlify.toml` — реликт);
 - Docker / k8s в репо;
 - GraphQL / tRPC / Prisma / Drizzle;
 - Redis / Elasticsearch;
@@ -286,7 +293,7 @@ npm run test:all     # unit + e2e
 npm run db:gen-types # supabase gen types
 ```
 
-**Замечание:** `eslint.ignoreDuringBuilds: true` в `next.config.ts` — lint не блокирует Netlify build; TypeScript errors **блокируют** (`ignoreBuildErrors: false`).
+**Замечание:** `eslint.ignoreDuringBuilds: true` в `next.config.ts` — lint не блокирует production build; TypeScript errors **блокируют** (`ignoreBuildErrors: false`).
 
 ---
 
@@ -314,7 +321,7 @@ dashboard-crm/
 │   └── e2e/                 # Playwright
 ├── docs/                    # schema.md, этот документ
 ├── public/                  # manifest, static
-├── netlify.toml
+├── netlify.toml            # реликт Netlify-периода, не используется
 ├── next.config.ts
 ├── tailwind.config.ts
 ├── vitest.config.ts
@@ -343,7 +350,7 @@ dashboard-crm/
 | Charts | Recharts |
 | DnD | dnd-kit |
 | Excel | SheetJS (xlsx) |
-| Hosting | Netlify (+ Next runtime plugin) |
+| Hosting | Vercel (авто-деплой из `main`) |
 | CI quality | ESLint, tsc, Vitest, Playwright |
 | Node runtime (build) | 20 |
 
@@ -355,7 +362,7 @@ dashboard-crm/
 |-----------|------|
 | **Runtime (browser)** | Modern evergreen browsers (ES2017 target TS) |
 | **Runtime (edge AI)** | Deno (Supabase Functions) |
-| **Runtime (build/host)** | Node 20, Netlify |
+| **Runtime (build/host)** | Node 20, Vercel |
 | **Core** | Next 15.1 · React 19 · TypeScript 5.7 |
 | **Data** | Supabase JS 2.47 · SSR 0.5 · PostgreSQL |
 | **UX libs** | RHF 7 · Zod 3 · Query 5 · Zustand 5 · dnd-kit 6 · Recharts 3 · sonner 2 |
@@ -371,7 +378,8 @@ dashboard-crm/
 2. **RLS в Postgres** — мультитенантность и роли на уровне БД, не «на честном слове UI».
 3. **React Query + Realtime** — multi-user доски (tasks/deals) без собственного WebSocket-сервера.
 4. **Zod + RHF** — единые контракты форм (лиды, сделки, задачи, quotes, automation).
-5. **Netlify** — SSR Next без собственной k8s-инфры.
+5. **Vercel** — SSR Next без собственной k8s-инфры, нативная поддержка App Router.
+   (До июля 2026 — Netlify; переехали из-за лимитов на деплои.)
 6. **Claude на Edge** — AI-фичи (саммари, пресеты AI Hub) рядом с данными, ключ не в браузере.
 
 ---
@@ -382,10 +390,10 @@ dashboard-crm/
 |------|------------|
 | `README.md` | Quick start, структура, themes overview |
 | `docs/schema.md` | Схема БД, RLS, миграции |
-| `GO-LIVE.md` | Деплой Netlify / Supabase checklist |
+| `GO-LIVE.md` | Деплой / Supabase checklist ⚠️ писался под Netlify — сверить перед использованием |
 | `INTEGRATION.md` | Интеграции (если актуально) |
 | `package.json` | Точные версии зависимостей |
-| `netlify.toml` | Build + headers + plugin |
+| `netlify.toml` | ⚠️ реликт Netlify-периода, не используется |
 | `next.config.ts` | Headers, images, TS/ESLint policy |
 
 ---

@@ -175,7 +175,9 @@
 >   (документированная норма) + leaked-password-protection (вход только magic link; включить
 >   можно тумблером Dashboard → Auth).
 > - Вне SQL: Edge `ai-summarize` v4 задеплоена (дедуп 10 мин → 429, verify_jwt=true);
->   netlify.toml — HSTS + CSP-lite; клиентский `safeHref` на do_url/document_url.
+>   security-заголовки (HSTS + CSP-lite) — `next.config.ts`; клиентский `safeHref` на
+>   do_url/document_url. (В записи от 2026-07 источником заголовков назван `netlify.toml` —
+>   с переездом на Vercel он реликт, см. `docs/TECH-STACK.md` §9.)
 
 > **058 `accept_invitation` (Sprint T1a):** приём инвайта по токену (DEFINER). **Статус
 > apply — гейт Cowork** (см. memory).
