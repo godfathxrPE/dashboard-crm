@@ -11,7 +11,11 @@
 > 083 `20260728075030`, 084 `20260728075144`, 085 `20260728085826` — сверены по
 > `schema_migrations` 2026-07-28**;
 > **086 (S-R2-DWELL-CFG) — НАПИСАНА, НЕ ПРИМЕНЕНА, ждёт гейта Cowork**; схемы она не меняет —
-> только сид-строка в `segments`; следующая свободная после неё — **087**;
+> только сид-строка в `segments`;
+> **087 (S-R2-FIELD-AUDIT) — НАПИСАНА, НЕ ПРИМЕНЕНА, ждёт гейта Cowork**; колонок и таблиц не
+> добавляет (⇒ реген типов не нужен) — функция `log_project_field_audit()` + триггер
+> `trg_zy_log_field_audit` на `projects` + индекс `idx_activity_log_org_created`;
+> следующая свободная — **088**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -1339,7 +1343,7 @@ regression, даже если продуктово «правильно». Че�
 | **org_id** | uuid | NOT NULL (023) |
 | created_at | timestamptz | |
 
-### activity_log _(008)_ — аудит; пишется SECURITY DEFINER триггерами удаления _(009/011)_
+### activity_log _(008)_ — аудит; пишется SECURITY DEFINER триггерами удаления _(009/011)_ и **аудитом полей сделки _(087)_**
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1347,11 +1351,53 @@ regression, даже если продуктово «правильно». Че�
 | project_id | uuid | **nullable** → projects (в живой БД nullable, не CASCADE) |
 | contact_id | uuid | _042_ → contacts ON DELETE CASCADE. Entity-link (лента активности контакта). Partial idx `idx_activity_log_contact` WHERE NOT NULL |
 | company_id | uuid | _042_ → companies ON DELETE CASCADE. Partial idx `idx_activity_log_company` WHERE NOT NULL |
-| user_id | uuid | nullable → auth.users |
+| user_id | uuid | nullable → auth.users. **С 087 NULL штатен**: UPDATE из cron/service-контекста пишется без актора (`auth.uid()` пуст). Подстановка `owner_id` запрещена — это была бы ложь в аудите |
 | event_type | text | NOT NULL |
 | payload | jsonb | DEFAULT `{}` |
 | **org_id** | uuid | NOT NULL (023) |
 | created_at | timestamptz | |
+
+Индексы: `(project_id, created_at desc)` — лента карточки; `(org_id)` _(023)_;
+**`idx_activity_log_org_created (org_id, created_at desc)` _(087)_** — под `useRecentActivity`
+(лента дашборда сортирует по `created_at` в пределах org, без `project_id`; ни один прежний
+индекс этого не покрывал). Индекса по `event_type` НЕТ намеренно: три хука фильтруют его
+через `neq`, предикат неселективен.
+
+#### Аудит критичных полей сделки _(087, S-R2-FIELD-AUDIT, эпик G1)_
+
+До 087 «аудит» писал клиент (`use-projects.ts`): только ИМЕНА колонок из патча, без значений,
+без проверки, что значение реально менялось, и только для правок через UI. С 087 пишет
+`log_project_field_audit()` — **клиентское логирование `project_updated`/`stage_changed`
+удалено, источник один**.
+
+Модель — Salesforce Field History Tracking: whitelist критичных полей + `from`/`to`.
+Три класса, поля вне whitelist не аудируются вовсе:
+
+| Класс | Поля | В `payload.changes` |
+|---|---|---|
+| Значения | `name`, `budget`, `probability`, `deadline`, `actual_close_date`, `next_action_date`, `status`, `direction`, `delivery_kind` | `{from, to}` текстом (`->>`) |
+| Ссылки с резолвом | `owner_id`→`profiles.full_name`, `stage_id`→`pipeline_stages.name`, `company_id`→`companies.name`, `contact_id`→`contacts.first_name+last_name`, `pipeline_id`→`pipelines.name` | `{from, to, from_name, to_name}` — сырой UUID в ленту не пускаем |
+| Факт без значения | `next_step`, `pinned_note`, `won_reason`, `won_detail`, `loss_reason`, `loss_detail`, `lost_reason`, `do_url` | `{changed: true}` |
+
+Не аудируются намеренно: `progress_done`/`progress_total` (пересчитывает триггер задач — каждая
+закрытая подзадача давала бы «прогресс 4 → 5», это видно как `task_completed`),
+`stage_entered_at`/`updated_at`/`do_synced_at` (служебные метки), `org_id` (заморожен),
+`type`/`parent_deal_id` (задаются при создании и спавне), `created_by`/`created_at`/`id`.
+
+⚠️ **Смена стадии — одно событие, не пять.** `sync_deal_stage_fields` и `sync_project_stage`
+(оба BEFORE) при смене `stage_id` сами перезаписывают `probability`, `status`,
+`actual_close_date`, `stage_entered_at`. Наивный diff дал бы четыре записи на переходе, поэтому
+при `stage_id IS DISTINCT FROM` событие одно — `stage_changed`, а производные поля из `changes`
+вычитаются.
+
+`payload` — **надмножество прежнего**: `fields_changed` остаётся (порядок = порядок whitelist),
+добавляется `changes`. `stage_changed` сохраняет прежние ключи `from_stage_id`/`to_stage_id`/
+`from_name`/`to_name`. Старые записи (без `changes`) рендерятся прежней веткой `describeEvent`
+— **бэкфилла нет, восстанавливать `from`/`to` не из чего**.
+
+RLS не менялась. Следствие принято сознательно: рядовой участник не видит в ленте чужие
+изменения и записи от cron (`user_id is null`) — это семантика `activity_log` с 024, не регресс
+087; закроется предикатом `can_see_all_deals()` в задаче про роль РОП.
 
 ### project_files _(014)_
 
@@ -1584,9 +1630,10 @@ USING — org-граница автоматически запрещает пе�
   гарантирует срабатывание гейта ДО обоих `trg_sync_*`.
   ⚠️ Следствие для 078: гейт видит `NEW` **до** `trg_sync_*`, то есть `probability`,
   `status`, `actual_close_date` в нём — ещё клиентские/старые, а не выставленные стадией.
-  **Порядок AFTER-триггеров projects**: … → **`trg_zy_log_stage_transition`** _(078)_ →
-  `trg_zz_run_automations`. Префикс `zy` выбран так, чтобы история перехода была записана
-  ДО автоматизаций.
+  **Порядок AFTER-триггеров projects**: … → **`trg_zy_log_field_audit`** _(087)_ →
+  **`trg_zy_log_stage_transition`** _(078)_ → `trg_zz_run_automations`. Префикс `zy` выбран
+  так, чтобы история перехода была записана ДО автоматизаций; между двумя `trg_zy_*` порядок
+  безразличен — обе только пишут.
 - **~~Known issue (S27)~~ → закрыто S29.1:** IIoT-чеврон (`StackedPipeline` в
   ProjectDetail) раньше двигал сделку через legacy `stage`, минуя `stage_id` — гейт
   и автоматизация (обе на `stage_id`) не срабатывали. **S29.1**: чеврон переписан на
@@ -2457,6 +2504,28 @@ exists pg_cron` (включено в 051).
   ⚠️ **Порядок обязателен: apply 085 → `npx supabase functions deploy ai-run` → фронт.**
   В обратном порядке (edge задеплоен, 085 нет) INSERT с `transcript_id = null` падает на NOT NULL,
   а `entity_type='project'` — на старом CHECK.
+
+- **087** _(S-R2-FIELD-AUDIT, R2-P2, эпик G1 — **НЕ применена, ждёт гейта Cowork**)_ — аудит
+  критичных полей сделки в БД, с «было → стало». Подробности формата и whitelist — в разделе
+  `activity_log` выше. Аддитивна: ни таблиц, ни колонок, ни изменений RLS (⇒ `supabase.gen.ts`
+  не трогается), только `log_project_field_audit()` + `trg_zy_log_field_audit` (AFTER UPDATE,
+  **без `OF <колонка>`** — аудит обязан видеть любое поле whitelist) + индекс
+  `idx_activity_log_org_created`. Гранты как в 078/083: `security definer`,
+  `search_path = public, pg_temp`, `owner to postgres`, `revoke … from public, anon,
+  authenticated`, `grant execute … to service_role`. `exception when others then return new` —
+  аудит не имеет права уронить UPDATE.
+  **Порядок деплоя: миграция → фронт.** Между apply и мержем фронта пишут оба (триггер и старый
+  клиент) — в ленте будут пары записей. Обратный порядок дал бы окно, в котором изменения не
+  пишет НИКТО; дубль честнее дыры в аудите. Записи-дубли не чистить, они отличимы (у клиентской
+  нет `changes`).
+  План смоуков гейта: **(a)** UPDATE бюджета от owner → одна запись `project_updated`,
+  `changes.budget.from/to` верны; **(b)** UPDATE тем же значением → новых записей нет
+  (`IS DISTINCT FROM`); **(c)** смена стадии на won → **одна** запись `stage_changed`, в
+  `changes` нет `probability`/`status`/`actual_close_date`; **(d)** UPDATE под ролью manager по
+  своей сделке → запись с его `user_id`, он её видит; по чужой сделке — не видит;
+  **(e)** UPDATE `progress_done` → записи нет (поле вне whitelist); **(f)** UPDATE из
+  service-контекста (мимо UI) → запись есть, `user_id = null` — **главный тест смысла эпика**;
+  **(g)** advisors без новых WARN, повторный apply идемпотентен.
 
 ## Edge Functions
 

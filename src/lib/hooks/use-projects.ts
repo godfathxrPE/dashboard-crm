@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import type { OpenChecklistItem, UnmetRequirement } from '@/types/database';
 import type { OpenMilestone } from './use-delivery-gate';
-import { logActivity } from './use-activity-log';
-import { usePipelineStagesMap } from './use-pipelines';
 
 // ═══════════════════════════════════════════════════════
 // Sprint 27: разбор ошибки стадийного гейта
@@ -295,22 +293,6 @@ function patchLists(qc: ReturnType<typeof useQueryClient>, fn: (old: Project[]) 
   );
 }
 
-/** Текущий проект из кешей (single или любой list-срез) — для чтения old-стадии. */
-function findProjectInCache(
-  qc: ReturnType<typeof useQueryClient>,
-  id: string,
-): Project | undefined {
-  const single = qc.getQueryData<Project>([...QUERY_KEY, id]);
-  if (single) return single;
-  for (const [, data] of qc.getQueriesData<Project[]>({ queryKey: QUERY_KEY })) {
-    if (Array.isArray(data)) {
-      const found = data.find((p) => p.id === id);
-      if (found) return found;
-    }
-  }
-  return undefined;
-}
-
 /** Срез кеша по его ключу совместим с типом проекта? */
 function scopeMatches(key: readonly unknown[], type: Project['type']): boolean {
   const scope = key[1];
@@ -449,35 +431,23 @@ export function useCreateProject() {
 }
 
 /**
- * Поля, «производные» от смены стадии, — попадают в payload события, но НЕ решают
- * его тип (см. ниже).
+ * Обновить проект — оптимистичный UI.
  *
- * ⚠️ S-R2-TRANSITION-1b: правило типа события упрощено с «changed ⊆ {stage_id} ∪
- * набор» до «в патче есть stage_id». Старое правило ломалось ровно на том, ради
- * чего затевался R2-P0: переход с During-полем (`{stage_id, contact_id}`) не
- * попадал в множество и логировался обезличенным `project_updated` — в ленте
- * вместо «Стадия: Лид → Эксперимент» появлялось «Обновлено: контакт, стадия».
- * Новое правило корректно, потому что с 1a `stage_id` пишет ТОЛЬКО
- * `buildTransitionPatch`: наличие stage_id в патче и есть признак перехода.
+ * ⚠️ S-R2-FIELD-AUDIT: логирование `stage_changed` / `project_updated` отсюда
+ * УДАЛЕНО и живёт в триггере `trg_zy_log_field_audit` (миграция 087). Клиент писал
+ * только имена колонок из патча — без значений, без проверки, что значение реально
+ * изменилось, и только для правок через UI. Не возвращать: два источника дадут
+ * пары записей в ленте. Правило «производные от стадии поля не решают тип события»
+ * (бывший `STAGE_DERIVED_FIELDS`) переехало в SQL целиком.
  */
-const STAGE_DERIVED_FIELDS = new Set([
-  'stage_id', 'status', 'won_reason', 'won_detail',
-  'loss_reason', 'loss_detail', 'lost_reason', 'actual_close_date',
-]);
-
-/** Обновить проект — оптимистичный UI */
 export function useUpdateProject() {
   const qc = useQueryClient();
-  // Имена стадий на момент лога — из кеша pipeline_stages (истина stage_id).
-  const stagesMap = usePipelineStagesMap();
 
   return useMutation({
     mutationFn: updateProject,
     onMutate: async (updated) => {
       await qc.cancelQueries({ queryKey: QUERY_KEY });
       const prev = snapshotLists(qc);
-      // Старая стадия (до патча) — для payload stage_changed в onSuccess.
-      const fromStageId = findProjectInCache(qc, updated.id)?.stage_id ?? null;
 
       patchLists(qc, (old) =>
         old.map((p) =>
@@ -492,34 +462,10 @@ export function useUpdateProject() {
         old ? { ...old, ...updated, updated_at: new Date().toISOString() } : old
       );
 
-      return { prev, fromStageId };
+      return { prev };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) restoreLists(qc, ctx.prev);
-    },
-    onSuccess: (_result, vars, ctx) => {
-      const changed = Object.keys(vars).filter((k) => k !== 'id');
-      if (changed.length === 0) return;
-
-      // Смена стадии (в т.ч. выигрыш/проигрыш и переход с During-полями) → явное
-      // stage_changed с from→to и именами; обезличенный project_updated подавляем.
-      if (changed.includes('stage_id')) {
-        const fromStageId = ctx?.fromStageId ?? null;
-        const toStageId = vars.stage_id ?? null;
-        // Непроизводные поля патча (бюджет, контакт, …) несём в payload: событие
-        // одно, но «что ещё закрыли этим переходом» из лога не теряется.
-        const alsoChanged = changed.filter((k) => k !== 'stage_id' && !STAGE_DERIVED_FIELDS.has(k));
-        logActivity(vars.id, 'stage_changed', {
-          from_stage_id: fromStageId,
-          to_stage_id: toStageId,
-          from_name: fromStageId ? stagesMap.get(fromStageId)?.name ?? null : null,
-          to_name: toStageId ? stagesMap.get(toStageId)?.name ?? null : null,
-          ...(alsoChanged.length > 0 ? { fields_changed: alsoChanged } : {}),
-        });
-        return;
-      }
-
-      logActivity(vars.id, 'project_updated', { fields_changed: changed });
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
