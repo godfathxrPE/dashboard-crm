@@ -412,6 +412,67 @@ export interface AutomationRun {
   fired_at: string;
 }
 
+// ═══ Sprint S-R2-WEBHOOK-TRANSPORT (миграции 088/089): исходящие вебхуки ═══
+// ⚠️ СТАБ ДО РЕГЕНЕРАЦИИ: 088 ещё не применена, поэтому webhook_endpoints /
+//    webhook_deliveries отсутствуют в supabase.gen.ts. Row-типы ниже — рукописные
+//    леса; после apply + `npm run db:gen-types` они заменяются на
+//    `Tables<'webhook_endpoints'>` / `Tables<'webhook_deliveries'>`, а стаб схемы
+//    в use-webhook-endpoints.ts удаляется целиком (образец — снятие стабов
+//    Segment*/Checklist* после 077 и 083/084).
+//
+// В спринте 1 движок автоматизаций к вебхукам НЕ подключён: единственный вход в
+// очередь — send_test_webhook (event 'webhook.test'). action_type='webhook' — спринт 2.
+
+/** Жизненный цикл доставки (CHECK `webhook_deliveries_status_check`, 088). */
+export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'dropped';
+
+/**
+ * Получатель исходящих вебхуков.
+ *
+ * ⚠️ Поля с секретом здесь НЕТ и быть не может: в таблице лежит только `secret_id`
+ *    (ссылка в vault.secrets), а сам секрет отдаётся один раз при создании и при
+ *    ротации. `secret_id` в домен не выносим — приложению он не нужен ни для чего.
+ */
+export interface WebhookEndpoint {
+  id: string;
+  org_id: string;
+  name: string;
+  url: string;
+  is_active: boolean;
+  description: string | null;
+  last_delivery_at: string | null;
+  last_status_code: number | null;
+  consecutive_failures: number;
+  disabled_reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Строка очереди и журнала доставок. `id` = заголовок X-Torii-Delivery у получателя. */
+export interface WebhookDelivery {
+  id: string;
+  org_id: string;
+  endpoint_id: string;
+  rule_id: string | null;              // null у тестовых отправок
+  event: string;                       // доменное имя: 'webhook.test', 'deal.stage_changed', …
+  payload: Json;
+  status: WebhookDeliveryStatus;
+  attempt: number;
+  next_retry_at: string | null;
+  response_status: number | null;
+  response_body: string | null;
+  error: string | null;
+  created_at: string;
+  delivered_at: string | null;
+}
+
+/** Результат create_webhook_endpoint — секрет виден РОВНО ЗДЕСЬ и больше нигде. */
+export interface WebhookEndpointCreated {
+  endpoint_id: string;
+  secret: string;
+}
+
 // ═══ Sprint S-DEPS-1: Gantt-зависимости (task_dependencies, миграция 048 — на гейте) ═══
 // Рёбра DAG между задачами одного проекта. v1 — только FS (finish-to-start).
 // dep_type/lag_days — задел под будущие типы связей и critical path (без DDL).
@@ -525,8 +586,13 @@ export interface Membership {
 
 // S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
 // R2-P0-E (079): spawn_suggest — действие suggest_spawn предлагает создать внедрение
+// B2 (088): webhook_disabled — endpoint отключён автоматически после серии провалов
+//
+// ⚠️ Синхронно с CHECK `notifications_type_check` (088:п.13). Точка расхождения
+//    SQL↔TS: значение, добавленное здесь без миграции, упадёт на INSERT.
 export type NotificationType =
-  | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest';
+  | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest'
+  | 'webhook_disabled';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;

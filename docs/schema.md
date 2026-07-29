@@ -16,7 +16,13 @@
 > новых замечаний, смоки 8–12 пройдены); колонок и таблиц не
 > добавляет (⇒ реген типов не нужен) — функция `log_project_field_audit()` + триггер
 > `trg_zy_log_field_audit` на `projects` + индекс `idx_activity_log_org_created`;
-> следующая свободная — **088**;
+> **088/089 (S-R2-WEBHOOK-TRANSPORT, эпик B2) — НАПИСАНЫ, НЕ ПРИМЕНЕНЫ**; 088 ставит
+> расширение **`pg_net`** (первое HTTP-расширение проекта) и заводит `webhook_endpoints` /
+> `webhook_deliveries` + 7 RPC + шестое значение `notifications.type`; 089 — тик
+> `dispatch_webhooks_tick()` и **первая минутная cron-джоба** `webhook-retry`.
+> ⚠️ **Порядок деплоя: 088 → deploy edge `webhook-dispatch` → 089 → фронт** (089 содержит
+> вызов функции). Реген типов после 088 обязателен — две новые таблицы;
+> следующая свободная — **090**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -486,7 +492,7 @@ membership создаётся при signup по совпадению email (`ap
 **RLS**: `inv_select`/`inv_insert`/`inv_delete` — `org_id = current_org_id()` И
 `current_org_role() IN ('owner','admin')`.
 
-### notifications _(026, applied; +045 `deal_won`; +050 `automation`; +079 `spawn_suggest`)_ — уведомления «тебе назначили»
+### notifications _(026, applied; +045 `deal_won`; +050 `automation`; +079 `spawn_suggest`; **+088 `webhook_disabled` — написана, не применена**)_ — уведомления «тебе назначили»
 v1: `task_assigned` (task.assigned_to) / `project_assigned` (project.owner_id);
 _045_: `deal_won` (сделка выиграна → owner); _050_: `automation` (действие
 `notify` Workflow Engine → owner/creator, `entity_type='projects'`); _051_: `automation`
@@ -753,6 +759,80 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 **Edge `ai-run`** (см. «Edge Functions») — generic исполнитель прогонов, async
 (`EdgeRuntime.waitUntil`).
+
+---
+
+### webhook_endpoints / webhook_deliveries _(088, S-R2-WEBHOOK-TRANSPORT, эпик B2 — **написаны, НЕ применены**)_ — исходящие вебхуки
+
+Транспорт отделён от движка правил намеренно: в спринте 1 единственный вход в очередь —
+`send_test_webhook` (`event = 'webhook.test'`). `action_type='webhook'` и ветка в
+`wf_apply_project_action` — спринт 2, здесь движок не трогается вовсе.
+
+**`webhook_endpoints`** — конфигурация получателя.
+
+| Колонка | Тип | Замечания |
+|---|---|---|
+| id | uuid | PK |
+| org_id | uuid | NOT NULL → organizations, `trg_aa_freeze_org_id` |
+| name | text | NOT NULL, 1..120 |
+| url | text | NOT NULL CHECK `~ '^https://'` — схема проверяется и в БД; порт/IP-литерал/allowlist разбирает диспетчер |
+| secret_id | uuid | NOT NULL — **ссылка в `vault.secrets`, НЕ секрет**. Подписать запрос содержимым строки невозможно |
+| is_active | boolean | NOT NULL default true; авто-отключение по серии провалов |
+| description | text | nullable |
+| last_delivery_at / last_status_code | timestamptz / int | денормализация ради списка в UI без агрегата |
+| consecutive_failures | int | NOT NULL default 0; порог — `organizations.settings.webhook_failure_threshold`, дефолт **20** |
+| disabled_reason | text | заполняется при авто-отключении |
+| created_by / created_at / updated_at | | `trg_set_updated_at` → `update_updated_at()` |
+
+**`webhook_deliveries`** — очередь и журнал одновременно.
+
+| Колонка | Тип | Замечания |
+|---|---|---|
+| id | uuid | PK; **он же заголовок `X-Torii-Delivery`** и ключ идемпотентности на приёмнике |
+| org_id / endpoint_id | uuid | endpoint — `on delete cascade` |
+| rule_id | uuid | → automation_rules `on delete set null`; **null у тестовых** |
+| event | text | доменное имя (`webhook.test`, `deal.stage_changed`), НЕ имя триггера. CHECK'а со словарём намеренно нет — словарь расширяет спринт 2 |
+| payload | jsonb | NOT NULL, CHECK ≤ 64 КБ. Хранится целиком: без этого невозможно «Повторить» |
+| status | text | CHECK `pending`\|`delivered`\|`failed`\|`dropped` |
+| attempt / next_retry_at | int / timestamptz | `next_retry_at` NULL у финальных статусов |
+| response_status / response_body / error | int / text / text | тело усечено до 8 КБ (дважды: в диспетчере и в `record_webhook_result`) |
+| created_at / delivered_at | timestamptz | `updated_at` нет по модели |
+
+Индексы: **`idx_webhook_deliveries_queue (next_retry_at) where status='pending'`** — partial,
+чтобы минутная джоба читала живую очередь, а не весь журнал; `(endpoint_id, created_at desc)`
+и `(org_id, created_at desc)` — журнал.
+
+**RLS.** `webhook_endpoints`: SELECT — все члены org, запись — owner/admin.
+**`webhook_deliveries`: SELECT ТОЛЬКО owner/admin** — в `payload` бюджеты и имена контактов,
+рядовому участнику журнал не нужен. Записи для `authenticated` нет ни на одной из таблиц.
+
+**Гранты.** `revoke all … from anon` + **`revoke insert, update, delete … from authenticated`**
+(дефолт после 082 даёт `authenticated = arwd`, поэтому отзывать надо явно) + `grant select`.
+Запись идёт только через SECURITY DEFINER.
+
+**Семь RPC 088** — четыре под UI (гейт роли owner/admin в теле, `grant execute to authenticated`):
+
+- `create_webhook_endpoint(p_name, p_url, p_description)` → `(endpoint_id, secret)` —
+  генерирует секрет `extensions.gen_random_bytes(32)`, кладёт в `vault.create_secret`,
+  **единственное место, где секрет покидает БД**;
+- `rotate_webhook_secret(p_endpoint_id)` → text — `vault.update_secret`, старый недействителен сразу;
+- `delete_webhook_endpoint(p_endpoint_id)` — строка + её секрет из `vault.secrets`
+  (DELETE у `authenticated` отозван, а сирота в Vault копилась бы);
+- `send_test_webhook(p_endpoint_id)` → uuid — ставит `webhook.test` и зовёт
+  `dispatch_webhooks_tick()` **через guard `to_regprocedure`**: между apply 088 и 089 функции ещё нет.
+
+…и три под диспетчер, **`revoke … from authenticated`, `grant execute to service_role`**:
+
+- `claim_webhook_deliveries(p_limit)` — атомарный захват батча `for update skip locked`;
+  захваченная строка получает **лизинг 5 мин** вместо `next_retry_at = null`, иначе умерший
+  isolate оставил бы её в `pending` навсегда (тот же класс, что «зомби-прогон» в `ai-run`);
+- `get_webhook_secrets(p_endpoint_ids uuid[])` — **единственная дверь из `public` в схему
+  `vault`**. Выставлять `vault` в PostgREST нельзя: это открыло бы все секреты проекта;
+- `record_webhook_result(...)` — закрывает попытку, двигает `consecutive_failures`,
+  при достижении порога гасит endpoint и шлёт владельцу `notifications` типа `webhook_disabled`.
+
+⚠️ Сервисный ключ edge-функции работает **только через эти три двери** — грантов на сами
+таблицы ей не требуется.
 
 ---
 
@@ -2530,6 +2610,38 @@ exists pg_cron` (включено в 051).
   service-контекста (мимо UI) → запись есть, `user_id = null` — **главный тест смысла эпика**;
   **(g)** advisors без новых WARN, повторный apply идемпотентен.
 
+- **088** _(S-R2-WEBHOOK-TRANSPORT, R2-P2, эпик B2 — **НЕ применена, ждёт гейта Cowork**)_ —
+  транспорт исходящих вебхуков: `create extension pg_net`, таблицы `webhook_endpoints` /
+  `webhook_deliveries` (описаны выше), семь RPC, шестое значение `notifications_type_check`.
+  **НЕ аддитивна для типов**: две новые таблицы ⇒ после apply обязателен реген
+  (`npm run db:gen-types`, **CLI, не MCP** — MCP не отдаёт блок `graphql_public`), и вместе с
+  ним снимаются леса `DatabaseWithWebhooks` в `use-webhook-endpoints.ts` и рукописные Row-типы
+  в `types/database.ts`.
+  ⚠️ **Два `NOT_VERIFIED` до гейта.** Первый — доступность `vault.create_secret` из миграции
+  под `postgres`: Vault 0.3.1 установлен, но в проекте не использован ни разу. Проверка первым
+  делом после apply — `select vault.create_secret('probe-value','probe_'||gen_random_uuid()::text,'проба');`
+  затем `select name, decrypted_secret from vault.decrypted_secrets where name like 'probe_%';`
+  и `delete from vault.secrets where name like 'probe_%';`. Если недоступно — план Б §4.2
+  арх-дока (ciphertext в колонке + `pgp_sym_encrypt` ключом из Function Secrets). Второй —
+  установка `pg_net` под `postgres`: при отказе по правам включать через Dashboard → Database →
+  Extensions (прецедент `pg_cron`, `051:128-129`), проверка
+  `select count(*) from pg_extension where extname='pg_net'` → 1.
+  **Обратимость:** drop обеих таблиц + 7 функций + `drop extension pg_net` + возврат
+  `notifications_type_check` к редакции 079. Только ПОСЛЕ отката 089. Секреты, заведённые в
+  Vault, откатом не удаляются — снимать вручную по имени `webhook_%`.
+
+- **089** _(S-R2-WEBHOOK-TRANSPORT — **НЕ применена; применять ТОЛЬКО после деплоя edge**)_ —
+  `dispatch_webhooks_tick()` (DEFINER, `service_role`) + cron **`webhook-retry` `* * * * *`**.
+  **Первая минутная джоба в проекте**; остальные три суточные и разведены по минутам
+  (06:00 / 06:05 / 06:10). Цена частоты оплачена телом: при пустой очереди это один
+  индексный скан по partial-индексу и выход — без обращения к Vault и без HTTP.
+  ⚠️ **Ключ и URL берутся из Vault, а не литералом**: `cron.job.command` хранится и читается
+  в открытом виде, а текст миграции лежит в репозитории. Два секрета — `webhook_dispatch_key`
+  и `webhook_dispatch_url` — **заводит Олег руками** (`vault.create_secret`), то же значение
+  ключа прописывается в Function Secrets как `WEBHOOK_DISPATCH_KEY`. Пока секретов нет, тик
+  тихо ничего не делает: минутная джоба не имеет права сыпать ошибками в логи.
+  `webhook-cleanup` (ретеншн 30 дней, 06:15) — спринт 3, здесь не заводится.
+
 ## Edge Functions
 
 ### `ai-summarize` _(S28)_ — AI-резюме звонка/встречи
@@ -2692,3 +2804,54 @@ exists pg_cron` (включено в 051).
   refetch-страховка / `useStartRun` / `useRunRating`); UI — `AiRunPanel` + рендереры в
   `src/components/ai/`. Action item протокола → `TaskModal` (`defaultText`/
   `defaultDeadline`), принцип «AI предлагает — юзер подтверждает».
+
+---
+
+### `webhook-dispatch` _(S-R2-WEBHOOK-TRANSPORT, B2 — **написана, НЕ задеплоена**)_ — диспетчер очереди вебхуков
+
+- **Стек:** Deno, `supabase/functions/webhook-dispatch/index.ts` + чистый
+  `transport.ts` (вся логика SSRF/ретраев/подписи там — Deno-модуль с `Deno.env` наверху из
+  vitest не импортируется; тот же приём, что `ai-run/shape.ts`, тесты —
+  `tests/unit/webhook-transport.test.ts`).
+- ⚠️ **Первая функция проекта под `service_role` и с `verify_jwt = false`.** Обе существующие
+  (`ai-summarize`, `ai-run`) работают под JWT вызывающего. Здесь JWT нет и быть не может: функцию
+  зовёт БД через `pg_net`. Взамен четыре рубежа:
+  1. заголовок **`X-Dispatch-Key`**, сверяется constant-time с Function Secret
+     `WEBHOOK_DISPATCH_KEY`;
+  2. функция **не принимает никаких данных** — только `POST` без тела, очередь читает сама.
+     Даже с валидным ключом ей нельзя продиктовать ни payload, ни URL получателя;
+  3. ответ всегда `{ processed: N }` без деталей — наружу не течёт ничего об очереди;
+  4. сервисный ключ **не трогает таблицы**: все операции идут через три RPC с ACL только
+     у `service_role` (см. `webhook_endpoints` выше).
+- **SSRF — путь выбирается в рантайме.** `Deno.resolveDns` в Supabase Edge Runtime не
+  проверялся ни разу, а проверить его можно только деплоем. Поэтому isolate определяет путь сам,
+  один раз, и **пишет выбор в лог** (первая строка логов после деплоя = фактический ответ):
+  - резолв доступен → **путь A**: DNS + отбой `127/8`, `10/8`, `172.16/12`, `192.168/16`,
+    `169.254/16`, `100.64/10`, `0/8`, `::1`, `fc00::/7`, `fe80::/10` и IPv4-mapped форм;
+    allowlist опционален (пустой не блокирует);
+  - резолв недоступен → **путь B**: allowlist
+    (`organizations.settings.webhook_allowed_hosts`) **обязателен** — пустой запрещает всё.
+
+  В обеих ветках всегда: только `https`, только порт **443** (арх-док §4.1 допускал высокие
+  пользовательские — спринт сузил), запрет IP-литералов и `user:pass@`, и **`redirect: 'manual'`**
+  — без него публичный хост из allowlist редиректит на `127.0.0.1` и вся защита рассыпается.
+  Проверка гоняется **перед каждой отправкой**, а не только при сохранении: иначе обходится
+  сменой DNS-записи через минуту (DNS-rebinding).
+- **Подпись:** `X-Torii-Signature: t=<unix>,v1=<hex hmac-sha256(secret, "<t>.<raw>")>`.
+  ⚠️ **Ровно один `JSON.stringify` на всю функцию**, его результат идёт И в подпись, И в body:
+  `jsonb` не хранит порядок ключей, и пересборка объекта перед отправкой ломает сверку у
+  получателя. ⚠️ Формат — **без пробела** после запятой (схема Stripe, на которую ссылается
+  §3.3 арх-дока); в самом §3.3 значение отрендерено с пробелом, это проза — расхождение
+  зафиксировано, потому что заголовок уходит в документ контракта G3 дословно.
+  Прочие заголовки: `X-Torii-Delivery` (= `webhook_deliveries.id`), `X-Torii-Event`,
+  `X-Torii-Event-Version: 1`, `X-Torii-Attempt`, `User-Agent: torii-crm-webhooks/1`.
+- **Исходы:** 2xx → `delivered`; **3xx → `failed`, не успех** (при `redirect:'manual'` редирект
+  — просьба увести запрос, то есть обход проверки); 4xx кроме 408/429 → `failed` без ретраев;
+  408/429/5xx/таймаут/сеть → ретрай по расписанию **1 м / 5 м / 30 м / 2 ч / 6 ч / 24 ч**,
+  после 7-й попытки `failed`. `Retry-After` у 429 уважается, но не раньше собственного
+  расписания и не дольше суток.
+- **Лимиты:** таймаут **5 с** через `AbortSignal.timeout` (не «надеемся на дефолт»); тело
+  ответа читается **потоком с потолком 8 КБ** (не `await res.text()` — получатель волен
+  стримить гигабайты); батч 50; потолок 60 доставок на endpoint за тик (§4.5).
+- **Изоляция ошибок:** необработанная ошибка одной доставки пишется в её строку и **не роняет
+  батч** — тот же контракт, что у `processRun` в `ai-run`.
