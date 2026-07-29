@@ -1,4 +1,6 @@
-import { LEGACY_STAGE_LABELS } from '@/lib/validators/project';
+import { LEGACY_STAGE_LABELS, formatBudget } from '@/lib/validators/project';
+import { AUTOMATION_STATUS_LABEL } from '@/lib/constants/automation';
+import { formatDateShort } from '@/lib/utils/dates';
 import type { ActivityLog } from '@/types/entities';
 
 function stageName(key: unknown): string {
@@ -40,6 +42,12 @@ export const FIELD_LABELS: Record<string, string> = {
   description: 'описание',
   actual_close_date: 'дата закрытия',
   priority: 'приоритет',
+  // 087: поля whitelist аудита, которых клиент раньше не логировал. Без лейбла в
+  // ленту уехало бы сырое имя колонки — ровно то, чего эта карта и не допускает.
+  pipeline_id: 'воронка',
+  delivery_kind: 'шаблон внедрения',
+  lost_reason: 'причина проигрыша',
+  do_url: 'ссылка 1С:ДО',
 };
 
 /** Тип триггера автоматизации → человеческий текст (payload.trigger). */
@@ -54,6 +62,95 @@ function fieldLabel(key: string): string {
   return FIELD_LABELS[key] ?? key;
 }
 
+// ═══════════════════════════════════════════════════════
+// S-R2-FIELD-AUDIT (087): «было → стало» из payload.changes
+//
+// Триггер `trg_zy_log_field_audit` пишет надмножество прежнего payload:
+// `fields_changed` остаётся, добавляется `changes` со значениями. Записей без
+// `changes` на проде сотни (всё, что писал клиент до 087) — обе ветки обязаны
+// работать, старая ветка не трогается.
+// ═══════════════════════════════════════════════════════
+
+/** Поля-даты: `null` осмыслен («дедлайн сняли»), поэтому «не задан», а не «—». */
+const DATE_FIELDS = new Set(['deadline', 'actual_close_date', 'next_action_date']);
+
+/** Ссылочные поля: в ленту идут ТОЛЬКО from_name/to_name. Сырой UUID — никогда. */
+const REF_FIELDS = new Set(['owner_id', 'stage_id', 'company_id', 'contact_id', 'pipeline_id']);
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Число из значения payload (SQL кладёт его текстом), иначе null. */
+function numOrNull(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  if (typeof raw !== 'string' || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatFieldValue(field: string, raw: unknown): string {
+  if (field === 'budget') return formatBudget(numOrNull(raw));
+  if (field === 'probability') {
+    const n = numOrNull(raw);
+    return n === null ? '—' : `${n}%`;
+  }
+  if (DATE_FIELDS.has(field)) {
+    if (typeof raw !== 'string' || raw === '') return 'не задан';
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? raw : formatDateShort(d);
+  }
+  if (field === 'status' && typeof raw === 'string') {
+    return AUTOMATION_STATUS_LABEL[raw] ?? raw;
+  }
+  if (raw == null || raw === '') return '—';
+  return String(raw);
+}
+
+/** Одно изменение: «Бюджет: 10.0M ₽ → 12.0M ₽», «Ответственный: Олег → Иван». */
+function describeChange(field: string, ch: Record<string, unknown>): string {
+  const label = capitalize(fieldLabel(field));
+  // Класс «факт»: значение не хранится (длинные тексты и заметки в лог не тащим).
+  if (!('from' in ch) && !('to' in ch)) return label;
+  if (REF_FIELDS.has(field)) {
+    const from = typeof ch.from_name === 'string' && ch.from_name ? ch.from_name : '—';
+    const to = typeof ch.to_name === 'string' && ch.to_name ? ch.to_name : '—';
+    return `${label}: ${from} → ${to}`;
+  }
+  return `${label}: ${formatFieldValue(field, ch.from)} → ${formatFieldValue(field, ch.to)}`;
+}
+
+/**
+ * Текст по payload.changes или null, если его нет (старая запись).
+ * Строка в ленте одна и узкая (nowrap + ellipsis в ActivityDrawer), поэтому
+ * разворачиваем первое изменение, остальные — счётчиком.
+ */
+function describeChanges(p: Record<string, unknown>): string | null {
+  const raw = p.changes;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  const changes: Record<string, Record<string, unknown>> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      changes[k] = v as Record<string, unknown>;
+    }
+  }
+
+  // Порядок — из fields_changed (SQL пишет его по порядку whitelist), хвостом
+  // ключи, которых там почему-то не оказалось.
+  const listed = Array.isArray(p.fields_changed)
+    ? (p.fields_changed as unknown[]).filter(
+        (f): f is string => typeof f === 'string' && f in changes,
+      )
+    : [];
+  const keys = [...listed, ...Object.keys(changes).filter((k) => !listed.includes(k))];
+  if (keys.length === 0) return null;
+
+  const head = describeChange(keys[0], changes[keys[0]]);
+  const rest = keys.length - 1;
+  return rest > 0 ? `${head} и ещё ${rest}` : head;
+}
+
 export function describeEvent(entry: ActivityLog): string {
   const p = (entry.payload ?? {}) as Record<string, unknown>;
   switch (entry.event_type) {
@@ -64,7 +161,11 @@ export function describeEvent(entry: ActivityLog): string {
       // сделан на записи из pipeline_stages) — legacy-enum здесь не трогаем.
       const from = (p.from_name as string) || '—';
       const to = (p.to_name as string) || '—';
-      return `Стадия: ${from} → ${to}`;
+      const stage = `Стадия: ${from} → ${to}`;
+      // 087: что ещё закрыли этим переходом. Производных полей (probability,
+      // status, actual_close_date) в changes нет — их пишут BEFORE-триггеры стадии.
+      const also = describeChanges(p);
+      return also ? `${stage} · ${also}` : stage;
     }
     case 'call_logged':
       return p.contact_name ? `Звонок: ${p.contact_name}` : 'Звонок записан';
@@ -79,6 +180,11 @@ export function describeEvent(entry: ActivityLog): string {
     case 'meeting_scheduled':
       return `Встреча: ${p.title ?? ''}`;
     case 'project_updated': {
+      // 087: со значениями, если триггер их дал; иначе — прежний рендер по именам
+      // колонок (все записи до 087).
+      const detailed = describeChanges(p);
+      if (detailed) return detailed;
+
       let fields = p.fields_changed as string[] | undefined;
       if (!fields || fields.length === 0) return 'Сделка обновлена';
       // Легаси `stage` при наличии `stage_id` — дубль той же смены, не показываем.
