@@ -7,6 +7,7 @@ import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { GatesSection } from '@/components/settings/GatesSection';
 import { AutomationsSection } from '@/components/settings/AutomationsSection';
+import { WebhooksSection } from '@/components/settings/WebhooksSection';
 import { ChecklistTemplatesSection } from '@/components/settings/ChecklistTemplatesSection';
 import { OrgSettingsSection } from '@/components/settings/OrgSettingsSection';
 import { ProfileForm } from '@/components/settings/ProfileForm';
@@ -106,6 +107,10 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Automations (owner/admin only) */}
         <AutomationsSection />
+
+        {/* Вебхуки (owner/admin only, B2) — рядом с автоматизациями: в спринте 2
+            вебхук становится шестым действием того же движка */}
+        <WebhooksSection />
 
         {/* Sign-off чеклисты внедрения (owner/admin only, R2-P1-G) */}
         <ChecklistTemplatesSection />

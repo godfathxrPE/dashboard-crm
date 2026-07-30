@@ -202,7 +202,7 @@ export type Database = {
           rating: number | null
           result: Json | null
           status: string
-          transcript_id: string
+          transcript_id: string | null
         }
         Insert: {
           created_at?: string
@@ -223,7 +223,7 @@ export type Database = {
           rating?: number | null
           result?: Json | null
           status?: string
-          transcript_id: string
+          transcript_id?: string | null
         }
         Update: {
           created_at?: string
@@ -244,7 +244,7 @@ export type Database = {
           rating?: number | null
           result?: Json | null
           status?: string
-          transcript_id?: string
+          transcript_id?: string | null
         }
         Relationships: [
           {
@@ -2894,6 +2894,145 @@ export type Database = {
           },
         ]
       }
+      webhook_deliveries: {
+        Row: {
+          attempt: number
+          created_at: string
+          delivered_at: string | null
+          endpoint_id: string
+          error: string | null
+          event: string
+          id: string
+          next_retry_at: string | null
+          org_id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          rule_id: string | null
+          status: string
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          delivered_at?: string | null
+          endpoint_id: string
+          error?: string | null
+          event: string
+          id?: string
+          next_retry_at?: string | null
+          org_id: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          rule_id?: string | null
+          status?: string
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          delivered_at?: string | null
+          endpoint_id?: string
+          error?: string | null
+          event?: string
+          id?: string
+          next_retry_at?: string | null
+          org_id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          rule_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_deliveries_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_endpoints: {
+        Row: {
+          consecutive_failures: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          disabled_reason: string | null
+          id: string
+          is_active: boolean
+          last_delivery_at: string | null
+          last_status_code: number | null
+          name: string
+          org_id: string
+          secret_id: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          consecutive_failures?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          disabled_reason?: string | null
+          id?: string
+          is_active?: boolean
+          last_delivery_at?: string | null
+          last_status_code?: number | null
+          name: string
+          org_id: string
+          secret_id: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          consecutive_failures?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          disabled_reason?: string | null
+          id?: string
+          is_active?: boolean
+          last_delivery_at?: string | null
+          last_status_code?: number | null
+          name?: string
+          org_id?: string
+          secret_id?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_endpoints_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2928,6 +3067,21 @@ export type Database = {
         Args: { p_project_id: string; p_row: Json; p_target_stage_id: string }
         Returns: Json
       }
+      claim_webhook_deliveries: {
+        Args: { p_limit?: number }
+        Returns: {
+          allowed_hosts: Json
+          attempt: number
+          delivery_id: string
+          endpoint_active: boolean
+          endpoint_id: string
+          event: string
+          failure_threshold: number
+          org_id: string
+          payload: Json
+          url: string
+        }[]
+      }
       complete_onboarding: {
         Args: { p_full_name: string; p_job_title: string; p_phone: string }
         Returns: undefined
@@ -2956,11 +3110,29 @@ export type Database = {
         Args: { p_name: string; p_project_id: string }
         Returns: string
       }
+      create_webhook_endpoint: {
+        Args: { p_description?: string; p_name: string; p_url: string }
+        Returns: {
+          endpoint_id: string
+          secret: string
+        }[]
+      }
       current_org_id: { Args: never; Returns: string }
       current_org_role: { Args: never; Returns: string }
       delete_project_column: {
         Args: { p_column_id: string; p_target_column_id?: string }
         Returns: undefined
+      }
+      delete_webhook_endpoint: {
+        Args: { p_endpoint_id: string }
+        Returns: undefined
+      }
+      get_webhook_secrets: {
+        Args: { p_endpoint_ids: string[] }
+        Returns: {
+          endpoint_id: string
+          secret: string
+        }[]
       }
       instantiate_project_checklists: {
         Args: {
@@ -2981,7 +3153,22 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: undefined
       }
+      record_webhook_result: {
+        Args: {
+          p_delivery_id: string
+          p_error?: string
+          p_next_retry_at?: string
+          p_response_body?: string
+          p_response_status?: number
+          p_status: string
+        }
+        Returns: undefined
+      }
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
+      rotate_webhook_secret: {
+        Args: { p_endpoint_id: string }
+        Returns: string
+      }
       rtt_next_occurrence: {
         Args: {
           p_cadence: string
@@ -2993,6 +3180,7 @@ export type Database = {
       }
       run_dwell_automations: { Args: never; Returns: undefined }
       run_overdue_automations: { Args: never; Returns: undefined }
+      send_test_webhook: { Args: { p_endpoint_id: string }; Returns: string }
       session_gate: { Args: never; Returns: Json }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
       spawn_delivery_project: {

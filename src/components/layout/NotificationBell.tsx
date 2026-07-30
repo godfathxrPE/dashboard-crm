@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap, Sparkles } from 'lucide-react';
+import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap, Sparkles, Webhook } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import {
   useNotifications,
@@ -22,6 +22,9 @@ function entityRoute(n: Notification): string {
   // R2-P0-E (079): suggest_spawn — deep link сразу открывает мастер внедрения
   // на сделке (?spawn=1 читает ProjectDetail). Автоспавна нет — I8.
   if (n.type === 'spawn_suggest') return `/deals/${n.entity_id}?spawn=1`;
+  // B2 (088): endpoint отключён после серии провалов. entity_id — id endpoint'а,
+  // отдельного роута у него нет: ведём в Настройки, где живёт секция «Вебхуки».
+  if (n.type === 'webhook_disabled') return '/settings';
   // S-WON-AUTO-1: deal_won ведёт на сделку — там кнопка «Создать проект внедрения».
   // S-WF-2B: automation (entity_type='projects') ведёт на сделку (серверный бэкстоп deals→projects).
   if (n.type === 'project_assigned' || n.type === 'deal_won' || n.type === 'automation')
@@ -35,6 +38,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   deal_won: 'Сделка выиграна',
   automation: 'Автоматизация',
   spawn_suggest: 'Пора создать внедрение',
+  webhook_disabled: 'Вебхук отключён',
 };
 
 function TypeIcon({ type }: { type: NotificationType }) {
@@ -43,6 +47,7 @@ function TypeIcon({ type }: { type: NotificationType }) {
     : type === 'deal_won' ? Rocket
     : type === 'automation' ? Zap
     : type === 'spawn_suggest' ? Sparkles
+    : type === 'webhook_disabled' ? Webhook
     : Briefcase;
   return <Icon size={14} className="shrink-0 text-accent" />;
 }

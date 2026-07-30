@@ -12,3 +12,21 @@ verify_jwt = true
 # (EdgeRuntime.waitUntil) — статус прогона живёт в таблице ai_runs.
 [functions.ai-run]
 verify_jwt = true
+
+# S-R2-WEBHOOK-TRANSPORT (B2): диспетчер очереди исходящих вебхуков.
+#
+# ⚠️ verify_jwt = false — ЕДИНСТВЕННАЯ функция проекта без проверки JWT на шлюзе,
+#    и это вынужденно: её зовёт БД (dispatch_webhooks_tick, 089) через pg_net,
+#    а у БД JWT нет. Взамен — своя авторизация: заголовок X-Dispatch-Key
+#    сверяется constant-time с Function Secret WEBHOOK_DISPATCH_KEY.
+#
+#    Второй контур: функция НЕ ПРИНИМАЕТ ДАННЫХ (POST без тела, очередь читает
+#    сама), поэтому даже с валидным ключом ей нельзя продиктовать ни payload,
+#    ни URL получателя.
+#
+#    Секреты, которые обязан завести Олег ДО первого вызова:
+#      • Function Secret WEBHOOK_DISPATCH_KEY  (то же значение — в Vault под
+#        именем webhook_dispatch_key, см. 089);
+#      • Vault webhook_dispatch_url = https://<ref>.supabase.co/functions/v1/webhook-dispatch
+[functions.webhook-dispatch]
+verify_jwt = false

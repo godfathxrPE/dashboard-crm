@@ -412,6 +412,45 @@ export interface AutomationRun {
   fired_at: string;
 }
 
+// ═══ Sprint S-R2-WEBHOOK-TRANSPORT (миграции 088/089): исходящие вебхуки ═══
+// Доменные надстройки над строками `webhook_endpoints` / `webhook_deliveries`.
+// Форма (новые колонки, nullability) приходит из регенерации — 088 применена в прод
+// 2026-07-29 (`20260729143305` + `20260729143728` перерегистрация pg_net), типы
+// перегенерены, леса сняты.
+//
+// В спринте 1 движок автоматизаций к вебхукам НЕ подключён: единственный вход в
+// очередь — send_test_webhook (event 'webhook.test'). action_type='webhook' — спринт 2.
+
+type WebhookEndpointRow = Database['public']['Tables']['webhook_endpoints']['Row'];
+type WebhookDeliveryRow = Database['public']['Tables']['webhook_deliveries']['Row'];
+
+/** Жизненный цикл доставки (CHECK `webhook_deliveries_status_check`, 088). */
+export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed' | 'dropped';
+
+/**
+ * Получатель исходящих вебхуков.
+ *
+ * ⚠️ `secret_id` вырезан из домена НАМЕРЕННО, и это не косметика: приложению он не
+ *    нужен ни для чего, а его присутствие в типе — приглашение однажды показать
+ *    ссылку на секрет в UI. Самого секрета в таблице нет вовсе (он в vault.secrets),
+ *    наружу он выходит ровно дважды — при создании и при ротации.
+ */
+export type WebhookEndpoint = Omit<WebhookEndpointRow, 'secret_id'>;
+
+/**
+ * Строка очереди и журнала доставок. `id` = заголовок X-Torii-Delivery у получателя.
+ * `status` в БД — `text` + CHECK (не enum), поэтому домен уточняет его до union.
+ */
+export interface WebhookDelivery extends Omit<WebhookDeliveryRow, 'status'> {
+  status: WebhookDeliveryStatus;
+}
+
+/** Результат create_webhook_endpoint — секрет виден РОВНО ЗДЕСЬ и больше нигде. */
+export interface WebhookEndpointCreated {
+  endpoint_id: string;
+  secret: string;
+}
+
 // ═══ Sprint S-DEPS-1: Gantt-зависимости (task_dependencies, миграция 048 — на гейте) ═══
 // Рёбра DAG между задачами одного проекта. v1 — только FS (finish-to-start).
 // dep_type/lag_days — задел под будущие типы связей и critical path (без DDL).
@@ -525,8 +564,13 @@ export interface Membership {
 
 // S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
 // R2-P0-E (079): spawn_suggest — действие suggest_spawn предлагает создать внедрение
+// B2 (088): webhook_disabled — endpoint отключён автоматически после серии провалов
+//
+// ⚠️ Синхронно с CHECK `notifications_type_check` (088:п.13). Точка расхождения
+//    SQL↔TS: значение, добавленное здесь без миграции, упадёт на INSERT.
 export type NotificationType =
-  | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest';
+  | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest'
+  | 'webhook_disabled';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;
