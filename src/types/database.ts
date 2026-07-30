@@ -302,9 +302,9 @@ export interface UnmetRequirement {
 /** Триггеры движка (050 + task_overdue из 051 + days_in_stage из 079, R2-P0-E). */
 export type AutomationTriggerType =
   | 'stage_entered' | 'status_changed' | 'field_changed' | 'task_overdue' | 'days_in_stage';
-/** Действия движка (050 + suggest_spawn из 079). */
+/** Действия движка (050 + suggest_spawn из 079 + webhook из 090). */
 export type AutomationActionType =
-  | 'create_task' | 'notify' | 'create_activity' | 'set_field' | 'suggest_spawn';
+  | 'create_task' | 'notify' | 'create_activity' | 'set_field' | 'suggest_spawn' | 'webhook';
 /** Кому назначить задачу / кому уведомление. */
 export type AutomationAssignee = 'deal_owner' | 'deal_creator';
 
@@ -381,12 +381,50 @@ export interface AutomationSetFieldConfig {
 export interface AutomationSuggestSpawnConfig {
   text: string;                    // {deal} → имя сделки
 }
+/**
+ * webhook (090) — отправить событие на внешние адреса. Каждый активный получатель
+ * из списка = отдельная строка очереди `webhook_deliveries` со своим ретраем.
+ *
+ * FK на элементы массива не поставить (jsonb), поэтому мёртвая ссылка возможна:
+ * SQL молча пропускает id, которому не нашлось активного endpoint'а в своей org.
+ * `delete_webhook_endpoint` (090) вычищает id из конфигов и гасит правило,
+ * оставшееся без получателей.
+ */
+export interface AutomationWebhookConfig {
+  endpoint_ids: string[];          // uuid'ы webhook_endpoints той же org
+}
 export type AutomationActionConfig =
   | AutomationCreateTaskConfig
   | AutomationNotifyConfig
   | AutomationActivityConfig
   | AutomationSetFieldConfig
-  | AutomationSuggestSpawnConfig;
+  | AutomationSuggestSpawnConfig
+  | AutomationWebhookConfig;
+
+/**
+ * trigger_type → доменное имя события вебхука.
+ *
+ * ⚠️ ТОЧКА СИНХРОНИЗАЦИИ SQL ↔ TS: та же карта живёт в
+ *    `public.webhook_event_name(text)` (миграция 090). Меняется там — меняется здесь.
+ *    Наружу уходит доменное имя, а не имя триггера: набор `trigger_type` менялся
+ *    четырежды, и получатель не должен ломаться от внутренних переименований.
+ *
+ * `task_overdue` присутствует ради полноты Record, но действие `webhook` для него
+ * НЕ поддержано: движок 051 не зовёт `wf_apply_project_action` и режет action_type
+ * до notify/create_activity. UI и Zod это запрещают — правило молча не сработало бы.
+ */
+export const WEBHOOK_EVENT_BY_TRIGGER: Record<AutomationTriggerType, string> = {
+  stage_entered: 'deal.stage_changed',
+  status_changed: 'deal.status_changed',
+  field_changed: 'deal.field_changed',
+  days_in_stage: 'deal.stuck_in_stage',
+  task_overdue: 'task.overdue',      // не поддержан действием webhook (см. выше)
+};
+
+/** Триггеры, для которых действие `webhook` реально работает (090). */
+export const WEBHOOK_SUPPORTED_TRIGGERS: readonly AutomationTriggerType[] = [
+  'stage_entered', 'status_changed', 'field_changed', 'days_in_stage',
+];
 
 export interface AutomationRule {
   id: string;

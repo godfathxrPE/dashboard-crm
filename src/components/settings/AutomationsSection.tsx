@@ -31,6 +31,7 @@ import type {
   AutomationNotifyConfig,
   AutomationActivityConfig,
   AutomationSetFieldConfig,
+  AutomationWebhookConfig,
 } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -63,6 +64,16 @@ function describeTrigger(rule: AutomationRule, stageName: (id: string) => string
   }
 }
 
+/** Русский счётный род для ярлыка «N получателей» (090). Общего хелпера в проекте нет. */
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  const mod10 = n % 10;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
 function describeAction(rule: AutomationRule): string {
   switch (rule.action_type) {
     case 'create_task': {
@@ -88,6 +99,14 @@ function describeAction(rule: AutomationRule): string {
     case 'suggest_spawn':
       // I8: только уведомление владельцу, проект внедрения не создаётся
       return 'предложить создать внедрение';
+    case 'webhook': {
+      // 090: число получателей — чтобы список читался без открытия модалки.
+      // Мёртвые id в конфиге возможны (FK на jsonb нет), поэтому это «сколько
+      // выбрано», а не «сколько доедет».
+      const cfg = rule.action_config as AutomationWebhookConfig;
+      const n = cfg.endpoint_ids?.length ?? 0;
+      return `вебхук → ${n} ${plural(n, 'получатель', 'получателя', 'получателей')}`;
+    }
   }
 }
 

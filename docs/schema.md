@@ -22,10 +22,14 @@
 > (прецедент 047), в 088 это учтено через `create extension ... with schema extensions`.
 > Ставит **`pg_net`** (первое HTTP-расширение проекта), заводит `webhook_endpoints` /
 > `webhook_deliveries` + 7 RPC + шестое значение `notifications.type`. Типы перегенерены,
-> стабы сняты. **089 — НАПИСАНА, НЕ ПРИМЕНЕНА**: тик `dispatch_webhooks_tick()` и
-> **первая минутная cron-джоба** `webhook-retry`, ждёт деплоя edge `webhook-dispatch`.
-> ⚠️ **Порядок: 088 ✓ → deploy edge → 089 → фронт** (089 содержит вызов функции);
-> следующая свободная — **090**;
+> стабы сняты. **089 — ПРИМЕНЕНА `20260730192415`** (после деплоя edge `webhook-dispatch`):
+> тик `dispatch_webhooks_tick()` и **первая минутная cron-джоба** `webhook-retry`;
+> транспорт проверен на живом приёмнике (200 / `delivered`, подпись сверена независимым
+> пересчётом HMAC, SSRF отбил `localtest.me` → `127.0.0.1`).
+> **090 (S-R2-WEBHOOK-ACTION, эпик B2) — НАПИСАНА, НЕ ПРИМЕНЕНА**: шестое
+> `action_type='webhook'`, `p_changes` в ядре движка, `webhook_event_name` /
+> `build_deal_webhook_payload`, чистка `endpoint_ids` в `delete_webhook_endpoint`;
+> следующая свободная — **091**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -581,8 +585,8 @@ Org-scoped конфиг правил «триггер → действие» + �
 | name | text | NOT NULL — человекочитаемое имя правила |
 | trigger_type | text | **050 CHECK** `stage_entered\|status_changed\|field_changed`; **051** += `task_overdue`; **079** += `days_in_stage` |
 | trigger_config | jsonb | stage_entered `{"stage_id":uuid}`; status_changed `{"to":"won"\|null}`; field_changed `{"field":"budget"}`; **task_overdue `{}`** (без конфигурации); **079 days_in_stage `{"min_days":int 1..365,"stage_id":uuid?}`** — `stage_id` опционален, ключа НЕТ ⇒ любая стадия (UI не пишет `""`: каст `''::uuid` уронил бы правило) |
-| action_type | text | **050 CHECK** `create_task\|notify\|create_activity\|set_field`; **079** += `suggest_spawn` (task_overdue ограничен до `notify\|create_activity` UI-валидатором И движком 051) |
-| action_config | jsonb | create_task `{"task_text":"…{deal}…","assignee":"deal_owner"\|"deal_creator","lane","priority","due_in_days"}`; notify `{"recipient","text"}`; create_activity `{"title","description"}`; set_field `{"field","value"}`; **079 suggest_spawn `{"text":"…{deal}…"}`** |
+| action_type | text | **050 CHECK** `create_task\|notify\|create_activity\|set_field`; **079** += `suggest_spawn`; **090** += `webhook` (task_overdue ограничен до `notify\|create_activity` UI-валидатором И движком 051 — `webhook` для него НЕ поддержан) |
+| action_config | jsonb | create_task `{"task_text":"…{deal}…","assignee":"deal_owner"\|"deal_creator","lane","priority","due_in_days"}`; notify `{"recipient","text"}`; create_activity `{"title","description"}`; set_field `{"field","value"}`; **079 suggest_spawn `{"text":"…{deal}…"}`**; **090 webhook `{"endpoint_ids":[uuid,…]}`** — FK на элементы массива не поставить, мёртвая ссылка молча пропускается; `delete_webhook_endpoint` (090) вычищает id и гасит правило без получателей |
 | conditions | jsonb | **050** NOT NULL DEFAULT `'[]'` — массив AND-предикатов `{field,op,value}`; ops `eq/neq/gt/lt/gte/lte/contains/is_null/not_null`; вычисляет `wf_eval_conditions()` (fail-closed) |
 | is_active | boolean | NOT NULL DEFAULT true (выкл → правило не стреляет) |
 | created_at | timestamptz | default now() |
@@ -618,16 +622,27 @@ AFTER UPDATE ON projects)**: re-entrancy guard `wf.ran` (v1 — один про�
 grant `service_role`. **079** сузил выборку правил (`trigger_type <> 'days_in_stage'`) —
 cron-триггер здесь всё равно не матчился.
 
-**Общая часть действий `wf_apply_project_action(rule_id, project_id, run_id, trigger_key)`
-(079, DEFINER, НЕ триггер)**: вынесена из `run_stage_automations` один-в-один, чтобы
+**Общая часть действий `wf_apply_project_action(rule_id, project_id, run_id, trigger_key, changes jsonb DEFAULT NULL)`
+(079; **090 добавил 5-й параметр `p_changes`**, DEFINER, НЕ триггер)**: вынесена из `run_stage_automations` один-в-один, чтобы
 dwell-планировщик не дублировал код действий. Перечитывает `automation_rules`/`projects`
 по PK (в AFTER UPDATE это та же строка, что NEW; из cron — актуальная) и диспатчит:
 create_task S29 1:1 / notify → notifications `type='automation'` / create_activity →
 activities `type='note'` / **set_field whitelist** `next_step/pinned_note/next_action_date/
 probability` (НИКОГДА stage_id/status/type/org_id) / **079 suggest_spawn** → notifications
-`type='spawn_suggest'`, получатель `COALESCE(owner_id, created_by)`; в конце — аудит
+`type='spawn_suggest'`, получатель `COALESCE(owner_id, created_by)` / **090 webhook** →
+строка `webhook_deliveries` на КАЖДЫЙ активный endpoint из `action_config.endpoint_ids`
+(`status='pending'`, `next_retry_at=now()`); в конце — аудит
 `activity_log 'automation_fired'`. Actor — `COALESCE(auth.uid(), owner_id, created_by)`
 (из cron `auth.uid()` = NULL). ACL: revoke public/anon/authenticated, grant `service_role`.
+**090 — ловушка перегрузки:** 5-й параметр добавлен через `DROP FUNCTION (uuid,uuid,uuid,text)`
++ `CREATE`, а не `CREATE OR REPLACE`: иначе появилась бы вторая сигнатура и старые 4-арные
+вызовы упали бы с 42725 «function is not unique», уронив движок целиком. Оба вызывающих
+планировщика переписаны в той же миграции; в `pg_proc` имя обязано встречаться **один раз**.
+**090 — webhook-ветка:** сверка endpoint'ов идёт по `e.id::text IN (…)`, а не кастом элемента
+массива в uuid — мусор в `endpoint_ids` иначе бросил бы исключение уже ПОСЛЕ вставки в
+`automation_runs` и правило стало бы no-op навсегда. Границы: `e.org_id = pr.org_id` и
+`e.is_active`. `dispatch_webhooks_tick()` отсюда НЕ зовётся (массовая правка сделок дала бы
+столько HTTP-вызовов, сколько строк) — доставку подбирает минутная джоба `webhook-retry`.
 **Инвариант I8:** `suggest_spawn` создаёт ТОЛЬКО уведомление — `spawn_delivery_project`
 из автоматизаций не зовётся никогда, контур/шаблон/владельца выбирает РП руками.
 **Грабля:** `set_field` с полем `probability` на dwell-правиле живёт до следующей смены
@@ -768,8 +783,27 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 ### webhook_endpoints / webhook_deliveries _(088, S-R2-WEBHOOK-TRANSPORT, эпик B2 — **applied 2026-07-29 `20260729143305`**)_ — исходящие вебхуки
 
 Транспорт отделён от движка правил намеренно: в спринте 1 единственный вход в очередь —
-`send_test_webhook` (`event = 'webhook.test'`). `action_type='webhook'` и ветка в
-`wf_apply_project_action` — спринт 2, здесь движок не трогается вовсе.
+`send_test_webhook` (`event = 'webhook.test'`).
+
+**090 (S-R2-WEBHOOK-ACTION) подключил движок**: `action_type='webhook'` + ветка в
+`wf_apply_project_action` кладут в ту же очередь боевые события. Транспорт при этом не
+менялся — только источник строк. Доменные имена событий даёт
+`webhook_event_name(trigger_type)`: `stage_entered→deal.stage_changed`,
+`status_changed→deal.status_changed`, `field_changed→deal.field_changed`,
+`days_in_stage→deal.stuck_in_stage`, иначе `deal.updated`; `webhook.test` остаётся за
+тестовой отправкой. **Точка синхронизации** — `WEBHOOK_EVENT_BY_TRIGGER` в
+`src/types/database.ts`. Тело события собирает
+`build_deal_webhook_payload(project_id, event, delivery_id, rule_id, rule_name, changes)`
+(DEFINER, `service_role`) по арх-доку §3.2; **whitelist `data` закрытый** —
+`name/status/budget/probability/direction/deadline/next_action_date/next_step` + резолв
+`stage/owner/company/contact` в `{id,name}`; наружу НЕ уходят `pinned_note`, `loss_*`,
+`won_*`, `do_*`, `delivery_kind`, `progress_*`, а новая колонка `projects` в вебхук сама
+не попадёт. `budget` — в копейках. `occurred_at` — `to_char(… AT TIME ZONE 'UTC', …)`,
+не `::text` (иначе UI-MSK и cron-UTC разошлись бы, а получатель сверяет тело побайтово).
+`changes` приходит параметром из планировщика (формат 087 `{from,to,from_name,to_name}`);
+`NULL` ⇒ ключа в payload нет вовсе. **`task_overdue` действие `webhook` НЕ поддерживает** —
+`run_overdue_automations` (051) не зовёт `wf_apply_project_action` и режет action_type до
+`notify|create_activity`; UI и Zod это запрещают до сохранения.
 
 **`webhook_endpoints`** — конфигурация получателя.
 
@@ -820,7 +854,10 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
   **единственное место, где секрет покидает БД**;
 - `rotate_webhook_secret(p_endpoint_id)` → text — `vault.update_secret`, старый недействителен сразу;
 - `delete_webhook_endpoint(p_endpoint_id)` — строка + её секрет из `vault.secrets`
-  (DELETE у `authenticated` отозван, а сирота в Vault копилась бы);
+  (DELETE у `authenticated` отозван, а сирота в Vault копилась бы). **090** дополнил:
+  вычищает id из `action_config->'endpoint_ids'` всех webhook-правил org и **деактивирует
+  правило, оставшееся без получателей** — активное правило, которое гарантированно ничего
+  не делает, выглядит в списке рабочим и вводит в заблуждение;
 - `send_test_webhook(p_endpoint_id)` → uuid — ставит `webhook.test` и зовёт
   `dispatch_webhooks_tick()` **через guard `to_regprocedure`**: между apply 088 и 089 функции ещё нет.
 
@@ -2638,8 +2675,7 @@ exists pg_cron` (включено в 051).
   `notifications_type_check` к редакции 079. Только ПОСЛЕ отката 089. Секреты, заведённые в
   Vault, откатом не удаляются — снимать вручную по имени `webhook_%`.
 
-- **089** _(S-R2-WEBHOOK-TRANSPORT — **НЕ применена; применять ТОЛЬКО после деплоя edge**;
-  на 2026-07-29 это единственная неприменённая миграция)_ —
+- **089** _(S-R2-WEBHOOK-TRANSPORT — **ПРИМЕНЕНА `20260730192415`**, после деплоя edge)_ —
   `dispatch_webhooks_tick()` (DEFINER, `service_role`) + cron **`webhook-retry` `* * * * *`**.
   **Первая минутная джоба в проекте**; остальные три суточные и разведены по минутам
   (06:00 / 06:05 / 06:10). Цена частоты оплачена телом: при пустой очереди это один
@@ -2650,6 +2686,37 @@ exists pg_cron` (включено в 051).
   ключа прописывается в Function Secrets как `WEBHOOK_DISPATCH_KEY`. Пока секретов нет, тик
   тихо ничего не делает: минутная джоба не имеет права сыпать ошибками в логи.
   `webhook-cleanup` (ретеншн 30 дней, 06:15) — спринт 3, здесь не заводится.
+
+- **090** _(S-R2-WEBHOOK-ACTION — **написана, НЕ применена**; на 2026-07-30 единственная
+  неприменённая)_ — вебхук как действие движка автоматизаций. Порядок деплоя:
+  **090 → фронт**; edge-функция не трогается вовсе (`git diff` по
+  `supabase/functions/**` пуст).
+  **(1)** CHECK `automation_rules.action_type` += `'webhook'` (шестое значение;
+  `trigger_type` не трогается).
+  **(2)** `webhook_event_name(text)` _(SQL, IMMUTABLE, `service_role`)_ — `trigger_type` →
+  доменное имя события. **Точка синхронизации** с `WEBHOOK_EVENT_BY_TRIGGER` в
+  `src/types/database.ts`.
+  **(3)** `build_deal_webhook_payload(uuid, text, uuid, uuid, text, jsonb)` _(DEFINER,
+  `service_role`)_ — тело события по §3.2, **закрытый whitelist `data`**, `budget` в
+  копейках, `occurred_at` через `to_char(… AT TIME ZONE 'UTC', …)`.
+  **(4)** ⚠️ **`DROP FUNCTION wf_apply_project_action(uuid,uuid,uuid,text)` →
+  CREATE 5-арной** с `p_changes jsonb DEFAULT NULL`. `CREATE OR REPLACE` дало бы
+  ПЕРЕГРУЗКУ: старые 4-арные вызовы упали бы с 42725 «function is not unique», и движок
+  встал бы целиком, включая работающие create_task/notify/set_field/suggest_spawn.
+  Гранты уходят вместе с DROP — `revoke`/`grant execute to service_role` повторены на
+  новой сигнатуре. Самопроверка на гейте:
+  `select count(*) from pg_proc where proname='wf_apply_project_action'` → **1**.
+  **(5)** Оба вызывающих планировщика переписаны в этой же миграции —
+  `run_stage_automations` (собирает `changes` **только под webhook-действие**: для
+  `stage_entered` с резолвом имён стадий, для `status_changed`/`field_changed` — from/to)
+  и `run_dwell_automations` (передаёт `NULL` — у «застревания» диффа нет по смыслу).
+  Guard `wf.ran`, дедуп `automation_runs`, per-rule `exception when others then continue`
+  и внешний `return new` — без изменений; в дифе против 079 ровно одно смысловое отличие.
+  **(6)** `delete_webhook_endpoint` дополнена чисткой `endpoint_ids` + деактивацией
+  правила без получателей.
+  **Откат:** обратный порядок — вернуть 4-арную функцию и оба планировщика **дословно из
+  079** (единственный источник текста), затем снять правила с `action_type='webhook'`
+  до re-narrow CHECK'а.
 
 ## Edge Functions
 

@@ -41,7 +41,7 @@ export const ruleSchema = z
 
     // ── action ──
     action_type: z.enum([
-      'create_task', 'notify', 'create_activity', 'set_field', 'suggest_spawn',
+      'create_task', 'notify', 'create_activity', 'set_field', 'suggest_spawn', 'webhook',
     ]),
     // create_task
     a_task_text: z.string().optional(),
@@ -60,6 +60,8 @@ export const ruleSchema = z
     a_set_value: z.string().optional(),
     // suggest_spawn
     a_spawn_text: z.string().optional(),
+    // webhook (090) — получатели из webhook_endpoints той же org
+    a_endpoint_ids: z.array(z.string().uuid()).optional(),
   })
   .superRefine((v, ctx) => {
     // trigger
@@ -87,6 +89,9 @@ export const ruleSchema = z
       ctx.addIssue({ code: 'custom', path: ['a_set_value'], message: 'Поле и значение' });
     if (v.action_type === 'suggest_spawn' && !v.a_spawn_text?.trim())
       ctx.addIssue({ code: 'custom', path: ['a_spawn_text'], message: 'Текст предложения' });
+    // webhook (090): правило без получателей гарантированно ничего не делает
+    if (v.action_type === 'webhook' && !v.a_endpoint_ids?.length)
+      ctx.addIssue({ code: 'custom', path: ['a_endpoint_ids'], message: 'Выберите хотя бы один получатель' });
   });
 
 export type RuleFormValues = z.infer<typeof ruleSchema>;
