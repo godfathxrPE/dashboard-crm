@@ -28,8 +28,12 @@
 > пересчётом HMAC, SSRF отбил `localtest.me` → `127.0.0.1`).
 > **090 (S-R2-WEBHOOK-ACTION, эпик B2) — ПРИМЕНЕНА `20260731055734`**: шестое
 > `action_type='webhook'`, `p_changes` в ядре движка, `webhook_event_name` /
-> `build_deal_webhook_payload`, чистка `endpoint_ids` в `delete_webhook_endpoint`;
-> следующая свободная — **091**;
+> `build_deal_webhook_payload`, чистка `endpoint_ids` в `delete_webhook_endpoint`.
+> **091 (S-R2-WEBHOOK-JOURNAL, эпик B2, финал) — НАПИСАНА, НЕ ПРИМЕНЕНА**: аддитивна —
+> `retry_webhook_delivery` (повтор создаёт НОВУЮ строку), `cleanup_webhook_deliveries`
+> (ретеншн 30 дней) и пятая cron-джоба `webhook-cleanup`; плюс контракт
+> [`docs/WEBHOOKS-CONTRACT.md`](./WEBHOOKS-CONTRACT.md);
+> следующая свободная — **092**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -782,6 +786,11 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ### webhook_endpoints / webhook_deliveries _(088, S-R2-WEBHOOK-TRANSPORT, эпик B2 — **applied 2026-07-29 `20260729143305`**)_ — исходящие вебхуки
 
+📄 **Контракт для принимающей стороны — [`docs/WEBHOOKS-CONTRACT.md`](./WEBHOOKS-CONTRACT.md)**
+(G3, 091): заголовки, проверка подписи, идемпотентность, расписание ретраев, схема payload.
+Числа в нём сверены с `transport.ts`/`index.ts`, а не с арх-доком (в §3.3 арх-дока подпись
+отрендерена с пробелом после запятой — в коде и в контракте пробела нет).
+
 Транспорт отделён от движка правил намеренно: в спринте 1 единственный вход в очередь —
 `send_test_webhook` (`event = 'webhook.test'`).
 
@@ -873,6 +882,28 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ⚠️ Сервисный ключ edge-функции работает **только через эти три двери** — грантов на сами
 таблицы ей не требуется.
+
+**Две RPC 091** — журнал доставок:
+
+- `retry_webhook_delivery(p_delivery_id)` → uuid _(DEFINER, гейт owner/admin в теле,
+  `grant execute to authenticated`)_ — ручной повтор. ⚠️ **Вставляет НОВУЮ строку**, а не
+  оживляет старую: `id` уходит получателю как `X-Torii-Delivery` и служит ключом
+  дедупликации, поэтому `update … set status='pending'` был бы отброшен корректным
+  приёмником — у нас `delivered`, у него ничего. `payload.id` переписывается через
+  `jsonb_set` (под `jsonb_typeof = 'object'`-guard: колонка просто `jsonb`, а на не-объекте
+  `jsonb_set` бросает 22023), **`occurred_at` НЕ трогается** — это время события в CRM.
+  Повторить можно только `failed`/`dropped` (`pending` может быть под 5-минутным лизингом →
+  двойная отправка; `delivered` нечего) и только в активный endpoint (`webhook_endpoint_inactive`,
+  22023: захват по `is_active` не фильтрует, и edge немедленно пишет `dropped`).
+  `org_id = v_org` в WHERE обязателен и при DEFINER — RLS внутри DEFINER не действует.
+  Зовёт немедленный тик, как `send_test_webhook`;
+- `cleanup_webhook_deliveries()` → integer _(DEFINER, `service_role`)_ — ретеншн.
+  Удаляет **терминальные** строки старше 30 дней и возвращает их число (иначе
+  `cron.job_run_details` показывал бы пустой успех). ⚠️ **`pending` не удаляется никогда,
+  ни в каком возрасте**: висящая строка это симптом, а не мусор. Батчинга нет; порог
+  пересмотра — сотни тысяч строк. Cron **`webhook-cleanup` `15 6 * * *`** — пятая джоба
+  проекта, утренняя цепочка с шагом 5 минут (`0 6` / `5 6` / `10 6` / `15 6`) плюс минутная
+  `webhook-retry`.
 
 ---
 
@@ -2717,6 +2748,21 @@ exists pg_cron` (включено в 051).
   **Откат:** обратный порядок — вернуть 4-арную функцию и оба планировщика **дословно из
   079** (единственный источник текста), затем снять правила с `action_type='webhook'`
   до re-narrow CHECK'а.
+
+- **091** _(S-R2-WEBHOOK-JOURNAL — **написана, НЕ применена**; на 2026-07-31 единственная
+  неприменённая)_ — журнал доставок: повтор и ретеншн. **Аддитивна**: ни одна функция
+  088/089/090 не переписывается, сигнатуры не меняются, таблиц и колонок нет (реген типов
+  нужен только ради новых RPC в `supabase.gen.ts`). Порядок деплоя: **091 → фронт**;
+  edge не трогается.
+  **(1)** `retry_webhook_delivery(uuid)` → uuid — см. описание в разделе
+  `webhook_endpoints / webhook_deliveries` выше.
+  **(2)** `cleanup_webhook_deliveries()` → integer — ретеншн 30 дней, `pending` не трогает.
+  **(3)** cron `webhook-cleanup` `15 6 * * *`, идемпотентная регистрация паттерном 089.
+  Вместе с миграцией — контракт для внешних потребителей
+  [`docs/WEBHOOKS-CONTRACT.md`](./WEBHOOKS-CONTRACT.md) (G3).
+  **Откат:** `cron.unschedule('webhook-cleanup')` + `drop function
+  public.cleanup_webhook_deliveries()` + `drop function public.retry_webhook_delivery(uuid)`.
+  Строки, созданные повтором, остаются — это обычные доставки, отличить их нечем и не нужно.
 
 ## Edge Functions
 
