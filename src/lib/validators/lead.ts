@@ -1,4 +1,6 @@
 import { z } from 'zod';
+// Только тип — `import type` стирается при компиляции, runtime-связи lib → components нет.
+import type { BadgeColor } from '@/components/ui/Badge';
 
 // ═══════════════════════════════════════════════════════
 // Lead statuses & sources
@@ -7,7 +9,9 @@ import { z } from 'zod';
 export const leadStatuses = ['new', 'contacted', 'qualified', 'disqualified', 'converted'] as const;
 export const leadSources = ['call', 'website', 'referral', 'cold', 'inbound', 'event'] as const;
 
-export const LEAD_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+// Ключ — `string`, не `LeadStatus`: `lead.status` приходит из БД строкой, сужение
+// сломало бы индексацию у потребителей.
+export const LEAD_STATUS_CONFIG: Record<string, { label: string; color: BadgeColor }> = {
   new:            { label: 'Новый',              color: 'blue' },
   contacted:      { label: 'Контакт',            color: 'yellow' },
   qualified:      { label: 'Квалифицирован',     color: 'green' },

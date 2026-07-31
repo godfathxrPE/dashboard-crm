@@ -424,9 +424,12 @@ export function LeadsView() {
   // модалку после того, как пользователь её закрыл.
   const handledLeadParam = useRef<string | null>(null);
 
+  // `router.replace` тут дал бы RSC round-trip: /leads — dynamic-страница, App Router
+  // сходит за payload прежде чем поменять URL. Правка query без навигации — штатный
+  // путь Next 15 (`window.history.replaceState`), `useSearchParams` на неё реагирует.
   const clearLeadParam = useCallback(() => {
-    if (leadParam) router.replace('/leads', { scroll: false });
-  }, [leadParam, router]);
+    if (leadParam) window.history.replaceState(null, '', '/leads');
+  }, [leadParam]);
 
   useEffect(() => {
     if (!leadParam) {
@@ -492,7 +495,7 @@ export function LeadsView() {
       sortable: true,
       render: (l) => {
         const cfg = LEAD_STATUS_CONFIG[l.status];
-        return <Badge color={cfg?.color as 'blue' | 'green' | 'red' | 'yellow' | 'accent'} size="sm">{cfg?.label ?? l.status}</Badge>;
+        return <Badge color={cfg?.color} size="sm">{cfg?.label ?? l.status}</Badge>;
       },
     },
     {
@@ -651,6 +654,9 @@ export function LeadsView() {
             href: `/leads?lead=${l.id}`,
             content: <LeadPeekContent lead={l} />,
           })}
+          // «Открыть полностью» из peek ведёт на /leads?lead=<id> и поднимает модалку —
+          // панель под ней (z-40, без оверлея) осталась бы висеть после её закрытия.
+          peekSuppressed={modalOpen || convertLead !== null}
           searchPlaceholder="Поиск по названию, компании..."
           emptyMessage="Нет лидов"
           emptyIcon={<Target size={32} className="text-text-mute" />}

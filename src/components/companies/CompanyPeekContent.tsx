@@ -9,6 +9,7 @@ import {
   splitCompanyProjects, countCompany360, formatCompany360Summary, isTerminalDeal,
 } from '@/lib/utils/company-360';
 import { getDealHealth } from '@/lib/utils/deal-health';
+import { DealHealthDot } from '@/components/shared/DealHealthDot';
 import { projectHref } from '@/lib/utils/project-href';
 import { formatBudget } from '@/lib/validators/project';
 import { formatPhone } from '@/lib/utils/phone';
@@ -63,7 +64,7 @@ export function CompanyPeekContent({ company }: { company: CompanyRow }) {
             <span className="ml-1.5 text-xs font-normal text-text-mute">в открытых сделках</span>
           </span>
         ) : (
-          <span className="text-text-mute">Без открытых сделок</span>
+          <span className="text-text-mute">0 ₽ в открытых сделках</span>
         )}
       </p>
 
@@ -131,15 +132,7 @@ export function CompanyPeekContent({ company }: { company: CompanyRow }) {
                 href={projectHref(p)}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover"
               >
-                {dh !== 'ok' && (
-                  <span
-                    title={dh === 'overdue-action' ? 'Шаг просрочен' : 'Нет следующего шага'}
-                    className="inline-block h-[6px] w-[6px] shrink-0 rounded-full"
-                    style={dh === 'overdue-action'
-                      ? { backgroundColor: 'var(--red-text, var(--red))' }
-                      : { border: '1px solid var(--yellow-text, var(--yellow))' }}
-                  />
-                )}
+                <DealHealthDot health={dh} />
                 <span className="min-w-0 flex-1 truncate text-sm text-text-main">{p.name}</span>
                 {p.budget != null && (
                   <span className="shrink-0 text-xs tabular-nums text-text-dim">{formatBudget(p.budget)}</span>

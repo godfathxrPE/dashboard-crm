@@ -41,7 +41,11 @@ export interface Company360Counts {
   deals: number;
   /** Сколько из `deals` не закрыты (не won/lost). */
   dealsOpen: number;
+  /** Только `type='delivery'` — то, что действительно внедрение. */
   deliveries: number;
+  /** `type='internal'` — пресейлы и внутренние проекты. Живут в `split.deliveries`
+   *  (список на карточке их показывает), но «внедрением» не называются. */
+  internal: number;
   contacts: number;
 }
 
@@ -49,10 +53,12 @@ export function countCompany360<T extends ProjectLike>(
   split: CompanyProjectSplit<T>,
   contactsCount: number,
 ): Company360Counts {
+  const internal = split.deliveries.filter((p) => p.type === 'internal').length;
   return {
     deals: split.deals.length,
     dealsOpen: split.deals.filter((d) => !isTerminalDeal(d.status)).length,
-    deliveries: split.deliveries.length,
+    deliveries: split.deliveries.length - internal,
+    internal,
     contacts: contactsCount,
   };
 }
@@ -76,6 +82,9 @@ export function ruPlural(n: number, forms: [string, string, string]): string {
  * Терминальные сделки в счётчик входят, но открытые названы отдельно — иначе
  * «1 сделка» умалчивает, что она выиграна год назад. Скобка не рендерится, когда
  * открытых нет вовсе или открыты все (ничего не уточняет).
+ *
+ * Часть про внутренние проекты добавляется только при `internal > 0` — иначе строка
+ * росла бы у всех ради редкого случая (в проде 1 компания из 260).
  */
 export function formatCompany360Summary(c: Company360Counts): string {
   const dealsPart = `${c.deals} ${ruPlural(c.deals, ['сделка', 'сделки', 'сделок'])}`;
@@ -84,6 +93,10 @@ export function formatCompany360Summary(c: Company360Counts): string {
       ? ` (${c.dealsOpen} ${ruPlural(c.dealsOpen, ['открыта', 'открыты', 'открыто'])})`
       : '';
   const deliveriesPart = `${c.deliveries} ${ruPlural(c.deliveries, ['внедрение', 'внедрения', 'внедрений'])}`;
+  const internalPart =
+    c.internal > 0
+      ? ` · ${c.internal} ${ruPlural(c.internal, ['внутренний проект', 'внутренних проекта', 'внутренних проектов'])}`
+      : '';
   const contactsPart = `${c.contacts} ${ruPlural(c.contacts, ['контакт', 'контакта', 'контактов'])}`;
-  return `${dealsPart}${openPart} · ${deliveriesPart} · ${contactsPart}`;
+  return `${dealsPart}${openPart} · ${deliveriesPart}${internalPart} · ${contactsPart}`;
 }

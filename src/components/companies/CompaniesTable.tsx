@@ -13,6 +13,7 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { formatBudget } from '@/lib/validators/project';
+import { splitCompanyProjects, isTerminalDeal } from '@/lib/utils/company-360';
 import { DataTable, type Column, type BulkAction } from '@/components/shared/DataTable';
 import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
@@ -71,9 +72,13 @@ export function CompaniesTable() {
 
   // Обогащение строк: связи, pipeline открытых сделок, касание = max по контактам компании
   const rows = useMemo<CompanyRow[]>(() => {
+    // Пайплайн — только продажи (`type='client'`). Внедрения и внутренние проекты
+    // имеют бюджет, но он не «в открытых сделках»: до правки «Ориент продактс»
+    // показывала 22.0M вместо 11.0M за счёт `Пресейл Ориент` (type='internal').
+    // Критерий один и тот же с карточкой 360 — `splitCompanyProjects`, не своя проверка.
     const pipelineByCompany: Record<string, number> = {};
-    (allProjects ?? []).forEach((p) => {
-      if (p.company_id && p.status !== 'won' && p.status !== 'lost') {
+    splitCompanyProjects(allProjects ?? []).deals.forEach((p) => {
+      if (p.company_id && !isTerminalDeal(p.status)) {
         pipelineByCompany[p.company_id] = (pipelineByCompany[p.company_id] ?? 0) + (p.budget ?? 0);
       }
     });

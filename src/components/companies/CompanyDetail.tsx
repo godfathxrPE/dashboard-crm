@@ -15,6 +15,7 @@ import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { getDealHealth, compareByNextAction } from '@/lib/utils/deal-health';
 import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
+import { DealHealthDot } from '@/components/shared/DealHealthDot';
 import {
   splitCompanyProjects, countCompany360, formatCompany360Summary, isTerminalDeal,
 } from '@/lib/utils/company-360';
@@ -230,15 +231,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
                 return (
                   <button key={p.id} onClick={() => router.push(projectHref(p))}
                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
-                    {dh !== 'ok' && (
-                      <span
-                        title={dh === 'overdue-action' ? 'Шаг просрочен' : 'Нет следующего шага'}
-                        className="inline-block h-[6px] w-[6px] shrink-0 rounded-full"
-                        style={dh === 'overdue-action'
-                          ? { backgroundColor: 'var(--red-text, var(--red))' }
-                          : { border: '1px solid var(--yellow-text, var(--yellow))' }}
-                      />
-                    )}
+                    <DealHealthDot health={dh} />
                     <span className={closed ? 'text-sm text-text-mute' : 'text-sm text-text-main'}>{p.name}</span>
                     <span data-tag className={closed
                       ? 'rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute'
@@ -266,7 +259,10 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           <div className="mb-3 flex items-center gap-2">
             <Rocket size={14} className="text-text-dim" />
             <span className="text-xs font-semibold text-text-main">Внедрения</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{counts.deliveries}</span>
+            {/* Счётчик секции считает то, что секция перечисляет, — а список ниже
+                показывает и `internal` (см. контракт `splitCompanyProjects`).
+                `counts.deliveries` тут дал бы «0» над непустым списком. */}
+            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{linkedDeliveries.length}</span>
           </div>
           <div className="space-y-1.5">
             {linkedDeliveries.map((p) => {

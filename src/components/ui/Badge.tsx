@@ -1,7 +1,7 @@
 import { forwardRef, type HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils/cn';
 
-type BadgeColor = 'green' | 'red' | 'blue' | 'yellow' | 'purple' | 'accent';
+export type BadgeColor = 'green' | 'red' | 'blue' | 'yellow' | 'purple' | 'accent';
 type BadgeSize = 'md' | 'sm';
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

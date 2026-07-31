@@ -28,7 +28,7 @@ export function LeadPeekContent({ lead }: { lead: Lead }) {
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge color={statusCfg?.color as 'blue' | 'green' | 'red' | 'yellow' | 'accent'} size="sm">
+        <Badge color={statusCfg?.color} size="sm">
           {statusCfg?.label ?? lead.status}
         </Badge>
         {lead.source && (

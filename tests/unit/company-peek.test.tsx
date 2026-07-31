@@ -78,10 +78,12 @@ describe('CompanyPeekContent — сводка 360', () => {
 });
 
 describe('CompanyPeekContent — фолбэки', () => {
-  it('нулевой pipeline пишется словами, а не «0 ₽»', () => {
+  // S-R2-FIX-1: было «Без открытых сделок» — читалось как отрицание строки-сводки
+  // над ним («1 сделка · 1 внедрение»). Блок про деньги говорит про деньги.
+  it('нулевой pipeline пишется суммой, а не отрицанием сводки', () => {
     render(<CompanyPeekContent company={makeCompany({ pipeline_budget: 0 })} />);
-    expect(screen.getByText(/без открытых сделок/i)).toBeInTheDocument();
-    expect(screen.queryByText(/0 ₽/)).not.toBeInTheDocument();
+    expect(screen.getByText('0 ₽ в открытых сделках')).toBeInTheDocument();
+    expect(screen.queryByText(/^без открытых сделок$/i)).not.toBeInTheDocument();
   });
 
   it('пустые реквизиты дают один общий фолбэк', () => {

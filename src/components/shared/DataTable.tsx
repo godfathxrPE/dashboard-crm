@@ -49,6 +49,8 @@ interface DataTableProps<T> {
   bulkActions?: BulkAction[];
   /** Space на focused-строке / клик при открытой панели — предпросмотр записи */
   peek?: (item: T) => PeekConfig;
+  /** Принудительно закрыть peek (модалка поверх страницы: панель под ней не нужна). */
+  peekSuppressed?: boolean;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -66,6 +68,7 @@ export function DataTable<T>({
   selectable,
   bulkActions,
   peek,
+  peekSuppressed,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -73,6 +76,11 @@ export function DataTable<T>({
   const [page, setPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [peekId, setPeekId] = useState<string | null>(null);
+  // `peekId` — внутреннее состояние таблицы, снаружи закрыть панель нечем. Проп нужен,
+  // когда родитель открывает модалку: PeekPanel (z-40, без оверлея) осталась бы под ней.
+  useEffect(() => {
+    if (peekSuppressed) setPeekId(null);
+  }, [peekSuppressed]);
   const lastClickedIdx = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const tableId = useId();
