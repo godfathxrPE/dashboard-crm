@@ -250,26 +250,16 @@ export function useDeleteWebhookEndpoint() {
  * ⚠️ Именно новую, а не оживляет старую: `id` уходит получателю в `X-Torii-Delivery`
  *    и служит ключом дедупликации (G3 §4), поэтому повтор с тем же id корректный
  *    приёмник обязан отбросить. Подробности — в комментарии `retry_webhook_delivery` (091).
- *
- * ⚠️ Каст `rpc` — временный: 091 применяет гейт, и до регенерации функции нет в
- *    `supabase.gen.ts`. Правкой сгенерированного файла руками не лезем (конвенция
- *    проекта); после `npm run db:gen-types` каст снимается.
  */
-type RetryRpc = (
-  fn: 'retry_webhook_delivery',
-  args: { p_delivery_id: string },
-) => Promise<{ data: string | null; error: { message: string } | null }>;
-
 export function useRetryWebhookDelivery() {
   const qc = useQueryClient();
 
   return useMutation({
     mutationFn: async (deliveryId: string): Promise<string> => {
       const supabase = createClient();
-      const { data, error } = await (supabase.rpc as unknown as RetryRpc)(
-        'retry_webhook_delivery',
-        { p_delivery_id: deliveryId },
-      );
+      const { data, error } = await supabase.rpc('retry_webhook_delivery', {
+        p_delivery_id: deliveryId,
+      });
       if (error) throw error;
       if (!data) throw new Error('Не удалось поставить повтор');
       return data;
