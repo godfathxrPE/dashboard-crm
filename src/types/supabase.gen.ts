@@ -3051,6 +3051,17 @@ export type Database = {
         }
         Returns: number
       }
+      build_deal_webhook_payload: {
+        Args: {
+          p_changes: Json
+          p_delivery_id: string
+          p_event: string
+          p_project_id: string
+          p_rule_id: string
+          p_rule_name: string
+        }
+        Returns: Json
+      }
       category_to_lane: {
         Args: { p: string }
         Returns: Database["public"]["Enums"]["task_lane"]
@@ -3082,6 +3093,7 @@ export type Database = {
           url: string
         }[]
       }
+      cleanup_webhook_deliveries: { Args: never; Returns: number }
       complete_onboarding: {
         Args: { p_full_name: string; p_job_title: string; p_phone: string }
         Returns: undefined
@@ -3127,6 +3139,7 @@ export type Database = {
         Args: { p_endpoint_id: string }
         Returns: undefined
       }
+      dispatch_webhooks_tick: { Args: never; Returns: undefined }
       get_webhook_secrets: {
         Args: { p_endpoint_ids: string[] }
         Returns: {
@@ -3165,6 +3178,10 @@ export type Database = {
         Returns: undefined
       }
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
+      retry_webhook_delivery: {
+        Args: { p_delivery_id: string }
+        Returns: string
+      }
       rotate_webhook_secret: {
         Args: { p_endpoint_id: string }
         Returns: string
@@ -3217,8 +3234,10 @@ export type Database = {
         Args: { p_checked: boolean; p_checklist_id: string; p_item_key: string }
         Returns: Json
       }
+      webhook_event_name: { Args: { p_trigger_type: string }; Returns: string }
       wf_apply_project_action: {
         Args: {
+          p_changes?: Json
           p_project_id: string
           p_rule_id: string
           p_run_id: string

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, RefreshCw, Send, Trash2, Webhook } from 'lucide-react';
+import { Plus, RefreshCw, ScrollText, Send, Trash2, Webhook } from 'lucide-react';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import {
   useDeleteWebhookEndpoint,
@@ -11,16 +11,11 @@ import {
   useWebhookDelivery,
   useWebhookEndpoints,
 } from '@/lib/hooks/use-webhook-endpoints';
+import { DELIVERY_LABEL } from '@/lib/constants/webhooks';
 import { WebhookCreateModal } from './webhooks/WebhookCreateModal';
 import { WebhookSecretModal } from './webhooks/WebhookSecretModal';
-import type { WebhookDeliveryStatus } from '@/types/database';
-
-const DELIVERY_LABEL: Record<WebhookDeliveryStatus, string> = {
-  pending: 'в очереди…',
-  delivered: 'доставлено',
-  failed: 'не доставлено',
-  dropped: 'отброшено',
-};
+import { WebhookDeliveriesModal } from './webhooks/WebhookDeliveriesModal';
+import type { WebhookEndpoint } from '@/types/database';
 
 /**
  * Исход последней тестовой отправки. Отдельный компонент, потому что опрос
@@ -43,15 +38,17 @@ function TestResult({ deliveryId }: { deliveryId: string }) {
 }
 
 /**
- * Секция «Вебхуки» в Настройках (B2, спринт 1) — видно только owner/admin.
+ * Секция «Вебхуки» в Настройках (B2) — видно только owner/admin.
  *
- * Здесь СОЗНАТЕЛЬНО нет журнала доставок, кнопки «Повторить» и редактирования
- * endpoint'а: это спринт 3. В спринте 1 нужно ровно то, без чего нельзя создать
- * получателя и убедиться, что транспорт работает.
+ * Эпик закрыт: транспорт (088/089), действие движка (090) и журнал доставок с
+ * повтором и ретеншном (091). Кнопка «Журнал» открывает историю отправок ОДНОГО
+ * получателя — общего по org журнала нет намеренно: под per-endpoint есть индекс
+ * `idx_webhook_deliveries_endpoint`, а на странице настроек общему негде жить.
  *
- * ⚠️ Движок автоматизаций к вебхукам ещё НЕ подключён — единственный источник
- *    событий здесь «Отправить тест». Об этом сказано в тексте секции, иначе
- *    пустой журнал выглядит как поломка.
+ * ⚠️ РЕДАКТИРОВАНИЕ endpoint'а по-прежнему НЕ реализовано — ни в 091, ни раньше.
+ *    Менять адрес живого получателя, к которому уже привязаны правила и подпись,
+ *    это отдельное решение (что делать с секретом и с доставками в полёте), и оно
+ *    не принималось. Не искать его в 091: там его нет.
  */
 export function WebhooksSection() {
   const { data: role } = useOrgRole();
@@ -66,6 +63,9 @@ export function WebhooksSection() {
   // блокирует браузерные смоки (грабля GanttTimeline).
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [testDelivery, setTestDelivery] = useState<Record<string, string>>({});
+  // Держим весь endpoint, а не id: модалке нужны name, is_active и счётчик провалов,
+  // и второй запрос за той же строкой был бы лишним.
+  const [journalFor, setJournalFor] = useState<WebhookEndpoint | null>(null);
 
   const canManage = role === 'owner' || role === 'admin';
   if (!canManage) return null;
@@ -149,6 +149,15 @@ export function WebhooksSection() {
                 </button>
 
                 <button
+                  onClick={() => setJournalFor(ep)}
+                  className="shrink-0 p-1.5 text-text-mute transition-colors hover:text-text-main disabled:opacity-40"
+                  aria-label="Журнал доставок"
+                  title="Журнал доставок"
+                >
+                  <ScrollText size={13} />
+                </button>
+
+                <button
                   onClick={() => onRotate(ep.id)}
                   disabled={rotate.isPending}
                   className="shrink-0 p-1.5 text-text-mute transition-colors hover:text-text-main disabled:opacity-40"
@@ -205,6 +214,9 @@ export function WebhooksSection() {
         </div>
       )}
 
+      {journalFor && (
+        <WebhookDeliveriesModal endpoint={journalFor} onClose={() => setJournalFor(null)} />
+      )}
       {creating && <WebhookCreateModal onClose={() => setCreating(false)} />}
       {rotated && (
         <WebhookSecretModal
