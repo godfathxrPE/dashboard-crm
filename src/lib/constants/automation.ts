@@ -65,6 +65,7 @@ export const AUTOMATION_ACTION_OPTIONS: { value: AutomationActionType; label: st
   { value: 'create_activity', label: 'Создать заметку' },
   { value: 'set_field', label: 'Изменить поле' },
   { value: 'suggest_spawn', label: 'Предложить создать внедрение' },
+  { value: 'webhook', label: 'Отправить вебхук' },
 ];
 
 export const AUTOMATION_ACTION_LABEL: Record<AutomationActionType, string> = Object.fromEntries(

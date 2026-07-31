@@ -11,8 +11,9 @@ import { useDwellThresholds } from '@/lib/hooks/use-org-settings';
 import {
   useCreateAutomationRule,
   useUpdateAutomationRule,
-  type AutomationRuleInput,
 } from '@/lib/hooks/use-automation-rules';
+import { useWebhookEndpoints } from '@/lib/hooks/use-webhook-endpoints';
+import { fromRule, toInput, emptyDefaults } from '@/lib/domain/automation-rule-form';
 import {
   AUTOMATION_TRIGGER_OPTIONS,
   AUTOMATION_ACTION_OPTIONS,
@@ -22,26 +23,12 @@ import {
   AUTOMATION_ASSIGNEE_OPTIONS,
   AUTOMATION_PRIORITY_OPTIONS,
   AUTOMATION_SET_FIELD_OPTIONS,
-  AUTOMATION_NULLARY_OPS,
   AUTOMATION_DWELL_MIN_DAYS,
   AUTOMATION_DWELL_MAX_DAYS,
 } from '@/lib/constants/automation';
 import { ruleSchema, type RuleFormValues } from '@/lib/validators/automation-rule';
 import { ConditionRow } from './ConditionRow';
-import type {
-  AutomationRule,
-  AutomationTriggerConfig,
-  AutomationActionConfig,
-  StageEnteredConfig,
-  StatusChangedConfig,
-  FieldChangedConfig,
-  DaysInStageConfig,
-  AutomationCreateTaskConfig,
-  AutomationNotifyConfig,
-  AutomationActivityConfig,
-  AutomationSetFieldConfig,
-  AutomationSuggestSpawnConfig,
-} from '@/types/database';
+import type { AutomationRule } from '@/types/database';
 
 const labelCls = 'block text-meta font-medium text-text-dim mb-1';
 const selectCls =
@@ -50,124 +37,6 @@ const inputCls =
   'w-full rounded border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
 const errCls = 'mt-1 text-meta text-red';
 
-// ── маппинг rule → плоские form-values (обратный) ──
-function fromRule(rule: AutomationRule): RuleFormValues {
-  const tc = rule.trigger_config;
-  const ac = rule.action_config;
-  return {
-    name: rule.name,
-    trigger_type: rule.trigger_type,
-    t_pipeline_id: rule.trigger_type === 'stage_entered' ? (tc as StageEnteredConfig).pipeline_id : '',
-    // t_stage_id переиспользуется двумя триггерами: обязателен у stage_entered,
-    // опционален у days_in_stage (пусто ⇒ любая стадия).
-    t_stage_id:
-      rule.trigger_type === 'stage_entered'
-        ? (tc as StageEnteredConfig).stage_id
-        : rule.trigger_type === 'days_in_stage'
-          ? ((tc as DaysInStageConfig).stage_id ?? '')
-          : '',
-    t_status_to: rule.trigger_type === 'status_changed' ? ((tc as StatusChangedConfig).to ?? '') : '',
-    t_field: rule.trigger_type === 'field_changed' ? (tc as FieldChangedConfig).field : '',
-    t_min_days: rule.trigger_type === 'days_in_stage' ? (tc as DaysInStageConfig).min_days : 14,
-    conditions: rule.conditions ?? [],
-    action_type: rule.action_type,
-    a_task_text: rule.action_type === 'create_task' ? (ac as AutomationCreateTaskConfig).task_text : '',
-    a_assignee:
-      rule.action_type === 'create_task'
-        ? (ac as AutomationCreateTaskConfig).assignee
-        : rule.action_type === 'notify'
-          ? (ac as AutomationNotifyConfig).recipient
-          : 'deal_owner',
-    a_priority: rule.action_type === 'create_task' ? (ac as AutomationCreateTaskConfig).priority : 'important',
-    a_due: rule.action_type === 'create_task' ? (ac as AutomationCreateTaskConfig).due_in_days : 3,
-    a_notify_text: rule.action_type === 'notify' ? (ac as AutomationNotifyConfig).text : '',
-    a_title: rule.action_type === 'create_activity' ? (ac as AutomationActivityConfig).title : '',
-    a_description:
-      rule.action_type === 'create_activity' ? ((ac as AutomationActivityConfig).description ?? '') : '',
-    a_set_field: rule.action_type === 'set_field' ? (ac as AutomationSetFieldConfig).field : 'next_step',
-    a_set_value: rule.action_type === 'set_field' ? (ac as AutomationSetFieldConfig).value : '',
-    a_spawn_text:
-      rule.action_type === 'suggest_spawn' ? (ac as AutomationSuggestSpawnConfig).text : '',
-  };
-}
-
-// ── маппинг плоские form-values → AutomationRuleInput (submit) ──
-function toInput(v: RuleFormValues): AutomationRuleInput {
-  let trigger_config: AutomationTriggerConfig;
-  if (v.trigger_type === 'stage_entered') {
-    trigger_config = { pipeline_id: v.t_pipeline_id ?? '', stage_id: v.t_stage_id ?? '' };
-  } else if (v.trigger_type === 'status_changed') {
-    // пусто ⇒ {} (SQL ->>'to' IS NULL матчит любой; {to:''} бы сломал матч)
-    trigger_config = v.t_status_to ? { to: v.t_status_to } : {};
-  } else if (v.trigger_type === 'field_changed') {
-    trigger_config = { field: v.t_field ?? '' };
-  } else if (v.trigger_type === 'days_in_stage') {
-    // stage_id пишем ТОЛЬКО когда стадия выбрана: SQL трактует отсутствие ключа
-    // как «любая стадия», а `{stage_id:''}` уронил бы каст ''::uuid.
-    trigger_config = {
-      min_days: v.t_min_days ?? AUTOMATION_DWELL_MIN_DAYS,
-      ...(v.t_stage_id ? { stage_id: v.t_stage_id } : {}),
-    };
-  } else {
-    trigger_config = {}; // task_overdue — без конфигурации
-  }
-
-  let action_config: AutomationActionConfig;
-  if (v.action_type === 'create_task') {
-    action_config = {
-      task_text: v.a_task_text?.trim() ?? '',
-      assignee: v.a_assignee ?? 'deal_owner',
-      lane: 'now',
-      priority: v.a_priority ?? 'normal',
-      due_in_days: v.a_due ?? 3,
-    };
-  } else if (v.action_type === 'notify') {
-    action_config = { recipient: v.a_assignee ?? 'deal_owner', text: v.a_notify_text?.trim() ?? '' };
-  } else if (v.action_type === 'create_activity') {
-    action_config = { title: v.a_title?.trim() ?? '', description: v.a_description?.trim() || undefined };
-  } else if (v.action_type === 'suggest_spawn') {
-    action_config = { text: v.a_spawn_text?.trim() ?? '' };
-  } else {
-    action_config = { field: v.a_set_field ?? 'next_step', value: v.a_set_value ?? '' };
-  }
-
-  const conditions = (v.conditions ?? []).map((c) =>
-    AUTOMATION_NULLARY_OPS.includes(c.op) ? { ...c, value: '' } : c,
-  );
-
-  return {
-    name: v.name.trim(),
-    trigger_type: v.trigger_type,
-    trigger_config,
-    action_type: v.action_type,
-    action_config,
-    conditions,
-  };
-}
-
-function emptyDefaults(firstPipelineId: string): RuleFormValues {
-  return {
-    name: '',
-    trigger_type: 'stage_entered',
-    t_pipeline_id: firstPipelineId,
-    t_stage_id: '',
-    t_status_to: '',
-    t_field: '',
-    t_min_days: 14,
-    conditions: [],
-    action_type: 'create_task',
-    a_task_text: '',
-    a_assignee: 'deal_owner',
-    a_priority: 'important',
-    a_due: 3,
-    a_notify_text: '',
-    a_title: '',
-    a_description: '',
-    a_set_field: 'next_step',
-    a_set_value: '',
-    a_spawn_text: '',
-  };
-}
 
 /**
  * Редактор правила автоматизации (S-WF-2B) — configuration-форма RHF+Zod с
@@ -206,6 +75,12 @@ export function RuleEditorModal({
   const actionType = watch('action_type');
   const pipelineId = watch('t_pipeline_id');
   const setFieldName = watch('a_set_field');
+  const endpointIds = watch('a_endpoint_ids');
+
+  // Получатели вебхука грузятся лениво — список нужен только под своё действие.
+  const { data: endpoints = [], isLoading: endpointsLoading } = useWebhookEndpoints(
+    actionType === 'webhook',
+  );
 
   const isOverdue = triggerType === 'task_overdue';
   const isDwell = triggerType === 'days_in_stage';
@@ -664,7 +539,70 @@ export function RuleEditorModal({
               </>
             )}
 
-            <p className="text-xs text-text-mute">
+            {actionType === 'webhook' && (
+              <>
+                <div>
+                  <span className={labelCls}>Получатели</span>
+                  {endpointsLoading ? (
+                    <p className="text-meta text-text-mute">Загружаем получателей…</p>
+                  ) : endpoints.length === 0 ? (
+                    // Пустой список без объяснения выглядит сломанной формой.
+                    <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
+                      Получатели ещё не заданы. Добавьте endpoint в разделе
+                      <strong className="text-text-dim"> Настройки → Вебхуки</strong>, затем
+                      вернитесь сюда.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {endpoints.map((ep) => (
+                        <label
+                          key={ep.id}
+                          className={`flex items-start gap-2 text-xs ${
+                            ep.is_active ? 'text-text-main' : 'text-text-mute'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            // Отключённый endpoint выбрать нельзя: строк очереди он
+                            // не породит (проверка is_active в SQL), и «выбранным»
+                            // он бы врал. disabled настоящий, не серый на вид.
+                            disabled={!ep.is_active}
+                            checked={(endpointIds ?? []).includes(ep.id)}
+                            onChange={(e) => {
+                              const current = endpointIds ?? [];
+                              setValue(
+                                'a_endpoint_ids',
+                                e.target.checked
+                                  ? [...current, ep.id]
+                                  : current.filter((id) => id !== ep.id),
+                                { shouldDirty: true, shouldValidate: true },
+                              );
+                            }}
+                          />
+                          <span>
+                            {ep.name}
+                            {!ep.is_active && ' — отключён'}
+                            <span className="block text-meta text-text-mute">{ep.url}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {errors.a_endpoint_ids && (
+                    <p className={errCls}>{errors.a_endpoint_ids.message}</p>
+                  )}
+                </div>
+                {/* Ограничение движка (051) — показываем ДО сохранения, а не в валидации. */}
+                <p className="rounded bg-surface2 px-2.5 py-2 text-meta text-text-mute">
+                  Вебхук доступен для смены стадии, статуса, изменения поля и застревания
+                  на стадии. Для просрочки задачи — уведомление или заметка.
+                </p>
+              </>
+            )}
+
+            {/* webhook не подставляет плейсхолдеры — у него нет текстовых полей. */}
+            <p className={`text-xs text-text-mute ${actionType === 'webhook' ? 'hidden' : ''}`}>
               {isOverdue ? (
                 <>Плейсхолдер <code className="rounded bg-surface2 px-1">{'{task}'}</code> подставит текст задачи.</>
               ) : (
