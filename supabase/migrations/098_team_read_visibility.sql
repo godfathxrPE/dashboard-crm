@@ -134,3 +134,21 @@ drop policy if exists activities_select on public.activities;
 create policy activities_select on public.activities
   for select to public
   using (org_id = (select public.current_org_id()));
+
+-- ═══ Правка гейта Cowork (2026-08-02): седьмая таблица — activity_log ═══
+-- Без неё менеджер открывал бы карточку компании с видимыми реквизитами, контактами и
+-- сделками, но с ПУСТОЙ историей: таймлайн кормит activity_log (775 строк), а не
+-- activities (93 строки, клиентом не читается вовсе — находка CC). Пустая история на
+-- полной карточке читается как поломка — ровно тот симптом, который лечит эта миграция.
+-- Содержимое лога: создания задач, смены стадий, правки проектов, срабатывания
+-- автоматизаций, удаления сущностей. Для менеджера, подхватывающего чужую сделку, это
+-- самая ценная часть карточки. Видимость «кто что удалил» на команде из пяти человек —
+-- прозрачность, а не утечка.
+--
+-- Откат: using (org_id = (select current_org_id()) and (
+--          (select current_org_role()) in ('owner','admin') or user_id = (select auth.uid())))
+--        под прежним именем "Users see own logs".
+drop policy if exists "Users see own logs" on public.activity_log;
+create policy activity_log_select on public.activity_log
+  for select to authenticated
+  using (org_id = (select public.current_org_id()));
