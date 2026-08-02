@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, MessageCircle, MessagesSquare, Paperclip, Pencil, Trash2, SendHorizontal, Smile, SmilePlus, X } from 'lucide-react';
+import { ChevronDown, ListPlus, MessageCircle, MessagesSquare, Paperclip, Pencil, Trash2, SendHorizontal, Smile, SmilePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useMessages,
@@ -23,8 +23,13 @@ import {
 } from '@/lib/hooks/use-message-attachments';
 import { useEntityTitles } from '@/lib/hooks/use-entity-titles';
 import { APP_ORIGIN, entityRefsOf, parseEntityLinks } from '@/lib/utils/entity-links';
+import { useTasksBySourceMessages } from '@/lib/hooks/use-tasks-by-message';
 import { MessageAttachments } from '@/components/chat/MessageAttachments';
 import { MessageBody } from '@/components/chat/MessageBody';
+import {
+  TaskCreatedLink,
+  TaskFromMessageCard,
+} from '@/components/chat/TaskFromMessageCard';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
@@ -81,6 +86,32 @@ const FAB_THRESHOLD_PX = 300;
 const AT_BOTTOM_PX = 80;
 /** Потолок автовысоты композера ≈ 6 строк text-sm + вертикальные паддинги. */
 const COMPOSER_MAX_PX = 148;
+
+/**
+ * S-CHAT-TASK-1: слэш-команда «превратить набранное в задачу». Одна команда на весь
+ * композер, поэтому автокомплита нет — есть подсказка под полем при вводе `/`.
+ *
+ * `\b` не используется: в JS он опирается на ASCII-`\w` и после кириллицы срабатывает
+ * наоборот ожидаемому (та же грабля, что в `task-intent`).
+ */
+const TASK_COMMAND_RE = /^\/задач[ау](?![\wа-яё])\s*/i;
+
+/** Остаток строки после команды, либо `null` — это не команда. */
+function matchTaskCommand(body: string): string | null {
+  const m = body.match(TASK_COMMAND_RE);
+  return m ? body.slice(m[0].length).trim() : null;
+}
+
+/**
+ * Что превращаем в задачу. `sourceMessageId = null` — вход через слэш-команду:
+ * сообщения ещё нет, значит нет и ключа идемпотентности (099).
+ */
+interface TaskDraft {
+  body: string;
+  sourceMessageId: string | null;
+  /** Дефолтный исполнитель: автор сообщения, а для команды — сам пишущий (решение 6). */
+  assigneeId: string | null;
+}
 
 // Время/дата всегда в МСК (как mskDateKey) — у команды одна «правда времени»,
 // чип «Вчера» и время в пузыре не расходятся между таймзонами браузеров.
@@ -241,20 +272,38 @@ export function MessageThread({
   // ── S-CHAT-HUB-1d: вложения. Тот же приём, что у реакций — одним запросом по уже
   // загруженной ленте, без N+1.
   const { byMessage: attachmentsByMessage } = useMessageAttachments(conversationId, messageIds);
+  // ── S-CHAT-TASK-1: у каких сообщений ленты уже есть задача. Тот же приём — одна
+  // выборка на ленту. Пусто в ответе ≠ «задачи нет»: RLS `tasks` может честно не
+  // показать чужую задачу, поэтому настоящая защита от дубля — unique-индекс 099.
+  const { byMessage: tasksByMessage } = useTasksBySourceMessages(conversationId, messageIds);
 
   // ── S-CHAT-HUB-1e: ссылки на карточки CRM в теле сообщения. Разбор — один раз на
   // ленту, названия — одним запросом на таблицу по всем найденным ссылкам сразу.
   // Origin'ов два: свой (ссылка вставлена там же, где читают) и боевой — адрес копируют
   // из прода, а читают в том числе на localhost, и на своём origin'е прод-ссылка иначе
   // осталась бы голым uuid.
-  const bodyPartsByMessage = useMemo(() => {
+  const linkOrigins = useMemo(() => {
     const origins = [APP_ORIGIN];
     if (typeof window !== 'undefined') origins.push(window.location.origin);
-    return new Map(messages.map((m) => [m.id, parseEntityLinks(m.body, origins)]));
-  }, [messages]);
+    return origins;
+  }, []);
+  const bodyPartsByMessage = useMemo(
+    () => new Map(messages.map((m) => [m.id, parseEntityLinks(m.body, linkOrigins)])),
+    [messages, linkOrigins],
+  );
+
+  // ── S-CHAT-TASK-1: что превращаем в задачу. Разбор чипов черновика идёт ТЕМ ЖЕ
+  // парсером и подмешивается в общий запрос названий: у слэш-команды сообщения в ленте
+  // нет, и без этого ссылка, вставленная прямо в композер, осталась бы нерезолвнутой.
+  const [taskDraft, setTaskDraft] = useState<TaskDraft | null>(null);
+  const taskDraftRefs = useMemo(
+    () => (taskDraft ? entityRefsOf(parseEntityLinks(taskDraft.body, linkOrigins)) : []),
+    [taskDraft, linkOrigins],
+  );
+
   const entityRefs = useMemo(
-    () => [...bodyPartsByMessage.values()].flatMap(entityRefsOf),
-    [bodyPartsByMessage],
+    () => [...[...bodyPartsByMessage.values()].flatMap(entityRefsOf), ...taskDraftRefs],
+    [bodyPartsByMessage, taskDraftRefs],
   );
   const { titles: entityTitles, isLoading: titlesLoading } = useEntityTitles(entityRefs);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -481,6 +530,22 @@ export function MessageThread({
     if (!canSend) return;
     const body = draft.trim();
     const files = pendingFiles;
+
+    // S-CHAT-TASK-1. Слэш-команда перехватывает отправку: вместо сообщения — карточка
+    // подтверждения. Перехват только при пустом списке файлов: задача вложений не
+    // несёт, и съесть подписанные файлы командой было бы потерей данных.
+    const commandRest = files.length === 0 ? matchTaskCommand(body) : null;
+    if (commandRest !== null) {
+      if (!commandRest) {
+        // Пустая команда — подсказка, а не карточка (edge case спринта).
+        toast.info('После /задача напиши, что надо сделать');
+        return;
+      }
+      setTaskDraft({ body: commandRest, sourceMessageId: null, assigneeId: myId });
+      setDraft('');
+      return;
+    }
+
     setDraft('');
     setPendingFiles([]);
     sendMessage.mutate(
@@ -667,6 +732,10 @@ export function MessageThread({
                 </span>
               );
 
+              // S-CHAT-TASK-1: задача, уже рождённая из этого сообщения (если она
+              // видна читателю по RLS) — иконка «в задачу» превращается в ссылку на неё.
+              const messageTask = temp ? undefined : tasksByMessage.get(m.id);
+
               // Кнопка «реакция» доступна всем на любом non-temp сообщении (не под
               // canEdit/canDelete); Pencil/Trash — под своими гейтами.
               const controls = !temp && editingId !== m.id && (
@@ -681,6 +750,33 @@ export function MessageThread({
                   >
                     <SmilePlus size={12} />
                   </button>
+                  {/*
+                    S-CHAT-TASK-1: «в задачу». Видна ВСЕМ, кто видит сообщение — задачу
+                    ставят и по чужой реплике, это нормальный рабочий сценарий (в отличие
+                    от правки, которая под canEdit). У сообщения из одних вложений тела
+                    для разбора нет — кнопку не показываем.
+                  */}
+                  {m.body.trim() &&
+                    (messageTask ? (
+                      <TaskCreatedLink taskText={messageTask.text} />
+                    ) : (
+                      <button
+                        onClick={() =>
+                          setTaskDraft({
+                            body: m.body,
+                            sourceMessageId: m.id,
+                            // Исполнитель по умолчанию — АВТОР сообщения, не нажавший
+                            // (решение 6): «нужно позвонить» написал Иван — задача его.
+                            assigneeId: m.author_id,
+                          })
+                        }
+                        className="rounded p-0.5 text-text-mute transition-colors hover:text-text-main"
+                        aria-label="Создать задачу из сообщения"
+                        title="Создать задачу из сообщения"
+                      >
+                        <ListPlus size={12} />
+                      </button>
+                    ))}
                   {canEdit && (
                     <button
                       onClick={() => startEdit(m)}
@@ -915,6 +1011,28 @@ export function MessageThread({
         />
       )}
 
+      {/*
+        S-CHAT-TASK-1: карточка подтверждения. Живёт между лентой и композером, а не
+        модалкой поверх: сообщение-источник обязано остаться на экране, человек сверяет
+        разобранное с написанным. Одно место на оба входа — у слэш-команды сообщения в
+        ленте ещё нет, якорить не к чему.
+
+        `key` пересобирает карточку при смене источника: внутри она держит собственный
+        стейт полей, и без ключа переход с одного сообщения на другое оставил бы правки
+        от предыдущего.
+      */}
+      {taskDraft && (
+        <TaskFromMessageCard
+          key={taskDraft.sourceMessageId ?? 'composer'}
+          body={taskDraft.body}
+          sourceMessageId={taskDraft.sourceMessageId}
+          entityRefs={taskDraftRefs}
+          entityTitles={entityTitles}
+          defaultAssigneeId={taskDraft.assigneeId}
+          onClose={() => setTaskDraft(null)}
+        />
+      )}
+
       {/* Выбранные файлы — чипами НАД полем ввода: они часть будущего сообщения, а не
           отдельная операция. Drag-and-drop в 1d сознательно не делаем. */}
       {pendingFiles.length > 0 && (
@@ -1049,6 +1167,18 @@ export function MessageThread({
           <SendHorizontal size={15} />
         </button>
       </div>
+
+      {/*
+        Подсказка команд. Команда одна, поэтому автокомплита с фильтрацией нет — есть
+        строка «что вообще можно набрать», появляющаяся на вводе `/`. Без неё команда
+        остаётся секретом: узнать про неё будет неоткуда.
+      */}
+      {draft.startsWith('/') && !taskDraft && (
+        <p className="mt-1 shrink-0 px-2 text-meta text-text-mute">
+          <span className="font-medium text-text-dim">/задача</span> — превратить строку в
+          задачу: «/задача звонок 3 августа в 15:00»
+        </p>
+      )}
     </div>
   );
 }
