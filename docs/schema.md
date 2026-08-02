@@ -60,7 +60,19 @@
 > дельта-бэкфилл проверен и оказался no-op — `legacy_not_migrated = 0`; advisors без
 > изменений): `drop table project_messages` + снятие с realtime-публикации. Отката нет,
 > данные живут в `messages`; структура при необходимости — тело 067;
-> следующая свободная — **096**;
+> **096 (S-CHAT-HUB-1c, эпик CHAT-HUB) — НЕ ПРИМЕНЕНА, лежит на гейте Cowork**: аддитивна —
+> таблица `conversation_members` (состав ГРУППЫ; у `general`/`project` членство по-прежнему
+> вычисляется и строк не имеет), `conversations.updated_at` + `trg_set_updated_at`, CHECK
+> `conversations_group_title_chk` (у группы заголовок обязателен),
+> `create or replace is_conversation_member()` — ветки `general`/`project` побуквенно из 094,
+> меняется только хвост: `group`/`dm` → строка в `conversation_members` (⚠️ функция гейтит
+> ВСЕ каналы ⇒ ре-смок по всем типам, не только по группам); политики UPDATE/DELETE на
+> `conversations` **только для `kind='group'`** + `grant update, delete`; RPC
+> `create_group_conversation(text, uuid[])` — единственный путь создания канала клиентом
+> (INSERT-политики у `conversations` так и нет); `conversation_members` добавлена в
+> realtime-публикацию. ⚠️ Реген типов нужен: до него в `src/types/database.ts` живут стабы
+> `ChatGroupsStub` / `ChatGroupsFnStub`, снимаются вместе с регенерацией;
+> следующая свободная — **097**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
