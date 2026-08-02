@@ -101,7 +101,26 @@
 > из одного файла; инвариант «текст ИЛИ вложение» кросс-табличный и держится UI.
 > ⚠️ Реген типов нужен: до него в `src/types/database.ts` живут стабы `ChatFilesStub` /
 > `ChatFilesFnStub`;
-> следующая свободная — **098**;
+> **098 (S-VIS-A) — НАПИСАНА, НЕ ПРИМЕНЕНА** (ветка `feat/team-read-vis`): командная
+> видимость на чтение. Шесть SELECT-политик — `companies_select`, `contacts_select`,
+> `leads_select`, `calls_select`, `meetings_select`, `activities_select` — пересобраны
+> в одно тело `org_id = (select public.current_org_id())`. Роль внутри не проверяется:
+> без membership `current_org_id()` = NULL, и чужая org отрезается самим телом; viewer
+> читает в пределах org (строка «Viewer — Read All» RBAC-матрицы). **INSERT/UPDATE/DELETE
+> не тронуты ни на одной из шести** — «вижу всё, правлю своё»; `projects`/`tasks` не
+> тронуты (у них member-модель 065). `contact_company.cc_select` и
+> `deal_stakeholders.ds_select` уже были org-only; `attendees_select_visible` смотрит
+> EXISTS в `meetings` под её RLS и расширяется сама. ⚠️ **`meetings` теряет
+> attendee-эксклюзивность намеренно** — ветка `is_meeting_attendee(id)` (071) уходит,
+> встречу организации видит вся организация (календарь команды — функция, а не утечка);
+> побочно исчезает единственный коррелированный подзапрос этих шести политик, который
+> не лечился initplan-обёрткой (см. долг у 071 ниже). Схемы, колонок и функций не
+> меняет ⇒ **реген типов не нужен**. Прежние тела всех шести — в шапке файла миграции,
+> это же инструкция отката. Клиентская часть спринта миграции не требует: хуки списков
+> не фильтруются, семантику «мои» держат потребители (бейдж звонков, очередь «Сегодня»,
+> трекер звонков, KPI-виджеты). Следующий слой — эпик DIRECTIONS
+> (`claude/backlog-directions-ownership.md`);
+> следующая свободная — **099**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -379,6 +398,15 @@
 > `is_meeting_attendee(id)`); новая `attendees_select_visible` на `meeting_attendees` (видящий
 > встречу видит её состав). Attendee **видит, но не правит** — `meetings_update` не тронута
 > (Google Calendar semantics).
+> ⚠️ **098 снимает attendee-ветку из `meetings_select`** (тело сузилось до `org_id =
+> current_org_id()` — встречу org видит вся org). `attendees_select_visible` от этого не
+> страдает: её тело — голый `EXISTS (select 1 from meetings m where m.id = meeting_id)`,
+> `is_meeting_attendee` она НЕ зовёт (сверено с живой БД 2026-08-02), и она расширяется
+> вместе с `meetings`. **Но сам хелпер `is_meeting_attendee(uuid)` после 098 остаётся без
+> единственного вызывающего** — в политиках он больше нигде не встречается, из клиента не
+> зовётся (в `supabase.gen.ts` только сигнатура). 098 его не сносит намеренно: снос — это
+> отдельная миграция плюс реген типов, а хелпер понадобится обратно, если DIRECTIONS вернёт
+> частную видимость встреч. Хвост записан, не потерян.
 >
 > **072 `task_analytics` (S-ANALYTICS-1, applied 2026-07-23 · `20260723191820`, в history без
 > префикса):** истина «когда завершено» + серверные агрегаты.
@@ -443,6 +471,9 @@
 >   `anon`/`authenticated`: 056b снимал это у триггерных функций, для 072 шаг не повторили.
 > - **`meetings_select` (071)** зовёт `public.is_meeting_attendee(id)` **без обёртки `(select …)`** —
 >   per-row вызов, кандидат в initplan-WARN advisors (у 065/074 обёртки есть).
+>   ✅ **Снято 098:** ветка ушла вместе с сужением тела до `org_id = current_org_id()`.
+>   Обёртка тут и не помогла бы — вызов аргумент-зависимый (`id` строки), `(select …)` дал бы
+>   коррелированный подзапрос, а не initplan.
 > - **`create_project_baseline`** в проде исполним и `service_role` (074 грантовал только
 >   `authenticated`) — дефолтные привилегии, безвредно.
 
@@ -2204,6 +2235,33 @@ USING — org-граница автоматически запрещает пе�
   `meeting_attendees`. ⚠️ **Прямой subquery к `meeting_attendees` в политике `meetings` → `42P17`**
   (взаимная рекурсия с `attendees_own`); DEFINER-хелпер — единственный рабочий путь. Attendee
   **видит, но не правит**: `meetings_update` не тронута.
+  ⚠️ **098 (S-VIS-A) вырезал attendee-ветку** — `meetings_select` теперь просто
+  `org_id = current_org_id()`, встречу организации видит вся организация. `attendees_select_visible`
+  расширяется вместе с ней (её `EXISTS` идёт под RLS `meetings`), а `is_meeting_attendee(uuid)`
+  остаётся в схеме без вызывающих — см. хвост у 071 в ledger'е дельт.
+
+### Командная видимость на чтение (098, S-VIS-A — НАПИСАНА, НЕ ПРИМЕНЕНА)
+
+- Шесть SELECT-политик — `companies_select`, `contacts_select`, `leads_select`, `calls_select`,
+  `meetings_select`, `activities_select` — приведены к одному телу
+  **`org_id = (select public.current_org_id())`**. Модель доступа читается одной строкой:
+  **вижу всё в своей организации, правлю своё**.
+- **Роль в теле не проверяется намеренно.** Без membership `current_org_id()` = NULL, а
+  `org_id = NULL` не истинно ни для одной строки — чужая org отрезана самим предикатом.
+  Viewer читает всё в org (RBAC-матрица, «Viewer — Read All») и по-прежнему не пишет:
+  INSERT/UPDATE/DELETE не тронуты.
+- **Не тронуты:** `projects`/`tasks` (member-модель 065 — это другая ось, раздача идёт
+  назначением `owner_id`), `contact_company.cc_select` и `deal_stakeholders.ds_select`
+  (уже были org-only), `attendees_select_visible` (расширяется сама).
+- Прежние тела всех шести лежат в шапке `098_team_read_visibility.sql` — это и есть
+  инструкция отката. Следующий слой поверх — эпик DIRECTIONS
+  (`claude/backlog-directions-ownership.md`).
+- ⚠️ **Хвост: лента событий остаётся личной.** `activities` из шести таблиц клиентом не
+  читается вовсе (`from('activities')` в `src/` — 0 вхождений), а «Последние действия» и
+  `EntityTimeline` кормит **`activity_log`**, чья `Users see own logs` не тронута
+  (`org + (owner/admin ∨ user_id = auth.uid())`). После 098 менеджер увидит справочники и
+  рабочие записи, но ленту событий — только свою. В шесть таблиц спринта `activity_log`
+  не входила; разбирать вместе с DIRECTIONS.
 - **`task_dep_update`** _(062)_ — org + owner/admin/manager, WITH CHECK = USING. Ребро больше не
   иммутабельно; **column-level ограничения у RLS нет** — «только `lag_days`/`dep_type`» держит клиент,
   а DAG-валидатор стоит только на INSERT (долг W5, см. раздел `task_dependencies`).
