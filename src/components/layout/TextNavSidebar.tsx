@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight,
-  Sun, LayoutDashboard, CheckSquare, Zap, DollarSign, Folder,
+  Sun, LayoutDashboard, MessageCircle, CheckSquare, Zap, DollarSign, Folder,
   Users, Building2, Phone, CalendarDays, Calendar, BarChart3, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
@@ -14,6 +14,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLeads } from '@/lib/hooks/use-leads';
+import { useConversations } from '@/lib/hooks/use-conversations';
 import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 
 // jpLabel — фича washi (иероглифы + scramble на hover). icon/sectionColor — иконочный
@@ -22,6 +23,10 @@ import { useTextScramble } from '@/lib/hooks/use-text-scramble';
 const MAIN_NAV = [
   { href: '/',          label: 'Сегодня',   jpLabel: '今日',           icon: Sun,             sectionColor: '#94A3B8' },
   { href: '/overview',  label: 'Обзор',     jpLabel: 'ダッシュボード', icon: LayoutDashboard, sectionColor: '#94A3B8' },
+  // «Чат» третьим: раздел с бейджем непрочитанного — поверхность ежедневного входа,
+  // а не справочник. Относительный порядок сущностных разделов не тронут — они
+  // сдвигаются на шаг вниз, а не перетасовываются.
+  { href: '/chat',      label: 'Чат',       jpLabel: 'チャット',       icon: MessageCircle,   sectionColor: '#14B8A6', badgeKey: 'chat' as const },
   { href: '/tasks',     label: 'Задачи',    jpLabel: 'タスク管理',     icon: CheckSquare,     sectionColor: '#8B7CF6', badgeKey: 'tasks' as const },
   { href: '/leads',     label: 'Лиды',      jpLabel: 'リード',         icon: Zap,             sectionColor: '#F97316', badgeKey: 'leads' as const },
   { href: '/deals',     label: 'Сделки',    jpLabel: '案件管理',       icon: DollarSign,      sectionColor: '#FF6633' },
@@ -82,6 +87,10 @@ export function TextNavSidebar() {
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
   const { data: leads } = useLeads();
+  // Сайдбар живёт на каждой странице → список каналов теперь глобальный (как задачи/
+  // звонки/лиды). Цена ограничена staleTime 60s в хуке; перерисовку на новое сообщение
+  // даёт realtime-инвалидация с дебаунсом 150 мс в менеджере подписок.
+  const { conversations } = useConversations();
 
   // Keyboard shortcut: Cmd+\ to toggle
   useEffect(() => {
@@ -106,6 +115,10 @@ export function TextNavSidebar() {
     tasks: overdueTasks || activeTasks,
     calls: overdueCalls || pendingCalls,
     leads: activeLeads,
+    // Число КАНАЛОВ с непрочитанным, не сообщений: conversation_reads хранит
+    // last_read_at, счётчика сообщений после отметки мы не знаем (это был бы ещё
+    // один запрос на канал). В badgeUrgent чат не идёт — непрочитанное не просрочка.
+    chat: conversations.filter((c) => c.hasUnread).length,
   };
   const badgeUrgent: Record<string, boolean> = {
     tasks: overdueTasks > 0,
@@ -116,7 +129,7 @@ export function TextNavSidebar() {
     return pathname === href || (href !== '/' && pathname.startsWith(href));
   }
 
-  function renderItem(item: { href: string; label: string; jpLabel: string; icon: typeof Sun; sectionColor: string; badgeKey?: 'tasks' | 'leads' | 'calls' }) {
+  function renderItem(item: { href: string; label: string; jpLabel: string; icon: typeof Sun; sectionColor: string; badgeKey?: 'tasks' | 'leads' | 'calls' | 'chat' }) {
     const active = isActive(item.href);
     const badge = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0;
     const isUrgent = item.badgeKey ? badgeUrgent[item.badgeKey] ?? false : false;

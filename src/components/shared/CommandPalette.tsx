@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles,
+  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles, MessageCircle,
 } from 'lucide-react';
 import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -176,6 +176,7 @@ export function CommandPalette() {
     items.push(
       { id: 'nav-today', label: 'Сегодня', icon: Sun, href: '/', section: 'Навигация' },
       { id: 'nav-overview', label: 'Обзор', icon: BarChart3, href: '/overview', section: 'Навигация' },
+      { id: 'nav-chat', label: 'Чат', icon: MessageCircle, href: '/chat', section: 'Навигация' },
       { id: 'nav-tasks', label: 'Задачи', icon: CheckSquare, href: '/tasks', section: 'Навигация' },
       { id: 'nav-deals', label: 'Сделки', icon: FolderKanban, href: '/deals', section: 'Навигация' },
       { id: 'nav-projects', label: 'Проекты', icon: Rocket, href: '/projects', section: 'Навигация' },
