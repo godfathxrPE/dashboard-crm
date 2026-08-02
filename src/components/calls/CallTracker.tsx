@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Phone, TrendingUp } from 'lucide-react';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
@@ -13,25 +14,34 @@ interface CallTrackerProps {
 
 export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
   const { data: calls } = useCalls();
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
+
+  // S-VIS-A: трекер меряет ЛИЧНУЮ норму («Звонки сегодня» против dailyGoal), поэтому
+  // после расширения RLS 098 он обязан считать только свои. Иначе дневной план
+  // закрывался бы чужими звонками — виджет показывал бы 12/10 человеку, который не
+  // позвонил никому.
+  const myCalls = useMemo(
+    () => (myId ? (calls ?? []).filter((c) => c.created_by === myId) : []),
+    [calls, myId],
+  );
 
   const todayCalls = useMemo(() => {
-    if (!calls) return 0;
     const today = localDateKey();
-    return calls.filter(
+    return myCalls.filter(
       (c) => c.status === 'done' && c.date.slice(0, 10) === today
     ).length;
-  }, [calls]);
+  }, [myCalls]);
 
   const weekCalls = useMemo(() => {
-    if (!calls) return 0;
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
     weekStart.setHours(0, 0, 0, 0);
-    return calls.filter(
+    return myCalls.filter(
       (c) => c.status === 'done' && new Date(c.date) >= weekStart
     ).length;
-  }, [calls]);
+  }, [myCalls]);
 
   const pct = Math.min(100, Math.round((todayCalls / dailyGoal) * 100));
   const radius = 36;

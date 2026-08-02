@@ -1,8 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import { useAuth } from './use-auth';
+import { useMeetingAttendees } from './use-meeting-attendees';
 import { logActivity } from './use-activity-log';
 import type { AiSummary } from '@/types/database';
 
@@ -93,6 +96,40 @@ async function deleteMeeting(id: string): Promise<void> {
 export function useMeetings() {
   useRealtimeSync('meetings', QUERY_KEY);
   return useQuery({ queryKey: QUERY_KEY, queryFn: fetchMeetings, staleTime: 60_000 });
+}
+
+/**
+ * S-VIS-A: подмножество «мои встречи» из УЖЕ суженного списка.
+ *
+ * После 098 `useMeetings()` отдаёт встречи всей организации — это цель спринта, и
+ * фильтр внутрь самого хука класть нельзя: календарю и списку встреч нужна команда.
+ * Личную семантику держат потребители с личной семантикой (очередь «Сегодня»,
+ * счётчики в дровере), и вот им — этот хук.
+ *
+ * «Моя» встреча — созданная мной ИЛИ та, где я в участниках. Вторая ветка не
+ * украшательство: 071 специально дала участнику видеть чужую встречу, и фильтр по
+ * одному `created_by` выкинул бы из личной очереди ровно те встречи, ради которых
+ * человека и позвали. Приглашения живут в `meeting_attendees`, в строке `meetings`
+ * их нет — отсюда второй запрос.
+ *
+ * Аргумент — уже НАРЕЗАННЫЙ список (сегодняшние / предстоящие), а не вся лента:
+ * ключ запроса состава склеен из id, и передавать туда всю историю встреч значит
+ * растить ключ и рефетчить состав на каждое изменение ленты.
+ */
+export function useMyMeetings(meetings: Meeting[]): Meeting[] {
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
+  const ids = useMemo(() => meetings.map((m) => m.id), [meetings]);
+  const { data: attendeesByMeeting = {} } = useMeetingAttendees(ids);
+
+  return useMemo(() => {
+    if (!myId) return [];
+    return meetings.filter(
+      (m) => m.created_by === myId || (attendeesByMeeting[m.id] ?? []).includes(myId),
+    );
+    // Пока состав едет, встреча-приглашение в подмножество не попадает — это состояние
+    // загрузки, а не потеря: своя встреча видна сразу, приглашение доезжает следом.
+  }, [meetings, attendeesByMeeting, myId]);
 }
 
 export function useCreateMeeting() {

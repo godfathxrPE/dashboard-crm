@@ -10,7 +10,8 @@ import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
 import { useLeads, useUpdateLead } from '@/lib/hooks/use-leads';
 import { leadStaleness } from '@/lib/constants/leads';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
-import { useMeetings } from '@/lib/hooks/use-meetings';
+import { useMeetings, useMyMeetings } from '@/lib/hooks/use-meetings';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { useProjects, type Project } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
 import { useContacts } from '@/lib/hooks/use-contacts';
@@ -42,6 +43,8 @@ export function TodayView() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const { data: calls = [] } = useCalls();
   const { data: leads = [] } = useLeads();
   const { data: tasks = [] } = useTasks();
@@ -63,16 +66,30 @@ export function TodayView() {
   const todayKey = mounted ? localDateKey() : '';
   const tomorrowKey = mounted ? localDateKey(new Date(Date.now() + 86400000)) : '';
 
+  // ── S-VIS-A: «Сегодня» — ЛИЧНАЯ очередь, а не сводка по организации.
+  //
+  // После 098 `useCalls()`/`useMeetings()` отдают записи всей org. Списку звонков и
+  // календарю это и нужно, а здесь — нет: экран отвечает на вопрос «что сделать МНЕ»,
+  // и чужой просроченный звонок в этой очереди означает, что человек пойдёт делать
+  // чужую работу. Фильтруем у потребителя, хук остаётся командным.
+  const myCalls = useMemo(
+    () => (myId ? calls.filter((c) => c.created_by === myId) : []),
+    [calls, myId],
+  );
   const overdueCalls = useMemo(
-    () => calls.filter((c) => c.status === 'pending' && dayPart(c.date) < todayKey)
+    () => myCalls.filter((c) => c.status === 'pending' && dayPart(c.date) < todayKey)
       .sort((a, b) => a.date.localeCompare(b.date)),
-    [calls, todayKey],
+    [myCalls, todayKey],
   );
   const todayCalls = useMemo(
-    () => calls.filter((c) => c.status === 'pending' && dayPart(c.date) === todayKey)
+    () => myCalls.filter((c) => c.status === 'pending' && dayPart(c.date) === todayKey)
       .sort((a, b) => a.date.localeCompare(b.date)),
-    [calls, todayKey],
+    [myCalls, todayKey],
   );
+  // Лиды — БЕЗ фильтра «мои», та же асимметрия, что у бейджа в сайдбаре: лид это общий
+  // пул. Залежавшийся лид — проблема организации, и молчать о нём тому, кто может его
+  // взять, только потому что заводил его не он, — ровно способ его потерять.
+  //
   // Лиды без реакции: new > 1 дн., contacted > 7 дн. (пороги в lib/constants/leads)
   const staleLeads = useMemo(
     () => leads
@@ -95,14 +112,27 @@ export function TodayView() {
     () => projects.filter((p) => p.type === 'client' && isProjectActive(p) && getDealHealth(p) !== 'ok'),
     [projects, isProjectActive],
   );
-  const todayMeetings = useMemo(
-    () => meetings.filter((m) => dayPart(m.date) === todayKey)
-      .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')),
+  // Встречи дня — сначала режем по дате, и только потом по «моим»: `useMyMeetings`
+  // тянет состав по переданным id, и кормить его всей лентой встреч значило бы
+  // запрашивать участников всей истории ради одного дня.
+  const meetingsToday = useMemo(
+    () => meetings.filter((m) => dayPart(m.date) === todayKey),
     [meetings, todayKey],
+  );
+  const myMeetingsToday = useMyMeetings(meetingsToday);
+  const todayMeetings = useMemo(
+    () => [...myMeetingsToday].sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')),
+    [myMeetingsToday],
   );
 
   // «Остывают»: контакты активных сделок / компаний с активными сделками,
   // у которых последнее касание старше порога или его вовсе не было.
+  //
+  // S-VIS-A: фильтра «мои» здесь нет и не нужно — секция и так сужена активными
+  // ПРОЕКТАМИ, а `projects` осталась на member-модели 065, то есть в списке только те
+  // сделки, где человек участник. `useLastTouchMap` при этом стал командным, и это
+  // прямое улучшение: звонок коллеги теперь считается касанием контакта, а раньше
+  // контакт «остывал» в глазах того, кто просто не видел чужого звонка.
   const coolingContacts = useMemo(() => {
     const activeProjects = projects.filter((p) => isProjectActive(p));
     const activeContactIds = new Set(activeProjects.map((p) => p.contact_id).filter(Boolean) as string[]);
