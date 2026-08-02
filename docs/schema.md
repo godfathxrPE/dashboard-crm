@@ -43,7 +43,23 @@
 > advisors без новых замечаний, ролевые смоки пройдены, подопытная строка восстановлена):
 > одна политика `cc_update` на `contact_company`. Колонок и таблиц не добавляет ⇒ **реген
 > типов не нужен**;
-> следующая свободная — **094**;
+> **094 (S-CHAT-HUB-1a, эпик CHAT-HUB) — ПРИМЕНЕНА `20260802133452`** (гейт Cowork
+> 2026-08-02: advisors ERROR нет, WARN 26→27 — ровно +1 `is_conversation_member` того же
+> класса «SECURITY DEFINER, вызываемая authenticated»; ролевые смоки owner / manager-участник /
+> manager-чужак / viewer / tamper пройдены; бэкфилл сверен: 19 каналов = 1 general + 18
+> project, 2 сообщения перенесены с ТЕМИ ЖЕ id; следов смоков в проде нет): аддитивна —
+> `conversations` (kind general/project/group/dm), `messages`, `conversation_reads`, хелпер
+> `is_conversation_member()`, сидеры `trg_zz_seed_general_conversation` /
+> `trg_zz_seed_project_conversation`, бэкфилл, перевес FK `message_reactions.message_id`
+> с `project_messages` на `messages` + переписаны две политики 068. Legacy
+> `project_messages` НЕ тронута. ⚠️ Реген типов нужен: до него в `src/types/database.ts`
+> живёт стаб `ChatHubStub`, снимается вместе с регенерацией;
+> **095 (снос legacy `project_messages`) — НАПИСАНА, НЕ ПРИМЕНЕНА**: применять только после
+> мержа `feat/chat-hub-1a`, деплоя на Vercel и смока вкладки «Чат» на новой схеме. Перед
+> apply прогнать дельта-бэкфилл (`insert into messages ... on conflict do nothing`): между
+> apply 094 и деплоем старый прод продолжает писать в `project_messages`, и такие строки
+> разовый бэкфилл не подхватит;
+> следующая свободная — **096**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
