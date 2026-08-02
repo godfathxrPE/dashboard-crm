@@ -55,13 +55,13 @@ const contactSortKey = (c: { first_name: string; last_name: string }) =>
   [c.last_name, c.first_name].filter(Boolean).join(' ');
 
 /**
- * Строка карты — грид с фиксированными колонками, а не flex: при flex ширину колонки
- * роли задавала длина должности соседа, и селекты вставали лесенкой. Колонки:
- * имя · должность · роль · заметка · действия. На узком экране — одна колонка.
+ * Ширина селекта роли в строках карты. Строки остаются flex — на 2-3 участниках
+ * (реальный масштаб) это компактно, а грид растаскивает содержимое по ширине
+ * карточки. Выравнивать дорожки гридом тут и нельзя: каждая строка — свой
+ * контейнер, общих колонок между ними не бывает. Фиксируем только сам контрол,
+ * иначе «ЛПР» и «Конечный пользователь» дают разные по размеру рамки.
  */
-const ROW_GRID =
-  'grid grid-cols-1 gap-1 rounded px-1 py-1 hover:bg-surface2 ' +
-  'sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_11rem_minmax(0,1fr)_auto] sm:items-center sm:gap-2';
+const ROW_SELECT_WIDTH = 'sm:w-[10.5rem]';
 
 /** Селект роли: пустое значение = «роль не указана» (в БД NULL, это легальное состояние). */
 function RoleSelect({
@@ -305,32 +305,28 @@ export function DealStakeholders({
         <div className="space-y-1">
           {/* Виртуальная строка основного контакта — записи в карте ещё нет */}
           {primaryMissing && (
-            <div className={ROW_GRID}>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <Star size={12} className="shrink-0 text-accent" aria-hidden />
-                {primaryContact ? (
-                  <Link
-                    href={`/contacts/${primaryContact.id}`}
-                    className="truncate text-sm text-text-main hover:text-accent hover:underline"
-                  >
-                    {contactName(primaryContact)}
-                  </Link>
-                ) : (
-                  <span className="truncate text-sm text-text-main">Основной контакт</span>
-                )}
-                <span
-                  className="shrink-0 text-meta text-text-mute"
-                  title="Основной контакт сделки — меняется в поле «Контакт»"
+            <div className="flex flex-wrap items-center gap-2 rounded px-1 py-1 hover:bg-surface2">
+              <Star size={12} className="shrink-0 text-accent" aria-hidden />
+              {primaryContact ? (
+                <Link
+                  href={`/contacts/${primaryContact.id}`}
+                  className="truncate text-sm text-text-main hover:text-accent hover:underline"
                 >
-                  основной
-                </span>
+                  {contactName(primaryContact)}
+                </Link>
+              ) : (
+                <span className="truncate text-sm text-text-main">Основной контакт</span>
+              )}
+              <span
+                className="shrink-0 text-meta text-text-mute"
+                title="Основной контакт сделки — меняется в поле «Контакт»"
+              >
+                основной
               </span>
-              {/* Должность виртуальной строки не знаем: project.contact её не отдаёт. */}
-              <span />
               {canManage ? (
                 <RoleSelect
                   value={null}
-                  className="w-full"
+                  className={ROW_SELECT_WIDTH}
                   placeholder="указать роль"
                   disabled={addStakeholder.isPending}
                   onChange={(role) => {
@@ -354,50 +350,47 @@ export function DealStakeholders({
                   }}
                 />
               ) : (
-                <span><RoleBadge role={null} /></span>
+                <RoleBadge role={null} />
               )}
-              {/* Заметка и удаление — только у реальной строки: записи ещё нет. */}
-              <span />
-              <span />
             </div>
           )}
 
           {rows.map((row) => (
-            <div key={row.id} className={ROW_GRID}>
-              <span className="flex min-w-0 items-center gap-1.5">
-                {row.isPrimary && <Star size={12} className="shrink-0 text-accent" aria-hidden />}
-                <Link
-                  href={`/contacts/${row.contact_id}`}
-                  className="truncate text-sm text-text-main hover:text-accent hover:underline"
+            <div
+              key={row.id}
+              className="flex flex-wrap items-center gap-2 rounded px-1 py-1 hover:bg-surface2"
+            >
+              {row.isPrimary && <Star size={12} className="shrink-0 text-accent" aria-hidden />}
+              <Link
+                href={`/contacts/${row.contact_id}`}
+                className="truncate text-sm text-text-main hover:text-accent hover:underline"
+              >
+                {contactName(row.contact)}
+              </Link>
+              {row.contact?.position && (
+                <span className="truncate text-meta text-text-mute">{row.contact.position}</span>
+              )}
+              {row.isPrimary && (
+                <span
+                  className="shrink-0 text-meta text-text-mute"
+                  title="Основной контакт сделки — меняется в поле «Контакт»"
                 >
-                  {contactName(row.contact)}
-                </Link>
-                {row.isPrimary && (
-                  <span
-                    className="shrink-0 text-meta text-text-mute"
-                    title="Основной контакт сделки — меняется в поле «Контакт»"
-                  >
-                    основной
-                  </span>
-                )}
-              </span>
-
-              <span className="truncate text-meta text-text-mute">
-                {row.contact?.position ?? ''}
-              </span>
+                  основной
+                </span>
+              )}
 
               {canManage ? (
                 <RoleSelect
                   value={row.role}
-                  className="w-full"
+                  className={ROW_SELECT_WIDTH}
                   placeholder={STAKEHOLDER_ROLE_EMPTY_LABEL}
                   onChange={(role) => changeRole(row, role)}
                 />
               ) : (
-                <span><RoleBadge role={row.role} /></span>
+                <RoleBadge role={row.role} />
               )}
 
-              <div className="min-w-0 text-meta">
+              <div className="min-w-[120px] flex-1 text-meta">
                 {canManage ? (
                   <InlineEdit
                     value={row.note ?? ''}
@@ -416,7 +409,6 @@ export function DealStakeholders({
                 )}
               </div>
 
-              <span className="flex justify-end">
               {canManage &&
                 (row.isPrimary ? (
                   // Строку primary из карты убрать нельзя — она следует за полем
@@ -456,7 +448,6 @@ export function DealStakeholders({
                     <X size={13} />
                   </button>
                 ))}
-              </span>
             </div>
           ))}
         </div>
