@@ -33,7 +33,13 @@
 > `retry_webhook_delivery` (повтор создаёт НОВУЮ строку), `cleanup_webhook_deliveries`
 > (ретеншн 30 дней) и пятая cron-джоба `webhook-cleanup`; плюс контракт
 > [`docs/WEBHOOKS-CONTRACT.md`](./WEBHOOKS-CONTRACT.md);
-> следующая свободная — **092**;
+> **092 (S-R2-D3, эпик D3) — ПРИМЕНЕНА `20260802095512`** (гейт Cowork 2026-08-02: advisors
+> без новых замечаний, ролевые смоки owner/manager/viewer/чужак/tamper пройдены, тестовые
+> строки убраны): аддитивна — новая таблица `deal_stakeholders` (junction сделка↔контакт с
+> ролью в сделке), 4 политики RLS, 3 триггера, публикация realtime. Существующих объектов не
+> трогает. ⚠️ Реген типов нужен: до него в `src/types/database.ts` живёт стаб
+> `DealStakeholdersStub`, который снимается вместе с регенерацией;
+> следующая свободная — **093**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -1482,6 +1488,58 @@ labels лежат в jsonb.
 Сид обязательных пунктов на идущие проекты сделал бы их незавершаемыми без действия РП — это
 regression, даже если продуктово «правильно». Чеклист добавляется точечно кнопкой «Добавить
 чеклист» на карточке проекта (owner/admin).
+
+### deal_stakeholders _(092, R2-P2-D3, S-R2-D3, applied 2026-08-02 · `20260802095512`)_ — карта стейкхолдеров сделки
+
+Junction `projects`↔`contacts` с **ролью в сделке**. Аналог `OpportunityContactRole`
+(Salesforce) и association labels (HubSpot).
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | |
+| org_id | uuid | NOT NULL → organizations CASCADE; ставит `trg_set_org_id`, замораживает `trg_aa_freeze_org_id` |
+| project_id | uuid | NOT NULL → projects CASCADE |
+| contact_id | uuid | NOT NULL → contacts CASCADE |
+| role | text | **nullable**; CHECK `deal_stakeholders_role_chk`: `decision_maker\|economic_buyer\|champion\|expert\|end_user\|blocker`. NULL = роль ещё не понята — легальное состояние, а не пропуск |
+| note | text | CHECK ≤ 500 символов (`deal_stakeholders_note_chk`) |
+| created_by | uuid | DEFAULT `auth.uid()` → profiles ON DELETE SET NULL |
+| created_at / updated_at | timestamptz | `updated_at` держит `trg_set_updated_at` → `update_updated_at()` |
+
+Ограничения: `unique (project_id, contact_id)`. Индексы: `(project_id)`, `(contact_id)`, `(org_id)`.
+
+**Роль в СДЕЛКЕ ≠ должность.** Должность живёт в `contacts.position`; `contact_company.role` —
+её свободнотекстовый дубль (разведка 2026-08-02: 61 пустая строка из 83, значения вида
+«Главный механик» и мусор импорта `ts_Принимает решение`) и словарём для сделок быть не может.
+
+⚠️ **Основной контакт НЕ помечается флагом.** `is_primary` в таблице сознательно нет: primary —
+строка, где `contact_id = projects.contact_id`. Второго источника истины нет, синхронизирующего
+триггера тоже нет **намеренно** — любой UPDATE `projects` будит `trg_zz_run_automations` и
+цепочку BEFORE-синков стадии, и «добавил контакт → прогнал движок автоматизаций» было бы
+побочным эффектом. Урок `companies.phone` ↔ `phones[]`: инвариант, который держит только
+клиент, не держится. Следствие в UI: строку primary из карты нельзя удалить (её меняет поле
+«Контакт» сделки), а если строки ещё нет — рисуется виртуальная.
+
+**Бэкфилла из `projects.contact_id` нет** — primary вычисляется, дублировать нечего.
+
+**Hard delete, без `deleted_at`** — junction-связь не бизнес-запись (прецеденты
+`contact_company`, `project_members`); мягкое удаление ломало бы `unique (project_id, contact_id)`
+невидимыми строками.
+
+**RLS (4 раздельные политики, все `to authenticated`):** `ds_select` — все члены org;
+`ds_insert` / `ds_update` / `ds_delete` — `owner/admin/manager`. `manager` получает и DELETE —
+шире, чем `cc_delete` у `contact_company`, намеренно: асимметрия «добавить может, убрать не
+может» гарантирует мусор в карте. `current_org_*()` строго в обёртке `( select … )` (initplan).
+`WITH CHECK` на UPDATE повторяет `USING` (урок 054).
+
+**Смоки гейта 2026-08-02 (прод):** owner INSERT — OK, `org_id` проставлен триггером верно;
+manager UPDATE — 1 строка; manager с явным чужим `org_id` — 42501; чужак (нет membership) —
+SELECT 0 строк, INSERT 42501; viewer — SELECT видит, INSERT 42501, DELETE 0 строк;
+роль вне словаря — 23514; дубль `(project_id, contact_id)` — 23505; заметка 501 символ — 23514.
+Все тестовые строки удалены.
+
+**Зеркала словаря ролей (держать синхронно с CHECK):** `STAKEHOLDER_ROLES` в
+`src/types/database.ts`, `STAKEHOLDER_ROLE_ORDER` / `STAKEHOLDER_ROLE_CONFIG` в
+`src/lib/constants/stakeholders.ts`, Zod в `src/lib/validators/stakeholder.ts`.
 
 ### activities _(006)_
 

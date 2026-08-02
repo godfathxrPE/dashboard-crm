@@ -58,6 +58,10 @@ function RoleSelect({
 }) {
   return (
     <select
+      // Нативный select без подписи скрин-ридер читает как «combobox» без имени —
+      // self-check проекта требует label у полей формы. Видимой подписи в строке нет
+      // по композиции, поэтому имя даётся через aria-label.
+      aria-label="Роль в сделке"
       value={value ?? ''}
       disabled={disabled}
       onChange={(e) => onChange((e.target.value || null) as StakeholderRole | null)}

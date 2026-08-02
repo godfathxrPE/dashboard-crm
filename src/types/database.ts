@@ -25,60 +25,6 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-/**
- * ⚠️ ВРЕМЕННЫЙ СТАБ (S-R2-D3, миграция 092 ещё НЕ применена).
- *
- * `.from('deal_stakeholders')` типизируется через `Database['public']['Tables']`, а
- * `supabase.gen.ts` регенерируется только ПОСЛЕ apply — таблицы в БД пока нет. Стаб
- * живёт здесь, а не в `supabase.gen.ts` (тот руками не правится) и снимается вместе с
- * регенерацией: после неё ключ придёт из `GenDatabase`, и весь блок надо УДАЛИТЬ.
- *
- * Объявлен `type`, а не `interface`, — намеренно: postgrest-js 2.100 требует от записи
- * таблицы совместимости с индексной сигнатурой, а `interface` её не имеет (грабля
- * S-R2-SIGNOFF-1: стаб-`interface` не компилируется).
- *
- * Форма — 1:1 с 092. `Insert.org_id` уже optional (ставит триггер set_org_id), поэтому
- * RelaxOrgId к стабу не применяется.
- */
-type DealStakeholdersStub = {
-  deal_stakeholders: {
-    Row: {
-      contact_id: string;
-      created_at: string;
-      created_by: string | null;
-      id: string;
-      note: string | null;
-      org_id: string;
-      project_id: string;
-      role: string | null;
-      updated_at: string;
-    };
-    Insert: {
-      contact_id: string;
-      created_at?: string;
-      created_by?: string | null;
-      id?: string;
-      note?: string | null;
-      org_id?: string;
-      project_id: string;
-      role?: string | null;
-      updated_at?: string;
-    };
-    Update: {
-      contact_id?: string;
-      created_at?: string;
-      created_by?: string | null;
-      id?: string;
-      note?: string | null;
-      org_id?: string;
-      project_id?: string;
-      role?: string | null;
-      updated_at?: string;
-    };
-    Relationships: [];
-  };
-};
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -88,7 +34,7 @@ export type Database = {
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    } & DealStakeholdersStub;
+    };
   };
 };
 
