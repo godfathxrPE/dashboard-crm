@@ -125,14 +125,20 @@ begin
 
   -- project: ровно те же три ветки, что в политиках 067 (org owner/admin →
   -- владелец/создатель проекта → участник). Один источник правды про видимость чата.
+  -- coalesce не для красоты: у юзера без membership current_org_role() вернёт NULL,
+  -- и вся цепочка `NULL or false or false` даст NULL. В политике NULL и так читается
+  -- как отказ, но функция обязана отдавать boolean, а не «может быть».
   if v_kind = 'project' then
-    return public.current_org_role() in ('owner','admin')
-        or exists (
-             select 1 from public.projects p
-              where p.id = v_project_id
-                and (p.owner_id = auth.uid() or p.created_by = auth.uid())
-           )
-        or public.is_project_member(v_project_id);
+    return coalesce(
+             public.current_org_role() in ('owner','admin')
+             or exists (
+                  select 1 from public.projects p
+                   where p.id = v_project_id
+                     and (p.owner_id = auth.uid() or p.created_by = auth.uid())
+                )
+             or public.is_project_member(v_project_id),
+             false
+           );
   end if;
 
   -- group/dm: путей создания нет, участников негде хранить → доступа нет.
@@ -418,5 +424,5 @@ comment on table public.messages is
   'Legacy-таблицу сносит 095 после смока. Hard delete, realtime, edited_at = штамп «изм.».';
 
 comment on table public.conversation_reads is
-  'CHAT-HUB 1a (094): «докуда дочитал» — (canal, user) → last_read_at. Фундамент '
+  'CHAT-HUB 1a (094): «докуда дочитал» — (канал, юзер) → last_read_at. Фундамент '
   'unread-бейджей 1b. Каждый видит и двигает только свою строку; DELETE-политики нет.';
