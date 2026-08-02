@@ -81,6 +81,16 @@ export type MessageWithAuthor = Message & {
 };
 export type ConversationRead = Database['public']['Tables']['conversation_reads']['Row'];
 
+// ═══ S-CHAT-HUB-1c: conversation_members (состав ГРУППЫ) ═══
+// WARNING: таблица — РУЧНОЙ стаб в src/types/database.ts (миграция 096 на гейте Cowork).
+// Заполняется только для kind='group': у general/project членство вычисляется
+// в is_conversation_member() и таблицы не имеет.
+export type ConversationMember = Database['public']['Tables']['conversation_members']['Row'];
+/** Участник с профилем (embed profiles!profile_id в select хука). */
+export type ConversationMemberWithProfile = ConversationMember & {
+  profile: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
+};
+
 // ═══ S-CHAT-2: message_reactions (реакции на сообщения — junction) ═══
 // WARNING: таблица `message_reactions` — РУЧНОЙ стаб в supabase.gen.ts (миграция 068 на
 // гейте Cowork). После apply 068 → regen снимет стаб, алиасы продолжат работать 1:1.
