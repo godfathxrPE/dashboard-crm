@@ -19,19 +19,26 @@ export const STAKEHOLDER_ROLE_ORDER: readonly StakeholderRole[] = [
 ];
 
 /**
- * Ярлыки и цвета бейджей. `color` типизирован сразу `BadgeColor`, а не `string` —
- * иначе каждое место рендера пришлось бы кастовать (хвост #7).
+ * Ярлыки и цвета бейджей.
+ *
+ * `color` типизирован сразу `BadgeColor`, а не `string` — иначе каждое место рендера
+ * пришлось бы кастовать (хвост #7).
+ *
+ * `label` — короткий ярлык для строки карты: длинные названия («Конечный пользователь»)
+ * распирают строку и налезают на стрелку селекта. `full` — полное название: уходит в
+ * `<option>` выпадающего списка (там ширины хватает) и в `title` бейджа, чтобы смысл
+ * не терялся.
  */
 export const STAKEHOLDER_ROLE_CONFIG: Record<
   StakeholderRole,
-  { label: string; color: BadgeColor }
+  { label: string; full: string; color: BadgeColor }
 > = {
-  decision_maker: { label: 'ЛПР', color: 'red' },
-  economic_buyer: { label: 'Держатель бюджета', color: 'accent' },
-  champion: { label: 'Чемпион', color: 'green' },
-  expert: { label: 'Технический эксперт', color: 'blue' },
-  end_user: { label: 'Конечный пользователь', color: 'purple' },
-  blocker: { label: 'Блокер', color: 'yellow' },
+  decision_maker: { label: 'ЛПР', full: 'Принимает решение (ЛПР)', color: 'red' },
+  economic_buyer: { label: 'Бюджет', full: 'Держатель бюджета', color: 'accent' },
+  champion: { label: 'Чемпион', full: 'Чемпион — продаёт внутри', color: 'green' },
+  expert: { label: 'Эксперт', full: 'Технический эксперт', color: 'blue' },
+  end_user: { label: 'Пользователь', full: 'Конечный пользователь', color: 'purple' },
+  blocker: { label: 'Блокер', full: 'Блокер — тормозит сделку', color: 'yellow' },
 };
 
 /** Подпись строки без роли — не пустое место, а подсказка «поле стоит заполнить». */

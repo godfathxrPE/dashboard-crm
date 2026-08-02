@@ -55,13 +55,10 @@ const contactSortKey = (c: { first_name: string; last_name: string }) =>
   [c.last_name, c.first_name].filter(Boolean).join(' ');
 
 /**
- * Ширина селекта роли в строках карты. Строки остаются flex — на 2-3 участниках
- * (реальный масштаб) это компактно, а грид растаскивает содержимое по ширине
- * карточки. Выравнивать дорожки гридом тут и нельзя: каждая строка — свой
- * контейнер, общих колонок между ними не бывает. Фиксируем только сам контрол,
- * иначе «ЛПР» и «Конечный пользователь» дают разные по размеру рамки.
+ * Ширина селекта в режиме правки. В покое роль — бейдж (см. RoleCell), поэтому
+ * постоянной рамки в строке нет и выравнивать между строками нечего.
  */
-const ROW_SELECT_WIDTH = 'sm:w-[10.5rem]';
+const ROW_SELECT_WIDTH = 'min-w-[11rem]';
 
 /** Селект роли: пустое значение = «роль не указана» (в БД NULL, это легальное состояние). */
 function RoleSelect({
@@ -70,12 +67,16 @@ function RoleSelect({
   disabled,
   placeholder,
   className,
+  autoFocus,
+  onBlur,
 }: {
   value: StakeholderRole | null;
   onChange: (role: StakeholderRole | null) => void;
   disabled?: boolean;
   placeholder: string;
   className?: string;
+  autoFocus?: boolean;
+  onBlur?: () => void;
 }) {
   return (
     <select
@@ -85,9 +86,11 @@ function RoleSelect({
       aria-label="Роль в сделке"
       value={value ?? ''}
       disabled={disabled}
+      autoFocus={autoFocus}
+      onBlur={onBlur}
       onChange={(e) => onChange((e.target.value || null) as StakeholderRole | null)}
       className={cn(
-        'rounded border border-input bg-surface px-1.5 py-0.5 text-meta text-text-dim',
+        'rounded border border-input bg-surface py-0.5 pl-1.5 pr-5 text-meta text-text-dim',
         'focus:border-accent focus:outline-none disabled:opacity-50',
         className,
       )}
@@ -95,7 +98,7 @@ function RoleSelect({
       <option value="">{placeholder}</option>
       {STAKEHOLDER_ROLE_ORDER.map((r) => (
         <option key={r} value={r}>
-          {STAKEHOLDER_ROLE_CONFIG[r].label}
+          {STAKEHOLDER_ROLE_CONFIG[r].full}
         </option>
       ))}
     </select>
@@ -110,9 +113,56 @@ function RoleBadge({ role }: { role: StakeholderRole | null }) {
   // Роль вне словаря (ручной SQL) — показываем сырое значение, а не пустоту.
   if (!cfg) return <Badge size="sm">{role}</Badge>;
   return (
-    <Badge size="sm" color={cfg.color}>
+    <Badge size="sm" color={cfg.color} title={cfg.full}>
       {cfg.label}
     </Badge>
+  );
+}
+
+/**
+ * Роль в строке: в покое — бейдж, по клику — селект. Тот же приём, что у InlineEdit:
+ * постоянная рамка контрола в каждой строке — самый тяжёлый элемент строки, из-за неё
+ * карта читалась как форма, а не как данные.
+ */
+function RoleCell({
+  role,
+  canManage,
+  emptyLabel,
+  onChange,
+}: {
+  role: StakeholderRole | null;
+  canManage: boolean;
+  emptyLabel: string;
+  onChange: (role: StakeholderRole | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  if (!canManage) return <RoleBadge role={role} />;
+
+  if (editing) {
+    return (
+      <RoleSelect
+        value={role}
+        autoFocus
+        className={ROW_SELECT_WIDTH}
+        placeholder={emptyLabel}
+        onBlur={() => setEditing(false)}
+        onChange={(r) => {
+          setEditing(false);
+          onChange(r);
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="shrink-0 rounded decoration-dashed underline-offset-2 hover:underline"
+    >
+      {role ? <RoleBadge role={role} /> : <span className="text-meta text-text-mute">{emptyLabel}</span>}
+    </button>
   );
 }
 
@@ -323,43 +373,36 @@ export function DealStakeholders({
               >
                 основной
               </span>
-              {canManage ? (
-                <RoleSelect
-                  value={null}
-                  className={ROW_SELECT_WIDTH}
-                  placeholder="указать роль"
-                  disabled={addStakeholder.isPending}
-                  onChange={(role) => {
-                    if (!role || !primaryContactId) return;
-                    setErrorText(null);
-                    addStakeholder.mutate(
-                      {
-                        contact_id: primaryContactId,
-                        role,
-                        contact: primaryContact
-                          ? {
-                              ...primaryContact,
-                              position: null,
-                              email: null,
-                              phone: null,
-                            }
-                          : null,
-                      },
-                      { onError: handleError },
-                    );
-                  }}
-                />
-              ) : (
-                <RoleBadge role={null} />
-              )}
+              <RoleCell
+                role={null}
+                canManage={canManage}
+                emptyLabel="указать роль"
+                onChange={(role) => {
+                  if (!role || !primaryContactId) return;
+                  setErrorText(null);
+                  addStakeholder.mutate(
+                    {
+                      contact_id: primaryContactId,
+                      role,
+                      contact: primaryContact
+                        ? { ...primaryContact, position: null, email: null, phone: null }
+                        : null,
+                    },
+                    { onError: handleError },
+                  );
+                }}
+              />
             </div>
           )}
 
           {rows.map((row) => (
             <div
               key={row.id}
-              className="flex flex-wrap items-center gap-2 rounded px-1 py-1 hover:bg-surface2"
+              className="group flex flex-wrap items-center gap-2 rounded px-1 py-1 hover:bg-surface2"
             >
+              {/* Звезда декоративна: смысл несёт слово «основной» рядом, и на нём же
+                  висит подсказка «меняется в поле „Контакт“» — разовое пояснение, ему
+                  не место постоянной строкой в каждой записи. */}
               {row.isPrimary && <Star size={12} className="shrink-0 text-accent" aria-hidden />}
               <Link
                 href={`/contacts/${row.contact_id}`}
@@ -367,9 +410,6 @@ export function DealStakeholders({
               >
                 {contactName(row.contact)}
               </Link>
-              {row.contact?.position && (
-                <span className="truncate text-meta text-text-mute">{row.contact.position}</span>
-              )}
               {row.isPrimary && (
                 <span
                   className="shrink-0 text-meta text-text-mute"
@@ -378,19 +418,25 @@ export function DealStakeholders({
                   основной
                 </span>
               )}
-
-              {canManage ? (
-                <RoleSelect
-                  value={row.role}
-                  className={ROW_SELECT_WIDTH}
-                  placeholder={STAKEHOLDER_ROLE_EMPTY_LABEL}
-                  onChange={(role) => changeRole(row, role)}
-                />
-              ) : (
-                <RoleBadge role={row.role} />
+              {row.contact?.position && (
+                <span className="truncate text-meta text-text-mute">{row.contact.position}</span>
               )}
 
-              <div className="min-w-[120px] flex-1 text-meta">
+              <RoleCell
+                role={row.role}
+                canManage={canManage}
+                emptyLabel={STAKEHOLDER_ROLE_EMPTY_LABEL}
+                onChange={(role) => changeRole(row, role)}
+              />
+
+              {/* Пустая заметка проявляется на наведении: «+ заметка» в каждой строке
+                  дублируется столько раз, сколько участников, и забивает строку шумом. */}
+              <div
+                className={cn(
+                  'min-w-[120px] flex-1 text-meta transition-opacity',
+                  canManage && !row.note && 'opacity-0 focus-within:opacity-100 group-hover:opacity-100',
+                )}
+              >
                 {canManage ? (
                   <InlineEdit
                     value={row.note ?? ''}
@@ -409,14 +455,13 @@ export function DealStakeholders({
                 )}
               </div>
 
+              {/* У primary кнопки удаления нет: строка следует за полем «Контакт»
+                  сделки. Причина — в подсказке на «основной», а не постоянной фразой
+                  в конце строки: она повторялась бы у каждой сделки и весила больше,
+                  чем сами данные. */}
               {canManage &&
-                (row.isPrimary ? (
-                  // Строку primary из карты убрать нельзя — она следует за полем
-                  // «Контакт» сделки. Показываем причину, а не молча прячем кнопку.
-                  <span className="shrink-0 text-meta text-text-mute">
-                    меняется в поле «Контакт»
-                  </span>
-                ) : confirmingId === row.id ? (
+                !row.isPrimary &&
+                (confirmingId === row.id ? (
                   <span className="flex shrink-0 items-center gap-1.5 text-meta">
                     <span className="text-text-dim">Удалить?</span>
                     <button
