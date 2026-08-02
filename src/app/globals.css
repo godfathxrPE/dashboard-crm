@@ -733,9 +733,12 @@
    SHARED GLOBALS — вынесено из удалённого scandi-блока (AUDIT C2/C3)
    ═══════════════════════════════════════════════════════ */
 
-/* Z-index hierarchy (все темы): sidebar 20 < drawer 30 < headers 35-40 <
-   dropdowns 50 < overlay 999 < modal 1000. Перебивает Tailwind z-50/z-[60]
-   на тех же элементах (равная специфичность, правило ниже по файлу). */
+/* Z-index hierarchy (все темы), сверено по коду 2026-08-02 — полная таблица в
+   docs/Z-INDEX.md: drawer 10 < sidebar 30 < header 35 < peek 40 < поповеры 50 <
+   палитра 60 < overlay 999 < modal 1000.
+   Два правила ниже перебивают Tailwind z-50/z-[60] на тех же элементах (равная
+   специфичность, правило ниже по файлу) — поэтому CommandPalette и Hotkeys, несущие
+   data-modal*, фактически лежат на 999/1000, а не на 60. */
 [data-modal-overlay] { z-index: 999; }
 [data-modal] { z-index: 1000; }
 

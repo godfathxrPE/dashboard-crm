@@ -76,7 +76,14 @@ export function ContentHeader() {
   const title = getPageTitle(pathname);
 
   return (
-    <div className="mb-6 flex items-center justify-between relative z-[100]">
+    <div className="mb-6 flex items-center justify-between relative z-[35]">
+      {/* z-35 — полоса заголовков (сайдбар 30 < заголовки 35 < peek 40 < оверлей/модалка
+          999/1000 из globals.css). Было 100: топбар лежал поверх шапки PeekPanel, клик
+          по «Открыть полностью» уходил в него, target оказывался вне panelRef и панель
+          закрывалась вместо перехода — на всех пяти страницах с peek.
+          Держать ВЫШЕ 30 (иначе дропдауны шапки уйдут под сайдбар) и НИЖЕ 40 (peek).
+          `relative z-*` создаёт стекинг-контекст: внутренние z-[9999] дропдаунов работают
+          внутри него, наружу торчит именно это число. Подробности — docs/Z-INDEX.md. */}
       {/* h1 removed — each page renders its own Watermark header */}
       <div />
       <div className="flex items-center gap-2">

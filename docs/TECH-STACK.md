@@ -390,6 +390,7 @@ dashboard-crm/
 |------|------------|
 | `README.md` | Quick start, структура, themes overview |
 | `docs/schema.md` | Схема БД, RLS, миграции |
+| `docs/Z-INDEX.md` | Слои интерфейса: занятые полосы z-index, правила, инциденты |
 | `GO-LIVE.md` | Деплой / Supabase checklist ⚠️ писался под Netlify — сверить перед использованием |
 | `INTEGRATION.md` | Интеграции (если актуально) |
 | `package.json` | Точные версии зависимостей |
