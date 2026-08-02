@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { MessageCircle, MessageSquare, Pencil, Trash2, SendHorizontal, Smile, SmilePlus } from 'lucide-react';
+import { MessageCircle, MessageSquare, Paperclip, Pencil, Trash2, SendHorizontal, Smile, SmilePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useMessages,
@@ -12,6 +12,14 @@ import {
 } from '@/lib/hooks/use-messages';
 import { useMarkRead } from '@/lib/hooks/use-conversations';
 import { useMessageReactions, useToggleReaction } from '@/lib/hooks/use-message-reactions';
+import {
+  useMessageAttachments,
+  checkAttachmentBatch,
+  attachmentProblemMessage,
+  formatAttachmentSize,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+} from '@/lib/hooks/use-message-attachments';
+import { MessageAttachments } from '@/components/chat/MessageAttachments';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
@@ -157,6 +165,11 @@ export function MessageThread({
     [messages],
   );
   const { byMessage: reactionsByMessage } = useMessageReactions(conversationId, messageIds);
+  // ── S-CHAT-HUB-1d: вложения. Тот же приём, что у реакций — одним запросом по уже
+  // загруженной ленте, без N+1.
+  const { byMessage: attachmentsByMessage } = useMessageAttachments(conversationId, messageIds);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const toggleReactionMut = useToggleReaction(conversationId);
   // Отдельный state пикера реакций — НЕ шарим composer'ный emojiOpen/emojiBtnRef.
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
@@ -255,14 +268,52 @@ export function MessageThread({
     readyRef.current = true;
   }, [isLoading, messages]);
 
+  // S-CHAT-HUB-1d: сообщение может быть из одного файла — CHECK на `body` ослаблен 097.
+  // Инвариант «текст ИЛИ вложение» держит именно эта строка: в БД он не выражается
+  // (кросс-табличное условие, а вложения вставляются ПОСЛЕ сообщения).
+  const canSend = (draft.trim().length > 0 || pendingFiles.length > 0) && !sendMessage.isPending;
+
   function handleSend() {
+    if (!canSend) return;
     const body = draft.trim();
-    if (!body || sendMessage.isPending) return;
+    const files = pendingFiles;
     setDraft('');
+    setPendingFiles([]);
     sendMessage.mutate(
-      { body, me },
-      { onError: () => toast.error('Не удалось отправить сообщение') },
+      { body, me, files },
+      {
+        onSuccess: ({ attachmentsFailed }) => {
+          if (attachmentsFailed) toast.error('Сообщение ушло, но файлы не прикрепились');
+        },
+        onError: () => {
+          // Возвращаем черновик и файлы: заново выбирать пять файлов из-за упавшей
+          // сети — это наказание за чужую ошибку.
+          setDraft(body);
+          setPendingFiles(files);
+          toast.error('Не удалось отправить сообщение');
+        },
+      },
     );
+  }
+
+  /**
+   * Выбор файлов. Проверка ДО отправки и на всю партию сразу: частичная отправка хуже
+   * отказа — иначе человек видит отправленное сообщение и думает, что приложил пять
+   * файлов, а приложил четыре.
+   */
+  function handleFilesPicked(picked: FileList | null) {
+    if (!picked || picked.length === 0) return;
+    const next = [...pendingFiles, ...Array.from(picked)];
+    const problem = checkAttachmentBatch(next);
+    if (problem) {
+      toast.error(attachmentProblemMessage(problem));
+      return;
+    }
+    setPendingFiles(next);
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   // Вставка эмодзи в позицию курсора; selection читаем прямо с DOM-элемента —
@@ -421,6 +472,11 @@ export function MessageThread({
                 </div>
               );
 
+              // S-CHAT-HUB-1d. У temp-строки вложений в БД ещё нет — они появятся
+              // вместе с реальным сообщением; пустое тело у temp значит «файлы летят».
+              const attachments = temp ? [] : (attachmentsByMessage.get(m.id) ?? []);
+              const sendingOnlyFiles = temp && !m.body;
+
               // Чипы реакций под пузырём (свой и чужой). Всегда видимы (не hover).
               const reactions = temp ? [] : (reactionsByMessage.get(m.id) ?? []);
               const reactionChips = reactions.length > 0 && (
@@ -501,9 +557,17 @@ export function MessageThread({
                             groupEnd ? 'rounded-br-[4px]' : ''
                           } ${temp ? 'opacity-60' : ''} ${animate ? 'animate-appear' : ''}`}
                         >
-                          <p className="whitespace-pre-wrap break-words text-sm">
-                            {m.body}
-                          </p>
+                          {/* Пустое тело — не пустой абзац: сообщение из одного файла
+                              рисуется только вложением (097 разрешил body = ''). */}
+                          {m.body && (
+                            <p className="whitespace-pre-wrap break-words text-sm">
+                              {m.body}
+                            </p>
+                          )}
+                          {sendingOnlyFiles && (
+                            <p className="text-sm italic opacity-80">Отправка…</p>
+                          )}
+                          <MessageAttachments attachments={attachments} />
                           {timeEl}
                         </div>
                       )}
@@ -528,9 +592,12 @@ export function MessageThread({
                               {m.author?.full_name ?? 'Участник'}
                             </span>
                           )}
-                          <p className="whitespace-pre-wrap break-words text-sm text-text-main">
-                            {m.body}
-                          </p>
+                          {m.body && (
+                            <p className="whitespace-pre-wrap break-words text-sm text-text-main">
+                              {m.body}
+                            </p>
+                          )}
+                          <MessageAttachments attachments={attachments} />
                           {timeEl}
                         </div>
                       )}
@@ -557,8 +624,68 @@ export function MessageThread({
         />
       )}
 
+      {/* Выбранные файлы — чипами НАД полем ввода: они часть будущего сообщения, а не
+          отдельная операция. Drag-and-drop в 1d сознательно не делаем. */}
+      {pendingFiles.length > 0 && (
+        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1.5">
+          {pendingFiles.map((f, i) => (
+            <span
+              key={`${f.name}-${i}`}
+              className="flex max-w-[14rem] items-center gap-1.5 rounded-full border border-border bg-surface2 py-0.5 pl-2 pr-1 text-meta"
+            >
+              <Paperclip size={11} className="shrink-0 text-text-mute" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-text-dim" title={f.name}>
+                {f.name}
+              </span>
+              <span className="shrink-0 tabular-nums text-text-mute">
+                {formatAttachmentSize(f.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => removePendingFile(i)}
+                disabled={sendMessage.isPending}
+                aria-label={`Убрать ${f.name}`}
+                className="shrink-0 rounded-full p-0.5 text-text-mute transition-colors hover:text-text-main disabled:opacity-40"
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          <span className="text-meta tabular-nums text-text-mute">
+            {formatAttachmentSize(pendingFiles.reduce((sum, f) => sum + f.size, 0))}
+          </span>
+        </div>
+      )}
+
       {/* Composer: вне скролла, на --surface */}
       <div className="flex shrink-0 items-end gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            handleFilesPicked(e.target.files);
+            // Сброс значения: без него повторный выбор ТОГО ЖЕ файла не даёт change.
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sendMessage.isPending || pendingFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE}
+          aria-label="Прикрепить файл"
+          title={
+            pendingFiles.length >= MAX_ATTACHMENTS_PER_MESSAGE
+              ? `Не больше ${MAX_ATTACHMENTS_PER_MESSAGE} файлов в сообщении`
+              : 'Прикрепить файл'
+          }
+          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
+                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none
+                     disabled:opacity-40"
+        >
+          <Paperclip size={16} />
+        </button>
         <button
           ref={emojiBtnRef}
           type="button"
@@ -583,17 +710,21 @@ export function MessageThread({
               handleSend();
             }
           }}
-          placeholder="Сообщение команде…"
+          placeholder={pendingFiles.length > 0 ? 'Подпись (необязательно)…' : 'Сообщение команде…'}
           title="Enter — отправить, Shift+Enter — перенос"
           aria-label="Сообщение команде. Enter — отправить, Shift+Enter — перенос"
           rows={2}
           maxLength={4000}
+          // Пока файлы летят — composer заблокирован: вторая отправка поверх первой
+          // забрала бы у неё черновик и файлы.
+          disabled={sendMessage.isPending}
           className="min-h-[42px] flex-1 resize-none rounded-lg border border-input bg-surface px-3 py-2
-                     text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none"
+                     text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none
+                     disabled:opacity-60"
         />
         <button
           onClick={handleSend}
-          disabled={!draft.trim() || sendMessage.isPending}
+          disabled={!canSend}
           className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white
                      transition-opacity hover:opacity-90 disabled:bg-surface3 disabled:text-text-mute"
           aria-label="Отправить"

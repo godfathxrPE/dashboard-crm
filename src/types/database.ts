@@ -25,16 +25,81 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
+/**
+ * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-HUB-1d, миграция 097 ещё НЕ применена).
+ *
+ * Снимается регенерацией после apply 097 (`scripts/gen-types.sh`): ключи придут из
+ * `GenDatabase`, и весь блок надо УДАЛИТЬ вместе с `& ChatFilesStub` ниже.
+ * `supabase.gen.ts` руками НЕ правится.
+ *
+ * Объявлен `type`, а не `interface`, — намеренно: postgrest-js требует от записи таблицы
+ * совместимости с индексной сигнатурой, а `interface` её не имеет (грабля S-R2-SIGNOFF-1).
+ */
+type ChatFilesStub = {
+  message_attachments: {
+    Row: {
+      created_at: string;
+      created_by: string | null;
+      file_name: string;
+      file_size: number | null;
+      id: string;
+      message_id: string;
+      mime_type: string | null;
+      org_id: string;
+      storage_path: string;
+    };
+    // org_id ставит триггер set_org_id → optional (RelaxOrgId к стабу не применяется).
+    Insert: {
+      created_at?: string;
+      created_by?: string | null;
+      file_name: string;
+      file_size?: number | null;
+      id?: string;
+      message_id: string;
+      mime_type?: string | null;
+      org_id?: string;
+      storage_path: string;
+    };
+    Update: {
+      created_at?: string;
+      created_by?: string | null;
+      file_name?: string;
+      file_size?: number | null;
+      id?: string;
+      message_id?: string;
+      mime_type?: string | null;
+      org_id?: string;
+      storage_path?: string;
+    };
+    Relationships: [];
+  };
+};
+
+/**
+ * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-HUB-1d, 097) — вторая половина: хелпер доступа к объектам
+ * бакета. Приложение его напрямую не зовёт (он живёт в политиках `storage.objects`),
+ * но `Functions` в типах обязан совпадать с живой схемой, иначе после регенерации
+ * появится ключ, которого раньше не было, и диф прочитается как «что-то добавили руками».
+ * Удаляется тем же движением, что `ChatFilesStub`.
+ */
+type ChatFilesFnStub = {
+  can_access_chat_file: {
+    Args: { p_name: string };
+    Returns: boolean;
+  };
+};
+
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
-  public: Omit<GenDatabase['public'], 'Tables'> & {
+  public: Omit<GenDatabase['public'], 'Tables' | 'Functions'> & {
     Tables: {
       [K in keyof GenDatabase['public']['Tables']]: Omit<
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    };
+    } & ChatFilesStub;
+    Functions: GenDatabase['public']['Functions'] & ChatFilesFnStub;
   };
 };
 
