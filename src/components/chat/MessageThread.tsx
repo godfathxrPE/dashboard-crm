@@ -355,6 +355,10 @@ export function MessageThread({
   // (иначе стробоскоп на 50 сообщениях); ready → анимируем только то, что пришло ПОСЛЕ.
   const seenIdsRef = useRef<Set<string>>(new Set());
   const readyRef = useRef(false);
+  // S-CHAT-HUB-1f: реакции поп'ают только при ПОСТАНОВКЕ. Тот же приём, что у seenIds:
+  // на первом non-loading рендере множество наполняется целиком, иначе открытие канала
+  // с готовой лентой даёт залп из десятка чипов разом.
+  const seenReactionsRef = useRef<Set<string>>(new Set());
 
   // ── FAB «вниз» (1f). Порог 300px от низа; счётчик — что пришло, пока листали вверх.
   const [showFab, setShowFab] = useState(false);
@@ -428,6 +432,14 @@ export function MessageThread({
     for (const m of messages) seenIdsRef.current.add(m.id);
     readyRef.current = true;
   }, [isLoading, messages]);
+
+  // То же для реакций — отдельным эффектом: они приезжают своим запросом и позже ленты.
+  useEffect(() => {
+    if (isLoading) return;
+    for (const [messageId, list] of reactionsByMessage) {
+      for (const r of list) seenReactionsRef.current.add(`${messageId}:${r.emoji}`);
+    }
+  }, [isLoading, reactionsByMessage]);
 
   /**
    * Лента, разложенная по дням. Раньше сообщения шли плоским списком, а день-чип жил
@@ -599,9 +611,13 @@ export function MessageThread({
             <p className="text-xs text-text-mute">Загрузка...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2">
-            <MessagesSquare size={20} className="text-text-mute" aria-hidden="true" />
-            <p className="text-xs text-text-mute">{emptyText}</p>
+          // 1f: на обоях пустой канал — не дырка, а приглашение: иконка в мягком круге
+          // подложки --chat-chip по центру узора.
+          <div className="flex h-full flex-col items-center justify-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-[var(--chat-chip)]">
+              <MessagesSquare size={24} className="text-text-mute" aria-hidden="true" />
+            </div>
+            <p className="max-w-[18rem] text-center text-xs text-text-mute">{emptyText}</p>
           </div>
         ) : (
           <div className="flex min-h-full flex-col justify-end">
@@ -716,6 +732,10 @@ export function MessageThread({
                         r.mine
                           ? 'chat-own border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-[color:var(--chat-own-fg,var(--text))]'
                           : 'border-border bg-[var(--chat-chip)] text-text-dim hover:text-text-main'
+                      } ${
+                        readyRef.current && !seenReactionsRef.current.has(`${m.id}:${r.emoji}`)
+                          ? 'chat-reaction-pop'
+                          : ''
                       }`}
                     >
                       <span>{r.emoji}</span>
