@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Phone, Calendar, CheckSquare } from 'lucide-react';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
-import { useMeetings } from '@/lib/hooks/use-meetings';
+import { useMeetings, useMyMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
@@ -122,6 +123,10 @@ function CalendarWidget() {
   const mNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
   const dNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
+  // S-VIS-A: календарь в дровере ОСТАЁТСЯ КОМАНДНЫМ — точки на днях после 098
+  // отмечают события всей организации. Это тот же выбор, что у /calendar: календарь
+  // отвечает на вопрос «что происходит», а не «что должен я»; последнее живёт
+  // на экране «Сегодня» и в бейджах, и там фильтры «мои» стоят.
   // Build set of dates with events
   const markedDates = new Set<string>();
   calls.forEach((c) => { if (c.status === 'pending' && c.date) markedDates.add(c.date.slice(0, 10)); });
@@ -201,6 +206,8 @@ const navBtn: React.CSSProperties = {
 // ═══════════════════════════════════════════════════════
 
 function StatsWidget() {
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const { data: tasks = [] } = useTasks();
   const { data: calls = [] } = useCalls();
   const { data: meetings = [] } = useMeetings();
@@ -210,9 +217,19 @@ function StatsWidget() {
   const todayStr = localDateKey();
   const active = projects.filter(isProjectActive).length;
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-  const weekCalls = calls.filter((c) => c.date >= weekAgo).length;
+
+  // S-VIS-A: «СЕЙЧАС В РАБОТЕ» — сводка по МОЕЙ работе. «Сделок» и «Задач» и так
+  // считаются из member-моделей 065, поэтому звонки и встречи после 098 обязаны
+  // сузиться следом: панель из четырёх чисел, где два личных и два по организации,
+  // не читается никак.
+  const weekCalls = useMemo(
+    () => (myId ? calls.filter((c) => c.created_by === myId && c.date >= weekAgo) : []).length,
+    [calls, myId, weekAgo],
+  );
   const nowTasks = tasks.filter((t) => t.lane === 'now' || t.lane === 'next').length;
-  const upMeetings = meetings.filter((m) => m.date >= todayStr).length;
+  // Сначала по дате, потом по «моим» — useMyMeetings тянет состав по переданным id.
+  const upcoming = useMemo(() => meetings.filter((m) => m.date >= todayStr), [meetings, todayStr]);
+  const upMeetings = useMyMeetings(upcoming).length;
 
   const items = [
     { value: active, label: 'Сделок' },

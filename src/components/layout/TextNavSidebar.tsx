@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useLeads } from '@/lib/hooks/use-leads';
@@ -84,6 +85,8 @@ export function TextNavSidebar() {
   // Aura: активный пункт — полупрозрачная пилюля (не линия). Помечаем data-active.
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const { data: tasks } = useTasks();
   const { data: calls } = useCalls();
   const { data: leads } = useLeads();
@@ -107,8 +110,25 @@ export function TextNavSidebar() {
   const today = new Date(new Date().toDateString());
   const overdueTasks = (tasks ?? []).filter((t) => t.lane !== 'done' && t.deadline && new Date(t.deadline) < today).length;
   const activeTasks = (tasks ?? []).filter((t) => t.lane === 'now' || t.lane === 'next').length;
-  const overdueCalls = (calls ?? []).filter((c) => c.status === 'pending' && new Date(c.date) < today).length;
-  const pendingCalls = (calls ?? []).filter((c) => c.status === 'pending').length;
+
+  // ── S-VIS-A: бейдж звонков — ТОЛЬКО свои.
+  //
+  // После 098 `useCalls()` отдаёт звонки всей организации (это цель спринта — списку
+  // нужна команда). Но бейдж в сайдбаре — личный сигнал «мне есть что сделать», и
+  // красная точка от просроченного звонка КОЛЛЕГИ означала бы, что человек идёт
+  // разбираться с чужой работой. Фильтруем на клиенте, а не в хуке: хук общий,
+  // семантику «мои» держит потребитель.
+  const myCalls = useMemo(
+    () => (myId ? (calls ?? []).filter((c) => c.created_by === myId) : []),
+    [calls, myId],
+  );
+  const overdueCalls = myCalls.filter((c) => c.status === 'pending' && new Date(c.date) < today).length;
+  const pendingCalls = myCalls.filter((c) => c.status === 'pending').length;
+
+  // Лиды — НАМЕРЕННО без фильтра, асимметрия со звонками осознанная: лид это общий
+  // пул, а не чья-то личная задача. Новый лид должен зажечь бейдж у всех, кто может
+  // его взять, — иначе он лежит невидимым до тех пор, пока его кто-нибудь не
+  // «присвоит», а присваивать нечего, пока его не увидели.
   const activeLeads = (leads ?? []).filter((l) => l.status === 'new' || l.status === 'contacted').length;
 
   const badges: Record<string, number> = {

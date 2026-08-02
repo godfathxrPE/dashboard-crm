@@ -18,6 +18,7 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { projectHref } from '@/lib/utils/project-href';
 import { formatBudget } from '@/lib/validators/project';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -171,13 +172,22 @@ export function PipelineFunnelChart() {
 
 export function CallsRecentChart() {
   const { data: calls, isLoading } = useCalls();
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const themeVal2 = useThemeStore((s) => s.theme);
   const isFuji = themeVal2 === 't-fuji';
   const dayCount = isFuji ? 7 : 14;
   const [callsHovered, setCallsHovered] = useState(false);
 
+  // S-VIS-A: столбики — МОИ звонки. Чарт стоит на «Обзоре» прямо под KPI-карточкой
+  // «Звонки за неделю», и разойтись с ней в семантике нельзя: карточка показывала бы
+  // 3, а гистограмма под ней — сорок чужих палок за тот же период.
+  const myCalls = useMemo(
+    () => (myId ? (calls ?? []).filter((c) => c.created_by === myId) : []),
+    [calls, myId],
+  );
+
   const chartData = useMemo(() => {
-    if (!calls) return [];
     const now = new Date();
     const days: { date: string; label: string; done: number; pending: number; cancelled: number }[] = [];
 
@@ -187,7 +197,7 @@ export function CallsRecentChart() {
       const dateStr = localDateKey(d);
       const label = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 
-      const dayCalls = calls.filter((c) => c.date.slice(0, 10) === dateStr);
+      const dayCalls = myCalls.filter((c) => c.date.slice(0, 10) === dateStr);
       days.push({
         date: dateStr,
         label,
@@ -197,7 +207,7 @@ export function CallsRecentChart() {
       });
     }
     return days;
-  }, [calls, dayCount]);
+  }, [myCalls, dayCount]);
 
   if (isLoading) return <SkeletonChart />;
 

@@ -21,6 +21,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { useRecentActivity } from '@/lib/hooks/use-activity-log';
 import { useActorMap } from '@/lib/hooks/use-actor';
 import { formatBudget } from '@/lib/validators/project';
@@ -122,9 +123,21 @@ function KpiCards() {
   const { data: projects, isLoading: loadingP } = useProjects();
   const { data: tasks, isLoading: loadingT } = useTasks();
   const { data: calls, isLoading: loadingC } = useCalls();
+  const { user } = useAuth();
+  const myId = user?.id ?? null;
   const theme = useThemeStore((s) => s.theme);
   const isWashi = theme === 't-washi';
   const isFuji = theme === 't-fuji';
+
+  // S-VIS-A: карточка «Звонков за неделю» и её тренд — про МОЮ неделю. Соседние
+  // карточки считаются из `projects`/`tasks`, а те остались на member-модели 065,
+  // то есть уже «мои». Оставить звонки командными значило бы собрать панель, где
+  // три числа личные, а четвёртое — по организации: тренд «+120» тогда означал бы,
+  // что кто-то другой стал звонить больше.
+  const myCalls = useMemo(
+    () => (myId ? (calls ?? []).filter((c) => c.created_by === myId) : []),
+    [calls, myId],
+  );
 
   const kpi = useMemo(() => {
     // W2: единый источник метрик (совпадает со «Сделками»). Обзор = все направления.
@@ -142,8 +155,8 @@ function KpiCards() {
 
     const weekAgo = new Date(today.getTime() - 7 * 86400000).toISOString();
     const twoWeeksAgo = new Date(today.getTime() - 14 * 86400000).toISOString();
-    const weekCalls = (calls ?? []).filter((c) => c.date >= weekAgo);
-    const prevWeekCalls = (calls ?? []).filter((c) => c.date >= twoWeeksAgo && c.date < weekAgo);
+    const weekCalls = myCalls.filter((c) => c.date >= weekAgo);
+    const prevWeekCalls = myCalls.filter((c) => c.date >= twoWeeksAgo && c.date < weekAgo);
 
     const conversion = m.conversion;
 
@@ -162,7 +175,7 @@ function KpiCards() {
         calls: weekCalls.length - prevWeekCalls.length,
       },
     };
-  }, [projects, tasks, calls]);
+  }, [projects, tasks, myCalls]);
 
   if (loadingP || loadingT || loadingC) {
     return (

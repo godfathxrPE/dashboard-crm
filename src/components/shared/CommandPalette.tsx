@@ -278,7 +278,9 @@ export function CommandPalette() {
       });
     }
 
-    // Leads (персональные, под user_id-RLS через useLeads)
+    // Leads. S-VIS-A: раньше здесь было «персональные, под user_id-RLS» — 098 это
+    // снял, лиды видит вся org. Палитра и должна быть командной: она ищет по базе,
+    // а не по личной папке, — как и компании, контакты, звонки и встречи выше.
     for (const l of leads ?? []) {
       items.push({
         id: `lead-${l.id}`,
