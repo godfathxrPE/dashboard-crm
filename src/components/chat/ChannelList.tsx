@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Hash, MessagesSquare, Plus, Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowUpRight, ChevronDown, MessagesSquare, Plus } from 'lucide-react';
 import { useConversations, type ConversationListItem } from '@/lib/hooks/use-conversations';
 import { partitionChannels } from '@/lib/utils/chat-channels';
+import { ChannelAvatar } from '@/components/chat/ChannelAvatar';
 import { GroupModal } from '@/components/chat/GroupModal';
 import { mskDateKey, mskDayMonth, mskTime } from '@/lib/utils/date-helpers';
 import { cn } from '@/lib/utils/cn';
@@ -30,7 +32,11 @@ interface ChannelListProps {
  * за кнопку не прячутся: кнопка существует из-за сидера проектов, а группу человек
  * только что завёл руками — прятать её до первого сообщения значит прятать результат
  * только что сделанного действия. Раскладка считается в `partitionChannels` (покрыта
- * тестами), тип канала виден иконкой: Users у группы, Hash у проекта.
+ * тестами).
+ *
+ * S-CHAT-HUB-1e: иконки Hash/Users из строки убраны — их роль забрал `ChannelAvatar`
+ * (нейтральный кружок у общего канала, бейдж Users у группы, цветной градиент у
+ * остальных).
  */
 export function ChannelList({ activeId, onSelect }: ChannelListProps) {
   const { conversations, isLoading } = useConversations();
@@ -133,35 +139,64 @@ function ChannelRow({
   const id = item.conversation.id;
   const isActive = id === activeId;
   const stamp = formatStamp(item.lastMessageAt);
-  // Группу от проектного канала отличает иконка, а не текстовая пометка: строка узкая,
-  // и подпись «группа» съела бы место у названия.
-  const Icon = item.conversation.kind === 'group' ? Users : Hash;
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(id)}
-      data-active={isActive ? '' : undefined}
-      aria-current={isActive ? 'true' : undefined}
+    <div
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors',
+        'group flex items-center rounded-lg pr-1 transition-colors',
         isActive
-          ? 'bg-surface2 font-medium text-text-main'
+          ? 'bg-surface2 text-text-main'
           : 'text-text-dim hover:bg-surface2 hover:text-text-main',
       )}
     >
-      <Icon size={13} className="shrink-0 text-text-mute" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate">{item.title}</span>
-      {stamp && (
-        <span className="shrink-0 text-meta tabular-nums text-text-mute">{stamp}</span>
-      )}
-      {item.hasUnread && (
-        <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
-          aria-label="Есть непрочитанное"
+      <button
+        type="button"
+        onClick={() => onSelect(id)}
+        data-active={isActive ? '' : undefined}
+        aria-current={isActive ? 'true' : undefined}
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm',
+          isActive && 'font-medium',
+        )}
+      >
+        {/* 1e: аватар вместо иконок Hash/Users — тип канала читается по нему
+            (нейтральный кружок у общего, бейдж Users у группы). */}
+        <ChannelAvatar
+          id={id}
+          title={item.title}
+          kind={item.conversation.kind}
+          className="my-0.5"
         />
+        <span className="min-w-0 flex-1 truncate">{item.title}</span>
+        {stamp && (
+          <span className="shrink-0 text-meta tabular-nums text-text-mute">{stamp}</span>
+        )}
+        {item.hasUnread && (
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+            aria-label="Есть непрочитанное"
+          />
+        )}
+      </button>
+
+      {/* 1e: переход в проект. Ссылка — СОСЕД кнопки, а не вложенный элемент: <a> внутри
+          <button> невалиден и ломает клавиатуру (W1 ревью), поэтому и stopPropagation
+          не нужен — события не всплывают вбок.
+          Слот занимает место всегда, а появляется по ховеру: гасить его через display
+          дёргало бы раскладку строки под курсором. */}
+      {item.projectHref && (
+        <Link
+          href={item.projectHref}
+          title="Открыть проект"
+          aria-label={`Открыть проект ${item.title}`}
+          className="shrink-0 rounded p-0.5 text-text-mute opacity-0 transition-opacity
+                     hover:text-text-main focus-visible:opacity-100 group-hover:opacity-100
+                     group-focus-within:opacity-100"
+        >
+          <ArrowUpRight size={13} aria-hidden="true" />
+        </Link>
       )}
-    </button>
+    </div>
   );
 }
 

@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, LogOut, MessagesSquare, Settings2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, LogOut, MessagesSquare, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useConversations,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/hooks/use-conversation-members';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { ChannelAvatar } from '@/components/chat/ChannelAvatar';
 import { ChannelList } from '@/components/chat/ChannelList';
 import { GroupModal } from '@/components/chat/GroupModal';
 import { MessageThread } from '@/components/chat/MessageThread';
@@ -119,13 +121,36 @@ export function ChatView() {
               }
               className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-surface p-4"
               listClassName="min-h-0 flex-1"
-              // Шапка general/project не меняется — слот пуст.
+              // 1e: тот же аватар, что в строке списка — переход из списка в тред не
+              // должен выглядеть как переход в другой канал. Размер меньше: в шапке
+              // он не опознавательный знак в столбце, а подпись к названию.
+              leading={
+                <ChannelAvatar
+                  id={activeItem.conversation.id}
+                  title={activeItem.title}
+                  kind={activeItem.conversation.kind}
+                  size={1.5}
+                />
+              }
+              // Группа — управление составом; проектный канал — выход на карточку
+              // проекта. Пересечься эти ветки не могут: у группы нет project_id, и
+              // ветвление по kind честнее, чем два условных блока подряд.
+              // У общего канала шапка по-прежнему пуста.
               headerExtra={
                 activeItem.conversation.kind === 'group' ? (
                   <GroupHeaderActions
                     conversation={activeItem.conversation}
                     onGone={clearActive}
                   />
+                ) : activeItem.projectHref ? (
+                  <Link
+                    href={activeItem.projectHref}
+                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-0.5
+                               text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+                  >
+                    <ExternalLink size={12} aria-hidden="true" />
+                    Открыть проект
+                  </Link>
                 ) : undefined
               }
             />
