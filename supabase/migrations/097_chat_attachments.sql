@@ -106,14 +106,27 @@ drop policy if exists "chat_files_insert" on storage.objects;
 create policy "chat_files_insert" on storage.objects for insert to authenticated
   with check (bucket_id = 'chat-files' and public.can_access_chat_file(name));
 
--- DELETE = членство в канале, без проверки авторства. Кто вправе снести САМО сообщение,
--- решает политика `messages_delete` (свои + org owner/admin), и клиент удаляет объект
--- только вместе с сообщением. Дублировать здесь авторство нечем: в пути его нет, а
--- тащить в предикат EXISTS к message_attachments — это ещё один запрос на каждый объект
--- в листинге ради инварианта, который уже держит таблица.
+-- DELETE = членство в канале ПЛЮС авторство объекта (правка гейта Cowork 2026-08-02).
+--
+-- Исходный вариант спринта проверял только членство, и это давало асимметрию с таблицей:
+-- `message_attachments_delete` пускает «свои + org owner/admin», а бакет пускал бы любого
+-- участника канала. Побеждала бы политика бакета — она про сами байты. Участник, который
+-- НЕ может удалить чужое сообщение, мог бы стереть приложенный к нему файл, и строка
+-- `message_attachments` осталась бы указывать в пустоту: битое вложение у всех в канале.
+--
+-- Авторства в ПУТИ действительно нет — но оно есть в самой строке `storage.objects.owner`
+-- (Supabase проставляет его на upload; проверено на живых объектах 2026-08-02). Сравнение
+-- колонки бесплатно, EXISTS к таблице не нужен, и права совпадают с табличными.
 drop policy if exists "chat_files_delete" on storage.objects;
 create policy "chat_files_delete" on storage.objects for delete to authenticated
-  using (bucket_id = 'chat-files' and public.can_access_chat_file(name));
+  using (
+    bucket_id = 'chat-files'
+    and public.can_access_chat_file(name)
+    and (
+      owner = (select auth.uid())
+      or (select public.current_org_role()) in ('owner','admin')
+    )
+  );
 
 -- UPDATE-политики нет: объект не правят, его заменяют новым (upsert по тому же пути
 -- невозможен — имя содержит свежий uuid).
