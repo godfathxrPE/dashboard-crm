@@ -1046,10 +1046,11 @@ table { font-variant-numeric: tabular-nums; }
   --aura-orb-1: 59, 127, 212;  --aura-orb-2: 90, 168, 224;
   --aura-pill-text: var(--blue-text);     /* #1D68BC */
 }
-/* Контакты/компании/звонки — бирюзово-зелёный (коммуникации) */
+/* Контакты/компании/звонки/чат — бирюзово-зелёный (коммуникации) */
 .t-aura [data-section="contacts"],
 .t-aura [data-section="companies"],
-.t-aura [data-section="calls"] {
+.t-aura [data-section="calls"],
+.t-aura [data-section="chat"] {
   --aura-orb-1: 38, 166, 154;  --aura-orb-2: 47, 143, 91;
   --aura-pill-text: var(--teal-text);     /* #007B6A */
 }

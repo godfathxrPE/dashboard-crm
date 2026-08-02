@@ -25,7 +25,18 @@ interface MessageThreadProps {
   title?: string;
   /** Текст пустого состояния — у общего канала и канала проекта он разный. */
   emptyText?: string;
+  /**
+   * Классы корневой карточки. Дефолт — вкладка на карточке проекта (карточка в
+   * потоке страницы). Хабу 1b нужна панель во всю высоту без внешнего отступа —
+   * поэтому оболочка задаётся снаружи, а не форком компонента.
+   */
+  className?: string;
+  /** Классы скролл-области ленты. Дефолт — фиксированная высота вкладки. */
+  listClassName?: string;
 }
+
+const DEFAULT_ROOT_CLASS = 'mb-4 rounded-xl border border-border bg-surface p-4';
+const DEFAULT_LIST_CLASS = 'h-[min(55vh,40rem)]';
 
 // Время/дата всегда в МСК (как mskDateKey) — у команды одна «правда времени»,
 // чип «Вчера» и время в пузыре не расходятся между таймзонами браузеров.
@@ -114,6 +125,8 @@ export function MessageThread({
   conversationId,
   title = 'Чат проекта',
   emptyText = 'Пока тихо. Напиши первое сообщение команде',
+  className = DEFAULT_ROOT_CLASS,
+  listClassName = DEFAULT_LIST_CLASS,
 }: MessageThreadProps) {
   const { messages, isLoading } = useMessages(conversationId);
   const { user } = useAuth();
@@ -145,11 +158,26 @@ export function MessageThread({
   // всё в нём прочитано: на маунт и на каждое новое сообщение двигаем штамп.
   // Зависимость — id последнего НЕ temp-сообщения: optimistic-строка сменится реальной,
   // и на temp-id отметка ушла бы вхолостую.
+  //
+  // S-CHAT-HUB-1b: отмечаем ТОЛЬКО когда вкладка видима. Лента в фоновой вкладке
+  // никем не прочитана — гасить на ней бейдж значит терять сообщение. Если вкладка
+  // скрыта, ждём возвращения одноразовым слушателем (без него отметка не случилась бы
+  // до следующего сообщения).
   const markRead = useMarkRead(conversationId);
   const lastPersistedId = messageIds[messageIds.length - 1] ?? null;
   useEffect(() => {
     if (!conversationId || isLoading) return;
-    markRead.mutate();
+    if (document.visibilityState === 'visible') {
+      markRead.mutate();
+      return;
+    }
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', onVisible);
+      markRead.mutate();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
     // markRead — новый объект мутации на каждый рендер; в deps только реальные триггеры.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, isLoading, lastPersistedId]);
@@ -286,8 +314,8 @@ export function MessageThread({
   const todayKey = mskDateKey(new Date());
 
   return (
-    <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-      <div className="mb-3 flex items-center gap-2">
+    <div className={className}>
+      <div className="mb-3 flex shrink-0 items-center gap-2">
         <MessageCircle size={14} className="text-text-dim" />
         <span className="text-xs font-semibold text-text-main">{title}</span>
         <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
@@ -302,7 +330,7 @@ export function MessageThread({
         role="log"
         aria-live="polite"
         aria-label={title}
-        className="mb-3 h-[min(55vh,40rem)] overflow-y-auto rounded-[var(--radius-m)] border border-border/50 bg-bg px-3 py-2"
+        className={`mb-3 overflow-y-auto rounded-[var(--radius-m)] border border-border/50 bg-bg px-3 py-2 ${listClassName}`}
       >
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
@@ -521,7 +549,7 @@ export function MessageThread({
       )}
 
       {/* Composer: вне скролла, на --surface */}
-      <div className="flex items-end gap-2">
+      <div className="flex shrink-0 items-end gap-2">
         <button
           ref={emojiBtnRef}
           type="button"
