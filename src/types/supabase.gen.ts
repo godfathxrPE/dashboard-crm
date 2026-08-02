@@ -837,6 +837,59 @@ export type Database = {
           },
         ]
       }
+      conversation_members: {
+        Row: {
+          added_by: string | null
+          conversation_id: string
+          created_at: string
+          org_id: string
+          profile_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          conversation_id: string
+          created_at?: string
+          org_id: string
+          profile_id: string
+        }
+        Update: {
+          added_by?: string | null
+          conversation_id?: string
+          created_at?: string
+          org_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_reads: {
         Row: {
           conversation_id: string
@@ -889,6 +942,7 @@ export type Database = {
           org_id: string
           project_id: string | null
           title: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -898,6 +952,7 @@ export type Database = {
           org_id: string
           project_id?: string | null
           title?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -907,6 +962,7 @@ export type Database = {
           org_id?: string
           project_id?: string | null
           title?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -3277,6 +3333,10 @@ export type Database = {
       copy_delivery_template: {
         Args: { p_project_id: string; p_template_id: string }
         Returns: undefined
+      }
+      create_group_conversation: {
+        Args: { p_member_ids?: string[]; p_title: string }
+        Returns: string
       }
       create_project_baseline: {
         Args: { p_name: string; p_project_id: string }
