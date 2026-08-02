@@ -17,6 +17,13 @@ import type { Conversation } from '@/types/entities';
 
 const CONVERSATION_COLS = 'id, org_id, kind, project_id, title, created_by, created_at';
 
+/**
+ * Заголовок общего канала организации. Экспортируется: одна строка обслуживает и
+ * список каналов, и заголовок треда — расхождение названия между хабом и лентой
+ * читалось бы как два разных канала.
+ */
+export const GENERAL_CHANNEL_TITLE = 'Общий чат';
+
 /** Канал проекта — свой ключ: он статичен и живёт дольше, чем список. */
 const projectConversationKey = (projectId: string) =>
   ['conversations', 'project', projectId] as const;
@@ -61,6 +68,12 @@ export function useProjectConversation(projectId: string) {
 /** Строка списка каналов: сам канал + когда в нём писали в последний раз. */
 export interface ConversationListItem {
   conversation: Conversation;
+  /**
+   * Заголовок строки: общий канал — константа, проектный — имя проекта.
+   * Колонку `conversations.title` НЕ читаем: она заведена под группы (1c) и у
+   * системных каналов пуста — fallback на неё закрепил бы несуществующую семантику.
+   */
+  title: string;
   /** ISO последнего сообщения; null — в канале пусто. */
   lastMessageAt: string | null;
   hasUnread: boolean;
@@ -70,6 +83,9 @@ export interface ConversationListItem {
 type ConversationRow = Conversation & {
   messages: { created_at: string }[];
   conversation_reads: { last_read_at: string }[];
+  // to-one embed (FK conversations.project_id → projects.id) — объект, а не массив;
+  // null, если у канала нет проекта (kind='general') или проект не виден по RLS.
+  project: { name: string } | null;
 };
 
 /**
@@ -90,21 +106,31 @@ export function useConversations() {
 
   const query = useQuery({
     queryKey: conversationsListKey,
+    // Хук поднят в сайдбар (1b) → монтируется на каждой странице. staleTime как у
+    // calls/leads: свежесть держит realtime-инвалидация на `messages`, а не рефетч
+    // по фокусу окна.
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('conversations')
-        .select(`${CONVERSATION_COLS}, messages(created_at), conversation_reads(last_read_at)`)
+        .select(
+          `${CONVERSATION_COLS}, project:projects(name), messages(created_at), conversation_reads(last_read_at)`,
+        )
         .order('created_at', { referencedTable: 'messages', ascending: false })
         .limit(1, { referencedTable: 'messages' });
       if (error) throw error;
 
       const rows = (data ?? []) as unknown as ConversationRow[];
       const items: ConversationListItem[] = rows.map((row) => {
-        const { messages, conversation_reads, ...conversation } = row;
+        const { messages, conversation_reads, project, ...conversation } = row;
         const lastMessageAt = messages[0]?.created_at ?? null;
         const lastReadAt = conversation_reads[0]?.last_read_at ?? null;
         return {
           conversation,
+          // Проект мог не подтянуться (удалён/невиден) — канал в списке остаётся,
+          // но без имени: пустая строка хуже нейтральной заглушки.
+          title:
+            conversation.kind === 'general' ? GENERAL_CHANNEL_TITLE : project?.name ?? 'Проект',
           lastMessageAt,
           // Ни разу не открывал канал, а сообщения есть → непрочитано. ISO-строки
           // сравнимы лексикографически (обе из Postgres, один формат и зона).
