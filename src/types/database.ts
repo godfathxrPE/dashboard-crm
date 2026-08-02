@@ -25,78 +25,16 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-/**
- * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-HUB-1c, миграция 096 ещё НЕ применена).
- *
- * Снимается регенерацией после apply 096 (`scripts/gen-types.sh`): ключи придут из
- * `GenDatabase`, и весь блок надо УДАЛИТЬ вместе с `& ChatGroupsStub` ниже.
- * `supabase.gen.ts` руками НЕ правится.
- *
- * Объявлен `type`, а не `interface`, — намеренно: postgrest-js требует от записи таблицы
- * совместимости с индексной сигнатурой, а `interface` её не имеет (грабля S-R2-SIGNOFF-1).
- *
- * `conversations` здесь ДОПОЛНЯЕТ сгенерированную таблицу (пересечение типов), а не
- * заменяет её: 096 добавляет к ней ровно одну колонку `updated_at`. Всё остальное —
- * Row/Insert/Update/Relationships — продолжает приходить из автогенерации.
- */
-type ChatGroupsStub = {
-  conversation_members: {
-    Row: {
-      added_by: string | null;
-      conversation_id: string;
-      created_at: string;
-      org_id: string;
-      profile_id: string;
-    };
-    // org_id ставит триггер set_org_id → optional (RelaxOrgId к стабу не применяется).
-    Insert: {
-      added_by?: string | null;
-      conversation_id: string;
-      created_at?: string;
-      org_id?: string;
-      profile_id: string;
-    };
-    Update: {
-      added_by?: string | null;
-      conversation_id?: string;
-      created_at?: string;
-      org_id?: string;
-      profile_id?: string;
-    };
-    Relationships: [];
-  };
-  conversations: {
-    Row: { updated_at: string };
-    Insert: { updated_at?: string };
-    Update: { updated_at?: string };
-  };
-};
-
-/**
- * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-HUB-1c, 096) — вторая половина: RPC создания группы.
- * Удаляется тем же движением, что `ChatGroupsStub`.
- *
- * `p_member_ids` опционален (SQL-дефолт `'{}'`), но хук всегда шлёт массив явно —
- * пустая группа из одного автора это валидный случай, а не «параметр забыли».
- */
-type ChatGroupsFnStub = {
-  create_group_conversation: {
-    Args: { p_title: string; p_member_ids?: string[] };
-    Returns: string;
-  };
-};
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
-  public: Omit<GenDatabase['public'], 'Tables' | 'Functions'> & {
+  public: Omit<GenDatabase['public'], 'Tables'> & {
     Tables: {
       [K in keyof GenDatabase['public']['Tables']]: Omit<
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    } & ChatGroupsStub;
-    Functions: GenDatabase['public']['Functions'] & ChatGroupsFnStub;
+    };
   };
 };
 
