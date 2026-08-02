@@ -14,6 +14,7 @@ import {
 } from '@/lib/hooks/use-conversation-members';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { ChannelAvatar } from '@/components/chat/ChannelAvatar';
 import { ChannelList } from '@/components/chat/ChannelList';
 import { GroupModal } from '@/components/chat/GroupModal';
 import { MessageThread } from '@/components/chat/MessageThread';
@@ -119,6 +120,17 @@ export function ChatView() {
               }
               className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-surface p-4"
               listClassName="min-h-0 flex-1"
+              // 1e: тот же аватар, что в строке списка — переход из списка в тред не
+              // должен выглядеть как переход в другой канал. Размер меньше: в шапке
+              // он не опознавательный знак в столбце, а подпись к названию.
+              leading={
+                <ChannelAvatar
+                  id={activeItem.conversation.id}
+                  title={activeItem.title}
+                  kind={activeItem.conversation.kind}
+                  size={1.5}
+                />
+              }
               // Шапка general/project не меняется — слот пуст.
               headerExtra={
                 activeItem.conversation.kind === 'group' ? (

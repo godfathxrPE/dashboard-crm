@@ -48,6 +48,12 @@ interface MessageThreadProps {
    * держит и канал, и модалку.
    */
   headerExtra?: ReactNode;
+  /**
+   * Слот ПЕРЕД названием (S-CHAT-HUB-1e): аватар канала в хабе. Той же логики, что и
+   * `headerExtra` — тред не знает ни про id канала, ни про его тип. Не задан (вкладка
+   * «Чат» на карточке проекта) — рисуется прежняя иконка MessageCircle.
+   */
+  leading?: ReactNode;
 }
 
 const DEFAULT_ROOT_CLASS = 'mb-4 rounded-xl border border-border bg-surface p-4';
@@ -143,6 +149,7 @@ export function MessageThread({
   className = DEFAULT_ROOT_CLASS,
   listClassName = DEFAULT_LIST_CLASS,
   headerExtra,
+  leading,
 }: MessageThreadProps) {
   const { messages, isLoading } = useMessages(conversationId);
   const { user } = useAuth();
@@ -375,7 +382,7 @@ export function MessageThread({
   return (
     <div className={className}>
       <div className="mb-3 flex shrink-0 items-center gap-2">
-        <MessageCircle size={14} className="text-text-dim" />
+        {leading ?? <MessageCircle size={14} className="text-text-dim" />}
         <span className="text-xs font-semibold text-text-main">{title}</span>
         <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
           {messages.length}
