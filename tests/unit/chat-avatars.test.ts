@@ -55,6 +55,13 @@ describe('channelInitials', () => {
     expect(channelInitials('  Завод   Атлант  ')).toBe('ЗА');
   });
 
+  // Смоук 1e: «Стратек — внедрение» рисовал «С—» — тире считалось словом.
+  it('пунктуация словом не считается', () => {
+    expect(channelInitials('Стратек — внедрение')).toBe('СВ');
+    expect(channelInitials('Атлант (склад)')).toBe('АС');
+    expect(channelInitials('— — —')).toBe('');
+  });
+
   it('пустое название — пустые инициалы (пустой градиент лучше «?»)', () => {
     expect(channelInitials('')).toBe('');
     expect(channelInitials('   ')).toBe('');
