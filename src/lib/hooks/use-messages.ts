@@ -3,6 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import {
+  uploadChatAttachments,
+  removeChatAttachmentObjects,
+} from './use-message-attachments';
 import type { MessageWithAuthor } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -52,22 +56,69 @@ interface SendMessageInput {
   body: string;
   /** Текущий пользователь — для optimistic-строки (аватар/имя до ответа БД). */
   me: { id: string; full_name: string; avatar_url: string | null } | null;
+  /** S-CHAT-HUB-1d: вложения. Проверены вызывающим (checkAttachmentBatch) ДО отправки. */
+  files?: File[];
 }
 
-/** Отправить сообщение. Optimistic: temp-строка сразу, invalidate заменит реальной. */
+/** Результат отправки: само сообщение + признак «файлы не прицепились». */
+export interface SendMessageResult {
+  message: MessageWithAuthor;
+  /**
+   * Сообщение создано, а строки вложений — нет. Не ошибка отправки: откатывать уже
+   * доставленное сообщение хуже, чем сказать про файлы. Вызывающий показывает
+   * отдельный тост.
+   */
+  attachmentsFailed: boolean;
+}
+
+/**
+ * Отправить сообщение. Optimistic: temp-строка сразу, invalidate заменит реальной.
+ *
+ * S-CHAT-HUB-1d, порядок жёсткий: id генерируется на клиенте → файлы уезжают в
+ * `chat-files` по пути `<conversation_id>/<id>/…` → вставляется сообщение с ЯВНЫМ id →
+ * вставляются строки вложений. Иначе путь в Storage неоткуда взять: он содержит
+ * message_id, а тот появляется только после вставки.
+ *
+ * Если upload упал — сообщение НЕ отправляется вовсе (а не отправляется без файла):
+ * пузырь без обещанного скриншота читается как «отправил», и человек уходит.
+ */
 export function useSendMessage(conversationId: string) {
   const supabase = createClient();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ body }: SendMessageInput) => {
+    mutationFn: async ({ body, files }: SendMessageInput): Promise<SendMessageResult> => {
+      const batch = files ?? [];
+      const messageId = crypto.randomUUID();
+
+      // Падение здесь — партия уже откатана внутри (все-или-ничего), сообщения нет.
+      const uploaded =
+        batch.length > 0 ? await uploadChatAttachments(conversationId, messageId, batch) : [];
+
       const { data, error } = await supabase
         .from('messages')
-        .insert({ conversation_id: conversationId, body })
+        .insert({ id: messageId, conversation_id: conversationId, body })
         .select(MESSAGE_COLS)
         .single();
-      if (error) throw error;
-      return data as unknown as MessageWithAuthor;
+      if (error) {
+        // Сообщения не будет — байты в бакете станут сиротами, убираем сразу.
+        await removeChatAttachmentObjects(uploaded.map((u) => u.storage_path)).catch(
+          () => undefined,
+        );
+        throw error;
+      }
+
+      let attachmentsFailed = false;
+      if (uploaded.length > 0) {
+        const { error: attachError } = await supabase
+          .from('message_attachments')
+          .insert(uploaded.map((u) => ({ message_id: messageId, ...u })));
+        // Объекты остаются в бакете сиротами — допустимо (решение спринта), чистилки
+        // отдельной джобой в 1d нет.
+        attachmentsFailed = !!attachError;
+      }
+
+      return { message: data as unknown as MessageWithAuthor, attachmentsFailed };
     },
     onMutate: async ({ body, me }) => {
       await queryClient.cancelQueries({ queryKey: messagesKey(conversationId) });
@@ -88,13 +139,15 @@ export function useSendMessage(conversationId: string) {
       ]);
       return { previous, tempId: temp.id };
     },
-    onSuccess: (real, _input, ctx) => {
+    onSuccess: ({ message: real }, _input, ctx) => {
       // Заменяем temp реальной строкой сразу (не ждём invalidate) — без дублей:
       // realtime-инвалидация затем просто перезапишет кэш тем же содержимым.
       queryClient.setQueryData<MessageWithAuthor[]>(messagesKey(conversationId), (old) => {
         const withoutTemp = (old ?? []).filter((m) => m.id !== ctx.tempId);
         return withoutTemp.some((m) => m.id === real.id) ? withoutTemp : [...withoutTemp, real];
       });
+      // Вложения приезжают своим срезом — его кэш о новых строках не знает.
+      queryClient.invalidateQueries({ queryKey: ['message_attachments'] });
     },
     onError: (_err, _input, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(messagesKey(conversationId), ctx.previous);
@@ -132,15 +185,32 @@ export function useEditMessage(conversationId: string) {
   });
 }
 
-/** Удалить сообщение (hard; RLS: автор или org owner/admin). Optimistic с откатом. */
+/**
+ * Удалить сообщение (hard; RLS: автор или org owner/admin). Optimistic с откатом.
+ *
+ * S-CHAT-HUB-1d: каскад БД уносит строки `message_attachments`, но НЕ объекты Storage —
+ * бакет про внешние ключи не знает. Поэтому пути читаются ДО удаления (после каскада
+ * читать уже нечего) и объекты сносятся после. Тот же приём, что в use-project-files.
+ */
 export function useDeleteMessage(conversationId: string) {
   const supabase = createClient();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Ошибку чтения путей глотаем: она не повод оставить сообщение в ленте —
+      // худший исход здесь сирота в бакете, а не потеря удаления.
+      const { data: paths } = await supabase
+        .from('message_attachments')
+        .select('storage_path')
+        .eq('message_id', id);
+
       const { error } = await supabase.from('messages').delete().eq('id', id);
       if (error) throw error;
+
+      await removeChatAttachmentObjects((paths ?? []).map((p) => p.storage_path)).catch(
+        () => undefined,
+      );
       return id;
     },
     onMutate: async (id: string) => {

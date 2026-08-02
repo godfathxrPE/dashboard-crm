@@ -91,6 +91,13 @@ export type ConversationMemberWithProfile = ConversationMember & {
   profile: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
 };
 
+// ═══ S-CHAT-HUB-1d: message_attachments (вложения сообщения) ═══
+// WARNING: таблица — РУЧНОЙ стаб в src/types/database.ts (миграция 097 на гейте Cowork).
+// Байты живут в бакете `chat-files`, здесь — имя, размер, mime и связь с сообщением.
+export type MessageAttachment = Database['public']['Tables']['message_attachments']['Row'];
+export type MessageAttachmentInsert =
+  Database['public']['Tables']['message_attachments']['Insert'];
+
 // ═══ S-CHAT-2: message_reactions (реакции на сообщения — junction) ═══
 // WARNING: таблица `message_reactions` — РУЧНОЙ стаб в supabase.gen.ts (миграция 068 на
 // гейте Cowork). После apply 068 → regen снимет стаб, алиасы продолжат работать 1:1.

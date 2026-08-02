@@ -1,0 +1,211 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import { useRealtimeSync } from './use-realtime';
+import { attachmentStoragePath } from '@/lib/utils/chat-attachments';
+import type { MessageAttachment } from '@/types/entities';
+
+// ═══════════════════════════════════════════════════════
+// S-CHAT-HUB-1d: вложения сообщений (097).
+//
+// Байты — в приватном бакете `chat-files`, метаданные — в `message_attachments`.
+// Путь объекта: <conversation_id>/<message_id>/<uuid>.<ext>. Первый сегмент — канал,
+// и именно на нём стоит проверка доступа (`can_access_chat_file` → is_conversation_member):
+// вложение обязан видеть весь канал, а не только загрузивший, поэтому own-path модель
+// `project-files` (055) сюда не годится.
+//
+// Ключ хранилища НИКОГДА не строится из имени файла: кириллица, пробелы и `../` — это
+// проблема ключа, а не отображения. Исходное имя живёт только в `file_name`.
+// ═══════════════════════════════════════════════════════
+
+export const CHAT_BUCKET = 'chat-files';
+
+// Лимиты партии, формат размера, разбор расширения и сборка ключа — в utils
+// (чистая логика, покрыта тестами). Реэкспорт: потребителям хука незачем знать,
+// что часть правил живёт в соседнем модуле.
+export {
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  isImageAttachment,
+  formatAttachmentSize,
+  checkAttachmentBatch,
+  attachmentProblemMessage,
+  attachmentStoragePath,
+  type AttachmentBatchProblem,
+} from '@/lib/utils/chat-attachments';
+
+/** Сколько живёт подписанная ссылка. 60 с — как в use-project-files. */
+const SIGNED_URL_TTL_SEC = 60;
+
+const ATTACHMENT_COLS =
+  'id, org_id, message_id, storage_path, file_name, file_size, mime_type, created_by, created_at';
+
+const attachmentsKey = (conversationId: string) => ['message_attachments', conversationId] as const;
+const signedUrlKey = (path: string) => ['message_attachment-url', path] as const;
+
+/**
+ * Вложения для набора сообщений одной ленты — одним запросом, без N+1.
+ * `messageIds` приходят из уже загруженной ленты (приём use-message-reactions).
+ *
+ * Возврат — `Map<messageId, MessageAttachment[]>`.
+ */
+export function useMessageAttachments(conversationId: string, messageIds: string[]) {
+  const supabase = createClient();
+  // Дефолтный ключ ['message_attachments'] префиксно инвалидирует
+  // ['message_attachments', conversationId] — как в use-messages / use-message-reactions.
+  useRealtimeSync('message_attachments');
+
+  const query = useQuery({
+    queryKey: attachmentsKey(conversationId),
+    // Пустой `.in()` роняет PostgREST (грабля W3 из 068) — при пустой ленте запроса нет.
+    enabled: messageIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('message_attachments')
+        .select(ATTACHMENT_COLS)
+        .in('message_id', messageIds)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as MessageAttachment[];
+    },
+  });
+
+  const byMessage = useMemo(() => {
+    const map = new Map<string, MessageAttachment[]>();
+    for (const a of query.data ?? []) {
+      const list = map.get(a.message_id);
+      if (list) list.push(a);
+      else map.set(a.message_id, [a]);
+    }
+    return map;
+  }, [query.data]);
+
+  return { byMessage, isLoading: query.isLoading };
+}
+
+/**
+ * Подписанная ссылка на объект. Кэш react-query живёт 50 секунд — меньше срока жизни
+ * самой ссылки (60 с): протухшая ссылка в кэше выглядела бы как битая картинка, а
+ * запас в 10 секунд закрывает и время рендера, и клик по свежеотданному URL.
+ *
+ * `enabled` управляет моментом запроса: превью просит ссылку сразу, файл-строка — нет
+ * (её URL нужен только по клику на «Скачать»).
+ */
+export function useAttachmentUrl(storagePath: string | null, enabled = true) {
+  const supabase = createClient();
+
+  const query = useQuery({
+    queryKey: signedUrlKey(storagePath ?? ''),
+    enabled: !!storagePath && enabled,
+    staleTime: (SIGNED_URL_TTL_SEC - 10) * 1000,
+    gcTime: SIGNED_URL_TTL_SEC * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.storage
+        .from(CHAT_BUCKET)
+        .createSignedUrl(storagePath!, SIGNED_URL_TTL_SEC);
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Не удалось получить ссылку на файл');
+      return data.signedUrl;
+    },
+  });
+
+  return {
+    url: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    /** Вкладка провисела дольше минуты → картинка не загрузилась: перевыпустить ссылку. */
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * Скачать вложение: свежая ссылка по требованию + клик по временной `<a download>`.
+ * Ссылка НЕ берётся из кэша — вкладка могла провисеть дольше минуты, и «скачалось
+ * ничего» хуже лишнего запроса (приём useDownloadProjectFile).
+ */
+export function useDownloadAttachment() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return async (attachment: Pick<MessageAttachment, 'storage_path' | 'file_name'>) => {
+    const { data, error } = await supabase.storage
+      .from(CHAT_BUCKET)
+      .createSignedUrl(attachment.storage_path, SIGNED_URL_TTL_SEC);
+    if (error || !data?.signedUrl) {
+      throw error ?? new Error('Не удалось получить ссылку на файл');
+    }
+    // Свежая ссылка заодно освежает кэш превью того же объекта.
+    queryClient.setQueryData(signedUrlKey(attachment.storage_path), data.signedUrl);
+
+    const link = document.createElement('a');
+    link.href = data.signedUrl;
+    link.download = attachment.file_name;
+    link.click();
+  };
+}
+
+/** Метаданные загруженного объекта — то, что уедет строкой в message_attachments. */
+export interface UploadedAttachment {
+  storage_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string | null;
+}
+
+/**
+ * Загрузить партию файлов в бакет. Возвращает метаданные для вставки строк.
+ *
+ * НЕ хук и не мутация намеренно: вызывается изнутри `useSendMessage` в строгом порядке
+ * (upload → insert message → insert attachments), а мутация внутри мутации дала бы два
+ * независимых состояния isPending на одно действие пользователя.
+ *
+ * Все-или-ничего: упавший файл откатывает уже загруженные. Иначе в бакете остаются
+ * байты, на которые никогда не появится строка — а чистилки сирот в проекте нет.
+ */
+export async function uploadChatAttachments(
+  conversationId: string,
+  messageId: string,
+  files: File[],
+): Promise<UploadedAttachment[]> {
+  const supabase = createClient();
+  const uploaded: UploadedAttachment[] = [];
+
+  try {
+    for (const file of files) {
+      const path = attachmentStoragePath(conversationId, messageId, file.name);
+      const { error } = await supabase.storage.from(CHAT_BUCKET).upload(path, file, {
+        // upsert не нужен: имя содержит свежий uuid, коллизия невозможна, а `true`
+        // молча перезаписал бы чужой объект при (невозможном) совпадении.
+        upsert: false,
+        contentType: file.type || undefined,
+      });
+      if (error) throw error;
+      uploaded.push({
+        storage_path: path,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type || null,
+      });
+    }
+    return uploaded;
+  } catch (e) {
+    if (uploaded.length > 0) {
+      // Откат best-effort: если и он не прошёл, сирота остаётся — записано в бэклог,
+      // отдельной джобы-чистилки в 1d не заводим.
+      await supabase.storage
+        .from(CHAT_BUCKET)
+        .remove(uploaded.map((u) => u.storage_path))
+        .catch(() => undefined);
+    }
+    throw e;
+  }
+}
+
+/** Удалить объекты вложений из бакета (строки уносит каскад от messages). */
+export async function removeChatAttachmentObjects(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  const supabase = createClient();
+  await supabase.storage.from(CHAT_BUCKET).remove(paths);
+}
