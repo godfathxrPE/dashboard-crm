@@ -258,7 +258,13 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         <Bracket className="mt-4 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Rocket size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Внедрения</span>
+            {/* Заголовок называет ровно то, что перечисляет список: `internal` живёт
+                здесь по контракту `splitCompanyProjects`, и сводка 360 над карточкой
+                считает его отдельно («0 внедрений · 1 внутренний проект»). Без этой
+                развилки на карточке стояли бы два разных числа под словом «внедрения». */}
+            <span className="text-xs font-semibold text-text-main">
+              {counts.internal > 0 ? 'Внедрения и внутренние' : 'Внедрения'}
+            </span>
             {/* Счётчик секции считает то, что секция перечисляет, — а список ниже
                 показывает и `internal` (см. контракт `splitCompanyProjects`).
                 `counts.deliveries` тут дал бы «0» над непустым списком. */}
