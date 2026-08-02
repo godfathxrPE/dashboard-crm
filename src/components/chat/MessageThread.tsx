@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MessageCircle, MessageSquare, Pencil, Trash2, SendHorizontal, Smile, SmilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -33,6 +33,13 @@ interface MessageThreadProps {
   className?: string;
   /** Классы скролл-области ленты. Дефолт — фиксированная высота вкладки. */
   listClassName?: string;
+  /**
+   * Слот в правой части шапки треда (S-CHAT-HUB-1c): счётчик участников группы и
+   * кнопки управления. Именно слот, а не props вида `kind`/`canManage`/колбэки —
+   * тред не должен знать про группы и роли: этим распоряжается ChatView, который уже
+   * держит и канал, и модалку.
+   */
+  headerExtra?: ReactNode;
 }
 
 const DEFAULT_ROOT_CLASS = 'mb-4 rounded-xl border border-border bg-surface p-4';
@@ -127,6 +134,7 @@ export function MessageThread({
   emptyText = 'Пока тихо. Напиши первое сообщение команде',
   className = DEFAULT_ROOT_CLASS,
   listClassName = DEFAULT_LIST_CLASS,
+  headerExtra,
 }: MessageThreadProps) {
   const { messages, isLoading } = useMessages(conversationId);
   const { user } = useAuth();
@@ -321,6 +329,7 @@ export function MessageThread({
         <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">
           {messages.length}
         </span>
+        {headerExtra && <div className="ml-auto flex items-center gap-1">{headerExtra}</div>}
       </div>
 
       {/* Лента: инверсия глубины — полотно на --bg, пузыри поверх */}

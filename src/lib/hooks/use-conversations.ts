@@ -4,25 +4,33 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './use-auth';
 import { useRealtimeSync } from './use-realtime';
+import { channelTitle } from '@/lib/utils/chat-channels';
 import type { Conversation } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
 // S-CHAT-HUB-1a: каналы (094). Сообщение висит на КАНАЛЕ, а не на проекте — чат
 // проекта это conversation с kind='project'.
 //
-// Каналы СИСТЕМНЫЕ: general заводит сидер на organizations, project — сидер на
-// projects, INSERT-политик у клиента нет. Поэтому здесь только чтение + отметка
-// прочтения; мутации «создать канал» не будет и в 1b.
+// Каналы general/project — СИСТЕМНЫЕ: их заводят сидеры (на organizations и на
+// projects), INSERT-политик у клиента нет.
+//
+// S-CHAT-HUB-1c (096): третий тип — ГРУППА, её заводит человек. INSERT-политика у
+// conversations так и не появилась: создание идёт через RPC create_group_conversation
+// (канал + N участников одной транзакцией), поэтому `kind` по-прежнему целиком под
+// контролем БД. UPDATE/DELETE выданы, но политика пускает их ТОЛЬКО на kind='group' —
+// переименовать или снести общий канал/канал проекта нельзя.
 // ═══════════════════════════════════════════════════════
 
+// `updated_at` (096) в выборку не берём: UI его не показывает и по нему не сортирует
+// (порядок в списке задаёт последнее сообщение). Появится в типах после регенерации —
+// это нормально, `Conversation` описывает строку таблицы, а не форму этого select'а.
 const CONVERSATION_COLS = 'id, org_id, kind, project_id, title, created_by, created_at';
 
 /**
- * Заголовок общего канала организации. Экспортируется: одна строка обслуживает и
- * список каналов, и заголовок треда — расхождение названия между хабом и лентой
- * читалось бы как два разных канала.
+ * Заголовок общего канала. Живёт в `utils/chat-channels` вместе с остальной чистой
+ * логикой названий; здесь — реэкспорт, чтобы не переписывать 1b-импорты.
  */
-export const GENERAL_CHANNEL_TITLE = 'Общий чат';
+export { GENERAL_CHANNEL_TITLE } from '@/lib/utils/chat-channels';
 
 /** Канал проекта — свой ключ: он статичен и живёт дольше, чем список. */
 const projectConversationKey = (projectId: string) =>
@@ -69,9 +77,9 @@ export function useProjectConversation(projectId: string) {
 export interface ConversationListItem {
   conversation: Conversation;
   /**
-   * Заголовок строки: общий канал — константа, проектный — имя проекта.
-   * Колонку `conversations.title` НЕ читаем: она заведена под группы (1c) и у
-   * системных каналов пуста — fallback на неё закрепил бы несуществующую семантику.
+   * Заголовок строки: общий канал — константа, группа — своя колонка `title`,
+   * проектный — имя проекта. У general/project `conversations.title` по-прежнему НЕ
+   * читается: там она пуста, и fallback на неё закрепил бы несуществующую семантику.
    */
   title: string;
   /** ISO последнего сообщения; null — в канале пусто. */
@@ -100,9 +108,13 @@ type ConversationRow = Conversation & {
  */
 export function useConversations() {
   const supabase = createClient();
-  // Канал статичен (создаётся сидером) — подписка на `conversations` не нужна.
   // Список пересобираем на события `messages`: меняется порядок и бейджи.
   useRealtimeSync('messages', ['conversations', 'list']);
+  // 1c: и на события состава групп — «меня добавили в группу» не сопровождается ни
+  // одним сообщением, а без этой подписки новый канал ждал бы рефетча (staleTime 60 с).
+  // Подписки на саму `conversations` по-прежнему нет: таблицы нет в публикации, а
+  // переименование/удаление своей группы инвалидирует список мутацией.
+  useRealtimeSync('conversation_members', ['conversations', 'list']);
 
   const query = useQuery({
     queryKey: conversationsListKey,
@@ -129,8 +141,7 @@ export function useConversations() {
           conversation,
           // Проект мог не подтянуться (удалён/невиден) — канал в списке остаётся,
           // но без имени: пустая строка хуже нейтральной заглушки.
-          title:
-            conversation.kind === 'general' ? GENERAL_CHANNEL_TITLE : project?.name ?? 'Проект',
+          title: channelTitle(conversation.kind, conversation.title, project?.name ?? null),
           lastMessageAt,
           // Ни разу не открывал канал, а сообщения есть → непрочитано. ISO-строки
           // сравнимы лексикографически (обе из Postgres, один формат и зона).
@@ -184,5 +195,86 @@ export function useMarkRead(conversationId: string | null) {
       queryClient.invalidateQueries({ queryKey: conversationsListKey });
     },
     // Молча: отметка прочтения — фоновая гигиена, тост о ней был бы шумом.
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// S-CHAT-HUB-1c: группы
+// ═══════════════════════════════════════════════════════
+
+export interface CreateGroupInput {
+  title: string;
+  /** Без автора — его добавляет RPC сама. Пустой массив валиден. */
+  memberIds: string[];
+}
+
+/**
+ * Создать группу. Единственный путь создания канала с клиента: INSERT-политики у
+ * `conversations` нет, и RPC заводит канал вместе с составом одной транзакцией —
+ * иначе отвалившийся второй шаг оставил бы группу, в которую не входит никто.
+ *
+ * Возвращает id — вызывающий сразу открывает новый канал.
+ */
+export function useCreateGroup() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ title, memberIds }: CreateGroupInput): Promise<string> => {
+      const { data, error } = await supabase.rpc('create_group_conversation', {
+        p_title: title,
+        p_member_ids: memberIds,
+      });
+      if (error) throw error;
+      if (!data) throw new Error('Не удалось создать группу');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: conversationsListKey });
+    },
+  });
+}
+
+/**
+ * Переименовать группу (RLS: автор канала или org owner/admin, и только kind='group').
+ * `updated_at` двигает триггер — с клиента его не пишем.
+ */
+export function useRenameGroup() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ title: title.trim() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: conversationsListKey });
+    },
+  });
+}
+
+/**
+ * Удалить группу — hard delete, каскадом уносит сообщения, отметки прочтения и состав
+ * (конвенция проекта: инфраструктуры `deleted_at` нет ни у одной таблицы).
+ *
+ * Вызывающий обязан увести пользователя с канала: строка исчезает из списка, и
+ * оставшийся `?c=` покажет «Канал недоступен».
+ */
+export function useDeleteGroup() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('conversations').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: conversationsListKey });
+    },
   });
 }
