@@ -19,7 +19,10 @@ import {
   formatAttachmentSize,
   MAX_ATTACHMENTS_PER_MESSAGE,
 } from '@/lib/hooks/use-message-attachments';
+import { useEntityTitles } from '@/lib/hooks/use-entity-titles';
+import { APP_ORIGIN, entityRefsOf, parseEntityLinks } from '@/lib/utils/entity-links';
 import { MessageAttachments } from '@/components/chat/MessageAttachments';
+import { MessageBody } from '@/components/chat/MessageBody';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
@@ -133,6 +136,10 @@ function Avatar({ author }: { author: MessageWithAuthor['author'] }) {
  *
  * S-CHAT-1: чат — отдельный модуль (НЕ «Активность»/EntityTimeline).
  * body рендерится как текст (React экранирует — XSS-контур), whitespace-pre-wrap.
+ * S-CHAT-HUB-1e: между текстом появились чипы ссылок на карточки CRM (`MessageBody`),
+ * контур не изменился — текст по-прежнему уходит детьми React, href чипа собирается
+ * парсером из белого списка, а не из строки пользователя. Режим ПРАВКИ работает с
+ * сырым `m.body` — в textarea человек видит ту ссылку, которую вставлял.
  * Composer виден всем, кто открыл канал (SELECT прошёл = член канала по
  * is_conversation_member); INSERT-политика — бэкап, ошибка уйдёт в toast.
  *
@@ -175,6 +182,22 @@ export function MessageThread({
   // ── S-CHAT-HUB-1d: вложения. Тот же приём, что у реакций — одним запросом по уже
   // загруженной ленте, без N+1.
   const { byMessage: attachmentsByMessage } = useMessageAttachments(conversationId, messageIds);
+
+  // ── S-CHAT-HUB-1e: ссылки на карточки CRM в теле сообщения. Разбор — один раз на
+  // ленту, названия — одним запросом на таблицу по всем найденным ссылкам сразу.
+  // Origin'ов два: свой (ссылка вставлена там же, где читают) и боевой — адрес копируют
+  // из прода, а читают в том числе на localhost, и на своём origin'е прод-ссылка иначе
+  // осталась бы голым uuid.
+  const bodyPartsByMessage = useMemo(() => {
+    const origins = [APP_ORIGIN];
+    if (typeof window !== 'undefined') origins.push(window.location.origin);
+    return new Map(messages.map((m) => [m.id, parseEntityLinks(m.body, origins)]));
+  }, [messages]);
+  const entityRefs = useMemo(
+    () => [...bodyPartsByMessage.values()].flatMap(entityRefsOf),
+    [bodyPartsByMessage],
+  );
+  const { titles: entityTitles, isLoading: titlesLoading } = useEntityTitles(entityRefs);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toggleReactionMut = useToggleReaction(conversationId);
@@ -567,9 +590,11 @@ export function MessageThread({
                           {/* Пустое тело — не пустой абзац: сообщение из одного файла
                               рисуется только вложением (097 разрешил body = ''). */}
                           {m.body && (
-                            <p className="whitespace-pre-wrap break-words text-sm">
-                              {m.body}
-                            </p>
+                            <MessageBody
+                              parts={bodyPartsByMessage.get(m.id) ?? []}
+                              titles={entityTitles}
+                              isLoading={titlesLoading}
+                            />
                           )}
                           {sendingOnlyFiles && (
                             <p className="text-sm italic opacity-80">Отправка…</p>
@@ -600,9 +625,12 @@ export function MessageThread({
                             </span>
                           )}
                           {m.body && (
-                            <p className="whitespace-pre-wrap break-words text-sm text-text-main">
-                              {m.body}
-                            </p>
+                            <MessageBody
+                              parts={bodyPartsByMessage.get(m.id) ?? []}
+                              titles={entityTitles}
+                              isLoading={titlesLoading}
+                              className="text-text-main"
+                            />
                           )}
                           <MessageAttachments attachments={attachments} />
                           {timeEl}
