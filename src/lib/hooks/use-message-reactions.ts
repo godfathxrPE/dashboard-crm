@@ -9,6 +9,8 @@ import type { MessageReactionWithUser } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
 // S-CHAT-2: реакции на сообщения (068). Junction message<->user<->emoji.
+// S-CHAT-HUB-1a: FK message_id перевешен на `messages` (094) — запрос тот же
+// (.in('message_id', …)), сменился только ключ кэша: срез теперь по каналу, не по проекту.
 // Агрегация на клиенте: чип «эмодзи × count», клик = toggle своей реакции.
 // org_id/user_id проставляют trg_set_org_id + DEFAULT auth.uid() → клиент шлёт
 // только {message_id, emoji}. Realtime — общий refcount-канал useRealtimeSync.
@@ -16,7 +18,7 @@ import type { MessageReactionWithUser } from '@/types/entities';
 
 const REACTION_COLS = 'id, message_id, user_id, emoji, user:profiles!user_id(full_name, avatar_url)';
 
-const reactionsKey = (projectId: string) => ['message_reactions', projectId] as const;
+const reactionsKey = (conversationId: string) => ['message_reactions', conversationId] as const;
 
 /** Одна агрегированная реакция под сообщением (одна пилюля-чип). */
 export interface AggregatedReaction {
@@ -30,20 +32,20 @@ export interface AggregatedReaction {
 
 /**
  * Реакции для набора сообщений одной ленты. `messageIds` приходят от
- * useProjectMessages — без повторного fetch самой ленты.
+ * useMessages — без повторного fetch самой ленты.
  * Возврат: `byMessage` — Map<messageId, AggregatedReaction[]>.
  */
-export function useMessageReactions(projectId: string, messageIds: string[]) {
+export function useMessageReactions(conversationId: string, messageIds: string[]) {
   const supabase = createClient();
   const { user } = useAuth();
   const myId = user?.id ?? null;
 
-  // Дефолтный ключ ['message_reactions'] префиксно инвалидирует ['message_reactions', projectId]
-  // (как use-project-messages с ['project_messages', projectId]).
+  // Дефолтный ключ ['message_reactions'] префиксно инвалидирует ['message_reactions',
+  // conversationId] (как use-messages с ['messages', conversationId]).
   useRealtimeSync('message_reactions');
 
   const query = useQuery({
-    queryKey: reactionsKey(projectId),
+    queryKey: reactionsKey(conversationId),
     // W3: пустой .in() → PostgREST ошибка; при пустой ленте — просто нет запроса.
     enabled: messageIds.length > 0,
     queryFn: async () => {
@@ -89,7 +91,7 @@ export function useMessageReactions(projectId: string, messageIds: string[]) {
  * Toggle своей реакции на сообщение. `mine` вычисляет вызывающий из агрегации
  * (byMessage): true → DELETE своей строки, false → INSERT. Optimistic + rollback.
  */
-export function useToggleReaction(projectId: string) {
+export function useToggleReaction(conversationId: string) {
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -113,9 +115,9 @@ export function useToggleReaction(projectId: string) {
       }
     },
     onMutate: async ({ messageId, emoji, mine }) => {
-      await queryClient.cancelQueries({ queryKey: reactionsKey(projectId) });
-      const previous = queryClient.getQueryData<MessageReactionWithUser[]>(reactionsKey(projectId));
-      queryClient.setQueryData<MessageReactionWithUser[]>(reactionsKey(projectId), (old) => {
+      await queryClient.cancelQueries({ queryKey: reactionsKey(conversationId) });
+      const previous = queryClient.getQueryData<MessageReactionWithUser[]>(reactionsKey(conversationId));
+      queryClient.setQueryData<MessageReactionWithUser[]>(reactionsKey(conversationId), (old) => {
         const rows = old ?? [];
         if (mine) {
           return rows.filter(
@@ -140,10 +142,10 @@ export function useToggleReaction(projectId: string) {
       return { previous };
     },
     onError: (_err, _input, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(reactionsKey(projectId), ctx.previous);
+      if (ctx?.previous) queryClient.setQueryData(reactionsKey(conversationId), ctx.previous);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: reactionsKey(projectId) });
+      queryClient.invalidateQueries({ queryKey: reactionsKey(conversationId) });
     },
   });
 }

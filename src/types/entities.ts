@@ -1,5 +1,5 @@
 import type { Database } from './database';
-import type { ColumnCategory, ProjectType, RecurringCadence } from './database';
+import type { ColumnCategory, ConversationKind, ProjectType, RecurringCadence } from './database';
 // `org_id` уже ослаблен до optional в ./database (RelaxOrgId) — здесь прямые ссылки.
 
 // Удобные алиасы для Row-типов из Supabase
@@ -63,15 +63,23 @@ export type QuoteUpdate = Database['public']['Tables']['quotes']['Update'];
 export type ProjectVideo = Database['public']['Tables']['project_videos']['Row'];
 export type ProjectVideoInsert = Database['public']['Tables']['project_videos']['Insert'];
 
-// ═══ S-CHAT-1: project_messages (чат проекта — отдельный модуль, НЕ activity_log) ═══
-// WARNING: таблица `project_messages` — РУЧНОЙ стаб в supabase.gen.ts (миграция 067 на
-// гейте Cowork). После apply 067 → regen снимет стаб, алиасы продолжат работать 1:1.
-export type ProjectMessage = Database['public']['Tables']['project_messages']['Row'];
-export type ProjectMessageInsert = Database['public']['Tables']['project_messages']['Insert'];
+// ═══ S-CHAT-HUB-1a: conversations / messages / conversation_reads ═══
+// WARNING: три таблицы — РУЧНОЙ стаб в src/types/database.ts (миграция 094 на гейте
+// Cowork). После apply 094 → `scripts/gen-types.sh` снимет стаб, алиасы продолжат
+// работать 1:1. Сообщение висит на КАНАЛЕ, а не на проекте: чат проекта — это
+// conversation с kind='project' (legacy `project_messages` сносит 095).
+export type Conversation = Omit<Database['public']['Tables']['conversations']['Row'], 'kind'> & {
+  // `kind` — text + CHECK (не PG-enum) → автогенерация даст `string`. Сужаем тем же
+  // приёмом, что ProjectColumn/category (значение гарантировано CHECK-инвариантом).
+  kind: ConversationKind;
+};
+export type Message = Database['public']['Tables']['messages']['Row'];
+export type MessageInsert = Database['public']['Tables']['messages']['Insert'];
 /** Сообщение с автором (embed profiles!author_id в select хука). */
-export type ProjectMessageWithAuthor = ProjectMessage & {
+export type MessageWithAuthor = Message & {
   author: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> | null;
 };
+export type ConversationRead = Database['public']['Tables']['conversation_reads']['Row'];
 
 // ═══ S-CHAT-2: message_reactions (реакции на сообщения — junction) ═══
 // WARNING: таблица `message_reactions` — РУЧНОЙ стаб в supabase.gen.ts (миграция 068 на
