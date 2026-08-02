@@ -12,6 +12,7 @@ import {
 } from '@/lib/hooks/use-messages';
 import { useConversations, useMarkRead } from '@/lib/hooks/use-conversations';
 import { gradientFor } from '@/lib/constants/chat-avatars';
+import { useUiStore } from '@/lib/stores/ui-store';
 import { useMessageReactions, useToggleReaction } from '@/lib/hooks/use-message-reactions';
 import {
   useMessageAttachments,
@@ -78,6 +79,8 @@ const DEFAULT_LIST_CLASS = 'h-[min(55vh,40rem)]';
 const FAB_THRESHOLD_PX = 300;
 /** Ближе этого к низу — считаем, что человек «у низа» (автоскролл, сброс счётчика). */
 const AT_BOTTOM_PX = 80;
+/** Потолок автовысоты композера ≈ 6 строк text-sm + вертикальные паддинги. */
+const COMPOSER_MAX_PX = 148;
 
 // Время/дата всегда в МСК (как mskDateKey) — у команды одна «правда времени»,
 // чип «Вчера» и время в пузыре не расходятся между таймзонами браузеров.
@@ -215,7 +218,14 @@ export function MessageThread({
   const editMessage = useEditMessage(conversationId);
   const deleteMessage = useDeleteMessage(conversationId);
 
-  const [draft, setDraft] = useState('');
+  // Драфт — в ui-store по каналам (1f): ChatView пересоздаёт тред на смене канала.
+  const draft = useUiStore((s) => s.chatDraftByConversation[conversationId] ?? '');
+  const setChatDraft = useUiStore((s) => s.setChatDraft);
+  const setDraft = useCallback(
+    (value: string) => setChatDraft(conversationId, value),
+    [setChatDraft, conversationId],
+  );
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -443,6 +453,17 @@ export function MessageThread({
   // Инвариант «текст ИЛИ вложение» держит именно эта строка: в БД он не выражается
   // (кросс-табличное условие, а вложения вставляются ПОСЛЕ сообщения).
   const canSend = (draft.trim().length > 0 || pendingFiles.length > 0) && !sendMessage.isPending;
+
+  // Автовысота композера (1f): сброс в auto обязателен — иначе scrollHeight меряется
+  // от уже растянутого поля и оно только растёт, но никогда не сжимается обратно.
+  // Зависимость — draft, а не onChange: текст меняют ещё вставка эмодзи и откат
+  // черновика после неудачной отправки.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_PX)}px`;
+  }, [draft]);
 
   function handleSend() {
     if (!canSend) return;
@@ -907,8 +928,24 @@ export function MessageThread({
         </div>
       )}
 
-      {/* Composer: вне скролла, на --surface */}
-      <div className="flex shrink-0 items-end gap-2">
+      {/*
+        Композер-капсула (1f): одна поверхность --surface с рамкой и мягкой тенью,
+        скрепка и эмодзи внутри неё. Раньше это были три отдельные коробки в ряд —
+        поле выглядело продолжением ленты, а не местом, куда пишут.
+
+        Капсула стоит ПОД лентой, а не поверх её нижней кромки (концепт допускал оба
+        варианта). Наложение потребовало бы вычитать высоту растущей textarea из высоты
+        скролл-области, а высота ленты в двух вариантах разная (flex-1 в хабе,
+        h-[min(55vh,40rem)] на карточке) — цена «сообщения уезжают под капсулу» выше
+        выигрыша.
+
+        `focus-within:border-accent` на капсуле, а не на textarea: рамка теперь одна на
+        всех, и фокус должен подсвечивать её, а не невидимую границу поля.
+      */}
+      <div
+        className="flex shrink-0 items-end gap-1 rounded-[var(--radius-l)] border border-input bg-surface
+                   px-1.5 py-1.5 shadow-[var(--shadow-sm)] transition-colors focus-within:border-accent"
+      >
         <input
           ref={fileInputRef}
           type="file"
@@ -930,26 +967,12 @@ export function MessageThread({
               ? `Не больше ${MAX_ATTACHMENTS_PER_MESSAGE} файлов в сообщении`
               : 'Прикрепить файл'
           }
-          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
-                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none
-                     disabled:opacity-40"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-mute
+                     transition-colors hover:bg-surface2 hover:text-text-main
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           <Paperclip size={16} />
         </button>
-        <button
-          ref={emojiBtnRef}
-          type="button"
-          onClick={() => setEmojiOpen((v) => !v)}
-          aria-label="Эмодзи"
-          aria-expanded={emojiOpen}
-          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
-                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none"
-        >
-          <Smile size={16} />
-        </button>
-        {emojiOpen && (
-          <ChatEmojiPicker onPick={handleEmojiPick} onClose={closeEmojiPicker} anchorRef={emojiBtnRef} />
-        )}
         <textarea
           ref={textareaRef}
           value={draft}
@@ -963,23 +986,47 @@ export function MessageThread({
           placeholder={pendingFiles.length > 0 ? 'Подпись (необязательно)…' : 'Сообщение команде…'}
           title="Enter — отправить, Shift+Enter — перенос"
           aria-label="Сообщение команде. Enter — отправить, Shift+Enter — перенос"
-          rows={2}
+          rows={1}
           maxLength={4000}
           // Пока файлы летят — composer заблокирован: вторая отправка поверх первой
           // забрала бы у неё черновик и файлы.
           disabled={sendMessage.isPending}
-          className="min-h-[42px] flex-1 resize-none rounded-lg border border-input bg-surface px-3 py-2
-                     text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none
-                     disabled:opacity-60"
+          // Высота — из эффекта автороста (до COMPOSER_MAX_PX, дальше свой скролл);
+          // resize-none, чтобы ручка ресайза не спорила с ним.
+          className="min-h-[2rem] flex-1 resize-none self-center border-0 bg-transparent px-1 py-1.5
+                     text-sm leading-5 text-text-main placeholder:text-text-mute
+                     focus:outline-none disabled:opacity-60"
         />
+        <button
+          ref={emojiBtnRef}
+          type="button"
+          onClick={() => setEmojiOpen((v) => !v)}
+          aria-label="Эмодзи"
+          aria-expanded={emojiOpen}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-mute
+                     transition-colors hover:bg-surface2 hover:text-text-main
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <Smile size={16} />
+        </button>
+        {emojiOpen && (
+          <ChatEmojiPicker onPick={handleEmojiPick} onClose={closeEmojiPicker} anchorRef={emojiBtnRef} />
+        )}
         <button
           onClick={handleSend}
           disabled={!canSend}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white
-                     transition-opacity hover:opacity-90 disabled:bg-surface3 disabled:text-text-mute"
+          // Пустой драфт — приглушённая кнопка, непустой — заливка --accent (в t-aura
+          // .bg-accent сама уходит в тёмный --accent-text, белый текст ≥4.5:1).
+          // `disabled` настоящий, а не серый на вид (грабля SDP).
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform
+                      duration-[var(--duration-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                        canSend
+                          ? 'bg-accent text-white hover:scale-105'
+                          : 'bg-surface3 text-text-mute'
+                      }`}
           aria-label="Отправить"
         >
-          <SendHorizontal size={14} />
+          <SendHorizontal size={15} />
         </button>
       </div>
     </div>
