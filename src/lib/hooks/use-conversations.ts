@@ -85,6 +85,15 @@ export interface ConversationListItem {
   title: string;
   /** ISO последнего сообщения; null — в канале пусто. */
   lastMessageAt: string | null;
+  /**
+   * ISO отметки прочтения; null — канал ни разу не открывали.
+   *
+   * S-CHAT-HUB-1f: тред снимает с него снапшот при открытии канала и рисует
+   * разделитель «Новые сообщения». Отдаётся сырым, а не только свёрнутым в
+   * `hasUnread`: разделителю нужна не «есть ли непрочитанное», а ГРАНИЦА, и второй
+   * запрос за той же строкой `conversation_reads` был бы запросом за уже загруженным.
+   */
+  lastReadAt: string | null;
   hasUnread: boolean;
   /**
    * S-CHAT-HUB-1e: ссылка на карточку проекта канала — `null` у общего канала, у групп
@@ -154,6 +163,7 @@ export function useConversations() {
           // но без имени: пустая строка хуже нейтральной заглушки.
           title: channelTitle(conversation.kind, conversation.title, project?.name ?? null),
           lastMessageAt,
+          lastReadAt,
           // Ни разу не открывал канал, а сообщения есть → непрочитано. ISO-строки
           // сравнимы лексикографически (обе из Postgres, один формат и зона).
           hasUnread: lastMessageAt !== null && (lastReadAt === null || lastMessageAt > lastReadAt),

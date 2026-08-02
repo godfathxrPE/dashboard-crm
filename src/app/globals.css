@@ -1704,9 +1704,9 @@ table tbody tr[data-kbd-focused] {
      --chat-pattern-ink краска обоев. Она же — цвет разделителя «Новые сообщения»:
                         это единственный токен «фирменный цвет темы, читаемый на
                         --chat-bg», второй такой был бы его копией. Контраст к
-                        --chat-bg (scripts/contrast.py): aura 10.25 · washi 5.35 ·
-                        fuji 6.83 · minimal 5.36 · frost 8.58 · aurora ≥8.6 ·
-                        tidal 7.96 · :root 15.9.
+                        --chat-bg, замерен на живой странице: aura 10.25 · washi 5.35 ·
+                        fuji 6.83 · minimal 5.36 · frost 8.58 · aurora 9.13 ·
+                        tidal 7.87 · :root 15.96.
      --chat-pattern-op  непрозрачность обоев: светлые ~0.05, тёмные glass ~0.035.
      --chat-chip        полупрозрачная подложка день-чипа, чипов реакций и круга
                         пустого состояния — surface темы с альфой, чтобы обои под
