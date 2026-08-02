@@ -17,19 +17,29 @@ export interface ChannelGradient {
   name: string;
   /** Светлый конец (135deg, левый верх). */
   from: string;
-  /** Тёмный конец (правый низ). */
+  /** Тёмный конец (правый низ). Он же — цвет ИМЕНИ автора на светлых темах. */
   to: string;
+  /**
+   * S-CHAT-HUB-1f: осветлённый близнец для ТЕКСТА на тёмных темах.
+   *
+   * Пары выше нарисованы под белые инициалы, то есть обе их точки тёмные — как цвет
+   * имени во входящем пузыре на #1e2233 они дали бы нечитаемую кашу. `onDark` — тот же
+   * оттенок в светлой части шкалы; контраст посчитан к самому светлому из тёмных
+   * `--chat-in-bg` (frost #1e2233, худший случай — у aurora и tidal фон темнее).
+   */
+  onDark: string;
 }
 
 export const CHANNEL_GRADIENTS: readonly ChannelGradient[] = [
-  { name: 'teal',    from: '#0F766E', to: '#134E4A' }, // 5.5:1
-  { name: 'violet',  from: '#7C3AED', to: '#5B21B6' }, // 5.7:1
-  { name: 'orange',  from: '#C2410C', to: '#7C2D12' }, // 4.6:1
-  { name: 'emerald', from: '#047857', to: '#064E3B' }, // 5.5:1
-  { name: 'cyan',    from: '#0E7490', to: '#164E63' }, // 5.4:1
-  { name: 'rose',    from: '#E11D48', to: '#9F1239' }, // 4.6:1
-  { name: 'indigo',  from: '#4F46E5', to: '#3730A3' }, // 6.1:1
-  { name: 'amber',   from: '#B45309', to: '#78350F' }, // 4.4:1
+  //                                              к белому  onDark    к #1e2233
+  { name: 'teal',    from: '#0F766E', to: '#134E4A', onDark: '#5EEAD4' }, // 5.5:1 · 10.7:1
+  { name: 'violet',  from: '#7C3AED', to: '#5B21B6', onDark: '#C4B5FD' }, // 5.7:1 ·  8.9:1
+  { name: 'orange',  from: '#C2410C', to: '#7C2D12', onDark: '#FDBA74' }, // 4.6:1 ·  9.5:1
+  { name: 'emerald', from: '#047857', to: '#064E3B', onDark: '#6EE7B7' }, // 5.5:1 · 10.4:1
+  { name: 'cyan',    from: '#0E7490', to: '#164E63', onDark: '#67E8F9' }, // 5.4:1 · 11.2:1
+  { name: 'rose',    from: '#E11D48', to: '#9F1239', onDark: '#FDA4AF' }, // 4.6:1 ·  8.3:1
+  { name: 'indigo',  from: '#4F46E5', to: '#3730A3', onDark: '#A5B4FC' }, // 6.1:1 ·  8.0:1
+  { name: 'amber',   from: '#B45309', to: '#78350F', onDark: '#FCD34D' }, // 4.4:1 · 10.8:1
 ] as const;
 
 /**

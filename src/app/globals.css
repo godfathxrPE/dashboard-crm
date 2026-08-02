@@ -1687,6 +1687,119 @@ table tbody tr[data-kbd-focused] {
 .t-aurora .chat-own { --chat-own-bg: #3C2E61; --chat-own-border: rgba(160,96,255,0.45); }
 .t-tidal  .chat-own { --chat-own-bg: #1D4536; --chat-own-border: rgba(72,184,144,0.45); }
 
+/* ═══════════════════════════════════════════════════════
+   S-CHAT-HUB-1f: чат-токены и обои
+   ═══════════════════════════════════════════════════════
+   Шесть токенов на тему рядом с существующими --chat-own. Все значения —
+   производные уже принятых токенов темы, новых красок не вводится:
+
+     --chat-bg          фон ленты. Светлые и тёмные — var(--bg): лента «утоплена»
+                        относительно surface-панелей, инверсия глубины S-CHAT-1.1
+                        сохраняется.
+     --chat-in-bg       входящий пузырь. Светлые — var(--surface). Тёмные glass —
+                        var(--popover) (СОЛИДНЫЙ близнец surface, тот же приём, что у
+                        [data-modal] и .chat-own): сквозь полупрозрачный surface обои
+                        просвечивали бы дважды — под пузырём и в самом пузыре.
+     --chat-in-border   рамка входящего — var(--border) во всех темах.
+     --chat-pattern-ink краска обоев. Она же — цвет разделителя «Новые сообщения»:
+                        это единственный токен «фирменный цвет темы, читаемый на
+                        --chat-bg», второй такой был бы его копией. Контраст к
+                        --chat-bg (scripts/contrast.py): aura 10.25 · washi 5.35 ·
+                        fuji 6.83 · minimal 5.36 · frost 8.58 · aurora ≥8.6 ·
+                        tidal 7.96 · :root 15.9.
+     --chat-pattern-op  непрозрачность обоев: светлые ~0.05, тёмные glass ~0.035.
+     --chat-chip        полупрозрачная подложка день-чипа, чипов реакций и круга
+                        пустого состояния — surface темы с альфой, чтобы обои под
+                        ней читались, но текст на ней не грязнился.
+
+   Опасити-правило visual-audit не нарушено: обои — чисто декоративный слой без
+   текста и с pointer-events:none. Информативный текст по-прежнему на токенах. */
+:root {
+  --chat-bg: var(--bg);
+  --chat-in-bg: var(--surface);
+  --chat-in-border: var(--border);
+  --chat-pattern-ink: #1a1916;          /* var(--text): у Claude-дефолта нет --accent-text,
+                                           а --accent #b5622a даёт на --bg 4.02:1 — провал AA */
+  --chat-pattern-op: 0.045;
+  --chat-chip: rgba(255,255,255,0.85);
+}
+.t-aura {
+  --chat-pattern-ink: #343840;          /* --accent-text, графит */
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(255,255,255,0.85);
+}
+.t-washi {
+  --chat-pattern-ink: #B33434;          /* --accent-text, torii-красный по бумаге */
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(253,252,250,0.88);
+}
+.t-fuji {
+  --chat-pattern-ink: #2B5078;          /* --accent, индиго */
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(253,252,248,0.88);
+}
+/* minimal — самая строгая тема: обои почти неразличимы, идентичность держат
+   пузыри и композер. */
+.t-minimal {
+  --chat-pattern-ink: #A64A24;          /* --accent-text, терракота */
+  --chat-pattern-op: 0.03;
+  --chat-chip: rgba(255,255,255,0.85);
+}
+.t-frost {
+  --chat-in-bg: var(--popover);         /* #1e2233 */
+  --chat-pattern-ink: #7eb0ff;          /* --accent-text */
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(30,34,51,0.85);
+}
+.t-aurora {
+  --chat-in-bg: var(--popover);         /* #1a1e2c */
+  --chat-pattern-ink: #c9a0ff;          /* --accent-text */
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(26,30,44,0.85);
+}
+.t-tidal {
+  --chat-in-bg: var(--popover);         /* #102119 */
+  --chat-pattern-ink: #48b890;          /* --accent (у темы нет --accent-text) */
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(16,33,25,0.85);
+}
+
+/* Обои: один SVG-тайл через CSS-mask — цвет и прозрачность из токенов темы, а не
+   из картинки. Никаких растров и внешних запросов; сам SVG инлайнится data-uri.
+   Слой лежит на ОБЁРТКЕ ленты, а не на скролл-области: absolute-потомок скроллера
+   уезжает вместе с контентом, и узор кончался бы на первом экране. */
+.chat-wallpaper { position: relative; background-color: var(--chat-bg); }
+.chat-wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--chat-pattern-ink);
+  opacity: var(--chat-pattern-op);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'><g fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><path d='M18 26a9 9 0 1 1 6 8l-7 3 2-7a9 9 0 0 1-1-4z'/><circle cx='96' cy='22' r='2'/><circle cx='106' cy='22' r='2'/><circle cx='116' cy='22' r='2'/><path d='M88 34h36'/><path d='M64 74l14-14m0 9v-9h-9'/><path d='M22 96c0-6 5-10 10-10s10 4 10 10-5 10-10 10l-8 5 3-8c-3-2-5-4-5-7z'/><path d='M92 92a10 10 0 1 1 7 17l-9 4 3-8'/><path d='M120 120l6-6m-6 0l6 6'/><circle cx='52' cy='128' r='5'/><path d='M49 128a3 3 0 0 0 6 0'/><circle cx='50.5' cy='126.5' r='.8' fill='black'/><circle cx='53.5' cy='126.5' r='.8' fill='black'/></g></svg>") 0 0/8.75rem repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'><g fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><path d='M18 26a9 9 0 1 1 6 8l-7 3 2-7a9 9 0 0 1-1-4z'/><circle cx='96' cy='22' r='2'/><circle cx='106' cy='22' r='2'/><circle cx='116' cy='22' r='2'/><path d='M88 34h36'/><path d='M64 74l14-14m0 9v-9h-9'/><path d='M22 96c0-6 5-10 10-10s10 4 10 10-5 10-10 10l-8 5 3-8c-3-2-5-4-5-7z'/><path d='M92 92a10 10 0 1 1 7 17l-9 4 3-8'/><path d='M120 120l6-6m-6 0l6 6'/><circle cx='52' cy='128' r='5'/><path d='M49 128a3 3 0 0 0 6 0'/><circle cx='50.5' cy='126.5' r='.8' fill='black'/><circle cx='53.5' cy='126.5' r='.8' fill='black'/></g></svg>") 0 0/8.75rem repeat;
+}
+
+/* Имя автора во входящем пузыре — из той же 8-цветной палитры, что и его аватар
+   (chat-avatars.ts, hash по author_id): один источник цвета на человека, приём
+   Telegram. Пары нарисованы под БЕЛЫЕ инициалы, поэтому как ТЕКСТ они годятся
+   только на светлом фоне — тёмным темам отдаётся осветлённый близнец `onDark`.
+   Обе величины приходят инлайном из JSX, выбор — здесь. */
+.chat-author { color: var(--chat-author-on-light); }
+.t-frost .chat-author,
+.t-aurora .chat-author,
+.t-tidal .chat-author { color: var(--chat-author-on-dark); }
+
+/* Пузырь реакции при постановке. Только для впервые появившихся чипов (seen-ref в
+   MessageThread) — иначе открытие канала со свежей лентой даёт стробоскоп. */
+@keyframes chat-reaction-pop {
+  from { transform: scale(0.6); }
+  to   { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat-reaction-pop { animation: chat-reaction-pop 0.15s var(--ease-spring) both; }
+}
+
 /* ═══ S-GANTT-POLISH: печать Ганта (window.print) ═══ */
 /* html2canvas сознательно НЕ вводился: новая зависимость + снимок плывёт на
    color-mix()/CSS-переменных, на которых стоят все темы проекта. */
