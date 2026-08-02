@@ -25,6 +25,107 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
+/**
+ * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-HUB-1a, миграция 094 ещё НЕ применена).
+ *
+ * `.from('conversations' | 'messages' | 'conversation_reads')` типизируется через
+ * `Database['public']['Tables']`, а `supabase.gen.ts` регенерируется только ПОСЛЕ apply —
+ * таблиц в БД пока нет. Стаб живёт здесь, а не в `supabase.gen.ts` (тот руками не
+ * правится) и снимается вместе с регенерацией (`scripts/gen-types.sh`): после неё ключи
+ * придут из `GenDatabase`, и весь блок надо УДАЛИТЬ.
+ *
+ * Объявлен `type`, а не `interface`, — намеренно: postgrest-js 2.100 требует от записи
+ * таблицы совместимости с индексной сигнатурой, а `interface` её не имеет (грабля
+ * S-R2-SIGNOFF-1: стаб-`interface` не компилируется).
+ *
+ * Форма — 1:1 с 094. `Insert.org_id` уже optional (ставит триггер set_org_id), поэтому
+ * RelaxOrgId к стабу не применяется. `kind` здесь `string` (в БД — text + CHECK), сужение
+ * до union — `ConversationKind` ниже, ровно тем же приёмом, что ProjectColumn/category.
+ */
+type ChatHubStub = {
+  conversations: {
+    Row: {
+      created_at: string;
+      created_by: string | null;
+      id: string;
+      kind: string;
+      org_id: string;
+      project_id: string | null;
+      title: string | null;
+    };
+    Insert: {
+      created_at?: string;
+      created_by?: string | null;
+      id?: string;
+      kind: string;
+      org_id?: string;
+      project_id?: string | null;
+      title?: string | null;
+    };
+    Update: {
+      created_at?: string;
+      created_by?: string | null;
+      id?: string;
+      kind?: string;
+      org_id?: string;
+      project_id?: string | null;
+      title?: string | null;
+    };
+    Relationships: [];
+  };
+  messages: {
+    Row: {
+      author_id: string | null;
+      body: string;
+      conversation_id: string;
+      created_at: string;
+      edited_at: string | null;
+      id: string;
+      org_id: string;
+    };
+    Insert: {
+      author_id?: string | null;
+      body: string;
+      conversation_id: string;
+      created_at?: string;
+      edited_at?: string | null;
+      id?: string;
+      org_id?: string;
+    };
+    Update: {
+      author_id?: string | null;
+      body?: string;
+      conversation_id?: string;
+      created_at?: string;
+      edited_at?: string | null;
+      id?: string;
+      org_id?: string;
+    };
+    Relationships: [];
+  };
+  conversation_reads: {
+    Row: {
+      conversation_id: string;
+      last_read_at: string;
+      org_id: string;
+      user_id: string;
+    };
+    Insert: {
+      conversation_id: string;
+      last_read_at?: string;
+      org_id?: string;
+      user_id?: string;
+    };
+    Update: {
+      conversation_id?: string;
+      last_read_at?: string;
+      org_id?: string;
+      user_id?: string;
+    };
+    Relationships: [];
+  };
+};
+
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -34,7 +135,7 @@ export type Database = {
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    };
+    } & ChatHubStub;
   };
 };
 
@@ -764,3 +865,11 @@ export const STAKEHOLDER_ROLES = [
 ] as const;
 
 export type StakeholderRole = (typeof STAKEHOLDER_ROLES)[number];
+
+// ═══ S-CHAT-HUB-1a: тип канала (миграция 094 — на гейте) ═══
+// В БД — `text` + CHECK conversations_kind (094); здесь union. В 1a создаются только
+// 'general' (один на org) и 'project' (один на проект) — 'group'/'dm' лежат в словаре
+// заранее, чтобы фаза 2 не переписывала CHECK, путей создания у них нет.
+export const CONVERSATION_KINDS = ['general', 'project', 'group', 'dm'] as const;
+
+export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
