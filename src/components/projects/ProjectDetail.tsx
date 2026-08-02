@@ -71,6 +71,7 @@ import { cn } from '@/lib/utils/cn';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
+import { DealStakeholders } from './DealStakeholders';
 import type { Task } from '@/types/entities';
 
 // W4a: Гант (849 строк + измерение стрелок) грузится только при открытии вкладки
@@ -696,6 +697,16 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           />
         </div>
       </div>
+
+      {/* S-R2-D3: карта стейкхолдеров — сразу под info-grid, до Команды и Материалов.
+          Участники со стороны клиента есть и у сделки, и у внедрения, поэтому без
+          фильтра по типу проекта. Primary вычисляется из project.contact_id. */}
+      <DealStakeholders
+        projectId={projectId}
+        primaryContactId={project.contact_id}
+        primaryContact={project.contact ?? null}
+        companyId={project.company_id}
+      />
 
       {/* P2b (B2): команда — full-width секция; S-TEAM-ROLES-1: роли фильтруются по категории (direction+type) */}
       {isDelivery && (
