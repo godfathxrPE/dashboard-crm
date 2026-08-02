@@ -90,6 +90,17 @@ export function mskDateKey(input: string | Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(d);
 }
 
+/** «ДД.ММ» по МСК из ISO UTC — короткая дата для строк списков (последнее сообщение
+ *  в канале и т.п.). Считается из mskDateKey, а не из своего Intl-форматтера: одна
+ *  календарная ось на проект, иначе на границе суток список и лента разъедутся. */
+export function mskDayMonth(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const key = mskDateKey(d);
+  return `${key.slice(8, 10)}.${key.slice(5, 7)}`;
+}
+
 /** Конец календарного дня YYYY-MM-DD по МСК → ISO UTC (timestamptz).
  *  Дедлайн «сегодня» обязан быть концом дня, а не моментом клика: иначе задача
  *  просрочена через секунду после создания (D2, S-R2-AI-HARDEN).
