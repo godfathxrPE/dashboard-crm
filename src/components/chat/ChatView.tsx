@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, LogOut, MessagesSquare, Settings2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, LogOut, MessagesSquare, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useConversations,
@@ -131,13 +132,25 @@ export function ChatView() {
                   size={1.5}
                 />
               }
-              // Шапка general/project не меняется — слот пуст.
+              // Группа — управление составом; проектный канал — выход на карточку
+              // проекта. Пересечься эти ветки не могут: у группы нет project_id, и
+              // ветвление по kind честнее, чем два условных блока подряд.
+              // У общего канала шапка по-прежнему пуста.
               headerExtra={
                 activeItem.conversation.kind === 'group' ? (
                   <GroupHeaderActions
                     conversation={activeItem.conversation}
                     onGone={clearActive}
                   />
+                ) : activeItem.projectHref ? (
+                  <Link
+                    href={activeItem.projectHref}
+                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-0.5
+                               text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+                  >
+                    <ExternalLink size={12} aria-hidden="true" />
+                    Открыть проект
+                  </Link>
                 ) : undefined
               }
             />

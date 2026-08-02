@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './use-auth';
 import { useRealtimeSync } from './use-realtime';
 import { channelTitle } from '@/lib/utils/chat-channels';
+import { projectHref } from '@/lib/utils/project-href';
 import type { Conversation } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -85,6 +86,15 @@ export interface ConversationListItem {
   /** ISO последнего сообщения; null — в канале пусто. */
   lastMessageAt: string | null;
   hasUnread: boolean;
+  /**
+   * S-CHAT-HUB-1e: ссылка на карточку проекта канала — `null` у общего канала, у групп
+   * и у проектного канала, чей проект не подтянулся (удалён / не виден по RLS).
+   *
+   * Резолвится здесь, а не у каждого потребителя: точек перехода две (шапка треда и
+   * строка списка), и вторая копия `projectHref(...)` с той же проверкой на null — это
+   * второй источник правды про то, когда кнопка вообще существует.
+   */
+  projectHref: string | null;
 }
 
 /** Форма ответа PostgREST: канал + вложенные срезы. Оба embed'а — массивы. */
@@ -93,7 +103,8 @@ type ConversationRow = Conversation & {
   conversation_reads: { last_read_at: string }[];
   // to-one embed (FK conversations.project_id → projects.id) — объект, а не массив;
   // null, если у канала нет проекта (kind='general') или проект не виден по RLS.
-  project: { name: string } | null;
+  // `type` (1e) нужен projectHref: client → /deals, остальное → /projects.
+  project: { name: string; type: string | null } | null;
 };
 
 /**
@@ -126,7 +137,7 @@ export function useConversations() {
       const { data, error } = await supabase
         .from('conversations')
         .select(
-          `${CONVERSATION_COLS}, project:projects(name), messages(created_at), conversation_reads(last_read_at)`,
+          `${CONVERSATION_COLS}, project:projects(name, type), messages(created_at), conversation_reads(last_read_at)`,
         )
         .order('created_at', { referencedTable: 'messages', ascending: false })
         .limit(1, { referencedTable: 'messages' });
@@ -146,6 +157,12 @@ export function useConversations() {
           // Ни разу не открывал канал, а сообщения есть → непрочитано. ISO-строки
           // сравнимы лексикографически (обе из Postgres, один формат и зона).
           hasUnread: lastMessageAt !== null && (lastReadAt === null || lastMessageAt > lastReadAt),
+          // Условие именно на `project`, а не на `project_id`: id может быть заполнен,
+          // а строка проекта не приехать (RLS) — ссылка вела бы в «нет доступа».
+          projectHref:
+            conversation.project_id && project
+              ? projectHref({ id: conversation.project_id, type: project.type })
+              : null,
         };
       });
 
