@@ -125,7 +125,17 @@
 > не фильтруются, семантику «мои» держат потребители (бейдж звонков, очередь «Сегодня»,
 > трекер звонков, KPI-виджеты). Следующий слой — эпик DIRECTIONS
 > (`claude/backlog-directions-ownership.md`);
-> следующая свободная — **099**;
+> **099 (S-CHAT-TASK-1) — НАПИСАНА, НЕ применена** (ветка `feat/chat-task-1`): задача
+> из сообщения чата — `tasks += source_message_id uuid → messages(id) ON DELETE SET NULL`
+> плюс partial unique `uq_tasks_source_message` (одно сообщение → одна задача) и
+> дублирующий `idx_tasks_source_message`. Ни функций, ни политик, ни грантов не трогает:
+> колонка в уже защищённой таблице. ⚠️ Реген типов нужен — до него в
+> `src/types/database.ts` живёт стаб `TaskSourceMessageStub` (интерсекция к записи
+> `tasks`, а не отдельная таблица). ⚠️ **RLS `tasks` может честно скрыть чужую задачу**
+> (политики «свои + проекты, где я участник»), поэтому «в ленте задачи не видно» ≠
+> «задачи нет»: единственная защита от дубля — unique-индекс, и UI обязан переводить
+> `23505` в человеческий текст;
+> следующая свободная — **100**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -1110,7 +1120,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at, **+099 source_message_id — НЕ применена**)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1131,6 +1141,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 | end_date | date | _046 (S-GANTT-DATES-1)_ nullable. Конец задачи; `CHECK tasks_dates_order_chk` (end_date ≥ start_date). Fallback на `deadline::date` — на уровне рендера |
 | parent_task_id | uuid | _052 (S-WBS-1)_ nullable → tasks(id) ON DELETE SET NULL. Родитель WBS-иерархии. Валидатор `check_task_parent_valid` (DEFINER, триггер `trg_zz_check_task_parent` before insert/update of parent_task_id,project_id): self-ref/cross-org/cross-project/цикл (recursive CTE вверх к корню) → `23514`/`23503`/`42501`/`P0001`. Partial-индекс `idx_tasks_parent`. AFTER-триггер `orphan_children_on_project_move` (upd project_id родителя) обнуляет `parent_task_id` осиротевших детей |
 | wbs_code | text | _052 (S-WBS-1)_ nullable. Код WBS (напр. `1.3.11`); префикс у названия на доске/Gantt. Сводный бар на Gantt = обёртка дат детей |
+| source_message_id | uuid | _099 (S-CHAT-TASK-1) — **НЕ применена**_ nullable → `messages(id)` **ON DELETE SET NULL** (удалили сообщение — задача жива, теряется только ссылка на источник). Заполняется ТОЛЬКО карточкой подтверждения в чате; ни один триггер/RPC её не трогает. Partial unique **`uq_tasks_source_message`** `(source_message_id) WHERE source_message_id IS NOT NULL` — ключ идемпотентности «одно сообщение → одна задача»; плюс дублирующий **`idx_tasks_source_message`** под чтение ленты (сознательно избыточен — страховка на случай снятия unique) |
 | remind_min | int | |
 | sort_order | int | DEFAULT 0. С _032_ разрез per-column для проектных задач |
 | assigned_to / created_by | uuid | → profiles |

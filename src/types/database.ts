@@ -89,6 +89,29 @@ type ChatFilesFnStub = {
   };
 };
 
+/**
+ * ⚠️ ВРЕМЕННЫЙ СТАБ (S-CHAT-TASK-1, миграция 099 ещё НЕ применена).
+ *
+ * Не новая таблица, а ОДНА КОЛОНКА на существующей `tasks` — поэтому стаб не заменяет
+ * запись таблицы, а дописывается к ней интерсекцией (см. `& TaskSourceMessageStub`
+ * ниже): `Row`/`Insert`/`Update` сливаются с сгенерированными по ключам, и остальные
+ * ~25 колонок `tasks` продолжают приходить из `GenDatabase`.
+ *
+ * Снимается регенерацией после apply 099 (`scripts/gen-types.sh`): колонка придёт из
+ * автогенерации, и весь блок надо УДАЛИТЬ вместе с `& TaskSourceMessageStub`.
+ * `supabase.gen.ts` руками НЕ правится.
+ *
+ * `type`, а не `interface`, — по той же причине, что у `ChatFilesStub`: postgrest-js
+ * требует совместимости с индексной сигнатурой (грабля S-R2-SIGNOFF-1).
+ */
+type TaskSourceMessageStub = {
+  tasks: {
+    Row: { source_message_id: string | null };
+    Insert: { source_message_id?: string | null };
+    Update: { source_message_id?: string | null };
+  };
+};
+
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -98,7 +121,7 @@ export type Database = {
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    } & ChatFilesStub;
+    } & ChatFilesStub & TaskSourceMessageStub;
     Functions: GenDatabase['public']['Functions'] & ChatFilesFnStub;
   };
 };
