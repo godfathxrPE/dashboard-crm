@@ -29,6 +29,18 @@ interface UiState {
   toggleCommandPalette: () => void;
   openCommandPalette: (actionsOnly?: boolean) => void;
   closeCommandPalette: () => void;
+
+  /**
+   * S-CHAT-HUB-1f: недописанные сообщения по каналам. Живут здесь, а не в локальном
+   * стейте треда: ChatView пересоздаёт `MessageThread` через `key={conversationId}`, и
+   * при возврате в канал текст иначе теряется.
+   *
+   * В `partialize` НЕ входит намеренно — драфт переживает переключение канала, но не
+   * перезагрузку страницы. Осознанный v1: черновик в localStorage живёт вечно и
+   * всплывает через неделю в канале, о котором человек уже забыл.
+   */
+  chatDraftByConversation: Record<string, string>;
+  setChatDraft: (conversationId: string, value: string) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -52,6 +64,12 @@ export const useUiStore = create<UiState>()(
         set({ commandPaletteOpen: true, paletteActionsOnly: actionsOnly }),
       closeCommandPalette: () =>
         set({ commandPaletteOpen: false, paletteActionsOnly: false }),
+
+      chatDraftByConversation: {},
+      setChatDraft: (conversationId, value) =>
+        set((s) => ({
+          chatDraftByConversation: { ...s.chatDraftByConversation, [conversationId]: value },
+        })),
     }),
     {
       name: 'dashboard-ui',

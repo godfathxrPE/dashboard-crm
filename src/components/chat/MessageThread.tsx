@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { MessageCircle, MessageSquare, Paperclip, Pencil, Trash2, SendHorizontal, Smile, SmilePlus, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, MessageCircle, MessagesSquare, Paperclip, Pencil, Trash2, SendHorizontal, Smile, SmilePlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useMessages,
@@ -10,7 +10,9 @@ import {
   useDeleteMessage,
   isTempMessage,
 } from '@/lib/hooks/use-messages';
-import { useMarkRead } from '@/lib/hooks/use-conversations';
+import { useConversations, useMarkRead } from '@/lib/hooks/use-conversations';
+import { gradientFor } from '@/lib/constants/chat-avatars';
+import { useUiStore } from '@/lib/stores/ui-store';
 import { useMessageReactions, useToggleReaction } from '@/lib/hooks/use-message-reactions';
 import {
   useMessageAttachments,
@@ -57,10 +59,28 @@ interface MessageThreadProps {
    * «Чат» на карточке проекта) — рисуется прежняя иконка MessageCircle.
    */
   leading?: ReactNode;
+  /**
+   * S-CHAT-HUB-1f. `page` — раздел /chat: лента получает обои и собственный фон
+   * `--chat-bg`. `card` (дефолт) — вкладка «Чат» на карточке проекта: обоев нет,
+   * фон прежний `--bg`. Обои — приём «этот раздел не такой, как остальные», и на
+   * карточке среди карточек они бы этот смысл ровно перевернули.
+   *
+   * Всё остальное (пузыри на токенах, sticky день-чип, разделитель непрочитанного,
+   * FAB, композер-капсула) одинаково в обоих вариантах: это не идентичность раздела,
+   * а поведение ленты, и разводить его по вариантам значило бы держать два чата.
+   */
+  variant?: 'page' | 'card';
 }
 
 const DEFAULT_ROOT_CLASS = 'mb-4 rounded-xl border border-border bg-surface p-4';
 const DEFAULT_LIST_CLASS = 'h-[min(55vh,40rem)]';
+
+/** Дальше этого от низа — показываем FAB «вниз». */
+const FAB_THRESHOLD_PX = 300;
+/** Ближе этого к низу — считаем, что человек «у низа» (автоскролл, сброс счётчика). */
+const AT_BOTTOM_PX = 80;
+/** Потолок автовысоты композера ≈ 6 строк text-sm + вертикальные паддинги. */
+const COMPOSER_MAX_PX = 148;
 
 // Время/дата всегда в МСК (как mskDateKey) — у команды одна «правда времени»,
 // чип «Вчера» и время в пузыре не расходятся между таймзонами браузеров.
@@ -111,7 +131,20 @@ function initials(name: string): string {
     .join('');
 }
 
-function Avatar({ author }: { author: MessageWithAuthor['author'] }) {
+/**
+ * S-CHAT-HUB-1f: фолбэк-аватар автора красится той же 8-цветной палитрой, что и
+ * аватары каналов, — hash по `author_id`. Это же значение уходит в цвет ИМЕНИ в
+ * пузыре (см. `authorNameStyle`): один источник цвета на человека, приём Telegram.
+ * Ключ — `author_id`, а не имя: имя человек может сменить, цвет от этого прыгать
+ * не должен.
+ */
+function Avatar({
+  author,
+  authorKey,
+}: {
+  author: MessageWithAuthor['author'];
+  authorKey: string;
+}) {
   if (author?.avatar_url) {
     // eslint-disable-next-line @next/next/no-img-element
     return (
@@ -122,11 +155,29 @@ function Avatar({ author }: { author: MessageWithAuthor['author'] }) {
       />
     );
   }
+  const g = gradientFor(authorKey);
   return (
-    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-l text-xs font-semibold text-accent">
+    <div
+      style={{ backgroundImage: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold leading-none text-white"
+    >
       {author ? initials(author.full_name) || '?' : '?'}
     </div>
   );
+}
+
+/**
+ * Обе точки палитры уезжают в CSS-переменные — какую взять, решает тема
+ * (`.chat-author` в globals.css): светлым нужен тёмный конец пары, тёмным —
+ * осветлённый `onDark`. Определять «тема тёмная?» в JS значило бы завести второй,
+ * рассинхронизирующийся список тем.
+ */
+function authorNameStyle(authorKey: string): React.CSSProperties {
+  const g = gradientFor(authorKey);
+  return {
+    '--chat-author-on-light': g.to,
+    '--chat-author-on-dark': g.onDark,
+  } as React.CSSProperties;
 }
 
 /**
@@ -157,6 +208,7 @@ export function MessageThread({
   listClassName = DEFAULT_LIST_CLASS,
   headerExtra,
   leading,
+  variant = 'card',
 }: MessageThreadProps) {
   const { messages, isLoading } = useMessages(conversationId);
   const { user } = useAuth();
@@ -166,7 +218,14 @@ export function MessageThread({
   const editMessage = useEditMessage(conversationId);
   const deleteMessage = useDeleteMessage(conversationId);
 
-  const [draft, setDraft] = useState('');
+  // Драфт — в ui-store по каналам (1f): ChatView пересоздаёт тред на смене канала.
+  const draft = useUiStore((s) => s.chatDraftByConversation[conversationId] ?? '');
+  const setChatDraft = useUiStore((s) => s.setChatDraft);
+  const setDraft = useCallback(
+    (value: string) => setChatDraft(conversationId, value),
+    [setChatDraft, conversationId],
+  );
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -233,6 +292,44 @@ export function MessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, isLoading, lastPersistedId]);
 
+  // ── S-CHAT-HUB-1f: граница «Новые сообщения».
+  //
+  // Берём `last_read_at` из УЖЕ загруженного списка каналов (тот же ключ запроса, что
+  // у сайдбара — нового обращения к БД нет) и замораживаем его на всё время, пока
+  // канал открыт. Замораживать обязательно: `useMarkRead` двигает отметку сразу после
+  // маунта, а следом realtime-инвалидация приносит новое значение — живое чтение
+  // означало бы, что разделитель исчезает через секунду после того, как появился, и
+  // прыгает на каждое входящее.
+  const { conversations } = useConversations();
+  const listEntry = conversations.find((c) => c.conversation.id === conversationId);
+  const listLastReadAt = listEntry?.lastReadAt ?? null;
+  const hasListEntry = !!listEntry;
+  const [unreadAfter, setUnreadAfter] = useState<string | null>(null);
+  const snapshotForRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Список ещё не приехал — ждём: снимок «null» сейчас погасил бы разделитель совсем.
+    if (!hasListEntry || snapshotForRef.current === conversationId) return;
+    snapshotForRef.current = conversationId;
+    setUnreadAfter(listLastReadAt);
+  }, [conversationId, hasListEntry, listLastReadAt]);
+
+  /**
+   * Первое непрочитанное сообщение — перед ним встанет разделитель.
+   *
+   * `null` в снимке значит «канал открыт впервые»: новым тогда оказывается вообще всё,
+   * и линия у самой верхней строки ничего не разделяет — не рисуем (решение спринта).
+   * Свои сообщения пропускаем: линия перед собственной репликой читается как поломка,
+   * а сюда они попадают легко — достаточно написать из соседней вкладки.
+   */
+  const firstUnreadId = useMemo(() => {
+    if (!unreadAfter) return null;
+    const found = messages.find(
+      (m) => !isTempMessage(m) && m.author_id !== (user?.id ?? null) && m.created_at > unreadAfter,
+    );
+    return found?.id ?? null;
+  }, [messages, unreadAfter, user?.id]);
+
   function toggleReaction(messageId: string, emoji: string) {
     const mine = reactionsByMessage.get(messageId)?.find((r) => r.emoji === emoji)?.mine ?? false;
     toggleReactionMut.mutate(
@@ -258,19 +355,53 @@ export function MessageThread({
   // (иначе стробоскоп на 50 сообщениях); ready → анимируем только то, что пришло ПОСЛЕ.
   const seenIdsRef = useRef<Set<string>>(new Set());
   const readyRef = useRef(false);
+  // S-CHAT-HUB-1f: реакции поп'ают только при ПОСТАНОВКЕ. Тот же приём, что у seenIds:
+  // на первом non-loading рендере множество наполняется целиком, иначе открытие канала
+  // с готовой лентой даёт залп из десятка чипов разом.
+  const seenReactionsRef = useRef<Set<string>>(new Set());
 
-  function handleScroll() {
+  // ── FAB «вниз» (1f). Порог 300px от низа; счётчик — что пришло, пока листали вверх.
+  const [showFab, setShowFab] = useState(false);
+  const [missedCount, setMissedCount] = useState(0);
+  const scrollRafRef = useRef(0);
+
+  const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-  }
+    // atBottomRef двигаем СИНХРОННО: автоскролл-эффект читает его в том же тике, в
+    // котором приходит сообщение, и отложенное на кадр значение успевало бы устареть.
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    atBottomRef.current = distance < AT_BOTTOM_PX;
+    // А вот перерисовку FAB троттлим кадром — скролл-события идут пачками.
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      const node = scrollRef.current;
+      if (!node) return;
+      const d = node.scrollHeight - node.scrollTop - node.clientHeight;
+      setShowFab(d > FAB_THRESHOLD_PX);
+      if (d < AT_BOTTOM_PX) setMissedCount(0);
+    });
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(scrollRafRef.current), []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    atBottomRef.current = true;
+    setMissedCount(0);
+    setShowFab(false);
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const added = messages.length > prevCountRef.current;
+    const added = messages.length - prevCountRef.current;
     prevCountRef.current = messages.length;
-    if (!added) return;
+    if (added <= 0) return;
     const last = messages[messages.length - 1];
     const lastIsMine = last && (last.author_id === myId || isTempMessage(last));
     if (atBottomRef.current || lastIsMine) {
@@ -279,7 +410,11 @@ export function MessageThread({
         readyRef.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       else el.scrollTop = el.scrollHeight;
+      return;
     }
+    // Листающего историю не дёргаем (гоча 6) — вместо рывка растим счётчик на FAB.
+    // Только после первой отрисовки: начальная загрузка ленты не «пропущенное».
+    if (readyRef.current) setMissedCount((n) => n + added);
   }, [messages, myId]);
 
   // На маунте (и после первой загрузки) — сразу вниз, без анимации.
@@ -298,10 +433,49 @@ export function MessageThread({
     readyRef.current = true;
   }, [isLoading, messages]);
 
+  // То же для реакций — отдельным эффектом: они приезжают своим запросом и позже ленты.
+  useEffect(() => {
+    if (isLoading) return;
+    for (const [messageId, list] of reactionsByMessage) {
+      for (const r of list) seenReactionsRef.current.add(`${messageId}:${r.emoji}`);
+    }
+  }, [isLoading, reactionsByMessage]);
+
+  /**
+   * Лента, разложенная по дням. Раньше сообщения шли плоским списком, а день-чип жил
+   * внутри обёртки ОДНОГО сообщения — sticky в такой обёртке залипает на её же
+   * высоте, то есть практически никак. День-блок даёт чипу нормальный контекст: он
+   * держится сверху, пока идёт его день, и уезжает вместе с ним.
+   *
+   * Группировка сообщений (аватар, хвостик, отступы) от этого не меняется: границы дня
+   * и так всегда были границами группы, поэтому prev/next достаточно искать внутри дня.
+   */
+  const dayGroups = useMemo(() => {
+    const out: { dayKey: string; items: MessageWithAuthor[] }[] = [];
+    for (const m of messages) {
+      const dayKey = mskDateKey(m.created_at);
+      const last = out[out.length - 1];
+      if (last && last.dayKey === dayKey) last.items.push(m);
+      else out.push({ dayKey, items: [m] });
+    }
+    return out;
+  }, [messages]);
+
   // S-CHAT-HUB-1d: сообщение может быть из одного файла — CHECK на `body` ослаблен 097.
   // Инвариант «текст ИЛИ вложение» держит именно эта строка: в БД он не выражается
   // (кросс-табличное условие, а вложения вставляются ПОСЛЕ сообщения).
   const canSend = (draft.trim().length > 0 || pendingFiles.length > 0) && !sendMessage.isPending;
+
+  // Автовысота композера (1f): сброс в auto обязателен — иначе scrollHeight меряется
+  // от уже растянутого поля и оно только растёт, но никогда не сжимается обратно.
+  // Зависимость — draft, а не onChange: текст меняют ещё вставка эмодзи и откат
+  // черновика после неудачной отправки.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_PX)}px`;
+  }, [draft]);
 
   function handleSend() {
     if (!canSend) return;
@@ -413,43 +587,69 @@ export function MessageThread({
         {headerExtra && <div className="ml-auto flex items-center gap-1">{headerExtra}</div>}
       </div>
 
-      {/* Лента: инверсия глубины — полотно на --bg, пузыри поверх */}
+      {/*
+        Полотно ленты. Обои и FAB живут на ОБЁРТКЕ, скролл — вложенным absolute-слоем:
+        absolute-потомок скроллера уезжает вместе с контентом, и узор кончался бы на
+        первом экране, а кнопка «вниз» уплывала бы вверх. Оба слоя позиционированы,
+        поэтому порядок отрисовки задаёт порядок в DOM: обои → сообщения → FAB.
+      */}
+      <div
+        className={`relative mb-3 min-h-0 overflow-hidden rounded-[var(--radius-m)] border border-border/50 ${
+          variant === 'page' ? 'chat-wallpaper' : 'bg-bg'
+        } ${listClassName}`}
+      >
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label={title}
-        className={`mb-3 overflow-y-auto rounded-[var(--radius-m)] border border-border/50 bg-bg px-3 py-2 ${listClassName}`}
+        className="absolute inset-0 overflow-y-auto px-3 py-2"
       >
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-xs text-text-mute">Загрузка...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2">
-            <MessageSquare size={20} className="text-text-mute" aria-hidden="true" />
-            <p className="text-xs text-text-mute">{emptyText}</p>
+          // 1f: на обоях пустой канал — не дырка, а приглашение: иконка в мягком круге
+          // подложки --chat-chip по центру узора.
+          <div className="flex h-full flex-col items-center justify-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-[var(--chat-chip)]">
+              <MessagesSquare size={24} className="text-text-mute" aria-hidden="true" />
+            </div>
+            <p className="max-w-[18rem] text-center text-xs text-text-mute">{emptyText}</p>
           </div>
         ) : (
           <div className="flex min-h-full flex-col justify-end">
-            {messages.map((m, i) => {
+            {dayGroups.map((group) => (
+              <div key={group.dayKey}>
+                {/* День-чип залипает сверху, пока идёт его день (НЕ aria-hidden:
+                    aria-live озвучит его как обычный текст в потоке). */}
+                <div className="sticky top-0 z-[2] flex justify-center pb-1 pt-3">
+                  <span className="rounded-full border border-border/60 bg-[var(--chat-chip)] px-2.5 py-0.5 text-meta text-text-mute backdrop-blur-[6px]">
+                    {dayChipLabel(group.dayKey, todayKey)}
+                  </span>
+                </div>
+                {group.items.map((m, i) => {
               const mine = m.author_id === myId;
               const temp = isTempMessage(m);
               const canEdit = mine && !temp;
               const canDelete = (mine || isModerator) && !temp;
+              // author_id nullable (профиль удалён → SET NULL). Все безымянные съезжают
+              // в один цвет — это честнее, чем красить каждое их сообщение по-своему.
+              const authorKey = m.author_id ?? 'unknown';
 
-              const prev = messages[i - 1];
-              const next = messages[i + 1];
-              const dayKey = mskDateKey(m.created_at);
-              const newDay = !prev || mskDateKey(prev.created_at) !== dayKey;
+              // prev/next ищем внутри дня: границы дня и так всегда были границами
+              // группы, поэтому первый в дне — groupStart, последний — groupEnd.
+              const prev = group.items[i - 1];
+              const next = group.items[i + 1];
+              const newDay = i === 0;
               const groupStart =
                 newDay ||
                 prev.author_id !== m.author_id ||
                 Date.parse(m.created_at) - Date.parse(prev.created_at) > GROUP_GAP_MS;
               const groupEnd =
                 !next ||
-                mskDateKey(next.created_at) !== dayKey ||
                 next.author_id !== m.author_id ||
                 Date.parse(next.created_at) - Date.parse(m.created_at) > GROUP_GAP_MS;
 
@@ -519,10 +719,23 @@ export function MessageThread({
                       title={r.users.map((u) => u.name).join(', ')}
                       aria-pressed={r.mine}
                       aria-label={`${r.emoji} ${r.count}`}
+                      // Подложка чужой реакции — --chat-chip, а не surface2: на обоях
+                      // непрозрачный прямоугольник читался бы как заплатка.
+                      //
+                      // `chat-own` на своём чипе — не косметика: --chat-own-bg/-border
+                      // объявлены ИМЕННО в этом классе, а строка чипов лежит СНАРУЖИ
+                      // пузыря, наследовать их там не от кого. Без класса три ссылки
+                      // ниже разрешались в invalid, и свой чип уходил в полностью
+                      // прозрачный фон с дефолтной рамкой (тянется с S-CHAT-2; на --bg
+                      // это было почти незаметно, на обоях — эмодзи прямо на узоре).
                       className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-meta leading-none tabular-nums transition-colors ${
                         r.mine
-                          ? 'border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-[color:var(--chat-own-fg,var(--text))]'
-                          : 'border-border bg-surface2 text-text-dim hover:text-text-main'
+                          ? 'chat-own border-[color:var(--chat-own-border)] bg-[var(--chat-own-bg)] text-[color:var(--chat-own-fg,var(--text))]'
+                          : 'border-border bg-[var(--chat-chip)] text-text-dim hover:text-text-main'
+                      } ${
+                        readyRef.current && !seenReactionsRef.current.has(`${m.id}:${r.emoji}`)
+                          ? 'chat-reaction-pop'
+                          : ''
                       }`}
                     >
                       <span>{r.emoji}</span>
@@ -568,17 +781,25 @@ export function MessageThread({
 
               return (
                 <div key={m.id}>
-                  {newDay && (
-                    // День-чип — обычный текст в потоке (НЕ aria-hidden), aria-live озвучит
-                    <div className="my-3 flex justify-center">
-                      <span className="rounded-full border border-border/60 bg-surface px-2.5 py-0.5 text-meta text-text-mute">
-                        {dayChipLabel(dayKey, todayKey)}
-                      </span>
+                  {m.id === firstUnreadId && (
+                    // Разделитель непрочитанного. Краска — --chat-pattern-ink: единственный
+                    // токен «фирменный цвет темы, читаемый на --chat-bg» (контрасты — в
+                    // блоке 1f в globals.css).
+                    <div className="my-3 flex items-center gap-2 text-meta uppercase tracking-[0.04em] text-[color:var(--chat-pattern-ink)]">
+                      <span
+                        aria-hidden="true"
+                        className="h-px flex-1 bg-[var(--chat-pattern-ink)] opacity-30"
+                      />
+                      Новые сообщения
+                      <span
+                        aria-hidden="true"
+                        className="h-px flex-1 bg-[var(--chat-pattern-ink)] opacity-30"
+                      />
                     </div>
                   )}
                   {mine ? (
                     <div
-                      className={`group flex justify-end gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
+                      className={`group flex items-end justify-end gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
                     >
                       {controls}
                       {editBlock || (
@@ -606,21 +827,27 @@ export function MessageThread({
                     </div>
                   ) : (
                     <div
-                      className={`group flex gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
+                      className={`group flex items-end gap-1.5 ${groupStart && !newDay ? 'mt-3' : 'mt-0.5'}`}
                     >
-                      {groupStart ? (
-                        <Avatar author={m.author} />
+                      {/* Аватар — у ПОСЛЕДНЕГО сообщения группы («кто закончил реплику»,
+                          паттерн Telegram); у остальных строк на его месте распорка,
+                          ряд выровнен по низу. */}
+                      {groupEnd ? (
+                        <Avatar author={m.author} authorKey={authorKey} />
                       ) : (
                         <div className="w-7 shrink-0" aria-hidden="true" />
                       )}
                       {editBlock || (
                         <div
-                          className={`chat-other flex max-w-[72%] flex-col rounded-[var(--radius-m)] border border-border bg-surface px-3 py-1.5 shadow-[var(--shadow-xs)] ${
+                          className={`chat-other flex max-w-[72%] flex-col rounded-[var(--radius-m)] border border-[color:var(--chat-in-border)] bg-[var(--chat-in-bg)] px-3 py-1.5 shadow-[var(--shadow-xs)] ${
                             groupEnd ? 'rounded-bl-[4px]' : ''
                           } ${animate ? 'animate-appear' : ''}`}
                         >
                           {groupStart && (
-                            <span className="text-xs font-medium text-text-main">
+                            <span
+                              style={authorNameStyle(authorKey)}
+                              className="chat-author text-xs font-medium"
+                            >
                               {m.author?.full_name ?? 'Участник'}
                             </span>
                           )}
@@ -642,8 +869,37 @@ export function MessageThread({
                   {reactionChips}
                 </div>
               );
-            })}
+                })}
+              </div>
+            ))}
           </div>
+        )}
+      </div>
+
+        {/* Кнопка «вниз» с числом пропущенного. Живёт на обёртке (не в скроллере) —
+            иначе уплывала бы вместе с лентой. */}
+        {showFab && (
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            aria-label={
+              missedCount > 0 ? `Вниз, новых сообщений: ${missedCount}` : 'Прокрутить вниз'
+            }
+            className="absolute bottom-3 right-3 z-[3] flex h-9 w-9 items-center justify-center
+                       rounded-full border border-border bg-surface text-text-dim shadow-[var(--shadow-md)]
+                       transition-colors hover:text-text-main"
+          >
+            <ChevronDown size={16} aria-hidden="true" />
+            {missedCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 min-w-[1.15rem] rounded-full bg-accent px-1
+                           text-center text-meta font-semibold leading-[1.15rem] tabular-nums text-white"
+              >
+                {missedCount > 99 ? '99+' : missedCount}
+              </span>
+            )}
+          </button>
         )}
       </div>
 
@@ -692,8 +948,24 @@ export function MessageThread({
         </div>
       )}
 
-      {/* Composer: вне скролла, на --surface */}
-      <div className="flex shrink-0 items-end gap-2">
+      {/*
+        Композер-капсула (1f): одна поверхность --surface с рамкой и мягкой тенью,
+        скрепка и эмодзи внутри неё. Раньше это были три отдельные коробки в ряд —
+        поле выглядело продолжением ленты, а не местом, куда пишут.
+
+        Капсула стоит ПОД лентой, а не поверх её нижней кромки (концепт допускал оба
+        варианта). Наложение потребовало бы вычитать высоту растущей textarea из высоты
+        скролл-области, а высота ленты в двух вариантах разная (flex-1 в хабе,
+        h-[min(55vh,40rem)] на карточке) — цена «сообщения уезжают под капсулу» выше
+        выигрыша.
+
+        `focus-within:border-accent` на капсуле, а не на textarea: рамка теперь одна на
+        всех, и фокус должен подсвечивать её, а не невидимую границу поля.
+      */}
+      <div
+        className="flex shrink-0 items-end gap-1 rounded-[var(--radius-l)] border border-input bg-surface
+                   px-1.5 py-1.5 shadow-[var(--shadow-sm)] transition-colors focus-within:border-accent"
+      >
         <input
           ref={fileInputRef}
           type="file"
@@ -715,26 +987,12 @@ export function MessageThread({
               ? `Не больше ${MAX_ATTACHMENTS_PER_MESSAGE} файлов в сообщении`
               : 'Прикрепить файл'
           }
-          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
-                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none
-                     disabled:opacity-40"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-mute
+                     transition-colors hover:bg-surface2 hover:text-text-main
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
         >
           <Paperclip size={16} />
         </button>
-        <button
-          ref={emojiBtnRef}
-          type="button"
-          onClick={() => setEmojiOpen((v) => !v)}
-          aria-label="Эмодзи"
-          aria-expanded={emojiOpen}
-          className="flex h-[42px] items-center rounded-lg border border-input bg-surface px-2.5
-                     text-text-mute transition-colors hover:text-text-main focus:border-accent focus:outline-none"
-        >
-          <Smile size={16} />
-        </button>
-        {emojiOpen && (
-          <ChatEmojiPicker onPick={handleEmojiPick} onClose={closeEmojiPicker} anchorRef={emojiBtnRef} />
-        )}
         <textarea
           ref={textareaRef}
           value={draft}
@@ -748,23 +1006,47 @@ export function MessageThread({
           placeholder={pendingFiles.length > 0 ? 'Подпись (необязательно)…' : 'Сообщение команде…'}
           title="Enter — отправить, Shift+Enter — перенос"
           aria-label="Сообщение команде. Enter — отправить, Shift+Enter — перенос"
-          rows={2}
+          rows={1}
           maxLength={4000}
           // Пока файлы летят — composer заблокирован: вторая отправка поверх первой
           // забрала бы у неё черновик и файлы.
           disabled={sendMessage.isPending}
-          className="min-h-[42px] flex-1 resize-none rounded-lg border border-input bg-surface px-3 py-2
-                     text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none
-                     disabled:opacity-60"
+          // Высота — из эффекта автороста (до COMPOSER_MAX_PX, дальше свой скролл);
+          // resize-none, чтобы ручка ресайза не спорила с ним.
+          className="min-h-[2rem] flex-1 resize-none self-center border-0 bg-transparent px-1 py-1.5
+                     text-sm leading-5 text-text-main placeholder:text-text-mute
+                     focus:outline-none disabled:opacity-60"
         />
+        <button
+          ref={emojiBtnRef}
+          type="button"
+          onClick={() => setEmojiOpen((v) => !v)}
+          aria-label="Эмодзи"
+          aria-expanded={emojiOpen}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-mute
+                     transition-colors hover:bg-surface2 hover:text-text-main
+                     focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <Smile size={16} />
+        </button>
+        {emojiOpen && (
+          <ChatEmojiPicker onPick={handleEmojiPick} onClose={closeEmojiPicker} anchorRef={emojiBtnRef} />
+        )}
         <button
           onClick={handleSend}
           disabled={!canSend}
-          className="flex items-center gap-1 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white
-                     transition-opacity hover:opacity-90 disabled:bg-surface3 disabled:text-text-mute"
+          // Пустой драфт — приглушённая кнопка, непустой — заливка --accent (в t-aura
+          // .bg-accent сама уходит в тёмный --accent-text, белый текст ≥4.5:1).
+          // `disabled` настоящий, а не серый на вид (грабля SDP).
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform
+                      duration-[var(--duration-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                        canSend
+                          ? 'bg-accent text-white hover:scale-105'
+                          : 'bg-surface3 text-text-mute'
+                      }`}
           aria-label="Отправить"
         >
-          <SendHorizontal size={14} />
+          <SendHorizontal size={15} />
         </button>
       </div>
     </div>

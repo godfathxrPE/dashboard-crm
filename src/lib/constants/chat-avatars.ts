@@ -17,19 +17,33 @@ export interface ChannelGradient {
   name: string;
   /** Светлый конец (135deg, левый верх). */
   from: string;
-  /** Тёмный конец (правый низ). */
+  /** Тёмный конец (правый низ). Он же — цвет ИМЕНИ автора на светлых темах. */
   to: string;
+  /**
+   * S-CHAT-HUB-1f: осветлённый близнец для ТЕКСТА на тёмных темах.
+   *
+   * Пары выше нарисованы под белые инициалы, то есть обе их точки тёмные — как цвет
+   * имени во входящем пузыре на #1e2233 они дали бы нечитаемую кашу. `onDark` — тот же
+   * оттенок в светлой части шкалы; контраст посчитан к самому светлому из тёмных
+   * `--chat-in-bg` (frost #1e2233, худший случай — у aurora и tidal фон темнее).
+   */
+  onDark: string;
 }
 
+// Три колонки контраста, все замерены на живой странице:
+//   ① белые инициалы на светлом конце `from` — худший случай аватара (было в 1e);
+//   ② `to` как ТЕКСТ имени на белом --chat-in-bg светлых тем;
+//   ③ `onDark` как текст на #1e2233 — самый светлый из тёмных --chat-in-bg (frost).
 export const CHANNEL_GRADIENTS: readonly ChannelGradient[] = [
-  { name: 'teal',    from: '#0F766E', to: '#134E4A' }, // 5.5:1
-  { name: 'violet',  from: '#7C3AED', to: '#5B21B6' }, // 5.7:1
-  { name: 'orange',  from: '#C2410C', to: '#7C2D12' }, // 4.6:1
-  { name: 'emerald', from: '#047857', to: '#064E3B' }, // 5.5:1
-  { name: 'cyan',    from: '#0E7490', to: '#164E63' }, // 5.4:1
-  { name: 'rose',    from: '#E11D48', to: '#9F1239' }, // 4.6:1
-  { name: 'indigo',  from: '#4F46E5', to: '#3730A3' }, // 6.1:1
-  { name: 'amber',   from: '#B45309', to: '#78350F' }, // 4.4:1
+  //                                                          ①      ②      ③
+  { name: 'teal',    from: '#0F766E', to: '#134E4A', onDark: '#5EEAD4' }, // 5.5 · 9.5 · 10.7
+  { name: 'violet',  from: '#7C3AED', to: '#5B21B6', onDark: '#C4B5FD' }, // 5.7 · 9.0 ·  8.5
+  { name: 'orange',  from: '#C2410C', to: '#7C2D12', onDark: '#FDBA74' }, // 4.6 · 9.4 ·  9.3
+  { name: 'emerald', from: '#047857', to: '#064E3B', onDark: '#6EE7B7' }, // 5.5 · 9.7 · 10.3
+  { name: 'cyan',    from: '#0E7490', to: '#164E63', onDark: '#67E8F9' }, // 5.4 · 9.1 · 10.9
+  { name: 'rose',    from: '#E11D48', to: '#9F1239', onDark: '#FDA4AF' }, // 4.6 · 8.0 ·  8.3
+  { name: 'indigo',  from: '#4F46E5', to: '#3730A3', onDark: '#A5B4FC' }, // 6.1 · 9.9 ·  7.9
+  { name: 'amber',   from: '#B45309', to: '#78350F', onDark: '#FCD34D' }, // 4.4 · 9.1 · 10.9
 ] as const;
 
 /**

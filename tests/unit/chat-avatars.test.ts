@@ -29,6 +29,19 @@ describe('djb2 / gradientFor', () => {
     expect(a).not.toBe(b);
   });
 
+  // S-CHAT-HUB-1f: имя автора красится тем же хешем, что и аватар. Пара без onDark
+  // означала бы `color: undefined` на тёмных темах — имя схлопнулось бы в цвет текста
+  // и «один цвет на человека» тихо перестал бы работать ровно у одной восьмой людей.
+  it('у каждой пары есть все три точки, и все — валидные hex', () => {
+    for (const g of CHANNEL_GRADIENTS) {
+      for (const value of [g.from, g.to, g.onDark]) {
+        expect(value).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      }
+      // onDark — осветлённый близнец, а не копия тёмного конца.
+      expect(g.onDark).not.toBe(g.to);
+    }
+  });
+
   it('покрывает всю палитру, а не пару цветов', () => {
     const used = new Set(
       Array.from({ length: 400 }, (_, i) => gradientFor(`c-${i}`).name),
