@@ -10,6 +10,7 @@ import { companyFormSchema, type CompanyFormValues } from '@/lib/validators/comp
 import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
+import { okvedToIndustry } from '@/lib/data/okved';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
@@ -106,6 +107,8 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         legal_address: editCompany.legal_address ?? null,
         inn_status: editCompany.inn_status ?? null,
         inn_verified_at: editCompany.inn_verified_at ?? null,
+        // 103 тоже ещё на гейте → та же защита `?? null`.
+        okved: editCompany.okved ?? null,
       });
       // Заполненные реквизиты не прячем: они уже часть карточки.
       setShowLegal(Boolean(editCompany.legal_name || editCompany.kpp || editCompany.ogrn || editCompany.legal_address));
@@ -114,7 +117,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         name: '', inn: null, industry: null, website: null, phone: null, phones: [],
         email: null, address: null, notes: null, owner_id: null,
         kpp: null, ogrn: null, legal_name: null, legal_address: null,
-        inn_status: null, inn_verified_at: null,
+        inn_status: null, inn_verified_at: null, okved: null,
       });
       setShowLegal(false);
     }
@@ -137,7 +140,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
       // всё легло в поля формы и видно до нажатия «Сохранить».
       // `shouldDirty` обязателен: без него Modal не считает форму изменённой и
       // закроется без предупреждения, унеся подтянутые данные.
-      const put = (field: 'kpp' | 'ogrn' | 'legal_name' | 'legal_address' | 'inn_status', v: string | null) =>
+      const put = (field: 'kpp' | 'ogrn' | 'legal_name' | 'legal_address' | 'inn_status' | 'okved', v: string | null) =>
         setValue(field, v, { shouldDirty: true });
 
       put('legal_name', r.legal_name);
@@ -145,6 +148,9 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
       put('ogrn', r.ogrn);
       put('legal_address', r.legal_address);
       put('inn_status', r.status);
+      // ОКВЭД — такой же факт реестра, как ОГРН: пишем всегда, поля в форме нет
+      // (служебный код, его место на карточке).
+      put('okved', r.okved);
       // `name` — рабочее имя компании. Заполняем ТОЛЬКО пустое поле: введённое
       // руками («Ориент») не заменяется юрформой из реестра.
       if (!getValues('name')?.trim() && r.short_name) {
@@ -152,12 +158,38 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
       }
       // Фактический `address` не трогаем вовсе — юрадрес живёт в legal_address.
 
+      // ═══ S-OKVED-1: отрасль, контакты ═══
+      // Отрасль выводим из кода локальным справочником и кладём ТОЛЬКО в пустое поле:
+      // проставленная менеджером важнее выведенной из реестра — он видел клиента, а
+      // справочник видел две цифры. В `industry` уходит текст, никогда не код.
+      const industry = okvedToIndustry(r.okved);
+      const industryFilled = Boolean(industry) && !getValues('industry')?.trim();
+      if (industry && industryFilled) {
+        setValue('industry', industry, { shouldDirty: true });
+      }
+      // Контакты реестра — по тому же правилу «только в пустое». На тарифе
+      // «Подсказки» их, скорее всего, не будет вовсе, и это нормальный исход.
+      if (!getValues('email')?.trim() && r.emails[0]) {
+        setValue('email', r.emails[0], { shouldDirty: true });
+      }
+      if (!getValues('phones')?.length && r.phones.length) {
+        // Нормализацию (тримминг, ровно один primary) доделает `onSubmit`.
+        setValue(
+          'phones',
+          r.phones.map((value, i) => ({ type: 'work' as const, value, is_primary: i === 0 })),
+          { shouldDirty: true },
+        );
+      }
+
       setVerifiedAt(new Date().toISOString());
       setShowLegal(true);
+      // Подстановка отрасли не должна быть молчаливой: поле «Отрасль» может быть вне
+      // зоны видимости, а изменилось оно не от того, что человек его трогал.
+      const industryNote = industry && industryFilled ? ` · Отрасль: ${industry}` : '';
       toast.success(
         r.management_name
-          ? `Реквизиты подставлены. Руководитель: ${r.management_name}`
-          : 'Реквизиты подставлены из ЕГРЮЛ',
+          ? `Реквизиты подставлены. Руководитель: ${r.management_name}${industryNote}`
+          : `Реквизиты подставлены из ЕГРЮЛ${industryNote}`,
       );
     } catch {
       // Текст показывает глобальный mutationCache.onError (toast). Форму не трогаем:

@@ -25,51 +25,6 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-/**
- * ⚠️ ВРЕМЕННЫЙ СТАБ (S-INN-1, миграция 102 ещё не применена гейтом).
- *
- * Не новая таблица, а ШЕСТЬ КОЛОНОК на существующей `companies` — поэтому стаб не
- * заменяет запись таблицы, а дописывается к ней интерсекцией (см.
- * `& CompanyLegalFieldsStub` ниже): `Row`/`Insert`/`Update` сливаются с
- * сгенерированными по ключам, и остальные колонки `companies` продолжают приходить
- * из `GenDatabase`.
- *
- * Снимается регенерацией после apply 102 (`scripts/gen-types.sh`): колонки придут из
- * автогенерации, и весь блок надо УДАЛИТЬ вместе с `& CompanyLegalFieldsStub`.
- * `supabase.gen.ts` руками НЕ правится.
- *
- * `type`, а не `interface`, — postgrest-js требует совместимости с индексной
- * сигнатурой (грабля S-R2-SIGNOFF-1).
- */
-type CompanyLegalFieldsStub = {
-  companies: {
-    Row: {
-      kpp: string | null;
-      ogrn: string | null;
-      legal_name: string | null;
-      legal_address: string | null;
-      inn_status: string | null;
-      inn_verified_at: string | null;
-    };
-    Insert: {
-      kpp?: string | null;
-      ogrn?: string | null;
-      legal_name?: string | null;
-      legal_address?: string | null;
-      inn_status?: string | null;
-      inn_verified_at?: string | null;
-    };
-    Update: {
-      kpp?: string | null;
-      ogrn?: string | null;
-      legal_name?: string | null;
-      legal_address?: string | null;
-      inn_status?: string | null;
-      inn_verified_at?: string | null;
-    };
-  };
-};
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -79,7 +34,7 @@ export type Database = {
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    } & CompanyLegalFieldsStub;
+    };
   };
 };
 

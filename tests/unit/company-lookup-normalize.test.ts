@@ -31,6 +31,7 @@ const LEGAL_ENTITY = {
         },
         state: { status: 'ACTIVE' },
         management: { name: 'Иванов Иван Иванович', post: 'ГЕНЕРАЛЬНЫЙ ДИРЕКТОР' },
+        okved: '10.13.2',
       },
     },
   ],
@@ -96,6 +97,58 @@ describe('normalizeDadataParty', () => {
     for (const junk of [null, undefined, 'строка', 42, [], { suggestions: 'нет' }, { suggestions: [null] }]) {
       expect(normalizeDadataParty(junk).found).toBe(false);
     }
+  });
+});
+
+// ═══ S-OKVED-1: ОКВЭД и контакты ═══
+describe('ОКВЭД и контакты из ответа реестра', () => {
+  it('основной код ОКВЭД извлекается как есть', () => {
+    // Как есть — потому что `okved` это факт реестра. Отрасль из него выводит
+    // отдельный справочник (src/lib/data/okved.ts), а не нормализатор.
+    expect(normalizeDadataParty(LEGAL_ENTITY).okved).toBe('10.13.2');
+  });
+
+  it('телефоны и почты — массивы объектов с value, сужаются в строки', () => {
+    const r = normalizeDadataParty({
+      suggestions: [{
+        value: 'ООО "ТЕСТ"',
+        data: {
+          okved: '46.90',
+          phones: [{ value: '+7 495 123-45-67' }, { value: '  ' }, { value: null }, 'мусор-не-объект'],
+          emails: [{ value: 'info@test.ru' }],
+        },
+      }],
+    });
+    expect(r.phones).toEqual(['+7 495 123-45-67']);   // пустые и битые элементы отброшены
+    expect(r.emails).toEqual(['info@test.ru']);
+  });
+
+  it('отсутствие okved/phones/emails в payload не роняет разбор', () => {
+    // Ожидаемый случай на тарифе «Подсказки»: контактов в ответе нет вовсе.
+    // Пустой массив, а не null и не undefined — форма перебирает его без проверок.
+    const r = normalizeDadataParty({
+      suggestions: [{ value: 'ООО "ТЕСТ"', data: { kpp: '770701001' } }],
+    });
+    expect(r.found).toBe(true);
+    expect(r.okved).toBeNull();
+    expect(r.phones).toEqual([]);
+    expect(r.emails).toEqual([]);
+  });
+
+  it('подсказка без data отдаёт пустые контакты, а не undefined', () => {
+    const r = normalizeDadataParty({ suggestions: [{ value: 'ООО "ТЕСТ"' }] });
+    expect(r.found).toBe(true);
+    expect(r.okved).toBeNull();
+    expect(r.phones).toEqual([]);
+    expect(r.emails).toEqual([]);
+  });
+
+  it('phones не массив — пустой список, а не исключение', () => {
+    const r = normalizeDadataParty({
+      suggestions: [{ value: 'ООО "ТЕСТ"', data: { phones: 'нет', emails: { value: 'x@y.ru' } } }],
+    });
+    expect(r.phones).toEqual([]);
+    expect(r.emails).toEqual([]);
   });
 });
 
