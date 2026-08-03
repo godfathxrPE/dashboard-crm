@@ -659,6 +659,7 @@ export type Database = {
           name: string
           notes: string | null
           ogrn: string | null
+          okved: string | null
           org_id: string
           owner_id: string | null
           phone: string | null
@@ -682,6 +683,7 @@ export type Database = {
           name: string
           notes?: string | null
           ogrn?: string | null
+          okved?: string | null
           org_id: string
           owner_id?: string | null
           phone?: string | null
@@ -705,6 +707,7 @@ export type Database = {
           name?: string
           notes?: string | null
           ogrn?: string | null
+          okved?: string | null
           org_id?: string
           owner_id?: string | null
           phone?: string | null

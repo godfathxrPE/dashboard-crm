@@ -204,9 +204,9 @@
 > `CompanyLegalFieldsStub` снят, шесть колонок приходят из `supabase.gen.ts`; `tsc --noEmit` чист.
 > Едет тем же PR: Edge Function **`company-lookup`** (`verify_jwt = true`, прокси к DaData
 > `findById/party`, секрет `DADATA_API_KEY`, **в БД не пишет — service_role не нужен**) —
-> **v1 задеплоена гейтом 2026-08-03** (сверено `list_edge_functions`: ACTIVE, version 1);
-> **103 (S-OKVED-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (ветка `feat/okved-industry`, ответвлена от
-> `feat/inn-lookup`, т.к. S-INN-1 в `main` ещё не смёржен): **одна колонка** `companies.okved`
+> **v2 задеплоена гейтом 2026-08-03** (S-OKVED-1 добавил `okved`/`phones`/`emails`; ACTIVE, version 2, `verify_jwt = true`);
+> **103 (S-OKVED-1) — ПРИМЕНЕНА гейтом 2026-08-03, версия `20260803180840`** (ветка
+> `feat/okved-industry`, ответвлена от `feat/inn-lookup`, т.к. S-INN-1 в `main` ещё не смёржен): **одна колонка** `companies.okved`
 > — основной код ОКВЭД-2 из ЕГРЮЛ (`data.okved` DaData, нормализатор S-INN-1 его выбрасывал).
 > Ни индекса, ни политик, ни грантов: по ОКВЭД не фильтруют и не группируют (B-tree на 261
 > строке — мёртвый вес), колонка в уже защищённой таблице.
@@ -220,11 +220,10 @@
 > голыми кодами в проде (`10.13`, `10.13.2` ×2, `10.13.4`, `10.26.12`) это ровно тот исход,
 > который колонка прекращает. Существующие 16 значений `industry` **не мигрированы намеренно**
 > — данные в проде, чистка решается человеком.
-> ⚠️ **Реген типов нужен**: до него в `src/types/database.ts` живёт стаб `CompanyOkvedStub`
-> (интерсекция к записи `companies`, снимается после apply). **Edge `company-lookup` требует
-> РЕДЕПЛОЯ**: v1 в проде не отдаёт `okved`/`phones`/`emails`, и до редеплоя фича молча
-> ничего не подставляет (клиент это переживает — `use-company-lookup.ts` достраивает
-> недостающие поля на границе, а не падает на `undefined`);
+> ⚠️ **Реген типов**: стаб `CompanyOkvedStub` в `src/types/database.ts` снимается регенерацией
+> после apply (на момент записи — за Олегом). Edge `company-lookup` **редеплоена гейтом до v2**,
+> `okved`/`phones`/`emails` теперь приходят; защита в `use-company-lookup.ts` (достройка
+> недостающих полей на границе) остаётся как страховка на будущие рассинхроны фронта и функции;
 > следующая свободная — **104**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -1113,7 +1112,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ## Tenant-таблицы (`org_id NOT NULL`)
 
-### companies _(002, +041 phones applied 2026-07-13, +102 юрреквизиты applied 2026-08-03, +103 okved — НЕ ПРИМЕНЕНА)_
+### companies _(002, +041 phones applied 2026-07-13, +102 юрреквизиты applied 2026-08-03, +103 okved applied 2026-08-03)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1126,7 +1125,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 | legal_address | text | _(102 applied 2026-08-03)_ · юрадрес. Отдельно от `address` |
 | inn_status | text | _(102 applied 2026-08-03)_ · `ACTIVE`/`LIQUIDATING`/`LIQUIDATED`/… **без enum**: словарь принадлежит внешнему реестру. Не-`ACTIVE` — риск-сигнал, UI показывает жёлтым |
 | inn_verified_at | timestamptz | _(102 applied 2026-08-03)_ · когда реквизиты подтянуты из ЕГРЮЛ. NULL = вводили руками |
-| okved | text | **103 НЕ применена** · основной код ОКВЭД-2 из ЕГРЮЛ («10.13.2»). Факт реестра: только lookup, в форме поля нет. Отрасль из него выводит `src/lib/data/okved.ts` и кладёт в `industry` — **код в `industry` не пишется никогда** |
+| okved | text | _(103 applied 2026-08-03)_ · основной код ОКВЭД-2 из ЕГРЮЛ («10.13.2»). Факт реестра: только lookup, в форме поля нет. Отрасль из него выводит `src/lib/data/okved.ts` и кладёт в `industry` — **код в `industry` не пишется никогда** |
 | owner_id / created_by | uuid | → profiles (`created_by` DEFAULT auth.uid()) |
 | **org_id** | uuid | **NOT NULL** → organizations _(021/022)_ |
 | created_at / updated_at | timestamptz | |
