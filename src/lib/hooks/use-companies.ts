@@ -28,6 +28,17 @@ export interface Company {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // ═══ S-INN-1 (102): юрреквизиты из ЕГРЮЛ ═══
+  // Опциональные по той же причине, что `phones` выше: до применения 102 колонок нет
+  // в ответе `select('*')`, и обязательные поля дали бы undefined под видом string|null.
+  // `legal_name`/`legal_address` — отдельно от `name`/`address`: реестр не затирает
+  // рабочее имя и фактический адрес (инвариант фичи, шапка миграции 102).
+  kpp?: string | null;
+  ogrn?: string | null;
+  legal_name?: string | null;
+  legal_address?: string | null;
+  inn_status?: string | null;
+  inn_verified_at?: string | null;
   // Aggregated (computed client-side or via view)
   contacts_count?: number;
   projects_count?: number;
@@ -43,6 +54,13 @@ export interface CompanyInsert {
   email?: string | null;
   address?: string | null;
   notes?: string | null;
+  // S-INN-1 (102)
+  kpp?: string | null;
+  ogrn?: string | null;
+  legal_name?: string | null;
+  legal_address?: string | null;
+  inn_status?: string | null;
+  inn_verified_at?: string | null;
 }
 
 export interface CompanyUpdate extends Partial<CompanyInsert> {

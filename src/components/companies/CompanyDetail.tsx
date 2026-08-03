@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   ArrowLeft, Pencil, Trash2, Building2, Phone, Mail, Globe, MapPin, FileText,
-  Users, FolderKanban, Loader2, AlertCircle, Activity, Rocket,
+  Users, FolderKanban, Loader2, AlertCircle, Activity, Rocket, AlertTriangle, RefreshCw,
 } from 'lucide-react';
-import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
+import { useCompany, useDeleteCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
+import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
+import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
+import { formatDateHuman } from '@/lib/utils/dates';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -47,6 +51,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: allProjects } = useProjects();
   const { data: allStages } = usePipelineStages();
   const deleteCompany = useDeleteCompany();
+  const updateCompany = useUpdateCompany();
+  const lookup = useCompanyLookup();
   const { data: orgRole } = useOrgRole();
   const canCreate = orgRole != null && orgRole !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
   const [modalOpen, setModalOpen] = useState(false);
@@ -109,9 +115,48 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
     { icon: Mail, label: 'Email', value: company.email },
     { icon: Globe, label: 'Сайт', value: company.website },
     { icon: MapPin, label: 'Адрес', value: company.address },
-    { icon: FileText, label: 'ИНН', value: company.inn },
   ];
   const hasPhones = (company.phones?.length ?? 0) > 0 || !!company.phone;
+
+  // ═══ S-INN-1: реквизиты ЕГРЮЛ ═══
+  // ИНН уехал из общей сетки сюда: в одиночку он ничего не решает, а рядом с КПП,
+  // ОГРН и статусом юрлица — это блок, по которому готовят договор.
+  const legalFields = [
+    { label: 'ИНН', value: company.inn },
+    { label: 'КПП', value: company.kpp ?? null },
+    { label: 'ОГРН', value: company.ogrn ?? null },
+    { label: 'Юр. название', value: company.legal_name ?? null },
+    { label: 'Юр. адрес', value: company.legal_address ?? null },
+  ].filter((f) => f.value);
+  const statusLabel = innStatusLabel(company.inn_status);
+  const statusRisky = isRiskyInnStatus(company.inn_status);
+  const hasLegal = legalFields.length > 0 || !!statusLabel;
+
+  async function handleRefreshLegal() {
+    const inn = company?.inn?.trim() ?? '';
+    if (!isLookupableInn(inn)) return;
+    try {
+      const r = await lookup.mutateAsync(inn);
+      if (!r.found) {
+        toast.error('Компания с таким ИНН не найдена в ЕГРЮЛ');
+        return;
+      }
+      // Пишем ТОЛЬКО юрполя. `name` и `address` не трогаем даже здесь: карточка
+      // обновляет реквизиты, а не переименовывает компанию (инвариант фичи).
+      await updateCompany.mutateAsync({
+        id: companyId,
+        legal_name: r.legal_name,
+        kpp: r.kpp,
+        ogrn: r.ogrn,
+        legal_address: r.legal_address,
+        inn_status: r.status,
+        inn_verified_at: new Date().toISOString(),
+      });
+      toast.success('Реквизиты обновлены из ЕГРЮЛ');
+    } catch {
+      // Текст показывает глобальный mutationCache.onError (toast).
+    }
+  }
 
   return (
     <>
@@ -170,6 +215,58 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           </Bracket>
         ))}
       </div>
+
+      {/* ═══ Реквизиты (S-INN-1) ═══
+          Блок появляется, только если есть что показать: у 36 компаний из 260 ИНН
+          не заполнен вовсе, и пустая рамка «Реквизиты» на их карточках — шум.
+          Кнопка «Обновить из ЕГРЮЛ» живёт здесь же и активна только при валидном
+          ИНН: без него запрос слать нечем. */}
+      {hasLegal && (
+        <Bracket className="mb-6 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <FileText size={14} className="text-text-dim" />
+            <span className="text-xs font-semibold text-text-main">Реквизиты</span>
+            {statusLabel && (
+              statusRisky ? (
+                <span data-tag className="flex items-center gap-1 rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+                  style={{ color: 'var(--yellow-text, var(--yellow))' }}>
+                  <AlertTriangle size={10} /> {statusLabel}
+                </span>
+              ) : (
+                <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">{statusLabel}</span>
+              )
+            )}
+            {isLookupableInn(company.inn) && (
+              <button
+                onClick={handleRefreshLegal}
+                disabled={lookup.isPending || updateCompany.isPending}
+                className="ml-auto flex items-center gap-1 text-xs text-text-mute transition-colors
+                           hover:text-text-main disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {lookup.isPending || updateCompany.isPending
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <RefreshCw size={11} />}
+                Обновить из ЕГРЮЛ
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            {legalFields.map((f) => (
+              <div key={f.label} className="flex gap-2 text-sm">
+                <span className="shrink-0 text-text-mute">{f.label}</span>
+                <span className="text-text-main">{f.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {company.inn_verified_at && (
+            <p className="mt-3 text-xs text-text-mute">
+              Сверено с ЕГРЮЛ · {formatDateHuman(company.inn_verified_at)}
+            </p>
+          )}
+        </Bracket>
+      )}
 
       {/* Notes */}
       {company.notes && (

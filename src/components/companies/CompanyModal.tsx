@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+import { AlertTriangle, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
 import { companyFormSchema, type CompanyFormValues } from '@/lib/validators/company';
 import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '@/lib/hooks/use-companies';
+import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
+import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
@@ -28,11 +31,26 @@ interface CompanyModalProps {
   editCompany: Company | null;
 }
 
+const INPUT_CLASS =
+  'w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main ' +
+  'placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+
 export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps) {
   const router = useRouter();
   const create = useCreateCompany();
   const update = useUpdateCompany();
+  const lookup = useCompanyLookup();
   const { data: allCompanies = [] } = useCompanies();
+  /** Реквизиты ЕГРЮЛ — свёрнуты, пока пусты: форма компании и без них длинная. */
+  const [showLegal, setShowLegal] = useState(false);
+  /**
+   * Отметка «данные сверены с ЕГРЮЛ прямо сейчас». Ставится ТОЛЬКО успешным
+   * lookup'ом и уходит в `inn_verified_at` при сохранении: если пользователь правил
+   * реквизиты руками, дата сверки остаётся прежней — иначе «сверено с ЕГРЮЛ» врало бы.
+   */
+  const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
+  /** 23505 от uq_companies_org_inn — сервер отказал по дублю, даже если кэш этого не знал. */
+  const [innConflict, setInnConflict] = useState(false);
 
   const {
     register,
@@ -41,6 +59,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
@@ -49,6 +68,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
   // Дубль по ИНН (точно) или названию (нормализованно) — предупреждение, не блок
   const nameVal = watch('name');
   const innVal = watch('inn');
+  const statusVal = watch('inn_status');
   const duplicate = useMemo(() => {
     const inn = innVal?.trim() || null;
     const norm = nameVal ? normalizeCompanyName(nameVal) : '';
@@ -79,16 +99,83 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         address: editCompany.address,
         notes: editCompany.notes,
         owner_id: editCompany.owner_id ?? null,
+        // 102 ещё на гейте → колонок может не быть в ответе select('*'): `?? null`.
+        kpp: editCompany.kpp ?? null,
+        ogrn: editCompany.ogrn ?? null,
+        legal_name: editCompany.legal_name ?? null,
+        legal_address: editCompany.legal_address ?? null,
+        inn_status: editCompany.inn_status ?? null,
+        inn_verified_at: editCompany.inn_verified_at ?? null,
       });
+      // Заполненные реквизиты не прячем: они уже часть карточки.
+      setShowLegal(Boolean(editCompany.legal_name || editCompany.kpp || editCompany.ogrn || editCompany.legal_address));
     } else {
-      reset({ name: '', inn: null, industry: null, website: null, phone: null, phones: [], email: null, address: null, notes: null, owner_id: null });
+      reset({
+        name: '', inn: null, industry: null, website: null, phone: null, phones: [],
+        email: null, address: null, notes: null, owner_id: null,
+        kpp: null, ogrn: null, legal_name: null, legal_address: null,
+        inn_status: null, inn_verified_at: null,
+      });
+      setShowLegal(false);
     }
+    setVerifiedAt(null);
+    setInnConflict(false);
   }, [editCompany, reset]);
+
+  const canLookup = isLookupableInn(innVal);
+
+  async function handleLookup() {
+    const inn = innVal?.trim() ?? '';
+    if (!isLookupableInn(inn)) return;
+    try {
+      const r = await lookup.mutateAsync(inn);
+      if (!r.found) {
+        toast.error('Компания с таким ИНН не найдена в ЕГРЮЛ');
+        return;
+      }
+      // Дизайн-инвариант: автозаполнение ПРЕДЛАГАЕТ, а не перезаписывает молча —
+      // всё легло в поля формы и видно до нажатия «Сохранить».
+      // `shouldDirty` обязателен: без него Modal не считает форму изменённой и
+      // закроется без предупреждения, унеся подтянутые данные.
+      const put = (field: 'kpp' | 'ogrn' | 'legal_name' | 'legal_address' | 'inn_status', v: string | null) =>
+        setValue(field, v, { shouldDirty: true });
+
+      put('legal_name', r.legal_name);
+      put('kpp', r.kpp);
+      put('ogrn', r.ogrn);
+      put('legal_address', r.legal_address);
+      put('inn_status', r.status);
+      // `name` — рабочее имя компании. Заполняем ТОЛЬКО пустое поле: введённое
+      // руками («Ориент») не заменяется юрформой из реестра.
+      if (!getValues('name')?.trim() && r.short_name) {
+        setValue('name', r.short_name, { shouldDirty: true });
+      }
+      // Фактический `address` не трогаем вовсе — юрадрес живёт в legal_address.
+
+      setVerifiedAt(new Date().toISOString());
+      setShowLegal(true);
+      toast.success(
+        r.management_name
+          ? `Реквизиты подставлены. Руководитель: ${r.management_name}`
+          : 'Реквизиты подставлены из ЕГРЮЛ',
+      );
+    } catch {
+      // Текст показывает глобальный mutationCache.onError (toast). Форму не трогаем:
+      // сбой поиска не должен стирать то, что человек уже ввёл.
+    }
+  }
 
   const onSubmit = async (values: CompanyFormValues) => {
     // Нормализуем phones + зеркалим primary в legacy `phone` (backward-compat).
     const phones = normalizePhones(values.phones);
-    const payload = { ...values, phones, phone: primaryPhone(phones) };
+    const payload = {
+      ...values,
+      phones,
+      phone: primaryPhone(phones),
+      // Дата сверки обновляется только если в этой сессии формы был успешный lookup.
+      inn_verified_at: verifiedAt ?? values.inn_verified_at ?? null,
+    };
+    setInnConflict(false);
     try {
       if (editCompany) {
         await update.mutateAsync({ id: editCompany.id, ...payload });
@@ -96,9 +183,16 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
         await create.mutateAsync(payload);
       }
       onClose();
-    } catch {
+    } catch (err) {
       // Ошибку показывает глобальный mutationCache.onError (toast). Модалку НЕ
       // закрываем — даём исправить и повторить.
+      //
+      // 23505 по uq_companies_org_inn (102) — дубль, которого не было в кэше:
+      // поднимаем флаг, а карточку-виновника покажет баннер ниже, когда
+      // onSettled-инвалидация обновит список компаний.
+      const code = (err as { code?: string } | null)?.code;
+      const text = `${(err as { message?: string } | null)?.message ?? ''}`;
+      if (code === '23505' && text.includes('uq_companies_org_inn')) setInnConflict(true);
     }
   };
 
@@ -112,6 +206,16 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
     { name: 'website', label: 'Сайт', placeholder: 'https://company.ru' },
     { name: 'address', label: 'Адрес', placeholder: 'Москва, ул. Примерная, 1' },
   ];
+
+  const legalFields: { name: keyof CompanyFormValues; label: string; placeholder: string }[] = [
+    { name: 'legal_name', label: 'Юридическое название', placeholder: 'ООО «РОГА И КОПЫТА»' },
+    { name: 'kpp', label: 'КПП', placeholder: '770701001' },
+    { name: 'ogrn', label: 'ОГРН', placeholder: '1027700132195' },
+    { name: 'legal_address', label: 'Юридический адрес', placeholder: 'г Москва, ул Примерная, д 1' },
+  ];
+
+  const statusLabel = innStatusLabel(statusVal);
+  const statusRisky = isRiskyInnStatus(statusVal);
 
   return (
     <Modal
@@ -135,27 +239,98 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
           {fields.map((f) => (
             <div key={f.name}>
               <label className="mb-1 block text-xs font-medium text-text-dim">{f.label}</label>
-              <input
-                {...register(f.name)}
-                type={f.type ?? 'text'}
-                placeholder={f.placeholder}
-                autoFocus={f.name === 'name'}
-                className="w-full rounded-lg border border-input bg-surface px-3 py-2
-                           text-sm text-text-main placeholder:text-text-mute
-                           focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              />
+              {f.name === 'inn' ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    {...register('inn')}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={f.placeholder}
+                    className={INPUT_CLASS}
+                  />
+                  {/* Кнопка настоящим `disabled`, а не серой на вид (грабля SDP):
+                      пока в поле не 10/12 цифр, запрос слать нечем. */}
+                  <button
+                    type="button"
+                    onClick={handleLookup}
+                    disabled={!canLookup || lookup.isPending}
+                    title={canLookup ? 'Подтянуть реквизиты из ЕГРЮЛ' : 'ИНН — 10 или 12 цифр'}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2
+                               text-sm text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main
+                               disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                  >
+                    {lookup.isPending
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <Download size={14} />}
+                    Заполнить
+                  </button>
+                </div>
+              ) : (
+                <input
+                  {...register(f.name)}
+                  type={f.type ?? 'text'}
+                  placeholder={f.placeholder}
+                  autoFocus={f.name === 'name'}
+                  className={INPUT_CLASS}
+                />
+              )}
               {errors[f.name] && <p className="mt-0.5 text-xs text-red">{errors[f.name]?.message}</p>}
+
+              {/* Статус юрлица — риск-сигнал пресейла, а не украшение: договор
+                  с ликвидируемым юрлицом подписывать нельзя. */}
+              {f.name === 'inn' && statusLabel && (
+                statusRisky ? (
+                  <p className="mt-1 flex items-center gap-1.5 rounded-lg border border-yellow/40 bg-yellow-l/40 px-2 py-1 text-xs text-text-dim">
+                    <AlertTriangle size={12} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
+                    Юрлицо в статусе «{statusLabel}» — проверьте перед договором
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-text-mute">Статус в ЕГРЮЛ: {statusLabel}</p>
+                )
+              )}
             </div>
           ))}
 
           <PhoneFields control={control} register={register} watch={watch} setValue={setValue} defaultType="work" />
 
-          {/* Дубль — предупреждение, не блокирует */}
+          {/* ═══ Реквизиты ЕГРЮЛ ═══
+              Свёрнуты, пока пусты: в 90% случаев компанию заводят по названию и
+              телефону, и четыре пустых поля реквизитов только удлиняют форму.
+              Успешный lookup раскрывает блок сам — подставленное обязано быть видно
+              до сохранения (дизайн-инвариант фичи). */}
+          <div className="rounded-lg border border-border/60">
+            <button
+              type="button"
+              onClick={() => setShowLegal((v) => !v)}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs font-medium text-text-dim transition-colors hover:text-text-main"
+            >
+              {showLegal ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              Реквизиты ЕГРЮЛ
+            </button>
+            {showLegal && (
+              <div className="space-y-3 border-t border-border/60 px-3 py-3">
+                {legalFields.map((f) => (
+                  <div key={f.name}>
+                    <label className="mb-1 block text-xs font-medium text-text-dim">{f.label}</label>
+                    <input {...register(f.name)} type="text" placeholder={f.placeholder} className={INPUT_CLASS} />
+                    {errors[f.name] && <p className="mt-0.5 text-xs text-red">{errors[f.name]?.message}</p>}
+                  </div>
+                ))}
+                <p className="text-xs text-text-mute">
+                  Юрназвание и юрадрес не заменяют «Название» и «Адрес» — рабочее имя
+                  компании и фактический адрес остаются как есть.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Дубль — предупреждение, не блок. После отказа сервера по
+              uq_companies_org_inn (102) тот же баннер называет вещи прямо. */}
           {duplicate && (
             <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l/40 px-3 py-2 text-xs">
               <AlertTriangle size={13} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
               <span className="text-text-dim">
-                Похоже на существующую компанию:{' '}
+                {innConflict ? 'Компания с таким ИНН уже есть:' : 'Похоже на существующую компанию:'}{' '}
                 <span className="font-medium text-text-main">{duplicate.name}</span>
                 {duplicate.inn && <span className="text-text-mute"> · ИНН {duplicate.inn}</span>}
               </span>
@@ -176,9 +351,7 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
               {...register('notes')}
               rows={2}
               placeholder="Дополнительная информация..."
-              className="w-full rounded-lg border border-input bg-surface px-3 py-2
-                         text-sm text-text-main placeholder:text-text-mute
-                         focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              className={INPUT_CLASS}
             />
           </div>
 

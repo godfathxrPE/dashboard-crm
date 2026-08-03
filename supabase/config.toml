@@ -30,3 +30,15 @@ verify_jwt = true
 #      • Vault webhook_dispatch_url = https://<ref>.supabase.co/functions/v1/webhook-dispatch
 [functions.webhook-dispatch]
 verify_jwt = false
+
+# S-INN-1: автозаполнение реквизитов компании по ИНН (прокси к DaData findById/party).
+#
+# verify_jwt = true — тот же контур, что у ai-summarize/ai-run: анониму функция
+# недоступна. Собственной проверки прав внутри нет и не нужно: функция НЕ ЧИТАЕТ и
+# НЕ ПИШЕТ в БД проекта вовсе, а отдаёт публичные данные ЕГРЮЛ по ИНН. Реквизиты
+# сохраняет пользователь обычным UPDATE из формы, под своими RLS-политиками —
+# поэтому service_role здесь не запрашивается.
+#
+# Секрет, который обязан быть заведён ДО первого вызова: DADATA_API_KEY.
+[functions.company-lookup]
+verify_jwt = true
