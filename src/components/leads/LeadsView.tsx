@@ -44,6 +44,7 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { exportToCSV } from '@/lib/utils/export-csv';
 import { formatPhone } from '@/lib/utils/phone';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { LeadModal } from './LeadModal';
 import { LeadPeekContent } from './LeadPeekContent';
 import { LeadConversionModal } from './LeadConversionModal';
@@ -368,6 +369,9 @@ export function LeadsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
+  // S-DEBT-CONFIRM-1: массовое удаление — ровно тот экран, ради которого запрещён
+  // `confirm()` (два диалога подряд → «Prevent additional dialogs» → тихий `false`).
+  const [bulkDelete, setBulkDelete] = useState<string[] | null>(null);
 
   // Direction filter
   const [dirFilter, setDirFilter] = useState<'all' | 'iiot' | 'erp' | 'none'>('all');
@@ -666,10 +670,7 @@ export function LeadsView() {
               label: 'Удалить',
               icon: <Trash2 size={14} />,
               variant: 'danger',
-              onClick: (ids) => {
-                if (!confirm(`Удалить ${ids.length} лидов?`)) return;
-                ids.forEach((id) => deleteLead.mutate(id));
-              },
+              onClick: (ids) => setBulkDelete(ids),
             },
             {
               label: 'CSV',
@@ -721,6 +722,19 @@ export function LeadsView() {
           isOpen={!!convertLead}
           onClose={() => setConvertLead(null)}
           lead={convertLead}
+        />
+      )}
+
+      {bulkDelete && (
+        <InlineConfirm
+          mode="overlay"
+          question={`Удалить ${bulkDelete.length} лидов?`}
+          consequence="Это действие нельзя отменить."
+          onConfirm={() => {
+            bulkDelete.forEach((id) => deleteLead.mutate(id));
+            setBulkDelete(null);
+          }}
+          onCancel={() => setBulkDelete(null)}
         />
       )}
     </>

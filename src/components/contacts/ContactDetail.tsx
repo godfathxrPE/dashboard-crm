@@ -13,6 +13,7 @@ import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { projectHref } from '@/lib/utils/project-href';
 import { formatBudget } from '@/lib/validators/project';
 import { PhoneList } from '@/components/shared/PhoneList';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { ContactModal } from './ContactModal';
 
 interface ContactDetailProps { contactId: string; }
@@ -31,6 +32,10 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkCompanyId, setLinkCompanyId] = useState('');
   const [linkRole, setLinkRole] = useState('');
+  // S-DEBT-CONFIRM-1: удаление карточки — оверлей (уводит со страницы, нужен текст
+  // последствий), снятие связи с компанией — inline на месте крестика в строке.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmUnlink = useConfirm();
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
 
@@ -54,9 +59,8 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
   const availableCompanies = (allCompanies ?? []).filter((c) => !linkedCompanyIds.has(c.id));
 
   function handleDelete() {
-    if (confirm('Удалить контакт?')) {
-      deleteContact.mutate(contactId, { onSuccess: () => router.push('/contacts') });
-    }
+    setConfirmingDelete(false);
+    deleteContact.mutate(contactId, { onSuccess: () => router.push('/contacts') });
   }
 
   function handleLink() {
@@ -68,9 +72,8 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
   }
 
   function handleUnlink(companyId: string) {
-    if (confirm('Убрать связь с компанией?')) {
-      unlinkCompany.mutate({ contactId, companyId });
-    }
+    confirmUnlink.cancel();
+    unlinkCompany.mutate({ contactId, companyId });
   }
 
   const fullName = `${contact.first_name} ${contact.last_name}`;
@@ -102,10 +105,20 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
             <Pencil size={14} />
           </button>
-          <button onClick={handleDelete}
+          <button onClick={() => setConfirmingDelete(true)}
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-red/10 hover:text-red">
             <Trash2 size={14} />
           </button>
+          {confirmingDelete && (
+            <InlineConfirm
+              mode="overlay"
+              question="Удалить контакт?"
+              consequence="Связанные компании и сделки сохранятся. Это действие нельзя отменить."
+              pending={deleteContact.isPending}
+              onConfirm={handleDelete}
+              onCancel={() => setConfirmingDelete(false)}
+            />
+          )}
         </div>
       </div>
 
@@ -191,11 +204,19 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                     {cc.company?.name ?? 'N/A'}
                   </button>
                   {cc.role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">{cc.role}</span>}
-                  <button onClick={() => handleUnlink(cc.company_id)}
-                    className="rounded p-0.5 text-text-mute opacity-0 transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100"
-                    title="Убрать связь">
-                    <X size={12} />
-                  </button>
+                  {confirmUnlink.isAsking(cc.company_id) ? (
+                    <InlineConfirm
+                      question="Убрать связь?"
+                      onConfirm={() => handleUnlink(cc.company_id)}
+                      onCancel={confirmUnlink.cancel}
+                    />
+                  ) : (
+                    <button onClick={() => confirmUnlink.ask(cc.company_id)}
+                      className="rounded p-0.5 text-text-mute opacity-0 transition-all hover:bg-red/10 hover:text-red group-hover:opacity-100"
+                      title="Убрать связь">
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

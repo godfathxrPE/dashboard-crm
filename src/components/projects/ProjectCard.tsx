@@ -2,7 +2,9 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { formatBudget } from '@/lib/validators/project';
 import { getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
 import type { Project } from '@/lib/hooks/use-projects';
@@ -58,6 +60,7 @@ function AttentionLine({ tone, dot, text }: { tone: 'red' | 'yellow'; dot: 'fill
 interface ProjectCardProps {
   project: Project;
   onEdit: (project: Project) => void;
+  /** Удаляет БЕЗ вопроса — подтверждение inline здесь, у кнопки (S-DEBT-CONFIRM-1). */
   onDelete: (id: string) => void;
   onAdvance: (id: string) => void;
   onOpen: (id: string) => void;
@@ -70,6 +73,7 @@ export function ProjectCard({
   onAdvance,
   onOpen,
 }: ProjectCardProps) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const {
     attributes,
     listeners,
@@ -261,20 +265,30 @@ export function ProjectCard({
             );
           })()}
           <div className="ml-auto flex items-center gap-1">
-            <button
-              onClick={() => onEdit(project)}
-              aria-label="Редактировать"
-              className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
-            >
-              <Pencil size={12} />
-            </button>
-            <button
-              onClick={() => onDelete(project.id)}
-              aria-label="Удалить"
-              className="rounded p-1 text-text-mute transition-colors hover:bg-red/10 hover:text-red"
-            >
-              <Trash2 size={12} />
-            </button>
+            {confirmingDelete ? (
+              <InlineConfirm
+                question="Удалить сделку?"
+                onConfirm={() => { setConfirmingDelete(false); onDelete(project.id); }}
+                onCancel={() => setConfirmingDelete(false)}
+              />
+            ) : (
+              <>
+                <button
+                  onClick={() => onEdit(project)}
+                  aria-label="Редактировать"
+                  className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
+                >
+                  <Pencil size={12} />
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(true)}
+                  aria-label="Удалить"
+                  className="rounded p-1 text-text-mute transition-colors hover:bg-red/10 hover:text-red"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

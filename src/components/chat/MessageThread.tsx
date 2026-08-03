@@ -25,6 +25,7 @@ import { useEntityTitles } from '@/lib/hooks/use-entity-titles';
 import { APP_ORIGIN, entityRefsOf, parseEntityLinks } from '@/lib/utils/entity-links';
 import { matchTaskCommand } from '@/lib/utils/task-intent';
 import { useTasksBySourceMessages } from '@/lib/hooks/use-tasks-by-message';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { MessageAttachments } from '@/components/chat/MessageAttachments';
 import { MessageBody } from '@/components/chat/MessageBody';
 import {
@@ -671,14 +672,15 @@ export function MessageThread({
     setEditingId(null);
   }
 
-  // TODO (CHAT-HUB 1b/polish): window.confirm блокирует браузерные смоки и расходится с
-  // конвенцией проекта. Переехал сюда как есть — 1a не меняет поведение (W4 ревью).
+  // S-DEBT-CONFIRM-1: долг, помеченный TODO в 1b, закрыт — подтверждение inline на месте
+  // иконки, как у остальной ленты (window.confirm блокировал браузерные смоки).
+  const confirmDelete = useConfirm();
+
   function handleDelete(m: MessageWithAuthor) {
-    if (window.confirm('Удалить сообщение?')) {
-      deleteMessage.mutate(m.id, {
-        onError: () => toast.error('Не удалось удалить сообщение'),
-      });
-    }
+    confirmDelete.cancel();
+    deleteMessage.mutate(m.id, {
+      onError: () => toast.error('Не удалось удалить сообщение'),
+    });
   }
 
   const todayKey = mskDateKey(new Date());
@@ -835,13 +837,21 @@ export function MessageThread({
                     </button>
                   )}
                   {canDelete && (
-                    <button
-                      onClick={() => handleDelete(m)}
-                      className="rounded p-0.5 text-text-mute transition-colors hover:text-red"
-                      aria-label="Удалить сообщение"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    confirmDelete.isAsking(m.id) ? (
+                      <InlineConfirm
+                        question="Удалить сообщение?"
+                        onConfirm={() => handleDelete(m)}
+                        onCancel={confirmDelete.cancel}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => confirmDelete.ask(m.id)}
+                        className="rounded p-0.5 text-text-mute transition-colors hover:text-red"
+                        aria-label="Удалить сообщение"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )
                   )}
                 </div>
               );

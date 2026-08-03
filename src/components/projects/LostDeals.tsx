@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Undo2, Trash2, Building2, Calendar } from 'lucide-react';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { LOSS_REASON_CONFIG, formatBudget } from '@/lib/validators/project';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { LossReason } from '@/lib/validators/project';
@@ -9,12 +10,14 @@ import type { LossReason } from '@/lib/validators/project';
 interface LostDealsProps {
   projects: Project[];
   onRestore: (id: string) => void;
+  /** Удаляет БЕЗ вопроса — подтверждение inline здесь, у кнопки (S-DEBT-CONFIRM-1). */
   onDelete: (id: string) => void;
   onEdit: (project: Project) => void;
 }
 
 export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const confirmDelete = useConfirm();
 
   if (projects.length === 0) return null;
 
@@ -104,14 +107,22 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
                   >
                     <Undo2 size={13} />
                   </button>
-                  <button
-                    onClick={() => onDelete(project.id)}
-                    className="rounded p-1.5 text-text-mute transition-colors
-                               hover:bg-red/10 hover:text-red"
-                    title="Удалить навсегда"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {confirmDelete.isAsking(project.id) ? (
+                    <InlineConfirm
+                      question="Удалить сделку?"
+                      onConfirm={() => { confirmDelete.cancel(); onDelete(project.id); }}
+                      onCancel={confirmDelete.cancel}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => confirmDelete.ask(project.id)}
+                      className="rounded p-1.5 text-text-mute transition-colors
+                                 hover:bg-red/10 hover:text-red"
+                      title="Удалить навсегда"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

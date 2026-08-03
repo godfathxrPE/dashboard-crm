@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Users, Plus, X, Loader2 } from 'lucide-react';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import {
   useProjectMembers,
   useAddProjectMember,
@@ -72,6 +73,9 @@ export function ProjectTeam({
   const [newProfileId, setNewProfileId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<ProjectMemberRole>('manager');
   const [errorText, setErrorText] = useState<string | null>(null);
+  // Подтверждение — inline на месте крестика (S-DEBT-CONFIRM-1). Имя человека в вопрос
+  // не тащим: его строка рядом, а длинное ФИО разорвало бы её.
+  const confirmRemove = useConfirm();
 
   const memberProfileIds = members.map((m) => m.profile_id);
   const grouped = groupMembersByRole(members);
@@ -152,19 +156,27 @@ export function ProjectTeam({
                       </span>
                     )}
                     {canManage && (
-                      <button
-                        onClick={() => {
-                          if (!confirm(`Убрать «${m.profile?.full_name ?? 'сотрудника'}» из команды?`)) return;
-                          setErrorText(null);
-                          removeMember.mutate(m.id, {
-                            onError: (err) => setErrorText(parseMemberError(err)),
-                          });
-                        }}
-                        aria-label="Убрать из команды"
-                        className="rounded p-1 text-text-mute transition-colors hover:text-red"
-                      >
-                        <X size={13} />
-                      </button>
+                      confirmRemove.isAsking(m.id) ? (
+                        <InlineConfirm
+                          question="Убрать из команды?"
+                          onConfirm={() => {
+                            confirmRemove.cancel();
+                            setErrorText(null);
+                            removeMember.mutate(m.id, {
+                              onError: (err) => setErrorText(parseMemberError(err)),
+                            });
+                          }}
+                          onCancel={confirmRemove.cancel}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => confirmRemove.ask(m.id)}
+                          aria-label="Убрать из команды"
+                          className="rounded p-1 text-text-mute transition-colors hover:text-red"
+                        >
+                          <X size={13} />
+                        </button>
+                      )
                     )}
                   </div>
                 ))}

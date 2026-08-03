@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { FileText, Plus, Download, Trash2, Upload } from 'lucide-react';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import {
   useProjectFiles,
   useUploadProjectFile,
@@ -38,10 +39,13 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
     [upload, comment],
   );
 
+  // Подтверждение — inline на месте иконки (S-DEBT-CONFIRM-1). Имя файла в вопрос не
+  // тащим: строка стоит рядом, а длинное имя разорвало бы её.
+  const confirmDelete = useConfirm();
+
   function handleDelete(file: ProjectFile) {
-    if (confirm(`Удалить «${file.file_name}»?`)) {
-      remove.mutate(file);
-    }
+    confirmDelete.cancel();
+    remove.mutate(file);
   }
 
   return (
@@ -132,13 +136,22 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                 <span className="shrink-0 text-xs text-text-mute">
                   {new Date(f.created_at!).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
                 </span>
-                <button
-                  onClick={() => handleDelete(f)}
-                  className="shrink-0 rounded p-0.5 text-text-mute hover:text-red transition-colors"
-                  aria-label="Удалить файл"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {confirmDelete.isAsking(f.id) ? (
+                  <InlineConfirm
+                    question="Удалить файл?"
+                    className="shrink-0"
+                    onConfirm={() => handleDelete(f)}
+                    onCancel={confirmDelete.cancel}
+                  />
+                ) : (
+                  <button
+                    onClick={() => confirmDelete.ask(f.id)}
+                    className="shrink-0 rounded p-0.5 text-text-mute hover:text-red transition-colors"
+                    aria-label="Удалить файл"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             ))}
             {upload.isPending && (

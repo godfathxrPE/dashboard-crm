@@ -18,6 +18,7 @@ import { canonicalPosition } from '@/lib/utils/position';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { ContactModal } from './ContactModal';
 import { ContactPeekContent } from './ContactPeekContent';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -53,6 +54,9 @@ export function ContactsTable() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
+  // S-DEBT-CONFIRM-1: массовое удаление — ровно тот экран, ради которого запрещён
+  // `confirm()` (два диалога подряд → «Prevent additional dialogs» → тихий `false`).
+  const [bulkDelete, setBulkDelete] = useState<string[] | null>(null);
 
   // Dynamic position chips (top 5)
   const positionFilters = useMemo(() => {
@@ -265,10 +269,7 @@ export function ContactsTable() {
             label: 'Удалить',
             icon: <Trash2 size={14} />,
             variant: 'danger',
-            onClick: (ids) => {
-              if (!confirm(`Удалить ${ids.length} контактов?`)) return;
-              ids.forEach((id) => deleteContact.mutate(id));
-            },
+            onClick: (ids) => setBulkDelete(ids),
           },
           {
             label: 'CSV',
@@ -292,6 +293,19 @@ export function ContactsTable() {
         onClose={() => { setModalOpen(false); setEditContact(null); }}
         editContact={editContact}
       />
+
+      {bulkDelete && (
+        <InlineConfirm
+          mode="overlay"
+          question={`Удалить ${bulkDelete.length} контактов?`}
+          consequence="Связанные компании и сделки сохранятся. Это действие нельзя отменить."
+          onConfirm={() => {
+            bulkDelete.forEach((id) => deleteContact.mutate(id));
+            setBulkDelete(null);
+          }}
+          onCancel={() => setBulkDelete(null)}
+        />
+      )}
     </>
   );
 }

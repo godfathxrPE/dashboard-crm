@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Video, Plus, Trash2, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { useProjectVideos, useAddVideo, useDeleteVideo } from '@/lib/hooks/use-project-videos';
 import { parseVideoUrl, PROVIDER_LABELS } from '@/lib/utils/video-embed-helpers';
 import type { ProjectVideo } from '@/types/entities';
@@ -51,12 +52,14 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
     );
   }
 
+  // Подтверждение — inline на месте иконки (S-DEBT-CONFIRM-1).
+  const confirmDelete = useConfirm();
+
   function handleDelete(video: ProjectVideo) {
-    if (window.confirm('Удалить видео?')) {
-      deleteVideo.mutate(video.id, {
-        onError: () => toast.error('Не удалось удалить видео'),
-      });
-    }
+    confirmDelete.cancel();
+    deleteVideo.mutate(video.id, {
+      onError: () => toast.error('Не удалось удалить видео'),
+    });
   }
 
   return (
@@ -180,13 +183,22 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
                     {PROVIDER_LABELS[video.provider as keyof typeof PROVIDER_LABELS] ?? video.provider}
                   </span>
                   {canManage && (
-                    <button
-                      onClick={() => handleDelete(video)}
-                      className="shrink-0 rounded p-0.5 text-text-mute hover:text-red transition-colors"
-                      aria-label="Удалить видео"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    confirmDelete.isAsking(video.id) ? (
+                      <InlineConfirm
+                        question="Удалить видео?"
+                        className="shrink-0"
+                        onConfirm={() => handleDelete(video)}
+                        onCancel={confirmDelete.cancel}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => confirmDelete.ask(video.id)}
+                        className="shrink-0 rounded p-0.5 text-text-mute hover:text-red transition-colors"
+                        aria-label="Удалить видео"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )
                   )}
                 </div>
               </div>

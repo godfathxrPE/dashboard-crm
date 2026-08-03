@@ -7,8 +7,50 @@ const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({ baseDirectory: __dirname });
 
+// S-DEBT-CONFIRM-1: запрет браузерных модальных диалогов — не стиль, а исправление
+// молчаливого отказа. После галочки «Prevent this page from creating additional dialogs»
+// (Chrome предлагает её со ВТОРОГО диалога подряд, а в CRM удаляют пачками) `confirm()`
+// возвращает `false` мгновенно и без единого пикселя: кнопки удаления перестают работать
+// без ошибки и без лога. Плюс диалог блокирует поток (realtime, таймеры) и намертво
+// вешает браузерные смоки Playwright.
+//
+// Правило живёт в линте, а не в договорённости: договорённость уже разъехалась на две
+// взаимоисключающие «конвенции проекта» — GanttTimeline объявлял `confirm` нормой, пять
+// других файлов объявляли его запретом.
+const noBrowserDialogs = {
+  'no-restricted-globals': [
+    'error',
+    {
+      name: 'confirm',
+      message: 'Используй InlineConfirm (src/components/ui/InlineConfirm.tsx). Причина — CLAUDE.md.',
+    },
+    { name: 'alert', message: 'Используй toast (sonner). Причина — CLAUDE.md.' },
+    { name: 'prompt', message: 'Используй форму или модалку. Причина — CLAUDE.md.' },
+  ],
+  // Тот же глобал можно позвать через `window.` — `no-restricted-globals` этого не видит.
+  'no-restricted-properties': [
+    'error',
+    {
+      object: 'window',
+      property: 'confirm',
+      message: 'Используй InlineConfirm (src/components/ui/InlineConfirm.tsx). Причина — CLAUDE.md.',
+    },
+    {
+      object: 'window',
+      property: 'alert',
+      message: 'Используй toast (sonner). Причина — CLAUDE.md.',
+    },
+    {
+      object: 'window',
+      property: 'prompt',
+      message: 'Используй форму или модалку. Причина — CLAUDE.md.',
+    },
+  ],
+};
+
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  { rules: noBrowserDialogs },
 ];
 
 export default eslintConfig;

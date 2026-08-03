@@ -19,6 +19,7 @@ import { EditableCell } from '@/components/shared/EditableCell';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { CompanyModal } from './CompanyModal';
 import { CompanyPeekContent } from './CompanyPeekContent';
 import { ExcelImportButton } from './ExcelImport';
@@ -48,6 +49,10 @@ export function CompaniesTable() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
+  // S-DEBT-CONFIRM-1: массовое удаление — ровно тот экран, ради которого запрещён
+  // `confirm()`: два подряд, и Chrome предлагает «Prevent additional dialogs», после
+  // чего кнопка молча перестаёт работать.
+  const [bulkDelete, setBulkDelete] = useState<string[] | null>(null);
 
   // Build lookup maps for chip filters
   const companyContactCount = useMemo(() => {
@@ -307,10 +312,7 @@ export function CompaniesTable() {
             label: 'Удалить',
             icon: <Trash2 size={14} />,
             variant: 'danger',
-            onClick: (ids) => {
-              if (!confirm(`Удалить ${ids.length} компаний?`)) return;
-              ids.forEach((id) => deleteCompany.mutate(id));
-            },
+            onClick: (ids) => setBulkDelete(ids),
           },
           {
             label: 'CSV',
@@ -334,6 +336,19 @@ export function CompaniesTable() {
         onClose={() => { setModalOpen(false); setEditCompany(null); }}
         editCompany={editCompany}
       />
+
+      {bulkDelete && (
+        <InlineConfirm
+          mode="overlay"
+          question={`Удалить ${bulkDelete.length} компаний?`}
+          consequence="Связанные контакты и сделки сохранятся. Это действие нельзя отменить."
+          onConfirm={() => {
+            bulkDelete.forEach((id) => deleteCompany.mutate(id));
+            setBulkDelete(null);
+          }}
+          onCancel={() => setBulkDelete(null)}
+        />
+      )}
     </>
   );
 }

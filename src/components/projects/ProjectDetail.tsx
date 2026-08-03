@@ -72,6 +72,7 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
 import { DealStakeholders } from './DealStakeholders';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import type { Task } from '@/types/entities';
 
 // W4a: Гант (849 строк + измерение стрелок) грузится только при открытии вкладки
@@ -205,6 +206,13 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
+  // S-DEBT-CONFIRM-1: удаление — оверлей с последствиями; откат стадии — тоже оверлей,
+  // но с одним состоянием на все три воронки. Функцию в состоянии не держим: хранится
+  // цель отката, а ветку выбирает обработчик (`kind`).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [rollback, setRollback] = useState<
+    { stageId: string; stageName: string; kind: 'deal' | 'delivery' } | null
+  >(null);
   // P3: модалка завершения delivery (чеклист вех, гейт 038)
   const [completing, setCompleting] = useState(false);
   // S-IA-DELIVERY-1 (M2): null = «пользователь ещё не выбирал» → эффективный таб
@@ -287,11 +295,19 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
   function handleDelete() {
     if (!project) return;
-    if (confirm(`Удалить ${project.type === 'client' ? 'сделку' : 'проект'}? Связанные задачи сохранятся. Это действие нельзя отменить.`)) {
-      deleteProject.mutate(project.id, {
-        onSuccess: () => router.push(backHref),
-      });
-    }
+    setConfirmingDelete(false);
+    deleteProject.mutate(project.id, {
+      onSuccess: () => router.push(backHref),
+    });
+  }
+
+  /** Подтверждённый откат стадии — ветка та же, что была в обработчиках воронок. */
+  function applyRollback() {
+    if (!project || !rollback) return;
+    const { stageId, kind } = rollback;
+    setRollback(null);
+    if (kind === 'deal') openTransition({ project, toStageId: stageId });
+    else moveToStageId(project.id, stageId);
   }
 
   return (
@@ -504,13 +520,23 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             </button>
           )}
           <button
-            onClick={handleDelete}
+            onClick={() => setConfirmingDelete(true)}
             aria-label="Удалить"
             className="rounded-lg border border-border p-1.5 text-text-mute
                        transition-colors hover:bg-red/10 hover:text-red"
           >
             <Trash2 size={14} />
           </button>
+          {confirmingDelete && (
+            <InlineConfirm
+              mode="overlay"
+              question={`Удалить ${project.type === 'client' ? 'сделку' : 'проект'}?`}
+              consequence="Связанные задачи сохранятся. Это действие нельзя отменить."
+              pending={deleteProject.isPending}
+              onConfirm={handleDelete}
+              onCancel={() => setConfirmingDelete(false)}
+            />
+          )}
         </div>
       </div>
 
@@ -533,9 +559,11 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               if (!currentStageObj || !targetStageObj) return;
               if (targetStageObj.order_index === currentStageObj.order_index) return;
 
-              // Confirm on backward move
+              // Назад по воронке — только через подтверждение (S-DEBT-CONFIRM-1:
+              // оверлей вместо confirm, решение уезжает в applyRollback).
               if (targetStageObj.order_index < currentStageObj.order_index) {
-                if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
+                setRollback({ stageId: newStageId, stageName: targetStageObj.name, kind: 'deal' });
+                return;
               }
 
               openTransition({ project, toStageId: newStageId });
@@ -558,9 +586,10 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               if (!currentStageObj || !targetStageObj) return;
               if (targetStageObj.order_index === currentStageObj.order_index) return;
 
-              // Confirm on backward move
+              // Назад по воронке — только через подтверждение (S-DEBT-CONFIRM-1).
               if (targetStageObj.order_index < currentStageObj.order_index) {
-                if (!confirm(`Вернуть сделку на стадию «${targetStageObj.name}»?`)) return;
+                setRollback({ stageId: newStageId, stageName: targetStageObj.name, kind: 'deal' });
+                return;
               }
 
               openTransition({ project, toStageId: newStageId });
@@ -585,8 +614,14 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               if (!currentStageObj || !targetStageObj) return;
               if (targetStageObj.order_index === currentStageObj.order_index) return;
 
+              // Назад по фазам — только через подтверждение (S-DEBT-CONFIRM-1).
               if (targetStageObj.order_index < currentStageObj.order_index) {
-                if (!confirm(`Вернуть проект на фазу «${targetStageObj.name}»?`)) return;
+                setRollback({
+                  stageId: newStageId,
+                  stageName: targetStageObj.name,
+                  kind: 'delivery',
+                });
+                return;
               }
 
               // ⚠️ ЗДЕСЬ МОДАЛКИ ПЕРЕХОДА НЕТ И НЕ ДОЛЖНО БЫТЬ (S-R2-TRANSITION-1b).
@@ -948,6 +983,21 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             router.push(`/projects/${newId}`);
           }}
           onClose={() => setSpawning(false)}
+        />
+      )}
+
+      {/* Откат стадии — одно подтверждение на все три воронки (S-DEBT-CONFIRM-1). */}
+      {rollback && (
+        <InlineConfirm
+          mode="overlay"
+          question={
+            rollback.kind === 'deal'
+              ? `Вернуть сделку на стадию «${rollback.stageName}»?`
+              : `Вернуть проект на фазу «${rollback.stageName}»?`
+          }
+          confirmLabel="Вернуть"
+          onConfirm={applyRollback}
+          onCancel={() => setRollback(null)}
         />
       )}
     </>

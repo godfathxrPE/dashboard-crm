@@ -528,9 +528,10 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
   }
 
   function handleEdit(project: Project) { setEditProject(project); setModalOpen(true); }
+  // Подтверждение — inline у кнопки (ProjectCard / LostDeals), S-DEBT-CONFIRM-1:
+  // название сделки видно в самой карточке, повторять его в вопросе незачем.
   function handleDelete(id: string) {
-    const name = projects?.find((p) => p.id === id)?.name ?? 'сделка';
-    if (confirm(`Удалить «${name}»? Это действие нельзя отменить.`)) deleteProject.mutate(id);
+    deleteProject.mutate(id);
   }
   function handleAdvance(id: string) {
     const p = projects?.find((pr) => pr.id === id);

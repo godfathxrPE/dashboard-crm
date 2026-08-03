@@ -19,6 +19,7 @@ import { ChannelAvatar } from '@/components/chat/ChannelAvatar';
 import { ChannelList } from '@/components/chat/ChannelList';
 import { GroupModal } from '@/components/chat/GroupModal';
 import { MessageThread } from '@/components/chat/MessageThread';
+import { CONFIRM_TTL_MS } from '@/components/ui/InlineConfirm';
 import { cn } from '@/lib/utils/cn';
 import type { Conversation } from '@/types/entities';
 
@@ -170,9 +171,6 @@ export function ChatView() {
     </div>
   );
 }
-
-/** Сколько живёт inline-подтверждение выхода, прежде чем откатиться в обычную кнопку. */
-const CONFIRM_TTL_MS = 5000;
 
 /**
  * S-CHAT-HUB-1c: правая часть шапки треда у ГРУППЫ — счётчик участников и управление.

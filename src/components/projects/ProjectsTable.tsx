@@ -18,6 +18,7 @@ import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
 import { projectHref } from '@/lib/utils/project-href';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage, SegmentPredicate } from '@/types/database';
@@ -51,6 +52,9 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
   const { data: allStages } = usePipelineStages();
   const deleteProject = useDeleteProject();
   const [modalOpen, setModalOpen] = useState(false);
+  // S-DEBT-CONFIRM-1: массовое удаление — ровно тот экран, ради которого запрещён
+  // `confirm()` (два диалога подряд → «Prevent additional dialogs» → тихий `false`).
+  const [bulkDelete, setBulkDelete] = useState<string[] | null>(null);
 
   const stagesMap = useMemo(() => {
     const map = new Map<string, PipelineStage>();
@@ -292,10 +296,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
             label: 'Удалить',
             icon: <Trash2 size={14} />,
             variant: 'danger',
-            onClick: (ids) => {
-              if (!confirm(`Удалить ${ids.length} сделок?`)) return;
-              ids.forEach((id) => deleteProject.mutate(id));
-            },
+            onClick: (ids) => setBulkDelete(ids),
           },
           {
             label: 'CSV',
@@ -333,6 +334,19 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
       />
 
       <ProjectModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editProject={null} />
+
+      {bulkDelete && (
+        <InlineConfirm
+          mode="overlay"
+          question={`Удалить ${bulkDelete.length} сделок?`}
+          consequence="Связанные задачи сохранятся. Это действие нельзя отменить."
+          onConfirm={() => {
+            bulkDelete.forEach((id) => deleteProject.mutate(id));
+            setBulkDelete(null);
+          }}
+          onCancel={() => setBulkDelete(null)}
+        />
+      )}
     </>
   );
 }
