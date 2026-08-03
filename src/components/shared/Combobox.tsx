@@ -17,6 +17,20 @@ interface ComboboxProps {
   onChange: (value: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
+  /**
+   * FIX S-CHAT-TASK-1-BIND: строка поиска наружу — для списков, которые ищет СЕРВЕР
+   * (`useEntitySearch`), а не клиентский фильтр по уже загруженным опциям.
+   * Не задан — прежнее поведение один в один.
+   */
+  onSearchChange?: (search: string) => void;
+  /**
+   * С чего начинать поиск при открытии. Нужен там, где запрос уже известен из контекста
+   * (имя, вытащенное из текста сообщения): открыть пустым значило бы заставить человека
+   * набрать то, что система уже прочитала.
+   */
+  initialSearch?: string;
+  /** Ответ сервера ещё в пути — «Ничего не найдено» тут соврало бы. */
+  loading?: boolean;
 }
 
 export function Combobox({
@@ -25,9 +39,12 @@ export function Combobox({
   onChange,
   placeholder = 'Выбрать...',
   disabled,
+  onSearchChange,
+  initialSearch = '',
+  loading = false,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [highlightIdx, setHighlightIdx] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,12 +54,25 @@ export function Combobox({
 
   const selected = options.find((o) => o.value === value);
 
-  const filtered = search
-    ? options.filter((o) =>
-        o.label.toLowerCase().includes(search.toLowerCase()) ||
-        o.sub?.toLowerCase().includes(search.toLowerCase()),
-      )
-    : options;
+  // Серверный поиск (`onSearchChange`) фильтрует сам — второй фильтр поверх него не
+  // «уточнял» бы, а расходился: пока летит дебаунс, клиентский фильтр уже применил
+  // новую строку к старым опциям и прячет валидные результаты.
+  const serverSearch = !!onSearchChange;
+  const filtered =
+    search && !serverSearch
+      ? options.filter((o) =>
+          o.label.toLowerCase().includes(search.toLowerCase()) ||
+          o.sub?.toLowerCase().includes(search.toLowerCase()),
+        )
+      : options;
+
+  const setSearchValue = useCallback(
+    (next: string) => {
+      setSearch(next);
+      onSearchChange?.(next);
+    },
+    [onSearchChange],
+  );
 
   // Reset highlight when filtered list changes
   useEffect(() => { setHighlightIdx(0); }, [filtered.length]);
@@ -69,17 +99,17 @@ export function Combobox({
   const openDropdown = useCallback(() => {
     if (disabled) return;
     setOpen(true);
-    setSearch('');
+    setSearchValue(initialSearch);
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [disabled]);
+  }, [disabled, initialSearch, setSearchValue]);
 
   const select = useCallback(
     (val: string) => {
       onChange(val);
       setOpen(false);
-      setSearch('');
+      setSearchValue('');
     },
-    [onChange],
+    [onChange, setSearchValue],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -105,12 +135,13 @@ export function Combobox({
           type="button"
           onClick={openDropdown}
           disabled={disabled}
-          className="flex w-full items-center justify-between rounded-lg border border-input
+          title={selected?.label}
+          className="flex w-full items-center justify-between gap-2 rounded-lg border border-input
                      bg-surface px-3 py-2 text-sm text-left
                      focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent
                      disabled:opacity-50"
         >
-          <span className={selected ? 'text-text-main' : 'text-text-mute'}>
+          <span className={`min-w-0 truncate ${selected ? 'text-text-main' : 'text-text-mute'}`}>
             {selected ? selected.label : placeholder}
           </span>
           <span className="flex items-center gap-1">
@@ -130,7 +161,7 @@ export function Combobox({
         <input
           ref={inputRef}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Поиск..."
           className="w-full rounded-lg border border-accent bg-surface px-3 py-2
@@ -147,20 +178,25 @@ export function Combobox({
           className="max-h-48 overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
         >
           {filtered.length === 0 && (
-            <li className="px-3 py-2 text-xs text-text-mute">Ничего не найдено</li>
+            <li className="px-3 py-2 text-xs text-text-mute">
+              {loading ? 'Поиск…' : 'Ничего не найдено'}
+            </li>
           )}
           {filtered.map((opt, idx) => (
             <li
               key={opt.value}
               onMouseDown={() => select(opt.value)}
               onMouseEnter={() => setHighlightIdx(idx)}
-              className={`cursor-pointer px-3 py-1.5 text-sm ${
+              // Длинное название режем, полное — в title: перенос строки в списке
+              // ломает высоту строк и попадание мышью.
+              title={opt.sub ? `${opt.label} · ${opt.sub}` : opt.label}
+              className={`flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-sm ${
                 idx === highlightIdx ? 'bg-accent/10 text-accent' : 'text-text-main'
               } ${opt.value === value ? 'font-medium' : ''}`}
             >
-              {opt.label}
+              <span className="min-w-0 flex-1 truncate">{opt.label}</span>
               {opt.sub && (
-                <span className="ml-2 text-xs text-text-mute">{opt.sub}</span>
+                <span className="shrink-0 truncate text-xs text-text-mute">{opt.sub}</span>
               )}
             </li>
           ))}
