@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import { fetchInBatches } from '@/lib/utils/query-batching';
 import type { TaskLane } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -41,6 +42,18 @@ const COLS = 'id, text, lane, deadline, assigned_to, source_message_id';
 /** Корень ключа — цель точечной инвалидации после создания задачи из чата. */
 export const TASKS_BY_MESSAGE_KEY = ['tasks-by-message'] as const;
 
+/**
+ * Полный ключ среза. Кроме канала в нём длина ленты и последний id — производная от
+ * `messageIds`, от которых зависит РЕЗУЛЬТАТ запроса. Без них инвалидация, пришедшая
+ * раньше рефетча ленты, ушла бы со старым списком и закэшировала неполный ответ под
+ * ключом, который больше не изменится (та же механика, что у вложений). Лента грузится
+ * целиком и монотонна, поэтому пары достаточно.
+ *
+ * Инвалидация идёт ПРЕФИКСОМ `TASKS_BY_MESSAGE_KEY` — удлинение ключа её не ломает.
+ */
+const tasksByMessageKey = (conversationId: string, ids: readonly string[]) =>
+  [...TASKS_BY_MESSAGE_KEY, conversationId, ids.length, ids[ids.length - 1] ?? ''] as const;
+
 const EMPTY: ReadonlyMap<string, TaskFromMessage> = new Map();
 
 export function useTasksBySourceMessages(conversationId: string, messageIds: string[]) {
@@ -50,17 +63,19 @@ export function useTasksBySourceMessages(conversationId: string, messageIds: str
   useRealtimeSync('tasks', TASKS_BY_MESSAGE_KEY);
 
   const query = useQuery({
-    queryKey: [...TASKS_BY_MESSAGE_KEY, conversationId] as const,
+    queryKey: tasksByMessageKey(conversationId, messageIds),
     // Пустой `.in()` роняет PostgREST (грабля W3 из 068) — при пустой ленте запроса нет.
     enabled: messageIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(COLS)
-        .in('source_message_id', messageIds);
-      if (error) throw error;
-      return (data ?? []) as unknown as TaskFromMessage[];
-    },
+    // Длинный `.in()` роняет его же (лимит длины URL) — режем ленту на батчи.
+    queryFn: () =>
+      fetchInBatches(messageIds, async (batch) => {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select(COLS)
+          .in('source_message_id', batch);
+        if (error) throw error;
+        return (data ?? []) as unknown as TaskFromMessage[];
+      }),
   });
 
   const byMessage = useMemo(() => {

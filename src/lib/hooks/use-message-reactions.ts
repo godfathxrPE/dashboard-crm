@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './use-auth';
 import { useRealtimeSync } from './use-realtime';
+import { fetchInBatches } from '@/lib/utils/query-batching';
 import type { MessageReactionWithUser } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -48,15 +49,24 @@ export function useMessageReactions(conversationId: string, messageIds: string[]
     queryKey: reactionsKey(conversationId),
     // W3: пустой .in() → PostgREST ошибка; при пустой ленте — просто нет запроса.
     enabled: messageIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('message_reactions')
-        .select(REACTION_COLS)
-        .in('message_id', messageIds)
-        .order('created_at', { ascending: true }); // стабильный порядок чипов
-      if (error) throw error;
-      return (data ?? []) as unknown as MessageReactionWithUser[];
-    },
+    // Длинный .in() → лимит длины URL (S-DEBT-TRUTH-1): список приходит из ленты и
+    // растёт вместе с ней, поэтому батчи. `.order` внутри батча сохраняет порядок чипов
+    // одного сообщения — реакции сообщения всегда в одном батче (батчим по message_id).
+    //
+    // ⚠️ Ключ здесь НЕ удлиняется производной от messageIds (в отличие от вложений и
+    //    задач-из-сообщений): `reactionsKey` — цель точечного setQueryData в optimistic
+    //    toggle, у которого списка сообщений нет. Гонка «инвалидация раньше рефетча
+    //    ленты» тут дешевле: реакция приезжает к сообщению, которое в ленте уже есть.
+    queryFn: () =>
+      fetchInBatches(messageIds, async (batch) => {
+        const { data, error } = await supabase
+          .from('message_reactions')
+          .select(REACTION_COLS)
+          .in('message_id', batch)
+          .order('created_at', { ascending: true }); // стабильный порядок чипов
+        if (error) throw error;
+        return (data ?? []) as unknown as MessageReactionWithUser[];
+      }),
   });
 
   // Группировка (message_id, emoji): count, mine, имена. Ключ агрегации
