@@ -371,13 +371,29 @@ function Segment({
           ? `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${arrow}px 50%)`
           : `polygon(0 0, calc(100% - ${arrow}px) 0, 100% 50%, calc(100% - ${arrow}px) 100%, 0 100%, ${arrow}px 50%)`;
 
+  // S-DEBT-CONFIRM-1 (задача 3): откат на пройденную стадию был функцией-невидимкой —
+  // механика работала, но приглушённый сегмент не выглядел кликабельным, и её просто
+  // не находили. Прогресс-семантику не трогаем (пройденное остаётся пройденным):
+  // добавлены только признаки «сюда можно нажать» — настоящая кнопка вместо div
+  // (клавиатура + focus-ring), отдельный aria-label/title и заметный hover.
+  //
+  // ⚠️ focus-ring рисуется на ВНУТРЕННЕМ span, а не на сегменте: `clip-path` режет
+  //    всё, что элемент рисует за пределами полигона, — outline и box-shadow самого
+  //    сегмента были бы срезаны вместе с уголками чеврона.
+  const isRollback = !locked && state === 'done';
+  const label = `${stage.name}${stage.probability != null ? ` (${stage.probability}%)` : ''}`;
+
   return (
-    <div
+    <button
+      type="button"
+      disabled={locked}
       onClick={locked ? undefined : onClick}
+      aria-label={isRollback ? `Вернуть на стадию «${stage.name}»` : label}
       className={cn(
-        'relative flex flex-1 items-center justify-center px-1 text-meta font-medium whitespace-nowrap transition-[filter] duration-150',
+        'group relative flex min-w-0 flex-1 items-center justify-center px-1 text-meta font-medium whitespace-nowrap transition-[filter] duration-150 focus:outline-none',
         isFirst ? 'pl-2' : 'pl-3',
         locked ? 'cursor-default' : 'cursor-pointer hover:brightness-[0.92]',
+        isRollback && 'hover:brightness-[0.85]',
       )}
       style={{
         clipPath: clip,
@@ -395,9 +411,20 @@ function Segment({
           state === 'done' ? 'var(--text-dim)' :
           'var(--text-mute)',
       }}
-      title={`${stage.name}${stage.probability != null ? ` (${stage.probability}%)` : ''}`}
+      title={isRollback ? `Вернуть на стадию «${stage.name}»` : label}
     >
-      <span className="overflow-hidden text-ellipsis">{stage.name}</span>
-    </div>
+      <span
+        className={cn(
+          'overflow-hidden text-ellipsis rounded-sm',
+          // Ring цветом текста: он подобран под заливку каждого состояния, поэтому
+          // виден и на акцентном сегменте, и на приглушённом.
+          !locked &&
+            'group-focus-visible:outline group-focus-visible:outline-2 group-focus-visible:outline-current',
+          isRollback && 'group-hover:underline group-hover:underline-offset-2',
+        )}
+      >
+        {stage.name}
+      </span>
+    </button>
   );
 }

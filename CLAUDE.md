@@ -38,6 +38,13 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
 5. **`docs/schema.md` обновляется тем же PR, что миграция.** Плюс копия в скилле.
 6. **Отчёт о сделанном называть отчётом** — не нумерованным планом с распределением
    ответственности.
+7. **`window.confirm` / `confirm()` запрещены.** Подтверждение опасного действия — примитив
+   `InlineConfirm` (`src/components/ui/InlineConfirm.tsx`). Причина техническая: после
+   «Prevent this page from creating additional dialogs» браузер возвращает `false` без
+   диалога — кнопки удаления молча перестают работать; плюс `confirm` блокирует поток
+   вместе с realtime-подпиской и останавливает браузерные смоки. `alert()` и `prompt()`
+   не используются вовсе: ошибка — `toast`, ввод — форма или модалка. Держит eslint
+   (`no-restricted-globals` + `no-restricted-properties` в `eslint.config.mjs`).
 
 ## Конвенции
 

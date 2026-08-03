@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Users } from 'lucide-react';
 import { Modal } from '@/components/shared/Modal';
+import { CONFIRM_TTL_MS } from '@/components/ui/InlineConfirm';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useCreateGroup, useRenameGroup, useDeleteGroup } from '@/lib/hooks/use-conversations';
 import {
@@ -25,9 +26,6 @@ const labelCls = 'block text-meta font-medium text-text-dim mb-1';
 const inputCls =
   'w-full rounded border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none';
 const errCls = 'mt-1 text-meta text-red';
-
-/** Сколько живёт inline-подтверждение удаления, прежде чем откатиться в обычную кнопку. */
-const CONFIRM_TTL_MS = 5000;
 
 interface GroupModalProps {
   /** Есть — режим редактирования; нет — создание. */

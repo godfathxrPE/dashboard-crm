@@ -43,6 +43,7 @@ import {
 } from '@/lib/hooks/use-project-baselines';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { BaselineNameModal } from './BaselineNameModal';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import type { DepType } from '@/types/database';
 import type { Task } from '@/types/entities';
 
@@ -461,20 +462,24 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
 
   const nameById = useMemo(() => new Map(team.map((m) => [m.id, m.full_name])), [team]);
 
-  // S-GANTT-UX-2: window.confirm — конвенция проекта для задачи/ребра (НЕ для фазы —
-  // у неё пикер target). У summary подтверждение называет судьбу детей (SET NULL 052).
-  const handleDeleteTask = useCallback(
-    (task: Task, isSummary: boolean) => {
-      const msg = isSummary
-        ? `Удалить сводную задачу «${task.text}»? Подзадачи останутся без родителя. Действие необратимо.`
-        : `Удалить задачу «${task.text}»? Действие необратимо.`;
-      if (!window.confirm(msg)) return;
-      deleteTask.mutate(task.id, {
-        onError: () => toast.error('Не удалось удалить задачу (нет прав или сеть)'),
-      });
-    },
-    [deleteTask],
-  );
+  // S-DEBT-CONFIRM-1: подтверждение — примитив `InlineConfirm`, а НЕ `window.confirm`.
+  // Прежний комментарий здесь объявлял `confirm` конвенцией проекта, и он был неправ:
+  // пять других файлов объявляли его запрещённым, а два вызова именно из этого файла
+  // и блокировали браузерные смоки. Единственная конвенция теперь одна, она в CLAUDE.md.
+  //
+  // Оверлей, а не inline: у сводной задачи подтверждение обязано назвать судьбу детей
+  // (SET NULL 052), а такой текст в полоску Ганта не помещается. У фазы — по-прежнему
+  // свой пикер target, не подтверждение.
+  const [pendingTaskDelete, setPendingTaskDelete] = useState<
+    { task: Task; isSummary: boolean } | null
+  >(null);
+
+  const handleDeleteTask = useCallback((task: Task, isSummary: boolean) => {
+    setPendingTaskDelete({ task, isSummary });
+  }, []);
+
+  // Подтверждение удаления ребра — inline прямо в меню ребра, там же, где кнопка.
+  const confirmEdgeDelete = useConfirm();
 
   // Real phase-id: Trash у свимлейна только для настоящих колонок (W5) —
   // синтетические '__none__'/'__flat__' в project_columns не существуют.
@@ -1249,7 +1254,8 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                   <div className="group flex items-center gap-1 px-1 pt-2 pb-0.5 text-xs font-semibold uppercase tracking-wide text-text-mute">
                     <span className="truncate">{sl.label}</span>
                     {/* S-GANTT-UX-2: удаление фазы — только real phase-id (не «Без фазы»/flat);
-                        UX как на доске: непустая фаза → пикер target, не window.confirm */}
+                        UX как на доске: непустая фаза → пикер target, а не подтверждение
+                        (у фазы вопрос «куда переложить задачи», а не «точно ли») */}
                     {canManage && phaseMode && realPhaseIds.has(sl.id) && (
                       <button
                         type="button"
@@ -1678,18 +1684,25 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             >
               Сохранить
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Удалить зависимость?')) {
+            {confirmEdgeDelete.isAsking(edgeMenu.id) ? (
+              <InlineConfirm
+                question="Удалить зависимость?"
+                onConfirm={() => {
+                  confirmEdgeDelete.cancel();
                   deleteDep.mutate(edgeMenu.id);
                   setEdgeMenu(null);
-                }
-              }}
-              className="rounded-lg border border-border px-2 py-0.5 text-red transition-colors hover:border-red"
-            >
-              Удалить связь
-            </button>
+                }}
+                onCancel={confirmEdgeDelete.cancel}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => confirmEdgeDelete.ask(edgeMenu.id)}
+                className="rounded-lg border border-border px-2 py-0.5 text-red transition-colors hover:border-red"
+              >
+                Удалить связь
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1708,6 +1721,32 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
             })
           }
           onClose={() => setBaselinePrompt(false)}
+        />
+      )}
+
+      {/* Удаление задачи с Ганта (S-DEBT-CONFIRM-1). */}
+      {pendingTaskDelete && (
+        <InlineConfirm
+          mode="overlay"
+          question={
+            pendingTaskDelete.isSummary
+              ? `Удалить сводную задачу «${pendingTaskDelete.task.text}»?`
+              : `Удалить задачу «${pendingTaskDelete.task.text}»?`
+          }
+          consequence={
+            pendingTaskDelete.isSummary
+              ? 'Подзадачи останутся без родителя. Действие необратимо.'
+              : 'Действие необратимо.'
+          }
+          pending={deleteTask.isPending}
+          onConfirm={() => {
+            const id = pendingTaskDelete.task.id;
+            setPendingTaskDelete(null);
+            deleteTask.mutate(id, {
+              onError: () => toast.error('Не удалось удалить задачу (нет прав или сеть)'),
+            });
+          }}
+          onCancel={() => setPendingTaskDelete(null)}
         />
       )}
     </div>

@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useRouter } from 'next/navigation';
 import { Pencil, Trash2, Calendar, Check, ArrowRight, Diamond } from 'lucide-react';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -22,6 +24,11 @@ interface TaskCardProps {
   /** P2a: фазовая доска delivery — статус (lane) = кликабельный badge вместо чекбокса */
   phaseMode?: boolean;
   onEdit: (task: Task) => void;
+  /**
+   * Удаляет БЕЗ вопроса — подтверждение живёт здесь, в карточке (S-DEBT-CONFIRM-1).
+   * Так оба борда (`ProjectBoard`, `KanbanBoard`) получают его одинаковым, а `confirm()`
+   * не приходится дублировать в каждом родителе.
+   */
   onDelete: (id: string) => void;
 }
 
@@ -43,6 +50,7 @@ function deadlineUrgency(deadline: string, lane: string): { cls: string; label: 
 export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCardProps) {
   const router = useRouter();
   const updateTask = useUpdateTask();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   // Aura: приоритет — НЕ палка сбоку, а цветной чекбокс + тон строки (через data-priority)
   const isAura = useThemeStore((s) => s.theme === 't-aura');
 
@@ -209,13 +217,26 @@ export function TaskCard({ task, phaseMode = false, onEdit, onDelete }: TaskCard
         >
           <Pencil size={12} />
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="rounded p-0.5 text-text-mute hover:text-red transition-colors"
-        >
-          <Trash2 size={12} />
-        </button>
+        {confirmingDelete ? (
+          // ⚠️ Карточка — draggable: без stopPropagation на pointerdown нажатие на
+          // «Удалить задачу?» начинало бы перетаскивание вместо клика (тот же приём,
+          // что у соседних кнопок).
+          <span onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <InlineConfirm
+              question="Удалить задачу?"
+              onConfirm={() => { setConfirmingDelete(false); onDelete(task.id); }}
+              onCancel={() => setConfirmingDelete(false)}
+            />
+          </span>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="rounded p-0.5 text-text-mute hover:text-red transition-colors"
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

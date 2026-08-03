@@ -29,6 +29,7 @@ import { ContactModal } from '@/components/contacts/ContactModal';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -49,6 +50,9 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: orgRole } = useOrgRole();
   const canCreate = orgRole != null && orgRole !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
   const [modalOpen, setModalOpen] = useState(false);
+  // S-DEBT-CONFIRM-1: оверлей, а не inline — удаление уводит со страницы, и текст
+  // «связанные контакты и сделки сохранятся» здесь несёт смысл.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [callModalOpen, setCallModalOpen] = useState(false);
@@ -97,9 +101,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const sortedDeals = [...linkedDeals].sort(compareByNextAction);
 
   function handleDelete() {
-    if (confirm('Удалить компанию? Связанные контакты и сделки сохранятся.')) {
-      deleteCompany.mutate(companyId, { onSuccess: () => router.push('/companies') });
-    }
+    setConfirmingDelete(false);
+    deleteCompany.mutate(companyId, { onSuccess: () => router.push('/companies') });
   }
 
   const infoFields = [
@@ -131,10 +134,20 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
             <Pencil size={14} />
           </button>
-          <button onClick={handleDelete}
+          <button onClick={() => setConfirmingDelete(true)}
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-red/10 hover:text-red">
             <Trash2 size={14} />
           </button>
+          {confirmingDelete && (
+            <InlineConfirm
+              mode="overlay"
+              question="Удалить компанию?"
+              consequence="Связанные контакты и сделки сохранятся."
+              pending={deleteCompany.isPending}
+              onConfirm={handleDelete}
+              onCancel={() => setConfirmingDelete(false)}
+            />
+          )}
         </div>
       </div>
 

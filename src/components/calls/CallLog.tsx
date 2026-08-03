@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Phone, Pencil, Sparkles, Wand2, Trash2, Building2, User, FolderKanban, Calendar, Loader2, Plus, Clock } from 'lucide-react';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
+import { cn } from '@/lib/utils/cn';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useCalls, useDeleteCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
@@ -71,9 +73,8 @@ export function CallLog() {
       .slice(0, 5);
   }, [calls]);
 
-  function handleDelete(id: string) {
-    if (confirm('Удалить звонок?')) deleteCall.mutate(id);
-  }
+  // Подтверждение удаления — inline на месте иконки (S-DEBT-CONFIRM-1), по одной строке.
+  const confirmDelete = useConfirm();
 
   if (isLoading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
@@ -252,7 +253,16 @@ export function CallLog() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div
+                    className={cn(
+                      'flex shrink-0 items-center gap-1 transition-opacity',
+                      // Пока идёт подтверждение, строка действий видна без наведения:
+                      // иначе вопрос «Удалить звонок?» исчезал бы вместе с курсором.
+                      confirmDelete.isAsking(call.id)
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100',
+                    )}
+                  >
                     {/* R2-P0-C: прямой вход в Smart Deal Progression — только когда
                         звонок привязан к сделке (иначе писать некуда). */}
                     {call.project_id && (
@@ -273,11 +283,20 @@ export function CallLog() {
                       className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
                       <Pencil size={12} />
                     </button>
-                    <button onClick={() => handleDelete(call.id)}
-                      aria-label="Удалить"
-                      className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
-                      <Trash2 size={12} />
-                    </button>
+                    {confirmDelete.isAsking(call.id) ? (
+                      <InlineConfirm
+                        question="Удалить звонок?"
+                        pending={deleteCall.isPending}
+                        onConfirm={() => { deleteCall.mutate(call.id); confirmDelete.cancel(); }}
+                        onCancel={confirmDelete.cancel}
+                      />
+                    ) : (
+                      <button onClick={() => confirmDelete.ask(call.id)}
+                        aria-label="Удалить"
+                        className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

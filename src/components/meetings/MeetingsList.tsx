@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { CalendarDays, Plus, Pencil, Sparkles, Wand2, Trash2, MapPin, FolderKanban, Clock, Loader2, CheckSquare } from 'lucide-react';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { CTAButton } from '@/components/ui/CTAButton';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { useMeetings, useDeleteMeeting, type Meeting } from '@/lib/hooks/use-meetings';
@@ -52,8 +53,10 @@ export function MeetingsList() {
     return { upcoming: up, past: pa };
   }, [meetings]);
 
+  // Подтверждение живёт в карточке (S-DEBT-CONFIRM-1): кнопка удаления там же, а
+  // состояние «спрашиваем» естественно скоупится одной встречей.
   function handleDelete(id: string) {
-    if (confirm('Удалить встречу?')) deleteMeeting.mutate(id);
+    deleteMeeting.mutate(id);
   }
 
   if (isLoading) {
@@ -194,6 +197,7 @@ function MeetingCard({
 }) {
   // Aura: статус встречи — НЕ палка сбоку, а цвет date-бейджа + data-атрибут
   const isAura = useThemeStore((s) => s.theme === 't-aura');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dateStr = new Date(meeting.date).toLocaleDateString('ru-RU', {
     weekday: 'short',
     day: 'numeric',
@@ -265,9 +269,17 @@ function MeetingCard({
         <button onClick={onEdit} aria-label="Редактировать" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
           <Pencil size={12} />
         </button>
-        <button onClick={onDelete} aria-label="Удалить" className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
-          <Trash2 size={12} />
-        </button>
+        {confirmingDelete ? (
+          <InlineConfirm
+            question="Удалить встречу?"
+            onConfirm={() => { setConfirmingDelete(false); onDelete(); }}
+            onCancel={() => setConfirmingDelete(false)}
+          />
+        ) : (
+          <button onClick={() => setConfirmingDelete(true)} aria-label="Удалить" className="rounded p-1 text-text-mute hover:bg-red/10 hover:text-red">
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

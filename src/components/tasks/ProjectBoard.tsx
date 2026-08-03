@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Loader2, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useProjectColumns,
   useCreateColumn,
@@ -330,7 +331,9 @@ export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps)
       {
         onSuccess: () => { setDeletingCol(null); setTargetColId(''); },
         onError: (err) => {
-          alert(err instanceof Error ? err.message : 'Не удалось удалить колонку');
+          // S-DEBT-CONFIRM-1: `alert()` в проекте не используется — ошибка идёт тостом
+          // (тот же довод, что у `confirm`: блокирует поток и браузерные смоки).
+          toast.error(err instanceof Error ? err.message : 'Не удалось удалить колонку');
         },
       },
     );
@@ -392,7 +395,8 @@ export function ProjectBoard({ projectId, canManageColumns }: ProjectBoardProps)
               canManageColumns={canManageCols}
               phaseMode={phaseMode}
               onEditTask={(t) => { setEditTask(t); setModalOpen(true); }}
-              onDeleteTask={(id) => { if (confirm('Удалить задачу?')) deleteTask.mutate(id); }}
+              // Подтверждение — внутри TaskCard (S-DEBT-CONFIRM-1), сюда едет решение.
+              onDeleteTask={(id) => deleteTask.mutate(id)}
               onRename={(id, name, category) => updateColumn.mutate({ id, name, category })}
               onRequestDelete={(c) => { setDeletingCol(c); setTargetColId(''); }}
             />

@@ -27,6 +27,7 @@ import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { BorderTrace } from '@/components/ui/BorderTrace';
+import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import type { Task } from '@/types/entities';
 import type { TimelineEvent } from '@/types/timeline';
 
@@ -168,6 +169,9 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const [linkRole, setLinkRole] = useState('');
   const [notes, setNotes] = useState<string | null>(null);
   const [notesFocused, setNotesFocused] = useState(false);
+  // S-DEBT-CONFIRM-1: удаление карточки — оверлей, он уводит со страницы и нуждается
+  // в тексте последствий.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // Derived data
   const linkedProjects = useMemo(
@@ -221,9 +225,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const touchText = touchLvl === 'cold' ? 'text-red' : touchLvl === 'cooling' ? 'text-yellow' : 'text-text-mute';
 
   function handleDelete() {
-    if (confirm(`Удалить «${fullName}»? Это действие нельзя отменить.`)) {
-      deleteContact.mutate(contactId, { onSuccess: () => router.push('/contacts') });
-    }
+    setConfirmingDelete(false);
+    deleteContact.mutate(contactId, { onSuccess: () => router.push('/contacts') });
   }
 
   function handleSaveNotes() {
@@ -239,10 +242,11 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
     );
   }
 
+  // ⚠️ Ни одна кнопка этой страницы её не зовёт (снятие связи живёт в ContactDetail).
+  // Функция оставлена как есть — S-DEBT-CONFIRM-1 менял механизм подтверждения, а не
+  // состав экрана; сюда `confirm` просто не доехал бы.
   function handleUnlink(companyId: string) {
-    if (confirm('Убрать связь с компанией?')) {
-      unlinkCompany.mutate({ contactId, companyId });
-    }
+    unlinkCompany.mutate({ contactId, companyId });
   }
 
   // Клик по событию ленты → общий маппинг kind→действие (openTimelineEvent),
@@ -326,10 +330,20 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                   className="rounded-lg p-1.5 text-text-mute transition-colors hover:bg-surface2 hover:text-text-main">
                   <Pencil size={14} />
                 </button>
-                <button onClick={handleDelete} aria-label="Удалить"
+                <button onClick={() => setConfirmingDelete(true)} aria-label="Удалить"
                   className="rounded-lg p-1.5 text-text-mute transition-colors hover:bg-red/10 hover:text-red">
                   <Trash2 size={14} />
                 </button>
+                {confirmingDelete && (
+                  <InlineConfirm
+                    mode="overlay"
+                    question={`Удалить «${fullName}»?`}
+                    consequence="Связанные компании и сделки сохранятся. Это действие нельзя отменить."
+                    pending={deleteContact.isPending}
+                    onConfirm={handleDelete}
+                    onCancel={() => setConfirmingDelete(false)}
+                  />
+                )}
               </div>
             </div>
 

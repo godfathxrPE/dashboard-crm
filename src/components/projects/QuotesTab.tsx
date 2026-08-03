@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Plus, ExternalLink, Pencil, Trash2, FileText } from 'lucide-react';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { useQuotes, useDeleteQuote } from '@/lib/hooks/use-quotes';
 import { useUpdateProject } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -52,10 +53,12 @@ export function QuotesTab({ deal }: QuotesTabProps) {
     setModalOpen(true);
   };
 
+  // Подтверждение — inline на месте иконки (S-DEBT-CONFIRM-1).
+  const confirmDelete = useConfirm();
+
   const handleDelete = (q: Quote) => {
-    if (confirm('Удалить КП? Это действие нельзя отменить.')) {
-      deleteQuote.mutate(q.id);
-    }
+    confirmDelete.cancel();
+    deleteQuote.mutate(q.id);
   };
 
   const accepted = quotes?.find((q) => q.status === 'accepted') ?? null;
@@ -184,22 +187,32 @@ export function QuotesTab({ deal }: QuotesTabProps) {
 
                 {canEditQuotes && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      onClick={() => openEdit(q)}
-                      className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
-                      title="Редактировать"
-                      aria-label="Редактировать КП"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(q)}
-                      className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-red"
-                      title="Удалить"
-                      aria-label="Удалить КП"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {confirmDelete.isAsking(q.id) ? (
+                      <InlineConfirm
+                        question="Удалить КП?"
+                        onConfirm={() => handleDelete(q)}
+                        onCancel={confirmDelete.cancel}
+                      />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => openEdit(q)}
+                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
+                          title="Редактировать"
+                          aria-label="Редактировать КП"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete.ask(q.id)}
+                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-red"
+                          title="Удалить"
+                          aria-label="Удалить КП"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </li>

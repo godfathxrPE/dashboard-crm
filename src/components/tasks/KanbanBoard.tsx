@@ -88,11 +88,10 @@ export function KanbanBoard() {
     setModalOpen(true);
   }, []);
 
+  // Подтверждение живёт в TaskCard (S-DEBT-CONFIRM-1) — сюда доезжает уже решение.
   const handleDelete = useCallback(
     (id: string) => {
-      if (window.confirm('Удалить задачу?')) {
-        deleteTask.mutate(id);
-      }
+      deleteTask.mutate(id);
     },
     [deleteTask],
   );

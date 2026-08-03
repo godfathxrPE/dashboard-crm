@@ -384,8 +384,9 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
     moveToStageId(id, firstStage.id);
   }
 
+  // Подтверждение — inline у кнопки в LostDeals (S-DEBT-CONFIRM-1).
   function handleDelete(id: string) {
-    if (confirm('Удалить сделку?')) deleteProject.mutate(id);
+    deleteProject.mutate(id);
   }
 
   const isLoading = loadingProjects || !pipelines || !allStages;
