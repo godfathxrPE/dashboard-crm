@@ -62,5 +62,10 @@ create unique index if not exists uq_tasks_source_message
   where source_message_id is not null;
 
 -- План чтения ленты: `in (…id сообщений…)` на открытие канала.
-create index if not exists idx_tasks_source_message
-  on public.tasks (source_message_id);
+-- ПРАВКА ГЕЙТА (2026-08-02): обычный индекс НЕ создаётся. Partial unique выше стоит на
+-- той же колонке, а его предикат (source_message_id is not null) подразумевается любым
+-- запросом вида `.in('source_message_id', ids)` — чтение ленты он обслуживает полностью.
+-- Второй индекс дал бы лишнюю запись на каждый INSERT/UPDATE tasks (635 строк, самая
+-- быстрорастущая таблица проекта). Завести, только если появится сценарий «несколько
+-- задач на сообщение» и unique уйдёт.
+-- create index if not exists idx_tasks_source_message on public.tasks (source_message_id);
