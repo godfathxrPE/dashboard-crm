@@ -28,6 +28,8 @@ export function useMeetingAttendees(meetingIds: string[]) {
       const { data, error } = await supabase
         .from('meeting_attendees')
         .select('meeting_id, profile_id')
+        // Батчинг `.in()` (S-DEBT-TRUTH-1) не нужен: `meetingIds` — встречи одного дня
+        // или недели командной сетки, десятки максимум, а не растущая лента.
         .in('meeting_id', meetingIds)
         .not('profile_id', 'is', null);
       if (error) throw error;

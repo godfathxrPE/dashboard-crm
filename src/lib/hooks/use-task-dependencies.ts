@@ -38,6 +38,11 @@ export function useTaskDependencies(projectId: string, taskIds: string[]) {
       const { data, error } = await supabase
         .from('task_dependencies')
         .select('id, predecessor_id, successor_id, dep_type, lag_days')
+        // ⚠️ Батчинга `.in()` тут НЕТ (S-DEBT-TRUTH-1): фильтров два, и оба по одному
+        // и тому же списку — нарезав один, второй всё равно везёшь целиком, а нарезав
+        // оба, получаешь N² запросов. Правильная нарезка = батчить predecessor, а
+        // successor фильтровать на клиенте по Set — это смена семантики запроса, и она
+        // не входила в спринт. Граница: ~500 задач на борде ≈ 36 КБ URL. Записано остатком.
         .in('predecessor_id', taskIds)
         .in('successor_id', taskIds); // оба конца в проекте → своё ребро, не чужой проект org
 

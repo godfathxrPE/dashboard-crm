@@ -61,6 +61,8 @@ export function useEntityTitles(refs: EntityPart[]): UseEntityTitlesResult {
     // фокусу окна здесь только шум.
     staleTime: 10 * 60 * 1000,
     queryFn: async (): Promise<EntityTitles> => {
+      // Батчинг `.in()` (S-DEBT-TRUTH-1) не нужен: id приходят из чипов сущностей на
+      // экране — единицы на список, и каждый тип фильтруется своим коротким набором.
       const [projects, companies, contacts] = await Promise.all([
         ids.projects.length
           ? supabase.from('projects').select('id, name').in('id', ids.projects)

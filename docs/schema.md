@@ -132,8 +132,8 @@
 > **Гейт снял избыточный `idx_tasks_source_message`** — partial unique обслуживает
 > чтение сам) (ветка `feat/chat-task-1`): задача
 > из сообщения чата — `tasks += source_message_id uuid → messages(id) ON DELETE SET NULL`
-> плюс partial unique `uq_tasks_source_message` (одно сообщение → одна задача) и
-> дублирующий `idx_tasks_source_message`. Ни функций, ни политик, ни грантов не трогает:
+> плюс partial unique `uq_tasks_source_message` (одно сообщение → одна задача) — **и
+> больше никаких индексов на колонке**. Ни функций, ни политик, ни грантов не трогает:
 > колонка в уже защищённой таблице. ⚠️ Реген типов нужен — до него в
 > `src/types/database.ts` живёт стаб `TaskSourceMessageStub` (интерсекция к записи
 > `tasks`, а не отдельная таблица). ⚠️ **RLS `tasks` может честно скрыть чужую задачу**
@@ -161,7 +161,30 @@
 > штамп НЕ ставит. Транзакции откачены, данные не тронуты (5 сообщений, `edited_at`
 > везде NULL). Advisors без изменений: DEFINER-функций, исполняемых `authenticated`,
 > по-прежнему **29** — у `set_message_edited_at()` EXECUTE только у `service_role`;
-> следующая свободная — **101**;
+> **101 (S-DEBT-TRUTH-1) — ПРИМЕНЕНА гейтом 2026-08-03, версия `20260803113756`**:
+> состав группы перестаёт врать. Политика
+> `conversation_members_insert` пересоздана — прежние три условия 096 (`org_id` строки,
+> `kind='group'` и права ДОБАВЛЯЮЩЕГО, скопированы из живой политики через `pg_policies`)
+> **плюс четвёртое: добавляемый обязан иметь `memberships` в этой org**. ⚠️ До 101
+> `profile_id` не проверялся ничем, кроме FK на `profiles` (справочник всех людей
+> продукта, не людей этой org), а комментарий 096 при этом утверждал, что «инвариант
+> держит INSERT-политика и RPC»: фильтровала только RPC `create_group_conversation`, а
+> клиент ходит политикой (`useAddMembers` — прямой INSERT). Утечки не было
+> (`is_conversation_member` сверяет `org_id` канала с `current_org_id()` читателя) —
+> врал состав: человек в списке и в счётчике «N уч.», сообщений не получает никогда.
+> Рекурсии нет: подзапрос идёт к `memberships`, а `membership_select_own_org` на
+> `conversation_members` не ссылается. Ложных отказов нет: подзапрос под RLS
+> `memberships`, добавляющему `is_org_member(org_id)` открывает всю свою org. Колонок не
+> добавляет ⇒ **реген типов не нужен**. ⚠️ **Остаток:** осиротевшие строки после снятия
+> `memberships` не чистятся (FK на `profiles`); триггер AFTER DELETE на `memberships`
+> сознательно НЕ заводился — молчаливое удаление данных обсуждается отдельно.
+> **Смок гейта (2026-08-03):** под автором группы, роль `authenticated`, два INSERT'а
+> в откаченных транзакциях. (1) профиль БЕЗ `memberships` — **отбит `42501`**, строк
+> не появилось. (2) член org, ещё не состоящий в группе, — **прошёл**: ложных отказов
+> нет, `membership_select_own_org` (`is_org_member(org_id)`) показывает добавляющему
+> всю свою org, поэтому `exists` честен. Данные целы (4 строки состава, осиротевших
+> 0 и до, и после). Advisors без изменений — 29 DEFINER-функций для `authenticated`;
+> следующая свободная — **102**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -1146,7 +1169,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at, **+099 source_message_id — НЕ применена**)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at, **+099 source_message_id**)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1167,7 +1190,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 | end_date | date | _046 (S-GANTT-DATES-1)_ nullable. Конец задачи; `CHECK tasks_dates_order_chk` (end_date ≥ start_date). Fallback на `deadline::date` — на уровне рендера |
 | parent_task_id | uuid | _052 (S-WBS-1)_ nullable → tasks(id) ON DELETE SET NULL. Родитель WBS-иерархии. Валидатор `check_task_parent_valid` (DEFINER, триггер `trg_zz_check_task_parent` before insert/update of parent_task_id,project_id): self-ref/cross-org/cross-project/цикл (recursive CTE вверх к корню) → `23514`/`23503`/`42501`/`P0001`. Partial-индекс `idx_tasks_parent`. AFTER-триггер `orphan_children_on_project_move` (upd project_id родителя) обнуляет `parent_task_id` осиротевших детей |
 | wbs_code | text | _052 (S-WBS-1)_ nullable. Код WBS (напр. `1.3.11`); префикс у названия на доске/Gantt. Сводный бар на Gantt = обёртка дат детей |
-| source_message_id | uuid | _099 (S-CHAT-TASK-1) — **НЕ применена**_ nullable → `messages(id)` **ON DELETE SET NULL** (удалили сообщение — задача жива, теряется только ссылка на источник). Заполняется ТОЛЬКО карточкой подтверждения в чате; ни один триггер/RPC её не трогает. Partial unique **`uq_tasks_source_message`** `(source_message_id) WHERE source_message_id IS NOT NULL` — ключ идемпотентности «одно сообщение → одна задача»; плюс дублирующий **`idx_tasks_source_message`** под чтение ленты (сознательно избыточен — страховка на случай снятия unique) |
+| source_message_id | uuid | _099 (S-CHAT-TASK-1) — **ПРИМЕНЕНА**_ nullable → `messages(id)` **ON DELETE SET NULL** (удалили сообщение — задача жива, теряется только ссылка на источник). Заполняется ТОЛЬКО карточкой подтверждения в чате; ни один триггер/RPC её не трогает. Partial unique **`uq_tasks_source_message`** `(source_message_id) WHERE source_message_id IS NOT NULL` — ключ идемпотентности «одно сообщение → одна задача». **Второго индекса на колонке нет** (гейт снял `idx_tasks_source_message`): predicate partial unique совпадает с условием `.in('source_message_id', …)`, чтение ленты он обслуживает сам. Заводить — только если появится сценарий «несколько задач на сообщение» и unique уйдёт |
 | remind_min | int | |
 | sort_order | int | DEFAULT 0. С _032_ разрез per-column для проектных задач |
 | assigned_to / created_by | uuid | → profiles |

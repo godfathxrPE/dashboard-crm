@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
 import { attachmentStoragePath } from '@/lib/utils/chat-attachments';
+import { fetchInBatches } from '@/lib/utils/query-batching';
 import type { MessageAttachment } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -42,7 +43,24 @@ const SIGNED_URL_TTL_SEC = 60;
 const ATTACHMENT_COLS =
   'id, org_id, message_id, storage_path, file_name, file_size, mime_type, created_by, created_at';
 
-const attachmentsKey = (conversationId: string) => ['message_attachments', conversationId] as const;
+/**
+ * Ключ среза вложений.
+ *
+ * ⚠️ В ключе есть производная от `messageIds` — длина и последний id. Без них ключ не
+ * зависел бы от того, от чего зависит запрос: входящее сообщение с вложением приезжает
+ * ДВУМЯ realtime-событиями разных таблиц (`messages` и `message_attachments`), у каждого
+ * свой 150-мс дебаунс, и порядок не гарантирован. Отработай инвалидация вложений раньше
+ * рефетча ленты — запрос ушёл бы со СТАРЫМ `messageIds`, вернул пусто, а после дозагрузки
+ * ленты ключ бы не изменился и второго запроса не было. Пользователь видел бы пустой
+ * прямоугольник вместо скриншота до смены канала или F5.
+ *
+ * Пары «длина + последний id» достаточно: лента грузится целиком и монотонна.
+ *
+ * Инвалидация в use-messages идёт ПРЕФИКСОМ `['message_attachments']` — удлинение ключа
+ * её не ломает (проверено грепом по invalidateQueries).
+ */
+const attachmentsKey = (conversationId: string, ids: readonly string[]) =>
+  ['message_attachments', conversationId, ids.length, ids[ids.length - 1] ?? ''] as const;
 const signedUrlKey = (path: string) => ['message_attachment-url', path] as const;
 
 /**
@@ -58,18 +76,23 @@ export function useMessageAttachments(conversationId: string, messageIds: string
   useRealtimeSync('message_attachments');
 
   const query = useQuery({
-    queryKey: attachmentsKey(conversationId),
+    queryKey: attachmentsKey(conversationId, messageIds),
     // Пустой `.in()` роняет PostgREST (грабля W3 из 068) — при пустой ленте запроса нет.
     enabled: messageIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('message_attachments')
-        .select(ATTACHMENT_COLS)
-        .in('message_id', messageIds)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as unknown as MessageAttachment[];
-    },
+    // Длинный `.in()` роняет его же (лимит длины URL) — режем ленту на батчи.
+    // Порядок между батчами не сохраняется; здесь он и не нужен — ниже раскладка в Map,
+    // а внутри сообщения порядок держит `.order('created_at')` каждого батча
+    // (вложения одного сообщения всегда попадают в один батч: батчим по message_id).
+    queryFn: () =>
+      fetchInBatches(messageIds, async (batch) => {
+        const { data, error } = await supabase
+          .from('message_attachments')
+          .select(ATTACHMENT_COLS)
+          .in('message_id', batch)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        return (data ?? []) as unknown as MessageAttachment[];
+      }),
   });
 
   const byMessage = useMemo(() => {
@@ -238,15 +261,25 @@ export async function collectConversationAttachmentPaths(
 
     const messageIds = (messages ?? []).map((m) => m.id);
     // Подзапросом список не получить (PostgREST), поэтому два шага. Пустой `.in()` роняет
-    // PostgREST (грабля W3 из 068) — при пустом канале запроса просто нет.
-    if (messageIds.length === 0) return [];
-
-    const { data } = await supabase
-      .from('message_attachments')
-      .select('storage_path')
-      .in('message_id', messageIds);
-
-    return (data ?? []).map((a) => a.storage_path);
+    // PostgREST (грабля W3 из 068) — при пустом канале `fetchInBatches` даёт ноль батчей
+    // и ни одного запроса. Длинный — упирается в лимит длины URL, поэтому батчи: тут это
+    // критичнее, чем в ленте, потому что список — ВСЕ сообщения канала за его жизнь, и
+    // потерянный батч означает неудаляемые байты в бакете навсегда (см. ⚠️ выше).
+    //
+    // Ошибка ОДНОГО батча не роняет остальные: собрать 800 ключей из 1000 лучше, чем
+    // ноль. Это же и прежнее поведение функции — «не бросает никогда», только теперь
+    // граница глотания проходит по батчу, а не по всему вызову.
+    return fetchInBatches(messageIds, async (batch) => {
+      try {
+        const { data } = await supabase
+          .from('message_attachments')
+          .select('storage_path')
+          .in('message_id', batch);
+        return (data ?? []).map((a) => a.storage_path);
+      } catch {
+        return [];
+      }
+    });
   } catch {
     return [];
   }

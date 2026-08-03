@@ -174,6 +174,8 @@ async function fetchActivity(
         .from('activity_log')
         .select('id, event_type, payload, created_at, user_id')
     .neq('event_type', TRANSITION_METRIC_EVENT)
+        // Батчинг `.in()` (S-DEBT-TRUTH-1) не нужен: `projectIds` — проекты одной
+        // компании/контакта, десятки. Растёт не от использования, а от размера клиента.
         .in('project_id', projectIds)
         .order('created_at', { ascending: false })
         .limit(PER_SOURCE_LIMIT);
@@ -207,6 +209,10 @@ async function fetchAiRuns(col: string, id: string): Promise<TimelineEvent[]> {
   const { data, error } = await supabase
     .from('ai_runs')
     .select('id, preset_key, entity_type, created_at')
+    // ⚠️ Батчинга `.in()` тут НЕТ, хотя `entityIds` (все звонки + встречи сущности за
+    // её историю) — единственный список в проекте, который может дорасти до лимита
+    // длины URL. Нарезка ломает `limit(PER_SOURCE_LIMIT)`: он стал бы лимитом НА БАТЧ,
+    // и добор пришлось бы досортировывать на клиенте. Записано остатком S-DEBT-TRUTH-1.
     .in('entity_id', entityIds)
     .order('created_at', { ascending: false })
     .limit(PER_SOURCE_LIMIT);

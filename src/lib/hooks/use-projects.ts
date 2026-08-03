@@ -189,6 +189,7 @@ async function fetchProjects(scope?: ProjectScope): Promise<Project[]> {
     .order('created_at', { ascending: false });
 
   if (scope === 'deals') query = query.eq('type', 'client');
+  // Батчинг `.in()` (S-DEBT-TRUTH-1) тут не нужен: список — два литерала, не данные.
   if (scope === 'projects') query = query.in('type', ['delivery', 'internal']);
 
   const { data, error } = await query;
