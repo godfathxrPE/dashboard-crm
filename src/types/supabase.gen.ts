@@ -1581,6 +1581,64 @@ export type Database = {
           },
         ]
       }
+      message_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string
+          file_size: number | null
+          id: string
+          message_id: string
+          mime_type: string | null
+          org_id: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name: string
+          file_size?: number | null
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          org_id: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          org_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_reactions: {
         Row: {
           created_at: string
@@ -2890,6 +2948,7 @@ export type Database = {
           scheduled_end: string | null
           scheduled_start: string | null
           sort_order: number | null
+          source_message_id: string | null
           start_date: string | null
           text: string
           updated_at: string | null
@@ -2917,6 +2976,7 @@ export type Database = {
           scheduled_end?: string | null
           scheduled_start?: string | null
           sort_order?: number | null
+          source_message_id?: string | null
           start_date?: string | null
           text: string
           updated_at?: string | null
@@ -2944,6 +3004,7 @@ export type Database = {
           scheduled_end?: string | null
           scheduled_start?: string | null
           sort_order?: number | null
+          source_message_id?: string | null
           start_date?: string | null
           text?: string
           updated_at?: string | null
@@ -3011,6 +3072,13 @@ export type Database = {
             columns: ["recurrence_template_id"]
             isOneToOne: false
             referencedRelation: "recurring_task_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -3278,6 +3346,7 @@ export type Database = {
         }
         Returns: Json
       }
+      can_access_chat_file: { Args: { p_name: string }; Returns: boolean }
       category_to_lane: {
         Args: { p: string }
         Returns: Database["public"]["Enums"]["task_lane"]
