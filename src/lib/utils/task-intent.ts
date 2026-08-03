@@ -30,6 +30,14 @@ export interface TaskIntent {
   deadline: string | null;
   /** Что именно распознали («3 августа в 15:00») — показывается в карточке. */
   matchedDatePhrase: string | null;
+  /**
+   * Вероятное имя сущности из текста — ПОДСКАЗКА ПОИСКУ, а не привязка.
+   *
+   * Ровно поэтому здесь нет ни морфологии, ни нормализации: «Ориенту» просто не
+   * совпадёт, и это нормально — поле поиска предзаполнено, человек допечатает. Решение
+   * о привязке принимает он, а не эта строка (FIX S-CHAT-TASK-1-BIND, решение 3).
+   */
+  nameHint: string | null;
 }
 
 /** Месяцы в родительном падеже — так их и пишут («3 августа»). Индекс = месяц − 1. */
@@ -258,6 +266,60 @@ function findTime(body: string): TimeHit | null {
   return null;
 }
 
+/** Кавычки, в которые берут название: «ёлочки», “лапки”, обычные двойные. */
+const QUOTED_RE = /[«"“]([^«»"“”]{2,60})[»"”]/;
+
+/** Слово начинается с прописной (кириллица или латиница). */
+function isCapitalized(word: string): boolean {
+  const first = word[0];
+  return !!first && first === first.toUpperCase() && first !== first.toLowerCase();
+}
+
+/**
+ * Вероятное имя сущности из текста задачи.
+ *
+ * Две эвристики, обе намеренно тупые:
+ *  1. кавычки — «позвонить в ООО "Мукомол"» → `Мукомол`. Кавычки человек ставит именно
+ *     для того, чтобы отделить название, и спорить с ним не о чем;
+ *  2. подряд идущие слова с прописной буквы — «звонок Аграрная Группа» → вся
+ *     последовательность.
+ *
+ * ⚠️ ПЕРВОЕ СЛОВО В СЧЁТ НЕ ИДЁТ: предложение начинают с прописной по правилам языка,
+ *    и «Позвонить в офис» дало бы подсказку «Позвонить». ИСКЛЮЧЕНИЕ — первое слово,
+ *    за которым стоит тире или двоеточие: «Ориент — звонок» это не начало
+ *    предложения, а подпись «про что речь», и ровно так выглядит пример из ТЗ.
+ */
+function findNameHint(text: string): string | null {
+  const quoted = text.match(QUOTED_RE);
+  if (quoted) {
+    const inner = quoted[1].trim();
+    if (inner) return inner;
+  }
+
+  // Разбор по словам с сохранением исходных разделителей: нужно знать, что стоит
+  // ПОСЛЕ первого слова (тире/двоеточие), а `split(/\s+/)` эту информацию теряет.
+  const words = [...text.matchAll(/\S+/g)];
+  if (words.length === 0) return null;
+
+  const firstEnd = (words[0].index ?? 0) + words[0][0].length;
+  const afterFirst = text.slice(firstEnd, firstEnd + 3);
+  const firstIsLabel = /^\s*[-—–:]/.test(afterFirst);
+  const startAt = firstIsLabel ? 0 : 1;
+
+  const run: string[] = [];
+  for (let i = startAt; i < words.length; i += 1) {
+    // Знаки препинания на краях слова не мешают ему быть названием («Ориент,»).
+    const word = words[i][0].replace(/^[«"“(]+|[»"”),.;:!?]+$/g, '');
+    if (word && isCapitalized(word)) {
+      run.push(word);
+      continue;
+    }
+    if (run.length) break; // первая же найденная последовательность и есть ответ
+  }
+
+  return run.length ? run.join(' ') : null;
+}
+
 /** Момент «дата + время» по МСК → ISO UTC. Суффикс +03:00, не арифметика над UTC. */
 function mskMomentIso(dateKey: string, hour: number, minute: number): string {
   const hh = String(hour).padStart(2, '0');
@@ -302,7 +364,7 @@ function cutRanges(body: string, ranges: Range[]): string {
  */
 export function parseTaskIntent(body: string, now: Date = new Date()): TaskIntent {
   const source = body ?? '';
-  if (!source.trim()) return { text: '', deadline: null, matchedDatePhrase: null };
+  if (!source.trim()) return { text: '', deadline: null, matchedDatePhrase: null, nameHint: null };
 
   const todayKey = mskDateKey(now);
 
@@ -356,5 +418,7 @@ export function parseTaskIntent(body: string, now: Date = new Date()): TaskInten
   // задача без названия.
   const text = cleaned || tidy(source);
 
-  return { text, deadline, matchedDatePhrase };
+  // Имя ищем в УЖЕ очищенном тексте: в исходном «3 августа» дало бы «Августа»
+  // подсказкой, а триггер-фраза «Создать задачу» — «Создать».
+  return { text, deadline, matchedDatePhrase, nameHint: findNameHint(text) };
 }
