@@ -39,6 +39,12 @@ export interface Company {
   legal_address?: string | null;
   inn_status?: string | null;
   inn_verified_at?: string | null;
+  /**
+   * S-OKVED-1 (103): основной код ОКВЭД-2 из ЕГРЮЛ. Опционален по той же причине,
+   * что колонки 102 выше — до применения 103 его нет в ответе `select('*')`.
+   * Человеческая отрасль живёт в `industry`; здесь всегда код.
+   */
+  okved?: string | null;
   // Aggregated (computed client-side or via view)
   contacts_count?: number;
   projects_count?: number;
@@ -61,6 +67,8 @@ export interface CompanyInsert {
   legal_address?: string | null;
   inn_status?: string | null;
   inn_verified_at?: string | null;
+  // S-OKVED-1 (103)
+  okved?: string | null;
 }
 
 export interface CompanyUpdate extends Partial<CompanyInsert> {

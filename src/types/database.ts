@@ -26,47 +26,25 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   : TInsert;
 
 /**
- * ⚠️ ВРЕМЕННЫЙ СТАБ (S-INN-1, миграция 102 ещё не применена гейтом).
+ * ⚠️ ВРЕМЕННЫЙ СТАБ (S-OKVED-1, миграция 103 ещё не применена гейтом).
  *
- * Не новая таблица, а ШЕСТЬ КОЛОНОК на существующей `companies` — поэтому стаб не
- * заменяет запись таблицы, а дописывается к ней интерсекцией (см.
- * `& CompanyLegalFieldsStub` ниже): `Row`/`Insert`/`Update` сливаются с
- * сгенерированными по ключам, и остальные колонки `companies` продолжают приходить
- * из `GenDatabase`.
+ * Не новая таблица, а ОДНА КОЛОНКА на существующей `companies` — поэтому стаб не
+ * заменяет запись таблицы, а дописывается к ней интерсекцией (см. `& CompanyOkvedStub`
+ * ниже): `Row`/`Insert`/`Update` сливаются с сгенерированными по ключам, остальные
+ * колонки `companies` продолжают приходить из `GenDatabase`.
  *
- * Снимается регенерацией после apply 102 (`scripts/gen-types.sh`): колонки придут из
- * автогенерации, и весь блок надо УДАЛИТЬ вместе с `& CompanyLegalFieldsStub`.
+ * Снимается регенерацией после apply 103 (`scripts/gen-types.sh`): колонка придёт из
+ * автогенерации, и весь блок надо УДАЛИТЬ вместе с `& CompanyOkvedStub`.
  * `supabase.gen.ts` руками НЕ правится.
  *
  * `type`, а не `interface`, — postgrest-js требует совместимости с индексной
  * сигнатурой (грабля S-R2-SIGNOFF-1).
  */
-type CompanyLegalFieldsStub = {
+type CompanyOkvedStub = {
   companies: {
-    Row: {
-      kpp: string | null;
-      ogrn: string | null;
-      legal_name: string | null;
-      legal_address: string | null;
-      inn_status: string | null;
-      inn_verified_at: string | null;
-    };
-    Insert: {
-      kpp?: string | null;
-      ogrn?: string | null;
-      legal_name?: string | null;
-      legal_address?: string | null;
-      inn_status?: string | null;
-      inn_verified_at?: string | null;
-    };
-    Update: {
-      kpp?: string | null;
-      ogrn?: string | null;
-      legal_name?: string | null;
-      legal_address?: string | null;
-      inn_status?: string | null;
-      inn_verified_at?: string | null;
-    };
+    Row: { okved: string | null };
+    Insert: { okved?: string | null };
+    Update: { okved?: string | null };
   };
 };
 
@@ -79,7 +57,7 @@ export type Database = {
         GenDatabase['public']['Tables'][K],
         'Insert'
       > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
-    } & CompanyLegalFieldsStub;
+    } & CompanyOkvedStub;
   };
 };
 

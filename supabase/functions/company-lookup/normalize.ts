@@ -24,6 +24,16 @@ export interface CompanyLookupResult {
   status: string | null;
   /** data.management.name — руководитель. Подсказка для контакта, в компанию не пишется. */
   management_name: string | null;
+  /** data.okved — основной код ОКВЭД-2 («10.13.2»). Идёт в companies.okved как есть (S-OKVED-1). */
+  okved: string | null;
+  /**
+   * data.phones[].value. У тарифа «Подсказки» контакты обычно приходят пустыми —
+   * поэтому ПУСТОЙ МАССИВ, а не null: клиенту важно только «есть/нет», и отдельная
+   * ветка под null на стороне формы ничего бы не решала.
+   */
+  phones: string[];
+  /** data.emails[].value — там же. */
+  emails: string[];
 }
 
 export const NOT_FOUND: CompanyLookupResult = {
@@ -35,6 +45,9 @@ export const NOT_FOUND: CompanyLookupResult = {
   legal_address: null,
   status: null,
   management_name: null,
+  okved: null,
+  phones: [],
+  emails: [],
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -46,6 +59,28 @@ function str(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t === '' ? null : t;
+}
+
+/**
+ * `[{ value: '+7…' }, …]` → `['+7…']` (S-OKVED-1).
+ *
+ * Толерантно ко всему: не массив — пустой список, элемент не объект или `value`
+ * пустой — элемент отбрасывается. Контакты в ответе реестра — бонус, а не контракт:
+ * на тарифе «Подсказки» их, скорее всего, нет вовсе, и код обязан быть корректным
+ * в обоих случаях, а не гадать, какой из них настоящий.
+ */
+function valueList(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const item of v) {
+    // Только `{ value }` — форма, документированная DaData. Голую строку в массиве
+    // НЕ подбираем: это уже не «реестр отдал по-другому», а неизвестный формат, и
+    // тихо угадывать его значит однажды записать в телефон компании чужое поле.
+    if (!isRecord(item)) continue;
+    const s = str(item.value);
+    if (s) out.push(s);
+  }
+  return out;
 }
 
 /** Вложенное поле по пути; любой не-объект на пути гасит цепочку в null. */
@@ -94,6 +129,9 @@ export function normalizeDadataParty(payload: unknown): CompanyLookupResult {
       str(pick(data, 'address', 'unrestricted_value')) ?? str(pick(data, 'address', 'value')),
     status: str(pick(data, 'state', 'status')),
     management_name: str(pick(data, 'management', 'name')),
+    okved: str(data.okved),
+    phones: valueList(data.phones),
+    emails: valueList(data.emails),
   };
 }
 

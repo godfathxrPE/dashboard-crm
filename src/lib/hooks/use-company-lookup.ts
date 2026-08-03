@@ -23,10 +23,21 @@ export interface CompanyLookupResult {
   status: string | null;
   /** Руководитель — подсказка для контакта; в компанию не пишется. */
   management_name: string | null;
+  /** S-OKVED-1: основной код ОКВЭД-2. Идёт в `okved`; отрасль из него выводит справочник. */
+  okved: string | null;
+  /** S-OKVED-1: телефоны реестра. Пустой массив, а не null — на тарифе «Подсказки» их обычно нет. */
+  phones: string[];
+  /** S-OKVED-1: почты реестра. Там же. */
+  emails: string[];
 }
 
 function isLookupResult(v: unknown): v is CompanyLookupResult {
   return typeof v === 'object' && v !== null && typeof (v as { found?: unknown }).found === 'boolean';
+}
+
+/** Массив строк или пустой массив. Всё, что не строка, отбрасывается. */
+function strList(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string' && s.trim() !== '') : [];
 }
 
 async function lookupByInn(inn: string): Promise<CompanyLookupResult> {
@@ -39,7 +50,16 @@ async function lookupByInn(inn: string): Promise<CompanyLookupResult> {
   // для функции: сужаем, а не кастуем. Иначе битый деплой протёк бы в форму
   // undefined-ами и молча затёр поля.
   if (!isLookupResult(data)) throw new Error('Некорректный ответ сервиса поиска по ИНН');
-  return data;
+  // S-OKVED-1: три поля добавлены в контракт этим спринтом, а функция деплоится
+  // гейтом ОТДЕЛЬНО от фронта. Между выкаткой бандла и редеплоем функции в ответе
+  // придёт версия без них — и `r.phones.map(...)` в форме упал бы на undefined,
+  // хотя тип обещает массив. Достраиваем недостающее здесь, на границе.
+  return {
+    ...data,
+    okved: typeof data.okved === 'string' ? data.okved : null,
+    phones: strList(data.phones),
+    emails: strList(data.emails),
+  };
 }
 
 /**

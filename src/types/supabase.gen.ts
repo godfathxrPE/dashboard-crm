@@ -651,8 +651,14 @@ export type Database = {
           id: string
           industry: string | null
           inn: string | null
+          inn_status: string | null
+          inn_verified_at: string | null
+          kpp: string | null
+          legal_address: string | null
+          legal_name: string | null
           name: string
           notes: string | null
+          ogrn: string | null
           org_id: string
           owner_id: string | null
           phone: string | null
@@ -668,8 +674,14 @@ export type Database = {
           id?: string
           industry?: string | null
           inn?: string | null
+          inn_status?: string | null
+          inn_verified_at?: string | null
+          kpp?: string | null
+          legal_address?: string | null
+          legal_name?: string | null
           name: string
           notes?: string | null
+          ogrn?: string | null
           org_id: string
           owner_id?: string | null
           phone?: string | null
@@ -685,8 +697,14 @@ export type Database = {
           id?: string
           industry?: string | null
           inn?: string | null
+          inn_status?: string | null
+          inn_verified_at?: string | null
+          kpp?: string | null
+          legal_address?: string | null
+          legal_name?: string | null
           name?: string
           notes?: string | null
+          ogrn?: string | null
           org_id?: string
           owner_id?: string | null
           phone?: string | null

@@ -10,6 +10,7 @@ import {
 import { useCompany, useDeleteCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
+import { okvedToIndustry } from '@/lib/data/okved';
 import { formatDateHuman } from '@/lib/utils/dates';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -121,10 +122,18 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   // ═══ S-INN-1: реквизиты ЕГРЮЛ ═══
   // ИНН уехал из общей сетки сюда: в одиночку он ничего не решает, а рядом с КПП,
   // ОГРН и статусом юрлица — это блок, по которому готовят договор.
+  //
+  // S-OKVED-1: ОКВЭД показываем кодом и, через тире, отраслью из справочника —
+  // код без расшифровки в карточке бесполезен, а расшифровка без кода не сверяется
+  // с выпиской. Отрасль здесь ВЫЧИСЛЯЕТСЯ, а не читается из `industry`: в поле
+  // отрасли может лежать то, что менеджер написал руками, и подменять им реестр
+  // нельзя. Не резолвится (пропуск в нумерации ОКВЭД) — показываем голый код.
+  const okvedIndustry = okvedToIndustry(company.okved);
   const legalFields = [
     { label: 'ИНН', value: company.inn },
     { label: 'КПП', value: company.kpp ?? null },
     { label: 'ОГРН', value: company.ogrn ?? null },
+    { label: 'ОКВЭД', value: company.okved ? (okvedIndustry ? `${company.okved} — ${okvedIndustry}` : company.okved) : null },
     { label: 'Юр. название', value: company.legal_name ?? null },
     { label: 'Юр. адрес', value: company.legal_address ?? null },
   ].filter((f) => f.value);
@@ -150,6 +159,10 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         ogrn: r.ogrn,
         legal_address: r.legal_address,
         inn_status: r.status,
+        // S-OKVED-1: ОКВЭД в том же наборе — он такой же факт реестра. Отрасль
+        // отсюда НЕ пишем: `industry` — рабочая классификация, и «Обновить
+        // реквизиты» не повод переклассифицировать компанию за менеджера.
+        okved: r.okved,
         inn_verified_at: new Date().toISOString(),
       });
       toast.success('Реквизиты обновлены из ЕГРЮЛ');

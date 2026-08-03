@@ -33,6 +33,13 @@ export const companyFormSchema = z.object({
   inn_status: z.string().nullable().default(null),
   // Проставляется кодом при успешном lookup, не пользователем.
   inn_verified_at: z.string().nullable().default(null),
+
+  // ═══ S-OKVED-1 (103): код ОКВЭД ═══
+  // В форме поля нет: это служебный код реестра, руками его не вводят. Живёт в схеме,
+  // чтобы `setValue('okved', …)` после lookup доехал до `onSubmit`, а на карточке
+  // компании было что показать. Отрасль из кода выводится справочником и уходит в
+  // `industry` — код в поле «Отрасль» не пишется никогда (инвариант спринта).
+  okved: z.string().nullable().default(null),
 });
 
 export type CompanyFormValues = z.infer<typeof companyFormSchema>;
