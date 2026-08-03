@@ -237,6 +237,9 @@ export function useCreateTask() {
         // (тип Task=Row, не Insert) обязан нести поле. Стемпит только БД-триггер на
         // переходе в done; новая задача ('now') не завершена. Истину даст рефетч onSettled.
         completed_at: null,
+        // S-CHAT-TASK-1 (099): ссылка на сообщение-источник. Той же природы, что поля
+        // выше — Task=Row требует поле в литерале. Непусто только у задач из чата.
+        source_message_id: input.source_message_id ?? null,
       };
 
       // Личный борд ['tasks'] — всегда; доска ['tasks','board',pid] отфильтрована
