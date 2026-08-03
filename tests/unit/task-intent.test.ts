@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTaskIntent } from '@/lib/utils/task-intent';
+import { matchTaskCommand, parseTaskIntent } from '@/lib/utils/task-intent';
 
 // ═══════════════════════════════════════════════════════
 // S-CHAT-TASK-1: разбор «задача из сообщения».
@@ -20,6 +20,50 @@ function endOfMskDay(dateKey: string): string {
 function mskMoment(dateKey: string, hhmm: string): string {
   return new Date(`${dateKey}T${hhmm}:00.000+03:00`).toISOString();
 }
+
+describe('matchTaskCommand — распознавание слэш-команды', () => {
+  it('канон: «/задача X»', () => {
+    expect(matchTaskCommand('/задача звонок Ориент')).toBe('звонок Ориент');
+  });
+
+  it('пробел после слэша — это тоже команда (на этом уже наступили)', () => {
+    expect(matchTaskCommand('/ задача звонок Ориент')).toBe('звонок Ориент');
+    expect(matchTaskCommand('/  задача звонок')).toBe('звонок');
+  });
+
+  it('регистр не важен, «задачу» наравне с «задача»', () => {
+    expect(matchTaskCommand('/Задача - позвонить Глебу')).toBe('- позвонить Глебу');
+    expect(matchTaskCommand('/ЗАДАЧУ позвонить')).toBe('позвонить');
+  });
+
+  it('«/task» — синоним: раскладку переключить забывают', () => {
+    expect(matchTaskCommand('/task call Orient')).toBe('call Orient');
+    expect(matchTaskCommand('/ task call')).toBe('call');
+  });
+
+  it('команда без текста — ПУСТАЯ строка, а не null: вызывающий обязан их различать', () => {
+    expect(matchTaskCommand('/задача')).toBe('');
+    expect(matchTaskCommand('/задача   ')).toBe('');
+    expect(matchTaskCommand('/ задача')).toBe('');
+  });
+
+  it('одинокий слэш командой не считается', () => {
+    expect(matchTaskCommand('/')).toBeNull();
+    expect(matchTaskCommand('/ ')).toBeNull();
+  });
+
+  it('обычный текст и внутренние ссылки не задеваются', () => {
+    expect(matchTaskCommand('звонок Ориент')).toBeNull();
+    expect(matchTaskCommand('/deals/3f1c0f4e-1a2b-4c3d-8e9f-000000000001')).toBeNull();
+    // Слово-продолжение — не команда: «/задачник» это не «/задача».
+    expect(matchTaskCommand('/задачник')).toBeNull();
+    expect(matchTaskCommand('/tasks list')).toBeNull();
+  });
+
+  it('команда только в начале строки', () => {
+    expect(matchTaskCommand('см. /задача звонок')).toBeNull();
+  });
+});
 
 describe('parseTaskIntent — даты', () => {
   it('«3 августа» — конец дня по МСК, дата вырезана из текста', () => {
