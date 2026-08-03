@@ -379,6 +379,15 @@ export function MessageThread({
 
   const myId = user?.id ?? null;
   const isModerator = orgRole === 'owner' || orgRole === 'admin';
+  // S-CHAT-AUDIT-1. Право СОЗДАТЬ задачу — не то же, что право ВИДЕТЬ сообщение:
+  // `tasks_insert` (baseline) пускает только owner/admin/manager. `viewer` после 098
+  // видит всю базу и все каналы (он член org ⇒ член general), но его INSERT падает в
+  // 42501 — а по слэш-пути сообщение к этому моменту уже ушло в канал. Получалось:
+  // реплика, которую команда читает как поставленную задачу, задачи нет, тост уехал.
+  //
+  // `orgRole` приезжает асинхронно: пока `undefined`/`null` — кнопку не рисуем.
+  // Показать и отобрать хуже, чем показать на 200 мс позже.
+  const canCreateTask = orgRole != null && orgRole !== 'viewer';
   const meMember = teamMembers.find((m) => m.id === myId);
   const me = myId
     ? { id: myId, full_name: meMember?.full_name ?? 'Я', avatar_url: meMember?.avatar_url ?? null }
@@ -539,6 +548,14 @@ export function MessageThread({
       // вложения ради задачи или задачу ради вложений.
       toast.info('Файлы отправлены — задачу поставь иконкой на сообщении');
     } else if (commandRest !== null) {
+      // S-CHAT-AUDIT-1: гейт ДО отправки. Слэш-путь сначала пишет в канал и только потом
+      // открывает карточку — у viewer'а это оставляло бы в ленте реплику, которую команда
+      // читает как поставленную задачу, при том что задачи не будет (42501 на INSERT).
+      // Драфт не очищаем: набранный текст не должен пропасть из-за отказа в правах.
+      if (!canCreateTask) {
+        toast.error('Недостаточно прав, чтобы ставить задачи');
+        return;
+      }
       if (!commandRest) {
         // «Команда есть, текста нет» — подсказка. В канал такое не отправляем: пустая
         // команда это опечатка, а не реплика.
@@ -776,31 +793,37 @@ export function MessageThread({
                     <SmilePlus size={12} />
                   </button>
                   {/*
-                    S-CHAT-TASK-1: «в задачу». Видна ВСЕМ, кто видит сообщение — задачу
+                    S-CHAT-TASK-1: «в задачу». Видна всем, кто МОЖЕТ её поставить — задачу
                     ставят и по чужой реплике, это нормальный рабочий сценарий (в отличие
                     от правки, которая под canEdit). У сообщения из одних вложений тела
                     для разбора нет — кнопку не показываем.
+
+                    S-CHAT-AUDIT-1: кнопка под `canCreateTask` (viewer упёрся бы в 42501),
+                    а `TaskCreatedLink` — нет: это не действие, а ссылка на факт, и факт
+                    виден всему каналу.
                   */}
                   {m.body.trim() &&
                     (messageTask ? (
                       <TaskCreatedLink taskText={messageTask.text} />
                     ) : (
-                      <button
-                        onClick={() =>
-                          setTaskDraft({
-                            body: m.body,
-                            sourceMessageId: m.id,
-                            // Исполнитель по умолчанию — АВТОР сообщения, не нажавший
-                            // (решение 6): «нужно позвонить» написал Иван — задача его.
-                            assigneeId: m.author_id,
-                          })
-                        }
-                        className="rounded p-0.5 text-text-mute transition-colors hover:text-text-main"
-                        aria-label="Создать задачу из сообщения"
-                        title="Создать задачу из сообщения"
-                      >
-                        <ListPlus size={12} />
-                      </button>
+                      canCreateTask && (
+                        <button
+                          onClick={() =>
+                            setTaskDraft({
+                              body: m.body,
+                              sourceMessageId: m.id,
+                              // Исполнитель по умолчанию — АВТОР сообщения, не нажавший
+                              // (решение 6): «нужно позвонить» написал Иван — задача его.
+                              assigneeId: m.author_id,
+                            })
+                          }
+                          className="rounded p-0.5 text-text-mute transition-colors hover:text-text-main"
+                          aria-label="Создать задачу из сообщения"
+                          title="Создать задачу из сообщения"
+                        >
+                          <ListPlus size={12} />
+                        </button>
+                      )
                     ))}
                   {canEdit && (
                     <button

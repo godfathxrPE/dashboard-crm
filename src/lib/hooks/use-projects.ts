@@ -3,6 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from './use-realtime';
+import {
+  collectConversationAttachmentPaths,
+  removeChatAttachmentObjects,
+} from './use-message-attachments';
 import type { OpenChecklistItem, UnmetRequirement } from '@/types/database';
 import type { OpenMilestone } from './use-delivery-gate';
 
@@ -235,8 +239,33 @@ async function updateProject({ id, ...updates }: ProjectUpdate): Promise<Project
   return data as unknown as Project;
 }
 
+/**
+ * Hard delete проекта. Каскад уносит и канал проекта (`conversations.project_id`), и его
+ * сообщения со строками вложений.
+ *
+ * S-CHAT-AUDIT-1: байты вложений каскад НЕ трогает — бакет про внешние ключи не знает
+ * (097). Больше того, после исчезновения канала объекты становятся неудаляемыми из
+ * приложения ВООБЩЕ: `can_access_chat_file` берёт первый сегмент пути как
+ * `conversation_id` и не находит канала ⇒ false для всех, включая owner. Поэтому пути
+ * собираются и объекты сносятся ДО удаления проекта — тот же приём, что в
+ * `useDeleteMessage` и `useDeleteGroup`.
+ */
 async function deleteProject(id: string): Promise<void> {
   const supabase = createClient();
+
+  // Канала может не быть (проект создан до бэкфилла 094) — тогда шаг просто пропускается.
+  // Ошибку чтения глотаем: не повод блокировать удаление проекта, худший исход — сирота.
+  const { data: conversation } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('project_id', id)
+    .maybeSingle();
+
+  if (conversation) {
+    const paths = await collectConversationAttachmentPaths(conversation.id);
+    await removeChatAttachmentObjects(paths).catch(() => undefined);
+  }
+
   const { error } = await supabase.from('projects').delete().eq('id', id);
   if (error) throw error;
 }

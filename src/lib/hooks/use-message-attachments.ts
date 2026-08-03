@@ -209,3 +209,45 @@ export async function removeChatAttachmentObjects(paths: string[]): Promise<void
   const supabase = createClient();
   await supabase.storage.from(CHAT_BUCKET).remove(paths);
 }
+
+/**
+ * S-CHAT-AUDIT-1: все ключи объектов канала — ДО его удаления.
+ *
+ * Зачем отдельный хелпер, а не третья копия кода `useDeleteMessage`: удаляют канал двумя
+ * путями (группа в `useDeleteGroup`, проект вместе со своим каналом в `deleteProject`), и
+ * шаг чистки обязан быть одинаковым на обоих.
+ *
+ * ⚠️ ЗВАТЬ СТРОГО ДО DELETE. После исчезновения строки канала `can_access_chat_file`
+ * (097) вернёт false ВСЕМ, включая owner организации: она берёт первый сегмент пути как
+ * `conversation_id` и зовёт `is_conversation_member`, а канала уже нет. Ни `select`, ни
+ * `delete` по объектам не пройдут — байты станут неудаляемыми из приложения вообще, и на
+ * «удалите наши документы» ответить будет нечем, кроме дашборда Supabase под service_role.
+ *
+ * Никогда не бросает: худший исход здесь — сирота в бакете, а не заблокированное удаление
+ * группы или проекта (тот же выбор, что в `useDeleteMessage`).
+ */
+export async function collectConversationAttachmentPaths(
+  conversationId: string,
+): Promise<string[]> {
+  const supabase = createClient();
+  try {
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', conversationId);
+
+    const messageIds = (messages ?? []).map((m) => m.id);
+    // Подзапросом список не получить (PostgREST), поэтому два шага. Пустой `.in()` роняет
+    // PostgREST (грабля W3 из 068) — при пустом канале запроса просто нет.
+    if (messageIds.length === 0) return [];
+
+    const { data } = await supabase
+      .from('message_attachments')
+      .select('storage_path')
+      .in('message_id', messageIds);
+
+    return (data ?? []).map((a) => a.storage_path);
+  } catch {
+    return [];
+  }
+}
