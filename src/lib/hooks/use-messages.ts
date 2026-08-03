@@ -158,7 +158,16 @@ export function useSendMessage(conversationId: string) {
   });
 }
 
-/** Править своё сообщение (RLS: только автор; edited_at — штамп «изм.»). */
+/**
+ * Править своё сообщение (RLS: только автор).
+ *
+ * S-CHAT-AUDIT-1: `edited_at` клиент НЕ шлёт — штамп ставит триггер `trg_set_edited_at`
+ * (100) и затирает всё, что пришло в payload. Раньше штамп подавался отсюда, и это
+ * означало, что автор может одним запросом изменить тело и выставить `edited_at: null`:
+ * `messages_update` старое значение с новым не сравнивает, а второй копии текста нет
+ * нигде. Серверное значение приезжает обратно в `.select(MESSAGE_COLS)` — кэш получает
+ * ровно то, что легло в базу.
+ */
 export function useEditMessage(conversationId: string) {
   const supabase = createClient();
   const queryClient = useQueryClient();
@@ -167,7 +176,7 @@ export function useEditMessage(conversationId: string) {
     mutationFn: async ({ id, body }: { id: string; body: string }) => {
       const { data, error } = await supabase
         .from('messages')
-        .update({ body, edited_at: new Date().toISOString() })
+        .update({ body })
         .eq('id', id)
         .select(MESSAGE_COLS)
         .single();

@@ -307,6 +307,15 @@ export function TaskFromMessageCard({
             onClose();
             return;
           }
+          // S-CHAT-AUDIT-1. 42501 — `tasks_insert` (baseline) пускает owner/admin/manager.
+          // Второй эшелон к гейту по роли в MessageThread: тот гейт клиентский, а истина
+          // живёт в RLS. Роль сменили в соседней вкладке или пока карточка была открыта —
+          // человек получит внятный текст вместо «Не удалось создать задачу».
+          if (pgErrorCode(err) === '42501') {
+            toast.error('Недостаточно прав, чтобы ставить задачи');
+            onClose();
+            return;
+          }
           toast.error('Не удалось создать задачу');
         },
       },

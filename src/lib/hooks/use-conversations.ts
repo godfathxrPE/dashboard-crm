@@ -4,6 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './use-auth';
 import { useRealtimeSync } from './use-realtime';
+import {
+  collectConversationAttachmentPaths,
+  removeChatAttachmentObjects,
+} from './use-message-attachments';
 import { channelTitle } from '@/lib/utils/chat-channels';
 import { projectHref } from '@/lib/utils/project-href';
 import type { Conversation } from '@/types/entities';
@@ -290,6 +294,12 @@ export function useRenameGroup() {
  *
  * Вызывающий обязан увести пользователя с канала: строка исчезает из списка, и
  * оставшийся `?c=` покажет «Канал недоступен».
+ *
+ * S-CHAT-AUDIT-1: перед удалением сносим объекты вложений. Каскад уносит строки
+ * `message_attachments`, но не байты в бакете (097 фиксирует это как договорённость —
+ * чистит клиент), а после исчезновения канала объекты станут неудаляемыми вообще:
+ * `can_access_chat_file` вернёт false всем. Порядок жёсткий — собрать пути, удалить
+ * объекты, удалить канал.
  */
 export function useDeleteGroup() {
   const supabase = createClient();
@@ -297,6 +307,9 @@ export function useDeleteGroup() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const paths = await collectConversationAttachmentPaths(id);
+      await removeChatAttachmentObjects(paths).catch(() => undefined);
+
       const { error } = await supabase.from('conversations').delete().eq('id', id);
       if (error) throw error;
     },
