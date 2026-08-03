@@ -23,6 +23,7 @@ import {
 } from '@/lib/hooks/use-message-attachments';
 import { useEntityTitles } from '@/lib/hooks/use-entity-titles';
 import { APP_ORIGIN, entityRefsOf, parseEntityLinks } from '@/lib/utils/entity-links';
+import { matchTaskCommand } from '@/lib/utils/task-intent';
 import { useTasksBySourceMessages } from '@/lib/hooks/use-tasks-by-message';
 import { MessageAttachments } from '@/components/chat/MessageAttachments';
 import { MessageBody } from '@/components/chat/MessageBody';
@@ -88,27 +89,16 @@ const AT_BOTTOM_PX = 80;
 const COMPOSER_MAX_PX = 148;
 
 /**
- * S-CHAT-TASK-1: слэш-команда «превратить набранное в задачу». Одна команда на весь
- * композер, поэтому автокомплита нет — есть подсказка под полем при вводе `/`.
+ * Что превращаем в задачу.
  *
- * `\b` не используется: в JS он опирается на ASCII-`\w` и после кириллицы срабатывает
- * наоборот ожидаемому (та же грабля, что в `task-intent`).
- */
-const TASK_COMMAND_RE = /^\/задач[ау](?![\wа-яё])\s*/i;
-
-/** Остаток строки после команды, либо `null` — это не команда. */
-function matchTaskCommand(body: string): string | null {
-  const m = body.match(TASK_COMMAND_RE);
-  return m ? body.slice(m[0].length).trim() : null;
-}
-
-/**
- * Что превращаем в задачу. `sourceMessageId = null` — вход через слэш-команду:
- * сообщения ещё нет, значит нет и ключа идемпотентности (099).
+ * FIX S-CHAT-TASK-SLASH: `sourceMessageId` больше НЕ бывает пустым — и это не
+ * договорённость, а тип. Слэш-команда сначала отправляет сообщение в канал и только
+ * потом открывает карточку, так что источник есть у обоих входов, и unique-индекс 099
+ * работает на обоих. Ослабить обратно до nullable — значит вернуть дубли в проде.
  */
 interface TaskDraft {
   body: string;
-  sourceMessageId: string | null;
+  sourceMessageId: string;
   /** Дефолтный исполнитель: автор сообщения, а для команды — сам пишущий (решение 6). */
   assigneeId: string | null;
 }
@@ -531,18 +521,53 @@ export function MessageThread({
     const body = draft.trim();
     const files = pendingFiles;
 
-    // S-CHAT-TASK-1. Слэш-команда перехватывает отправку: вместо сообщения — карточка
-    // подтверждения. Перехват только при пустом списке файлов: задача вложений не
-    // несёт, и съесть подписанные файлы командой было бы потерей данных.
-    const commandRest = files.length === 0 ? matchTaskCommand(body) : null;
-    if (commandRest !== null) {
+    // ── FIX S-CHAT-TASK-SLASH: слэш-команда СНАЧАЛА отправляет сообщение ────────────
+    //
+    // Раньше она открывала карточку молча, без сообщения. Три следствия, и все плохие:
+    // у задачи не было `source_message_id` (⇒ unique-индекс 099 на этом пути не работал
+    // вообще, и в проде появились два одинаковых дубля), не было обратной ссылки, и —
+    // главное — в канале не оставалось следа. А смысл ставить задачу в КОМАНДНОМ чате
+    // ровно в том, что команда видит договорённость; без сообщения это просто вторая
+    // форма создания задачи, а форма уже есть в разделе «Задачи».
+    //
+    // Поэтому порядок жёсткий: сообщение → карточка с его id → дальше тот же код, что
+    // у иконки на сообщении. Одна семантика на оба входа.
+    const commandRest = matchTaskCommand(body);
+    if (commandRest !== null && files.length > 0) {
+      // Файлы и команда в одном действии — два разных намерения. Честнее отправить
+      // сообщение как набрано (команда НЕ исполняется) и сказать об этом, чем съесть
+      // вложения ради задачи или задачу ради вложений.
+      toast.info('Файлы отправлены — задачу поставь иконкой на сообщении');
+    } else if (commandRest !== null) {
       if (!commandRest) {
-        // Пустая команда — подсказка, а не карточка (edge case спринта).
+        // «Команда есть, текста нет» — подсказка. В канал такое не отправляем: пустая
+        // команда это опечатка, а не реплика.
         toast.info('После /задача напиши, что надо сделать');
         return;
       }
-      setTaskDraft({ body: commandRest, sourceMessageId: null, assigneeId: myId });
+      // В канал уходит то, что человек имел в виду, — БЕЗ префикса команды, но С датой.
+      // Вырезание даты остаётся внутренней работой парсера для поля «Задача»: сообщение
+      // это запись разговора, а не служебная строка.
       setDraft('');
+      sendMessage.mutate(
+        { body: commandRest, me, files: [] },
+        {
+          onSuccess: ({ message }) => {
+            setTaskDraft({
+              body: commandRest,
+              sourceMessageId: message.id,
+              assigneeId: myId,
+            });
+          },
+          onError: () => {
+            // Сообщение не ушло (сеть, RLS) — карточку НЕ открываем. Задача «в никуда»
+            // недопустима: провенанс здесь половина смысла. Драфт возвращаем целиком,
+            // вместе с командой, чтобы повтор был одним нажатием.
+            setDraft(body);
+            toast.error('Сообщение не ушло — задача не создана');
+          },
+        },
+      );
       return;
     }
 
@@ -1023,7 +1048,7 @@ export function MessageThread({
       */}
       {taskDraft && (
         <TaskFromMessageCard
-          key={taskDraft.sourceMessageId ?? 'composer'}
+          key={taskDraft.sourceMessageId}
           body={taskDraft.body}
           sourceMessageId={taskDraft.sourceMessageId}
           entityRefs={taskDraftRefs}
@@ -1182,11 +1207,14 @@ export function MessageThread({
         Подсказка команд. Команда одна, поэтому автокомплита с фильтрацией нет — есть
         строка «что вообще можно набрать», появляющаяся на вводе `/`. Без неё команда
         остаётся секретом: узнать про неё будет неоткуда.
+
+        Текст обязан говорить про ОТПРАВКУ (FIX S-CHAT-TASK-SLASH): команда пишет в
+        канал, и человек должен знать это до нажатия Enter, а не после.
       */}
       {draft.startsWith('/') && !taskDraft && (
         <p className="mt-1 shrink-0 px-2 text-meta text-text-mute">
-          <span className="font-medium text-text-dim">/задача</span> — превратить строку в
-          задачу: «/задача звонок 3 августа в 15:00»
+          <span className="font-medium text-text-dim">/задача</span> — отправит сообщение в
+          канал и предложит создать задачу: «/задача звонок 3 августа в 15:00»
         </p>
       )}
     </div>
