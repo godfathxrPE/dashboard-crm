@@ -1028,6 +1028,16 @@ export function MessageThread({
           sourceMessageId={taskDraft.sourceMessageId}
           entityRefs={taskDraftRefs}
           entityTitles={entityTitles}
+          entityTitlesLoading={titlesLoading}
+          // Канал как источник привязки по умолчанию (FIX S-CHAT-TASK-1-BIND, решение 1).
+          // Берётся из УЖЕ загруженного списка каналов — того же, что кормит сайдбар и
+          // разделитель непрочитанного; нового обращения к БД нет. Канал не приехал —
+          // `general` и пустой проект: карточка просто не предзаполнит привязку.
+          conversation={{
+            kind: listEntry?.conversation.kind ?? 'general',
+            projectId: listEntry?.conversation.project_id ?? null,
+            title: listEntry?.title ?? '',
+          }}
           defaultAssigneeId={taskDraft.assigneeId}
           onClose={() => setTaskDraft(null)}
         />

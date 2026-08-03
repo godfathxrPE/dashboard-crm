@@ -1,17 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ListPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateTask } from '@/lib/hooks/use-tasks';
 import { useInvalidateTasksByMessage } from '@/lib/hooks/use-tasks-by-message';
+import { useEntitySearch, type EntityOption } from '@/lib/hooks/use-entity-search';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { entityKey, type EntityPart } from '@/lib/utils/entity-links';
 import type { EntityTitles } from '@/lib/hooks/use-entity-titles';
 import { parseTaskIntent } from '@/lib/utils/task-intent';
 import { datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers';
+import type { ConversationKind } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-CHAT-TASK-1: карточка подтверждения «задача из сообщения».
@@ -25,10 +28,23 @@ import { datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers
 //    сверяет разобранное с тем, что написано. Карточка живёт между лентой и композером —
 //    одно место для обоих входов (у слэш-команды сообщения ещё нет и якорить не к чему).
 //
-// ⚠️ СУЩНОСТЬ БЕРЁТСЯ ТОЛЬКО ИЗ ЧИПА (решение 1). «Ориент» в тексте может значить
-//    «Ориент Продактс», «Пресейл Ориент» или ничего — гадать по имени мы не будем.
-//    Чип из 1e — уже провалидированная ссылка с id. Чипов нет → «без привязки», и это
-//    видно явно.
+// ⚠️ ПРИВЯЗКА: ЧЕТЫРЕ ИСТОЧНИКА, ПЕРВЫЙ НЕПУСТОЙ ВЫИГРЫВАЕТ
+//    (FIX S-CHAT-TASK-1-BIND — переписывает решение 1 исходного спринта).
+//      1. явный выбор человека;
+//      2. чип-ссылка в сообщении — самый явный сигнал, что дал автор;
+//      3. канал проекта — контекст бесплатный и точный: канал знает свой `project_id`,
+//         угадывать нечего;
+//      4. кандидат из текста — и только если совпадение РОВНО ОДНО.
+//
+//    Исходно сущность бралась только из чипа. Это защищало от привязки не к той сделке,
+//    но чипы появляются, лишь когда человек вставляет URL из адресной строки — в
+//    переписке так не пишут, и привязка не срабатывала почти никогда. Запрет на
+//    угадывание остался: «Ориент» даёт четыре совпадения, и в этом случае мы не выбираем
+//    ничего — показываем список. Изменилось то, что теперь есть ЧТО показать.
+//
+// ⚠️ ОТКУДА ВЗЯЛАСЬ ПРИВЯЗКА — ВИДНО СТРОКОЙ ПОД ПОЛЕМ. Прямое продолжение
+//    «распознано: …» у даты: система обязана показывать не только ответ, но и его
+//    происхождение, иначе «оно само что-то выбрало» неотличимо от ошибки.
 // ═══════════════════════════════════════════════════════
 
 /** Читаемый момент по МСК — таймзона браузера может быть любой (решение спринта). */
@@ -40,19 +56,38 @@ const MSK_FMT = new Intl.DateTimeFormat('ru-RU', {
   timeZone: 'Europe/Moscow',
 });
 
-const ENTITY_LABELS: Record<EntityPart['entityType'], string> = {
-  deal: 'Сделка',
-  project: 'Внедрение',
-  company: 'Компания',
-  contact: 'Контакт',
-};
-
 /** Код ошибки PostgREST без `any`: payload внешний, разбираем через guard. */
 function pgErrorCode(err: unknown): string | null {
   if (typeof err !== 'object' || err === null) return null;
   const code = (err as Record<string, unknown>).code;
   return typeof code === 'string' ? code : null;
 }
+
+/**
+ * Куда пишется привязка. Не `entityType` из поиска: `deal` и `project` — одна и та же
+ * строка `projects` и одна и та же колонка `project_id`, а различает их только подпись.
+ * Хранить в состоянии карточки различие, которого нет в БД, значит развести их однажды.
+ */
+type BindTarget = 'project' | 'company' | 'contact';
+
+interface Bind {
+  target: BindTarget;
+  id: string;
+  label: string;
+}
+
+/** Откуда взялась привязка — показывается человеку строкой под полем. */
+type BindSource = 'chip' | 'channel' | 'text' | 'manual';
+
+const TARGET_OF: Record<EntityPart['entityType'], BindTarget> = {
+  deal: 'project',
+  project: 'project',
+  company: 'company',
+  contact: 'contact',
+};
+
+/** Ключ для `Combobox`: тип нужен, потому что id сделки и компании могут совпасть. */
+const bindKey = (target: BindTarget, id: string) => `${target}:${id}`;
 
 export interface TaskFromMessageCardProps {
   /** Тело для разбора: сообщение целиком либо остаток строки после `/задача`. */
@@ -66,6 +101,14 @@ export interface TaskFromMessageCardProps {
   entityRefs: EntityPart[];
   /** Названия чипов. Чип без названия невидим по RLS — в привязку не предлагаем. */
   entityTitles: EntityTitles;
+  /** Названия чипов ещё в пути — до ответа чип нельзя считать ни годным, ни негодным. */
+  entityTitlesLoading: boolean;
+  /**
+   * Канал, в котором открыта карточка. `kind === 'project'` даёт привязку по умолчанию:
+   * сообщение в канале «Ориент Продактс — внедрение» почти всегда про эту сделку, и
+   * `project_id` канал знает точно.
+   */
+  conversation: { kind: ConversationKind; projectId: string | null; title: string };
   /** Дефолтный исполнитель — АВТОР сообщения, а не нажавший (решение 6). */
   defaultAssigneeId: string | null;
   onClose: () => void;
@@ -76,6 +119,8 @@ export function TaskFromMessageCard({
   sourceMessageId,
   entityRefs,
   entityTitles,
+  entityTitlesLoading,
+  conversation,
   defaultAssigneeId,
   onClose,
 }: TaskFromMessageCardProps) {
@@ -91,25 +136,136 @@ export function TaskFromMessageCard({
   const [deadlineLocal, setDeadlineLocal] = useState(isoToDatetimeLocal(intent.deadline) ?? '');
   const [assigneeId, setAssigneeId] = useState<string | null>(defaultAssigneeId);
 
-  // Привязку предлагаем только по тем чипам, чьи названия RLS реально отдала: вести
-  // задачу на сущность, которой человек не видит, — обещание, которого мы не сдержим.
-  const links = useMemo(() => {
-    const seen = new Set<string>();
-    return entityRefs.filter((r) => {
-      const key = entityKey(r.entityType, r.id);
-      if (seen.has(key) || !entityTitles.get(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  // ── Привязка ───────────────────────────────────────────────────────────────
+  // Чипы, чьи названия RLS реально отдала: вести задачу на сущность, которой человек
+  // не видит, — обещание, которого мы не сдержим.
+  const chipBind = useMemo<Bind | null>(() => {
+    for (const r of entityRefs) {
+      const title = entityTitles.get(entityKey(r.entityType, r.id));
+      if (title) return { target: TARGET_OF[r.entityType], id: r.id, label: title };
+    }
+    return null;
   }, [entityRefs, entityTitles]);
 
-  // `null` — человек выбор не трогал, берём первый доступный чип. Именно производной,
-  // а не начальным состоянием: названия чипов приезжают отдельным запросом и на момент
-  // открытия карточки могут ещё грузиться — зафиксированный при монтировании дефолт
-  // остался бы «без привязки» навсегда.
-  const [pickedKey, setPickedKey] = useState<string | null>(null);
-  const linkKey = pickedKey ?? (links[0] ? entityKey(links[0].entityType, links[0].id) : '');
-  const link = links.find((r) => entityKey(r.entityType, r.id) === linkKey) ?? null;
+  const channelBind = useMemo<Bind | null>(
+    () =>
+      conversation.kind === 'project' && conversation.projectId
+        ? { target: 'project', id: conversation.projectId, label: conversation.title }
+        : null,
+    [conversation],
+  );
+
+  const [bind, setBind] = useState<Bind | null>(null);
+  const [bindSource, setBindSource] = useState<BindSource>('manual');
+  // Чем кончился поиск по подсказке из текста. «Ничего не нашлось» и «нашлось
+  // несколько» — разные сообщения человеку: первое значит «имя мы не узнали», второе —
+  // «узнали, но выбрать за тебя не имеем права».
+  const [hintOutcome, setHintOutcome] = useState<'none' | 'many' | null>(null);
+  // Поиск стартует с подсказки из текста: заставлять человека набрать то, что система
+  // уже прочитала, — худший вид «умного» интерфейса.
+  const [search, setSearch] = useState(intent.nameHint ?? '');
+  const { options: searchOptions, isLoading: searchLoading } = useEntitySearch(search);
+
+  // Начальная привязка вычисляется РОВНО ОДИН раз. Дальше истина — состояние: иначе
+  // приехавшие позже названия чипов или новый результат поиска затирали бы выбор
+  // человека прямо под курсором.
+  const resolvedRef = useRef(false);
+  useEffect(() => {
+    if (resolvedRef.current) return;
+
+    // Чип есть, но названия ещё летят — ждём: сейчас он неотличим от невидимого по RLS.
+    if (entityRefs.length > 0 && entityTitlesLoading) return;
+
+    if (chipBind) {
+      resolvedRef.current = true;
+      setBind(chipBind);
+      setBindSource('chip');
+      return;
+    }
+    if (channelBind) {
+      resolvedRef.current = true;
+      setBind(channelBind);
+      setBindSource('channel');
+      return;
+    }
+    if (!intent.nameHint) {
+      resolvedRef.current = true;
+      return;
+    }
+    if (searchLoading) return;
+
+    resolvedRef.current = true;
+    // Ровно одно совпадение — предвыбираем. Несколько («Ориент» их даёт четыре) —
+    // не выбираем НИЧЕГО: это тот самый случай, ради которого запрещено угадывание,
+    // и решается он показом списка, а не молчаливым выбором первой строки.
+    if (searchOptions.length === 1) {
+      const only = searchOptions[0];
+      setBind({
+        target: only.entityType === 'company' ? 'company' : 'project',
+        id: only.id,
+        label: only.label,
+      });
+      setBindSource('text');
+      return;
+    }
+    setHintOutcome(searchOptions.length === 0 ? 'none' : 'many');
+  }, [
+    entityRefs.length,
+    entityTitlesLoading,
+    chipBind,
+    channelBind,
+    intent.nameHint,
+    searchLoading,
+    searchOptions,
+  ]);
+
+  const optionOf = (o: EntityOption): ComboboxOption => ({
+    value: bindKey(o.entityType === 'company' ? 'company' : 'project', o.id),
+    label: o.label,
+    sub: o.sub,
+  });
+
+  // Выбранное всегда в списке опций, даже если текущий поиск его не нашёл — иначе
+  // Combobox не находит `value` среди `options` и показывает плейсхолдер, то есть
+  // привязка выглядит потерянной.
+  const bindValue = bind ? bindKey(bind.target, bind.id) : null;
+  const options = useMemo(() => {
+    const list = searchOptions.map(optionOf);
+    if (bind && !list.some((o) => o.value === bindValue)) {
+      list.unshift({ value: bindValue as string, label: bind.label });
+    }
+    return list;
+  }, [searchOptions, bind, bindValue]);
+
+  function handleBindChange(value: string | null) {
+    setBindSource('manual');
+    if (!value) {
+      setBind(null);
+      return;
+    }
+    const picked = searchOptions.find((o) => optionOf(o).value === value);
+    if (!picked) return; // выбрать можно только то, что в списке
+    setBind({
+      target: picked.entityType === 'company' ? 'company' : 'project',
+      id: picked.id,
+      label: picked.label,
+    });
+  }
+
+  const bindHint =
+    bindSource === 'chip'
+      ? 'из ссылки в сообщении'
+      : bindSource === 'channel'
+        ? 'из канала проекта'
+        : bindSource === 'text' && intent.nameHint
+          ? `найдено по тексту: ${intent.nameHint}`
+          : bind
+            ? 'выбрано вручную'
+            : intent.nameHint && hintOutcome === 'many'
+              ? `по тексту «${intent.nameHint}» нашлось несколько — выберите вручную`
+              : intent.nameHint && hintOutcome === 'none'
+                ? `по тексту «${intent.nameHint}» ничего не нашлось — выберите вручную`
+                : 'без привязки — выберите вручную, если нужна';
 
   const deadlineIso = datetimeLocalToIso(deadlineLocal || null);
   const canCreate = text.trim().length > 0 && !createTask.isPending;
@@ -122,11 +278,11 @@ export function TaskFromMessageCard({
         deadline: deadlineIso,
         assigned_to: assigneeId,
         source_message_id: sourceMessageId,
-        // Ровно ОДНА связь по типу чипа. `column_id` не передаём — резолвит
-        // trg_aa_resolve_board; `lane`/`priority` берут дефолты БД.
-        project_id: link && (link.entityType === 'deal' || link.entityType === 'project') ? link.id : null,
-        company_id: link?.entityType === 'company' ? link.id : null,
-        contact_id: link?.entityType === 'contact' ? link.id : null,
+        // Ровно ОДНА связь. `column_id` не передаём — резолвит trg_aa_resolve_board;
+        // `lane`/`priority` берут дефолты БД.
+        project_id: bind?.target === 'project' ? bind.id : null,
+        company_id: bind?.target === 'company' ? bind.id : null,
+        contact_id: bind?.target === 'contact' ? bind.id : null,
       },
       {
         onSuccess: () => {
@@ -209,29 +365,17 @@ export function TaskFromMessageCard({
 
         <div className="flex flex-col gap-1">
           <span className="text-meta text-text-mute">Привязка</span>
-          {links.length === 0 ? (
-            <span className="rounded-lg border border-dashed border-border px-2 py-1.5 text-sm text-text-mute">
-              Без привязки — в сообщении нет ссылки на карточку
-            </span>
-          ) : (
-            <select
-              value={linkKey}
-              onChange={(e) => setPickedKey(e.target.value)}
-              aria-label="К чему привязать задачу"
-              className="rounded-lg border border-input bg-bg px-2 py-1.5 text-sm text-text-main
-                         focus:border-accent focus:outline-none"
-            >
-              {links.map((r) => {
-                const key = entityKey(r.entityType, r.id);
-                return (
-                  <option key={key} value={key}>
-                    {ENTITY_LABELS[r.entityType]}: {entityTitles.get(key)}
-                  </option>
-                );
-              })}
-              <option value="">Без привязки</option>
-            </select>
-          )}
+          <Combobox
+            options={options}
+            value={bindValue}
+            onChange={handleBindChange}
+            onSearchChange={setSearch}
+            initialSearch={intent.nameHint ?? ''}
+            loading={searchLoading}
+            placeholder="Сделка, проект или компания"
+            disabled={createTask.isPending}
+          />
+          <span className="text-meta text-text-mute">{bindHint}</span>
         </div>
 
         <AssigneeSelect

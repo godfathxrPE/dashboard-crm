@@ -138,12 +138,9 @@ describe('parseTaskIntent — что срока НЕ даёт', () => {
   });
 
   it('пустая строка', () => {
-    expect(parseTaskIntent('', NOW)).toEqual({ text: '', deadline: null, matchedDatePhrase: null });
-    expect(parseTaskIntent('   ', NOW)).toEqual({
-      text: '',
-      deadline: null,
-      matchedDatePhrase: null,
-    });
+    const empty = { text: '', deadline: null, matchedDatePhrase: null, nameHint: null };
+    expect(parseTaskIntent('', NOW)).toEqual(empty);
+    expect(parseTaskIntent('   ', NOW)).toEqual(empty);
   });
 });
 
@@ -202,6 +199,46 @@ describe('parseTaskIntent — текст не теряется', () => {
     const r = parseTaskIntent(body, NOW);
     expect(r.text).toBe('посмотреть /deals/3f1c0f4e-1a2b-4c3d-8e9f-000000000001');
     expect(r.deadline).toBe(endOfMskDay('2026-08-03'));
+  });
+});
+
+describe('parseTaskIntent — nameHint (подсказка поиску, не привязка)', () => {
+  it('слово с прописной не первым — имя', () => {
+    expect(parseTaskIntent('звонок Ориент', NOW).nameHint).toBe('Ориент');
+  });
+
+  it('несколько прописных подряд — берём всю последовательность', () => {
+    expect(parseTaskIntent('счёт Аграрная Группа завтра', NOW).nameHint).toBe('Аграрная Группа');
+  });
+
+  it('первое слово предложения не считается', () => {
+    expect(parseTaskIntent('Позвонить в офис', NOW).nameHint).toBeNull();
+  });
+
+  it('первое слово с тире — это подпись «про что речь», а не начало предложения', () => {
+    // Пример из ТЗ: «Ориент — поставить задачу: звонок 3 августа в 15:00».
+    const r = parseTaskIntent('Ориент — поставить задачу: звонок 3 августа в 15:00', NOW);
+    expect(r.text).toBe('Ориент — звонок');
+    expect(r.nameHint).toBe('Ориент');
+  });
+
+  it('кавычки выигрывают у прописных', () => {
+    expect(parseTaskIntent('позвонить в ООО "Мукомол"', NOW).nameHint).toBe('Мукомол');
+    expect(parseTaskIntent('счёт для «Аграрной Группы»', NOW).nameHint).toBe('Аграрной Группы');
+  });
+
+  it('имени нет — null', () => {
+    expect(parseTaskIntent('позвонить в офис завтра', NOW).nameHint).toBeNull();
+    expect(parseTaskIntent('', NOW).nameHint).toBeNull();
+  });
+
+  it('дата и триггер-фраза в подсказку не попадают', () => {
+    // Ищем в очищенном тексте: иначе «3 Августа» и «Создать» стали бы «именами».
+    expect(parseTaskIntent('Создать задачу: подготовить акты 3 августа', NOW).nameHint).toBeNull();
+  });
+
+  it('знаки препинания вокруг имени не мешают', () => {
+    expect(parseTaskIntent('уточнить у Ориент, что по отгрузке', NOW).nameHint).toBe('Ориент');
   });
 });
 
