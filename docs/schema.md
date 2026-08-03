@@ -184,7 +184,28 @@
 > нет, `membership_select_own_org` (`is_org_member(org_id)`) показывает добавляющему
 > всю свою org, поэтому `exists` честен. Данные целы (4 строки состава, осиротевших
 > 0 и до, и после). Advisors без изменений — 29 DEFINER-функций для `authenticated`;
-> следующая свободная — **102**;
+> **102 (S-INN-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (ветка `feat/inn-lookup`): юрреквизиты
+> компании. Аддитивна — шесть колонок на `companies` (`kpp`, `ogrn`, `legal_name`,
+> `legal_address`, `inn_status`, `inn_verified_at`) плюс partial unique
+> `uq_companies_org_inn (org_id, inn) where inn is not null and inn <> ''`.
+> Ни политик, ни функций, ни грантов: колонки в уже защищённой таблице, `authenticated`
+> имеет `arwd` на `companies`, а привилегии в Postgres выдаются на таблицу, не на колонку.
+> ⚠️ **`legal_name` не заменяет `name`, `legal_address` не заменяет `address`** — рабочее
+> имя компании и фактический адрес данные ЕГРЮЛ не затирают; это инвариант всей фичи, а
+> не стилевое решение. ⚠️ **Формат ИНН БД намеренно не проверяет** — ни CHECK, ни
+> триггера: в проде живут 4 записи с ИНН не по формату (`'ИНН'`, `'ELEC206'`, `'ELEC204'`,
+> `'192944106'` — 9-значный белорусский УНП), и CHECK сделал бы эти карточки
+> нередактируемыми целиком (нельзя поправить телефон, пока не разберёшься с ИНН).
+> Формат добивает клиентский валидатор `company.ts`. Предикат `inn <> ''` в индексе
+> обязателен: в проде «ИНН не указан» встречается и как NULL, и как пустая строка, а
+> NULLS DISTINCT на пустую строку не распространяется. Дублей `(org_id, inn)` на момент
+> написания — **0** (сверено на живой БД 2026-08-03, 224 из 260 компаний с ИНН) ⇒ индекс
+> ложится чисто. ⚠️ Реген типов нужен: до него в `src/types/database.ts` живёт стаб
+> `CompanyLegalFieldsStub` (интерсекция к записи `companies`, а не отдельная таблица).
+> Едет тем же PR: Edge Function **`company-lookup`** (`verify_jwt = true`, прокси к DaData
+> `findById/party`, секрет `DADATA_API_KEY`, **в БД не пишет — service_role не нужен**) —
+> **деплоя ждёт, как и миграция**;
+> следующая свободная — **103**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -1072,17 +1093,27 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ## Tenant-таблицы (`org_id NOT NULL`)
 
-### companies _(002, +041 phones applied 2026-07-13)_
+### companies _(002, +041 phones applied 2026-07-13, +102 юрреквизиты — НЕ ПРИМЕНЕНА)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
 | id | uuid PK | |
-| name | text | NOT NULL |
-| inn / industry / website / phone / address / notes | text | `phone` — legacy primary-зеркало массива `phones` |
+| name | text | NOT NULL. **Рабочее** имя компании («Ориент») — данные ЕГРЮЛ его НЕ затирают _(102)_ |
+| inn / industry / website / phone / address / notes | text | `phone` — legacy primary-зеркало массива `phones`; `address` — **фактический** адрес, юрадрес живёт отдельно _(102)_ |
 | phones | jsonb | **041 applied 2026-07-13** · NOT NULL DEFAULT `[]` · `[{type:'mobile'\|'work'\|'other', value, is_primary}]`; primary синхронизируется в `phone` |
+| kpp / ogrn | text | **102 НЕ применена** · из ЕГРЮЛ через edge `company-lookup` |
+| legal_name | text | **102 НЕ применена** · полное юрназвание с ОПФ. Отдельно от `name` — инвариант фичи |
+| legal_address | text | **102 НЕ применена** · юрадрес. Отдельно от `address` |
+| inn_status | text | **102 НЕ применена** · `ACTIVE`/`LIQUIDATING`/`LIQUIDATED`/… **без enum**: словарь принадлежит внешнему реестру. Не-`ACTIVE` — риск-сигнал, UI показывает жёлтым |
+| inn_verified_at | timestamptz | **102 НЕ применена** · когда реквизиты подтянуты из ЕГРЮЛ. NULL = вводили руками |
 | owner_id / created_by | uuid | → profiles (`created_by` DEFAULT auth.uid()) |
 | **org_id** | uuid | **NOT NULL** → organizations _(021/022)_ |
 | created_at / updated_at | timestamptz | |
+
+**Индексы _(102, НЕ применена)_:** `uq_companies_org_inn` — partial unique
+`(org_id, inn) where inn is not null and inn <> ''`. Один ИНН — одна карточка **в
+организации** (не глобально: одна и та же компания может вести дела с двумя org).
+Формат ИНН БД не проверяет намеренно — см. запись 102 в шапке файла.
 
 ### contacts _(002, +041 phones applied 2026-07-13)_
 

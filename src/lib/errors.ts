@@ -66,6 +66,14 @@ export function humanizeError(err: unknown): string {
   }
   // Уникальность
   if (e.code === '23505' || low.includes('duplicate key')) {
+    // S-INN-1: у `uq_companies_org_inn` есть внятная причина отказа, и общее «такая
+    // запись уже существует» её прячет — человек смотрит на форму компании и не
+    // понимает, ЧТО именно дубль. Имя существующей карточки сюда не дотянуть
+    // (errors.ts без доступа к кэшу), его показывает баннер дубля в CompanyModal.
+    const detail = `${low} ${(e.details ?? '').toLowerCase()}`;
+    if (detail.includes('uq_companies_org_inn')) {
+      return 'Компания с таким ИНН уже есть в организации.';
+    }
     return 'Такая запись уже существует.';
   }
   // FK / RESTRICT
