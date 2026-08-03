@@ -8,17 +8,20 @@ export type PresetKey =
   | 'spin_review'
   | 'deal_progression'
   | 'meeting_prep'
-  | 'deal_summary';
+  | 'deal_summary'
+  | 'company_brief';
 
 /** R2-P0-C: пресет Smart Deal Progression — единственный, чей вывод пишется в сделку. */
 export const PROGRESSION_PRESET_KEY = 'deal_progression' satisfies PresetKey;
 
 /**
- * 085. Сущность, к которой привязан прогон. `project` добавлен под read-only пресеты
- * по сделке. Три места обязаны совпадать: CHECK `ai_runs_entity_type_check` в БД,
- * `entityTypes` в реестре PRESETS edge-функции, `entityTypes` здесь.
+ * 085/104. Сущность, к которой привязан прогон. `project` добавлен под read-only
+ * пресеты по сделке (085), `company` — под бриф по компании (104). Три места обязаны
+ * совпадать: CHECK `ai_runs_entity_type_check` в БД (актуальная редакция — 104),
+ * `entityTypes` в реестре PRESETS edge-функции, `entityTypes` здесь. Держит тестом
+ * `tests/unit/ai-presets-sync.test.ts`.
  */
-export type AiEntityType = 'call' | 'meeting' | 'project';
+export type AiEntityType = 'call' | 'meeting' | 'project' | 'company';
 
 export type PresetMeta = {
   key: PresetKey;
@@ -115,6 +118,24 @@ export const AI_PRESETS: PresetMeta[] = [
     readOnly: true,
     model: 'haiku',
     maxInputChars: 120_000,
+  },
+  {
+    // S-COMPANY-AI-1 (104). Единственный пресет по компании и единственный, который
+    // ходит в веб. Описание честное намеренно: пользователь должен понимать, что это
+    // выжимка открытых источников со ссылками, а не «знание» модели о компании.
+    key: 'company_brief',
+    title: 'Бриф по компании',
+    description:
+      'Чем занимается, масштаб, свежие новости, признаки работы с Честным Знаком — ' +
+      'поиск по открытым источникам, все утверждения со ссылками. Только чтение: ' +
+      'найденный сайт предлагается подставить вручную.',
+    input: 'entity',
+    entityTypes: ['company'],
+    needsTranscript: false,
+    readOnly: true,
+    model: 'sonnet',
+    // Вход — карточка компании, не транскрипт: зеркалит maxInputChars пресета в edge.
+    maxInputChars: 20_000,
   },
 ];
 

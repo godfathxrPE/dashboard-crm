@@ -7,6 +7,7 @@ import type {
   ProgressionProposal,
   MeetingPrepResult,
   DealSummaryResult,
+  CompanyBriefResult,
 } from '@/types/database';
 
 /**
@@ -83,6 +84,21 @@ export function serializeRun(run: AiRunRow): string {
     push('Что произошло', d.highlights ?? []);
     if (d.next_step) out.push(`Следующий шаг:\n${d.next_step}`);
     push('Требует внимания', d.flags ?? []);
+  } else if (run.preset_key === 'company_brief') {
+    // 104. Ссылки едут в копию рядом с утверждением: бриф чаще всего вставляют в
+    // переписку, и утверждение без источника там ничем не отличается от догадки.
+    const b = r as CompanyBriefResult;
+    if (b.summary) out.push(`Кратко:\n${b.summary}`);
+    if (b.activity) out.push(`Чем занимается:\n${b.activity}`);
+    if (b.scale) out.push(`Масштаб:\n${b.scale}`);
+    if (b.website) out.push(`Сайт: ${b.website}`);
+    push('Признаки работы с маркировкой', (b.chz_signals ?? []).map((s) => `${s.claim} — ${s.source_url}`));
+    push(
+      'Свежие события',
+      (b.recent_news ?? []).map((n) => `${n.date ? `${n.date}: ` : ''}${n.title} — ${n.url}`),
+    );
+    push('Зацепки для разговора', b.talk_hooks ?? []);
+    push('Источники', b.sources ?? []);
   }
 
   return out.join('\n\n');
