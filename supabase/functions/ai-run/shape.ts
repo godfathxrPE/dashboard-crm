@@ -44,6 +44,55 @@ export const SHAPE_RETRY_HINT =
   'через вызов инструмента, каждое поле — того типа, который объявлен в схеме. ' +
   'Не вставляй в значения полей теги и служебную разметку.';
 
+/**
+ * S-COMPANY-AI-1c. Теги цитирования web search API Anthropic:
+ * `<cite index="7-5">текст</cite>`. Это служебный формат МОДЕЛИ (она размечает,
+ * откуда взяла факт), а не грязь со страниц, поэтому промптом он не убирается —
+ * только снижается вероятность. Замер: promptVersion 2 сбил частоту с 4/5 до 1/3,
+ * но у одного прогона разметка пережила ретрай и доехала до карточки.
+ *
+ * Регулярка снимает ТОЛЬКО `cite` — открывающий с любыми атрибутами, закрывающий и
+ * осиротевший. Никакого «универсального стриппера»: `<` и `>` в тексте («выручка >
+ * 1 млрд», «2024 < 2025») обязаны выживать, а общий стриппер их съест.
+ *
+ * Хвост `(?:>|$)` — про обрыв на границе `max_tokens`: половина тега вероятнее
+ * целого, и `</ci` без `>` иначе осталась бы в тексте и снова дала бы претензию.
+ */
+const CITE_TAG_RE = /<\/?cite\b[^>]*(?:>|$)/gi;
+
+/** Схлопывание пробелов, оставшихся на месте снятого тега. Переводы строк не
+ *  трогаем: абзацы в `summary` — это форматирование, а не мусор. */
+function collapseSpaces(s: string): string {
+  return s.replace(/[^\S\n]{2,}/g, ' ').replace(/^[^\S\n]+|[^\S\n]+$/g, '');
+}
+
+/**
+ * Снимает теги цитирования web search, сохраняя текст внутри. Рекурсивно по всем
+ * строковым значениям; возвращает НОВУЮ структуру — результат модели единственная
+ * копия данных прогона, мутировать его нельзя.
+ *
+ * Строка без тегов возвращается как есть (той же ссылкой): чистка не должна
+ * «попутно» трогать значения, к которым претензий нет.
+ */
+export function stripCiteTags<T>(value: T): T {
+  if (typeof value === 'string') {
+    const stripped = value.replace(CITE_TAG_RE, '');
+    if (stripped === value) return value;
+    return collapseSpaces(stripped) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => stripCiteTags(v)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = stripCiteTags(v);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
 /** JSON-тип значения в терминах JSON Schema (не `typeof`: массив и null — отдельно). */
 function jsonTypeOf(value: unknown): string {
   if (value === null) return 'null';
