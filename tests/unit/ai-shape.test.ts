@@ -3,6 +3,7 @@ import {
   checkResultShape,
   hardClaims,
   softClaims,
+  stripCiteTags,
   SHAPE_MARKERS,
   type ShapeClaim,
 } from '../../supabase/functions/ai-run/shape';
@@ -317,5 +318,80 @@ describe('маркеры', () => {
     // фикстура намеренно неполная.
     expect(markers(claims)).toEqual([]);
     expect(hardClaims(claims)).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-COMPANY-AI-1c — снятие тегов цитирования web search.
+//
+// `<cite index="7-5">…</cite>` — служебный формат МОДЕЛИ, а не грязь со страниц:
+// промпт снижал частоту (4/5 → 1/3), но у прогона «КМ» разметка пережила ретрай и
+// доехала до карточки. Гарантию даёт код, и он обязан снимать ТОЛЬКО cite.
+// ═══════════════════════════════════════════════════════
+
+describe('stripCiteTags', () => {
+  it('снимает пару тегов, сохраняя текст внутри', () => {
+    expect(stripCiteTags('<cite index="7-5">Выручка 1,05 млрд ₽</cite>'))
+      .toBe('Выручка 1,05 млрд ₽');
+  });
+
+  it('снимает теги внутри массива и вложенного объекта', () => {
+    expect(stripCiteTags({
+      summary: 'Компания <cite index="1-2">производит колбасы</cite> в Вологде.',
+      chz_signals: [{ claim: '<cite index="3-1">Вакансия «оператор ГИС МТ»</cite>', source_url: 'https://x.ru' }],
+      talk_hooks: ['Спросить про <cite index="2-0">новую линию</cite>'],
+    })).toEqual({
+      summary: 'Компания производит колбасы в Вологде.',
+      chz_signals: [{ claim: 'Вакансия «оператор ГИС МТ»', source_url: 'https://x.ru' }],
+      talk_hooks: ['Спросить про новую линию'],
+    });
+  });
+
+  it('снимает осиротевший закрывающий тег и обрыв на границе max_tokens', () => {
+    // Половина тега вероятнее целого: ответ режется по max_tokens.
+    expect(stripCiteTags('Запущен цех</cite>')).toBe('Запущен цех');
+    expect(stripCiteTags('Запущен цех <cite index="4-')).toBe('Запущен цех');
+  });
+
+  it('деловой текст с угловыми скобками не повреждается', () => {
+    // Ровно то, ради чего регулярка узкая, а не «универсальный HTML-стриппер».
+    const a = 'Прибыль > 100 млн ₽ за 2024';
+    const b = 'Срок 2024 < 2025, объём < 500 кг';
+    expect(stripCiteTags(a)).toBe(a);
+    expect(stripCiteTags(b)).toBe(b);
+  });
+
+  it('строка без тегов возвращается той же ссылкой — чистка не трогает чистое', () => {
+    const s = 'Двойные  пробелы  и\nперевод строки сохраняются';
+    expect(stripCiteTags(s)).toBe(s);
+  });
+
+  it('пробелы на месте снятого тега схлопываются, переводы строк — нет', () => {
+    expect(stripCiteTags('Факт <cite index="1-1"> </cite> и вывод'))
+      .toBe('Факт и вывод');
+    expect(stripCiteTags('Первый абзац<cite index="1-1"></cite>\nВторой абзац'))
+      .toBe('Первый абзац\nВторой абзац');
+  });
+
+  it('не-строки проходят насквозь, вход не мутируется', () => {
+    expect(stripCiteTags(null)).toBe(null);
+    expect(stripCiteTags(42)).toBe(42);
+    expect(stripCiteTags(true)).toBe(true);
+    expect(stripCiteTags(undefined)).toBe(undefined);
+
+    const src = { scale: null, sources: ['https://x.ru'], summary: '<cite index="1">Текст</cite>' };
+    const out = stripCiteTags(src);
+    expect(src.summary).toBe('<cite index="1">Текст</cite>'); // оригинал цел
+    expect(out.summary).toBe('Текст');
+  });
+
+  it('после чистки маркерных претензий к форме не остаётся', () => {
+    // Смысл всей задачи: претензия `</` больше не выставляется, ретрая нет.
+    const dirty = {
+      client_situation: 'Компания <cite index="7-5">строит новый цех</cite> в Вологде.',
+      recommendations: ['Уточнить сроки<cite index="2-1"></cite>'],
+    };
+    expect(markers(checkResultShape(NOTE_SCHEMA, dirty)).length).toBeGreaterThan(0);
+    expect(markers(checkResultShape(NOTE_SCHEMA, stripCiteTags(dirty)))).toEqual([]);
   });
 });

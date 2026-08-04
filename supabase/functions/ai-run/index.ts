@@ -41,6 +41,7 @@ import {
   checkResultShape,
   hardClaims,
   softClaims,
+  stripCiteTags,
   SHAPE_RETRY_HINT,
 } from './shape.ts';
 // S-COMPANY-AI-1: маркировочный профиль по ОКВЭД. Копия src/lib/data/chz-groups.ts —
@@ -505,10 +506,13 @@ const PRESETS: Record<string, Preset> = {
   company_brief: {
     key: 'company_brief',
     model: MODEL.sonnet, // веб-поиск + сведение источников — рассуждение, не пересказ
-    // v2 (S-COMPANY-AI-1b): абзац «ФОРМАТ ЗНАЧЕНИЙ». На пяти живых прогонах 4 ретрая
-    // из 5 дал маркер `</` из shape.ts — обрывки разметки, принесённые с веб-страниц.
-    // Версия поднята, чтобы прогоны до и после сравнивались в журнале, а не вслепую.
-    promptVersion: 2,
+    // v2 (1b): абзац «ФОРМАТ ЗНАЧЕНИЙ» против разметки в значениях — сбил частоту
+    // ретраев с 4/5 до 1/3, но гарантии не дал: источник оказался не грязью со
+    // страниц, а тегами цитирования web search API (`<cite index="7-5">`).
+    // v3 (1c): гарантию даёт код (`stripCiteTags` до проверки формы), поэтому в
+    // промпте осталась одна строка — про URL в прозе, она про читаемость брифа.
+    // Версия поднимается каждый раз: иначе прогоны до и после сравниваются вслепую.
+    promptVersion: 3,
     maxInputChars: 20_000,
     needsEntity: true,
     needsTranscript: false, // бриф к ПЕРВОМУ звонку — разговора ещё не было
@@ -534,11 +538,8 @@ const PRESETS: Record<string, Preset> = {
       `пустой бриф со ссылками честнее полного без них. Компанию с таким названием не нашёл ` +
       `вовсе — так и скажи в summary, остальные поля оставь пустыми.\n` +
       `talk_hooks — 2–4 конкретные зацепки для разговора, каждая опирается на найденное.\n` +
-      `ФОРМАТ ЗНАЧЕНИЙ: во все текстовые поля возвращай ТОЛЬКО чистый текст — без ` +
-      `HTML- и XML-тегов, без обрывков разметки вида </…>, без служебных конструкций ` +
-      `со страниц, которые ты открывал. Встретил разметку в источнике — перескажи ` +
-      `содержимое словами. Ссылки ставь только в предназначенные для них поля ` +
-      `(source_url, url, sources), в прозе URL не вставляй.\n` +
+      `В текстовых полях — только чистый текст: ссылки ставь в source_url / url / ` +
+      `sources, в прозе URL не вставляй.\n` +
       `Пиши по-русски, деловым тоном, без воды.`,
     tool: {
       name: 'submit_company_brief',
@@ -1103,6 +1104,20 @@ async function callClaudeWithSearch(
   throw new Error('Модель не вернула структурированный результат');
 }
 
+/**
+ * S-COMPANY-AI-1c. Снятие тегов цитирования — ТОЛЬКО у пресетов с веб-поиском:
+ * `<cite>` приходит из web search API, у остальных шести его нет по определению,
+ * а лишний обход результата — трата на ровном месте.
+ *
+ * Порядок принципиален: зовётся ДО `checkResultShape`. Чистка после проверки не
+ * убрала бы ретрай (претензия уже выставлена), чистка после записи в БД не убрала
+ * бы сырые теги из карточки. Только «до».
+ */
+function cleanAttempt(preset: Preset, attempt: ClaudeAttempt): ClaudeAttempt {
+  if (!preset.webSearch) return attempt;
+  return { ...attempt, input: stripCiteTags(attempt.input) };
+}
+
 /** Фоновый прогон: running → Claude API → done/error. Никогда не бросает наружу. */
 async function processRun(
   supabase: SupabaseClient,
@@ -1152,7 +1167,10 @@ async function processRun(
     const firstSearch = preset.webSearch
       ? await callClaudeWithSearch(apiKey, preset, userTurn)
       : null;
-    const first: ClaudeAttempt = firstSearch ?? await callClaude(apiKey, preset, userTurn);
+    const first: ClaudeAttempt = cleanAttempt(
+      preset,
+      firstSearch ?? await callClaude(apiKey, preset, userTurn),
+    );
     const schema = preset.tool.input_schema;
     let chosen = first;
     let claims = checkResultShape(schema, first.input);
@@ -1184,8 +1202,10 @@ async function processRun(
       const secondSearch = firstSearch
         ? await callClaudeWithSearch(apiKey, preset, SHAPE_RETRY_HINT, firstSearch.messages)
         : null;
-      const second: ClaudeAttempt = secondSearch ??
-        await callClaude(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`);
+      const second: ClaudeAttempt = cleanAttempt(
+        preset,
+        secondSearch ?? await callClaude(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`),
+      );
       usages.push(second.usage);
       if (typeof secondSearch?.searches === 'number') {
         searches = (searches ?? 0) + secondSearch.searches;
