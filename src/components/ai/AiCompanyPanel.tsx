@@ -6,17 +6,39 @@ import {
 } from 'lucide-react';
 import { useEntityRuns, useStartRun, useRunRating } from '@/lib/hooks/use-ai-run';
 import { useCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
-import { presetsForEntity, presetByKey, estimateRunCostRub } from '@/lib/constants/ai-presets';
+import {
+  presetsForEntity,
+  presetByKey,
+  estimateRunCostRub,
+  estimateWebRunCostRub,
+  type PresetMeta,
+} from '@/lib/constants/ai-presets';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
 import { safeHref } from '@/lib/utils/safe-href';
 import type { AiRunRow, CompanyBriefResult } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
+import { RunCostMeta } from './RunCostMeta';
 
 interface AiCompanyPanelProps {
   companyId: string;
 }
 
 const STALE_MIN = 10;
+
+/**
+ * S-COMPANY-AI-1a. Цена на кнопке.
+ *
+ * У пресета с веб-поиском вход задаёт не карточка компании, а втянутые в контекст
+ * страницы — оценка по charCount занижала бриф в десять раз (3.5 ₽ при факте
+ * в разы больше). Для таких пресетов показываем ДИАПАЗОН из замеров живых прогонов;
+ * для остальных — прежнюю формулу по символам (4 000 — грубая верхняя оценка
+ * карточки: точного размера входа на клиенте нет, его собирает edge).
+ */
+function costLabel(preset: PresetMeta): string {
+  if (!preset.webSearch) return `≈ ${estimateRunCostRub(4_000, preset.model)} ₽`;
+  const { min, max } = estimateWebRunCostRub(preset.model);
+  return `≈ ${min}–${max} ₽`;
+}
 
 function StatusChip({ status }: { status: AiRunRow['status'] }) {
   if (status === 'pending') return <span className="text-xs text-text-mute">В очереди</span>;
@@ -88,17 +110,14 @@ export function AiCompanyPanel({ companyId }: AiCompanyPanelProps) {
           >
             {start.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             {preset.title}
-            {/* Вход собирает edge из полей компании, точного размера здесь нет.
-                4 000 симв. — грубая верхняя оценка карточки; веб-поиск сверх этого
-                добавляет свою стоимость, поэтому цифра занижена и это честно
-                отражено подписью ниже. */}
-            <span className="text-text-mute">≈ {estimateRunCostRub(4_000, preset.model)} ₽</span>
+            <span className="text-text-mute">{costLabel(preset)}</span>
           </button>
         ))}
       </div>
       <p className="mt-1 text-meta text-text-mute">
         Ищет в открытых источниках; в компанию ничего не записывается само.
-        Веб-поиск удорожает прогон — оценка на кнопке его не учитывает.
+        Оценка учитывает веб-поиск и разброс попыток; фактическая цена прогона
+        показывается рядом со статусом «Готово».
       </p>
 
       {start.isError && (
@@ -116,7 +135,10 @@ export function AiCompanyPanel({ companyId }: AiCompanyPanelProps) {
               <div key={run.id} className="rounded-lg border border-border bg-surface p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-text-main">{preset?.title ?? run.preset_key}</span>
-                  <StatusChip status={run.status} />
+                  <span className="inline-flex shrink-0 items-center gap-1">
+                    <StatusChip status={run.status} />
+                    <RunCostMeta run={run} />
+                  </span>
                 </div>
 
                 {(run.status === 'error' || isStale(run)) && (

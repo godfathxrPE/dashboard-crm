@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHAT-HUB — визуальный концепт мессенджера</title>
+<style>
+  :root{
+    --font: 'Onest', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:#1a1a20;color:#eee;padding:2rem;min-height:100vh}
+  h1{font-size:1.1rem;font-weight:600;margin-bottom:.35rem}
+  .sub{font-size:.8rem;color:#9a9aae;margin-bottom:1.5rem;max-width:60rem;line-height:1.5}
+  .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(24rem,1fr));gap:1.5rem;max-width:80rem}
+  .panel-label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:#8888a0;margin-bottom:.5rem}
+  .legend{max-width:80rem;margin-top:1.75rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:.75rem}
+  .legend div{background:#24242e;border:1px solid #34343f;border-radius:.6rem;padding:.7rem .85rem;font-size:.75rem;line-height:1.45;color:#c8c8d8}
+  .legend b{color:#fff;display:block;margin-bottom:.15rem;font-size:.75rem}
+  .legend .num{display:inline-flex;align-items:center;justify-content:center;width:1.1rem;height:1.1rem;border-radius:50%;background:#14B8A6;color:#04211c;font-weight:700;font-size:.65rem;margin-right:.4rem}
+
+  /* ══════════ Общий каркас чата ══════════ */
+  .chat{
+    border-radius:.9rem;overflow:hidden;border:1px solid var(--c-border);
+    background:var(--c-surface);display:flex;flex-direction:column;height:34rem;
+    box-shadow:0 10px 40px rgba(0,0,0,.25);position:relative;
+  }
+  .chat-head{
+    display:flex;align-items:center;gap:.6rem;padding:.65rem .9rem;
+    border-bottom:1px solid var(--c-border);background:var(--c-surface);z-index:3;
+  }
+  .chat-head .av{width:1.7rem;height:1.7rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:.62rem;font-weight:700;color:#fff;background:linear-gradient(135deg,#14B8A6,#0d7d71)}
+  .chat-head .t{font-size:.82rem;font-weight:600;color:var(--c-text)}
+  .chat-head .s{font-size:.68rem;color:var(--c-mute)}
+  .chat-head .go{margin-left:auto;font-size:.68rem;color:var(--c-accent-text);border:1px solid var(--c-border);
+    padding:.25rem .6rem;border-radius:.5rem;display:flex;gap:.3rem;align-items:center}
+
+  /* ── ① обои: паттерн через mask, цвет = токен, у тем — своя непрозрачность ── */
+  .chat-body{
+    flex:1;overflow:hidden;position:relative;padding:.9rem .9rem 3.4rem;background:var(--c-chatbg);
+  }
+  .chat-body::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background-color:var(--c-pattern-ink);opacity:var(--c-pattern-op);
+    -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'><g fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><path d='M18 26a9 9 0 1 1 6 8l-7 3 2-7a9 9 0 0 1-1-4z'/><circle cx='96' cy='22' r='2'/><circle cx='106' cy='22' r='2'/><circle cx='116' cy='22' r='2'/><path d='M88 34h36'/><path d='M64 74l14-14m0 9v-9h-9'/><path d='M22 96c0-6 5-10 10-10s10 4 10 10-5 10-10 10l-8 5 3-8c-3-2-5-4-5-7z'/><path d='M92 92a10 10 0 1 1 7 17l-9 4 3-8'/><path d='M120 120l6-6m-6 0l6 6'/><circle cx='52' cy='128' r='5'/><path d='M49 128a3 3 0 0 0 6 0'/><circle cx='50.5' cy='126.5' r='.8' fill='black'/><circle cx='53.5' cy='126.5' r='.8' fill='black'/></g></svg>") 0 0/8.75rem repeat;
+    mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'><g fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'><path d='M18 26a9 9 0 1 1 6 8l-7 3 2-7a9 9 0 0 1-1-4z'/><circle cx='96' cy='22' r='2'/><circle cx='106' cy='22' r='2'/><circle cx='116' cy='22' r='2'/><path d='M88 34h36'/><path d='M64 74l14-14m0 9v-9h-9'/><path d='M22 96c0-6 5-10 10-10s10 4 10 10-5 10-10 10l-8 5 3-8c-3-2-5-4-5-7z'/><path d='M92 92a10 10 0 1 1 7 17l-9 4 3-8'/><path d='M120 120l6-6m-6 0l6 6'/><circle cx='52' cy='128' r='5'/><path d='M49 128a3 3 0 0 0 6 0'/><circle cx='50.5' cy='126.5' r='.8' fill='black'/><circle cx='53.5' cy='126.5' r='.8' fill='black'/></g></svg>") 0 0/8.75rem repeat;
+  }
+  .msgs{position:relative;display:flex;flex-direction:column;gap:.15rem;height:100%}
+
+  /* ── ② плавающий день-чип ── */
+  .day-float{position:absolute;top:.6rem;left:50%;transform:translateX(-50%);z-index:2;
+    font-size:.66rem;color:var(--c-dim);background:var(--c-chip);border:1px solid var(--c-border);
+    padding:.18rem .7rem;border-radius:999px;backdrop-filter:blur(6px)}
+
+  /* ── ③ разделитель «Новые сообщения» ── */
+  .unread-div{display:flex;align-items:center;gap:.6rem;margin:.7rem 0 .4rem;font-size:.64rem;
+    color:var(--c-accent-text);letter-spacing:.04em}
+  .unread-div::before,.unread-div::after{content:'';flex:1;height:1px;background:var(--c-accent-line)}
+
+  .row{display:flex;gap:.45rem;align-items:flex-end;margin-top:.15rem}
+  .row.grp{margin-top:.7rem}
+  .row .av{width:1.55rem;height:1.55rem;border-radius:50%;flex:none;display:flex;align-items:center;
+    justify-content:center;font-size:.58rem;font-weight:700;color:#fff}
+  .row .av.sp{visibility:hidden}
+
+  /* ── ④ пузыри: входящий / свой, хвостик на последнем в группе ── */
+  .b{max-width:72%;padding:.42rem .65rem .3rem;border-radius:.85rem;position:relative;
+     font-size:.78rem;line-height:1.4}
+  .b .who{font-size:.66rem;font-weight:600;margin-bottom:.1rem}
+  .b .tm{display:block;text-align:right;font-size:.6rem;opacity:.65;margin-top:.1rem}
+  .in .b{background:var(--c-in-bg);border:1px solid var(--c-in-border);color:var(--c-text)}
+  .in.tail .b{border-bottom-left-radius:.25rem}
+  .own{justify-content:flex-end}
+  .own .b{background:var(--c-own-bg);border:1px solid var(--c-own-border);color:var(--c-own-fg)}
+  .own.tail .b{border-bottom-right-radius:.25rem}
+
+  .chip-line{display:flex;gap:.3rem;margin-top:.2rem}
+  .own .chip-line{justify-content:flex-end}
+  .rchip{display:inline-flex;align-items:center;gap:.25rem;font-size:.62rem;padding:.12rem .45rem;
+    border-radius:999px;background:var(--c-chip);border:1px solid var(--c-border);color:var(--c-dim)}
+  .rchip.mine{background:var(--c-own-bg);border-color:var(--c-own-border);color:var(--c-own-fg)}
+
+  .entity{display:inline-flex;align-items:center;gap:.3rem;padding:.1rem .5rem;margin:0 .1rem;
+    border-radius:.45rem;background:var(--c-chip);border:1px solid var(--c-accent-line);
+    color:var(--c-accent-text);font-size:.72rem;font-weight:500;white-space:nowrap}
+
+  /* ── ⑤ FAB «вниз» с непрочитанным ── */
+  .fab{position:absolute;right:.9rem;bottom:3.9rem;width:2.1rem;height:2.1rem;border-radius:50%;
+    background:var(--c-surface);border:1px solid var(--c-border);display:flex;align-items:center;
+    justify-content:center;color:var(--c-dim);box-shadow:0 4px 14px rgba(0,0,0,.18);z-index:2}
+  .fab .cnt{position:absolute;top:-0.35rem;right:-0.25rem;background:#14B8A6;color:#04211c;
+    font-size:.58rem;font-weight:700;border-radius:999px;padding:.05rem .32rem}
+
+  /* ── ⑥ композер ── */
+  .composer{position:absolute;left:.6rem;right:.6rem;bottom:.6rem;display:flex;gap:.45rem;
+    align-items:flex-end;background:var(--c-surface);border:1px solid var(--c-border);
+    border-radius:.8rem;padding:.45rem .5rem;z-index:2;box-shadow:0 6px 20px rgba(0,0,0,.12)}
+  .composer .ic{color:var(--c-mute);flex:none;padding:.15rem}
+  .composer .inp{flex:1;font-size:.76rem;color:var(--c-mute);padding:.15rem 0}
+  .composer .send{width:1.9rem;height:1.9rem;border-radius:50%;background:var(--c-send);
+    color:#fff;display:flex;align-items:center;justify-content:center;flex:none;
+    transition:transform .15s}
+  svg.i{width:.95rem;height:.95rem;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ══════════ ТЕМА: t-aura (light) ══════════ */
+  .th-aura{
+    --c-surface:#FFFFFF; --c-chatbg:#EFEFF3; --c-border:#E2E2EC;
+    --c-text:#16161D; --c-dim:#59596D; --c-mute:#61617A;
+    --c-pattern-ink:#343840; --c-pattern-op:.05;
+    --c-in-bg:#FFFFFF; --c-in-border:#E2E2EC;
+    --c-own-bg:#E3E5E9; --c-own-border:#C9CCD4; --c-own-fg:#16161D;
+    --c-chip:rgba(255,255,255,.85);
+    --c-accent-text:#0d7d71; --c-accent-line:rgba(20,184,166,.35);
+    --c-send:#343840;
+  }
+  /* ══════════ ТЕМА: t-tidal (dark glass) ══════════ */
+  .th-tidal{
+    --c-surface:#132a20; --c-chatbg:#0c1f17; --c-border:#24493a;
+    --c-text:#e6f2ec; --c-dim:#9dbcae; --c-mute:#7da391;
+    --c-pattern-ink:#7ee0c3; --c-pattern-op:.035;
+    --c-in-bg:#163528; --c-in-border:#28503f;
+    --c-own-bg:#1D4536; --c-own-border:rgba(72,184,144,.45); --c-own-fg:#e6f2ec;
+    --c-chip:rgba(19,42,32,.85);
+    --c-accent-text:#48b890; --c-accent-line:rgba(72,184,144,.4);
+    --c-send:#2f9673;
+  }
+</style>
+</head>
+<body>
+  <h1>CHAT-HUB — концепт «живого» мессенджера</h1>
+  <p class="sub">Два примера тем (светлая t-aura и тёмная t-tidal). Всё — через существующие
+  CSS-токены + 6 новых чат-токенов на тему. Цифры на карточках внизу соответствуют приёмам на макете.</p>
+
+  <div class="panels">
+    <!-- ══════════ AURA ══════════ -->
+    <div>
+      <div class="panel-label">t-aura · светлая</div>
+      <div class="chat th-aura">
+        <div class="chat-head">
+          <div class="av">СВ</div>
+          <div><div class="t">Стратек — внедрение</div><div class="s">5 участников</div></div>
+          <div class="go"><svg class="i" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg>Открыть проект</div>
+        </div>
+        <div class="chat-body">
+          <div class="day-float">Сегодня</div>
+          <div class="msgs">
+            <div style="flex:1"></div>
+            <div class="row grp in">
+              <div class="av" style="background:linear-gradient(135deg,#8B7CF6,#5b4dc4)">ИТ</div>
+              <div class="b"><span class="who" style="color:#6d5fd1">Иван Тесла</span>
+                Согласовал выезд, вернусь с протоколом обследования
+                <span class="tm">14:02</span></div>
+            </div>
+            <div class="row in tail">
+              <div class="av sp"></div>
+              <div class="b">Смета по маркировке: <span class="entity"><svg class="i" viewBox="0 0 24 24" style="width:.7rem;height:.7rem"><circle cx="12" cy="12" r="9"/></svg>Ориент Продактс</span> готова
+                <span class="tm">14:04</span></div>
+            </div>
+            <div class="chip-line" style="padding-left:2rem"><span class="rchip mine">👍 2</span></div>
+            <div class="unread-div">Новые сообщения</div>
+            <div class="row grp own tail">
+              <div class="b">Отлично. Завтра в 11:00 защита у Мукомола — материалы в канале
+                <span class="tm">16:55 ✓</span></div>
+            </div>
+          </div>
+          <div class="fab"><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span class="cnt">3</span></div>
+          <div class="composer">
+            <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 4a4 4 0 0 1 5.7 5.7L9.7 18.2a2 2 0 0 1-2.9-2.9l7.8-7.8"/></svg></span>
+            <span class="inp">Сообщение команде…</span>
+            <span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14a4 4 0 0 0 8 0M9 9.5h.01M15 9.5h.01"/></svg></span>
+            <div class="send"><svg class="i" viewBox="0 0 24 24"><path d="M4 12l16-7-7 16-2.5-6.5z"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TIDAL ══════════ -->
+    <div>
+      <div class="panel-label">t-tidal · тёмная (glass)</div>
+      <div class="chat th-tidal">
+        <div class="chat-head">
+          <div class="av" style="background:linear-gradient(135deg,#48b890,#1D4536)">ТГ</div>
+          <div><div class="t">Тестовая группа1</div><div class="s">4 участника</div></div>
+          <div class="go"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Состав</div>
+        </div>
+        <div class="chat-body">
+          <div class="day-float">2 августа</div>
+          <div class="msgs">
+            <div style="flex:1"></div>
+            <div class="row grp in">
+              <div class="av" style="background:linear-gradient(135deg,#F59E0B,#b06f04)">ДМ</div>
+              <div class="b"><span class="who" style="color:#e0b566">Daniyar</span>
+                Загрузил акт сверки 📎
+                <span class="tm">18:20</span></div>
+            </div>
+            <div class="row in tail">
+              <div class="av sp"></div>
+              <div class="b">Смотрите вложение — там два расхождения
+                <span class="tm">18:21</span></div>
+            </div>
+            <div class="chip-line" style="padding-left:2rem"><span class="rchip">👀 1</span><span class="rchip mine">🔥 2</span></div>
+            <div class="row grp own tail">
+              <div class="b">Принято, разберу до вечера
+                <span class="tm">18:33 ✓</span></div>
+            </div>
+          </div>
+          <div class="fab"><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="composer">
+            <span class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5L12.5 4a4 4 0 0 1 5.7 5.7L9.7 18.2a2 2 0 0 1-2.9-2.9l7.8-7.8"/></svg></span>
+            <span class="inp">Сообщение команде…</span>
+            <span class="ic"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14a4 4 0 0 0 8 0M9 9.5h.01M15 9.5h.01"/></svg></span>
+            <div class="send"><svg class="i" viewBox="0 0 24 24"><path d="M4 12l16-7-7 16-2.5-6.5z"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div><b><span class="num">1</span>Чат-обои</b> Фирменный приём Telegram: узор из «чатовых» дудлов
+      (пузыри, скрепки, смайлы) через CSS-mask. Цвет и непрозрачность — токены темы
+      (светлые ~5%, тёмные ~3.5%). Раздел мгновенно перестаёт выглядеть «как ещё одна таблица».</div>
+    <div><b><span class="num">2</span>Плавающий день-чип</b> При скролле дата держится сверху
+      (sticky) — ориентация в длинной ленте без поиска глазами.</div>
+    <div><b><span class="num">3</span>Разделитель «Новые сообщения»</b> Линия на месте last_read_at
+      при открытии канала — данные уже есть в conversation_reads, ни одной миграции.</div>
+    <div><b><span class="num">4</span>Пузыри с хвостиком</b> Входящие — на surface с именем автора
+      в цвет его аватара; свои — на chat-own токенах (уже в теме). Хвостик-скругление на последнем
+      сообщении группы. Аватар — только у последнего в группе, как в Telegram.</div>
+    <div><b><span class="num">5</span>Кнопка «вниз» + счётчик</b> Появляется при скролле вверх;
+      счётчик новых, клик — плавно вниз.</div>
+    <div><b><span class="num">6</span>Композер-капсула</b> Плавает над обоями, textarea растёт с
+      текстом, кнопка отправки — заливается акцентом при непустом драфте. Скрепка и эмодзи — внутри капсулы.</div>
+  </div>
+</body>
+</html>

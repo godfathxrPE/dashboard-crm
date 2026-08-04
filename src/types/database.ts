@@ -213,7 +213,13 @@ export interface CompanyBriefResult {
   recent_news: { title: string; url: string; date: string | null }[];
   talk_hooks: string[];
   sources: string[];
-  meta?: { truncated?: boolean };
+  /**
+   * S-COMPANY-AI-1a. `searches` — фактическое число веб-запросов прогона (сумма по
+   * попыткам); UI считает по нему реальную стоимость. `retry_reason` — претензии к
+   * форме ПЕРВОЙ попытки, поле диагностическое: в UI не рендерится никогда, живёт
+   * ради SQL-статистики причин ретрая.
+   */
+  meta?: { truncated?: boolean; retried?: boolean; retry_reason?: string[]; searches?: number };
 }
 
 export type AiRunResult =
