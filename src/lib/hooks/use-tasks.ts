@@ -272,6 +272,13 @@ export function useCreateTask() {
       if (input.project_id) {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
       }
+      // S-FIX-CO360-1: upcoming-слагаемое strength зависит от задач контакта.
+      // ⚠️ Только при contact_id, а не безусловно: на доске задач мутации идут
+      // пачками, и безусловная инвалидация гоняла бы три запроса strength на
+      // каждый drag. Задача без контакта на strength не влияет вовсе.
+      if (input.contact_id) {
+        queryClient.invalidateQueries({ queryKey: ['contact-strength'] });
+      }
     },
   });
 }
@@ -315,7 +322,7 @@ export function useUpdateTask() {
     onError: (_err, _input, context) => {
       rollbackTaskCaches(queryClient, context?.snapshots);
     },
-    onSettled: (_data, _err, vars) => {
+    onSettled: (data, _err, vars) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       // AUDIT 2.9: задача влияет на KPI дашборда (активные задачи) и ленты сущностей
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
@@ -325,6 +332,17 @@ export function useUpdateTask() {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         // P3: закрытие/переоткрытие вехи меняет чеклист гейта завершения (038)
         queryClient.invalidateQueries({ queryKey: ['delivery-gate'] });
+      }
+      // S-FIX-CO360-1: upcoming-слагаемое strength зависит от задач контакта.
+      // Источник contact_id — СТРОКА ОТВЕТА (`data`), а не только payload: закрытие
+      // задачи или сдвиг дедлайна шлют `lane`/`deadline` без `contact_id`, но
+      // hasUpcoming при этом переключается. `vars.contact_id` оставлен вторым
+      // источником на случай ошибки мутации, когда `data` пуст.
+      // ⚠️ Условие обязательно: безусловная инвалидация гоняла бы strength на
+      // каждой правке любой задачи. Перетаскивание по доске идёт через
+      // useMoveTask/useReorderTasks — те не тронуты намеренно.
+      if (data?.contact_id ?? vars.contact_id) {
+        queryClient.invalidateQueries({ queryKey: ['contact-strength'] });
       }
     },
   });

@@ -62,15 +62,25 @@ export function CompanyHighlights({
   const openSum = openDeals.reduce((acc, d) => acc + (d.budget ?? 0), 0);
   const dealsMeta = describeOpenDeals(openDeals);
 
-  // ─── 2. Внедрение ───
+  // ─── 2. Внедрение / внутренний проект ───
   // Активное = не терминальное по стадии+статусу (та же функция, что в
   // DealDeliveryHub и PortfolioView — пороги и правила не форкаем). Из нескольких
   // берём ближайшее по дедлайну: полоса показывает то, что горит.
+  //
+  // ⚠️ Настоящее внедрение важнее внутреннего: полоса отвечает на вопрос «что мы
+  // сейчас делаем ДЛЯ клиента». `splitCompanyProjects` по контракту кладёт
+  // `internal` (пресейл, `stage_id = null`) в тот же массив `deliveries`, и без
+  // этой развилки виджет с заголовком «ВНЕДРЕНИЕ» показывал внутренний проект —
+  // секция ниже при этом честно называлась «Внедрения и внутренние». Внутренний
+  // берётся только когда внедрений нет вовсе, и тогда заголовок меняется.
   const activeDeliveries = deliveries.filter((p) => {
     const stage = p.stage_id ? stages?.find((s) => s.id === p.stage_id) : undefined;
     return !isDeliveryTerminal(stage, p.status);
   });
-  const delivery = [...activeDeliveries].sort(byDeadlineThenName)[0];
+  const realDeliveries = activeDeliveries.filter((p) => p.type === 'delivery');
+  const pool = realDeliveries.length > 0 ? realDeliveries : activeDeliveries;
+  const delivery = [...pool].sort(byDeadlineThenName)[0];
+  const deliveryIsInternal = delivery?.type === 'internal';
 
   // ─── 4. Маркировка ЧЗ ───
   const chz = chzGroups[0];
@@ -97,27 +107,9 @@ export function CompanyHighlights({
         )}
       </Widget>
 
-      {/* ─── Внедрение ─── */}
+      {/* ─── Внедрение / внутренний проект ─── */}
       {delivery && (
-        <Widget icon={Rocket} label="Внедрение">
-          <DeliveryValue project={delivery} stages={stages} />
-          <Meta>
-            <DeliveryHealthDot
-              health={getDeliveryHealth({
-                progress_done: delivery.progress_done,
-                progress_total: delivery.progress_total,
-                stage_entered_at: delivery.stage_entered_at,
-                deadline: delivery.deadline,
-                updated_at: delivery.updated_at,
-                isTerminal: false, // отфильтровано выше
-              })}
-            />
-            <span className="truncate">
-              {stageNameOf(delivery, stages)}
-              {delivery.deadline && ` · до ${formatDateShort(delivery.deadline)}`}
-            </span>
-          </Meta>
-        </Widget>
+        <DeliveryWidget project={delivery} stages={stages} isInternal={deliveryIsInternal} />
       )}
 
       {/* ─── Последний контакт ─── */}
@@ -231,26 +223,70 @@ function Meta({ children }: { children: React.ReactNode }) {
   return <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-text-dim">{children}</div>;
 }
 
-/** Прогресс внедрения крупно — но только когда счётчик задач вообще заведён:
- *  «0/0» выглядит как провал, хотя означает «доска ещё не наполнена». */
-function DeliveryValue({ project, stages }: { project: Project; stages: PipelineStage[] | undefined }) {
-  if (project.progress_total > 0) {
-    return (
-      <Value className="tabular-nums">
-        {project.progress_done}
-        <Unit>/{project.progress_total}</Unit>
-      </Value>
-    );
-  }
-  return <div className="mt-1 truncate text-base font-semibold leading-tight text-text-main">{stageNameOf(project, stages)}</div>;
+/**
+ * Виджет «что мы сейчас делаем». Заголовок следует за тем, что в нём лежит:
+ * `Внедрение` для `type='delivery'`, `Внутренний проект` для `internal` — иначе
+ * полоса выдавала бы пресейл за внедрение.
+ *
+ * Опознавательная метка проекта — стадия у delivery и ИМЯ у internal (у него
+ * `stage_id = null`, и слово «Внутренний» уже стоит в заголовке — дважды его
+ * повторять незачем). Метка встаёт либо в крупную строку, либо в мету, но
+ * никогда в обе: прогресс `X/Y` крупно показывается, когда счётчик задач заведён
+ * («0/0» выглядит как провал, хотя означает «доска ещё не наполнена»).
+ */
+function DeliveryWidget({
+  project, stages, isInternal,
+}: {
+  project: Project;
+  stages: PipelineStage[] | undefined;
+  isInternal: boolean;
+}) {
+  const label = isInternal ? project.name : stageNameOf(project, stages);
+  const hasProgress = project.progress_total > 0;
+  const deadlineText = project.deadline ? `до ${formatDateShort(project.deadline)}` : null;
+  const metaText = [hasProgress ? label : null, deadlineText].filter(Boolean).join(' · ');
+
+  return (
+    <Widget icon={Rocket} label={isInternal ? 'Внутренний проект' : 'Внедрение'}>
+      {hasProgress ? (
+        <Value className="tabular-nums">
+          {project.progress_done}
+          <Unit>/{project.progress_total}</Unit>
+        </Value>
+      ) : (
+        <div className="mt-1 truncate text-base font-semibold leading-tight text-text-main" title={label}>
+          {label}
+        </div>
+      )}
+      <Meta>
+        <DeliveryHealthDot
+          health={getDeliveryHealth({
+            progress_done: project.progress_done,
+            progress_total: project.progress_total,
+            stage_entered_at: project.stage_entered_at,
+            deadline: project.deadline,
+            updated_at: project.updated_at,
+            isTerminal: false, // отфильтровано вызывающим
+          })}
+        />
+        {metaText && <span className="truncate" title={metaText}>{metaText}</span>}
+      </Meta>
+    </Widget>
+  );
 }
 
 // ═══════════════════════════════════════════════════════
 // Хелперы
 // ═══════════════════════════════════════════════════════
 
+/**
+ * Название стадии по `stage_id` (истина `pipeline_stages`, legacy `stage` не читаем).
+ *
+ * Ветку `type === 'internal' → 'Внутренний'` убрал S-FIX-CO360-1: внутренний проект
+ * теперь опознаётся ИМЕНЕМ, а слово «Внутренний» стоит в заголовке виджета —
+ * функцию зовут только для delivery, и мёртвая ветка вводила бы в заблуждение.
+ */
 function stageNameOf(p: Project, stages: PipelineStage[] | undefined): string {
-  if (p.type === 'internal') return 'Внутренний';
   return (p.stage_id ? stages?.find((s) => s.id === p.stage_id)?.name : null) ?? '—';
 }
 
