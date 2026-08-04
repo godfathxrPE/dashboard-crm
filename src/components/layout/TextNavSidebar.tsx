@@ -198,6 +198,11 @@ export function TextNavSidebar() {
 
   return (
     <aside
+      // S-FIX-CO360-1: якорь тема-правил навигации. До него `.t-washi aside` и
+      // близнецы красили в sumi/индиго ЛЮБУЮ боковую панель приложения (чат,
+      // ActivityDrawer, PeekPanel) — с `!important` и вместе с текстом внутри.
+      // Тема должна цепляться за роль элемента, а не за имя тега.
+      data-app-nav
       aria-label="Основная навигация"
       className={cn(
         'fixed left-0 top-0 z-30 flex h-screen flex-col border-r bg-surface overflow-hidden transition-all duration-300',

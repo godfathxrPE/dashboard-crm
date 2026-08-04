@@ -261,50 +261,50 @@
 }
 
 /* ── Washi: Sumi Frame (dark sidebar + header) ── */
-.t-washi aside {
+.t-washi aside[data-app-nav] {
   background: var(--sidebar-bg) !important;
   border-right: 1px solid var(--sidebar-border) !important;
 }
-.t-washi aside nav { padding-left: 6px; padding-right: 6px; }
+.t-washi aside[data-app-nav] nav { padding-left: 6px; padding-right: 6px; }
 
 /* Logo area */
-.t-washi aside .flex.h-14 { border-color: var(--sidebar-border) !important; }
-.t-washi aside .text-text-main,
-.t-washi aside .text-sm.font-semibold { color: #E8E2D8 !important; }
-.t-washi aside .text-text-mute.truncate,
-.t-washi aside .text-meta { color: rgba(232,226,216,0.62) !important; }  /* P1 §2.4: 0.35 (3.9:1) → 0.62 (5.16:1) */
+.t-washi aside[data-app-nav] .flex.h-14 { border-color: var(--sidebar-border) !important; }
+.t-washi aside[data-app-nav] .text-text-main,
+.t-washi aside[data-app-nav] .text-sm.font-semibold { color: #E8E2D8 !important; }
+.t-washi aside[data-app-nav] .text-text-mute.truncate,
+.t-washi aside[data-app-nav] .text-meta { color: rgba(232,226,216,0.62) !important; }  /* P1 §2.4: 0.35 (3.9:1) → 0.62 (5.16:1) */
 
 /* Nav items — light text on dark bg */
-.t-washi aside .nav-item {
+.t-washi aside[data-app-nav] .nav-item {
   color: var(--sidebar-text) !important;
 }
-.t-washi aside .nav-item:hover {
+.t-washi aside[data-app-nav] .nav-item:hover {
   color: rgba(232,226,216,0.9) !important;
   background: var(--sidebar-hover) !important;
 }
-.t-washi aside .nav-item svg { opacity: 0.4; color: var(--sidebar-text) !important; }
+.t-washi aside[data-app-nav] .nav-item svg { opacity: 0.4; color: var(--sidebar-text) !important; }
 
 /* Separator */
-.t-washi aside .border-border\/50,
-.t-washi aside .border-t { border-color: var(--sidebar-border) !important; }
+.t-washi aside[data-app-nav] .border-border\/50,
+.t-washi aside[data-app-nav] .border-t { border-color: var(--sidebar-border) !important; }
 
 /* Active item — torii on transparent */
 /* P1 §2.4: активный пункт — светлый текст (#E8E2D8 = 10.84:1 на sumi #2c2c2c);
    торий-красный остаётся только на декоративных скобках 「 」 (::before/::after ниже),
    раньше текст красился в --accent (#C23B3B) = 2.65:1 (FAIL). */
-.t-washi aside .nav-active {
+.t-washi aside[data-app-nav] .nav-active {
   background: transparent !important;
   border-left: none !important;
   font-weight: 500;
   color: #E8E2D8 !important;
 }
-.t-washi aside .nav-active > *,
-.t-washi aside .nav-active span { color: #E8E2D8 !important; }
-.t-washi aside .nav-active svg { opacity: 0.75; color: #E8E2D8 !important; }
+.t-washi aside[data-app-nav] .nav-active > *,
+.t-washi aside[data-app-nav] .nav-active span { color: #E8E2D8 !important; }
+.t-washi aside[data-app-nav] .nav-active svg { opacity: 0.75; color: #E8E2D8 !important; }
 
 /* Bracket markers 「  」 on active item */
-.t-washi aside .nav-active::before,
-.t-washi aside .nav-active::after {
+.t-washi aside[data-app-nav] .nav-active::before,
+.t-washi aside[data-app-nav] .nav-active::after {
   content: '';
   position: absolute;
   top: 0;
@@ -315,7 +315,7 @@
   border-style: solid;
   border-width: 0;
 }
-.t-washi aside .nav-active::before {
+.t-washi aside[data-app-nav] .nav-active::before {
   left: -3px;
   border-top-width: 1.5px;
   border-left-width: 1.5px;
@@ -323,7 +323,7 @@
   border-top-left-radius: 3px;
   border-bottom-left-radius: 3px;
 }
-.t-washi aside .nav-active::after {
+.t-washi aside[data-app-nav] .nav-active::after {
   right: -3px;
   border-top-width: 1.5px;
   border-right-width: 1.5px;
@@ -333,8 +333,8 @@
 }
 
 /* Badges — torii solid on dark bg */
-.t-washi aside .rounded-full.bg-accent,
-.t-washi aside .rounded-full.bg-red {
+.t-washi aside[data-app-nav] .rounded-full.bg-accent,
+.t-washi aside[data-app-nav] .rounded-full.bg-red {
   border-radius: 50%;
 }
 
@@ -432,34 +432,34 @@
 .t-fuji { --font-app: var(--font-plex, 'IBM Plex Sans'); }
 
 /* ── Fuji: Indigo L-frame (sidebar + header) ── */
-.t-fuji aside {
+.t-fuji aside[data-app-nav] {
   background: var(--sidebar-bg) !important;
   border-right: 1px solid var(--sidebar-border) !important;
 }
-.t-fuji aside .nav-item {
+.t-fuji aside[data-app-nav] .nav-item {
   color: var(--sidebar-text) !important;
 }
-.t-fuji aside .nav-item:hover {
+.t-fuji aside[data-app-nav] .nav-item:hover {
   color: rgba(232,219,191,0.9) !important;
   background: var(--sidebar-hover) !important;
 }
-.t-fuji aside .nav-item svg { opacity: 0.4; color: var(--sidebar-text) !important; }
-.t-fuji aside .nav-active {
+.t-fuji aside[data-app-nav] .nav-item svg { opacity: 0.4; color: var(--sidebar-text) !important; }
+.t-fuji aside[data-app-nav] .nav-active {
   background: transparent !important;
   border-left: none !important;
   color: var(--gold) !important;
 }
-.t-fuji aside .nav-active > *,
-.t-fuji aside .nav-active span { color: var(--gold) !important; }
-.t-fuji aside .nav-active svg { opacity: 0.75; color: var(--gold) !important; }
+.t-fuji aside[data-app-nav] .nav-active > *,
+.t-fuji aside[data-app-nav] .nav-active span { color: var(--gold) !important; }
+.t-fuji aside[data-app-nav] .nav-active svg { opacity: 0.75; color: var(--gold) !important; }
 /* Sidebar chrome */
-.t-fuji aside .flex.h-14 { border-color: var(--sidebar-border) !important; }
-.t-fuji aside .text-text-main,
-.t-fuji aside .text-sm.font-semibold { color: #E8DBbf !important; }
-.t-fuji aside .text-text-mute.truncate,
-.t-fuji aside .text-meta { color: rgba(232,219,191,0.62) !important; }  /* P1 §2.4: 0.35 (3.35:1) → 0.62 (5.06:1) */
-.t-fuji aside .border-border\/50,
-.t-fuji aside .border-t { border-color: var(--sidebar-border) !important; }
+.t-fuji aside[data-app-nav] .flex.h-14 { border-color: var(--sidebar-border) !important; }
+.t-fuji aside[data-app-nav] .text-text-main,
+.t-fuji aside[data-app-nav] .text-sm.font-semibold { color: #E8DBbf !important; }
+.t-fuji aside[data-app-nav] .text-text-mute.truncate,
+.t-fuji aside[data-app-nav] .text-meta { color: rgba(232,219,191,0.62) !important; }  /* P1 §2.4: 0.35 (3.35:1) → 0.62 (5.06:1) */
+.t-fuji aside[data-app-nav] .border-border\/50,
+.t-fuji aside[data-app-nav] .border-t { border-color: var(--sidebar-border) !important; }
 
 /* AUDIT C6: удалён блок `.t-fuji header {…}` — таргетил снятый верхний nav-Header. */
 
@@ -505,8 +505,8 @@
 .t-fuji a.bg-accent > * { position: relative; z-index: 1; }
 
 /* ── Fuji: Sidebar active marker — diagonal L-corners ↙↗ ── */
-.t-fuji aside .nav-active::before,
-.t-fuji aside .nav-active::after {
+.t-fuji aside[data-app-nav] .nav-active::before,
+.t-fuji aside[data-app-nav] .nav-active::after {
   content: '';
   position: absolute;
   width: 10px;
@@ -517,23 +517,23 @@
   border-width: 0;
 }
 /* Bottom-left corner ↙ */
-.t-fuji aside .nav-active::before {
+.t-fuji aside[data-app-nav] .nav-active::before {
   bottom: 0; left: 0;
   border-left-width: 1.5px;
   border-bottom-width: 1.5px;
   border-radius: 0 0 0 3px;
 }
 /* Top-right corner ↗ */
-.t-fuji aside .nav-active::after {
+.t-fuji aside[data-app-nav] .nav-active::after {
   top: 0; right: 0;
   border-right-width: 1.5px;
   border-top-width: 1.5px;
   border-radius: 0 3px 0 0;
 }
-.t-fuji aside nav { padding-left: 4px; padding-right: 4px; }
+.t-fuji aside[data-app-nav] nav { padding-left: 4px; padding-right: 4px; }
 
 /* ── Fuji: Bleed — box-shadow from L-frame onto content ── */
-.t-fuji aside::after {
+.t-fuji aside[data-app-nav]::after {
   content: '';
   position: absolute;
   top: 0; right: 0; bottom: 0;
@@ -701,13 +701,13 @@
 /* Minimal: актив нава — нейтральный тинт, без терракоты.
    Layered .nav-active (border-left+фон+color+lucide accent) не гасится токенами
    sidebar-indicator (компонентами не читаются) — перебиваем unlayered. */
-.t-minimal aside .nav-active {
+.t-minimal aside[data-app-nav] .nav-active {
   border-left-color: transparent;
   background: var(--sidebar-indicator);
   color: var(--sidebar-active-text);
   box-shadow: none;
 }
-.t-minimal aside .nav-active .lucide {
+.t-minimal aside[data-app-nav] .nav-active .lucide {
   color: var(--sidebar-active-text);
 }
 
@@ -1088,41 +1088,41 @@ table { font-variant-numeric: tabular-nums; }
    ScandiSidebar помечает пункты data-nav-item и активный data-active
    (выставляется в JS при theme==='t-aura'). Никаких [style*=] и :has() —
    надёжные атрибутные селекторы.                                        */
-.t-aura aside {
+.t-aura aside[data-app-nav] {
   background: rgba(255,255,255,0.82);
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
 }
 
 /* Текст пунктов — обычный регистр (капс убивает силуэты кириллицы), трекинг наследуется от .t-aura */
-.t-aura aside nav a[data-nav-item] > span {
+.t-aura aside[data-app-nav] nav a[data-nav-item] > span {
   font-weight: 500;
 }
 
 /* Активный пункт — полупрозрачная ПИЛЮЛЯ цвета орба раздела.
    --aura-orb-1 наследуется от [data-section] выше по дереву. */
-.t-aura aside nav a[data-active] {
+.t-aura aside[data-app-nav] nav a[data-active] {
   background: rgba(var(--aura-orb-1, 199,122,30), 0.14);
   border-radius: 999px;
   margin: 2px 6px;
 }
-.t-aura aside nav a[data-active] > span {
+.t-aura aside[data-app-nav] nav a[data-active] > span {
   color: var(--aura-pill-text, var(--accent-text)) !important;
   font-weight: 600;
 }
 
 /* Hover неактивных */
-.t-aura aside nav a:hover > span[style*="vertical"] { color: var(--text); }
+.t-aura aside[data-app-nav] nav a:hover > span[style*="vertical"] { color: var(--text); }
 
 /* AUDIT C7: aura — единственная тема БЕЗ иконок. Иконки .nav-ico всегда в DOM
    (единый shell, без ветвления структуры → без hydration-регресса 2.8), aura прячет их CSS. */
 .t-aura .nav-ico { display: none; }
 /* Вертикальный капс-лейбл (свёрнутый сайдбар) — только в aura; в остальных темах
    свёрнутый пункт = иконка, лейбл скрыт (см. общее правило .nav-vlabel ниже). */
-.t-aura aside .nav-vlabel { display: inline-block; }
+.t-aura aside[data-app-nav] .nav-vlabel { display: inline-block; }
 /* Глобальный @layer .nav-active даёт border-left+accent-фон (иконочные тёмные темы);
    в aura активный — пилюля через a[data-active], левую полосу гасим. */
-.t-aura aside .nav-active { border-left: none; }
+.t-aura aside[data-app-nav] .nav-active { border-left: none; }
 
 /* ── Header (ScandiContentHeader): чистый, орбы видны сквозь зазоры ──── */
 .t-aura main { position: relative; z-index: 1; }
@@ -1138,15 +1138,24 @@ table { font-variant-numeric: tabular-nums; }
 .t-aura [data-card],
 .t-aura .highlight-card,
 .t-aura .contact-profile-card,
-.t-aura aside .bracket {
+/* ⚠️ Последний селектор списка — про DRAWER, а не про навигацию, поэтому
+   `[data-app-nav]` ему НЕ добавлен (S-FIX-CO360-1 сузил им нав-правила):
+   в навигации `.bracket` не бывает вовсе, а с атрибутом виджеты правого ящика
+   потеряли бы карточное оформление. */
+.t-aura aside:not([data-app-nav]) .bracket {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
 
-/* Сам drawer (aside справа) — скруглить левые углы. Отличаем от сайдбара:
-   у сайдбара aria-label="Основная навигация", у drawer'а его нет.        */
+/* Сам drawer (aside справа) — скруглить левые углы.
+   ⚠️ Правило про DRAWER, а не про навигацию: `[data-app-nav]` ему НЕ добавлен
+   (S-FIX-CO360-1). С атрибутом селектор стал бы самопротиворечивым — у навигации
+   `aria-label` есть, и `:not([aria-label])` вырезал бы её обратно, оставив
+   правило мёртвым. Отличаем drawer от сайдбара по-прежнему по `aria-label`, а не
+   по `:not([data-app-nav])`: у PeekPanel `aria-label` есть, и переход на новый
+   признак начал бы скруглять и её — это уже другое изменение. */
 .t-aura aside:not([aria-label]) {
   border-top-left-radius: var(--radius-l);
   border-bottom-left-radius: var(--radius-l);

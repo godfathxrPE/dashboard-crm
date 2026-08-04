@@ -144,6 +144,14 @@ export function useCreateCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
+      // strength контактов) считаются из calls/meetings своими запросами. Без этих
+      // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —
+      // два блока на одном экране расходились до перезахода на страницу.
+      // Инвалидация по ПРЕФИКСУ: накрывает все companyId и все наборы контактов
+      // разом, точечный ключ пришлось бы собирать из полей мутации.
+      qc.invalidateQueries({ queryKey: ['company-team-touch'] });
+      qc.invalidateQueries({ queryKey: ['contact-strength'] });
     },
   });
 }
@@ -166,6 +174,14 @@ export function useUpdateCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
+      // strength контактов) считаются из calls/meetings своими запросами. Без этих
+      // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —
+      // два блока на одном экране расходились до перезахода на страницу.
+      // Инвалидация по ПРЕФИКСУ: накрывает все companyId и все наборы контактов
+      // разом, точечный ключ пришлось бы собирать из полей мутации.
+      qc.invalidateQueries({ queryKey: ['company-team-touch'] });
+      qc.invalidateQueries({ queryKey: ['contact-strength'] });
     },
   });
 }
@@ -186,6 +202,14 @@ export function useDeleteCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
+      // strength контактов) считаются из calls/meetings своими запросами. Без этих
+      // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —
+      // два блока на одном экране расходились до перезахода на страницу.
+      // Инвалидация по ПРЕФИКСУ: накрывает все companyId и все наборы контактов
+      // разом, точечный ключ пришлось бы собирать из полей мутации.
+      qc.invalidateQueries({ queryKey: ['company-team-touch'] });
+      qc.invalidateQueries({ queryKey: ['contact-strength'] });
     },
   });
 }
