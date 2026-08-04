@@ -177,6 +177,13 @@ export function CompanyHighlights({
             <ChzBadge status={chz.status} label={chzStatusLabel(chz)} />
             {chz.note && <span className="truncate" title={chz.note}>{chz.note}</span>}
           </Meta>
+          {/* Честность источника живёт при самом сигнале, а не в отдельной карточке:
+              «по основному ОКВЭД» — это ограничение ВЫВОДА (дополнительные коды ЕГРЮЛ
+              не отдаёт), и читать его нужно там, где по выводу принимают решение. */}
+          <p className="mt-1 truncate text-meta text-text-mute"
+            title="Справочник от 2026-08 · сопоставление по основному ОКВЭД; дополнительные коды ЕГРЮЛ не учитываются">
+            Справочник 2026-08 · по основному ОКВЭД
+          </p>
         </Widget>
       )}
     </div>

@@ -91,7 +91,11 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
   }
 
   return (
-    <aside className="flex flex-col gap-4">
+    // ⚠️ НЕ <aside>: тема-правила навигации таргетят голый тег (`.t-washi aside`,
+    // `.t-fuji aside`, `.t-aura aside` в globals.css) и красили эту колонку в
+    // sumi/индиго с !important — тёмные полосы в зазорах и светлый текст на
+    // светлых карточках. Семантику держит role/aria-label, каскад — нет.
+    <div role="complementary" aria-label="Сведения о компании" className="flex flex-col gap-4">
       {/* ─── Сведения ─── */}
       {hasInfo && (
         <SideCard icon={Info} title="Сведения">
@@ -159,11 +163,16 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
       )}
 
       {/* ─── Маркировка «Честный Знак» (S-COMPANY-AI-1, F2) ───
-          Highlight-виджет показывает СИГНАЛ (первая группа + статус), эта
-          карточка — детали всех групп. Рендерится только когда есть ОКВЭД и он
-          во что-то попал: «компания под маркировку не попадает» — не факт, а
-          следствие снапшотного справочника и одного основного кода. */}
-      {chzGroups.length > 0 && (
+          ⚠️ Условие `> 1`, а не `> 0`, и это не опечатка. `matchChzGroups` матчит
+          ОДИН основной ОКВЭД по префиксам, а префиксы в справочнике не пересекаются
+          (проверено: 34 группы, ноль пересечений) — значит функция возвращает 0 или 1
+          группу, никогда больше. При одной группе эта карточка дословно повторяла
+          highlight-виджет: та же строка, тот же бейдж, тот же note.
+          Список остаётся кодом на случай, когда справочник обзаведётся пересекающимися
+          префиксами: тогда карточка появится сама и будет означать ровно то, чего
+          виджету не хватает, — «групп несколько, вот все». Дисклеймер источника уехал
+          к виджету: он про то, как посчитан сигнал. */}
+      {chzGroups.length > 1 && (
         <SideCard icon={ScanBarcode} title="Маркировка «Честный Знак»">
           <div className="space-y-2">
             {chzGroups.map((g) => (
@@ -176,9 +185,6 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-text-mute">
-            Справочник от 2026-08 · по основному ОКВЭД
-          </p>
         </SideCard>
       )}
 
@@ -188,7 +194,7 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
           <p className="whitespace-pre-wrap text-sm text-text-main">{company.notes}</p>
         </SideCard>
       )}
-    </aside>
+    </div>
   );
 }
 

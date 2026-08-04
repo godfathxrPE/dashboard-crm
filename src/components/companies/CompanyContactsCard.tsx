@@ -76,7 +76,9 @@ export function CompanyContactsCard({ companyId, contacts, canCreate, onCreate }
         <div className="space-y-1.5">
           {sorted.map((c) => {
             const role = c.companies?.find((cc) => cc.company_id === companyId)?.role;
-            const fullName = `${c.first_name} ${c.last_name}`.trim();
+            // Фамилии может не быть: шаблонная строка подставила бы сюда «null»
+            // (видно на скриншоте гейта: «Svetlana null»). Склеиваем только то, что есть.
+            const fullName = [c.first_name, c.last_name].filter(Boolean).join(' ');
             const cs = strengthMap?.get(c.id);
             const band = cs ? BAND_STYLE[cs.strength.band] : null;
             return (
