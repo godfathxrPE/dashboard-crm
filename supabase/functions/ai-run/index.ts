@@ -874,6 +874,21 @@ async function stampProposal(
 type ClaudeUsage = { input_tokens?: number; output_tokens?: number };
 type ClaudeAttempt = { input: Record<string, unknown>; usage: ClaudeUsage };
 
+/** Сообщение диалога с моделью. `content` — строка или массив блоков, разбирать его
+ *  здесь незачем: он едет обратно в API как есть. */
+type SearchMessage = { role: 'user' | 'assistant'; content: unknown };
+
+/**
+ * S-COMPANY-AI-1a. Результат попытки С ПОИСКОМ: сверх ClaudeAttempt несёт накопленный
+ * диалог (чтобы ретрай продолжил его, а не искал заново) и фактическое число веб-запросов.
+ * `callClaude` остаётся на голом ClaudeAttempt — старый путь не меняется.
+ */
+type SearchAttempt = ClaudeAttempt & {
+  messages: SearchMessage[];
+  /** null — API не отдал server_tool_use ни разу; 0 значил бы «искали ноль раз». */
+  searches: number | null;
+};
+
 /** Сумма токенов по всем попыткам. null, если API не отдал ни одного значения —
  *  ноль тут врал бы («прогон был бесплатным»), а null честно говорит «неизвестно». */
 function sumUsage(usages: ClaudeUsage[], key: keyof ClaudeUsage): number | null {
@@ -954,27 +969,64 @@ const WEB_SEARCH_TOOL = {
 /** Сколько раз продолжаем серверный цикл после `pause_turn`. */
 const MAX_SEARCH_CONTINUATIONS = 2;
 
+type ContentBlock = { type: string; id?: string; name?: string; input?: Record<string, unknown> };
+
+/**
+ * S-COMPANY-AI-1a. Пользовательский ход, которым продолжается диалог на ретрае формы.
+ *
+ * Просто дописать `{role:'user', content: hint}` нельзя: последний ход ассистента
+ * заканчивается блоком `tool_use` (моделью вызван submit-инструмент), а API требует,
+ * чтобы СЛЕДУЮЩЕЕ сообщение начиналось с `tool_result` на каждый такой блок — иначе
+ * 400 на весь запрос. Блоки веб-поиска (`server_tool_use`) сюда не относятся: их
+ * результат сервер кладёт в тот же ход ассистента сам.
+ */
+function retryTurn(prior: SearchMessage[], hint: string): SearchMessage {
+  const last = prior[prior.length - 1];
+  const blocks = Array.isArray(last?.content) ? last.content as ContentBlock[] : [];
+  const content: unknown[] = blocks
+    .filter((b) => b.type === 'tool_use' && typeof b.id === 'string')
+    .map((b) => ({
+      type: 'tool_result',
+      tool_use_id: b.id,
+      content: 'Результат не принят: не соответствует схеме инструмента.',
+    }));
+  content.push({ type: 'text', text: hint });
+  return { role: 'user', content };
+}
+
+/**
+ * S-COMPANY-AI-1a. `priorMessages` — диалог первой попытки. Передан — вторая попытка
+ * ПРОДОЛЖАЕТ его: модель уже нашла источники, её просят переупаковать результат, а не
+ * искать заново. Без этого ретрай был полным повторным прогоном — новые веб-запросы,
+ * оплаченный заново контекст, удвоенное ожидание (85 с на живых прогонах 2026-08-03).
+ */
 async function callClaudeWithSearch(
   apiKey: string,
   preset: Preset,
   userTurn: string,
-): Promise<ClaudeAttempt> {
-  type Block = { type: string; name?: string; input?: Record<string, unknown> };
-  const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = [
-    {
-      role: 'user',
-      content:
-        `${userTurn}\n\nСначала выполни поиск в вебе по тому, что нужно найти, ` +
-        `затем ОБЯЗАТЕЛЬНО заверши ответ вызовом инструмента ${preset.tool.name}. ` +
-        `Ответ без вызова инструмента не будет принят.`,
-    },
-  ];
+  priorMessages?: SearchMessage[],
+): Promise<SearchAttempt> {
+  const messages: SearchMessage[] = priorMessages
+    ? [...priorMessages, retryTurn(priorMessages, userTurn)]
+    : [
+      {
+        role: 'user',
+        content:
+          `${userTurn}\n\nСначала выполни поиск в вебе по тому, что нужно найти, ` +
+          `затем ОБЯЗАТЕЛЬНО заверши ответ вызовом инструмента ${preset.tool.name}. ` +
+          `Ответ без вызова инструмента не будет принят.`,
+      },
+    ];
 
   // Токены суммируем по всем продолжениям: прогон оплачен целиком, и журнал
   // обязан показывать полную стоимость, а не последнюю итерацию.
   let inputTokens = 0;
   let outputTokens = 0;
   let sawUsage = false;
+  // Веб-запросы: 4-я задача спринта. Раньше число уходило в console.log и терялось
+  // вместе с логом через 24 часа — а именно оно различает «сигналов ЧЗ нет» и
+  // «модель истратила лимит поисков на общий профиль и до маркировки не дошла».
+  let searches: number | null = null;
 
   for (let i = 0; i <= MAX_SEARCH_CONTINUATIONS; i++) {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1000,7 +1052,7 @@ async function callClaudeWithSearch(
     }
 
     const data = await resp.json() as {
-      content?: Block[];
+      content?: ContentBlock[];
       usage?: ClaudeUsage & { server_tool_use?: { web_search_requests?: number } };
       stop_reason?: string;
     };
@@ -1013,9 +1065,10 @@ async function callClaudeWithSearch(
       outputTokens += data.usage.output_tokens;
       sawUsage = true;
     }
-    const searches = data.usage?.server_tool_use?.web_search_requests;
-    if (typeof searches === 'number') {
-      console.log('ai-run web search:', JSON.stringify({ preset: preset.key, searches }));
+    const used = data.usage?.server_tool_use?.web_search_requests;
+    if (typeof used === 'number') {
+      searches = (searches ?? 0) + used;
+      console.log('ai-run web search:', JSON.stringify({ preset: preset.key, searches: used }));
     }
 
     const toolUse = data.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
@@ -1023,6 +1076,9 @@ async function callClaudeWithSearch(
       return {
         input: toolUse.input,
         usage: sawUsage ? { input_tokens: inputTokens, output_tokens: outputTokens } : {},
+        // Диалог отдаём вместе с последним ходом ассистента: ретрай продолжит именно его.
+        messages: [...messages, { role: 'assistant', content: data.content ?? [] }],
+        searches,
       };
     }
 
@@ -1081,14 +1137,20 @@ async function processRun(
     // S-COMPANY-AI-1: пресеты с веб-поиском идут другим путём (tool_choice: auto).
     // Ретрай формы обязан идти ТЕМ ЖЕ путём — иначе вторая попытка ушла бы форсом,
     // без поиска, и вернула бы бриф из головы модели вместо брифа по источникам.
-    const call = preset.webSearch ? callClaudeWithSearch : callClaude;
-
+    // Развилка развёрнута в два явных вызова (было `const call = ...`), потому что
+    // после S-COMPANY-AI-1a у путей разные сигнатуры: поисковый несёт диалог наружу.
+    //
     // ── Попытка 1 ──
-    const first = await call(apiKey, preset, userTurn);
+    const firstSearch = preset.webSearch
+      ? await callClaudeWithSearch(apiKey, preset, userTurn)
+      : null;
+    const first: ClaudeAttempt = firstSearch ?? await callClaude(apiKey, preset, userTurn);
     const schema = preset.tool.input_schema;
     let chosen = first;
     let claims = checkResultShape(schema, first.input);
     let retried = false;
+    let retryReason: string[] = [];
+    let searches = firstSearch?.searches ?? null;
     const usages: ClaudeUsage[] = [first.usage];
 
     // ── Попытка 2: ровно одна ──
@@ -1097,8 +1159,29 @@ async function processRun(
     // (STALE_RUN_MINUTES = 10 мин) — не окупается.
     if (claims.length > 0) {
       retried = true;
-      const second = await call(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`);
+      // S-COMPANY-AI-1a. Претензии ПЕРВОЙ попытки — единственная причина ретрая, и до
+      // этой правки они нигде не сохранялись: в meta едут претензии финальной попытки,
+      // а она обычно чистая (ретрай сработал в 100% живых прогонов при пустом
+      // shape_warning). Лог edge живёт 24 часа и не связан со строкой прогона — поэтому
+      // причина дублируется в meta, где переживёт прогон и посчитается одним SQL.
+      retryReason = claims.map((c) => `${c.kind}:${c.message}`);
+      console.warn(
+        'ai-run shape retry:',
+        JSON.stringify({ runId, preset: preset.key, firstClaims: retryReason }),
+      );
+
+      // Пресеты с поиском: вторая попытка ПРОДОЛЖАЕТ диалог первой (искать заново не
+      // нужно — источники уже в истории). Остальные шесть пресетов идут ровно как
+      // прежде, полным повторным вызовом с подсказкой в user-turn.
+      const secondSearch = firstSearch
+        ? await callClaudeWithSearch(apiKey, preset, SHAPE_RETRY_HINT, firstSearch.messages)
+        : null;
+      const second: ClaudeAttempt = secondSearch ??
+        await callClaude(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`);
       usages.push(second.usage);
+      if (typeof secondSearch?.searches === 'number') {
+        searches = (searches ?? 0) + secondSearch.searches;
+      }
       const secondClaims = checkResultShape(schema, second.input);
 
       // Берём попытку БЕЗ жёстких претензий, при прочих равных — вторую (свежее).
@@ -1145,14 +1228,20 @@ async function processRun(
     // Срез на 10: маркер `</` широкий, и записка с двумя десятками цитат может дать
     // столько же претензий. meta едет в каждом чтении строки — раздувать её незачем,
     // для диагностики хватает первых.
+    // `retry_reason` — ДИАГНОСТИЧЕСКОЕ поле, в UI не рендерится: пользователю
+    // «chz_signals[0].claim: ожидался string» не говорит ничего. Срез на 5 — по той
+    // же причине, что shape_warning режется на 10: meta едет в каждом чтении строки.
+    // `searches` — фактическое число веб-запросов, без него нельзя отличить «сигналов
+    // маркировки правда нет» от «лимит поисков ушёл на общий профиль компании».
     const softMessages = softClaims(claims).map((c) => c.message).slice(0, 10);
-    if (truncated || retried || softMessages.length > 0) {
+    if (truncated || retried || softMessages.length > 0 || searches !== null) {
       const meta = (result.meta ?? {}) as Record<string, unknown>;
       result.meta = {
         ...meta,
         ...(truncated ? { truncated: true } : {}),
-        ...(retried ? { retried: true } : {}),
+        ...(retried ? { retried: true, retry_reason: retryReason.slice(0, 5) } : {}),
         ...(softMessages.length > 0 ? { shape_warning: softMessages } : {}),
+        ...(searches !== null ? { searches } : {}),
       };
     }
 

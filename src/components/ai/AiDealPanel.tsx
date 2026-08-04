@@ -11,6 +11,7 @@ import { presetsForEntity, presetByKey, estimateRunCostRub } from '@/lib/constan
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
 import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
+import { RunCostMeta } from './RunCostMeta';
 
 interface AiDealPanelProps {
   projectId: string;
@@ -111,7 +112,10 @@ export function AiDealPanel({ projectId }: AiDealPanelProps) {
               <div key={run.id} className="rounded-lg border border-border bg-surface p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-text-main">{preset?.title ?? run.preset_key}</span>
-                  <StatusChip status={run.status} />
+                  <span className="inline-flex shrink-0 items-center gap-1">
+                    <StatusChip status={run.status} />
+                    <RunCostMeta run={run} />
+                  </span>
                 </div>
 
                 {(run.status === 'error' || isStale(run)) && (
