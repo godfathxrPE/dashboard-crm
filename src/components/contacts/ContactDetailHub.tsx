@@ -17,6 +17,7 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-touch';
 import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { formatBudget } from '@/lib/validators/project';
+import { getAvatarColor, getInitials } from '@/lib/utils/avatar';
 import { ContactModal } from './ContactModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
@@ -35,21 +36,9 @@ import type { TimelineEvent } from '@/types/timeline';
 // Helpers
 // ═══════════════════════════════════════════════════════
 
-function getAvatarColor(name: string): string {
-  const colors = [
-    'var(--accent)', 'var(--green)', 'var(--blue)',
-    'var(--purple)', 'var(--red)', 'var(--yellow)',
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function getInitials(firstName: string, lastName?: string | null): string {
-  return `${firstName.charAt(0)}${(lastName ?? '').charAt(0)}`.toUpperCase();
-}
+// getAvatarColor / getInitials переехали в `@/lib/utils/avatar` (S-R2-CO360-1):
+// те же кружки рисует карточка компании, и вторая копия хеша красила бы одного
+// человека на двух экранах по-разному.
 
 function deadlineBadge(date: string): { label: string; color: string } {
   const days = Math.ceil((new Date(date).getTime() - Date.now()) / 86400000);
