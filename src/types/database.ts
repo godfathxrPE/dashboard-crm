@@ -89,7 +89,8 @@ export type AiRunRow = {
   org_id: string;
   preset_key: string;
   // 085: 'project' — сущность read-only пресетов по сделке (meeting_prep/deal_summary).
-  entity_type: 'call' | 'meeting' | 'project';
+  // 104: 'company' — сущность брифа по компании (company_brief).
+  entity_type: 'call' | 'meeting' | 'project' | 'company';
   entity_id: string;
   // 085: NULL для прогонов по полям сущности. Обязательность держит CHECK
   // ai_runs_transcript_required (meeting_protocol / spin_review).
@@ -194,13 +195,35 @@ export interface DealSummaryResult {
   meta?: { truncated?: boolean };
 }
 
+/**
+ * S-COMPANY-AI-1 (104) — бриф по компании из открытых источников. READ-ONLY, как и
+ * два пресета выше: ни `applied_at`, ни чекбоксов. `website` — ПРЕДЛОЖЕНИЕ, а не
+ * запись: подставляется в карточку только по явному клику человека.
+ *
+ * У `chz_signals` и `recent_news` ссылка на источник обязательна по tool-схеме —
+ * утверждение без URL модель возвращать не вправе. Ссылки рендерятся текстом
+ * (`rel="noopener noreferrer"`), никакого HTML из модели.
+ */
+export interface CompanyBriefResult {
+  summary: string;
+  activity: string;
+  scale: string | null;
+  website: string | null;
+  chz_signals: { claim: string; source_url: string }[];
+  recent_news: { title: string; url: string; date: string | null }[];
+  talk_hooks: string[];
+  sources: string[];
+  meta?: { truncated?: boolean };
+}
+
 export type AiRunResult =
   | ProtocolResult
   | AnalyticNoteResult
   | SpinReviewResult
   | ProgressionProposal
   | MeetingPrepResult
-  | DealSummaryResult;
+  | DealSummaryResult
+  | CompanyBriefResult;
 
 // ═══ Sprint 1: Pipelines & Directions ═══
 

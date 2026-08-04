@@ -14,10 +14,15 @@ import { AI_PRESETS, type AiEntityType } from '@/lib/constants/ai-presets';
 // ═══════════════════════════════════════════════════════
 
 const ROOT = path.resolve(__dirname, '../..');
-// Строки-комментарии выкидываем: в шапке 085 описан ОТКАТ, и он содержит те же
+// ⚠️ Читаем АКТУАЛЬНУЮ редакцию обоих CHECK'ов, а не первую. 085 их завела, 104
+// (S-COMPANY-AI-1) переписала под company/company_brief — сверяться с 085 значит
+// сверяться с историей. Следующая миграция, трогающая эти constraint'ы, обязана
+// заменить путь здесь; иначе тест начнёт охранять прошлое.
+//
+// Строки-комментарии выкидываем: в шапке миграции описан ОТКАТ, и он содержит те же
 // имена constraint'ов со старыми списками — регексп по сырому файлу нашёл бы их.
 const MIGRATION = readFileSync(
-  path.join(ROOT, 'supabase/migrations/085_ai_runs_nullable_transcript.sql'),
+  path.join(ROOT, 'supabase/migrations/104_ai_runs_company.sql'),
   'utf8',
 )
   .split('\n')
@@ -28,18 +33,18 @@ const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'),
 /** Ключи из `preset_key in ('a','b',…)` конкретного CHECK'а. */
 function presetsInCheck(sql: string): string[] {
   const body = /constraint ai_runs_transcript_required[\s\S]*?preset_key in \(([^)]*)\)/i.exec(sql);
-  if (!body) throw new Error('CHECK ai_runs_transcript_required не найден в 085');
+  if (!body) throw new Error('CHECK ai_runs_transcript_required не найден в 104');
   return [...body[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
 }
 
 /** Типы из `entity_type in ('a','b',…)` (берём определение constraint'а, не откат). */
 function entityTypesInCheck(sql: string): string[] {
   const body = /add constraint ai_runs_entity_type_check[\s\S]*?entity_type in \(([^)]*)\)/i.exec(sql);
-  if (!body) throw new Error('CHECK ai_runs_entity_type_check не найден в 085');
+  if (!body) throw new Error('CHECK ai_runs_entity_type_check не найден в 104');
   return [...body[1].matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
 }
 
-describe('085 ↔ реестр пресетов', () => {
+describe('104 ↔ реестр пресетов', () => {
   it('CHECK ai_runs_transcript_required перечисляет ровно пресеты с needsTranscript: false', () => {
     const fromClient = AI_PRESETS.filter((p) => !p.needsTranscript).map((p) => p.key).sort();
     expect(presetsInCheck(MIGRATION)).toEqual(fromClient);
@@ -75,5 +80,39 @@ describe('edge ↔ клиентский реестр', () => {
 
   it('tool_choice форсирован (модель обязана ответить вызовом инструмента)', () => {
     expect(EDGE).toContain("tool_choice: { type: 'tool', name: preset.tool.name }");
+  });
+});
+
+// S-COMPANY-AI-1 (104): веб-поиск живёт ТОЛЬКО на новом пути. Инвариант дорогой:
+// попади web_search в callClaude — все пресеты начали бы ходить наружу и платить
+// за поиск, а форс tool_choice сделал бы этот поиск ещё и бесполезным.
+describe('веб-поиск изолирован в отдельном пути', () => {
+  /**
+   * Тело функции: от объявления до закрывающей скобки в нулевой колонке.
+   * Резать «до следующей async function» нельзя — между ними живут константы
+   * веб-поиска, и они попали бы в тело callClaude, ложно провалив тест.
+   */
+  function bodyOf(name: string): string {
+    const start = EDGE.indexOf(`async function ${name}(`);
+    expect(start, `функция ${name} не найдена в edge`).toBeGreaterThan(-1);
+    const end = EDGE.indexOf('\n}\n', start);
+    expect(end, `не найден конец функции ${name}`).toBeGreaterThan(start);
+    return EDGE.slice(start, end);
+  }
+
+  it('callClaude не знает о вебе — старые пресеты идут прежним путём', () => {
+    expect(bodyOf('callClaude')).not.toContain('web_search');
+  });
+
+  it('callClaudeWithSearch не форсирует tool_choice (форс несовместим с поиском)', () => {
+    const body = bodyOf('callClaudeWithSearch');
+    expect(body).toContain("tool_choice: { type: 'auto' }");
+    expect(body).not.toContain("type: 'tool'");
+  });
+
+  it('webSearch включён ровно у пресетов, которым он положен', () => {
+    const withSearch = [...EDGE.matchAll(/^\s{4}webSearch: true,$/gm)].length;
+    expect(withSearch).toBe(1); // company_brief и только он
+    expect(AI_PRESETS.some((p) => p.key === 'company_brief')).toBe(true);
   });
 });

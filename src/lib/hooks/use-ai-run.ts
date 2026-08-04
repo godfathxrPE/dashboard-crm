@@ -98,11 +98,16 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
         return data as { run_id: string };
       }
 
-      // Транскрипт у сделки невозможен: `transcripts.entity_type` — только call|meeting
-      // (политика transcripts_insert проверяет EXISTS по calls/meetings). Сюда можно
-      // попасть только по ошибке вызывающего — падаем явно, а не пишем мусор.
-      if (entityType === 'project') {
-        throw new Error('К сделке нельзя привязать транскрипт — запускайте прогон без текста');
+      // Транскрипт у сделки и у компании невозможен: `transcripts.entity_type` —
+      // только call|meeting (политика transcripts_insert проверяет EXISTS по
+      // calls/meetings). Сюда можно попасть только по ошибке вызывающего — падаем
+      // явно, а не пишем мусор. 104: 'company' добавлена в тот же безтранскриптный путь.
+      if (entityType === 'project' || entityType === 'company') {
+        throw new Error(
+          entityType === 'project'
+            ? 'К сделке нельзя привязать транскрипт — запускайте прогон без текста'
+            : 'К компании нельзя привязать транскрипт — запускайте прогон без текста',
+        );
       }
 
       // 1. upsert транскрипта: переиспользуем последний, если текст совпал, иначе новый.

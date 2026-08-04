@@ -7,12 +7,14 @@ import type {
   SpinReviewResult,
   MeetingPrepResult,
   DealSummaryResult,
+  CompanyBriefResult,
 } from '@/types/database';
 import { ProtocolRenderer, type ActionItem } from './ProtocolRenderer';
 import { AnalyticNoteRenderer } from './AnalyticNoteRenderer';
 import { SpinReviewRenderer } from './SpinReviewRenderer';
 import { MeetingPrepRenderer } from './MeetingPrepRenderer';
 import { DealSummaryRenderer } from './DealSummaryRenderer';
+import { CompanyBriefRenderer } from './CompanyBriefRenderer';
 
 /** Диспетчер: рендерер выбирается по preset_key прогона.
  *  `deal_progression` сюда не попадает — у него не рендерер, а диф-панель с
@@ -38,6 +40,9 @@ export function AiResultRenderer({
       return <MeetingPrepRenderer result={run.result as MeetingPrepResult} />;
     case 'deal_summary':
       return <DealSummaryRenderer result={run.result as DealSummaryResult} />;
+    // 104: бриф по компании из открытых источников
+    case 'company_brief':
+      return <CompanyBriefRenderer result={run.result as CompanyBriefResult} />;
     default:
       return null;
   }

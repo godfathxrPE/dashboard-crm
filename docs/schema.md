@@ -224,7 +224,21 @@
 > после apply (на момент записи — за Олегом). Edge `company-lookup` **редеплоена гейтом до v2**,
 > `okved`/`phones`/`emails` теперь приходят; защита в `use-company-lookup.ts` (достройка
 > недостающих полей на границе) остаётся как страховка на будущие рассинхроны фронта и функции;
-> следующая свободная — **104**;
+> **104 (S-COMPANY-AI-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (ветка `feat/company-ai` от `main` `243d1c1`):
+> компания как сущность прогона `ai_runs` под пресет `company_brief` (бриф к первому звонку
+> по открытым источникам). Три вещи: `ai_runs_entity_type_check` += `'company'`,
+> `ai_runs_transcript_required` += `'company_brief'`, полная перезапись
+> `ai_runs_insert`/`ai_runs_select` (редакция 085 плюс ветка `companies`). **Оба CHECK'а —
+> расширения, не сужения**: существующие строки проходят их без бэкфилла. Индексов нет —
+> `ux_ai_runs_active_entity` (085) уже покрывает идемпотентность company-прогонов.
+> Новых колонок нет ⇒ **реген типов не нужен**: CHECK-констрейнты в генерённые типы не попадают.
+> Рядом, без миграции: справочник `src/lib/data/chz-groups.ts` (ОКВЭД → товарные группы
+> «Честного Знака», снапшот 2026-08-03) + его зеркало в `supabase/functions/ai-run/chz-groups.ts`;
+> синхронность зеркал держит `tests/unit/chz-groups.test.ts`.
+> ⚠️ `tests/unit/ai-presets-sync.test.ts` читает **104**, а не 085: актуальная редакция обоих
+> CHECK'ов теперь здесь. Следующая миграция, трогающая эти constraint'ы, обязана переставить
+> путь в тесте;
+> следующая свободная — **105**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -904,7 +918,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 ---
 
-### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**)_ — AI Hub
+### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**; **104 — entity_type='company', пресет `company_brief`, перезапись RLS**)_ — AI Hub
 
 Транскрипт как самостоятельная сущность (1 транскрипт → N прогонов пресетов; нужен и
 звонкам, и встречам) + журнал AI-прогонов. Обе — **обычные tenant-таблицы**: `org_id`
@@ -933,10 +947,10 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 |---------|-----|---------|
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
-| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_\|**`meeting_prep`**\|**`deal_summary`** _(085)_; реестр в коде edge, **CHECK'а на сам ключ нет** — но с 085 ключ участвует в `ai_runs_transcript_required`, поэтому пресет без транскрипта DDL уже требует) |
-| entity_type | text | NOT NULL CHECK `call`\|`meeting`\|**`project`** _(085 — сущность read-only пресетов по сделке)_ |
+| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_\|**`meeting_prep`**\|**`deal_summary`** _(085)_\|**`company_brief`** _(104)_; реестр в коде edge, **CHECK'а на сам ключ нет** — но с 085 ключ участвует в `ai_runs_transcript_required`, поэтому пресет без транскрипта DDL уже требует) |
+| entity_type | text | NOT NULL CHECK `call`\|`meeting`\|**`project`** _(085 — сущность read-only пресетов по сделке)_\|**`company`** _(104 — сущность брифа `company_brief`)_ |
 | entity_id | uuid | NOT NULL |
-| transcript_id | uuid | **NULL допустим (085)** → transcripts ON DELETE CASCADE. CHECK `ai_runs_transcript_required`: `transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep','deal_summary')` — транскрипт обязателен там, где пресет без него бессмыслен (`meeting_protocol`, `spin_review`), и это дефолт для любого будущего ключа |
+| transcript_id | uuid | **NULL допустим (085)** → transcripts ON DELETE CASCADE. CHECK `ai_runs_transcript_required` **(редакция 104)**: `transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep','deal_summary','company_brief')` — транскрипт обязателен там, где пресет без него бессмыслен (`meeting_protocol`, `spin_review`), и это дефолт для любого будущего ключа |
 | status | text | NOT NULL DEFAULT `pending` CHECK `pending`\|`running`\|`done`\|`error` |
 | result | jsonb | structured output пресета (рендерится ТОЛЬКО как текст) |
 | error | text | нейтральный текст при status=error |
@@ -964,7 +978,8 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 **RLS «по сущности»** (org-граница первым конъюнктом, initplan-обёртки `( SELECT ... )`):
 - `*_select` — `org_id = ( SELECT current_org_id() )` И **EXISTS-подзапрос** к
-  `calls`/`meetings` по `entity_id` (**с 085 у `ai_runs_select` третья ветка — `projects`**).
+  `calls`/`meetings` по `entity_id` (**с 085 у `ai_runs_select` третья ветка — `projects`; с 104 четвёртая — `companies`,
+  и у неё дополнительно явная сверка `c.org_id = ai_runs.org_id` (defense-in-depth поверх внешнего `org_id = current_org_id()`)**).
   Подзапрос исполняется ПОД RLS calls/meetings/projects →
   строка видна, только если пользователь реально видит родительскую сущность. Так
   «видит тот, кто видит звонок/встречу» реализовано **без дублирования**
@@ -973,7 +988,7 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
   — автор. `ai_runs_update` — `owner`/`admin` ∨ автор (смена статуса из edge + rating).
 - **`ai_runs_insert` переписана в 085** — две ветки под два пути прогона:
   `transcript_id IS NOT NULL` → EXISTS транскрипта ТОЙ ЖЕ сущности (как было);
-  `transcript_id IS NULL` → EXISTS самой сущности в `calls`/`meetings`/`projects`.
+  `transcript_id IS NULL` → EXISTS самой сущности в `calls`/`meetings`/`projects`/**`companies`** _(104)_.
   ⚠️ Без этой правки снятие `NOT NULL` было бы бесполезно: политика 030 требовала
   EXISTS по `transcripts`, то есть INSERT с `transcript_id = NULL` отбивался бы
   RLS (42501) при формально «разрешающей» схеме.
@@ -984,6 +999,14 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 **Edge `ai-run`** (см. «Edge Functions») — generic исполнитель прогонов, async
 (`EdgeRuntime.waitUntil`).
+
+**104 (S-COMPANY-AI-1)**: пресет `company_brief` — единственный, кто ходит в веб
+(серверный tool `web_search_20250305` Anthropic, `max_uses: 5`). Он идёт отдельным
+путём `callClaudeWithSearch` с `tool_choice: auto`: форс `tool_choice` в `callClaude`
+несовместим с поиском (модель обязана вызвать submit немедленно, до единого запроса).
+`callClaude` не тронут — все остальные пресеты идут прежним путём. Контекст брифа —
+карточка компании + вычисленный кодом маркировочный профиль ЧЗ по ОКВЭД
+(`src/lib/data/chz-groups.ts`, зеркало в `supabase/functions/ai-run/chz-groups.ts`).
 
 ---
 

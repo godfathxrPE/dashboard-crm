@@ -6,11 +6,13 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Pencil, Trash2, Building2, Phone, Mail, Globe, MapPin, FileText,
   Users, FolderKanban, Loader2, AlertCircle, Activity, Rocket, AlertTriangle, RefreshCw,
+  ScanBarcode, Sparkles,
 } from 'lucide-react';
 import { useCompany, useDeleteCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
+import { matchChzGroups, chzStatusLabel, type ChzStatus } from '@/lib/data/chz-groups';
 import { formatDateHuman } from '@/lib/utils/dates';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -35,6 +37,7 @@ import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
+import { AiCompanyModal } from '@/components/ai/AiCompanyModal';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -68,6 +71,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Клик по событию ленты → общий маппинг kind→действие (тот же, что в контакте/сделке)
   function handleOpenEvent(e: TimelineEvent) {
@@ -141,6 +145,13 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const statusRisky = isRiskyInnStatus(company.inn_status);
   const hasLegal = legalFields.length > 0 || !!statusLabel;
 
+  // ═══ S-COMPANY-AI-1 (F2): маркировочный профиль «Честного Знака» ═══
+  // Считается КОДОМ из ОКВЭД (справочник-снапшот), без AI и без запросов. Главный
+  // пресейл-сигнал: «компания попадает под обязательную маркировку X с даты Y».
+  // Профиль видит только ОСНОВНОЙ ОКВЭД — дополнительные коды DaData не отдаёт,
+  // и это сказано подписью под блоком, а не спрятано.
+  const chzGroups = matchChzGroups(company.okved);
+
   async function handleRefreshLegal() {
     const inn = company?.inn?.trim() ?? '';
     if (!isLookupableInn(inn)) return;
@@ -188,6 +199,14 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           {company.industry && <p className="mt-1 text-sm text-text-dim">{company.industry}</p>}
         </div>
         <div className="flex items-center gap-1">
+          {/* S-COMPANY-AI-1 (F3). Кнопка живёт в шапке, а не в блоке реквизитов:
+              бриф строится по названию компании и не требует ни ИНН, ни ОКВЭД, а
+              блок реквизитов у 36 компаний из 260 не рендерится вовсе — вход в
+              фичу был бы им недоступен. */}
+          <button onClick={() => setAiModalOpen(true)}
+            className="mr-1 flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
+            <Sparkles size={13} className="text-accent" /> AI-бриф
+          </button>
           <button onClick={() => setModalOpen(true)}
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
             <Pencil size={14} />
@@ -278,6 +297,35 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               Сверено с ЕГРЮЛ · {formatDateHuman(company.inn_verified_at)}
             </p>
           )}
+        </Bracket>
+      )}
+
+      {/* ═══ Маркировка «Честный Знак» (S-COMPANY-AI-1, F2) ═══
+          Рендерится только когда есть ОКВЭД и он во что-то попал: «компания под
+          маркировку не попадает» — не факт, а следствие снапшотного справочника
+          и одного основного кода, и утверждать это рамкой на карточке нечестно. */}
+      {chzGroups.length > 0 && (
+        <Bracket className="mb-6 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <ScanBarcode size={14} className="text-text-dim" />
+            <span className="text-xs font-semibold text-text-main">Маркировка «Честный Знак»</span>
+          </div>
+
+          <div className="space-y-2">
+            {chzGroups.map((g) => (
+              <div key={g.group}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-text-main">{g.group}</span>
+                  <ChzBadge status={g.status} label={chzStatusLabel(g)} />
+                </div>
+                {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3 text-xs text-text-mute">
+            Справочник от 2026-08 · по основному ОКВЭД
+          </p>
         </Bracket>
       )}
 
@@ -456,6 +504,41 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
       <CallModal isOpen={callModalOpen} onClose={() => { setCallModalOpen(false); setEditingCall(null); }} editCall={editingCall} defaultCompanyId={companyId} />
       <MeetingModal isOpen={meetingModalOpen} onClose={() => { setMeetingModalOpen(false); setEditingMeeting(null); }} editMeeting={editingMeeting} defaultCompanyId={companyId} />
       <TaskModal isOpen={taskModalOpen} onClose={() => { setTaskModalOpen(false); setEditingTask(null); }} editTask={editingTask} defaultCompanyId={companyId} />
+      <AiCompanyModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        companyId={companyId}
+        companyName={company.name}
+      />
     </>
+  );
+}
+
+/**
+ * Бейдж статуса товарной группы. Цвета — только переменные темы.
+ *
+ * `starting` жёлтый намеренно: это ГОРЯЧИЙ ЛИД (обязанность ещё не наступила, решение
+ * покупается сейчас), и он обязан выделяться сильнее действующей обязанности.
+ * `experiment` приглушён: участие добровольное, повод для разговора слабый.
+ */
+function ChzBadge({ status, label }: { status: ChzStatus; label: string }) {
+  if (status === 'starting') {
+    return (
+      <span data-tag className="rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+        style={{ color: 'var(--yellow-text, var(--yellow))' }}>
+        {label}
+      </span>
+    );
+  }
+  if (status === 'mandatory') {
+    return (
+      <span data-tag className="rounded bg-green-l px-1.5 py-0.5 text-xs"
+        style={{ color: 'var(--green-text, var(--green))' }}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">{label}</span>
   );
 }
