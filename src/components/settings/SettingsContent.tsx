@@ -29,7 +29,7 @@ const THEMES = [
   { id: 't-frost', label: 'Frost', color: '#6ba3be' },
   { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
   { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
-  { id: 't-minimal', label: 'Minimal', color: '#C05A2E' },
+  { id: 't-minimal', label: 'Minimal', color: '#0E7C86' },
 ] as const;
 
 interface SettingsContentProps {

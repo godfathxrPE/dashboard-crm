@@ -40,7 +40,7 @@ const THEME_SWATCHES: Record<Theme, string> = {
   't-frost': '#5b8aff',
   't-aurora': '#a060ff',
   't-tidal': '#48b890',
-  't-minimal': '#C05A2E',
+  't-minimal': '#0E7C86',
 };
 
 function DrawerToggle() {
