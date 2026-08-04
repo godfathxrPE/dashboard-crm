@@ -2,38 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import {
-  ArrowLeft, Pencil, Trash2, Building2, Phone, Mail, Globe, MapPin, FileText,
-  Users, FolderKanban, Loader2, AlertCircle, Activity, Rocket, AlertTriangle, RefreshCw,
-  ScanBarcode, Sparkles,
+  ArrowLeft, Pencil, Trash2, Building2, Loader2, AlertCircle, Activity,
+  AlertTriangle, Sparkles, Check,
 } from 'lucide-react';
-import { useCompany, useDeleteCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
-import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
-import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
-import { okvedToIndustry } from '@/lib/data/okved';
-import { matchChzGroups, chzStatusLabel, type ChzStatus } from '@/lib/data/chz-groups';
-import { formatDateHuman } from '@/lib/utils/dates';
+import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
+import { innStatusLabel, isRiskyInnStatus } from '@/lib/utils/inn';
+import { matchChzGroups } from '@/lib/data/chz-groups';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
-import { projectHref } from '@/lib/utils/project-href';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { getDealHealth, compareByNextAction } from '@/lib/utils/deal-health';
-import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
-import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
-import { DealHealthDot } from '@/components/shared/DealHealthDot';
-import {
-  splitCompanyProjects, countCompany360, formatCompany360Summary, isTerminalDeal,
-} from '@/lib/utils/company-360';
-import { formatDateShort } from '@/lib/utils/dates';
-import { formatBudget } from '@/lib/validators/project';
-import { Bracket } from '@/components/ui/Bracket';
-import { PhoneList } from '@/components/shared/PhoneList';
+import { useUiStore } from '@/lib/stores/ui-store';
+import { splitCompanyProjects, countCompany360 } from '@/lib/utils/company-360';
+import { CompanyHighlights } from './CompanyHighlights';
+import { CompanyDealsCard } from './CompanyDealsCard';
+import { CompanyDeliveriesCard } from './CompanyDeliveriesCard';
+import { CompanyContactsCard } from './CompanyContactsCard';
+import { CompanySidebar } from './CompanySidebar';
 import { CompanyModal } from './CompanyModal';
 import { ProjectModal } from '@/components/projects/ProjectModal';
 import { ContactModal } from '@/components/contacts/ContactModal';
-import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import {
+  EntityTimeline, TimelineFilterChips, type TimelineFilterValue,
+} from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
@@ -44,9 +36,26 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import type { Task } from '@/types/entities';
-import type { TimelineEvent } from '@/types/timeline';
+import type { TimelineEvent, TimelineKind } from '@/types/timeline';
+
+// ═══════════════════════════════════════════════════════
+// S-R2-CO360-1 — карточка компании, пересобранная под «Company 360».
+//
+// Компонент держит ТОЛЬКО данные, состояние модалок и композицию: разметка
+// секций живёт в CompanyHighlights / Company*Card / CompanySidebar. Прежняя
+// версия рисовала всё сама и упиралась в потолок, о котором предупреждает
+// ARCH-ревью («avoid 2k LOC file» → extract sections).
+//
+// Иерархия страницы отвечает порядку вопросов, ради которых её открывают:
+//   полоса фактов → деньги (сделки) → работа (внедрения) → люди → лента,
+// а справочное (реквизиты, контакты компании, ЧЗ, заметки) уехало в сайдбар.
+// ═══════════════════════════════════════════════════════
 
 interface CompanyDetailProps { companyId: string; }
+
+/** Типы событий ленты компании. `ai_run` в наборе намеренно: без него
+ *  `kindFilter` вырезал бы AI-прогоны из ленты вообще, а не просто убрал чип. */
+const COMPANY_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'activity', 'project', 'ai_run'];
 
 export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const router = useRouter();
@@ -55,10 +64,21 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { data: allProjects } = useProjects();
   const { data: allStages } = usePipelineStages();
   const deleteCompany = useDeleteCompany();
-  const updateCompany = useUpdateCompany();
-  const lookup = useCompanyLookup();
   const { data: orgRole } = useOrgRole();
   const canCreate = orgRole != null && orgRole !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
+
+  // Фильтр ленты — общий для всех компаний (ключ по ТИПУ сущности), переживает
+  // уход со страницы и перезагрузку. Не в URL: личная настройка просмотра.
+  const savedFilter = useUiStore((s) => s.timelineFilter['company']);
+  const setTimelineFilter = useUiStore((s) => s.setTimelineFilter);
+  // Значение из localStorage валидируется, а не берётся на веру: набор kinds
+  // может поехать в следующем спринте, а сохранённый чип пережил бы это и молча
+  // отфильтровал ленту в ноль — без подсвеченного чипа, который это объясняет.
+  const timelineFilter: TimelineFilterValue =
+    savedFilter === 'all' || (savedFilter && COMPANY_TIMELINE_KINDS.includes(savedFilter as TimelineKind))
+      ? (savedFilter as TimelineFilterValue)
+      : 'all';
+
   const [modalOpen, setModalOpen] = useState(false);
   // S-DEBT-CONFIRM-1: оверлей, а не inline — удаление уводит со страницы, и текст
   // «связанные контакты и сделки сохранятся» здесь несёт смысл.
@@ -103,83 +123,21 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   );
 
   // Проекты этой компании — один массив из кеша `useProjects()`, делится на
-  // продажи и внедрения на клиенте (S-R2-CO360: новых запросов не заводим).
+  // продажи и внедрения на клиенте (новых запросов не заводим).
   const linkedProjects = (allProjects ?? []).filter((p) => p.company_id === companyId);
   const { deals: linkedDeals, deliveries: linkedDeliveries } = splitCompanyProjects(linkedProjects);
   const counts = countCompany360({ deals: linkedDeals, deliveries: linkedDeliveries }, linkedContacts.length);
 
-  // Открытые сделки вверх, терминальные вниз — тот же порядок, что в воронке.
-  const sortedDeals = [...linkedDeals].sort(compareByNextAction);
+  // Маркировочный профиль «Честного Знака» — считается КОДОМ из ОКВЭД
+  // (справочник-снапшот), без AI и без запросов.
+  const chzGroups = matchChzGroups(company.okved);
+
+  const statusLabel = innStatusLabel(company.inn_status);
+  const statusRisky = isRiskyInnStatus(company.inn_status);
 
   function handleDelete() {
     setConfirmingDelete(false);
     deleteCompany.mutate(companyId, { onSuccess: () => router.push('/companies') });
-  }
-
-  const infoFields = [
-    { icon: Mail, label: 'Email', value: company.email },
-    { icon: Globe, label: 'Сайт', value: company.website },
-    { icon: MapPin, label: 'Адрес', value: company.address },
-  ];
-  const hasPhones = (company.phones?.length ?? 0) > 0 || !!company.phone;
-
-  // ═══ S-INN-1: реквизиты ЕГРЮЛ ═══
-  // ИНН уехал из общей сетки сюда: в одиночку он ничего не решает, а рядом с КПП,
-  // ОГРН и статусом юрлица — это блок, по которому готовят договор.
-  //
-  // S-OKVED-1: ОКВЭД показываем кодом и, через тире, отраслью из справочника —
-  // код без расшифровки в карточке бесполезен, а расшифровка без кода не сверяется
-  // с выпиской. Отрасль здесь ВЫЧИСЛЯЕТСЯ, а не читается из `industry`: в поле
-  // отрасли может лежать то, что менеджер написал руками, и подменять им реестр
-  // нельзя. Не резолвится (пропуск в нумерации ОКВЭД) — показываем голый код.
-  const okvedIndustry = okvedToIndustry(company.okved);
-  const legalFields = [
-    { label: 'ИНН', value: company.inn },
-    { label: 'КПП', value: company.kpp ?? null },
-    { label: 'ОГРН', value: company.ogrn ?? null },
-    { label: 'ОКВЭД', value: company.okved ? (okvedIndustry ? `${company.okved} — ${okvedIndustry}` : company.okved) : null },
-    { label: 'Юр. название', value: company.legal_name ?? null },
-    { label: 'Юр. адрес', value: company.legal_address ?? null },
-  ].filter((f) => f.value);
-  const statusLabel = innStatusLabel(company.inn_status);
-  const statusRisky = isRiskyInnStatus(company.inn_status);
-  const hasLegal = legalFields.length > 0 || !!statusLabel;
-
-  // ═══ S-COMPANY-AI-1 (F2): маркировочный профиль «Честного Знака» ═══
-  // Считается КОДОМ из ОКВЭД (справочник-снапшот), без AI и без запросов. Главный
-  // пресейл-сигнал: «компания попадает под обязательную маркировку X с даты Y».
-  // Профиль видит только ОСНОВНОЙ ОКВЭД — дополнительные коды DaData не отдаёт,
-  // и это сказано подписью под блоком, а не спрятано.
-  const chzGroups = matchChzGroups(company.okved);
-
-  async function handleRefreshLegal() {
-    const inn = company?.inn?.trim() ?? '';
-    if (!isLookupableInn(inn)) return;
-    try {
-      const r = await lookup.mutateAsync(inn);
-      if (!r.found) {
-        toast.error('Компания с таким ИНН не найдена в ЕГРЮЛ');
-        return;
-      }
-      // Пишем ТОЛЬКО юрполя. `name` и `address` не трогаем даже здесь: карточка
-      // обновляет реквизиты, а не переименовывает компанию (инвариант фичи).
-      await updateCompany.mutateAsync({
-        id: companyId,
-        legal_name: r.legal_name,
-        kpp: r.kpp,
-        ogrn: r.ogrn,
-        legal_address: r.legal_address,
-        inn_status: r.status,
-        // S-OKVED-1: ОКВЭД в том же наборе — он такой же факт реестра. Отрасль
-        // отсюда НЕ пишем: `industry` — рабочая классификация, и «Обновить
-        // реквизиты» не повод переклассифицировать компанию за менеджера.
-        okved: r.okved,
-        inn_verified_at: new Date().toISOString(),
-      });
-      toast.success('Реквизиты обновлены из ЕГРЮЛ');
-    } catch {
-      // Текст показывает глобальный mutationCache.onError (toast).
-    }
   }
 
   return (
@@ -189,24 +147,58 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         <ArrowLeft size={14} /> Компании
       </button>
 
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Building2 size={20} className="text-accent" />
-            <h1 className="aura-page-title text-text-main">{company.name}</h1>
+      {/* ═══ Header ═══
+          Плитка-логотип + название + подстрока идентичности записи (отрасль,
+          статус юрлица, ИНН). Статус и ИНН стоят ЗДЕСЬ, а не только в реквизитах:
+          в сайдбаре они про выписку, в шапке — про то, с кем вообще имеем дело. */}
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-lg bg-accent-l">
+            <Building2 size={22} className="text-accent" />
           </div>
-          {company.industry && <p className="mt-1 text-sm text-text-dim">{company.industry}</p>}
+          <div className="min-w-0">
+            <h1 className="aura-page-title truncate text-text-main">{company.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text-dim">
+              {company.industry && <span className="truncate">{company.industry}</span>}
+              {statusLabel && (
+                statusRisky ? (
+                  <span data-tag className="flex items-center gap-1 rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+                    style={{ color: 'var(--yellow-text, var(--yellow))' }}>
+                    <AlertTriangle size={10} /> {statusLabel}
+                  </span>
+                ) : (
+                  <span data-tag className="flex items-center gap-1 rounded bg-green-l px-1.5 py-0.5 text-xs"
+                    style={{ color: 'var(--green-text, var(--green))' }}>
+                    <Check size={10} /> {statusLabel}
+                  </span>
+                )
+              )}
+              {company.inn && (
+                <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs tabular-nums text-text-mute">
+                  ИНН {company.inn}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex shrink-0 items-center gap-1">
           {/* S-COMPANY-AI-1 (F3). Кнопка живёт в шапке, а не в блоке реквизитов:
               бриф строится по названию компании и не требует ни ИНН, ни ОКВЭД, а
               блок реквизитов у 36 компаний из 260 не рендерится вовсе — вход в
               фичу был бы им недоступен. */}
           <button onClick={() => setAiModalOpen(true)}
-            className="mr-1 flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
             <Sparkles size={13} className="text-accent" /> AI-бриф
           </button>
+          {/* Primary в шапке: главное действие карточки компании — завести сделку.
+              `bg-accent` — ремапы тем сделают её графитовой/чёрной/torii сами. */}
+          {canCreate && (
+            <button onClick={() => setProjectModalOpen(true)}
+              className="rounded-lg bg-accent px-2.5 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90">
+              + Сделка
+            </button>
+          )}
           <button onClick={() => setModalOpen(true)}
             className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
             <Pencil size={14} />
@@ -228,269 +220,70 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         </div>
       </div>
 
-      {/* Info grid */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {hasPhones && (
-          <Bracket className="px-3 py-2.5">
-            <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
-              <Phone size={10} /> Телефон
+      {/* ═══ Highlight-полоса (F6) ═══ */}
+      <CompanyHighlights
+        companyId={companyId}
+        deals={linkedDeals}
+        deliveries={linkedDeliveries}
+        stages={allStages}
+        chzGroups={chzGroups}
+      />
+
+      {/* ═══ Основной поток + справочный сайдбар ═══ */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <CompanyDealsCard
+            deals={linkedDeals}
+            stages={allStages}
+            canCreate={canCreate}
+            onCreate={() => setProjectModalOpen(true)}
+          />
+
+          <CompanyDeliveriesCard
+            deals={linkedDeals}
+            deliveries={linkedDeliveries}
+            stages={allStages}
+            canCreate={canCreate}
+            internalCount={counts.internal}
+          />
+
+          <CompanyContactsCard
+            companyId={companyId}
+            contacts={linkedContacts}
+            canCreate={canCreate}
+            onCreate={() => setContactModalOpen(true)}
+          />
+
+          {/* ═══ Активность (единая лента всех связанных событий) ═══
+              Чипы фильтра стоят НАД композером (порядок мокапа), поэтому лента
+              получает `showFilters={false}` — второго ряда чипов не появляется. */}
+          <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Activity size={14} className="text-text-dim" />
+              <span className="text-xs font-semibold text-text-main">Активность</span>
             </div>
-            <PhoneList phones={company.phones} fallback={company.phone} />
-          </Bracket>
-        )}
-        {infoFields.filter((f) => f.value).map((f) => (
-          <Bracket key={f.label} className="px-3 py-2.5">
-            <div className="mb-1 flex items-center gap-1 text-xs text-text-dim">
-              <f.icon size={10} /> {f.label}
-            </div>
-            <div className="text-sm text-text-main">{f.value}</div>
-          </Bracket>
-        ))}
-      </div>
-
-      {/* ═══ Реквизиты (S-INN-1) ═══
-          Блок появляется, только если есть что показать: у 36 компаний из 260 ИНН
-          не заполнен вовсе, и пустая рамка «Реквизиты» на их карточках — шум.
-          Кнопка «Обновить из ЕГРЮЛ» живёт здесь же и активна только при валидном
-          ИНН: без него запрос слать нечем. */}
-      {hasLegal && (
-        <Bracket className="mb-6 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <FileText size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Реквизиты</span>
-            {statusLabel && (
-              statusRisky ? (
-                <span data-tag className="flex items-center gap-1 rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
-                  style={{ color: 'var(--yellow-text, var(--yellow))' }}>
-                  <AlertTriangle size={10} /> {statusLabel}
-                </span>
-              ) : (
-                <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">{statusLabel}</span>
-              )
-            )}
-            {isLookupableInn(company.inn) && (
-              <button
-                onClick={handleRefreshLegal}
-                disabled={lookup.isPending || updateCompany.isPending}
-                className="ml-auto flex items-center gap-1 text-xs text-text-mute transition-colors
-                           hover:text-text-main disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {lookup.isPending || updateCompany.isPending
-                  ? <Loader2 size={11} className="animate-spin" />
-                  : <RefreshCw size={11} />}
-                Обновить из ЕГРЮЛ
-              </button>
-            )}
+            <TimelineFilterChips
+              className="mb-3"
+              kinds={COMPANY_TIMELINE_KINDS}
+              value={timelineFilter}
+              onChange={(v) => setTimelineFilter('company', v)}
+            />
+            <ActivityComposer entityType="company" entityId={companyId} />
+            <EntityTimeline
+              entityType="company"
+              entityId={companyId}
+              options={{ includeSystem: true }}
+              onOpenEvent={handleOpenEvent}
+              kindFilter={COMPANY_TIMELINE_KINDS}
+              splitUpcoming
+              showFilters={false}
+              filter={timelineFilter}
+              onFilterChange={(v) => setTimelineFilter('company', v)}
+            />
           </div>
-
-          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
-            {legalFields.map((f) => (
-              <div key={f.label} className="flex gap-2 text-sm">
-                <span className="shrink-0 text-text-mute">{f.label}</span>
-                <span className="text-text-main">{f.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {company.inn_verified_at && (
-            <p className="mt-3 text-xs text-text-mute">
-              Сверено с ЕГРЮЛ · {formatDateHuman(company.inn_verified_at)}
-            </p>
-          )}
-        </Bracket>
-      )}
-
-      {/* ═══ Маркировка «Честный Знак» (S-COMPANY-AI-1, F2) ═══
-          Рендерится только когда есть ОКВЭД и он во что-то попал: «компания под
-          маркировку не попадает» — не факт, а следствие снапшотного справочника
-          и одного основного кода, и утверждать это рамкой на карточке нечестно. */}
-      {chzGroups.length > 0 && (
-        <Bracket className="mb-6 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <ScanBarcode size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Маркировка «Честный Знак»</span>
-          </div>
-
-          <div className="space-y-2">
-            {chzGroups.map((g) => (
-              <div key={g.group}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-text-main">{g.group}</span>
-                  <ChzBadge status={g.status} label={chzStatusLabel(g)} />
-                </div>
-                {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-3 text-xs text-text-mute">
-            Справочник от 2026-08 · по основному ОКВЭД
-          </p>
-        </Bracket>
-      )}
-
-      {/* Notes */}
-      {company.notes && (
-        <div className="mb-6 rounded-xl border border-border/50 bg-surface/50 px-4 py-3">
-          <p className="mb-1 text-xs font-medium text-text-dim">Заметки</p>
-          <p className="text-sm text-text-main whitespace-pre-wrap">{company.notes}</p>
         </div>
-      )}
 
-      {/* S-R2-CO360: итоговая строка фактов — читается без прокрутки */}
-      <p className="mb-3 text-sm text-text-dim tabular-nums">{formatCompany360Summary(counts)}</p>
-
-      {/* Linked contacts & projects */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Contacts */}
-        <Bracket className="p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Users size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Контакты</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{linkedContacts.length}</span>
-            {canCreate && (
-              <button onClick={() => setContactModalOpen(true)}
-                className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
-                + Контакт
-              </button>
-            )}
-          </div>
-          {linkedContacts.length === 0 ? (
-            <p className="text-xs text-text-mute italic">Нет привязанных контактов.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {linkedContacts.map((c) => {
-                const role = c.companies?.find((cc) => cc.company_id === companyId)?.role;
-                return (
-                  <button key={c.id} onClick={() => router.push(`/contacts/${c.id}`)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
-                    <span className="text-sm text-text-main">{c.first_name} {c.last_name}</span>
-                    {role && <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">{role}</span>}
-                    {c.position && <span className="ml-auto text-xs text-text-dim">{c.position}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </Bracket>
-
-        {/* Projects */}
-        <Bracket className="p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <FolderKanban size={14} className="text-text-dim" />
-            <span className="text-xs font-semibold text-text-main">Сделки</span>
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{counts.deals}</span>
-            {canCreate && (
-              <button onClick={() => setProjectModalOpen(true)}
-                className="ml-auto text-xs text-text-mute hover:text-text-main transition-colors">
-                + Сделка
-              </button>
-            )}
-          </div>
-          {sortedDeals.length === 0 ? (
-            <p className="text-xs text-text-mute italic">Нет сделок. Привяжи компанию при создании сделки.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {sortedDeals.map((p) => {
-                // Стадия из pipeline_stages (stage_id — истина, legacy `stage` не читаем)
-                const stageName = (p.stage_id ? allStages?.find((s) => s.id === p.stage_id)?.name : null)
-                  ?? '—';
-                const dh = getDealHealth(p);
-                // Закрытые сделки приглушены — вес строки отделяет их от открытых
-                // без отдельного заголовка (S-R2-CO360).
-                const closed = isTerminalDeal(p.status);
-                return (
-                  <button key={p.id} onClick={() => router.push(projectHref(p))}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
-                    <DealHealthDot health={dh} />
-                    <span className={closed ? 'text-sm text-text-mute' : 'text-sm text-text-main'}>{p.name}</span>
-                    <span data-tag className={closed
-                      ? 'rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute'
-                      : 'rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent'}>
-                      {stageName}
-                    </span>
-                    {p.budget != null && (
-                      <span className={closed ? 'ml-auto text-xs text-text-mute' : 'ml-auto text-xs text-text-dim'}>
-                        {formatBudget(p.budget)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </Bracket>
-      </div>
-
-      {/* ═══ Внедрения компании (S-R2-CO360) ═══
-          «продали → делаем»: секция стоит между сделками и лентой активности.
-          Внедрений нет → секции нет вовсе: пустой блок на каждой второй карточке — шум. */}
-      {linkedDeliveries.length > 0 && (
-        <Bracket className="mt-4 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Rocket size={14} className="text-text-dim" />
-            {/* Заголовок называет ровно то, что перечисляет список: `internal` живёт
-                здесь по контракту `splitCompanyProjects`, и сводка 360 над карточкой
-                считает его отдельно («0 внедрений · 1 внутренний проект»). Без этой
-                развилки на карточке стояли бы два разных числа под словом «внедрения». */}
-            <span className="text-xs font-semibold text-text-main">
-              {counts.internal > 0 ? 'Внедрения и внутренние' : 'Внедрения'}
-            </span>
-            {/* Счётчик секции считает то, что секция перечисляет, — а список ниже
-                показывает и `internal` (см. контракт `splitCompanyProjects`).
-                `counts.deliveries` тут дал бы «0» над непустым списком. */}
-            <span className="rounded-full bg-bg px-1.5 py-0.5 text-xs text-text-mute">{linkedDeliveries.length}</span>
-          </div>
-          <div className="space-y-1.5">
-            {linkedDeliveries.map((p) => {
-              const stage = p.stage_id ? allStages?.find((s) => s.id === p.stage_id) : undefined;
-              const stageName = stage?.name ?? '—';
-              // Health — из project-level полей строки; isTerminal из стадии+статуса
-              // (дословно как в DealDeliveryHub/PortfolioView — пороги не форкаем).
-              const health = getDeliveryHealth({
-                progress_done: p.progress_done,
-                progress_total: p.progress_total,
-                stage_entered_at: p.stage_entered_at,
-                deadline: p.deadline,
-                updated_at: p.updated_at,
-                isTerminal: isDeliveryTerminal(stage, p.status),
-              });
-              return (
-                <button key={p.id} onClick={() => router.push(projectHref(p))}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
-                  <DeliveryHealthDot health={health} />
-                  <span className="text-sm text-text-main">{p.name}</span>
-                  {/* Внутренний проект (stage_id=null, вне воронки) — называем вещи
-                      своими именами, чтобы секция «Внедрения» не выдавала его за внедрение. */}
-                  {p.type === 'internal' ? (
-                    <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">
-                      Внутренний
-                    </span>
-                  ) : (
-                    <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
-                      {stageName}
-                    </span>
-                  )}
-                  {p.deadline && (
-                    <span className="ml-auto text-xs text-text-dim" title={`Дедлайн: ${p.deadline}`}>
-                      {formatDateShort(p.deadline)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </Bracket>
-      )}
-
-      {/* ═══ Активность компании (единая лента всех связанных событий) ═══ */}
-      <div className="mt-6">
-        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-text-dim">
-          <Activity size={14} />
-          Активность
-        </div>
-        <ActivityComposer entityType="company" entityId={companyId} />
-        <EntityTimeline entityType="company" entityId={companyId} options={{ includeSystem: true }} onOpenEvent={handleOpenEvent} />
+        <CompanySidebar company={company} chzGroups={chzGroups} />
       </div>
 
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />
@@ -511,34 +304,5 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         companyName={company.name}
       />
     </>
-  );
-}
-
-/**
- * Бейдж статуса товарной группы. Цвета — только переменные темы.
- *
- * `starting` жёлтый намеренно: это ГОРЯЧИЙ ЛИД (обязанность ещё не наступила, решение
- * покупается сейчас), и он обязан выделяться сильнее действующей обязанности.
- * `experiment` приглушён: участие добровольное, повод для разговора слабый.
- */
-function ChzBadge({ status, label }: { status: ChzStatus; label: string }) {
-  if (status === 'starting') {
-    return (
-      <span data-tag className="rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
-        style={{ color: 'var(--yellow-text, var(--yellow))' }}>
-        {label}
-      </span>
-    );
-  }
-  if (status === 'mandatory') {
-    return (
-      <span data-tag className="rounded bg-green-l px-1.5 py-0.5 text-xs"
-        style={{ color: 'var(--green-text, var(--green))' }}>
-        {label}
-      </span>
-    );
-  }
-  return (
-    <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">{label}</span>
   );
 }

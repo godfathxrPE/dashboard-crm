@@ -17,6 +17,8 @@ import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 // событию → onOpenEvent (родитель решает, что открыть).
 // ═══════════════════════════════════════════════════════
 
+export type TimelineFilterValue = 'all' | TimelineKind;
+
 interface EntityTimelineProps {
   entityType: TimelineEntityType;
   entityId: string;
@@ -25,6 +27,31 @@ interface EntityTimelineProps {
   renderAction?: (event: TimelineEvent) => ReactNode;
   options?: UseEntityTimelineOptions;
   className?: string;
+
+  // ═══ S-R2-CO360-1: опциональные расширения. Все три по умолчанию выключены —
+  // контакт, сделка и прочие страницы получают ровно прежний рендер. ═══
+
+  /**
+   * Какие kinds вообще предлагать чипами и показывать. Фильтр применяется к УЖЕ
+   * ЗАГРУЖЕННЫМ событиям — запрос не меняется (иначе счётчики источников поехали
+   * бы относительно `PER_SOURCE_LIMIT`). Не задан → дефолтный набор.
+   */
+  kindFilter?: TimelineKind[];
+  /**
+   * Будущие события — отдельной первой группой «Предстоящее», остальные — «Ранее».
+   * Заменяет трёхчастную группировку (Просрочено/Этот месяц/Ранее), а не дополняет:
+   * две оси группировки в одном списке нечитаемы.
+   */
+  splitUpcoming?: boolean;
+  /**
+   * Управляемый фильтр. Передан вместе с `onFilterChange` → выбор живёт у
+   * родителя (карточка компании держит его в ui-store, чтобы он пережил уход со
+   * страницы). Не передан → компонент помнит выбор сам, как и раньше.
+   */
+  filter?: TimelineFilterValue;
+  onFilterChange?: (value: TimelineFilterValue) => void;
+  /** Скрыть встроенный ряд чипов — родитель рисует свой в другом месте макета. */
+  showFilters?: boolean;
 }
 
 const KIND_META: Record<TimelineKind, { icon: LucideIcon; dot: string; fg: string }> = {
@@ -36,14 +63,58 @@ const KIND_META: Record<TimelineKind, { icon: LucideIcon; dot: string; fg: strin
   ai_run:   { icon: Sparkles,     dot: 'bg-accent-l', fg: 'text-accent' },
 };
 
-// Клиентские табы фильтра — по прямым источникам Sprint A
-const FILTERS: { key: 'all' | TimelineKind; label: string }[] = [
-  { key: 'all', label: 'Все' },
-  { key: 'call', label: 'Звонки' },
-  { key: 'meeting', label: 'Встречи' },
-  { key: 'task', label: 'Задачи' },
-  { key: 'project', label: 'Сделки' },
-];
+// Подписи чипов по kind. `activity` названо «Заметки» по спецификации спринта —
+// ⚠️ это activity_log целиком, туда же попадают системные записи (смена стадии),
+// так что чип шире своего лейбла. Разделить их можно только по `event_type`,
+// которого в TimelineEvent нет; отмечено долгом, а не спрятано.
+const KIND_LABEL: Record<TimelineKind, string> = {
+  call: 'Звонки',
+  meeting: 'Встречи',
+  task: 'Задачи',
+  project: 'Сделки',
+  activity: 'Заметки',
+  ai_run: 'AI',
+};
+
+// Дефолтный набор чипов — прямые источники Sprint A (поведение до S-R2-CO360-1).
+const DEFAULT_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'project'];
+
+/**
+ * Ряд чипов фильтра. Экспортируется, чтобы карточка компании могла поставить его
+ * НАД композером (порядок мокапа), а не под ним, — с тем же видом и поведением.
+ * Второго определения стиля чипа при этом не появляется.
+ */
+export function TimelineFilterChips({
+  kinds, value, onChange, className,
+}: {
+  kinds: TimelineKind[];
+  value: TimelineFilterValue;
+  onChange: (v: TimelineFilterValue) => void;
+  className?: string;
+}) {
+  const items: { key: TimelineFilterValue; label: string }[] = [
+    { key: 'all', label: 'Все' },
+    ...kinds.map((k) => ({ key: k as TimelineFilterValue, label: KIND_LABEL[k] })),
+  ];
+  return (
+    <div className={cn('flex flex-wrap gap-1', className)}>
+      {items.map((f) => (
+        <button
+          key={f.key}
+          onClick={() => onChange(f.key)}
+          className={cn(
+            'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+            value === f.key
+              ? 'bg-accent-l text-accent'
+              : 'text-text-mute hover:bg-surface2 hover:text-text-main',
+          )}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function relativeTime(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
@@ -64,9 +135,27 @@ function sameMonth(iso: string, ref: Date): boolean {
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
 }
 
-export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction, options, className }: EntityTimelineProps) {
-  const { events, isLoading } = useEntityTimeline(entityType, entityId, options);
-  const [filter, setFilter] = useState<'all' | TimelineKind>('all');
+export function EntityTimeline({
+  entityType, entityId, onOpenEvent, renderAction, options, className,
+  kindFilter, splitUpcoming = false, filter: filterProp, onFilterChange, showFilters = true,
+}: EntityTimelineProps) {
+  const { events: allEvents, isLoading } = useEntityTimeline(entityType, entityId, options);
+  const [localFilter, setLocalFilter] = useState<TimelineFilterValue>('all');
+
+  // Управляемый режим — только когда переданы ОБА props: одиночный `filter` без
+  // колбэка дал бы залипший чип, который невозможно переключить.
+  const controlled = filterProp !== undefined && onFilterChange !== undefined;
+  const filter = controlled ? filterProp : localFilter;
+  const setFilter = controlled ? onFilterChange! : setLocalFilter;
+
+  const kinds = useMemo(() => kindFilter ?? DEFAULT_KINDS, [kindFilter]);
+
+  // `kindFilter` режет ленту до объявленного набора ДО чипов: иначе «Все»
+  // показывало бы события тех типов, которых в чипах нет.
+  const events = useMemo(
+    () => (kindFilter ? allEvents.filter((e) => kinds.includes(e.kind)) : allEvents),
+    [allEvents, kindFilter, kinds],
+  );
 
   const filtered = useMemo(
     () => (filter === 'all' ? events : events.filter((e) => e.kind === filter)),
@@ -75,6 +164,24 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
 
   const groups = useMemo(() => {
     const now = new Date();
+    if (splitUpcoming) {
+      const nowMs = now.getTime();
+      const upcoming: TimelineEvent[] = [];
+      const past: TimelineEvent[] = [];
+      for (const e of filtered) {
+        if (new Date(e.date).getTime() > nowMs) upcoming.push(e);
+        else past.push(e);
+      }
+      // Внутри «Предстоящего» порядок обратный общему: ближайшее сверху.
+      // Хук сортирует всю ленту по убыванию даты — для будущего это «самое
+      // далёкое сверху», что для плана бессмысленно.
+      upcoming.reverse();
+      return [
+        { key: 'upcoming', label: 'Предстоящее', items: upcoming },
+        { key: 'earlier', label: 'Ранее', items: past },
+      ].filter((g) => g.items.length > 0);
+    }
+
     const overdue: TimelineEvent[] = [];
     const thisMonth: TimelineEvent[] = [];
     const earlier: TimelineEvent[] = [];
@@ -88,7 +195,7 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
       { key: 'month', label: 'Этот месяц', items: thisMonth },
       { key: 'earlier', label: 'Ранее', items: earlier },
     ].filter((g) => g.items.length > 0);
-  }, [filtered]);
+  }, [filtered, splitUpcoming]);
 
   if (isLoading) {
     return (
@@ -101,22 +208,9 @@ export function EntityTimeline({ entityType, entityId, onOpenEvent, renderAction
   return (
     <div className={className}>
       {/* Фильтр-табы (клиентский фильтр по kind — без повторных запросов) */}
-      <div className="mb-3 flex flex-wrap gap-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-              filter === f.key
-                ? 'bg-accent-l text-accent'
-                : 'text-text-mute hover:bg-surface2 hover:text-text-main',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {showFilters && (
+        <TimelineFilterChips className="mb-3" kinds={kinds} value={filter} onChange={setFilter} />
+      )}
 
       {events.length === 0 ? (
         <p className="py-6 text-center text-xs text-text-mute italic">Пока нет активности</p>

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ru" class="t-aura">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company 360 — АО «КМ» · концепт, 7 тем</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@300;400;500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   ТОКЕНЫ ТЕМ — дословно из globals.css dashboard-crm
+   + derived-токены мокапа: --sec-accent / --sec-tint (акцент раздела
+   «Компании»), --btn-solid-bg/fg (solid-кнопки и активный чип)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ═══ Aura (light, дефолт) ═══ */
+html.t-aura {
+  --bg:#EFEFF3; --surface:#FFFFFF; --surface2:#F6F6FA; --surface3:#EAEAF1;
+  --border:#E2E2EC; --border2:#D2D2DE;
+  --text:#16161D; --text-dim:#59596D; --text-mute:#61617A;
+  --accent:#484D57; --accent-l:rgba(72,77,87,0.09); --accent-l2:rgba(72,77,87,0.16); --accent-text:#343840;
+  --green:#2F8F5B; --green-l:rgba(47,143,91,0.10); --green-text:#1F7C41;
+  --red:#D14343; --red-l:rgba(209,67,67,0.10); --red-text:#C02B2D;
+  --blue:#3B7FD4; --blue-l:rgba(59,127,212,0.10); --blue-text:#1D68BC;
+  --yellow:#B0810F; --yellow-l:rgba(176,129,15,0.10); --yellow-text:#846300;
+  --purple:#7C5CD4; --purple-l:rgba(124,92,212,0.10); --purple-text:#6F4BC8;
+  --radius:12px; --radius-s:8px; --radius-l:18px;
+  --shadow-sm:0 1px 3px rgba(20,20,40,0.06),0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md:0 4px 14px rgba(20,20,40,0.07),0 1px 3px rgba(20,20,40,0.04);
+  --shadow-card:var(--shadow-sm); --shadow-card-hover:var(--shadow-md);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Onest';
+  /* companies-секция aura — бирюза (section-реактивная атмосфера) */
+  --sec-accent:#007B6A; --sec-tint:rgba(0,123,106,0.09);
+  --btn-solid-bg:#343840; --btn-solid-fg:#fff;
+  --aura-orb-1:38,166,154; --aura-orb-2:47,143,91;
+  letter-spacing:-0.006em;
+}
+/* ═══ Minimal (light, neutral — Linear/Attio class) ═══ */
+html.t-minimal {
+  --bg:#F6F6F7; --surface:#FFFFFF; --surface2:#F3F3F4; --surface3:#EAEAEC;
+  --border:#E5E5E8; --border2:#D6D6DB;
+  --text:#1A1A1E; --text-dim:#5A5A64; --text-mute:#66666F;
+  --accent:#C05A2E; --accent-l:rgba(192,90,46,0.08); --accent-l2:rgba(192,90,46,0.16); --accent-text:#A64A24;
+  --green:#1B8A4C; --green-l:rgba(27,138,76,0.09); --green-text:#177B43;
+  --red:#CC3B2E; --red-l:rgba(204,59,46,0.09); --red-text:#B02A24;
+  --blue:#2563C9; --blue-l:rgba(37,99,201,0.09); --blue-text:#1D68BC;
+  --yellow:#B0680A; --yellow-l:rgba(176,104,10,0.10); --yellow-text:#846300;
+  --purple:#7C5CD4; --purple-l:rgba(124,92,212,0.09); --purple-text:#6F4BC8;
+  --radius:10px; --radius-s:6px; --radius-l:14px;
+  --shadow-sm:0 1px 3px rgba(20,20,25,0.05),0 1px 2px rgba(20,20,25,0.04);
+  --shadow-md:0 4px 12px rgba(20,20,25,0.06),0 1px 3px rgba(20,20,25,0.04);
+  --shadow-card:0 1px 2px rgba(20,20,25,0.04); --shadow-card-hover:var(--shadow-sm);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Inter';
+  /* один тёплый акцент, сигналы только у исключений */
+  --sec-accent:#A64A24; --sec-tint:rgba(192,90,46,0.08);
+  --btn-solid-bg:#1A1A1E; --btn-solid-fg:#fff;
+}
+html.t-minimal body { font-feature-settings:'cv11'; }
+/* ═══ Washi 和紙 (light, Japanese paper) ═══ */
+html.t-washi {
+  --bg:#F5F0E8; --surface:#FDFCFA; --surface2:#EDE7DB; --surface3:#E5DFD5;
+  --border:#D8D2C8; --border2:#E5DFD5;
+  --text:#2C2C2C; --text-dim:#645E58; --text-mute:#67615C;
+  --accent:#C23B3B; --accent-l:rgba(194,59,59,0.10); --accent-l2:rgba(194,59,59,0.25); --accent-text:#B33434;
+  --green:#5E7A3A; --green-l:rgba(94,122,58,0.12); --green-text:#4E6A2E;
+  --red:#C23B3B; --red-l:rgba(194,59,59,0.10); --red-text:#B33434;
+  --blue:#2B5F8A; --blue-l:rgba(43,95,138,0.12); --blue-text:#2B5F8A;
+  --yellow:#D4993A; --yellow-l:rgba(212,153,58,0.12); --yellow-text:#826112;
+  --purple:#7B68A8; --purple-l:rgba(123,104,168,0.12); --purple-text:#665393;
+  --radius:4px; --radius-s:2px; --radius-l:8px;
+  --shadow-sm:0 1px 3px rgba(44,44,44,0.06),0 1px 2px rgba(44,44,44,0.03);
+  --shadow-md:0 4px 12px rgba(44,44,44,0.06),0 1px 3px rgba(44,44,44,0.03);
+  --shadow-card:var(--shadow-sm); --shadow-card-hover:var(--shadow-md);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Manrope';
+  --sec-accent:#B33434; --sec-tint:rgba(194,59,59,0.08);
+  --btn-solid-bg:#C23B3B; --btn-solid-fg:#fff;
+}
+/* ═══ Fuji 富士 (light, indigo) ═══ */
+html.t-fuji {
+  --bg:#EDE8DF; --surface:#FDFCF8; --surface2:#F0EBE2; --surface3:#E3DDD2;
+  --border:#DDD5C5; --border2:#C8C0B0;
+  --text:#1A2744; --text-dim:#545C64; --text-mute:#5C626A;
+  --accent:#2B5078; --accent-l:rgba(43,80,120,0.08); --accent-l2:rgba(43,80,120,0.16); --accent-text:#2B5078;
+  --green:#4A7A5A; --green-l:rgba(74,122,90,0.10); --green-text:#3A6248;
+  --red:#C23B3B; --red-l:rgba(194,59,59,0.09); --red-text:#ba3939;
+  --blue:#2B5078; --blue-l:rgba(43,80,120,0.08); --blue-text:#2B5078;
+  --yellow:#C4AA78; --yellow-l:rgba(196,170,120,0.12); --yellow-text:#7A6538;
+  --purple:#6A5A8E; --purple-l:rgba(106,90,142,0.09); --purple-text:#6A5A8E;
+  --radius:10px; --radius-s:4px; --radius-l:14px;
+  --shadow-sm:0 1px 3px rgba(26,39,68,0.06),0 1px 2px rgba(26,39,68,0.03);
+  --shadow-md:0 4px 12px rgba(26,39,68,0.06),0 1px 3px rgba(26,39,68,0.03);
+  --shadow-card:var(--shadow-sm); --shadow-card-hover:var(--shadow-md);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'IBM Plex Sans';
+  --sec-accent:#2B5078; --sec-tint:rgba(43,80,120,0.08);
+  --btn-solid-bg:#2B5078; --btn-solid-fg:#fff;
+}
+/* ═══ Frost (dark, glass) ═══ */
+html.t-frost {
+  --bg:#0d1020; --surface:rgba(255,255,255,0.07); --surface2:rgba(255,255,255,0.04); --surface3:rgba(255,255,255,0.10);
+  --border:rgba(255,255,255,0.12); --border2:rgba(255,255,255,0.22);
+  --text:#eef2ff; --text-dim:#94a4d4; --text-mute:#7e90c0;
+  --accent:#5b8aff; --accent-l:rgba(91,138,255,0.15); --accent-l2:rgba(91,138,255,0.25); --accent-text:#7eb0ff;
+  --green:#5BB88E; --green-l:rgba(91,184,142,0.14); --green-text:#5BB88E;
+  --red:#E8795A; --red-l:rgba(232,121,90,0.14); --red-text:#E8795A;
+  --blue:#5FA8E8; --blue-l:rgba(95,168,232,0.14); --blue-text:#5FA8E8;
+  --yellow:#F0C45E; --yellow-l:rgba(240,196,94,0.14); --yellow-text:#F0C45E;
+  --purple:#A070E0; --purple-l:rgba(160,112,224,0.14); --purple-text:#c9a0f5;
+  --radius:12px; --radius-s:8px; --radius-l:16px;
+  --shadow-sm:0 2px 6px rgba(0,0,0,0.25);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.3);
+  --shadow-card:0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover:0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.16);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Manrope';
+  --sec-accent:#7eb0ff; --sec-tint:rgba(91,138,255,0.15);
+  --btn-solid-bg:#5b8aff; --btn-solid-fg:#0d1020;
+}
+/* ═══ Aurora (dark, neon) ═══ */
+html.t-aurora {
+  --bg:#0a0e1a; --surface:rgba(255,255,255,0.055); --surface2:rgba(255,255,255,0.035); --surface3:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.10); --border2:rgba(255,255,255,0.18);
+  --text:#e8f0ff; --text-dim:#94a8d4; --text-mute:#7e90c0;
+  --accent:#a060ff; --accent-l:rgba(160,96,255,0.15); --accent-l2:rgba(160,96,255,0.25); --accent-text:#c9a0ff;
+  --green:#20e8a0; --green-l:rgba(32,232,160,0.12); --green-text:#20e8a0;
+  --red:#ff6090; --red-l:rgba(255,96,144,0.12); --red-text:#ff6090;
+  --blue:#40b8ff; --blue-l:rgba(64,184,255,0.12); --blue-text:#40b8ff;
+  --yellow:#ffe060; --yellow-l:rgba(255,224,96,0.12); --yellow-text:#ffe060;
+  --purple:#a060ff; --purple-l:rgba(160,96,255,0.12); --purple-text:#d0b0ff;
+  --radius:8px; --radius-s:5px; --radius-l:12px;
+  --shadow-sm:0 2px 6px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.35);
+  --shadow-card:0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  --shadow-card-hover:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Manrope';
+  --sec-accent:#c9a0ff; --sec-tint:rgba(160,96,255,0.15);
+  --btn-solid-bg:#a060ff; --btn-solid-fg:#0a0e1a;
+}
+/* ═══ Tidal (dark, oceanic) ═══ */
+html.t-tidal {
+  --bg:#080f0d; --surface:rgba(60,140,100,0.07); --surface2:rgba(60,140,100,0.04); --surface3:rgba(60,140,100,0.10);
+  --border:rgba(80,160,120,0.15); --border2:rgba(80,160,120,0.25);
+  --text:#c0d8cc; --text-dim:#7aa08c; --text-mute:#709080;
+  --accent:#48b890; --accent-l:rgba(72,184,144,0.14); --accent-l2:rgba(72,184,144,0.24); --accent-text:#48b890;
+  --green:#40c088; --green-l:rgba(64,192,136,0.12); --green-text:#40c088;
+  --red:#c86858; --red-l:rgba(200,104,88,0.12); --red-text:#e09080;
+  --blue:#5ca8d0; --blue-l:rgba(92,168,208,0.12); --blue-text:#5ca8d0;
+  --yellow:#b8a058; --yellow-l:rgba(184,160,88,0.12); --yellow-text:#b8a058;
+  --purple:#8878b0; --purple-l:rgba(136,120,176,0.12); --purple-text:#a898c8;
+  --radius:8px; --radius-s:5px; --radius-l:12px;
+  --shadow-sm:0 2px 6px rgba(0,0,0,0.35);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+  --shadow-card:0 2px 12px rgba(0,0,0,0.2);
+  --shadow-card-hover:0 4px 20px rgba(0,0,0,0.3);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --font-app:'Manrope';
+  --sec-accent:#48b890; --sec-tint:rgba(72,184,144,0.14);
+  --btn-solid-bg:#48b890; --btn-solid-fg:#080f0d;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   БАЗА
+   ═══════════════════════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-family:var(--font-app),system-ui,sans-serif; }
+body { background:var(--bg); color:var(--text); min-height:100vh;
+  font-family:inherit; transition:background .3s var(--ease-out); }
+/* Орбы — только aura (companies = бирюза) */
+html.t-aura body::before {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(48% 42% at 100% 0%, rgba(var(--aura-orb-1),0.18) 0%, transparent 70%),
+    radial-gradient(34% 32% at 0% 4%, rgba(var(--aura-orb-1),0.10) 0%, transparent 68%),
+    radial-gradient(46% 40% at 0% 100%, rgba(var(--aura-orb-2),0.14) 0%, transparent 70%);
+}
+.page { position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 32px 64px; }
+
+/* заголовок страницы: глобально 1.5rem/600; aura — Unbounded 400; minimal — 1.25rem/600 */
+.h-page { font-size:1.5rem; font-weight:600; line-height:1.2; letter-spacing:-0.01em; }
+html.t-aura .h-page { font-family:'Unbounded','Onest',sans-serif; font-weight:400; letter-spacing:-0.02em; }
+html.t-minimal .h-page { font-size:1.25rem; font-weight:600; }
+.num { font-variant-numeric:tabular-nums; }
+.sec-label { font-size:0.72rem; font-weight:600; color:var(--text); display:flex; align-items:center; gap:7px; }
+.sec-label svg { color:var(--text-dim); }
+.count-pill { background:var(--surface3); border-radius:999px; padding:1px 7px; font-size:0.72rem; color:var(--text-mute); font-weight:400; }
+
+/* header */
+.back { display:inline-flex; align-items:center; gap:5px; font-size:0.75rem; color:var(--text-mute); text-decoration:none; margin-bottom:14px; }
+.back:hover { color:var(--sec-accent); }
+.head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.head-id { display:flex; align-items:center; gap:14px; }
+.logo { width:46px; height:46px; border-radius:var(--radius); background:var(--sec-tint);
+  border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--sec-accent); flex-shrink:0; }
+.head-sub { display:flex; align-items:center; gap:8px; margin-top:5px; font-size:0.82rem; color:var(--text-dim); flex-wrap:wrap; }
+.chip { display:inline-flex; align-items:center; gap:4px; border-radius:var(--radius-s); padding:2px 7px; font-size:0.72rem; }
+.chip-ok { background:var(--green-l); color:var(--green-text); }
+.chip-mute { background:var(--surface3); color:var(--text-mute); }
+.dot-sep { color:var(--border2); }
+.actions { display:flex; align-items:center; gap:8px; }
+.btn { display:inline-flex; align-items:center; gap:6px; border-radius:var(--radius-s); border:1px solid var(--border);
+  background:var(--surface); padding:7px 12px; font-size:0.78rem; font-family:inherit; color:var(--text-dim);
+  cursor:pointer; transition:all .15s var(--ease-out); }
+.btn:hover { background:var(--surface2); color:var(--text); }
+.btn-icon { padding:7px 8px; }
+.btn-primary { background:var(--btn-solid-bg); border-color:var(--btn-solid-bg); color:var(--btn-solid-fg); }
+.btn-primary:hover { filter:brightness(1.12); color:var(--btn-solid-fg); background:var(--btn-solid-bg); }
+/* Washi: CTA — outline по умолчанию, torii-заливка на hover (как в globals.css) */
+html.t-washi .btn-primary { background:transparent; color:var(--text); border:1px solid var(--border); }
+html.t-washi .btn-primary:hover { background:var(--accent); border-color:var(--accent); color:#fff; filter:none; }
+.btn .spark { color:var(--sec-accent); }
+.btn-primary .spark { color:var(--btn-solid-fg); }
+
+/* highlight row */
+.hl-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+.hl { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px;
+  box-shadow:var(--shadow-card); transition:box-shadow .2s var(--ease-out); position:relative; }
+.hl:hover { box-shadow:var(--shadow-card-hover); }
+.hl-label { font-size:0.7rem; color:var(--text-mute); display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.hl-value { font-size:1.35rem; font-weight:600; line-height:1.15; letter-spacing:-0.01em; }
+.hl-value .unit { font-size:0.85rem; font-weight:500; color:var(--text-dim); }
+.hl-meta { margin-top:6px; font-size:0.72rem; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+/* горячий ЧЗ-виджет: жёлтый тинт темы поверх surface */
+.hl-hot { border-color:color-mix(in srgb, var(--yellow) 40%, var(--border));
+  background:linear-gradient(180deg, var(--yellow-l), transparent 60%), var(--surface); }
+.hl-hot .hl-label { color:var(--yellow-text); }
+.hdot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; }
+.hdot-g { background:var(--green); } .hdot-y { background:var(--yellow); } .hdot-r { background:var(--red); }
+.avatars { display:inline-flex; }
+.av { width:20px; height:20px; border-radius:50%; border:2px solid var(--bg); display:inline-flex; align-items:center;
+  justify-content:center; font-size:0.58rem; font-weight:600; color:#fff; margin-left:-6px; }
+.av:first-child { margin-left:0; }
+.av-1 { background:var(--green-text); } .av-2 { background:var(--blue-text); } .av-3 { background:var(--purple-text); }
+html.t-frost .av, html.t-aurora .av, html.t-tidal .av { color:var(--bg); }
+
+/* layout */
+.cols { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:20px; align-items:start; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-card); }
+.card + .card { margin-top:14px; }
+.card-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.card-head .add { margin-left:auto; font-size:0.72rem; color:var(--text-mute); cursor:pointer; background:none; border:none; font-family:inherit; }
+.card-head .add:hover { color:var(--text); }
+
+/* rows */
+.row { display:flex; align-items:center; gap:9px; width:100%; padding:7px 9px; border-radius:var(--radius-s); cursor:pointer;
+  transition:background .13s; background:none; border:none; font-family:inherit; text-align:left; font-size:0.82rem; }
+.row:hover { background:var(--surface2); }
+.row .name { color:var(--text); }
+.row .muted { color:var(--text-mute); }
+.tag { border-radius:var(--radius-s); padding:1.5px 7px; font-size:0.7rem; white-space:nowrap; }
+.tag-accent { background:var(--sec-tint); color:var(--sec-accent); }
+.tag-mute { background:var(--surface3); color:var(--text-mute); }
+.tag-yellow { background:var(--yellow-l); color:var(--yellow-text); }
+.row .right { margin-left:auto; font-size:0.75rem; color:var(--text-dim); }
+.row .closed { color:var(--text-mute); }
+.progress { height:4px; border-radius:99px; background:var(--surface3); overflow:hidden; width:72px; }
+.progress i { display:block; height:100%; border-radius:99px; background:var(--green); }
+
+/* CTA внедрения */
+.cta-line { display:flex; align-items:center; gap:9px; margin-top:8px; padding:9px 11px; border:1px dashed var(--border2);
+  border-radius:var(--radius-s); font-size:0.76rem; color:var(--text-dim); }
+.cta-line b { font-weight:600; color:var(--text); }
+.cta-line button { margin-left:auto; border:none; background:var(--green-l); color:var(--green-text); font-family:inherit;
+  font-size:0.72rem; font-weight:600; border-radius:var(--radius-s); padding:5px 10px; cursor:pointer; white-space:nowrap; }
+
+/* contacts strength */
+.strength { display:inline-flex; align-items:center; gap:5px; font-size:0.7rem; border-radius:var(--radius-s); padding:1.5px 7px; }
+.st-strong { background:var(--green-l); color:var(--green-text); }
+.st-warm { background:var(--yellow-l); color:var(--yellow-text); }
+.st-cold { background:var(--surface3); color:var(--text-mute); }
+.c-av { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:0.66rem; font-weight:600; color:#fff; flex-shrink:0; }
+html.t-frost .c-av, html.t-aurora .c-av, html.t-tidal .c-av { color:var(--bg); }
+
+/* timeline */
+.tl-filters { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+.tl-chip { border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:3.5px 11px;
+  font-size:0.72rem; color:var(--text-dim); cursor:pointer; font-family:inherit; transition:all .13s; }
+.tl-chip:hover { border-color:var(--border2); }
+.tl-chip.on { background:var(--btn-solid-bg); border-color:var(--btn-solid-bg); color:var(--btn-solid-fg); }
+.composer { display:flex; gap:8px; margin-bottom:14px; }
+.composer input { flex:1; border:1px solid var(--border); border-radius:var(--radius-s); padding:9px 13px; font-family:inherit;
+  font-size:0.8rem; background:var(--surface2); color:var(--text); outline:none; }
+.composer input::placeholder { color:var(--text-mute); }
+.pinned { display:flex; gap:9px; align-items:flex-start; background:var(--yellow-l);
+  border:1px solid color-mix(in srgb, var(--yellow) 30%, transparent);
+  border-radius:var(--radius-s); padding:10px 12px; margin-bottom:12px; font-size:0.78rem; }
+.pinned svg { color:var(--yellow-text); flex-shrink:0; margin-top:1px; }
+.pinned .who { color:var(--text-mute); font-size:0.7rem; margin-top:3px; }
+.tl-group { font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-mute); margin:14px 0 6px; }
+.tl-item { display:flex; gap:11px; padding:8px 6px; border-radius:var(--radius-s); cursor:pointer; }
+.tl-item:hover { background:var(--surface2); }
+.tl-ico { width:26px; height:26px; border-radius:var(--radius-s); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.tl-ico-call { background:var(--blue-l); color:var(--blue-text); }
+.tl-ico-meet { background:var(--purple-l); color:var(--purple-text); }
+.tl-ico-task { background:var(--green-l); color:var(--green-text); }
+.tl-ico-note { background:var(--yellow-l); color:var(--yellow-text); }
+.tl-body { font-size:0.8rem; min-width:0; }
+.tl-body .meta { font-size:0.7rem; color:var(--text-mute); margin-top:2px; }
+.tl-body .snip { color:var(--text-dim); margin-top:2px; font-size:0.75rem; }
+
+/* sidebar */
+.side .card { padding:14px 16px; }
+.kv { display:flex; gap:8px; font-size:0.78rem; padding:3.5px 0; }
+.kv .k { color:var(--text-mute); flex-shrink:0; min-width:74px; }
+.kv .v { color:var(--text); word-break:break-word; }
+.kv .v a { color:var(--sec-accent); text-decoration:none; }
+.side-note { margin-top:10px; font-size:0.68rem; color:var(--text-mute); }
+.refresh { margin-left:auto; font-size:0.7rem; color:var(--text-mute); display:inline-flex; gap:4px; align-items:center; cursor:pointer; }
+.refresh:hover { color:var(--text); }
+.chz-item { padding:7px 0; border-bottom:1px solid var(--surface3); }
+.chz-item:last-child { border-bottom:none; }
+.chz-item .g { display:flex; align-items:center; gap:8px; font-size:0.8rem; flex-wrap:wrap; }
+.chz-item .note { font-size:0.7rem; color:var(--text-mute); margin-top:2px; }
+.notes-body { font-size:0.78rem; color:var(--text); line-height:1.5; white-space:pre-wrap; }
+
+/* ═══ переключатель тем (только для концепта) ═══ */
+.themebar { position:fixed; right:16px; bottom:16px; z-index:50; display:flex; gap:4px;
+  background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:5px 7px;
+  box-shadow:var(--shadow-md); backdrop-filter:blur(12px); }
+html.t-frost .themebar, html.t-aurora .themebar, html.t-tidal .themebar { background:rgba(20,24,40,0.85); }
+html.t-tidal .themebar { background:rgba(16,33,25,0.9); }
+.themebar button { border:none; background:none; font-family:inherit; font-size:0.68rem; color:var(--text-dim);
+  padding:4px 9px; border-radius:999px; cursor:pointer; }
+.themebar button:hover { color:var(--text); background:var(--surface2); }
+.themebar button.on { background:var(--btn-solid-bg); color:var(--btn-solid-fg); }
+
+@media (max-width: 960px) {
+  .hl-row { grid-template-columns:repeat(2,1fr); }
+  .cols { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="#">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Компании
+  </a>
+
+  <!-- ═══ Header ═══ -->
+  <div class="head">
+    <div class="head-id">
+      <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+      </div>
+      <div>
+        <h1 class="h-page">АО «КМ»</h1>
+        <div class="head-sub">
+          <span>Производство пищевых продуктов</span>
+          <span class="dot-sep">·</span>
+          <span class="chip chip-ok">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+            Действующее
+          </span>
+          <span class="chip chip-mute num">ИНН 4345000217</span>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn">
+        <svg class="spark" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3Z"/></svg>
+        AI-бриф
+      </button>
+      <button class="btn btn-primary">+ Сделка</button>
+      <button class="btn btn-icon" title="Редактировать">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      </button>
+      <button class="btn btn-icon" title="Удалить">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ Highlight-полоса (F6) ═══ -->
+  <div class="hl-row">
+
+    <div class="hl">
+      <div class="hl-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        ОТКРЫТЫЕ СДЕЛКИ
+      </div>
+      <div class="hl-value num">5,2 <span class="unit">млн ₽</span></div>
+      <div class="hl-meta"><span class="hdot hdot-y"></span>2 сделки · 1 без шага 6 дн</div>
+    </div>
+
+    <div class="hl">
+      <div class="hl-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>
+        ВНЕДРЕНИЕ
+      </div>
+      <div class="hl-value num">7<span class="unit">/23</span></div>
+      <div class="hl-meta"><span class="hdot hdot-g"></span>Обследование · до 15 сен</div>
+    </div>
+
+    <div class="hl">
+      <div class="hl-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        ПОСЛЕДНИЙ КОНТАКТ
+      </div>
+      <div class="hl-value num">3 <span class="unit">дня назад</span></div>
+      <div class="hl-meta">
+        Звонок · Олег
+        <span style="margin-left:auto" class="avatars"><span class="av av-1">ОМ</span><span class="av av-2">МК</span><span class="av av-3">ИС</span></span>
+        знают 3
+      </div>
+    </div>
+
+    <div class="hl hl-hot">
+      <div class="hl-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
+        МАРКИРОВКА ЧЗ
+      </div>
+      <div class="hl-value" style="font-size:1.02rem; line-height:1.3">Мясная продукция</div>
+      <div class="hl-meta"><span class="tag tag-yellow">стартует 2026-08</span> колбасы — 2026-10</div>
+    </div>
+
+  </div>
+
+  <!-- ═══ Main + Sidebar ═══ -->
+  <div class="cols">
+
+    <div class="main">
+
+      <!-- Сделки -->
+      <div class="card">
+        <div class="card-head">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            Сделки
+          </span>
+          <span class="count-pill num">3</span>
+          <button class="add">+ Сделка</button>
+        </div>
+        <button class="row">
+          <span class="hdot hdot-y"></span>
+          <span class="name">1С:ERP — интеграция с «Честным Знаком»</span>
+          <span class="tag tag-accent">Переговоры</span>
+          <span class="right num">3,4 млн ₽</span>
+        </button>
+        <button class="row">
+          <span class="hdot hdot-g"></span>
+          <span class="name">Маркировка мясной продукции — пилот</span>
+          <span class="tag tag-accent">КП отправлено</span>
+          <span class="right num">1,8 млн ₽</span>
+        </button>
+        <button class="row">
+          <span class="hdot hdot-g"></span>
+          <span class="muted">Аудит готовности к маркировке</span>
+          <span class="tag tag-mute">Won</span>
+          <span class="right closed num">450 тыс ₽</span>
+        </button>
+      </div>
+
+      <!-- Внедрения -->
+      <div class="card">
+        <div class="card-head">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+            Внедрения
+          </span>
+          <span class="count-pill num">1</span>
+        </div>
+        <button class="row">
+          <span class="hdot hdot-g"></span>
+          <span class="name">Внедрение Клеверенс + ЧЗ</span>
+          <span class="tag tag-accent">Обследование</span>
+          <span class="progress" title="7 из 23 задач"><i style="width:30%"></i></span>
+          <span class="right num">15 сен</span>
+        </button>
+        <div class="cta-line">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+          <span>По сделке <b>«Аудит готовности»</b> (won) внедрение не запущено</span>
+          <button>Запустить внедрение</button>
+        </div>
+      </div>
+
+      <!-- Контакты -->
+      <div class="card">
+        <div class="card-head">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Контакты
+          </span>
+          <span class="count-pill num">4</span>
+          <button class="add">+ Контакт</button>
+        </div>
+        <button class="row">
+          <span class="c-av" style="background:var(--green-text)">ИП</span>
+          <span class="name">Иван Петров</span>
+          <span class="tag tag-accent">ГД</span>
+          <span class="strength st-strong">strong · 82</span>
+          <span class="right num">звонок · 3 дн</span>
+        </button>
+        <button class="row">
+          <span class="c-av" style="background:var(--blue-text)">НБ</span>
+          <span class="name">Николай Белоусов</span>
+          <span class="tag tag-accent">Директор по ИТ</span>
+          <span class="strength st-warm">warm · 54</span>
+          <span class="right num">встреча · 12 дн</span>
+        </button>
+        <button class="row">
+          <span class="c-av" style="background:var(--purple-text)">ВЗ</span>
+          <span class="name">Владислав Зубарев</span>
+          <span class="tag tag-mute">Гл. технолог</span>
+          <span class="strength st-warm">warm · 41</span>
+          <span class="right num">звонок · 19 дн</span>
+        </button>
+        <button class="row">
+          <span class="c-av" style="background:var(--text-mute)">S</span>
+          <span class="name">Svetlana</span>
+          <span class="strength st-cold">cold · 8</span>
+          <span class="right num">— · 74 дн</span>
+        </button>
+      </div>
+
+      <!-- Активность -->
+      <div class="card">
+        <div class="card-head">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Активность
+          </span>
+        </div>
+
+        <div class="tl-filters">
+          <button class="tl-chip on">Все</button>
+          <button class="tl-chip">Звонки</button>
+          <button class="tl-chip">Встречи</button>
+          <button class="tl-chip">Задачи</button>
+          <button class="tl-chip">Заметки</button>
+          <button class="tl-chip">Сделки</button>
+        </div>
+
+        <div class="composer">
+          <input placeholder="Добавить комментарий…">
+          <button class="btn btn-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </button>
+        </div>
+
+        <div class="pinned">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1Z"/></svg>
+          <div>
+            Бюджет согласован с ГД до 5,5 млн, решение по пилоту — после запуска обязательной маркировки готовых изделий (август).
+            <div class="who">Закреплено · Олег · 21 июл</div>
+          </div>
+        </div>
+
+        <div class="tl-group">Предстоящее</div>
+        <div class="tl-item">
+          <div class="tl-ico tl-ico-task">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+          </div>
+          <div class="tl-body">
+            <div>Демо «Клеверенс: Учёт марок» для ИТ-службы</div>
+            <div class="meta">Задача · завтра, 11:00 · Олег</div>
+          </div>
+        </div>
+
+        <div class="tl-group">Ранее</div>
+        <div class="tl-item">
+          <div class="tl-ico tl-ico-call">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
+          </div>
+          <div class="tl-body">
+            <div>Звонок с Иваном Петровым · 24 мин</div>
+            <div class="meta">1 авг · Олег</div>
+            <div class="snip">Подтвердил интерес к пилоту, ждёт уточнённое КП по интеграции с 1С:ERP…</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-ico tl-ico-meet">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          </div>
+          <div class="tl-body">
+            <div>Встреча: обследование производства, Киров</div>
+            <div class="meta">23 июл · Олег, Мария · с Белоусовым</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-ico tl-ico-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </div>
+          <div class="tl-body">
+            <div>Заметка: конкуренты — предложение от «Штрих-М»</div>
+            <div class="meta">18 июл · Мария</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="side">
+
+      <div class="card">
+        <div class="card-head" style="margin-bottom:8px">
+          <span class="sec-label">Сведения</span>
+        </div>
+        <div class="kv"><span class="k">Телефон</span><span class="v num">+7 (8332) 40-11-22</span></div>
+        <div class="kv"><span class="k">Сайт</span><span class="v"><a href="#">km-meat.ru</a></span></div>
+        <div class="kv"><span class="k">Адрес</span><span class="v">Киров, ул. Владимирская, 4А</span></div>
+        <div class="kv"><span class="k">Отрасль</span><span class="v">Пищевое производство</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="margin-bottom:8px">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+            Реквизиты
+          </span>
+          <span class="refresh">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>
+            ЕГРЮЛ
+          </span>
+        </div>
+        <div class="kv"><span class="k">ИНН</span><span class="v num">4345000217</span></div>
+        <div class="kv"><span class="k">КПП</span><span class="v num">434501001</span></div>
+        <div class="kv"><span class="k">ОГРН</span><span class="v num">1024301307062</span></div>
+        <div class="kv"><span class="k">ОКВЭД</span><span class="v num">10.13.4 — пищевые продукты</span></div>
+        <div class="kv"><span class="k">Юр. название</span><span class="v">АО «Кировский мясокомбинат»</span></div>
+        <div class="kv"><span class="k">Юр. адрес</span><span class="v">610006, Киров, ул. Владимирская, 4А</span></div>
+        <div class="side-note">Сверено с ЕГРЮЛ · сегодня</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="margin-bottom:6px">
+          <span class="sec-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
+            Маркировка «Честный Знак»
+          </span>
+        </div>
+        <div class="chz-item">
+          <div class="g"><span>Мясная продукция</span><span class="tag tag-yellow">стартует 2026-08</span></div>
+          <div class="note">готовые изделия 2026-08 · колбасы 2026-10</div>
+        </div>
+        <div class="side-note">Справочник от 2026-08 · по основному ОКВЭД</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head" style="margin-bottom:8px">
+          <span class="sec-label">Заметки</span>
+        </div>
+        <div class="notes-body">Ключевой клиент по мясной группе в регионе. Вход через ИТ-директора, ЛПР — ГД.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- переключатель тем — служебный элемент концепта, в продукт не идёт -->
+<div class="themebar" id="themebar">
+  <button data-t="t-aura" class="on">Aura</button>
+  <button data-t="t-minimal">Minimal</button>
+  <button data-t="t-washi">Washi</button>
+  <button data-t="t-fuji">Fuji</button>
+  <button data-t="t-frost">Frost</button>
+  <button data-t="t-aurora">Aurora</button>
+  <button data-t="t-tidal">Tidal</button>
+</div>
+
+<script>
+document.querySelectorAll('#themebar button').forEach(b => b.addEventListener('click', () => {
+  document.documentElement.className = b.dataset.t;
+  document.querySelectorAll('#themebar button').forEach(x => x.classList.toggle('on', x === b));
+}));
+document.querySelectorAll('.tl-chip').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.tl-chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+}));
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+'use client';
+
+import { FileText, ScanBarcode, Loader2, RefreshCw, AlertTriangle, StickyNote, Info } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
+import { useUpdateCompany } from '@/lib/hooks/use-companies';
+import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
+import { okvedToIndustry } from '@/lib/data/okved';
+import { chzStatusLabel, type ChzGroup } from '@/lib/data/chz-groups';
+import { ChzBadge } from '@/components/shared/ChzBadge';
+import { formatDateHuman } from '@/lib/utils/dates';
+import { PhoneList } from '@/components/shared/PhoneList';
+import { safeHref } from '@/lib/utils/safe-href';
+import type { Company } from '@/lib/hooks/use-companies';
+
+// ═══════════════════════════════════════════════════════
+// S-R2-CO360-1 — правая колонка карточки компании: справочное.
+//
+// Сюда уехала info-сетка (телефон/сайт/адрес/отрасль) из основного потока:
+// это данные, к которым обращаются по необходимости, а не то, ради чего
+// открывают карточку. Основной поток теперь — деньги, работа, люди, лента.
+//
+// Каждая карточка исчезает целиком, когда показывать нечего: у 36 компаний
+// из 260 нет ИНН, и пустая рамка «Реквизиты» на их страницах — шум.
+// ═══════════════════════════════════════════════════════
+
+interface CompanySidebarProps {
+  company: Company;
+  chzGroups: ChzGroup[];
+}
+
+export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
+  const lookup = useCompanyLookup();
+  const updateCompany = useUpdateCompany();
+
+  const hasPhones = (company.phones?.length ?? 0) > 0 || !!company.phone;
+  const infoFields = [
+    { label: 'Email', value: company.email, href: company.email ? `mailto:${company.email}` : null },
+    { label: 'Сайт', value: company.website, href: safeHref(company.website) },
+    { label: 'Адрес', value: company.address, href: null },
+    { label: 'Отрасль', value: company.industry, href: null },
+  ].filter((f) => f.value);
+  const hasInfo = hasPhones || infoFields.length > 0;
+
+  // ═══ S-INN-1: реквизиты ЕГРЮЛ ═══
+  // S-OKVED-1: ОКВЭД показываем кодом и, через тире, отраслью из справочника.
+  // Отрасль здесь ВЫЧИСЛЯЕТСЯ, а не читается из `industry`: в поле отрасли может
+  // лежать то, что менеджер написал руками, и подменять им реестр нельзя.
+  const okvedIndustry = okvedToIndustry(company.okved);
+  const legalFields = [
+    { label: 'ИНН', value: company.inn },
+    { label: 'КПП', value: company.kpp ?? null },
+    { label: 'ОГРН', value: company.ogrn ?? null },
+    { label: 'ОКВЭД', value: company.okved ? (okvedIndustry ? `${company.okved} — ${okvedIndustry}` : company.okved) : null },
+    { label: 'Юр. название', value: company.legal_name ?? null },
+    { label: 'Юр. адрес', value: company.legal_address ?? null },
+  ].filter((f) => f.value);
+  const statusLabel = innStatusLabel(company.inn_status);
+  const statusRisky = isRiskyInnStatus(company.inn_status);
+  const hasLegal = legalFields.length > 0 || !!statusLabel;
+  const refreshing = lookup.isPending || updateCompany.isPending;
+
+  async function handleRefreshLegal() {
+    const inn = company.inn?.trim() ?? '';
+    if (!isLookupableInn(inn)) return;
+    try {
+      const r = await lookup.mutateAsync(inn);
+      if (!r.found) {
+        toast.error('Компания с таким ИНН не найдена в ЕГРЮЛ');
+        return;
+      }
+      // Пишем ТОЛЬКО юрполя. `name` и `address` не трогаем даже здесь: карточка
+      // обновляет реквизиты, а не переименовывает компанию (инвариант фичи).
+      await updateCompany.mutateAsync({
+        id: company.id,
+        legal_name: r.legal_name,
+        kpp: r.kpp,
+        ogrn: r.ogrn,
+        legal_address: r.legal_address,
+        inn_status: r.status,
+        // S-OKVED-1: ОКВЭД в том же наборе — он такой же факт реестра. Отрасль
+        // отсюда НЕ пишем: `industry` — рабочая классификация, и «Обновить
+        // реквизиты» не повод переклассифицировать компанию за менеджера.
+        okved: r.okved,
+        inn_verified_at: new Date().toISOString(),
+      });
+      toast.success('Реквизиты обновлены из ЕГРЮЛ');
+    } catch {
+      // Текст показывает глобальный mutationCache.onError (toast).
+    }
+  }
+
+  return (
+    // ⚠️ НЕ <aside>: тема-правила навигации таргетят голый тег (`.t-washi aside`,
+    // `.t-fuji aside`, `.t-aura aside` в globals.css) и красили эту колонку в
+    // sumi/индиго с !important — тёмные полосы в зазорах и светлый текст на
+    // светлых карточках. Семантику держит role/aria-label, каскад — нет.
+    <div role="complementary" aria-label="Сведения о компании" className="flex flex-col gap-4">
+      {/* ─── Сведения ─── */}
+      {hasInfo && (
+        <SideCard icon={Info} title="Сведения">
+          {hasPhones && (
+            <Row label="Телефон">
+              <PhoneList phones={company.phones} fallback={company.phone} />
+            </Row>
+          )}
+          {infoFields.map((f) => (
+            <Row key={f.label} label={f.label}>
+              {f.href ? (
+                <a href={f.href} target="_blank" rel="noopener noreferrer"
+                  className="break-words text-accent transition-colors hover:underline">
+                  {f.value}
+                </a>
+              ) : (
+                <span className="break-words">{f.value}</span>
+              )}
+            </Row>
+          ))}
+        </SideCard>
+      )}
+
+      {/* ─── Реквизиты (S-INN-1) ───
+          Кнопка «Обновить из ЕГРЮЛ» живёт здесь же и рендерится только при
+          валидном ИНН: без него запрос слать нечем. */}
+      {hasLegal && (
+        <SideCard
+          icon={FileText}
+          title="Реквизиты"
+          badge={statusLabel && (
+            statusRisky ? (
+              <span data-tag className="flex items-center gap-1 rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+                style={{ color: 'var(--yellow-text, var(--yellow))' }}>
+                <AlertTriangle size={10} /> {statusLabel}
+              </span>
+            ) : (
+              <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">{statusLabel}</span>
+            )
+          )}
+          action={isLookupableInn(company.inn) && (
+            <button
+              onClick={handleRefreshLegal}
+              disabled={refreshing}
+              title="Обновить из ЕГРЮЛ"
+              className="flex items-center gap-1 text-xs text-text-mute transition-colors
+                         hover:text-text-main disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {refreshing ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+              ЕГРЮЛ
+            </button>
+          )}
+        >
+          {legalFields.map((f) => (
+            <Row key={f.label} label={f.label}>
+              <span className="break-words tabular-nums">{f.value}</span>
+            </Row>
+          ))}
+          {company.inn_verified_at && (
+            <p className="mt-2 text-xs text-text-mute">
+              Сверено с ЕГРЮЛ · {formatDateHuman(company.inn_verified_at)}
+            </p>
+          )}
+        </SideCard>
+      )}
+
+      {/* ─── Маркировка «Честный Знак» (S-COMPANY-AI-1, F2) ───
+          ⚠️ Условие `> 1`, а не `> 0`, и это не опечатка. `matchChzGroups` матчит
+          ОДИН основной ОКВЭД по префиксам, а префиксы в справочнике не пересекаются
+          (проверено: 34 группы, ноль пересечений) — значит функция возвращает 0 или 1
+          группу, никогда больше. При одной группе эта карточка дословно повторяла
+          highlight-виджет: та же строка, тот же бейдж, тот же note.
+          Список остаётся кодом на случай, когда справочник обзаведётся пересекающимися
+          префиксами: тогда карточка появится сама и будет означать ровно то, чего
+          виджету не хватает, — «групп несколько, вот все». Дисклеймер источника уехал
+          к виджету: он про то, как посчитан сигнал. */}
+      {chzGroups.length > 1 && (
+        <SideCard icon={ScanBarcode} title="Маркировка «Честный Знак»">
+          <div className="space-y-2">
+            {chzGroups.map((g) => (
+              <div key={g.group}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-text-main">{g.group}</span>
+                  <ChzBadge status={g.status} label={chzStatusLabel(g)} />
+                </div>
+                {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
+              </div>
+            ))}
+          </div>
+        </SideCard>
+      )}
+
+      {/* ─── Заметки ─── */}
+      {company.notes && (
+        <SideCard icon={StickyNote} title="Заметки">
+          <p className="whitespace-pre-wrap text-sm text-text-main">{company.notes}</p>
+        </SideCard>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Примитивы сайдбара
+// ═══════════════════════════════════════════════════════
+
+function SideCard({
+  icon: Icon, title, badge, action, children,
+}: {
+  icon: typeof Info;
+  title: string;
+  badge?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+      <div className="mb-2.5 flex items-center gap-2">
+        <Icon size={13} className="shrink-0 text-text-dim" />
+        <span className="text-xs font-semibold text-text-main">{title}</span>
+        {badge}
+        {action && <span className="ml-auto shrink-0">{action}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Key-value: лейбл фиксированной ширины слева, значение справа. */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2 py-0.5 text-sm">
+      <span className="w-[5.5rem] shrink-0 text-text-mute">{label}</span>
+      <span className="min-w-0 flex-1 text-text-main">{children}</span>
+    </div>
+  );
+}
