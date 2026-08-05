@@ -31,10 +31,16 @@ export const captureCompanySchema = z.object({
   // отдаёт ЕГРЮЛ через `company-lookup`. Инвариант спринта.
 });
 
+// Гейт S-QUICK-CAPTURE-1 (смок живой функции): haiku на пустую ветку системно
+// возвращает СТРОКУ "null" вместо null — двум прогонам из трёх. Промптом это не
+// лечится (урок company-ai 1b→1c: гарантию даёт код), лечится препроцессором.
+const nullBranch = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === 'null' || v === '' || v === undefined ? null : v), schema.nullable());
+
 export const captureResultSchema = z.object({
   intent: z.enum(['contact', 'company', 'unclear']),
-  contact: captureContactSchema.nullable(),
-  company: captureCompanySchema.nullable(),
+  contact: nullBranch(captureContactSchema),
+  company: nullBranch(captureCompanySchema),
 });
 
 export type CaptureContact = z.infer<typeof captureContactSchema>;
