@@ -50,7 +50,9 @@ export function Combobox({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   // Попап рендерится в портал (position: fixed) поверх overflow-скролла модалки.
-  const anchor = useAnchoredRect(containerRef, open);
+  // 192 = бывший класс `max-h-48`: теперь это ЖЕЛАЕМАЯ высота, фактическую (с
+  // учётом места до края окна) возвращает хук в `maxHeight`.
+  const anchor = useAnchoredRect(containerRef, open, 4, 192);
 
   const selected = options.find((o) => o.value === value);
 
@@ -174,8 +176,13 @@ export function Combobox({
       {open && anchor && createPortal(
         <ul
           ref={listRef}
-          style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
-          className="max-h-48 overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
+          style={{
+            position: 'fixed', top: anchor.top, left: anchor.left,
+            // maxHeight инлайном, а не классом: класс `max-h-48` перебил бы расчёт
+            // хука и вернул бы обрезание нижним краем окна.
+            width: anchor.width, maxHeight: anchor.maxHeight, zIndex: 1100,
+          }}
+          className="overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
         >
           {filtered.length === 0 && (
             <li className="px-3 py-2 text-xs text-text-mute">

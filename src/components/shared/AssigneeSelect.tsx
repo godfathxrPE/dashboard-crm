@@ -60,7 +60,9 @@ export function AssigneeSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLUListElement>(null);
   // Попап рендерится в портал (position: fixed) поверх overflow-скролла модалки.
-  const anchor = useAnchoredRect(triggerRef, open);
+  // 224 = бывший класс `max-h-56`: теперь это ЖЕЛАЕМАЯ высота, а фактическую
+  // (с учётом места до края окна) возвращает хук в `maxHeight`.
+  const anchor = useAnchoredRect(triggerRef, open, 4, 224);
 
   // выбранного не скрываем, даже если он в excludeIds — иначе кнопка «ослепнет»
   const members = excludeIds?.length
@@ -124,8 +126,13 @@ export function AssigneeSelect({
         {open && anchor && createPortal(
           <ul
             ref={popupRef}
-            style={{ position: 'fixed', top: anchor.top, left: anchor.left, width: anchor.width, zIndex: 1100 }}
-            className="max-h-56 overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
+            style={{
+              position: 'fixed', top: anchor.top, left: anchor.left,
+              // maxHeight инлайном, а не классом: класс `max-h-56` перебил бы расчёт
+              // хука и вернул бы обрезание нижним краем окна.
+              width: anchor.width, maxHeight: anchor.maxHeight, zIndex: 1100,
+            }}
+            className="overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
           >
             <li
               onMouseDown={() => pick(null)}
