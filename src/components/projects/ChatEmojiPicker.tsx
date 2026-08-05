@@ -25,6 +25,12 @@ export function ChatEmojiPicker({ onPick, onClose, anchorRef }: ChatEmojiPickerP
   const panelRef = useRef<HTMLDivElement>(null);
   // Хук пересчитывает rect на scroll/resize — используем как реактивный сигнал,
   // а само размещение (над кнопкой) считаем от живого getBoundingClientRect.
+  //
+  // S-DROPDOWN-VIEWPORT: `top`/`maxHeight` хука здесь намеренно НЕ применяются —
+  // у панели своя раскладка (предпочтительно вверх + собственный кламп по окну
+  // в useLayoutEffect ниже), и высота у неё фиксированная классом `max-h-72` со
+  // своим `overflow-y-auto`. Не «доводить до конвенции»: применение maxHeight
+  // поверх собственного расчёта дало бы два конкурирующих ограничения высоты.
   const anchor = useAnchoredRect(anchorRef, true);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
