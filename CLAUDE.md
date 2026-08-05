@@ -46,6 +46,21 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
    не используются вовсе: ошибка — `toast`, ввод — форма или модалка. Держит eslint
    (`no-restricted-globals` + `no-restricted-properties` в `eslint.config.mjs`).
 
+## Память проекта
+
+- Память проекта — скилл `crm-architect`. **Источник истины — папка `crm-architect/`
+  в этом репозитории**, а не копии на диске и в аккаунте.
+- Правки памяти идут тем же PR, что код, и проходят гейт как обычный дифф.
+- Применение — `scripts/skill-deploy.sh` (репо → `~/.claude/skills/` + пакет
+  `crm-architect.skill`), проверка расхождения — `scripts/skill-verify.sh`.
+  Направление одно: репо → производные. Обратной синхронизации нет и не заводить.
+- `~/.claude/skills/crm-architect/` и аккаунтная копия (Claude.ai → Customize → Skills)
+  — **производные**; править их напрямую запрещено: правка не переживёт следующую
+  раскатку и не попадёт в ревью. Пакет загружать в аккаунт сразу после раскатки —
+  иначе Cowork-сессии и гейт читают старую версию памяти.
+- Журнал Claude Code (`~/.claude/projects/…/memory/`) остаётся вне git — это хроника
+  спринтов; общие правила из него переносятся в `crm-architect/references/learnings.md`.
+
 ## Конвенции
 
 - Хуки `src/lib/hooks/use-*.ts` (plural) · валидаторы `src/lib/validators/*.ts` (singular)
