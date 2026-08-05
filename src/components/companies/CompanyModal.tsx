@@ -30,13 +30,22 @@ interface CompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
   editCompany: Company | null;
+  /**
+   * S-QUICK-CAPTURE-1: préfill полей формы при СОЗДАНИИ (виджет быстрого ввода).
+   * В режиме редактирования игнорируется — там значения принадлежат записи.
+   *
+   * ⚠️ Ссылка обязана быть стабильной (state/useMemo у вызывающего): объект входит
+   * в зависимости эффекта reset, и новый литерал на каждый рендер сбрасывал бы
+   * форму под руками у пользователя.
+   */
+  prefill?: Partial<CompanyFormValues>;
 }
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main ' +
   'placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps) {
+export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyModalProps) {
   const router = useRouter();
   const create = useCreateCompany();
   const update = useUpdateCompany();
@@ -113,17 +122,22 @@ export function CompanyModal({ isOpen, onClose, editCompany }: CompanyModalProps
       // Заполненные реквизиты не прячем: они уже часть карточки.
       setShowLegal(Boolean(editCompany.legal_name || editCompany.kpp || editCompany.ogrn || editCompany.legal_address));
     } else {
+      // `prefill` мержится ПОВЕРХ пустых значений и только здесь, в ветке
+      // создания: в edit-режиме поля принадлежат записи.
       reset({
         name: '', inn: null, industry: null, website: null, phone: null, phones: [],
         email: null, address: null, notes: null, owner_id: null,
         kpp: null, ogrn: null, legal_name: null, legal_address: null,
         inn_status: null, inn_verified_at: null, okved: null,
+        ...prefill,
       });
-      setShowLegal(false);
+      // Реквизиты, приехавшие из ЕГРЮЛ вместе с préfill, обязаны быть видны до
+      // сохранения — тот же дизайн-инвариант, что у кнопки «Заполнить».
+      setShowLegal(Boolean(prefill?.legal_name || prefill?.kpp || prefill?.ogrn || prefill?.legal_address));
     }
     setVerifiedAt(null);
     setInnConflict(false);
-  }, [editCompany, reset]);
+  }, [editCompany, reset, prefill]);
 
   const canLookup = isLookupableInn(innVal);
 

@@ -27,9 +27,18 @@ interface ContactModalProps {
   editContact: Contact | null;
   /** Préfill компании при создании (напр. из карточки компании) */
   defaultCompanyId?: string | null;
+  /**
+   * S-QUICK-CAPTURE-1: préfill полей формы при СОЗДАНИИ (виджет быстрого ввода).
+   * В режиме редактирования игнорируется — там значения принадлежат записи.
+   *
+   * ⚠️ Ссылка обязана быть стабильной (state/useMemo у вызывающего): объект входит
+   * в зависимости эффекта reset, и новый литерал на каждый рендер сбрасывал бы
+   * форму под руками у пользователя.
+   */
+  prefill?: Partial<ContactFormValues>;
 }
 
-export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = null }: ContactModalProps) {
+export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = null, prefill }: ContactModalProps) {
   const router = useRouter();
   const create = useCreateContact();
   const update = useUpdateContact();
@@ -76,9 +85,15 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         owner_id: editContact.owner_id ?? null,
       });
     } else {
-      reset({ first_name: '', last_name: '', email: null, phone: null, phones: [], position: null, notes: null, owner_id: null });
+      // `prefill` мержится ПОВЕРХ пустых значений и только здесь, в ветке
+      // создания: в edit-режиме поля принадлежат записи.
+      reset({
+        first_name: '', last_name: '', email: null, phone: null, phones: [],
+        position: null, notes: null, owner_id: null,
+        ...prefill,
+      });
     }
-  }, [editContact, reset, isOpen, defaultCompanyId]);
+  }, [editContact, reset, isOpen, defaultCompanyId, prefill]);
 
   // Ненавязчивая проверка дублей: телефон (нормализованный) или email.
   // Телефон берём из primary массива phones (legacy `phone` синхронизируется на submit).

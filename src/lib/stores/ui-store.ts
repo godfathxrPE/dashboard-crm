@@ -31,6 +31,19 @@ interface UiState {
   closeCommandPalette: () => void;
 
   /**
+   * S-QUICK-CAPTURE-1: открыт ли поповер быстрого ввода. В сторе, а не в локальном
+   * стейте кнопки, потому что открывать его умеет и палитра команд (пункт
+   * «Быстрый ввод»), а она живёт в другом поддереве.
+   *
+   * В `partialize` НЕ входит: это состояние текущего действия, а не настройка.
+   * Отдельный `closeQuickCapture` рядом с toggle нужен, чтобы клик мимо и Esc
+   * закрывали детерминированно — toggle на них переоткрывал бы поповер.
+   */
+  quickCaptureOpen: boolean;
+  toggleQuickCapture: () => void;
+  closeQuickCapture: () => void;
+
+  /**
    * S-CHAT-HUB-1f: недописанные сообщения по каналам. Живут здесь, а не в локальном
    * стейте треда: ChatView пересоздаёт `MessageThread` через `key={conversationId}`, и
    * при возврате в канал текст иначе теряется.
@@ -76,6 +89,10 @@ export const useUiStore = create<UiState>()(
         set({ commandPaletteOpen: true, paletteActionsOnly: actionsOnly }),
       closeCommandPalette: () =>
         set({ commandPaletteOpen: false, paletteActionsOnly: false }),
+
+      quickCaptureOpen: false,
+      toggleQuickCapture: () => set((s) => ({ quickCaptureOpen: !s.quickCaptureOpen })),
+      closeQuickCapture: () => set({ quickCaptureOpen: false }),
 
       chatDraftByConversation: {},
       setChatDraft: (conversationId, value) =>

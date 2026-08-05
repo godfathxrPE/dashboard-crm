@@ -8,6 +8,7 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { cn } from '@/lib/utils/cn';
 import { NotificationBell } from '@/components/layout/NotificationBell';
+import { QuickCapture } from '@/components/capture/QuickCapture';
 import { useState, useRef, useEffect } from 'react';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -100,6 +101,9 @@ export function ContentHeader() {
             ⌘K
           </kbd>
         </button>
+
+        {/* Quick capture (S-QUICK-CAPTURE-1) */}
+        <QuickCapture />
 
         {/* Notifications */}
         <NotificationBell />
