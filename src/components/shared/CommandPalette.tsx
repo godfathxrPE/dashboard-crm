@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles, MessageCircle,
+  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles, MessageCircle, ClipboardPlus,
 } from 'lucide-react';
 import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -33,6 +33,11 @@ interface CmdItem {
   href?: string;
   /** Действие: открыть модалку создания */
   action?: ModalAction;
+  /**
+   * Побочное действие вместо модалки/перехода (S-QUICK-CAPTURE-1: открыть
+   * поповер быстрого ввода). Проверяется в `handleSelect` первым.
+   */
+  run?: () => void;
   /** Подсказка-shortcut (T/C/P/M), показывается справа */
   kbd?: string;
 }
@@ -79,6 +84,7 @@ export function CommandPalette() {
   const togglePalette = useUiStore((s) => s.toggleCommandPalette);
   const closePalette = useUiStore((s) => s.closeCommandPalette);
   const openModal = useUiStore((s) => s.openModal);
+  const toggleQuickCapture = useUiStore((s) => s.toggleQuickCapture);
   const { data: orgRole } = useOrgRole();
   // T2: viewer не создаёт сущности — прячем «Действия» и быстрые клавиши (RLS 42501).
   const canCreate = orgRole != null && orgRole !== 'viewer';
@@ -139,6 +145,16 @@ export function CommandPalette() {
         { id: 'act-meeting', label: 'Новая встреча', icon: Plus, action: 'meeting', kbd: 'M', section: 'Действия' },
         { id: 'act-contact', label: 'Новый контакт', icon: Plus, action: 'contact', section: 'Действия' },
         { id: 'act-company', label: 'Новая компания', icon: Plus, action: 'company', section: 'Действия' },
+        // S-QUICK-CAPTURE-1: поповер живёт в шапке, палитра только открывает его.
+        // Глобального хоткея намеренно нет — арбитраж с j/k и G-навигацией вне скоупа.
+        {
+          id: 'act-quick-capture',
+          label: 'Быстрый ввод',
+          sub: 'из вставленного текста',
+          icon: ClipboardPlus,
+          run: toggleQuickCapture,
+          section: 'Действия',
+        },
       );
     }
 
@@ -293,7 +309,7 @@ export function CommandPalette() {
     }
 
     return items;
-  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews, canCreate, pathname]);
+  }, [tasks, projects, stagesMap, companies, contacts, calls, meetings, leads, savedViews, canCreate, pathname, toggleQuickCapture]);
 
   // Filter
   const filtered = useMemo(() => {
@@ -322,7 +338,9 @@ export function CommandPalette() {
 
   const handleSelect = useCallback((item: CmdItem) => {
     closePalette();
-    if (item.action) {
+    if (item.run) {
+      item.run();
+    } else if (item.action) {
       openModal(item.action);
     } else if (item.href) {
       router.push(item.href);
@@ -349,6 +367,10 @@ export function CommandPalette() {
       e.preventDefault();
       setSelectedIdx((i) => Math.max(0, i - 1));
     } else if (e.key === 'Enter' && filtered[selectedIdx]) {
+      // preventDefault обязателен: без него keypress доезжает до элемента,
+      // который получил фокус в результате выбора, и «Быстрый ввод» открывался
+      // с лишним переводом строки в textarea.
+      e.preventDefault();
       handleSelect(filtered[selectedIdx]);
     }
   }

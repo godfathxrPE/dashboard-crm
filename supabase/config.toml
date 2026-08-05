@@ -42,3 +42,16 @@ verify_jwt = false
 # Секрет, который обязан быть заведён ДО первого вызова: DADATA_API_KEY.
 [functions.company-lookup]
 verify_jwt = true
+
+# S-QUICK-CAPTURE-1: разбор вставленного текста в поля контакта/компании (ai-capture).
+#
+# verify_jwt = true — тот же контур, что у ai-summarize/ai-run/company-lookup.
+# Собственной проверки прав внутри нет и не требуется: функция НЕ ЧИТАЕТ и НЕ ПИШЕТ
+# в БД проекта вовсе — она отдаёт разобранные поля клиенту, а сохраняет их
+# пользователь обычным INSERT из модалки, под своими RLS-политиками. service_role
+# поэтому не запрашивается: обойти RLS функции нечем.
+#
+# Секреты: ANTHROPIC_API_KEY (обязателен), AI_CAPTURE_MODEL (необязателен —
+# переопределяет модель без правки кода).
+[functions.ai-capture]
+verify_jwt = true
