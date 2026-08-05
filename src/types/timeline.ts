@@ -32,4 +32,11 @@ export type TimelineEvent = {
   actorId?: string;
   /** Имя актора («Олег») — проставляется хуком после резолва по useActorMap */
   actorName?: string;
+  /**
+   * S-UI-CLARITY-1: сырой `activity_log.event_type` для событий `kind='activity'`.
+   * Нужен, чтобы отделить человеческую заметку (`comment_added`) от системной
+   * записи (смена стадии, аудит полей) — на уровне `kind` они неразличимы.
+   * У остальных источников поля нет: у них тип события = `kind`.
+   */
+  eventType?: string | null;
 };

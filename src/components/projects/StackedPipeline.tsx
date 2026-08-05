@@ -206,7 +206,14 @@ export function StackedPipeline({
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-xs font-medium text-text-dim">{pct}%</span>
+        {/* S-UI-CLARITY-1: молчащий процент рядом с «вероятностью» стадии читался
+            как второе значение той же величины. Подписан словом + title. */}
+        <span
+          title="Доля пройденных стадий воронки"
+          className="shrink-0 text-xs font-medium text-text-dim"
+        >
+          Пройдено {pct}%
+        </span>
       </div>
     </div>
   );

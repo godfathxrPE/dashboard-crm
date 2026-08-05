@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { localDateKey } from '@/lib/utils/date-helpers';
+import { aggregateTeamTouch, type CompanyTeamTouch } from '@/lib/domain/company-touch';
 
 // ═══════════════════════════════════════════════════════
 // S-R2-CO360-1 (D2) — «последнее касание ОРГАНИЗАЦИИ» и «кто знает компанию».
@@ -18,32 +18,14 @@ import { localDateKey } from '@/lib/utils/date-helpers';
 // и use-meetings.ts). Ownership — `created_by`, не `user_id`.
 // ═══════════════════════════════════════════════════════
 
-export type TouchKind = 'call' | 'meeting';
-
-export interface CompanyLastTouch {
-  /** ISO даты состоявшегося касания */
-  date: string;
-  kind: TouchKind;
-  /** profile id из `created_by`; NULL бывает у импортированных строк */
-  actorId: string | null;
-}
-
-export interface WhoKnowsEntry {
-  actorId: string;
-  /** Касаний за 90 дней */
-  count: number;
-  /** Дата последнего касания этого человека с компанией */
-  lastAt: string;
-}
-
-export interface CompanyTeamTouch {
-  lastTouch: CompanyLastTouch | null;
-  /** Топ-3 по числу касаний за 90 дней, count desc. */
-  whoKnows: WhoKnowsEntry[];
-}
-
-const WHO_KNOWS_LIMIT = 3;
-const WINDOW_DAYS = 90;
+// Типы среза живут в домене (S-UI-CLARITY-1) — там же, где считающая их функция.
+// Реэкспорт: потребители (CompanyDetail, виджеты) импортируют их отсюда.
+export type {
+  TouchKind,
+  CompanyLastTouch,
+  WhoKnowsEntry,
+  CompanyTeamTouch,
+} from '@/lib/domain/company-touch';
 
 interface CallRow {
   id: string;
@@ -75,46 +57,13 @@ async function fetchCompanyTeamTouch(companyId: string): Promise<CompanyTeamTouc
   if (calls.error) throw calls.error;
   if (meetings.error) throw meetings.error;
 
-  const todayKey = localDateKey();
-  const windowStart = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString();
-
-  // Касание = факт состоявшегося разговора. Запланированный звонок (`pending`) и
-  // будущая встреча — это НЕ касание: они кормят `hasUpcoming` силы отношений
-  // (см. use-contact-strength), а не «последний контакт».
-  const touches: CompanyLastTouch[] = [];
-  for (const c of (calls.data ?? []) as CallRow[]) {
-    if (c.status !== 'done') continue;
-    touches.push({ date: c.date, kind: 'call', actorId: c.created_by });
-  }
-  for (const m of (meetings.data ?? []) as MeetingRow[]) {
-    if (m.date.slice(0, 10) > todayKey) continue;
-    touches.push({ date: m.date, kind: 'meeting', actorId: m.created_by });
-  }
-
-  let lastTouch: CompanyLastTouch | null = null;
-  const byActor = new Map<string, WhoKnowsEntry>();
-
-  for (const t of touches) {
-    if (!lastTouch || t.date > lastTouch.date) lastTouch = t;
-
-    // «Кто знает» считается по окну в 90 дней намеренно: человек, звонивший сюда
-    // три года назад, компанию уже не «знает» — спрашивать у него бесполезно.
-    if (!t.actorId || t.date < windowStart) continue;
-    const prev = byActor.get(t.actorId);
-    if (prev) {
-      prev.count += 1;
-      if (t.date > prev.lastAt) prev.lastAt = t.date;
-    } else {
-      byActor.set(t.actorId, { actorId: t.actorId, count: 1, lastAt: t.date });
-    }
-  }
-
-  const whoKnows = [...byActor.values()]
-    // Тай-брейк по свежести: при равном числе касаний выше тот, кто общался позже.
-    .sort((a, b) => b.count - a.count || (a.lastAt < b.lastAt ? 1 : -1))
-    .slice(0, WHO_KNOWS_LIMIT);
-
-  return { lastTouch, whoKnows };
+  // Вся арифметика (что считать касанием, окно 90 дней, тай-брейк «кто знает») —
+  // в чистой `aggregateTeamTouch`, покрытой tests/unit/company-touch.test.ts.
+  return aggregateTeamTouch(
+    (calls.data ?? []) as CallRow[],
+    (meetings.data ?? []) as MeetingRow[],
+    new Date(),
+  );
 }
 
 /**

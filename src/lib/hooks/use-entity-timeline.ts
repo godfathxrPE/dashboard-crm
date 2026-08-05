@@ -136,6 +136,9 @@ function activityToEvent(a: ActivityRow): TimelineEvent {
     date: a.created_at,
     icon: 'activity' as const,
     actorId: a.user_id ?? undefined,
+    // S-UI-CLARITY-1: колонка уже в селекте (её читает describeEvent) — новых
+    // запросов не появляется, событие просто перестаёт терять свой тип.
+    eventType: a.event_type,
   };
 }
 

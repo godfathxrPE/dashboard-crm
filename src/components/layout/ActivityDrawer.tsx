@@ -26,6 +26,10 @@ export function ActivityDrawer() {
 
   return (
     <aside
+      // S-UI-CLARITY-1: признак для тем. До этого drawer опознавался в CSS «от
+      // противного» (`aside:not([aria-label])`) — признак ломался от любого
+      // добавления aria-label и заодно цеплял <aside> списка каналов чата.
+      data-drawer
       style={{
         width: isOpen ? 280 : 0,
         minWidth: isOpen ? 280 : 0,
