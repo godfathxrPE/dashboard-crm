@@ -38,6 +38,7 @@ import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { compareByNextAction } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
+import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
 import { dealMetrics } from '@/lib/selectors/deal-metrics';
 import { ProjectCard } from './ProjectCard';
 import { ProjectModal } from './ProjectModal';
@@ -349,6 +350,8 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
     useSensor(KeyboardSensor),
   );
 
+  const completenessRules = useCompletenessRules();
+
   // Direction-filtered projects + быстрые пресеты (?q=attention|nobudget)
   const projects = useMemo(
     () => applySegment(
@@ -357,8 +360,12 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
         quickFilter,
       ),
       segment,
+      'deals',
+      undefined,
+      // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
+      { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment],
+    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
   );
 
   // Effective pipeline: when 'all', show IIoT pipeline

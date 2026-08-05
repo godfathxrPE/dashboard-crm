@@ -13,6 +13,9 @@ import {
   orgSettingsFormSchema,
   buildStageDwellDefaults,
   stageDwellToForm,
+  buildCompletenessPatch,
+  completenessToForm,
+  readCompletenessOverrides,
   DWELL_PHASE_GROUPS,
   RECONNECT_DAYS_MAX,
   RECONNECT_DAYS_MIN,
@@ -20,6 +23,12 @@ import {
   STAGE_DWELL_MIN,
   type OrgSettingsFormValues,
 } from '@/lib/validators/org-settings';
+import {
+  DEFAULT_RULES,
+  resolveRules,
+  COMPLETENESS_WEIGHT_MAX,
+  COMPLETENESS_WEIGHT_MIN,
+} from '@/lib/domain/deal-completeness';
 
 const inputCls =
   `w-24 rounded border border-input bg-surface px-2 py-1.5 text-sm text-text-main
@@ -40,9 +49,20 @@ export function OrgSettingsSection() {
   const isOwner = role === 'owner';
   const current = settings?.reconnect_days ?? DEFAULT_RECONNECT_DAYS;
   const dwell = settings?.stage_dwell_defaults;
+  const completenessOverrides = useMemo(() => readCompletenessOverrides(settings), [settings]);
 
   // Строковые значения полей норматива: ключа нет ⇒ пустая строка ⇒ «как по умолчанию».
   const dwellValues = useMemo(() => stageDwellToForm(dwell), [dwell]);
+  const completenessValues = useMemo(
+    () => completenessToForm(completenessOverrides),
+    [completenessOverrides],
+  );
+  // Действующие правила — тем же резолвером, что и бейдж на карточке сделки:
+  // read-only список для не-владельца не может разойтись с поведением.
+  const effectiveRules = useMemo(
+    () => resolveRules(DEFAULT_RULES, completenessOverrides),
+    [completenessOverrides],
+  );
 
   const {
     register,
@@ -51,14 +71,14 @@ export function OrgSettingsSection() {
     formState: { errors, isDirty, isSubmitting },
   } = useForm<OrgSettingsFormValues>({
     resolver: zodResolver(orgSettingsFormSchema),
-    values: { reconnect_days: current, stage_dwell: dwellValues },
+    values: { reconnect_days: current, stage_dwell: dwellValues, completeness: completenessValues },
   });
 
   // Значения приезжают асинхронно — синхронизируем «чистое» состояние формы,
   // иначе isDirty остаётся true сразу после загрузки.
   useEffect(() => {
-    reset({ reconnect_days: current, stage_dwell: dwellValues });
-  }, [current, dwellValues, reset]);
+    reset({ reconnect_days: current, stage_dwell: dwellValues, completeness: completenessValues });
+  }, [current, dwellValues, completenessValues, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -68,6 +88,9 @@ export function OrgSettingsSection() {
         // reconnect_days и чужие ключи не страдают. Сам stage_dwell_defaults заменяется
         // целиком — так очистка поля действительно убирает ключ.
         stage_dwell_defaults: buildStageDwellDefaults(values.stage_dwell, dwell),
+        // completeness_rules живёт в jsonb через passthrough (в интерфейсе OrgSettings
+        // его нет: database.ts руками не правится) — патч собирает валидатор.
+        ...buildCompletenessPatch(values.completeness, completenessOverrides),
       });
       toast.success('Настройки сохранены');
     } catch (err) {
@@ -148,6 +171,47 @@ export function OrgSettingsSection() {
             </p>
           </div>
 
+          {/* ── Полнота сделки (S-R3-TRUST-1) ── */}
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-dim">Полнота сделки</p>
+            <div className="space-y-2">
+              {DEFAULT_RULES.map((rule) => (
+                <div key={rule.key} className="flex items-start gap-3">
+                  <input
+                    id={`completeness_${rule.key}`}
+                    type="number"
+                    inputMode="numeric"
+                    min={COMPLETENESS_WEIGHT_MIN}
+                    max={COMPLETENESS_WEIGHT_MAX}
+                    step={1}
+                    disabled={isLoading}
+                    placeholder={String(rule.weight)}
+                    {...register(`completeness.${rule.key}`)}
+                    className={`${inputCls} w-16 shrink-0`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <label
+                      htmlFor={`completeness_${rule.key}`}
+                      className="block text-xs text-text-dim"
+                    >
+                      {rule.label}
+                    </label>
+                    <p className="text-[0.6875rem] leading-snug text-text-mute">{rule.cost}</p>
+                    {errors.completeness?.[rule.key] && (
+                      <p className="text-xs text-red">{errors.completeness[rule.key]?.message}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-text-mute">
+              Вес правила в оценке полноты карточки сделки. Пустое поле — вес по умолчанию
+              (значение в подсказке), <strong className="font-medium">0 — не учитывать</strong>.
+              Допустимо {COMPLETENESS_WEIGHT_MIN}–{COMPLETENESS_WEIGHT_MAX}. Полнота ничего
+              не блокирует — она только показывает, что не работает из-за пустого поля.
+            </p>
+          </div>
+
           <button
             type="submit"
             disabled={!isDirty || isSubmitting || isLoading}
@@ -175,6 +239,17 @@ export function OrgSettingsSection() {
                   <span className="font-medium tabular-nums text-text-main">
                     {resolveDwellThreshold(key, dwell)}
                   </span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-text-dim">Полнота сделки</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {effectiveRules.map((rule) => (
+                <span key={rule.key} className="text-xs text-text-mute">
+                  {rule.label}{' '}
+                  <span className="font-medium tabular-nums text-text-main">{rule.weight}</span>
                 </span>
               ))}
             </div>

@@ -77,6 +77,15 @@ export const SEGMENT_FIELDS: Partial<Record<SegmentEntity, SegmentFieldDef[]>> =
       kind: 'date',
       ops: ['days_since_gt', 'days_since_lt', ...NULLABILITY_OPS],
     },
+    // S-R3-TRUST-1: первое ВЫЧИСЛЯЕМОЕ поле — колонки `completeness_score` в БД нет,
+    // значение считает `VIRTUAL_FIELDS` вычислителя (src/lib/domain/segment-eval.ts).
+    // Операторов is_null/not_null у него нет намеренно: значение есть всегда.
+    {
+      field: 'completeness_score',
+      label: 'Полнота, %',
+      kind: 'number',
+      ops: ['gt', 'gte', 'lt', 'lte', 'eq'],
+    },
   ],
 };
 

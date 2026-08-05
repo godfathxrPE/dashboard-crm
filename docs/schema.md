@@ -241,7 +241,11 @@
 > ⚠️ `tests/unit/ai-presets-sync.test.ts` читает **104**, а не 085: актуальная редакция обоих
 > CHECK'ов теперь здесь. Следующая миграция, трогающая эти constraint'ы, обязана переставить
 > путь в тесте;
-> следующая свободная — **105**;
+> **105 (S-R3-TRUST-1) — ПРИМЕНЕНА гейтом 2026-08-05** (`105_segment_incomplete_deals.sql`):
+> схемы не меняет — только сид-строка в `segments`, шестой общий сегмент сделок
+> «Полнота <60%» (см. раздел `segments` ниже). Реген типов не нужен. Идемпотентность
+> проверена повторным apply — вторая строка не создалась;
+> следующая свободная после неё — **106**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -681,7 +685,7 @@ PK = (id, user_id). RLS: `auth.uid() = user_id`.
 | name | text | NOT NULL |
 | created_by | uuid | → profiles |
 | created_at / updated_at | timestamptz | |
-| settings | jsonb NOT NULL | **076 (R2-P0-D)**, DEFAULT `'{}'`. Настройки org. Известные ключи: `reconnect_days` int 3..90 (порог тишины, был хардкодом `RECONNECT_THRESHOLD_DAYS`), `stage_dwell_defaults` `{default,<phase_group>: int 1..365}` — **с S-R2-DWELL-CFG питает бейдж «залипла»** через `resolveDwellThreshold` (`deal-health.ts`), правится owner'ом в «Настройки организации»; **отсутствие ключа ≠ `null`**: пустое поле формы ключ НЕ пишет, иначе `??`-цепочка резолвера не дошла бы до фолбэка `STALE_BY_PHASE`. CHECK'а на схему значения **нет** (ключи растут по спринтам) — форму держит клиентский Zod `validators/org-settings.ts` |
+| settings | jsonb NOT NULL | **076 (R2-P0-D)**, DEFAULT `'{}'`. Настройки org. Известные ключи: `reconnect_days` int 3..90 (порог тишины, был хардкодом `RECONNECT_THRESHOLD_DAYS`), `stage_dwell_defaults` `{default,<phase_group>: int 1..365}` — **с S-R2-DWELL-CFG питает бейдж «залипла»** через `resolveDwellThreshold` (`deal-health.ts`), правится owner'ом в «Настройки организации»; **отсутствие ключа ≠ `null`**: пустое поле формы ключ НЕ пишет, иначе `??`-цепочка резолвера не дошла бы до фолбэка `STALE_BY_PHASE`. `completeness_rules` `{<ключ правила>: {weight: int 0..10}}` — **S-R3-TRUST-1**, веса правил полноты сделки поверх `DEFAULT_RULES` (`lib/domain/deal-completeness.ts`), `weight 0` = «правило не учитывать»; переопределяется **только вес** (label и «цена пустоты» — тексты продукта), неизвестный ключ при чтении игнорируется. В интерфейсе `OrgSettings` (`src/types/database.ts`) ключа НЕТ намеренно — файл руками не правится, чтение идёт через `readCompletenessOverrides()` поверх `.passthrough()`. CHECK'а на схему значения **нет** (ключи растут по спринтам) — форму держит клиентский Zod `validators/org-settings.ts` |
 
 > **⚠️ Настройки правит только owner.** UPDATE на `organizations` — политика
 > `org_update_owner` (`id = current_org_id() AND current_org_role() = 'owner'`,
@@ -1628,6 +1632,19 @@ authenticated`, затем `grant select, insert, update, delete to authenticate
 ⚠️ Число 14 сидит в предикате **константой и вынесено в имя намеренно**: предикат считается
 на клиенте и про `organizations.settings.stage_dwell_defaults` не знает — имя без числа
 обещало бы согласованность с настройкой, которой нет. Пользователь правит его руками.
+
+**Сид 105 (S-R3-TRUST-1) — применён 2026-08-05:** шестой общий сегмент сделок —
+**«Полнота <60%»** (`sort_order = 60`), предикат
+`status eq open ∧ completeness_score lt 60`. Схема не меняется, миграция вставляет
+**только данные**.
+⚠️ `completeness_score` — **первое ВЫЧИСЛЯЕМОЕ поле сегментов**: колонки с таким именем в
+`projects` НЕТ и в БД её заводить не планируется. Значение считает клиент —
+`VIRTUAL_FIELDS` в `src/lib/domain/segment-eval.ts` поверх правил
+`src/lib/domain/deal-completeness.ts` (веса переопределяются
+`organizations.settings.completeness_rules`). Операторов `is_null`/`not_null` у поля нет:
+значение есть всегда. Порог 60 — константа в имени по той же причине, что у 086.
+SQL-функции полноты (`entity_completeness()`) намеренно нет: единственный потребитель —
+клиент, вторая формула в SQL дала бы дрейф с TS. Появится вместе с серверным потребителем.
 
 **Не заменяет `saved-views`** (localStorage `{route, query}`, `SavedViewChips` на 4 страницах):
 там снимок URL, здесь — предикат; автоконвертации нет (F10). Полосы живут рядом, фильтры
