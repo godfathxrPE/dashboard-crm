@@ -127,6 +127,8 @@ function CompletenessBadge({ project }: { project: Project }) {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
+        // S-UI-CLARITY-1: «6/8» само по себе не отличимо от процента стадии рядом
+        title={`Заполнено ${filled} из ${total} ключевых полей сделки`}
         className={`rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
       >
         {filled}/{total}
@@ -357,7 +359,14 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
             {/* S-UI-POLISH-1 (п.3): пилюля текущей стадии — solid-акцент (bg-accent/green
                 + текст на --bg), а не тинт: находится взглядом за секунду в любой теме */}
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}>
+            {/* S-UI-CLARITY-1: процент подписан словом. Рядом в шапке живут ещё два
+                числа другой природы — доля пройденной воронки (StackedPipeline) и
+                заполненность полей (CompletenessBadge); без подписи три величины
+                читались как одна с ошибкой округления. */}
+            <span
+              title={!isDelivery && headerStage ? 'Вероятность закрытия сделки на этой стадии' : undefined}
+              className={`rounded-full px-2 py-0.5 text-xs font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}
+            >
               {(() => {
                 // Delivery: «Состояние · текущая фаза» (phase_group → лейбл, стадия = фаза СДР)
                 if (isDelivery && headerStage) {
@@ -365,7 +374,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                   return `${phaseLabel} · ${headerStage.name}`;
                 }
                 // S29.1 / Путь B: бейдж — из stage_id (живой контур); legacy enum больше не читаем.
-                if (headerStage) return `${headerStage.name} · ${headerStage.probability ?? 0}%`;
+                if (headerStage) return `${headerStage.name} · вероятность ${headerStage.probability ?? 0}%`;
                 return '—';
               })()}
             </span>

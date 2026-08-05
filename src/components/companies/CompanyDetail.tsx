@@ -74,8 +74,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   // Значение из localStorage валидируется, а не берётся на веру: набор kinds
   // может поехать в следующем спринте, а сохранённый чип пережил бы это и молча
   // отфильтровал ленту в ноль — без подсвеченного чипа, который это объясняет.
+  // S-UI-CLARITY-1: `note` — производный чип «Заметки» (срез внутри `activity`),
+  // не kind, поэтому проверяется отдельным условием, а не через набор kinds.
   const timelineFilter: TimelineFilterValue =
-    savedFilter === 'all' || (savedFilter && COMPANY_TIMELINE_KINDS.includes(savedFilter as TimelineKind))
+    savedFilter === 'all' ||
+    savedFilter === 'note' ||
+    (savedFilter && COMPANY_TIMELINE_KINDS.includes(savedFilter as TimelineKind))
       ? (savedFilter as TimelineFilterValue)
       : 'all';
 

@@ -6,6 +6,7 @@ import {
   ChevronRight, Loader2, type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { isNoteEvent } from '@/lib/utils/activity-events';
 import { useEntityTimeline, type TimelineEntityType, type UseEntityTimelineOptions } from '@/lib/hooks/use-entity-timeline';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
@@ -17,7 +18,15 @@ import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 // событию → onOpenEvent (родитель решает, что открыть).
 // ═══════════════════════════════════════════════════════
 
-export type TimelineFilterValue = 'all' | TimelineKind;
+/**
+ * `all` + kinds + производный `note`.
+ *
+ * S-UI-CLARITY-1: `note` — не kind, а срез внутри `activity`: события
+ * `kind='activity'` с человеческим `eventType` (см. `isNoteEvent`). Отдельным
+ * kind его сделать нельзя — источник один (`activity_log`), и `kindFilter`
+ * родителей пришлось бы учить второму имени того же источника.
+ */
+export type TimelineFilterValue = 'all' | TimelineKind | 'note';
 
 interface EntityTimelineProps {
   entityType: TimelineEntityType;
@@ -63,18 +72,20 @@ const KIND_META: Record<TimelineKind, { icon: LucideIcon; dot: string; fg: strin
   ai_run:   { icon: Sparkles,     dot: 'bg-accent-l', fg: 'text-accent' },
 };
 
-// Подписи чипов по kind. `activity` названо «Заметки» по спецификации спринта —
-// ⚠️ это activity_log целиком, туда же попадают системные записи (смена стадии),
-// так что чип шире своего лейбла. Разделить их можно только по `event_type`,
-// которого в TimelineEvent нет; отмечено долгом, а не спрятано.
+// Подписи чипов по kind. S-UI-CLARITY-1: `activity` больше не «Заметки» — это
+// activity_log целиком (смены стадий, аудит полей, автоматизации), и честное имя
+// ему «Система». Заметки выделены отдельным производным чипом ниже.
 const KIND_LABEL: Record<TimelineKind, string> = {
   call: 'Звонки',
   meeting: 'Встречи',
   task: 'Задачи',
   project: 'Сделки',
-  activity: 'Заметки',
+  activity: 'Система',
   ai_run: 'AI',
 };
+
+/** Подпись производного чипа — рядом с «Системой», из того же источника. */
+const NOTE_LABEL = 'Заметки';
 
 // Дефолтный набор чипов — прямые источники Sprint A (поведение до S-R2-CO360-1).
 const DEFAULT_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'project'];
@@ -92,9 +103,19 @@ export function TimelineFilterChips({
   onChange: (v: TimelineFilterValue) => void;
   className?: string;
 }) {
+  // `activity` разворачивается в ДВА чипа на своём месте в порядке: «Заметки»
+  // (производный срез) и «Система» (весь activity_log). Родителям для этого
+  // ничего передавать не нужно — набор kinds у них прежний.
   const items: { key: TimelineFilterValue; label: string }[] = [
     { key: 'all', label: 'Все' },
-    ...kinds.map((k) => ({ key: k as TimelineFilterValue, label: KIND_LABEL[k] })),
+    ...kinds.flatMap((k) =>
+      k === 'activity'
+        ? [
+            { key: 'note' as TimelineFilterValue, label: NOTE_LABEL },
+            { key: k as TimelineFilterValue, label: KIND_LABEL[k] },
+          ]
+        : [{ key: k as TimelineFilterValue, label: KIND_LABEL[k] }],
+    ),
   ];
   return (
     <div className={cn('flex flex-wrap gap-1', className)}>
@@ -157,10 +178,12 @@ export function EntityTimeline({
     [allEvents, kindFilter, kinds],
   );
 
-  const filtered = useMemo(
-    () => (filter === 'all' ? events : events.filter((e) => e.kind === filter)),
-    [events, filter],
-  );
+  const filtered = useMemo(() => {
+    if (filter === 'all') return events;
+    // Производный срез: заметки живут внутри kind='activity', отличаются eventType.
+    if (filter === 'note') return events.filter((e) => e.kind === 'activity' && isNoteEvent(e.eventType));
+    return events.filter((e) => e.kind === filter);
+  }, [events, filter]);
 
   const groups = useMemo(() => {
     const now = new Date();

@@ -7,6 +7,20 @@ export function localDateKey(d: Date = new Date()): string {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Дней с указанной даты (>= 0), по КАЛЕНДАРНЫМ дням локальной TZ.
+ *
+ * S-UI-CLARITY-1: переехало сюда из `use-last-touch` («use client»-модуль с
+ * зависимостью на useCalls/useMeetings), чтобы чистый домен мог считать возраст
+ * касания, не таща за собой хуки. «Сейчас» — параметр: агрегации детерминированы
+ * и тестируются без замороженного времени. `use-last-touch` реэкспортирует.
+ */
+export function daysSince(dateIso: string, now: Date = new Date()): number {
+  const then = new Date(new Date(dateIso).toDateString());
+  const today = new Date(now.toDateString());
+  return Math.max(0, Math.floor((today.getTime() - then.getTime()) / 86400000));
+}
+
 /** Номер недели в году (грубый, локальная TZ). Единая формула для ClockWidget
  *  и шапки /tasks — дубль не плодим. */
 export function weekNumber(d: Date = new Date()): number {

@@ -13,13 +13,12 @@ export interface LastTouch {
 }
 
 /**
- * Дней с указанной даты (>= 0). Считается по календарным дням.
+ * Дней с указанной даты (>= 0), по календарным дням.
+ * Реализация уехала в `utils/date-helpers` (S-UI-CLARITY-1) — её зовёт и чистый
+ * домен `company-touch`, которому «use client»-хуки не нужны. Реэкспорт оставлен,
+ * чтобы десяток существующих импортов из этого модуля не переписывать.
  */
-export function daysSince(dateIso: string): number {
-  const then = new Date(new Date(dateIso).toDateString());
-  const today = new Date(new Date().toDateString());
-  return Math.max(0, Math.floor((today.getTime() - then.getTime()) / 86400000));
-}
+export { daysSince } from '@/lib/utils/date-helpers';
 
 export type TouchLevel = 'ok' | 'cooling' | 'cold';
 

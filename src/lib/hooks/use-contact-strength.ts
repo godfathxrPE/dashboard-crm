@@ -3,9 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { fetchInBatches } from '@/lib/utils/query-batching';
-import { localDateKey } from '@/lib/utils/date-helpers';
-import { daysSince } from './use-last-touch';
-import { relationshipStrength, type Strength } from '@/lib/domain/relationship-strength';
+import {
+  aggregateContactStrength,
+  type ContactStrengthMap,
+} from '@/lib/domain/company-touch';
 
 // ═══════════════════════════════════════════════════════
 // S-R2-CO360-1 (D1, инфраструктура) — сила отношений по списку контактов.
@@ -25,14 +26,8 @@ import { relationshipStrength, type Strength } from '@/lib/domain/relationship-s
 // ⚠️ `org_id` не пишем — накладывает RLS. Ownership — `created_by`, не `user_id`.
 // ═══════════════════════════════════════════════════════
 
-export interface ContactStrength {
-  strength: Strength;
-  lastTouch: { kind: 'call' | 'meeting'; date: string } | null;
-}
-
-export type ContactStrengthMap = Map<string, ContactStrength>;
-
-const WINDOW_DAYS = 90;
+// Типы среза — в домене (S-UI-CLARITY-1), рядом с агрегацией. Реэкспорт для UI.
+export type { ContactStrength, ContactStrengthMap } from '@/lib/domain/company-touch';
 
 interface CallRow { contact_id: string | null; date: string; status: string }
 interface MeetingRow { contact_id: string | null; date: string }
@@ -40,9 +35,11 @@ interface TaskRow { contact_id: string | null }
 
 async function fetchContactStrength(contactIds: string[]): Promise<ContactStrengthMap> {
   const supabase = createClient();
-  const nowIso = new Date().toISOString();
-  const todayKey = localDateKey();
-  const windowStart = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString();
+  // Одно «сейчас» на весь проход: серверный фильтр задач и агрегация обязаны
+  // смотреть на одну и ту же границу, иначе задача с дедлайном на стыке видна
+  // запросу и невидима агрегации (или наоборот).
+  const now = new Date();
+  const nowIso = now.toISOString();
 
   // `fetchInBatches` — защита с обеих сторон: пустой `.in()` роняет PostgREST так же,
   // как слишком длинный (S-DEBT-TRUTH-1). Порядок строк между батчами не сохраняется,
@@ -79,52 +76,9 @@ async function fetchContactStrength(contactIds: string[]): Promise<ContactStreng
     }),
   ]);
 
-  interface Agg {
-    lastTouch: { kind: 'call' | 'meeting'; date: string } | null;
-    touches90d: number;
-    hasUpcoming: boolean;
-  }
-  const agg = new Map<string, Agg>();
-  for (const id of contactIds) agg.set(id, { lastTouch: null, touches90d: 0, hasUpcoming: false });
-
-  const touch = (id: string | null, date: string, kind: 'call' | 'meeting') => {
-    if (!id) return;
-    const a = agg.get(id);
-    if (!a) return;
-    if (!a.lastTouch || date > a.lastTouch.date) a.lastTouch = { kind, date };
-    if (date >= windowStart) a.touches90d += 1;
-  };
-  const upcoming = (id: string | null) => {
-    if (!id) return;
-    const a = agg.get(id);
-    if (a) a.hasUpcoming = true;
-  };
-
-  for (const c of calls) {
-    // Звонок `done` — состоявшееся касание; `pending` с датой в будущем —
-    // запланированный следующий шаг. Прошедший `pending` (забыли отметить) —
-    // ни то ни другое: касанием он не был, и шагом уже не является.
-    if (c.status === 'done') touch(c.contact_id, c.date, 'call');
-    else if (c.date > nowIso) upcoming(c.contact_id);
-  }
-  for (const m of meetings) {
-    if (m.date.slice(0, 10) > todayKey) upcoming(m.contact_id);
-    else touch(m.contact_id, m.date, 'meeting');
-  }
-  for (const t of tasks) upcoming(t.contact_id);
-
-  const out: ContactStrengthMap = new Map();
-  for (const [id, a] of agg) {
-    out.set(id, {
-      strength: relationshipStrength({
-        daysSinceLastTouch: a.lastTouch ? daysSince(a.lastTouch.date) : null,
-        touches90d: a.touches90d,
-        hasUpcoming: a.hasUpcoming,
-      }),
-      lastTouch: a.lastTouch,
-    });
-  }
-  return out;
+  // Арифметика («done» vs «pending», окно 90 дней, приоритет последнего касания) —
+  // в чистой `aggregateContactStrength`, покрытой tests/unit/company-touch.test.ts.
+  return aggregateContactStrength(contactIds, calls, meetings, tasks, now);
 }
 
 /**

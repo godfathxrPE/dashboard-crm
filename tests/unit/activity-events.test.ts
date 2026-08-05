@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { describeEvent } from '@/lib/utils/activity-events';
+import { describeEvent, isNoteEvent } from '@/lib/utils/activity-events';
 import type { ActivityLog } from '@/types/entities';
 
 function entry(event_type: string, payload: unknown): ActivityLog {
@@ -91,5 +91,24 @@ describe('describeEvent — прочие', () => {
 
   test('неизвестный тип → фолбэк «Событие: <type>», не голая строка', () => {
     expect(describeEvent(entry('some_new_event', {}))).toBe('Событие: some_new_event');
+  });
+});
+
+// S-UI-CLARITY-1: чип «Заметки» в ленте — производный срез по event_type.
+// Если сюда однажды добавят системный тип, ложный фильтр вернётся молча.
+describe('isNoteEvent — заметка человека vs системная запись', () => {
+  test('comment_added — заметка', () => {
+    expect(isNoteEvent('comment_added')).toBe(true);
+  });
+
+  test('системные типы заметками не считаются', () => {
+    for (const t of ['stage_changed', 'project_updated', 'task_created', 'automation_fired', 'entity_deleted']) {
+      expect(isNoteEvent(t)).toBe(false);
+    }
+  });
+
+  test('null/undefined — не заметка (события не из activity_log)', () => {
+    expect(isNoteEvent(null)).toBe(false);
+    expect(isNoteEvent(undefined)).toBe(false);
   });
 });

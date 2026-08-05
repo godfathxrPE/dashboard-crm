@@ -151,6 +151,22 @@ function describeChanges(p: Record<string, unknown>): string | null {
   return rest > 0 ? `${head} и ещё ${rest}` : head;
 }
 
+/**
+ * S-UI-CLARITY-1: типы записей `activity_log`, которые написал ЧЕЛОВЕК.
+ *
+ * Ровно один: `comment_added` — его пишут `ActivityComposer` (заметка на сущность)
+ * и `use-stage-transition` (комментарий к переходу). Всё остальное в `activity_log`
+ * порождают клиентские хуки и триггеры БД: смены стадий, аудит полей (087),
+ * автоматизации, AI-прогоны, удаления. Поэтому лента может честно предложить
+ * «Заметки» отдельно от «Системы» — а не звать заметками весь журнал.
+ */
+export const NOTE_EVENT_TYPES: readonly string[] = ['comment_added'];
+
+/** Заметка это или системная запись. Вход — сырой `event_type` (может быть null). */
+export function isNoteEvent(eventType: string | null | undefined): boolean {
+  return eventType != null && NOTE_EVENT_TYPES.includes(eventType);
+}
+
 export function describeEvent(entry: ActivityLog): string {
   const p = (entry.payload ?? {}) as Record<string, unknown>;
   switch (entry.event_type) {

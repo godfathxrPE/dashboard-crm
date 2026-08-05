@@ -73,6 +73,11 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
           <InlineEdit
             value={project.next_step ?? ''}
             placeholder="Какой следующий шаг?"
+            // S-UI-CLARITY-1: пустое состояние выглядит пустым. Цвет (text-text-mute)
+            // InlineEdit даёт сам, курсив — здесь: приглашение того же начертания,
+            // что реальный шаг, пролистывалось как заполненное поле. Кликабельность
+            // не меняется — редактор открывается по тому же клику.
+            className={cn(!project.next_step && 'italic')}
             onSave={async (val) => {
               updateProject.mutate({ id: project.id, next_step: val || null });
             }}
@@ -89,7 +94,8 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
               onSave={async (val) => {
                 updateProject.mutate({ id: project.id, next_action_date: val || null });
               }}
-              className={cn('font-medium', overdue && 'text-red')}
+              // Тот же принцип: «назначить» — приглашение, а не значение даты.
+              className={cn(project.next_action_date ? 'font-medium' : 'italic', overdue && 'text-red')}
             />
           </span>
           {overdue && (

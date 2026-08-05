@@ -1150,13 +1150,12 @@ table { font-variant-numeric: tabular-nums; }
 }
 
 /* Сам drawer (aside справа) — скруглить левые углы.
-   ⚠️ Правило про DRAWER, а не про навигацию: `[data-app-nav]` ему НЕ добавлен
-   (S-FIX-CO360-1). С атрибутом селектор стал бы самопротиворечивым — у навигации
-   `aria-label` есть, и `:not([aria-label])` вырезал бы её обратно, оставив
-   правило мёртвым. Отличаем drawer от сайдбара по-прежнему по `aria-label`, а не
-   по `:not([data-app-nav])`: у PeekPanel `aria-label` есть, и переход на новый
-   признак начал бы скруглять и её — это уже другое изменение. */
-.t-aura aside:not([aria-label]) {
+   S-UI-CLARITY-1: признак теперь явный (`data-drawer` на <aside> ActivityDrawer),
+   а не «от противного». Прежний `:not([aria-label])` опознавал ящик по ОТСУТСТВИЮ
+   доступного имени: он сломался бы от первого же aria-label на drawer'е и заодно
+   скруглял <aside> списка каналов в ChatView, которому это не предназначалось.
+   Навигация и PeekPanel атрибута не имеют и под правило не попадают по определению. */
+.t-aura aside[data-drawer] {
   border-top-left-radius: var(--radius-l);
   border-bottom-left-radius: var(--radius-l);
 }
