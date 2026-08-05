@@ -157,6 +157,8 @@
 │   │   ├── domain/                   — Чистая логика: ноль запросов, «сейчас» параметром
 │   │   │   ├── relationship-strength.ts — сила связи с контактом (recency/frequency/upcoming)
 │   │   │   ├── company-touch.ts      — агрегации Company 360 (aggregateTeamTouch / aggregateContactStrength)
+│   │   │   ├── deal-completeness.ts  — ЕДИНСТВЕННАЯ формула полноты сделки (правила + веса + цена пустоты)
+│   │   │   ├── segment-eval.ts       — вычислитель сегментов: предикат на клиенте + VIRTUAL_FIELDS
 │   │   │   ├── stage-transition.ts / apply-progression.ts
 │   │   │   └── (правило: если функция тестируема — её место здесь, не в queryFn хука)
 │   │   │
@@ -288,6 +290,44 @@ cron-джоба `webhook-retry` (`dispatch_webhooks_tick()`). Транспорт
 - ⚠️ Заводя новый React-Query ключ (`company-team-touch`, `contact-strength`), сразу
   пройти по мутациям, которые меняют его данные: лента после звонка обновлялась, а
   виджеты над ней — нет, потому что ключи никто не инвалидировал.
+
+### Сегменты / Smart Views (`shared/SegmentsBar.tsx`, миграции 077 · 086 · 105)
+
+Именованный предикат над сущностью. **Считается на КЛИЕНТЕ** (`lib/domain/segment-eval.ts`)
+поверх уже загруженного списка — таблица `segments` хранит только определение, не результат.
+v1: только `deals`, только конъюнкция (AND). Порог пересмотра в пользу SQL-RPC записан в
+шапке `segment-eval.ts` — ~5 000 строк на сущность.
+
+**Вычисляемые поля (S-R3-TRUST-1).** `VIRTUAL_FIELDS` в `segment-eval.ts` — реестр полей,
+которых в БД нет: читается РАНЬШЕ `row[field]`, поэтому реальная колонка вычисляемое поле
+не перекроет. Первое и пока единственное — `completeness_score` (считает
+`deal-completeness.ts`). Реестр **глобальный, не по сущности**: то же имя поля в whitelist
+другой сущности посчиталось бы по правилам сделок — при добавлении второго вычисляемого
+поля это первое, обо что споткнёшься.
+
+Контекст `SegmentEvalContext` — пятый позиционный параметр `matchSegment`/`applySegment`
+со значением по умолчанию `{}`: старые вызовы работают без правки, без контекста правила
+падают на `DEFAULT_RULES`. Контекст обязан приходить во ВСЕ места фильтрации одной сущности
+(`ProjectsView`, `ProjectsTable`, `PipelineBoard`, `StageBoard`) — иначе счётчики чипов
+разойдутся со списками.
+
+### Полнота сделки (`lib/domain/deal-completeness.ts`, S-R3-TRUST-1)
+
+Полнота — заполненность карточки. **Не путать с `calculateDealHealth`** (0–8,
+`utils/deal-health.ts`): та про динамику работы. Правило: полнота **ничего не блокирует** —
+принуждение живёт в `check_stage_requirements` (078) и только там.
+
+- `DEFAULT_RULES` — правило = `{key, label, weight, cost, appliesTo?, appliesToType?}`,
+  где `cost` — **цена пустоты**: что именно не работает без этого поля (текст продукта,
+  в настройки не выносится, рисуется в поповере бейджа).
+- `score = floor(100 × вес заполненных / вес ПРИМЕНИМЫХ)`. Применимость по статусу
+  (`loss_reason` только у `lost`) и по типу (`stage_id`, исходы — только `type='client'`).
+- Веса переопределяет org: `organizations.settings.completeness_rules {key:{weight 0..10}}`,
+  `weight 0` = правило выключено (исчезает и из `total`, и из `missing`). Резолвер
+  `resolveRules` — зеркало `resolveDwellThreshold`, при пустых настройках возвращает **ту же
+  ссылку** на `DEFAULT_RULES` (иначе ломается мемоизация у потребителей).
+- Хук — `useCompletenessRules()` в `lib/hooks/use-org-settings.ts`.
+- SQL-аналога (`entity_completeness()` / view) намеренно НЕТ — см. learnings.md.
 
 ### Sidebar (legacy note)
 - Old icon `Sidebar.tsx` удалён — см. `TextNavSidebar` выше.
