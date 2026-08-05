@@ -22,7 +22,22 @@ export interface AnchorInput {
 }
 
 export interface AnchoredRect {
+  /** Позиция верхнего края. Применять, ТОЛЬКО если `bottom === null`. */
   top: number;
+  /**
+   * CSS `bottom` для флипнутого попапа: не null — потребитель обязан применить
+   * ЕГО вместо `top`.
+   *
+   * Почему не хватает `top`: при флипе он считается как `triggerTop - gap -
+   * maxHeight`, то есть от ЖЕЛАЕМОЙ высоты. Фактическая высота меньше, когда
+   * пунктов мало (Combobox после фильтрации — 1 совпадение вместо 265), и попап
+   * повисает в воздухе на разнице. Якорь по нижнему краю прижимает список к
+   * триггеру при любой высоте контента.
+   *
+   * null в двух случаях: попап раскрыт вниз, либо вырожденный (окно ниже ~140px)
+   * — там высота ужата до MIN_HEIGHT и работает кламп по `top`.
+   */
+  bottom: number | null;
   left: number;
   width: number;
   /** Сколько по вертикали реально доступно попапу. Потребитель ОБЯЗАН применить. */
@@ -56,5 +71,11 @@ export function computeAnchoredRect(i: AnchorInput): AnchoredRect {
     // попап частично накроет триггер, но останется целиком на экране.
     : Math.min(i.triggerBottom + i.gap, i.viewportHeight - VIEWPORT_MARGIN - maxHeight);
 
-  return { top, left: i.triggerLeft, width: i.triggerWidth, maxHeight, flipped };
+  // Якорь по нижнему краю доступен, только когда попап действительно помещается
+  // над триггером: тогда `top >= VIEWPORT_MARGIN` гарантирован арифметически
+  // (maxHeight <= spaceAbove = triggerTop - gap - VIEWPORT_MARGIN).
+  const bottom =
+    flipped && maxHeight <= spaceAbove ? i.viewportHeight - (i.triggerTop - i.gap) : null;
+
+  return { top, bottom, left: i.triggerLeft, width: i.triggerWidth, maxHeight, flipped };
 }

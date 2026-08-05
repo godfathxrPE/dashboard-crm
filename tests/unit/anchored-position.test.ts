@@ -99,6 +99,45 @@ describe('computeAnchoredRect', () => {
     expectInsideViewport(r, 900);
   });
 
+  // ── Якорь при флипе (правка гейта) ────────────────────────────────────────
+  //
+  // `top` при флипе считается от ЖЕЛАЕМОЙ высоты, а не от фактической. В смоке
+  // это видно числами: попап 515→717 при триггере с top 743 — зазор 26px вместо
+  // gap 4px, потому что 6 пунктов дали 202px из разрешённых 224. В Combobox с
+  // фильтрацией разрыв доходил бы до ~150px. Лечится якорем по нижнему краю.
+
+  it('флип — отдаёт bottom, прижимающий попап к триггеру при любой высоте контента', () => {
+    const r = computeAnchoredRect(input({
+      viewportHeight: 917, triggerTop: 743, triggerBottom: 781,
+    }));
+    expect(r.flipped).toBe(true);
+    // Нижний край попапа = triggerTop - gap, независимо от того, сколько пунктов.
+    expect(r.bottom).toBe(917 - 743 + 4);
+    const popupBottomEdge = 917 - (r.bottom as number);
+    expect(743 - popupBottomEdge).toBe(4); // ровно gap, без «повисания»
+  });
+
+  it('раскрытие вниз — bottom не отдаётся, позиционирование по top', () => {
+    const r = computeAnchoredRect(input({
+      viewportHeight: 1000, triggerTop: 100, triggerBottom: 140,
+    }));
+    expect(r.flipped).toBe(false);
+    expect(r.bottom).toBeNull();
+  });
+
+  it('вырожденное окно: флип есть, но попап выше доступного места — bottom не отдаётся', () => {
+    // vh 190: сверху 68, снизу 58. Флип есть, но maxHeight ужат до MIN_HEIGHT (120)
+    // и над триггером не помещается — работает кламп по top, иначе попап уехал бы
+    // за верхнюю кромку.
+    const r = computeAnchoredRect(input({
+      viewportHeight: 190, triggerTop: 80, triggerBottom: 120,
+    }));
+    expect(r.flipped).toBe(true);
+    expect(r.maxHeight).toBe(MIN_HEIGHT);
+    expect(r.bottom).toBeNull();
+    expectInsideViewport(r, 190);
+  });
+
   it('высота попапа не превышает желаемую даже при огромном окне', () => {
     const r = computeAnchoredRect(input({
       viewportHeight: 4000, triggerTop: 100, triggerBottom: 140, preferredHeight: 192,

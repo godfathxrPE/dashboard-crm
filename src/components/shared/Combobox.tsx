@@ -177,10 +177,14 @@ export function Combobox({
         <ul
           ref={listRef}
           style={{
-            position: 'fixed', top: anchor.top, left: anchor.left,
+            position: 'fixed',
+            // При флипе якорь — НИЖНИЙ край. Здесь это критично: список фильтруется
+            // по мере ввода, и при якоре по `top` он отрывался бы от поля тем
+            // сильнее, чем меньше совпадений осталось.
+            ...(anchor.bottom != null ? { bottom: anchor.bottom } : { top: anchor.top }),
             // maxHeight инлайном, а не классом: класс `max-h-48` перебил бы расчёт
             // хука и вернул бы обрезание нижним краем окна.
-            width: anchor.width, maxHeight: anchor.maxHeight, zIndex: 1100,
+            left: anchor.left, width: anchor.width, maxHeight: anchor.maxHeight, zIndex: 1100,
           }}
           className="overflow-auto rounded-lg border border-border bg-popover py-1 elevation-3"
         >
