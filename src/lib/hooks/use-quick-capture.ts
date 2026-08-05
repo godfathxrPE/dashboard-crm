@@ -94,7 +94,9 @@ export function useQuickCapture() {
             return {
               kind: 'contact',
               id: hit.id,
-              label: `${hit.first_name} ${hit.last_name}`.trim(),
+              // 13 из 88 контактов прода без фамилии: рукописный тип врёт (string),
+              // а `${null}` в шаблонной строке печатает «null» (learnings 2026-08-04).
+              label: [hit.first_name, hit.last_name].filter(Boolean).join(' '),
             };
           }
         }
