@@ -10,6 +10,7 @@ import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { SegmentsBar, useActiveSegment } from '@/components/shared/SegmentsBar';
 import { applySegment } from '@/lib/domain/segment-eval';
+import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
 import { applyProjectQuickFilter, isQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import type { Direction } from '@/types/database';
 
@@ -90,18 +91,25 @@ export function ProjectsView({ initialView }: ProjectsViewProps) {
   // применяют его сами доски — они читают список и фильтруют, ProjectsView только раздаёт.
   const activeSegment = useActiveSegment('deals');
   const segment = activeSegment?.predicate ?? null;
+  // S-R3-TRUST-1: правила полноты для вычисляемого поля `completeness_score`.
+  // Без контекста предикат считался бы по дефолтным весам — счётчики чипов разошлись
+  // бы с самими списками, которые контекст получают.
+  const completenessRules = useCompletenessRules();
 
   // Быстрые пресеты: гниющие / без бюджета (в рамках выбранного направления и сегмента)
   const quickOptions: ChipOption[] = useMemo(() => {
     const all = applySegment(
       (allProjects ?? []).filter((p) => directionFilter === 'all' || p.direction === directionFilter),
       segment,
+      'deals',
+      undefined,
+      { completenessRules },
     );
     return [
       { label: 'Требуют внимания', value: 'attention', count: applyProjectQuickFilter(all, 'attention').length },
       { label: 'Без бюджета', value: 'nobudget', count: applyProjectQuickFilter(all, 'nobudget').length },
     ];
-  }, [allProjects, directionFilter, segment]);
+  }, [allProjects, directionFilter, segment, completenessRules]);
 
   return (
     <div>

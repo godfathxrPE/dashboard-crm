@@ -37,6 +37,7 @@ import { formatBudget } from '@/lib/validators/project';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
+import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ProjectModal } from './ProjectModal';
@@ -281,6 +282,8 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
     useSensor(KeyboardSensor),
   );
 
+  const completenessRules = useCompletenessRules();
+
   // Direction-filtered projects
   const projects = useMemo(
     () => applySegment(
@@ -289,8 +292,12 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
         quickFilter,
       ),
       segment,
+      'deals',
+      undefined,
+      // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
+      { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment],
+    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
   );
 
   // Active pipeline

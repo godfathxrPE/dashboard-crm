@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Pencil,
@@ -28,6 +28,8 @@ import {
   type Project,
 } from '@/lib/hooks/use-projects';
 import { useMoveProject } from '@/lib/hooks/use-stage-transition';
+import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
+import { evaluateCompleteness } from '@/lib/domain/deal-completeness';
 import { useTransitionStore } from '@/lib/stores/transition-store';
 import type { ProjectType } from '@/types/database';
 import type { Call } from '@/lib/hooks/use-calls';
@@ -94,32 +96,24 @@ const GanttTimeline = dynamic(
 // Data Completeness
 // ═══════════════════════════════════════════════════════
 
-function getProjectCompleteness(project: Project) {
-  const fields = [
-    { key: 'name', label: 'Название', filled: !!project.name },
-    { key: 'company_id', label: 'Компания', filled: !!project.company_id },
-    { key: 'contact_id', label: 'Контакт', filled: !!project.contact_id },
-    { key: 'budget', label: 'Бюджет', filled: !!project.budget && project.budget > 0 },
-    { key: 'deadline', label: 'Дедлайн', filled: !!project.deadline },
-    // PCT-1: «Стадия» — только для client (internal вне воронки)
-    ...(project.type === 'client'
-      ? [{ key: 'stage', label: 'Стадия', filled: !!project.stage_id }]
-      : []),
-    { key: 'next_step', label: 'Следующий шаг', filled: !!project.next_step },
-    { key: 'next_action_date', label: 'Дата шага', filled: !!project.next_action_date },
-  ];
-  const filled = fields.filter((f) => f.filled).length;
-  return { filled, total: fields.length, fields };
-}
-
+/**
+ * S-R3-TRUST-1: формула полноты уехала в домен (`lib/domain/deal-completeness.ts`),
+ * состав правил и веса настраиваются организацией. Здесь остался только показ.
+ *
+ * Порог цвета теперь на `score`, а не на `filled`: прежний `filled >= 4` был завязан
+ * на фиксированные 8 правил и при настраиваемом составе врал бы.
+ */
 function CompletenessBadge({ project }: { project: Project }) {
-  const { filled, total, fields } = getProjectCompleteness(project);
+  const rules = useCompletenessRules();
+  const { score, filled, total, missing } = useMemo(
+    () => evaluateCompleteness(project, rules),
+    [project, rules],
+  );
   const [open, setOpen] = useState(false);
-  const missing = fields.filter((f) => !f.filled);
 
-  const colorClass = filled === total
+  const colorClass = score === 100
     ? 'bg-green-l text-green'
-    : filled >= 4
+    : score >= 60
     ? 'bg-yellow-l text-yellow'
     : 'bg-red-l text-red';
 
@@ -128,16 +122,20 @@ function CompletenessBadge({ project }: { project: Project }) {
       <button
         onClick={() => setOpen(!open)}
         // S-UI-CLARITY-1: «6/8» само по себе не отличимо от процента стадии рядом
-        title={`Заполнено ${filled} из ${total} ключевых полей сделки`}
+        title={`Заполнено ${filled} из ${total} ключевых полей сделки — полнота ${score}%`}
         className={`rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
       >
         {filled}/{total}
       </button>
       {open && missing.length > 0 && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-popover p-2 elevation-2">
+        <div className="absolute left-0 top-full z-10 mt-1 w-64 rounded-lg border border-border bg-popover p-2 elevation-2">
           <p className="mb-1 text-xs font-medium text-text-mute">Не заполнено:</p>
-          {missing.map((f) => (
-            <div key={f.key} className="text-xs text-text-dim py-0.5">{f.label}</div>
+          {missing.map((rule) => (
+            <div key={rule.key} className="py-0.5">
+              <div className="text-xs text-text-dim">{rule.label}</div>
+              {/* Суть оси достоверности: не «поле пустое», а что из-за этого не работает */}
+              <div className="text-[0.6875rem] leading-snug text-text-mute">{rule.cost}</div>
+            </div>
           ))}
         </div>
       )}

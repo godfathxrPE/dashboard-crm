@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import type { OrgSettings } from '@/types/database';
+import {
+  DEFAULT_RULES,
+  COMPLETENESS_WEIGHT_MAX,
+  COMPLETENESS_WEIGHT_MIN,
+  type CompletenessOverrides,
+} from '@/lib/domain/deal-completeness';
 
 /**
  * Настройки организации (`organizations.settings`, миграция 076).
@@ -29,10 +35,29 @@ const stageDwellDefaultsSchema = z.record(
   z.number().int().min(STAGE_DWELL_MIN).max(STAGE_DWELL_MAX).optional(),
 );
 
+/**
+ * Веса правил полноты сделки (S-R3-TRUST-1): ключ правила → вес.
+ * Org переопределяет только вес; label и «цена пустоты» — тексты продукта.
+ */
+const completenessRulesSchema = z.record(
+  z.string(),
+  z
+    .object({
+      weight: z
+        .number()
+        .int()
+        .min(COMPLETENESS_WEIGHT_MIN)
+        .max(COMPLETENESS_WEIGHT_MAX)
+        .optional(),
+    })
+    .optional(),
+);
+
 export const orgSettingsSchema = z
   .object({
     reconnect_days: reconnectDaysSchema.optional(),
     stage_dwell_defaults: stageDwellDefaultsSchema.optional(),
+    completeness_rules: completenessRulesSchema.optional(),
   })
   .passthrough();
 
@@ -67,7 +92,23 @@ const dwellFieldSchema = z
     `Допустимо ${STAGE_DWELL_MIN}–${STAGE_DWELL_MAX}`,
   );
 
-/** Форма секции настроек: порог тишины + четыре норматива дней в стадии. */
+/**
+ * Поле веса правила полноты — тоже СТРОКА и по той же причине, что `dwellFieldSchema`.
+ * Пустое поле = «вес по умолчанию», `'0'` = «правило не учитывать» (валидное значение,
+ * не путать с пустым).
+ */
+const completenessFieldSchema = z
+  .string()
+  .trim()
+  .refine((s) => s === '' || /^\d+$/.test(s), 'Только целое число')
+  .refine(
+    (s) =>
+      s === '' ||
+      (Number(s) >= COMPLETENESS_WEIGHT_MIN && Number(s) <= COMPLETENESS_WEIGHT_MAX),
+    `Допустимо ${COMPLETENESS_WEIGHT_MIN}–${COMPLETENESS_WEIGHT_MAX}`,
+  );
+
+/** Форма секции настроек: порог тишины + нормативы дней в стадии + веса полноты. */
 export const orgSettingsFormSchema = z.object({
   reconnect_days: reconnectDaysSchema,
   stage_dwell: z.object({
@@ -76,6 +117,9 @@ export const orgSettingsFormSchema = z.object({
     approval: dwellFieldSchema,
     closing: dwellFieldSchema,
   }),
+  // `.default({})` — секция полноты необязательна на входе: форма всегда её подаёт,
+  // а вызовы схемы без неё (в т.ч. существующие тесты нормативов) остаются валидными.
+  completeness: z.record(z.string(), completenessFieldSchema).default({}),
 });
 export type OrgSettingsFormValues = z.infer<typeof orgSettingsFormSchema>;
 
@@ -119,6 +163,84 @@ export function buildStageDwellDefaults(
     if (Number.isInteger(n) && n >= STAGE_DWELL_MIN && n <= STAGE_DWELL_MAX) out[key] = n;
   }
   return out;
+}
+
+/**
+ * Веса правил полноты из настроек org (`settings.completeness_rules`).
+ *
+ * Ключ живёт в jsonb через `.passthrough()`, а НЕ в интерфейсе `OrgSettings`:
+ * `src/types/database.ts` руками не правится (правило 2 контракта), поэтому чтение
+ * идёт одним кастом здесь, а наружу отдаётся уже провалидированный объект.
+ * Мусор, чужие ключи и веса вне 0..10 просто отбрасываются — читатель не падает.
+ */
+export function readCompletenessOverrides(
+  settings: OrgSettings | null | undefined,
+): CompletenessOverrides | undefined {
+  const raw = (settings as Record<string, unknown> | null | undefined)?.completeness_rules;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+  const out: CompletenessOverrides = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const weight = (value as { weight?: unknown } | null)?.weight;
+    if (
+      typeof weight === 'number' &&
+      Number.isInteger(weight) &&
+      weight >= COMPLETENESS_WEIGHT_MIN &&
+      weight <= COMPLETENESS_WEIGHT_MAX
+    ) {
+      out[key] = { weight };
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** jsonb-настройки → строковые поля формы (нет ключа ⇒ пустое поле ⇒ вес по умолчанию). */
+export function completenessToForm(
+  overrides: CompletenessOverrides | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const rule of DEFAULT_RULES) {
+    const w = overrides?.[rule.key]?.weight;
+    out[rule.key] = typeof w === 'number' ? String(w) : '';
+  }
+  return out;
+}
+
+/**
+ * Значения формы → патч `settings.completeness_rules`.
+ *
+ * ⚠️ Пустое поле не пишется ключом со значением `null` — ключа просто нет, иначе
+ * `resolveRules` увидел бы невалидный вес вместо «как по умолчанию». `'0'` — валидный
+ * вес и ключ пишется: это «правило выключено», а не «не задано».
+ *
+ * Ключи, которых нет в `DEFAULT_RULES` (правило будущей версии), сохраняются из
+ * текущих настроек: перезапись объекта целиком их бы стёрла.
+ *
+ * Возвращает патч уже как `OrgSettings` — единственный каст, чтобы потребители
+ * (`useUpdateOrgSettings`) не знали про passthrough-ключ.
+ */
+export function buildCompletenessPatch(
+  values: Record<string, string>,
+  current?: CompletenessOverrides,
+): OrgSettings {
+  const known = new Set(DEFAULT_RULES.map((r) => r.key));
+  const out: Record<string, { weight: number }> = {};
+
+  for (const [key, value] of Object.entries(current ?? {})) {
+    const w = value?.weight;
+    if (!known.has(key) && typeof w === 'number') out[key] = { weight: w };
+  }
+
+  for (const rule of DEFAULT_RULES) {
+    const raw = values[rule.key]?.trim() ?? '';
+    if (raw === '') continue; // «как по умолчанию» — ключа нет
+    const n = Number(raw);
+    if (Number.isInteger(n) && n >= COMPLETENESS_WEIGHT_MIN && n <= COMPLETENESS_WEIGHT_MAX) {
+      out[rule.key] = { weight: n };
+    }
+  }
+
+  return { completeness_rules: out } as unknown as OrgSettings;
 }
 
 /**

@@ -6,6 +6,8 @@ import {
   type SegmentRow,
 } from '@/lib/domain/segment-eval';
 import type { SegmentClause, SegmentPredicate } from '@/types/database';
+import { DEFAULT_RULES, resolveRules } from '@/lib/domain/deal-completeness';
+import { segmentFieldSet } from '@/lib/constants/segments';
 
 // Фиксированный «сейчас»: 2026-07-26 09:00 UTC = 12:00 MSK. День MSK = 2026-07-26.
 const NOW = new Date('2026-07-26T09:00:00Z');
@@ -226,5 +228,48 @@ describe('предикат целиком', () => {
       deal({ id: 'd', next_step: null, status: 'won' }),
     ];
     expect(applySegment(rows, p, 'deals', NOW).map((r) => r.id)).toEqual(['a', 'b']);
+  });
+});
+
+// ═══ S-R3-TRUST-1: вычисляемое поле completeness_score ═══
+describe('completeness_score — вычисляемое поле', () => {
+  // Своя шпионка на console.warn: поле обязано быть в whitelist, а не «прощаться» молча.
+  let warn: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
+  // deal() выше заполнен не полностью (нет contact_id и deadline) ⇒ вес 15 из 18 = 83%.
+  const empty = (over: SegmentRow = {}): SegmentRow =>
+    deal({ company_id: null, budget: null, next_step: null, ...over });
+
+  it('предикат по completeness_score фильтрует список', () => {
+    const p = pred({ field: 'completeness_score', op: 'lt', value: 60 });
+    const rows = [deal({ id: 'full' }), empty({ id: 'thin' })];
+    expect(applySegment(rows, p, 'deals', NOW).map((r) => r.id)).toEqual(['thin']);
+  });
+
+  it('без ctx считается по дефолтным правилам, а не проваливается в false', () => {
+    // 15/18 = 83: без контекста значение есть и сравнения работают в обе стороны
+    expect(match({ field: 'completeness_score', op: 'eq', value: 83 })).toBe(true);
+    expect(match({ field: 'completeness_score', op: 'gte', value: 80 })).toBe(true);
+    expect(match({ field: 'completeness_score', op: 'lt', value: 60 })).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('ctx с весами организации меняет результат того же предиката', () => {
+    const p = pred({ field: 'completeness_score', op: 'eq', value: 100 });
+    const row = deal(); // не хватает contact_id (вес 2) и deadline (вес 1)
+    expect(matchSegment(row, p, 'deals', NOW)).toBe(false);
+    // выключаем оба правила весом 0 — сделка становится полной
+    const rules = resolveRules(DEFAULT_RULES, { contact_id: { weight: 0 }, deadline: { weight: 0 } });
+    expect(matchSegment(row, p, 'deals', NOW, { completenessRules: rules })).toBe(true);
+  });
+
+  it('поле в whitelist: клауза не даёт молчаливый false и не пишет warn', () => {
+    expect(segmentFieldSet('deals').has('completeness_score')).toBe(true);
+    applySegment([deal()], pred({ field: 'completeness_score', op: 'gt', value: 0 }), 'deals', NOW);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

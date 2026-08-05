@@ -1,9 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
-import { parseOrgSettings } from '@/lib/validators/org-settings';
+import { parseOrgSettings, readCompletenessOverrides } from '@/lib/validators/org-settings';
+import { DEFAULT_RULES, resolveRules, type CompletenessRules } from '@/lib/domain/deal-completeness';
 import type { DwellThresholds } from '@/lib/utils/deal-health';
 import type { Json, OrgSettings } from '@/types/database';
 
@@ -99,4 +101,14 @@ export function useReconnectDays(): number {
 export function useDwellThresholds(): DwellThresholds {
   const { data } = useOrgSettings();
   return data?.stage_dwell_defaults ?? EMPTY_THRESHOLDS;
+}
+
+/**
+ * Правила полноты сделки с учётом весов организации (S-R3-TRUST-1).
+ * Ненастроенная org получает ровно `DEFAULT_RULES` — и ту же ссылку, поэтому
+ * значение можно класть в зависимости `useMemo` у потребителей.
+ */
+export function useCompletenessRules(): CompletenessRules {
+  const { data } = useOrgSettings();
+  return useMemo(() => resolveRules(DEFAULT_RULES, readCompletenessOverrides(data)), [data]);
 }

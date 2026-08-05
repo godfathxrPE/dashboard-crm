@@ -17,6 +17,7 @@ import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
+import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
 import { projectHref } from '@/lib/utils/project-href';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { ProjectModal } from './ProjectModal';
@@ -62,6 +63,8 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
     return map;
   }, [allStages]);
 
+  const completenessRules = useCompletenessRules();
+
   const projects = useMemo(
     () => applySegment(
       applyProjectQuickFilter(
@@ -69,8 +72,12 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
         quickFilter,
       ),
       segment,
+      'deals',
+      undefined,
+      // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
+      { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment],
+    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
   );
 
   const today = useMemo(() => new Date(new Date().toDateString()), []);
