@@ -9,6 +9,16 @@ import type { AiRunRow, TranscriptRow, TranscriptInsert } from '@/types/database
 // 085: 'project' — сущность read-only пресетов по сделке.
 export type AiRunEntity = AiEntityType;
 
+/**
+ * Откуда взялся текст транскрипта. 106 расширил CHECK `transcripts.source` до
+ * {paste, file, audio}; 'file' в проекте не пишет никто — это задел 030 под VTT.
+ *
+ * Домен живёт здесь, а не в `TranscriptRow['source']`, потому что `database.ts`
+ * руками не правится (правило 2 контракта). На вставке типы сходятся: клиент
+ * Supabase типизирован автогенерацией, где `source?: string`.
+ */
+export type TranscriptSource = 'paste' | 'audio';
+
 /** Разбор ошибки invoke: edge отдаёт человеческий текст в теле, а не в error.message. */
 async function invokeErrorMessage(error: unknown, fallback: string): Promise<string> {
   try {
@@ -82,13 +92,22 @@ export function useEntityRuns(entityType: AiRunEntity, entityId: string | null) 
  *    отобьёт четырёхсоткой с внятным текстом.
  *
  * Ключ Anthropic на клиент не попадает ни в одном из путей.
+ *
+ * S-R3-VOICE-1: `source` — откуда текст. 'paste' по умолчанию (человек вставил),
+ * 'audio' — когда текст пришёл из `TranscribeDropzone`. Правило «изменился текст →
+ * новый транскрипт» не тронуто: человек правит машинную расшифровку руками, и
+ * правка не должна затирать исходную версию.
  */
 export function useStartRun(entityType: AiRunEntity, entityId: string) {
   const supabase = createClient();
   const qc = useQueryClient();
 
-  return useMutation<{ run_id: string }, Error, { preset_key: string; text?: string }>({
-    mutationFn: async ({ preset_key, text }) => {
+  return useMutation<
+    { run_id: string },
+    Error,
+    { preset_key: string; text?: string; source?: TranscriptSource }
+  >({
+    mutationFn: async ({ preset_key, text, source = 'paste' }) => {
       // Путь «по сущности»: транскрипта нет и создавать его нечем.
       if (!text || text.trim() === '') {
         const { data, error } = await supabase.functions.invoke('ai-run', {
@@ -124,12 +143,12 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
       if (last && last.content === text) {
         transcriptId = last.id as string;
       } else {
-        const insert: TranscriptInsert = {
+        const insert: Omit<TranscriptInsert, 'source'> & { source: TranscriptSource } = {
           entity_type: entityType,
           entity_id: entityId,
           content: text,
           char_count: text.length,
-          source: 'paste',
+          source,
         };
         const { data: created, error: insErr } = await supabase
           .from('transcripts')
