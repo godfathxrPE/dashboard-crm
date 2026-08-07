@@ -245,7 +245,7 @@
 > схемы не меняет — только сид-строка в `segments`, шестой общий сегмент сделок
 > «Полнота <60%» (см. раздел `segments` ниже). Реген типов не нужен. Идемпотентность
 > проверена повторным apply — вторая строка не создалась;
-> **106 (S-R3-VOICE-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`106_transcripts_source_audio.sql`):
+> **106 (S-R3-VOICE-1) — ПРИМЕНЕНА гейтом 2026-08-07** (`106_transcripts_source_audio.sql`):
 > CHECK `transcripts_source_check` расширен третьим значением `audio` (расшифровка
 > аудио через новую edge-функцию `transcribe`). Ни колонок, ни политик, ни функций —
 > домен CHECK'а расширяется обратно совместимо, реген типов не нужен (`source` в
@@ -254,8 +254,9 @@
 > живёт в `TranscriptSource` (`src/lib/hooks/use-ai-run.ts`).
 > Тем же PR, без миграции: **шестая Edge Function `transcribe`** (`verify_jwt = true`,
 > Groq Whisper + вычитка Claude; ни одной таблицы не читает и не пишет — транскрипт
-> вставляет клиент под своими RLS). **До деплоя функции и заведения секрета
-> `GROQ_API_KEY` вкладка «Аудио» не работает.** Зеркала `glossary.ts`/`cleanup-prompt.ts`
+> вставляет клиент под своими RLS) — **задеплоена гейтом 2026-08-07**, ACTIVE, version 1,
+> `verify_jwt = true`. ⚠️ **До заведения секрета `GROQ_API_KEY` вкладка «Аудио» отвечает
+> «Расшифровка временно недоступна» — функция жива, ключа нет.** Зеркала `glossary.ts`/`cleanup-prompt.ts`
 > (`src/lib/transcribe/` ↔ `supabase/functions/transcribe/`) держит
 > `tests/unit/transcribe-mirror.test.ts` — как `chz-groups`;
 > следующая свободная после неё — **107**;
