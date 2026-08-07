@@ -156,8 +156,10 @@ export function presetByKey(key: string): PresetMeta | undefined {
 }
 
 // Грубая оценка стоимости для UI («≈ N ₽ за прогон»). Цены — ESTIMATED, вынести в один источник.
-const PRICE_PER_MTOK = { sonnet: { in: 3, out: 15 }, haiku: { in: 0.8, out: 4 } }; // $ / 1M токенов
-const USD_RUB = 100;
+// S-R3-VOICE-1: экспортируются, чтобы оценка вычитки транскрипта
+// (`src/lib/transcribe/cost.ts`) считалась по ТОЙ ЖЕ таблице цен, а не по своей копии.
+export const PRICE_PER_MTOK = { sonnet: { in: 3, out: 15 }, haiku: { in: 0.8, out: 4 } }; // $ / 1M токенов
+export const USD_RUB = 100;
 /**
  * S-COMPANY-AI-1a. Веб-поиск Anthropic тарифицируется ОТДЕЛЬНО от токенов:
  * $10 за 1000 запросов (сверено 2026-08). Пять поисков брифа — это $0.05, то есть

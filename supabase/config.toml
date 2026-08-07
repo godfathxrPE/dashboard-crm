@@ -55,3 +55,19 @@ verify_jwt = true
 # переопределяет модель без правки кода).
 [functions.ai-capture]
 verify_jwt = true
+
+# S-R3-VOICE-1: расшифровка аудио (transcribe) — Groq Whisper + вычитка Claude.
+#
+# verify_jwt = true — тот же контур, что у ai-capture/company-lookup. Собственной
+# проверки прав внутри нет и не требуется: функция НЕ ЧИТАЕТ и НЕ ПИШЕТ в БД проекта
+# вовсе. Готовый текст она отдаёт клиенту, а транскрипт в `transcripts` пишет
+# пользователь обычным INSERT (useStartRun), под своими RLS-политиками —
+# service_role поэтому не запрашивается: обойти RLS функции нечем.
+#
+# Аудио нигде не сохраняется: чанк живёт в памяти изолята на время запроса.
+#
+# Секреты: GROQ_API_KEY (обязателен для распознавания), ANTHROPIC_API_KEY
+# (обязателен для вычитки, уже заведён), TRANSCRIBE_CLEANUP_MODEL (необязателен —
+# переопределяет модель вычитки без правки кода, дефолт claude-sonnet-5).
+[functions.transcribe]
+verify_jwt = true

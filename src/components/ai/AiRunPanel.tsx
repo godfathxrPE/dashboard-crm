@@ -9,6 +9,7 @@ import {
   useStartRun,
   useRunRating,
   type AiRunEntity,
+  type TranscriptSource,
 } from '@/lib/hooks/use-ai-run';
 import {
   presetsForEntity,
@@ -21,6 +22,7 @@ import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
 import { RunCostMeta } from './RunCostMeta';
 import { AiProgressionPanel } from './AiProgressionPanel';
+import { TranscribeDropzone } from './TranscribeDropzone';
 import type { ActionItem } from './renderers/ProtocolRenderer';
 
 interface AiRunPanelProps {
@@ -72,11 +74,19 @@ export function AiRunPanel({
   const rating = useRunRating();
 
   const [text, setText] = useState('');
+  // S-R3-VOICE-1: откуда взялся текст в поле — прокидывается в `transcripts.source`.
+  // Ручная правка расшифровки источник НЕ меняет: это по-прежнему машинный текст,
+  // доведённый человеком, и знать это полезнее, чем «paste» после одной запятой.
+  const [source, setSource] = useState<TranscriptSource>('paste');
+  const [mode, setMode] = useState<'paste' | 'audio'>('paste');
   const seededRef = useRef<string | null>(null);
   useEffect(() => {
     if (transcript && seededRef.current !== transcript.id) {
       seededRef.current = transcript.id;
       setText(transcript.content ?? '');
+      // Текст пришёл с сервера: пока он не изменён, `useStartRun` переиспользует ту же
+      // строку и до `source` дело не дойдёт. Изменён — это уже правка руками.
+      setSource('paste');
     }
   }, [transcript]);
 
@@ -90,6 +100,8 @@ export function AiRunPanel({
 
   const presets = presetsForEntity(entityType);
   const hasText = text.trim().length > 0;
+  // Транскрипт (а значит и расшифровка аудио) существует только у звонка и встречи.
+  const canTranscribe = entityType === 'call' || entityType === 'meeting';
 
   // 085: пресету с needsTranscript транскрипт обязателен; остальным хватает заметок
   // сущности — прогон уйдёт по пути { entity_type, entity_id } без транскрипта.
@@ -110,7 +122,7 @@ export function AiRunPanel({
   const handleRun = (presetKey: string) => {
     const preset = presetByKey(presetKey);
     if (!preset || !canRun(preset) || start.isPending) return;
-    start.mutate({ preset_key: presetKey, text });
+    start.mutate({ preset_key: presetKey, text, source });
   };
 
   const handleCopy = async (run: AiRunRow) => {
@@ -138,16 +150,66 @@ export function AiRunPanel({
         <span>AI-анализ по транскрипту</span>
       </div>
 
-      {/* Транскрипт */}
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={4}
-        placeholder="Вставьте транскрипт разговора…"
-        className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-        style={{ resize: 'vertical', minHeight: '80px' }}
-      />
-      <div className="mt-1 text-right text-meta text-text-mute">{text.length.toLocaleString('ru')} симв.</div>
+      {/* Откуда взять транскрипт: вставить руками или расшифровать аудио (S-R3-VOICE-1).
+          Только у звонка и встречи: `transcripts.entity_type` — call|meeting, у сделки и
+          компании транскрипта не бывает, и предлагать там расшифровку значило бы вести
+          в тупик «К сделке нельзя привязать транскрипт». */}
+      {canTranscribe && (
+        <div className="mb-2 inline-flex rounded-lg border border-border bg-surface p-0.5">
+          {(
+            [
+              ['paste', 'Вставить'],
+              ['audio', 'Аудио'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={mode === value}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+                mode === value
+                  ? 'bg-accent-l text-accent'
+                  : 'text-text-dim hover:bg-surface-hover hover:text-text-main'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Режимы — альтернативы: поле показываем только во «Вставить», чтобы не было
+          двух мест ввода одного текста одновременно. */}
+      {canTranscribe && mode === 'audio' ? (
+        <div className="mb-3">
+          <TranscribeDropzone
+            onResult={(result) => {
+              setText(result);
+              setSource('audio');
+              // Текст готов — возвращаем человека к полю, где он его вычитает глазами
+              // и сам запустит пресет. Автозапуска прогона нет намеренно.
+              setMode('paste');
+            }}
+          />
+        </div>
+      ) : (
+        <>
+          {/* Транскрипт */}
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            placeholder="Вставьте транскрипт разговора…"
+            className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            style={{ resize: 'vertical', minHeight: '80px' }}
+          />
+          <div className="mt-1 flex items-center justify-end gap-2 text-meta text-text-mute">
+            {source === 'audio' && <span className="text-accent">расшифровка аудио</span>}
+            <span>{text.length.toLocaleString('ru')} симв.</span>
+          </div>
+        </>
+      )}
 
       {/* Кнопки пресетов */}
       <div className="mt-2 flex flex-wrap gap-1.5">

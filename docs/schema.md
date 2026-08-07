@@ -245,7 +245,20 @@
 > схемы не меняет — только сид-строка в `segments`, шестой общий сегмент сделок
 > «Полнота <60%» (см. раздел `segments` ниже). Реген типов не нужен. Идемпотентность
 > проверена повторным apply — вторая строка не создалась;
-> следующая свободная после неё — **106**;
+> **106 (S-R3-VOICE-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`106_transcripts_source_audio.sql`):
+> CHECK `transcripts_source_check` расширен третьим значением `audio` (расшифровка
+> аудио через новую edge-функцию `transcribe`). Ни колонок, ни политик, ни функций —
+> домен CHECK'а расширяется обратно совместимо, реген типов не нужен (`source` в
+> автогенерации и так `string`). ⚠️ `TranscriptRow['source']` в `src/types/database.ts`
+> остаётся `'paste' | 'file'`: файл руками не правится, домен источника при записи
+> живёт в `TranscriptSource` (`src/lib/hooks/use-ai-run.ts`).
+> Тем же PR, без миграции: **шестая Edge Function `transcribe`** (`verify_jwt = true`,
+> Groq Whisper + вычитка Claude; ни одной таблицы не читает и не пишет — транскрипт
+> вставляет клиент под своими RLS). **До деплоя функции и заведения секрета
+> `GROQ_API_KEY` вкладка «Аудио» не работает.** Зеркала `glossary.ts`/`cleanup-prompt.ts`
+> (`src/lib/transcribe/` ↔ `supabase/functions/transcribe/`) держит
+> `tests/unit/transcribe-mirror.test.ts` — как `chz-groups`;
+> следующая свободная после неё — **107**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -925,7 +938,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 ---
 
-### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**; **104 — entity_type='company', пресет `company_brief`, перезапись RLS**)_ — AI Hub
+### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**; **104 — entity_type='company', пресет `company_brief`, перезапись RLS**; **106 — source='audio', S-R3-VOICE-1**)_ — AI Hub
 
 Транскрипт как самостоятельная сущность (1 транскрипт → N прогонов пресетов; нужен и
 звонкам, и встречам) + журнал AI-прогонов. Обе — **обычные tenant-таблицы**: `org_id`
@@ -940,9 +953,9 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
 | entity_type | text | NOT NULL CHECK `call`\|`meeting` |
 | entity_id | uuid | NOT NULL (звонок/встреча) |
-| source | text | NOT NULL DEFAULT `paste` CHECK `paste`\|`file` (задел под VTT/stt) |
-| content | text | текст транскрипта (paste в v1) |
-| storage_path | text | оригинал файла (S-AI-2, private bucket) |
+| source | text | NOT NULL DEFAULT `paste` CHECK `paste`\|`file`\|**`audio`** _(106, S-R3-VOICE-1)_. `file` — задел 030 под VTT/stt, не пишет никто; `audio` — расшифровка через edge `transcribe` |
+| content | text | текст транскрипта (paste в v1; с 106 — ещё и расшифровка аудио) |
+| storage_path | text | оригинал файла (S-AI-2, private bucket). **Не используется и с 106**: аудио не хранится вовсе — файл декодируется в браузере, уходит чанками в edge `transcribe` и исчезает; бакета под записи нет |
 | char_count | int | NOT NULL |
 | created_by | uuid | NOT NULL DEFAULT `auth.uid()` → profiles (DEFAULT — для клиентского INSERT под RLS) |
 | created_at | timestamptz | default now() |

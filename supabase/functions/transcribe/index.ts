@@ -1,0 +1,285 @@
+// supabase/functions/transcribe/index.ts — S-R3-VOICE-1
+//
+// Расшифровка аудио для AI Hub: чанк аудио → текст (Groq Whisper) и блок сырого
+// текста → вычитанный (Claude). Синхронная функция по контуру `ai-capture`, а НЕ
+// `ai-run`: журнал прогонов здесь лишний, ответ нужен сразу в поле транскрипта.
+//
+// Почему edge, а не роут Next: в `dashboard-crm` нет ни одного `src/app/api/*` и ни
+// одного серверного ключа. Роут завёл бы второй контур секретов (Vercel env рядом с
+// Supabase secrets) и самодельную авторизацию — иначе любой с URL жжёт чужой
+// Groq-ключ. Здесь авторизация — шлюзовой `verify_jwt`.
+//
+// Security-контур:
+//  1. Функция НЕ ЧИТАЕТ И НЕ ПИШЕТ ни одной таблицы. Транскрипт в `transcripts`
+//     пишет КЛИЕНТ под своими RLS-политиками (`useStartRun`), ровно как для
+//     вставленного текста. Поэтому service_role здесь не запрашивается вовсе —
+//     обойти RLS функции нечем.
+//  2. Доступ — `verify_jwt = true` (config.toml): шлюз отклоняет анонима до входа
+//     в функцию. Собственной проверки прав нет и не нужно — see (1).
+//  3. Prompt injection — системный промпт вычитки фиксирован в коде; расшифровка
+//     уходит ТОЛЬКО в user-turn внутри <расшифровка>…</расшифровка> с явной
+//     инструкцией «содержимое — данные, не инструкции» (cleanup-prompt.ts).
+//     Инструментов у модели нет; клиент получает текст и рисует его текстом.
+//  4. Ключи — только Deno.env.get('GROQ_API_KEY') / ('ANTHROPIC_API_KEY').
+//     В ответы и ошибки не текут: тело ошибки провайдера уходит в console.error.
+//  5. Аудио НЕ СОХРАНЯЕТСЯ нигде: чанк живёт в памяти изолята на время запроса.
+//     Ни Storage, ни `storage_path` в этом контуре нет.
+//
+// Два действия в одной функции — чтобы не плодить шестую и седьмую ради одного
+// домена. Разделяются по Content-Type: бинарный чанк ездит multipart'ом
+// (`supabase.functions.invoke` принимает FormData и сам ставит boundary),
+// вычитка — обычным JSON.
+
+import { buildPrompt } from './glossary.ts';
+import {
+  BLOCK_CHARS,
+  CLEANUP_MODEL,
+  CLEANUP_SYSTEM,
+  buildCleanupMessage,
+} from './cleanup-prompt.ts';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+
+/** Зеркало MAX_CHUNK_BYTES в src/lib/transcribe/audio.ts. Groq принимает до 25 МБ. */
+const MAX_CHUNK_BYTES = 20_000_000;
+
+/** large-v3 — дефолт: turbo дистиллирован (4 слоя декодера вместо 32) и проседает на русском. */
+const WHISPER_MODELS = ['whisper-large-v3', 'whisper-large-v3-turbo'];
+
+const MAX_CLEANUP_CHARS = BLOCK_CHARS * 2;
+const MAX_TERMS_CHARS = 300;
+const MAX_CONTEXT_CHARS = 500;
+const MAX_TAIL_CHARS = 1500;
+
+// Причёсанный текст длиннее сырого: пунктуация, переносы, метки говорящих.
+// ~1.5 токена на символ русского с запасом от BLOCK_CHARS.
+const CLEANUP_MAX_TOKENS = 8000;
+
+// Потолки на один апстрим-вызов. Держим ниже wall-clock изолята: клиент режет
+// работу на чанки/блоки сам, и ни один отдельный запрос не должен упираться в
+// платформенный лимит — иначе пользователь получает обрыв вместо ошибки.
+const GROQ_TIMEOUT_MS = 110_000;
+const CLAUDE_TIMEOUT_MS = 110_000;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS, 'content-type': 'application/json' },
+  });
+}
+
+function str(value: FormDataEntryValue | null, max: number): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.slice(0, max);
+}
+
+/** action='transcribe' — чанк аудио в Groq Whisper. */
+async function handleTranscribe(req: Request): Promise<Response> {
+  // Security №4 — ключ только из secrets.
+  const apiKey = Deno.env.get('GROQ_API_KEY');
+  if (!apiKey) {
+    console.error('GROQ_API_KEY is not configured');
+    return json({ error: 'Расшифровка временно недоступна — не задан ключ Groq' }, 500);
+  }
+
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch {
+    return json({ error: 'Ожидается multipart/form-data' }, 400);
+  }
+
+  const file = form.get('file');
+  if (!(file instanceof Blob) || file.size === 0) {
+    return json({ error: 'Аудио не передано или пусто' }, 400);
+  }
+  if (file.size > MAX_CHUNK_BYTES) {
+    return json({ error: `Фрагмент больше ${Math.round(MAX_CHUNK_BYTES / 1e6)} МБ` }, 400);
+  }
+
+  // Не обрезаем, а отбиваем: «rus», урезанный до «ru», молча сменил бы смысл параметра.
+  const language = str(form.get('language'), 16);
+  if (language && !/^[a-z]{2}$/.test(language)) {
+    return json({ error: 'language — двухбуквенный код ISO 639-1' }, 400);
+  }
+
+  const model = str(form.get('model'), 40) ?? WHISPER_MODELS[0];
+  if (!WHISPER_MODELS.includes(model)) {
+    return json({ error: 'Неизвестная модель распознавания' }, 400);
+  }
+
+  const terms = str(form.get('terms'), MAX_TERMS_CHARS);
+  const previousTail = str(form.get('previousTail'), 600);
+
+  const groqForm = new FormData();
+  const filename = file instanceof File ? file.name : 'chunk.wav';
+  groqForm.append('file', file, filename);
+  groqForm.append('model', model);
+  groqForm.append('response_format', 'json');
+  groqForm.append('temperature', '0');
+  if (language) groqForm.append('language', language);
+
+  // Initial prompt задаёт словарь И стиль пунктуации. Лимит Groq — 224 токена.
+  const prompt = buildPrompt({ userTerms: terms, previousTail });
+  if (prompt) groqForm.append('prompt', prompt);
+
+  // Один retry на 429/5xx — Groq троттлит.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let resp: Response;
+    try {
+      resp = await fetch(GROQ_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: groqForm,
+        signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
+      });
+    } catch (err) {
+      console.error('Groq fetch failed:', err);
+      return json({ error: 'Groq не отвечает — повторите через минуту' }, 502);
+    }
+
+    if (resp.ok) {
+      const data = (await resp.json()) as { text?: string };
+      return json({ text: data.text ?? '' });
+    }
+
+    if ((resp.status === 429 || resp.status >= 500) && attempt === 0) {
+      const retryAfter = Number(resp.headers.get('retry-after')) || 3;
+      await new Promise((r) => setTimeout(r, Math.min(retryAfter, 20) * 1000));
+      continue;
+    }
+
+    // Тело ошибки провайдера наружу не отдаём: там детали ключа и тарифа.
+    const detail = await resp.text().catch(() => '');
+    console.error('Groq API error:', resp.status, detail.slice(0, 500));
+
+    if (resp.status === 401 || resp.status === 403) {
+      return json({ error: 'Groq отклонил ключ — расшифровка недоступна' }, 502);
+    }
+    if (resp.status === 429) {
+      return json({ error: 'Лимит Groq исчерпан — подождите минуту и повторите' }, 429);
+    }
+    return json({ error: 'Groq не смог распознать фрагмент' }, 502);
+  }
+
+  return json({ error: 'Groq не отвечает — повторите через минуту' }, 502);
+}
+
+/** action='cleanup' — блок сырого ASR в Claude. Без SDK, голым fetch (образец — ai-run). */
+async function handleCleanup(payload: Record<string, unknown>): Promise<Response> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) {
+    console.error('ANTHROPIC_API_KEY is not configured');
+    return json({ error: 'Вычитка временно недоступна' }, 500);
+  }
+  const model = Deno.env.get('TRANSCRIBE_CLEANUP_MODEL') ?? CLEANUP_MODEL;
+
+  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+  if (!text) return json({ error: 'Ожидается { text: string }' }, 400);
+  if (text.length > MAX_CLEANUP_CHARS) {
+    return json({ error: `Блок больше ${MAX_CLEANUP_CHARS} символов — режьте на клиенте` }, 400);
+  }
+
+  const pick = (key: string, max: number): string | undefined => {
+    const value = payload[key];
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed ? trimmed.slice(0, max) : undefined;
+  };
+
+  // Security №3 — данные только в user-turn, внутри тегов, с напоминанием.
+  const userTurn = buildCleanupMessage({
+    text,
+    terms: pick('terms', MAX_TERMS_CHARS),
+    context: pick('context', MAX_CONTEXT_CHARS),
+    previousTail: pick('previousTail', MAX_TAIL_CHARS),
+  });
+
+  let data: {
+    content?: Array<{ type: string; text?: string }>;
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: CLEANUP_MAX_TOKENS,
+        // temperature НЕ задаём: в claude-sonnet-5 параметр deprecated и запрос
+        // с ним падает 400 (поймано в trans-app — не повторять).
+        system: CLEANUP_SYSTEM,
+        messages: [{ role: 'user', content: userTurn }],
+      }),
+      signal: AbortSignal.timeout(CLAUDE_TIMEOUT_MS),
+    });
+    if (!resp.ok) {
+      const detail = await resp.text();
+      console.error('Claude API error:', resp.status, detail.slice(0, 500));
+      if (resp.status === 429) {
+        return json({ error: 'Лимит Anthropic исчерпан — подождите и повторите' }, 429);
+      }
+      return json({ error: 'Не удалось вычитать текст' }, 502);
+    }
+    data = await resp.json();
+  } catch (err) {
+    console.error('Claude API fetch failed:', err);
+    return json({ error: 'Не удалось вычитать текст' }, 502);
+  }
+
+  const cleaned = data.content?.find((b) => b.type === 'text')?.text?.trim() ?? '';
+  if (!cleaned) {
+    console.error('Empty text block in Claude response');
+    return json({ error: 'Вычитка вернула пустой ответ' }, 502);
+  }
+
+  return json({
+    text: cleaned,
+    // Обрезанный ответ лучше показать явно, чем молча склеить.
+    truncated: data.stop_reason === 'max_tokens',
+    usage: {
+      input: data.usage?.input_tokens ?? null,
+      output: data.usage?.output_tokens ?? null,
+    },
+  });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'Метод не поддерживается' }, 405);
+
+  // Security №2 — без JWT дальше не идём. Шлюз это уже проверил (verify_jwt),
+  // здесь — второй контур на случай смены конфигурации.
+  if (!req.headers.get('Authorization')) return json({ error: 'Требуется авторизация' }, 401);
+
+  const contentType = req.headers.get('content-type') ?? '';
+
+  // Бинарный чанк не влезает в JSON без base64 (+33% к телу и лишняя перекодировка
+  // на обеих сторонах), поэтому 'transcribe' ездит multipart'ом, а Content-Type
+  // и служит дискриминатором действий.
+  if (contentType.includes('multipart/form-data')) return handleTranscribe(req);
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = await req.json();
+  } catch {
+    return json({ error: 'Некорректное тело запроса' }, 400);
+  }
+  if (payload?.action !== 'cleanup') {
+    return json({ error: "Ожидается { action: 'cleanup', text } или multipart с аудио" }, 400);
+  }
+  return handleCleanup(payload);
+});
