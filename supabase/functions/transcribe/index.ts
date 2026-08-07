@@ -58,14 +58,17 @@ const MAX_CONTEXT_CHARS = 500;
 const MAX_TAIL_CHARS = 1500;
 
 // Причёсанный текст длиннее сырого: пунктуация, переносы, метки говорящих.
-// ~1.5 токена на символ русского с запасом от BLOCK_CHARS.
-const CLEANUP_MAX_TOKENS = 8000;
+// Потолок под блок в 1800 символов (BLOCK_CHARS) с запасом на разметку говорящих.
+const CLEANUP_MAX_TOKENS = 3000;
 
 // Потолки на один апстрим-вызов. Держим ниже wall-clock изолята: клиент режет
 // работу на чанки/блоки сам, и ни один отдельный запрос не должен упираться в
 // платформенный лимит — иначе пользователь получает обрыв вместо ошибки.
 const GROQ_TIMEOUT_MS = 110_000;
-const CLAUDE_TIMEOUT_MS = 110_000;
+// 75 с, а не 110: шлюз Supabase рвёт соединение примерно на 90 секундах и отдаёт
+// 502 БЕЗ нашего тела — пользователь получает пустую ошибку вместо человеческого
+// текста. Свой таймаут обязан сработать раньше шлюзового (боевой прогон 2026-08-07).
+const CLAUDE_TIMEOUT_MS = 75_000;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -185,7 +188,10 @@ async function handleCleanup(payload: Record<string, unknown>): Promise<Response
   const text = typeof payload.text === 'string' ? payload.text.trim() : '';
   if (!text) return json({ error: 'Ожидается { text: string }' }, 400);
   if (text.length > MAX_CLEANUP_CHARS) {
-    return json({ error: `Блок больше ${MAX_CLEANUP_CHARS} символов — режьте на клиенте` }, 400);
+    // Блоки режет клиент. Сюда приходит перебор только со старой вкладки, открытой до
+    // выката (там BLOCK_CHARS был 5000) — отбить сразу внятным текстом честнее, чем
+    // 90 секунд ждать и получить 502 от шлюза.
+    return json({ error: 'Обновите страницу — вкладка работает на старой версии' }, 400);
   }
 
   const pick = (key: string, max: number): string | undefined => {

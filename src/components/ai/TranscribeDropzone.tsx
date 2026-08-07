@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { FileAudio, Loader2, Mic, Square, Upload, X } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  FileAudio,
+  Loader2,
+  Mic,
+  RotateCw,
+  Square,
+  Upload,
+  X,
+} from 'lucide-react';
 import { useTranscribe } from '@/lib/hooks/use-transcribe';
 import { probeDuration } from '@/lib/transcribe/audio';
 import { estimateTranscribeCost, formatDuration, type WhisperModel } from '@/lib/transcribe/cost';
@@ -26,7 +36,7 @@ interface TranscribeDropzoneProps {
 type Staged = { blob: Blob; name: string; durationSec: number | null };
 
 export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
-  const { phase, raw, clean, busy, run, reset } = useTranscribe();
+  const { phase, raw, clean, busy, run, retryCleanup, reset } = useTranscribe();
 
   const [staged, setStaged] = useState<Staged | null>(null);
   const [terms, setTerms] = useState('');
@@ -108,8 +118,9 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
     };
   }, []);
 
-  // Ошибка пайплайна — тостом (конвенция проекта: alert/confirm запрещены линтом).
-  // Текст берём из сообщения edge-функции: там человеческие формулировки.
+  // Ошибка — и тостом, и полосой в панели. Тост исчезает через несколько секунд:
+  // на боевом прогоне 2026-08-07 владелец его пропустил и решил, что интерфейс
+  // «сбросился». Сообщение обязано остаться на экране до следующего действия.
   useEffect(() => {
     if (phase.name === 'error') toast.error(phase.message);
   }, [phase]);
@@ -120,21 +131,32 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
       ? estimateTranscribeCost(staged.durationSec, { model, cleanup })
       : null;
 
+  const options = { language: 'ru', model, cleanup, terms, context };
+
+  /** Текст принят человеком — уходит в поле «Вставить», панель очищается. */
+  const accept = (text: string, complete: boolean) => {
+    onResult(text);
+    setStaged(null);
+    reset();
+    toast.success(
+      complete
+        ? 'Расшифровка готова — проверьте текст и запускайте пресет'
+        : 'Текст перенесён в поле — он вычитан не полностью',
+    );
+  };
+
   const handleRun = async () => {
     if (!staged || busy) return;
-    const text = await run(staged.blob, {
-      language: 'ru',
-      model,
-      cleanup,
-      terms,
-      context,
-    });
-    if (text) {
-      onResult(text);
-      setStaged(null);
-      reset();
-      toast.success('Расшифровка готова — проверьте текст и запускайте пресет');
-    }
+    const outcome = await run(staged.blob, options);
+    // Неполный результат НЕ переносим сам: человек решает — повторить вычитку или
+    // взять как есть. Молча подсунуть недоделанный текст значило бы скрыть сбой.
+    if (outcome?.complete) accept(outcome.text, true);
+  };
+
+  const handleRetryCleanup = async () => {
+    if (busy) return;
+    const outcome = await retryCleanup(options);
+    if (outcome?.complete) accept(outcome.text, true);
   };
 
   const drop = (files: FileList | null) => {
@@ -148,6 +170,8 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
       : null;
 
   const preview = clean || raw;
+  // Лучшее, что есть на руках: вычитанные блоки, а где вычитка не удалась — сырой текст.
+  const bestText = (clean || raw).trim();
 
   return (
     <div className="space-y-3">
@@ -314,6 +338,47 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
         )}
       </div>
 
+      {/* Частичный успех: текст распознан, но вычитан не весь. Оба выхода — рядом с
+          сообщением, чтобы не надо было гадать, что делать дальше. */}
+      {phase.name === 'partial' && (
+        <div className="space-y-2 rounded-lg border border-yellow bg-yellow-l p-2.5">
+          <div className="flex items-start gap-1.5 text-xs text-text-main">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-yellow" />
+            <span>{phase.message}</span>
+          </div>
+          <p className="text-meta text-text-dim">
+            Текст распознан, но не вычитан — можно вставить как есть. Распознавание уже
+            оплачено: повтор вычитки к Groq не обращается.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleRetryCleanup}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              <RotateCw size={13} /> Повторить вычитку
+            </button>
+            <button
+              type="button"
+              onClick={() => accept(bestText, false)}
+              disabled={busy || !bestText}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface-hover disabled:opacity-50"
+            >
+              Взять текст как есть
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ошибка — в панели, а не только тостом: тост исчезает, а решение принимать надо */}
+      {phase.name === 'error' && (
+        <div className="flex items-start gap-1.5 rounded-lg border border-red bg-red-l p-2.5 text-xs text-red">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          <span>{phase.message}</span>
+        </div>
+      )}
+
       {/* Прогресс по этапам: часовая запись идёт минуты — человек обязан видеть, на чём стоит */}
       {busy && (
         <div role="status" className="space-y-1">
@@ -335,9 +400,20 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
         </div>
       )}
 
-      {busy && preview && (
-        <div className="max-h-24 overflow-y-auto rounded-lg border border-border bg-surface p-2 text-xs whitespace-pre-wrap text-text-dim">
-          {preview}
+      {/* Превью подписано явно: без подписи растущий текст выглядит готовым результатом,
+          и на боевом прогоне владелец решил, что процесс закончился на блоке 1 из 7. */}
+      {(busy || phase.name === 'partial') && preview && (
+        <div className="space-y-1">
+          <p className="text-meta text-text-mute">
+            {phase.name === 'cleaning'
+              ? 'Черновик — идёт вычитка, текст ещё меняется'
+              : phase.name === 'partial'
+                ? 'Текст на руках — вычитан не полностью'
+                : 'Черновик — распознавание идёт'}
+          </p>
+          <div className="max-h-24 overflow-y-auto rounded-lg border border-border bg-surface p-2 text-xs whitespace-pre-wrap text-text-dim">
+            {preview}
+          </div>
         </div>
       )}
     </div>
