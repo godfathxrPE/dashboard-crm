@@ -165,6 +165,16 @@ internal — передают `type='internal'` + стадийные поля `n
 Legacy `stage` у internal зануляет `trg_ab_null_internal_stage` (DEFAULT `new_lead`
 сохранён ради convert_lead).
 
+### ❌ Перенос сортировки из JS в SQL: `getTime()` режет до миллисекунд, Postgres считает микросекунды
+`new Date(ts).getTime()` **отбрасывает** разряды мельче миллисекунды, поэтому две записи
+одной транзакции (Δ ≈ 100–600 мкс) для JS — ничья, и стабильный `Array#sort` оставляет
+их в порядке источников. `order by ts desc` в SQL видит разницу и меняет их местами.
+На S-TL-1 это разошлось в трёх парах `task`/`activity` из ста — и нашлось только потому,
+что эталон снимался ДО правок. **Переносишь сортировку в БД — переноси и разрешение:**
+`order by date_trunc('milliseconds', ts) desc, <ранг источника>, <позиция внутри источника>`,
+где ранг повторяет порядок конкатенации массивов в прежнем JS. Тот же класс, что ключ
+идемпотентности из `timestamptz`: разница представлений времени, а не логики.
+
 ### ✅ Ownership — через `owner_id`/`created_by`, НЕ `user_id`
 companies/contacts/projects/tasks/calls/meetings/activities владеют через
 `owner_id`/`created_by` (→ profiles). `user_id` (→ auth.users) остался только у

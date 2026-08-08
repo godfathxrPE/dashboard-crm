@@ -3,296 +3,111 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import {
-  callToEvent,
-  meetingToEvent,
-  taskToEvent,
-  projectToEvent,
-  type CallEventRow,
-  type MeetingEventRow,
-  type TaskEventRow,
-  type ProjectEventRow,
-} from '@/lib/timeline/adapters';
-import { fetchAiRunRows } from '@/lib/timeline/ai-run-sources';
-import { presetTitle } from '@/lib/constants/ai-presets';
-import type { TimelineEvent } from '@/types/timeline';
-import { describeEvent } from '@/lib/utils/activity-events';
-// Техническое событие метрики переходов (S-R2-TRANSITION-1b) в таймлайн не пускаем:
-// сам переход там уже виден как stage_changed, комментарий — как comment_added.
-import { TRANSITION_METRIC_EVENT } from '@/lib/domain/stage-transition';
-import type { ActivityLog } from '@/types/entities';
+import { isTimelineRpcRow, rpcRowToEvent } from '@/lib/timeline/rpc-adapter';
+import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 import { useActorMap } from './use-actor';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
 //
-// Ключевое отличие от старого паттерна ContactDetailHub:
-// СЕРВЕРНЫЙ фильтр по entity-колонке (contact_id / company_id / project_id),
-// а не «тянем весь org и фильтруем в useMemo». Каждый источник — свой
-// queryKey и своя выборка, staleTime 60s (как у остальных хуков).
+// S-TL-1: шесть запросов из браузера (calls, meetings, tasks, projects,
+// activity_log, ai_runs) плюс два вспомогательных (проекты сущности, звонки+встречи
+// для ai_runs) заменены ОДНИМ RPC `entity_timeline`. Слияние, дедуп и сортировка
+// уехали в SQL — здесь остаётся только резолв актора id→имя.
+//
+// Состав и порядок ленты при этом НЕ изменились: это критерий приёмки спринта,
+// а не пожелание. Заголовки по-прежнему собирает TypeScript (`rpc-adapter.ts` →
+// `adapters.ts` / `describeEvent` / `presetTitle`) — слой представления в БД не живёт.
 // ═══════════════════════════════════════════════════════
 
 export type TimelineEntityType = 'contact' | 'company' | 'project';
 
-/** entity → колонка серверного фильтра */
-const FILTER_COLUMN: Record<TimelineEntityType, string> = {
-  contact: 'contact_id',
-  company: 'company_id',
-  project: 'project_id',
-};
-
 const STALE_TIME = 60_000;
+
+/**
+ * Лимит НА ИСТОЧНИК, а не на ленту — так было в шести запросах, так осталось в RPC.
+ * Глобальный keyset-курсор появится в S-TL-2 вместе с прокруткой «раньше», где смена
+ * состава будет намеренной и заметной.
+ */
 const PER_SOURCE_LIMIT = 50;
 
 export interface UseEntityTimelineOptions {
   /**
-   * activity_log + ai_runs в ленте. Эти источники привязаны к контакту НЕ
-   * напрямую (activity_log → project_id, ai_runs → call|meeting_id), поэтому
-   * собираются транзитивно. Структура заложена, но в Sprint A выключена
-   * (default false) — активируется в Sprint B вместе с AI-роллапами.
+   * `activity_log` + `ai_runs` в ленте.
+   *
+   * @deprecated С S-TL-1 флаг больше не экономит запросы: RPC отдаёт все шесть
+   * источников всегда, и `false` теперь просто прячет два вида на клиенте. Все три
+   * потребителя (`ProjectDetail`, `CompanyDetail`, `ContactDetailHub`) передают `true`,
+   * так что на живых экранах он не меняет ничего. Флаг оставлен, чтобы не трогать
+   * публичный контракт трёх компонентов сверх задачи спринта, и снимается в S-TL-2
+   * вместе с чипами фильтра. Дефолт (`false`) сохранён прежний — иначе вызов без
+   * опций тихо получил бы два новых вида событий.
    */
   includeSystem?: boolean;
 }
 
-// ─── Прямые источники (серверный фильтр .eq(col, id)) ───
-
-async function fetchCalls(col: string, id: string): Promise<TimelineEvent[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('calls')
-    .select('id, date, status, next_step, agreements, created_by')
-    .eq(col, id)
-    .order('date', { ascending: false })
-    .limit(PER_SOURCE_LIMIT);
-  if (error) throw error;
-  return (data as CallEventRow[]).map(callToEvent);
-}
-
-async function fetchMeetings(col: string, id: string): Promise<TimelineEvent[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('meetings')
-    .select('id, date, title, next_step, notes, created_by')
-    .eq(col, id)
-    .order('date', { ascending: false })
-    .limit(PER_SOURCE_LIMIT);
-  if (error) throw error;
-  return (data as MeetingEventRow[]).map(meetingToEvent);
-}
-
-async function fetchTasks(col: string, id: string): Promise<TimelineEvent[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('id, text, lane, deadline, created_at, created_by')
-    .eq(col, id)
-    .order('created_at', { ascending: false })
-    .limit(PER_SOURCE_LIMIT);
-  if (error) throw error;
-  const now = Date.now();
-  return (data as TaskEventRow[]).map((t) => taskToEvent(t, now));
-}
-
-async function fetchProjects(col: string, id: string): Promise<TimelineEvent[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .select('id, name, type, created_at, created_by')
-    .eq(col, id)
-    .order('created_at', { ascending: false })
-    .limit(PER_SOURCE_LIMIT);
-  if (error) throw error;
-  return (data as ProjectEventRow[]).map(projectToEvent);
-}
-
-// ─── Системные источники (транзитивная привязка) — Sprint B, gated off ───
-
-/** project_id набор сущности: для project — сам id, иначе проекты по entity-колонке */
-async function resolveProjectIds(
-  entityType: TimelineEntityType,
-  col: string,
-  id: string,
-): Promise<string[]> {
-  if (entityType === 'project') return [id];
-  const supabase = createClient();
-  const { data, error } = await supabase.from('projects').select('id').eq(col, id);
-  if (error) throw error;
-  return (data ?? []).map((p) => p.id as string);
-}
-
-interface ActivityRow {
-  id: string;
-  event_type: string;
-  payload: unknown;
-  created_at: string;
-  user_id: string | null;
-}
-
-function activityToEvent(a: ActivityRow): TimelineEvent {
-  return {
-    id: `activity:${a.id}`,
-    sourceId: a.id,
-    kind: 'activity' as const,
-    // Человекочитаемый текст (стадия/комментарий/…) через общий describeEvent
-    title: describeEvent(a as unknown as ActivityLog),
-    date: a.created_at,
-    icon: 'activity' as const,
-    actorId: a.user_id ?? undefined,
-    // S-UI-CLARITY-1: колонка уже в селекте (её читает describeEvent) — новых
-    // запросов не появляется, событие просто перестаёт терять свой тип.
-    eventType: a.event_type,
-  };
-}
+/** Виды, которые прячет `includeSystem: false`. */
+const SYSTEM_KINDS: readonly TimelineKind[] = ['activity', 'ai_run'];
 
 /**
- * activity_log сущности = UNION прямых и транзитивных записей (S-NOTES-TIMELINE-1):
- *  - прямые: заметки, положенные на саму сущность (contact_id/company_id = id;
- *    для project — project_id = id);
- *  - транзитивные (только contact/company): записи по связанным проектам
- *    (project_id ∈ проекты сущности) — как было до спринта.
- * Дедуп по id: прямая заметка не имеет project_id и в оба набора не попадёт,
- * но защищаемся на случай пересечения.
+ * Минимальная форма `supabase.rpc` для функции, которой ещё нет в
+ * `supabase.gen.ts`: миграция 112 не применена, реген делает гейт, а править
+ * сгенерированные типы руками запрещено (правило 2). После apply + реген каст
+ * снимается, вызов остаётся тем же.
  */
-async function fetchActivity(
+type RpcError = { message: string };
+type UntypedRpc = (
+  fn: string,
+  args: Record<string, unknown>,
+) => PromiseLike<{ data: unknown; error: RpcError | null }>;
+
+async function fetchTimeline(
   entityType: TimelineEntityType,
-  col: string,
-  id: string,
+  entityId: string,
 ): Promise<TimelineEvent[]> {
   const supabase = createClient();
+  const rpc = supabase.rpc as unknown as UntypedRpc;
+  const { data, error } = await rpc('entity_timeline', {
+    p_entity_type: entityType,
+    p_entity_id: entityId,
+    p_limit: PER_SOURCE_LIMIT,
+  });
+  if (error) throw error;
 
-  // Прямая привязка: col уже = contact_id | company_id | project_id.
-  const direct = await supabase
-    .from('activity_log')
-    .select('id, event_type, payload, created_at, user_id')
-    .neq('event_type', TRANSITION_METRIC_EVENT)
-    .eq(col, id)
-    .order('created_at', { ascending: false })
-    .limit(PER_SOURCE_LIMIT);
-  if (direct.error) throw direct.error;
-
-  // Транзитивная — только для contact/company (у project «прямая» уже по project_id).
-  let transitive: ActivityRow[] = [];
-  if (entityType !== 'project') {
-    const projectIds = await resolveProjectIds(entityType, col, id);
-    if (projectIds.length > 0) {
-      const t = await supabase
-        .from('activity_log')
-        .select('id, event_type, payload, created_at, user_id')
-    .neq('event_type', TRANSITION_METRIC_EVENT)
-        // Батчинг `.in()` (S-DEBT-TRUTH-1) не нужен: `projectIds` — проекты одной
-        // компании/контакта, десятки. Растёт не от использования, а от размера клиента.
-        .in('project_id', projectIds)
-        .order('created_at', { ascending: false })
-        .limit(PER_SOURCE_LIMIT);
-      if (t.error) throw t.error;
-      transitive = (t.data ?? []) as ActivityRow[];
-    }
-  }
-
-  const byId = new Map<string, ActivityRow>();
-  for (const a of [...((direct.data ?? []) as ActivityRow[]), ...transitive]) {
-    byId.set(a.id, a);
-  }
-  return [...byId.values()].map(activityToEvent);
+  // `overdue` у задачи — функция текущего времени: одна отсечка на всю выборку,
+  // как было в прежнем `fetchTasks`.
+  const now = Date.now();
+  const rows: unknown[] = Array.isArray(data) ? data : [];
+  return rows.filter(isTimelineRpcRow).map((r) => rpcRowToEvent(r, now));
 }
-
-/**
- * Прогоны в ленте сущности. Сбор обоих источников (S-AI-VIS-1) переехал в
- * `timeline/ai-run-sources.ts` (S-AI-VIS-2): у него появился второй потребитель —
- * сводный AI-блок карточки компании, и копия запроса разошлась бы с этой.
- * Здесь остаётся только адаптация строк в события ленты.
- */
-async function fetchAiRuns(entityType: TimelineEntityType, id: string): Promise<TimelineEvent[]> {
-  const rows = await fetchAiRunRows(entityType, id, PER_SOURCE_LIMIT);
-  return rows.map((r) => ({
-    id: `ai_run:${r.id}`,
-    sourceId: r.id,
-    kind: 'ai_run' as const,
-    // Человеческое название пресета, а не машинный ключ: в ленте было
-    // «AI: analytic_note» — строка из БД, которую владельцу читать незачем.
-    title: `AI: ${presetTitle(r.preset_key)}`,
-    date: r.created_at,
-    icon: 'ai_run' as const,
-  }));
-}
-
-// ─── Хук ───
 
 export function useEntityTimeline(
   entityType: TimelineEntityType,
   entityId: string | null | undefined,
   opts: UseEntityTimelineOptions = {},
 ) {
-  const col = FILTER_COLUMN[entityType];
   const enabled = Boolean(entityId);
   const includeSystem = opts.includeSystem ?? false;
-  // projects=сама сущность для project-хаба — источник пропускаем
-  const projectsEnabled = enabled && entityType !== 'project';
 
-  const calls = useQuery({
-    queryKey: ['timeline', 'call', entityType, entityId],
-    queryFn: () => fetchCalls(col, entityId!),
+  // Ключ без подключа источника: прежние `['timeline', 'call', …]` исчезли вместе
+  // с шестью запросами. Инвалидации в use-activity-log / use-calls / use-meetings /
+  // use-tasks идут префиксом `['timeline']` и продолжают работать без правок.
+  const timeline = useQuery({
+    queryKey: ['timeline', entityType, entityId],
+    queryFn: () => fetchTimeline(entityType, entityId!),
     enabled,
-    staleTime: STALE_TIME,
-  });
-
-  const meetings = useQuery({
-    queryKey: ['timeline', 'meeting', entityType, entityId],
-    queryFn: () => fetchMeetings(col, entityId!),
-    enabled,
-    staleTime: STALE_TIME,
-  });
-
-  const tasks = useQuery({
-    queryKey: ['timeline', 'task', entityType, entityId],
-    queryFn: () => fetchTasks(col, entityId!),
-    enabled,
-    staleTime: STALE_TIME,
-  });
-
-  const projects = useQuery({
-    queryKey: ['timeline', 'project', entityType, entityId],
-    queryFn: () => fetchProjects(col, entityId!),
-    enabled: projectsEnabled,
-    staleTime: STALE_TIME,
-  });
-
-  const activity = useQuery({
-    queryKey: ['timeline', 'activity', entityType, entityId],
-    queryFn: () => fetchActivity(entityType, col, entityId!),
-    enabled: enabled && includeSystem,
-    staleTime: STALE_TIME,
-  });
-
-  const aiRuns = useQuery({
-    queryKey: ['timeline', 'ai_run', entityType, entityId],
-    queryFn: () => fetchAiRuns(entityType, entityId!),
-    enabled: enabled && includeSystem,
     staleTime: STALE_TIME,
   });
 
   // Резолв актора id→имя — на сборке (одна Map из useTeamMembers-кеша, не N запросов).
   const actorMap = useActorMap();
   const events = useMemo(() => {
-    const all: TimelineEvent[] = [
-      ...(calls.data ?? []),
-      ...(meetings.data ?? []),
-      ...(tasks.data ?? []),
-      ...(projects.data ?? []),
-      ...(activity.data ?? []),
-      ...(aiRuns.data ?? []),
-    ];
-    const resolved = all.map((e) =>
-      e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e,
-    );
-    return resolved.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [calls.data, meetings.data, tasks.data, projects.data, activity.data, aiRuns.data, actorMap]);
+    const all = timeline.data ?? [];
+    const visible = includeSystem ? all : all.filter((e) => !SYSTEM_KINDS.includes(e.kind));
+    // Сортировка не нужна: RPC уже отдал по убыванию `ts`, с тем же разрешением
+    // (миллисекунды) и тем же разбором ничьих, что давал прежний `Array#sort`.
+    return visible.map((e) => (e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e));
+  }, [timeline.data, includeSystem, actorMap]);
 
-  // isLoading для disabled-запросов в React Query v5 = false (fetchStatus idle),
-  // поэтому пропущенные источники (projects на project-хабе, system off) не «висят».
-  const isLoading =
-    calls.isLoading || meetings.isLoading || tasks.isLoading || projects.isLoading ||
-    activity.isLoading || aiRuns.isLoading;
-
-  return { events, isLoading };
+  return { events, isLoading: timeline.isLoading };
 }

@@ -337,6 +337,16 @@
 > **Требует редеплоя `telegram-webhook`** (новый исход разбирает `capture.ts`); apply раньше
 > деплоя безопасен — старый код прочтёт `duplicate_inn` как «черновик устарел», сообщение
 > будет неверным, но не разрушительным.
+>
+> **112 (S-TL-1, ось 2 «Единая лента событий») — НАПИСАНА, НЕ ПРИМЕНЕНА**
+> (`112_entity_timeline.sql`; номер сверен запросом к `schema_migrations` 2026-08-08 —
+> последняя применённая `20260808191356`). Лента сущности собирается на сервере:
+> новая функция **`entity_timeline(text, uuid, int)`** + **13 составных индексов** под ветки
+> её union. Таблиц, колонок, enum и cron не трогает ⇒ **реген типов нужен только ради
+> сигнатуры функции** (`Database['public']['Functions']`), схема данных не меняется.
+> Редеплоя edge не требует. ⚠️ Единственная функция проекта с **`SECURITY INVOKER`** —
+> отклонение осознанное, см. раздел «Лента сущности» ниже. Версию и `applied` проставляет
+> гейт после `apply_migration`.
 > Следующая свободная после неё — **112**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -3070,6 +3080,51 @@ where n.nspname = 'public' and c.relkind = 'r'
     дат в слепок не попадают. Иначе задачи, нарисованные на Ганте только по `deadline`, после первого
     сдвига получали бы «вне плана».
   - Прямого INSERT у клиента нет (политик нет) — заголовок без строк невозможен by construction.
+
+### Лента сущности (112, S-TL-1 — **написана, НЕ применена**) — сборка на сервере
+
+- **`public.entity_timeline(p_entity_type text, p_entity_id uuid, p_limit int default 50)`**
+  → `table(ts timestamptz, id text, source text, kind text, actor_id uuid, ref_type text,
+  ref_id uuid, payload jsonb)`. `language sql`, **STABLE**, `search_path=public,pg_temp`,
+  `revoke public/anon` → `grant execute to authenticated`.
+  Заменяет шесть клиентских запросов `use-entity-timeline.ts` (плюс два вспомогательных:
+  проекты сущности для транзитивного `activity_log`, звонки+встречи для `ai_runs`).
+- ⚠️ **`SECURITY INVOKER` — единственная такая функция в проекте, и это НЕ недосмотр.**
+  Конвенция (DEFINER + адресный ACL) здесь работала бы против цели: у шести источников
+  разные предикаты SELECT (`tasks` — assigned_to/created_by/`is_project_member`, `ai_runs` —
+  существование родителя по `entity_type`, а в S-TL-2 добавятся `is_conversation_member`
+  и owner|admin), DEFINER обошёл бы RLS, и все они переехали бы копиями в тело функции.
+  Первое расхождение копии с оригиналом было бы **молчаливым** — лента просто показала бы
+  лишнее. INVOKER делает дрейф невозможным. В advisors новых WARN
+  `authenticated_security_definer_function_executable` не даёт по построению.
+- **Лимит — на источник, а не на ленту** (как клиентский `PER_SOURCE_LIMIT = 50`);
+  `p_limit` зажат в `[1, 200]`. Глобальный keyset-курсор — S-TL-2.
+- **Заголовков функция не отдаёт** — только факты (`kind` + `payload` + `ref`). Текст
+  собирает TypeScript: `lib/timeline/rpc-adapter.ts` → `adapters.ts` / `describeEvent` /
+  `presetTitle`. Слой представления в БД не живёт.
+- ⚠️ **Сортировка — по `date_trunc('milliseconds', ts)`, затем ранг источника, затем позиция
+  внутри источника.** Причина не косметическая: клиент сортировал ленту через
+  `new Date(x).getTime()`, а `getTime()` **режет timestamptz до миллисекунд**. Postgres
+  сравнивает микросекунды и на записях одной транзакции (Δ ≈ 100–600 мкс) расставляет
+  события иначе — на живых данных это разошлось в трёх парах `task`/`activity` из ста.
+  Ранг источника повторяет порядок конкатенации в хуке (`calls, meetings, tasks, projects,
+  activity_log, ai_runs`): `Array#sort` в JS стабилен, и на равных ключах побеждал источник,
+  стоявший в массиве раньше. Возвращаемый `ts` при этом не округляется.
+- ⚠️ **`meetings.date` — тип `date`**, приводится как `m.date::timestamp at time zone 'UTC'`.
+  Простой `::timestamptz` взял бы TimeZone сессии и на MSK-подключении сдвинул бы встречу
+  на сутки относительно клиента (`new Date('2026-08-06')` = полночь UTC).
+- ⚠️ **У задачи две даты**: отбор топ-N идёт по `created_at`, а `ts` события —
+  `coalesce(deadline, created_at)`. Перепутать — получить другой состав ленты.
+- `p_entity_type` вне `project|company|contact` даёт **пустую ленту, а не ошибку**: `raise`
+  в `language sql` требует обёртки на plpgsql, которая стоит дороже пользы (RPC зовётся
+  из типизированного клиента).
+- **13 индексов** миграции — по одному на ветку union, все аддитивные, `concurrently` не нужен
+  (самая большая таблица `tasks`, 654 строки): `idx_activity_log_{contact,company}_created`
+  (partial, с датой — прежние `idx_activity_log_{contact,company}` даты не имели),
+  `idx_{calls,meetings}_{project,company,contact}_date`, `idx_tasks_{project,company,contact}_created`,
+  `idx_projects_{company,contact}_created`. Ветка `ai_runs.entity_id in (…)` индексом **не
+  закрыта**: `idx_ai_runs_entity` начинается с `entity_type`, а составного `(entity_id, …)` нет.
+  Оставлено сознательно — в таблице 21 строка; заводить индекс есть смысл вместе с S-TL-2.
 
 ### Планировщик (pg_cron) — два ежедневных задания
 
