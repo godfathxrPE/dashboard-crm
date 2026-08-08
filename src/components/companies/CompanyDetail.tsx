@@ -29,6 +29,7 @@ import {
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
+import { CompanyAiDigest } from './CompanyAiDigest';
 import type { AiRunRow } from '@/types/database';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { AiCompanyModal } from '@/components/ai/AiCompanyModal';
@@ -292,6 +293,10 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               onFilterChange={(v) => setTimelineFilter('company', v)}
             />
           </div>
+
+          {/* S-AI-VIS-2: всё, что AI знает про компанию, — одним блоком под лентой:
+              её расшифровки и её прогоны (включая собственные брифы). */}
+          <CompanyAiDigest companyId={companyId} />
         </div>
 
         <CompanySidebar company={company} chzGroups={chzGroups} />
