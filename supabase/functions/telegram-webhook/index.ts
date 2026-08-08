@@ -1,8 +1,10 @@
-// supabase/functions/telegram-webhook/index.ts — S-TG-1, + callback_query в S-TG-2
+// supabase/functions/telegram-webhook/index.ts — S-TG-1, + callback_query в S-TG-2,
+// + свободный текст в S-TG-3
 //
-// Входящие апдейты от Telegram: `/start <token>` (привязка, S-TG-1) и нажатие
-// кнопки «Выполнено» (`callback_query` с data `tgdone:<uuid>`, S-TG-2).
-// Всё остальное — 200 и молчание. Быстрый ввод — S-TG-3.
+// Входящие апдейты от Telegram: `/start <token>` (привязка, S-TG-1), нажатие
+// кнопки «Выполнено» (`callback_query` с data `tgdone:<uuid>`, S-TG-2) и свободный
+// текст — быстрый ввод компании или контакта (S-TG-3, разбор в `./capture.ts`).
+// Команды, кроме `/start`, — 200 и молчание.
 //
 // ⚠️ `verify_jwt = false` — Telegram JWT НЕ НОСИТ и носить не может. Это осознанно
 //    и компенсируется тремя вещами:
@@ -31,6 +33,8 @@
 //    authenticated закрыт полностью); рабочие данные меняет RPC с явным актором.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { handleCaptureCallback, handleCaptureText, type BotApi } from './capture.ts';
+import { parseCaptureCallbackData } from '../_shared/telegram-capture.ts';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -117,35 +121,71 @@ function timingSafeEqual(a: string, b: string): boolean {
  * действие прямо сейчас, а очередь добавила бы к ней до минуты задержки.
  * Без `parse_mode`: тексты — литералы выше, размечать в них нечего, а plain text
  * снимает вопрос экранирования целиком.
+ *
+ * Возвращает `message_id` отправленного сообщения или null: S-TG-3 редактирует
+ * собственную заглушку «Разбираю…», и без id её не найти.
  */
-function reply(botToken: string, chatId: number, text: string): Promise<void> {
+function reply(botToken: string, chatId: number, text: string): Promise<number | null> {
   // Сбой глотается внутри callBotApi: привязка при этом уже создана и работает,
   // а ронять обработку нельзя — Telegram начнёт ретраить и создаст вторую попытку.
-  return callBotApi(botToken, 'sendMessage', {
+  return sendMessage(botToken, chatId, text);
+}
+
+/**
+ * `sendMessage` с возвратом id. `parseMode`/`replyMarkup` — для карточки быстрого
+ * ввода (S-TG-3); у остальных вызовов их нет.
+ */
+async function sendMessage(
+  botToken: string,
+  chatId: number,
+  text: string,
+  opts: { parseMode?: 'HTML'; replyMarkup?: unknown } = {},
+): Promise<number | null> {
+  const result = await callBotApi(botToken, 'sendMessage', {
     chat_id: chatId,
     text,
     disable_web_page_preview: true,
+    ...(opts.parseMode ? { parse_mode: opts.parseMode } : {}),
+    ...(opts.replyMarkup ? { reply_markup: opts.replyMarkup } : {}),
   });
+  const id = (result as { message_id?: unknown } | null)?.message_id;
+  return typeof id === 'number' ? id : null;
 }
 
-/** Общая обёртка над Bot API: сбой одного вызова не имеет права ронять обработку. */
+/**
+ * Общая обёртка над Bot API: сбой одного вызова не имеет права ронять обработку.
+ *
+ * Возвращает поле `result` ответа Telegram или null. ⚠️ Не-2xx тоже даёт null, и
+ * это ВАЖНО логировать с телом: Telegram отвечает 400 с внятным `description`
+ * («can't parse entities», «BUTTON_URL_INVALID»), и без него отладка карточки
+ * превращается в гадание — сообщение просто не приходит.
+ */
 async function callBotApi(
   botToken: string,
   method: string,
   payload: Record<string, unknown>,
-): Promise<void> {
+): Promise<unknown> {
   try {
-    await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
+    const resp = await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
+    const body = (await resp.json().catch(() => null)) as
+      | { ok?: boolean; result?: unknown; description?: string }
+      | null;
+    if (!resp.ok || body?.ok !== true) {
+      console.error(`telegram-webhook: ${method} отвергнут:`, resp.status, body?.description ?? '');
+      return null;
+    }
+    return body.result ?? null;
   } catch (e) {
     console.error(
       `telegram-webhook: ${method} не прошёл:`,
       e instanceof Error ? e.message : String(e),
     );
+    return null;
   }
 }
 
@@ -153,10 +193,39 @@ async function callBotApi(
  * ⚠️ ОБЯЗАТЕЛЕН В КАЖДОЙ ВЕТКЕ, ВКЛЮЧАЯ ОШИБОЧНЫЕ. Без ответа кнопка у человека
  *    «крутится» до таймаута Telegram, и он жмёт её ещё раз.
  */
-function answerCallback(botToken: string, callbackId: string, text: string): Promise<void> {
-  return callBotApi(botToken, 'answerCallbackQuery', {
+async function answerCallback(botToken: string, callbackId: string, text: string): Promise<void> {
+  await callBotApi(botToken, 'answerCallbackQuery', {
     callback_query_id: callbackId,
     text,
+  });
+}
+
+/**
+ * `editMessageText` общего назначения (S-TG-3).
+ *
+ * ⚠️ РАЗЛИЧАТЬ ДВА СЛУЧАЯ, И ЭТО НЕ ПРИДИРКА. Запрет на `parse_mode` из S-TG-2
+ *    (см. `markMessageDone`) относится к правке, которая ПЕРЕСЫЛАЕТ обратно текст,
+ *    полученный от Telegram: он приходит уже разрисованным, с вернувшимися `& < >`,
+ *    и HTML на нём падает на первом амперсанде. Здесь же текст СВОЙ, собранный
+ *    только что и экранированный `escapeTelegramHtml` — размечать его можно и нужно,
+ *    иначе карточка подтверждения потеряет заголовок.
+ */
+async function editMessage(
+  botToken: string,
+  chatId: number,
+  messageId: number,
+  text: string,
+  opts: { parseMode?: 'HTML'; replyMarkup?: unknown } = {},
+): Promise<void> {
+  await callBotApi(botToken, 'editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    disable_web_page_preview: true,
+    ...(opts.parseMode ? { parse_mode: opts.parseMode } : {}),
+    // Пустая клавиатура — не то же, что её отсутствие: `{inline_keyboard: []}`
+    // СНИМАЕТ кнопки, а пропуск поля оставляет старые нажимаемыми.
+    reply_markup: opts.replyMarkup ?? { inline_keyboard: [] },
   });
 }
 
@@ -184,6 +253,21 @@ async function markMessageDone(
     disable_web_page_preview: true,
     reply_markup: { inline_keyboard: [] },
   });
+}
+
+/**
+ * Bot API, свёрнутый в три метода для `capture.ts` (S-TG-3).
+ *
+ * Так, а не прямым импортом хелперов: `capture.ts` импортируется отсюда, и обратный
+ * импорт замкнул бы цикл. Заодно у модуля быстрого ввода не остаётся доступа к
+ * `callBotApi` целиком — из мессенджера он умеет ровно три вещи.
+ */
+function makeBotApi(botToken: string): BotApi {
+  return {
+    send: (chatId, text) => sendMessage(botToken, chatId, text),
+    edit: (chatId, messageId, text, opts) => editMessage(botToken, chatId, messageId, text, opts),
+    answer: (callbackId, text) => answerCallback(botToken, callbackId, text),
+  };
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -245,11 +329,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const chatId = update.message?.chat?.id;
   const fromId = update.message?.from?.id;
 
-  // Не `/start` — молчим. Свободный текст разбирает S-TG-3; отвечать на него
-  // «не понимаю» значит учить людей, что бот умеет переписку, которой у него нет.
-  if (!text.startsWith('/start') || typeof chatId !== 'number' || typeof fromId !== 'number') {
+  if (!text || typeof chatId !== 'number' || typeof fromId !== 'number') return ok();
+
+  // ── S-TG-3: свободный текст — быстрый ввод ──────────────────────────
+  // ⚠️ ПОРЯДОК ВЕТОК ОБЯЗАТЕЛЕН: секрет → идемпотентность → callback_query →
+  //    команды → свободный текст. Текст разбирается ПОСЛЕДНИМ; поставь его выше —
+  //    и он проглотит `/start`, то есть сломает привязку, отправив токен в модель.
+  if (!text.startsWith('/')) {
+    await handleCaptureText(supabase, makeBotApi(botToken), chatId, fromId, text);
     return ok();
   }
+
+  // Команда, но не `/start` — молчим. Отвечать «не понимаю» значит учить людей,
+  // что у бота есть набор команд, которого нет.
+  if (!text.startsWith('/start')) return ok();
 
   // `/start` без аргумента — человек нашёл бота сам, минуя CRM.
   const token = text.slice('/start'.length).trim();
@@ -302,15 +395,35 @@ async function handleCallbackQuery(
   // человека в неведении о результате.
   if (typeof callbackId !== 'string' || callbackId === '') return;
 
-  const taskId = parseTaskCallbackData(cq.data);
-  if (!taskId) {
-    await answerCallback(botToken, callbackId, CB_UNKNOWN);
-    return;
-  }
-
   const fromId = cq.from?.id;
   if (typeof fromId !== 'number') {
     await answerCallback(botToken, callbackId, CB_FAILED);
+    return;
+  }
+
+  const taskId = parseTaskCallbackData(cq.data);
+  if (!taskId) {
+    // ── S-TG-3: кнопки карточки быстрого ввода ────────────────────────
+    // ⚠️ Разборы РАЗДЕЛЬНЫЕ, а не один общий. `tgdone:` — про задачи, `tgcap*:` —
+    //    про черновики; общий парсер потерял бы ответ на вопрос «чья это кнопка»,
+    //    а вместе с ним и то, какую RPC звать. Пересечений между префиксами нет:
+    //    двоеточие входит в каждый (`tgcap:` ≠ `tgcapx:`), проверено тестами.
+    const capture = parseCaptureCallbackData(cq.data);
+    if (capture) {
+      await handleCaptureCallback(
+        supabase,
+        makeBotApi(botToken),
+        {
+          id: callbackId,
+          from_id: fromId,
+          chat_id: typeof cq.message?.chat?.id === 'number' ? cq.message.chat.id : null,
+          message_id: typeof cq.message?.message_id === 'number' ? cq.message.message_id : null,
+        },
+        capture,
+      );
+      return;
+    }
+    await answerCallback(botToken, callbackId, CB_UNKNOWN);
     return;
   }
 
