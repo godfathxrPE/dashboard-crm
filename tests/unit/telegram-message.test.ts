@@ -345,6 +345,60 @@ describe('buildTelegramNotificationText — task_reminder (108)', () => {
   });
 });
 
+describe('task_reminder — приоритет в заголовке (109, S-TG-PRIORITY)', () => {
+  // Тело одно и то же во всех кейсах: проверяем ровно заголовок.
+  const withPriority = (priority?: string | null) =>
+    buildTelegramNotificationText({
+      type: 'task_reminder',
+      entity_type: 'tasks',
+      entity_id: TASK_ID,
+      payload: { title: 'Отправить КП', text: 'Срок сегодня', ...(priority !== undefined ? { priority } : {}) },
+      appUrl: ORIGIN,
+    });
+
+  const head = (out: string) => out.slice(0, out.indexOf('\n'));
+
+  it('important → « · важно»', () => {
+    expect(head(withPriority('important'))).toBe('<b>Скоро дедлайн · важно</b>');
+  });
+
+  it('critical → « · критично»', () => {
+    expect(head(withPriority('critical'))).toBe('<b>Скоро дедлайн · критично</b>');
+  });
+
+  it('normal → без приписки: маркер у всех — это отсутствие маркера', () => {
+    expect(head(withPriority('normal'))).toBe('<b>Скоро дедлайн</b>');
+  });
+
+  // ⚠️ ГЛАВНЫЙ КЕЙС 1: уведомления, созданные ДО 109, лежат в базе без этого ключа.
+  it('ключа priority нет вовсе — обратная совместимость', () => {
+    expect(head(withPriority(undefined))).toBe('<b>Скоро дедлайн</b>');
+    // Полное сообщение обязано остаться ровно тем, что было до 109.
+    expect(withPriority(undefined)).toBe(`<b>Скоро дедлайн</b>\nСрок сегодня\n${ORIGIN}/tasks`);
+  });
+
+  // ⚠️ ГЛАВНЫЙ КЕЙС 2: мусор в payload не роняет сборку и не съедает заголовок.
+  it('неизвестное значение — деградация до пустой приписки, не до NULL', () => {
+    expect(head(withPriority('мусор'))).toBe('<b>Скоро дедлайн</b>');
+    expect(head(withPriority(null))).toBe('<b>Скоро дедлайн</b>');
+    expect(head(withPriority(''))).toBe('<b>Скоро дедлайн</b>');
+    // Приписка не должна протечь в текст ни в каком виде.
+    expect(withPriority('мусор')).not.toContain('undefined');
+    expect(withPriority('мусор')).not.toContain('мусор');
+  });
+
+  it('приоритет НЕ добавляется к чужим типам — граница фикса', () => {
+    const out = buildTelegramNotificationText({
+      type: 'task_assigned',
+      entity_type: 'tasks',
+      entity_id: TASK_ID,
+      payload: { title: 'Позвонить', priority: 'critical' },
+      appUrl: ORIGIN,
+    });
+    expect(head(out)).toBe('<b>Назначена задача</b>');
+  });
+});
+
 describe('buildTaskKeyboard / shouldAttachTaskKeyboard', () => {
   it('callback_data строго tgdone:<uuid>', () => {
     expect(buildTaskKeyboard(TASK_ID)).toEqual({
