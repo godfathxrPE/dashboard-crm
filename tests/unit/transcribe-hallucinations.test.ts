@@ -4,8 +4,20 @@
 // над `Float32Array`. Ни сети, ни Web Audio API для них не нужно.
 
 import { describe, it, expect } from 'vitest';
-import { stripHallucinations, buildTail } from '@/lib/transcribe/hallucinations';
-import { isSilent } from '@/lib/transcribe/audio';
+import {
+  stripHallucinations,
+  buildTail,
+  segmentsToText,
+  isLowQualitySegment,
+  SEGMENT_THRESHOLDS,
+  type WhisperSegment,
+} from '@/lib/transcribe/hallucinations';
+import {
+  isSilent,
+  silenceThresholdFor,
+  SILENT_CHUNK_MEAN_AMPLITUDE,
+  FIRST_CHUNK_SILENCE_MULTIPLIER,
+} from '@/lib/transcribe/audio';
 
 describe('stripHallucinations', () => {
   it('одиночный штамп вычищается вместе с многоточием', () => {
@@ -91,5 +103,149 @@ describe('isSilent — тихий фрагмент не отправляем', (
     // Шум комнаты около −80 dBFS — это уже пауза.
     const roomTone = new Float32Array(16_000).fill(0.0001);
     expect(isSilent(roomTone)).toBe(true);
+  });
+});
+
+// ─── S-FIX-VOICE-2: признак вместо списка ───
+//
+// Второй боевой прогон дал штамп, которого в списке не было («Вопросы на сайте
+// www.vk.com»). Явление шире перечисления, поэтому ловим структурно: метриками,
+// которые Whisper выставляет собственной выдаче, и признаком домена в реплике.
+
+const seg = (text: string, m: Partial<WhisperSegment> = {}): WhisperSegment => ({ text, ...m });
+
+describe('isLowQualitySegment — метрики самой модели', () => {
+  it('модель не слышала речи и не уверена в написанном — мусор', () => {
+    expect(isLowQualitySegment(seg('Продолжение следует', {
+      no_speech_prob: 0.92,
+      avg_logprob: -1.4,
+    }))).toBe(true);
+  });
+
+  it('высокий no_speech_prob при нормальной уверенности — это тихая речь, оставляем', () => {
+    // Человек говорит далеко от микрофона: модель сомневается, что там речь, но
+    // слова выдала уверенно. Приоритет ошибки — не съесть реплику.
+    expect(isLowQualitySegment(seg('Да, мы готовы подписать', {
+      no_speech_prob: 0.85,
+      avg_logprob: -0.3,
+    }))).toBe(false);
+  });
+
+  it('низкий avg_logprob сам по себе не приговор — редкая терминология', () => {
+    expect(isLowQualitySegment(seg('Аппликатор для термотрансфера', {
+      no_speech_prob: 0.05,
+      avg_logprob: -1.6,
+    }))).toBe(false);
+  });
+
+  it('высокий compression_ratio отбрасывается сам по себе — текст повторяет сам себя', () => {
+    expect(isLowQualitySegment(seg('Продолжение следует. Продолжение следует. Продолжение следует.', {
+      compression_ratio: 3.1,
+      no_speech_prob: 0.1,
+      avg_logprob: -0.2,
+    }))).toBe(true);
+  });
+
+  it('сегмент без метрик остаётся, фильтр не падает', () => {
+    expect(isLowQualitySegment(seg('Добрый день!'))).toBe(false);
+    expect(isLowQualitySegment(seg('Добрый день!', {
+      no_speech_prob: null,
+      avg_logprob: null,
+      compression_ratio: null,
+    }))).toBe(false);
+  });
+
+  it('значения ровно на пороге не отбрасываются — при сомнении оставляем', () => {
+    expect(isLowQualitySegment(seg('на границе', {
+      no_speech_prob: SEGMENT_THRESHOLDS.noSpeechProb,
+      avg_logprob: SEGMENT_THRESHOLDS.avgLogprob,
+      compression_ratio: SEGMENT_THRESHOLDS.compressionRatio,
+    }))).toBe(false);
+  });
+});
+
+describe('segmentsToText', () => {
+  it('мусорные сегменты выброшены, живые склеены', () => {
+    const text = segmentsToText([
+      seg('Вопросы на сайте www.vk.com.', { no_speech_prob: 0.9, avg_logprob: -1.5 }),
+      seg('Добрый день!', { no_speech_prob: 0.02, avg_logprob: -0.2 }),
+    ], 'запасной текст');
+    expect(text).toBe('Добрый день!');
+  });
+
+  it('сегментов нет — работаем по общему тексту, как до спринта', () => {
+    expect(segmentsToText(undefined, 'Добрый день!')).toBe('Добрый день!');
+    expect(segmentsToText([], 'Добрый день!')).toBe('Добрый день!');
+    expect(segmentsToText(null, 'Добрый день!')).toBe('Добрый день!');
+  });
+
+  it('всё отфильтровано — пустая строка, такой фрагмент в результат не добавляют', () => {
+    const text = segmentsToText([
+      seg('Продолжение следует', { no_speech_prob: 0.95, avg_logprob: -1.9 }),
+    ], 'запасной');
+    expect(text).toBe('');
+  });
+});
+
+describe('домен как признак артефакта', () => {
+  it('короткая вставка с www отбрасывается', () => {
+    expect(stripHallucinations('Вопросы на сайте www.vk.com. Добрый день!')).toBe('Добрый день!');
+  });
+
+  it('короткая вставка с доменом верхнего уровня отбрасывается', () => {
+    expect(stripHallucinations('Подробности на sait.ru. Начнём.')).toBe('Начнём.');
+  });
+
+  it('живая реплика с упоминанием сайта остаётся', () => {
+    const live = 'Отправьте на почту, там на сайте bit.ru всё есть.';
+    expect(stripHallucinations(live)).toBe(live);
+  });
+
+  it('длинная деловая фраза с доменом не трогается', () => {
+    const live = 'Я вам скинул коммерческое предложение, оно лежит на нашем сайте example.com в разделе для партнёров.';
+    expect(stripHallucinations(live)).toBe(live);
+  });
+
+  it('сокращение с точкой доменом не считается', () => {
+    const live = 'Стоимость 1.5 млн.';
+    expect(stripHallucinations(live)).toBe(live);
+  });
+});
+
+describe('порядок пайплайна: метрики → штампы → хвост', () => {
+  it('хвост собирается из уже очищенного обоими фильтрами', () => {
+    // Как в цикле распознавания: сегменты → фильтр метрик → штампы → parts → buildTail.
+    const parts: string[] = [];
+    const fragment = segmentsToText([
+      seg('Вопросы на сайте www.vk.com.', { no_speech_prob: 0.1, avg_logprob: -0.2 }),
+      seg(' Продолжение следует.', { no_speech_prob: 0.1, avg_logprob: -0.2 }),
+      seg(' Нужен аппликатор на линию.', { no_speech_prob: 0.02, avg_logprob: -0.1 }),
+    ], '');
+    const cleaned = stripHallucinations(fragment);
+    if (cleaned) parts.push(cleaned);
+
+    const tail = buildTail(parts, 300);
+    expect(tail).toBe('Нужен аппликатор на линию.');
+    expect(tail.toLowerCase()).not.toContain('vk.com');
+    expect(tail.toLowerCase()).not.toContain('продолжение следует');
+  });
+});
+
+describe('silenceThresholdFor — начало записи строже', () => {
+  it('до первого принятого фрагмента порог выше', () => {
+    expect(silenceThresholdFor(0)).toBe(SILENT_CHUNK_MEAN_AMPLITUDE * FIRST_CHUNK_SILENCE_MULTIPLIER);
+    expect(silenceThresholdFor(0)).toBeGreaterThan(SILENT_CHUNK_MEAN_AMPLITUDE);
+  });
+
+  it('после первого принятого — обычный порог', () => {
+    expect(silenceThresholdFor(1)).toBe(SILENT_CHUNK_MEAN_AMPLITUDE);
+    expect(silenceThresholdFor(42)).toBe(SILENT_CHUNK_MEAN_AMPLITUDE);
+  });
+
+  it('оргшум в начале отбрасывается, но та же амплитуда в середине — нет', () => {
+    // 0.002 — между обычным порогом (0.001) и строгим (0.004).
+    const quiet = new Float32Array(16_000).fill(0.002);
+    expect(isSilent(quiet, silenceThresholdFor(0))).toBe(true);
+    expect(isSilent(quiet, silenceThresholdFor(1))).toBe(false);
   });
 });

@@ -5,7 +5,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { prepareChunks, type PrepareProgress } from '@/lib/transcribe/audio';
 import { splitIntoBlocks } from '@/lib/transcribe/cleanup-prompt';
-import { buildTail, stripHallucinations } from '@/lib/transcribe/hallucinations';
+import {
+  buildTail,
+  segmentsToText,
+  stripHallucinations,
+  type WhisperSegment,
+} from '@/lib/transcribe/hallucinations';
 import type { WhisperModel } from '@/lib/transcribe/cost';
 import type { Database } from '@/types/database';
 
@@ -304,7 +309,14 @@ export function useTranscribe() {
             break;
           }
 
-          const text = stripHallucinations(String((data as { text?: string } | null)?.text ?? ''));
+          // S-FIX-VOICE-2. Порядок обязателен: сегменты → фильтр по МЕТРИКАМ
+          // (структурный признак) → `stripHallucinations` (список известных штампов,
+          // вторая линия) → `buildTail` выше. Хвост собирается из уже очищенного —
+          // петля самоусиления рвётся там же, где и раньше.
+          const payload = data as { text?: string; segments?: WhisperSegment[] } | null;
+          const text = stripHallucinations(
+            segmentsToText(payload?.segments, String(payload?.text ?? '')),
+          );
           // Фрагмент, от которого после чистки ничего не осталось, — это была пауза.
           if (text) parts.push(text);
           storeRaw(parts.join(' '));

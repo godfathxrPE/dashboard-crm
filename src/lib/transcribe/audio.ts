@@ -56,7 +56,20 @@ export const DIRECT_UPLOAD_LIMIT = 8_000_000;
  * выбрано СОЗНАТЕЛЬНО низким: речь издалека от микрофона даёт примерно 0.005, и
  * потерять реплику дороже, чем отправить лишнюю паузу. При сомнении — не отбрасывать.
  */
-const SILENT_CHUNK_MEAN_AMPLITUDE = 0.001;
+export const SILENT_CHUNK_MEAN_AMPLITUDE = 0.001;
+
+/**
+ * S-FIX-VOICE-2: во сколько раз строже порог для НАЧАЛА записи.
+ *
+ * Начало почти всегда организационный шум: подключение, «меня слышно?», тишина в
+ * ожидании участников. Оба известных штампа Whisper сработали именно там.
+ *
+ * ⚠️ Ужесточение касается ТОЛЬКО ведущих фрагментов — до первого достаточно громкого.
+ * Порог 0.001 в проде ещё не подтверждён на боевых файлах (только юнит-тестами), и
+ * цена возможной ошибки здесь ограничена одной фразой приветствия, а не куском
+ * разговора: как только первый фрагмент принят, остальные проверяются обычным порогом.
+ */
+export const FIRST_CHUNK_SILENCE_MULTIPLIER = 4;
 
 export type PrepareProgress =
   | { stage: 'decoding' }
@@ -108,7 +121,10 @@ export async function prepareChunks(
     const slice = samples.subarray(bounds[i], bounds[i + 1]);
     // Тишину не отправляем: распознавать нечего, а Groq на ней галлюцинирует.
     // Считаем здесь же — данные уже под рукой, второй проход по массиву не нужен.
-    if (isSilent(slice)) continue;
+    //
+    // S-FIX-VOICE-2: пока ни одного фрагмента не принято, порог строже — это начало
+    // записи, где живёт оргшум и где сработали оба известных штампа.
+    if (isSilent(slice, silenceThresholdFor(chunks.length))) continue;
     chunks.push({
       // Нумеруем ОТПРАВЛЯЕМЫЕ фрагменты, а не нарезанные: иначе прогресс «фрагмент N
       // из M» и имена файлов разошлись бы на каждой выброшенной паузе.
@@ -125,6 +141,18 @@ export async function prepareChunks(
  * Считаем по каждому четвёртому сэмплу, как и поиск паузы в `findChunkBounds`: для
  * оценки уровня прореживания достаточно, а полный проход по часовому сигналу — нет.
  */
+/**
+ * Порог тишины по числу уже принятых фрагментов: ведущие — строже, дальше обычный.
+ *
+ * Вынесено функцией, а не тернарником в цикле, ровно чтобы это правило было
+ * проверяемо тестом без Web Audio.
+ */
+export function silenceThresholdFor(acceptedChunks: number): number {
+  return acceptedChunks === 0
+    ? SILENT_CHUNK_MEAN_AMPLITUDE * FIRST_CHUNK_SILENCE_MULTIPLIER
+    : SILENT_CHUNK_MEAN_AMPLITUDE;
+}
+
 export function isSilent(samples: Float32Array, threshold = SILENT_CHUNK_MEAN_AMPLITUDE): boolean {
   if (samples.length === 0) return true;
   let sum = 0;

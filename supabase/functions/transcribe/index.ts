@@ -46,6 +46,56 @@ const CORS = {
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
+/**
+ * S-FIX-VOICE-2. Ответ Groq в `response_format=verbose_json`.
+ *
+ * Все поля сегмента необязательны намеренно: функция остаётся ТОНКОЙ — получила,
+ * разобрала, отдала. Порогов здесь нет и быть не должно, фильтрация живёт на клиенте
+ * рядом с остальной чисткой. Если провайдер какую-то метрику не пришлёт, клиент
+ * обязан считать сегмент нормальным, а не выбросить его.
+ */
+type GroqVerboseResponse = {
+  text?: string;
+  segments?: unknown;
+};
+
+type OutSegment = {
+  text: string;
+  start: number | null;
+  end: number | null;
+  avg_logprob: number | null;
+  compression_ratio: number | null;
+  no_speech_prob: number | null;
+};
+
+const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/**
+ * Сегменты в тонком виде: только текст и метрики.
+ *
+ * `tokens` из ответа НЕ пробрасываем — это сотни чисел на сегмент, они раздули бы
+ * ответ в разы, а клиенту не нужны.
+ */
+function pickSegments(raw: unknown): OutSegment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: OutSegment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const s = item as Record<string, unknown>;
+    const text = typeof s.text === 'string' ? s.text : '';
+    if (!text.trim()) continue;
+    out.push({
+      text,
+      start: num(s.start),
+      end: num(s.end),
+      avg_logprob: num(s.avg_logprob),
+      compression_ratio: num(s.compression_ratio),
+      no_speech_prob: num(s.no_speech_prob),
+    });
+  }
+  return out;
+}
+
 /** Зеркало MAX_CHUNK_BYTES в src/lib/transcribe/audio.ts. Groq принимает до 25 МБ. */
 const MAX_CHUNK_BYTES = 20_000_000;
 
@@ -126,7 +176,10 @@ async function handleTranscribe(req: Request): Promise<Response> {
   const filename = file instanceof File ? file.name : 'chunk.wav';
   groqForm.append('file', file, filename);
   groqForm.append('model', model);
-  groqForm.append('response_format', 'json');
+  // S-FIX-VOICE-2: verbose_json вместо json — Whisper выставляет собственной выдаче
+  // метрики (avg_logprob / compression_ratio / no_speech_prob), по которым галлюцинацию
+  // видно СТРУКТУРНО, а не совпадением строки со списком известных штампов.
+  groqForm.append('response_format', 'verbose_json');
   groqForm.append('temperature', '0');
   if (language) groqForm.append('language', language);
 
@@ -150,8 +203,17 @@ async function handleTranscribe(req: Request): Promise<Response> {
     }
 
     if (resp.ok) {
-      const data = (await resp.json()) as { text?: string };
-      return json({ text: data.text ?? '' });
+      const data = (await resp.json()) as GroqVerboseResponse;
+      const segments = pickSegments(data.segments);
+      return json({
+        // Поле `text` остаётся на месте с прежним смыслом: старая вкладка, открытая
+        // до деплоя, обязана продолжать работать. Сегменты добавлены РЯДОМ.
+        // Фолбэк на склейку сегментов — на случай, если провайдер вернёт verbose_json
+        // без общего `text` (документация обещает оба, но проверить это можно только
+        // после деплоя — порогов здесь всё равно нет).
+        text: data.text ?? segments.map((s) => s.text).join(' ').trim(),
+        segments,
+      });
     }
 
     if ((resp.status === 429 || resp.status >= 500) && attempt === 0) {

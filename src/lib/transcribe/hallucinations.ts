@@ -17,6 +17,10 @@
  *  • `prefix` — субтитровая подпись, за которой идёт имя автора («Субтитры сделал
  *    DimaTorzok», «Редактор субтитров А.Синецкая Корректор А.Егорова»). Такое начало
  *    предложения в деловом разговоре не встречается вовсе, поэтому хвост не важен.
+ *
+ * S-FIX-VOICE-2 добавил третий режим сверки — `domain` (см. `isDomainArtifact`). Он
+ * не в этом списке, потому что сверяется не со строкой, а с правилом: перечислить
+ * все домены, которые Whisper может дописать, нельзя по построению.
  */
 type StampMode = 'exact' | 'prefix';
 
@@ -43,9 +47,40 @@ function normalize(segment: string): string {
     .trim();
 }
 
+/**
+ * Домен внутри предложения (`www.` или TLD) — третий режим сверки, S-FIX-VOICE-2.
+ *
+ * В телефонном разговоре человек не диктует голосом «www.vk.com»: на боевом прогоне
+ * 2026-08-08 Whisper дописал «Вопросы на сайте www.vk.com» в начало часовой записи.
+ * Признак структурный — списком доменов его не поймать.
+ *
+ * ⚠️ Ограничение по длине обязательно, иначе фильтр съедает живую речь: «отправьте
+ * на почту, там на сайте bit.ru всё есть» — нормальная реплика делового разговора.
+ * Артефакт — это отдельная короткая фраза-вставка, а не упоминание сайта внутри речи.
+ */
+const DOMAIN_RE = /\bwww\.[a-zа-я0-9-]|[a-zа-я0-9-]{2,}\.(ru|com|рф|net|org)\b/i;
+
+/**
+ * Порог длины «фраза-вставка, а не речь».
+ *
+ * Спринт называл ориентир ~80 символов, но его же контрпример («отправьте на почту,
+ * там на сайте bit.ru всё есть» — 46 символов) при 80 отбрасывался бы вместе с
+ * артефактом. Взято 40: известный артефакт — 28 символов, контрпример остаётся жив.
+ * Приоритет ошибки тот же, что у порога тишины: **лучше пропустить мусор, чем съесть
+ * реплику**. Уточняется по боевым файлам.
+ */
+const DOMAIN_ARTIFACT_MAX_CHARS = 40;
+
+function isDomainArtifact(segment: string): boolean {
+  const norm = normalize(segment);
+  if (!norm || norm.length > DOMAIN_ARTIFACT_MAX_CHARS) return false;
+  return DOMAIN_RE.test(norm);
+}
+
 function isHallucination(segment: string): boolean {
   const norm = normalize(segment);
   if (!norm) return false;
+  if (isDomainArtifact(segment)) return true;
   return STAMPS.some(({ text, mode }) =>
     mode === 'exact' ? norm === text : norm === text || norm.startsWith(`${text} `),
   );
@@ -100,3 +135,83 @@ export function buildTail(parts: readonly string[], maxChars: number): string {
 
 /** Список штампов — для тестов и отладки; править только через `STAMPS`. */
 export const HALLUCINATION_STAMPS = STAMPS.map((s) => s.text);
+
+// ─── S-FIX-VOICE-2: фильтр по метрикам сегментов ───
+
+/**
+ * Сегмент ответа Whisper в `verbose_json`. Метрики необязательны: провайдер может
+ * их не прислать, и это НЕ повод считать сегмент мусором.
+ */
+export type WhisperSegment = {
+  text: string;
+  avg_logprob?: number | null;
+  compression_ratio?: number | null;
+  no_speech_prob?: number | null;
+};
+
+/**
+ * Пороги отбраковки сегмента.
+ *
+ * Взяты из эвристик `whisper.cpp` / `faster-whisper` (там те же метрики используются
+ * для отсечения «плохих» сегментов) и **уточняются по боевым файлам** — это не
+ * окончательные числа, а стартовая точка.
+ *
+ * `noSpeech` и `avgLogprob` работают ТОЛЬКО В ПАРЕ: по отдельности каждый даёт ложные
+ * срабатывания на тихой речи (человек говорит далеко от микрофона — no_speech_prob
+ * высокий, но речь настоящая; редкая терминология — avg_logprob низкий, но слова
+ * верные). Вместе — «модель и не слышала речи, и не уверена в том, что написала».
+ */
+export const SEGMENT_THRESHOLDS = {
+  /** Модель сама оценивает, что речи в сегменте нет. */
+  noSpeechProb: 0.6,
+  /** Средняя уверенность в выданных токенах. */
+  avgLogprob: -1.0,
+  /** Повторяемость текста: «Продолжение следует» ×6 даёт именно это. */
+  compressionRatio: 2.4,
+} as const;
+
+/**
+ * Сегмент — машинный мусор по собственным метрикам модели?
+ *
+ * ⚠️ Приоритет ошибки — как у порога тишины: **лучше пропустить мусор, чем съесть
+ * реплику**. При сомнении (метрики не пришли, значения на границе) сегмент остаётся.
+ */
+export function isLowQualitySegment(segment: WhisperSegment): boolean {
+  const { avg_logprob, compression_ratio, no_speech_prob } = segment;
+
+  const noSpeech = typeof no_speech_prob === 'number' ? no_speech_prob : null;
+  const logprob = typeof avg_logprob === 'number' ? avg_logprob : null;
+  if (
+    noSpeech !== null && logprob !== null &&
+    noSpeech > SEGMENT_THRESHOLDS.noSpeechProb &&
+    logprob < SEGMENT_THRESHOLDS.avgLogprob
+  ) {
+    return true;
+  }
+
+  const ratio = typeof compression_ratio === 'number' ? compression_ratio : null;
+  return ratio !== null && ratio > SEGMENT_THRESHOLDS.compressionRatio;
+}
+
+/**
+ * Текст фрагмента из сегментов: метрики → отбраковка → склейка.
+ *
+ * Возвращает то, что дальше уйдёт в `stripHallucinations` (вторая линия — список
+ * известных штампов) и только потом в `buildTail`. Порядок обязателен: хвост
+ * собирается из УЖЕ очищенного, иначе петля самоусиления замыкается через prompt.
+ *
+ * Сегментов нет (старый ответ функции, провайдер их не прислал) — работаем по
+ * общему `text`, как до S-FIX-VOICE-2: фильтр не должен отнимать то, что уже было.
+ */
+export function segmentsToText(
+  segments: readonly WhisperSegment[] | null | undefined,
+  fallbackText: string,
+): string {
+  if (!Array.isArray(segments) || segments.length === 0) return fallbackText;
+  return segments
+    .filter((s) => !isLowQualitySegment(s))
+    .map((s) => s.text)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
