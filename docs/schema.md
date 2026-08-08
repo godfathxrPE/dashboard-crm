@@ -2565,7 +2565,7 @@ USING — org-граница автоматически запрещает пе�
   расширяется вместе с ней (её `EXISTS` идёт под RLS `meetings`), а `is_meeting_attendee(uuid)`
   остаётся в схеме без вызывающих — см. хвост у 071 в ledger'е дельт.
 
-### Командная видимость на чтение (098, S-VIS-A — НАПИСАНА, НЕ ПРИМЕНЕНА)
+### Командная видимость на чтение (098, S-VIS-A — applied 2026-08-02 `20260802201942`)
 
 - Шесть SELECT-политик — `companies_select`, `contacts_select`, `leads_select`, `calls_select`,
   `meetings_select`, `activities_select` — приведены к одному телу
