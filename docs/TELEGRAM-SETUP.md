@@ -190,6 +190,7 @@ curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 | Симптом | Причина |
 |---|---|
 | `telegram_updates` пуст, в логах edge ноль вызовов | `setWebhook` не сделан или указывает на другой URL |
+| Бот отвечает на `/start`, но нажатие кнопки не даёт **ничего** — в логах edge ноль вызовов, `pending_update_count` = 0, `last_error_message` пуст | `allowed_updates` у Telegram не содержит `callback_query`. Апдейт отбрасывается на его стороне, следов нет нигде → § 3.1 (перерегистрация требует и `secret_token`, значит идёт вместе с ротацией) |
 | `getWebhookInfo`: `last_error_message` = `401 Unauthorized` | `TELEGRAM_WEBHOOK_SECRET` ≠ `secret_token` у Telegram → § 3.1 |
 | `net._http_response`: 401, очередь `pending`, `attempts = 0` | `TELEGRAM_SEND_KEY` ≠ Vault `telegram_send_key` → § 3.2 |
 | Очередь `pending`, тик молчит, в `net._http_response` пусто | нет Vault-секретов — `telegram_send_tick()` выходит **молча, by design** (§ 6 миграции 107) |
@@ -212,3 +213,19 @@ curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 **Не «чинить» очередь руками.** Ни `update … set status='pending'`, ни удаление строк не
 нужны: чинить надо ключ, очередь дождётся. Это же — главный аргумент за очередь против
 fire-and-forget: при том же сбое `pg_net` без очереди сообщение было бы потеряно молча.
+
+---
+
+## 6. Состояние, которого нет в репозитории
+
+Три инцидента за два дня — все одного рода: код верен, миграции применены, тесты зелёные, а работает не всё. Причина каждый раз жила **вне репозитория**, там, где ни git, ни CI её не видят:
+
+| Где | Что | Как проверяется |
+|---|---|---|
+| Function Secrets | `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_SEND_KEY`, `TELEGRAM_BOT_TOKEN` | только косвенно: 401 в логах edge / `net._http_response` |
+| Vault | `telegram_send_key`, `telegram_send_url` | `select name, updated_at from vault.secrets` |
+| **У Telegram** | `url`, `secret_token`, **`allowed_updates`** | `getWebhookInfo` |
+
+⚠️ **`getWebhookInfo` — обязательный шаг после КАЖДОГО `setWebhook`**, а не «если что-то не так». Скрипт § 3.1 его уже печатает; смотреть надо на все три поля, а не только на `ok: true`.
+
+Отдельно про `allowed_updates`: **повторный `setWebhook` без этого параметра сохраняет прежний список**, а не открывает всё. Список задаётся явно каждый раз — иначе новый тип апдейта, добавленный следующим спринтом, молча не придёт.
