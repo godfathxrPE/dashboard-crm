@@ -160,7 +160,7 @@ export function EntityTimeline({
   entityType, entityId, onOpenEvent, renderAction, options, className,
   kindFilter, splitUpcoming = false, filter: filterProp, onFilterChange, showFilters = true,
 }: EntityTimelineProps) {
-  const { events: allEvents, isLoading } = useEntityTimeline(entityType, entityId, options);
+  const { events: allEvents, isLoading, error } = useEntityTimeline(entityType, entityId, options);
   const [localFilter, setLocalFilter] = useState<TimelineFilterValue>('all');
 
   // Управляемый режим — только когда переданы ОБА props: одиночный `filter` без
@@ -225,6 +225,17 @@ export function EntityTimeline({
       <div className="flex h-32 items-center justify-center">
         <Loader2 size={20} className="animate-spin text-accent" />
       </div>
+    );
+  }
+
+  // Сбой загрузки обязан отличаться от «событий нет»: без этой ветки любой бросок
+  // внутри queryFn выглядит как пустая лента — React Query такой бросок ловит
+  // молча, и в консоли с логами БД не остаётся ничего (дефект S-TL-1).
+  if (error) {
+    return (
+      <p className={cn('py-6 text-center text-xs text-red', className)}>
+        Не удалось загрузить активность. Обновите страницу.
+      </p>
     );
   }
 

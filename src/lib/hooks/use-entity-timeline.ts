@@ -49,25 +49,19 @@ export interface UseEntityTimelineOptions {
 /** Виды, которые прячет `includeSystem: false`. */
 const SYSTEM_KINDS: readonly TimelineKind[] = ['activity', 'ai_run'];
 
-/**
- * Минимальная форма `supabase.rpc` для функции, которой ещё нет в
- * `supabase.gen.ts`: миграция 112 не применена, реген делает гейт, а править
- * сгенерированные типы руками запрещено (правило 2). После apply + реген каст
- * снимается, вызов остаётся тем же.
- */
-type RpcError = { message: string };
-type UntypedRpc = (
-  fn: string,
-  args: Record<string, unknown>,
-) => PromiseLike<{ data: unknown; error: RpcError | null }>;
-
 async function fetchTimeline(
   entityType: TimelineEntityType,
   entityId: string,
 ): Promise<TimelineEvent[]> {
+  // ⚠️ `rpc` зовётся ТОЛЬКО методом. До регена типов здесь стояло
+  // `const rpc = supabase.rpc as unknown as UntypedRpc` — обход отсутствующей
+  // сигнатуры, который отрывал метод от клиента: внутри supabase-js он читает
+  // `this.rest`, и оторванный вызов бросал TypeError ещё ДО сети. React Query
+  // ловит бросок из queryFn молча — лента рисовала «Пока нет активности» при
+  // исправном сервере. Если типа функции опять не окажется, кастовать нужно
+  // КЛИЕНТ (`createClient() as unknown as { rpc: F }`), а не метод.
   const supabase = createClient();
-  const rpc = supabase.rpc as unknown as UntypedRpc;
-  const { data, error } = await rpc('entity_timeline', {
+  const { data, error } = await supabase.rpc('entity_timeline', {
     p_entity_type: entityType,
     p_entity_id: entityId,
     p_limit: PER_SOURCE_LIMIT,
@@ -109,5 +103,7 @@ export function useEntityTimeline(
     return visible.map((e) => (e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e));
   }, [timeline.data, includeSystem, actorMap]);
 
-  return { events, isLoading: timeline.isLoading };
+  // Ошибка отдаётся наружу намеренно: без неё сбой queryFn неотличим от «событий
+  // нет» — ровно так дефект S-TL-1 и дожил до владельца.
+  return { events, isLoading: timeline.isLoading, error: timeline.error as Error | null };
 }
