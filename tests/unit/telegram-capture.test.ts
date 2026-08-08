@@ -203,7 +203,7 @@ describe('buildCaptureCard — контакт', () => {
 });
 
 describe('buildCaptureCard — дубль', () => {
-  const dup = { kind: 'company' as const, id: ID2, label: 'ООО «Ромашка»' };
+  const dup = { kind: 'company' as const, id: ID2, label: 'ООО «Ромашка»', matchedBy: 'name' as const };
 
   it('показывает существующее и даёт три кнопки', () => {
     const card = buildCaptureCard({
@@ -245,6 +245,52 @@ describe('buildCaptureCard — дубль', () => {
       appUrl: APP,
     });
     expect(card.text).toContain('ООО «Ромашка &amp; Ко»');
+  });
+
+  it('совпадение по ИНН — «Всё равно создать» НЕТ (кнопка не может сработать)', () => {
+    // Вставка упрётся в uq_companies_org_inn: кнопка, которая гарантированно не
+    // выполнится, — дефект интерфейса, и честный ответ RPC (111) её не оправдывает.
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'company',
+      company: { name: 'ООО «Ромашка»', inn: '7707083893' },
+      duplicate: { ...dup, matchedBy: 'inn' },
+      appUrl: APP,
+    });
+    expect(card.reply_markup.inline_keyboard).toEqual([
+      [{ text: 'Открыть в CRM', url: `${APP}/companies/${ID2}` }],
+      [{ text: 'Отмена', callback_data: `${CAPTURE_CANCEL_PREFIX}${ID}` }],
+    ]);
+    // Пропавшая кнопка без объяснения читается как сбой бота.
+    expect(card.text).toContain('Совпадает ИНН');
+  });
+
+  it('совпадение по ИНН без валидного app_url не оставляет пустой ряд кнопок', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'company',
+      duplicate: { ...dup, matchedBy: 'inn' },
+      appUrl: null,
+    });
+    expect(card.reply_markup.inline_keyboard).toEqual([
+      [{ text: 'Отмена', callback_data: `${CAPTURE_CANCEL_PREFIX}${ID}` }],
+    ]);
+  });
+
+  it('совпадение по названию — все три кнопки на месте', () => {
+    // Два юрлица с похожими названиями и разными ИНН — обычное дело.
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'company',
+      duplicate: { ...dup, matchedBy: 'name' },
+      appUrl: APP,
+    });
+    expect(card.reply_markup.inline_keyboard.flat().map((b) => b.text)).toEqual([
+      'Открыть в CRM',
+      'Всё равно создать',
+      'Отмена',
+    ]);
+    expect(card.text).not.toContain('Совпадает ИНН');
   });
 
   it('на unclear дубль всё равно требует выбрать ветку', () => {
@@ -343,5 +389,35 @@ describe('buildAppliedText / buildAppliedKeyboard', () => {
       inline_keyboard: [[{ text: 'Открыть в CRM', url: `${APP}/contacts/${ID}` }]],
     });
     expect(buildAppliedKeyboard(null, 'contact', ID)).toEqual({ inline_keyboard: [] });
+  });
+
+  it('исход duplicate_inn — «уже заведена», а не «создана» (S-TG-3-INN-DUP)', () => {
+    expect(buildAppliedText('company', 'ООО «Ромашка»', 'duplicate_inn')).toBe(
+      '• Компания с этим ИНН уже заведена: ООО «Ромашка»',
+    );
+    // Название могло не найтись (запись удалили между падением вставки и поиском):
+    // сообщение обязано остаться читаемым и без «undefined»/«null» в нём.
+    expect(buildAppliedText('company', '', 'duplicate_inn')).toBe(
+      '• Компания с этим ИНН уже заведена',
+    );
+    for (const t of [
+      buildAppliedText('company', '', 'duplicate_inn'),
+      buildAppliedText('company', 'ООО «Ромашка»', 'duplicate_inn'),
+    ]) {
+      expect(t).not.toContain('undefined');
+      expect(t).not.toContain('null');
+    }
+  });
+
+  it('на duplicate_inn с id ссылка есть, без id — клавиатура пустая', () => {
+    // Ссылка в никуда хуже её отсутствия: то же правило, что у `v_link` в
+    // `telegram_notification_text`. Ветку «нет id» собирает capture.ts — здесь
+    // фиксируется, что сборщик клавиатуры на валидном id даёт ровно одну ссылку.
+    expect(buildAppliedKeyboard(APP, 'company', ID2)).toEqual({
+      inline_keyboard: [[{ text: 'Открыть в CRM', url: `${APP}/companies/${ID2}` }]],
+    });
+    expect(buildAppliedKeyboard(APP, 'company', ID2).inline_keyboard[0][0].url).not.toContain(
+      'undefined',
+    );
   });
 });

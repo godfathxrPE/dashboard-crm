@@ -49,7 +49,23 @@ const MSG_NOT_LINKED =
   'Профиль не привязан. Откройте Настройки → Telegram в CRM и подключите бота.';
 const MSG_TOO_LONG = `Слишком длинный текст — не больше ${CAPTURE_MAX_CHARS} символов. Пришлите только карточку контакта или реквизиты.`;
 const MSG_PARSING = 'Разбираю…';
+/**
+ * Ответ пришёл, но не лёг в схему. Повтор здесь ИМЕЕТ смысл: другая формулировка
+ * действительно может разобраться.
+ */
 const MSG_PARSE_FAILED = 'Не удалось разобрать текст. Попробуйте прислать его ещё раз.';
+/**
+ * Разбор не состоялся по нашей причине: `ai-capture` не ответила (сбой, исчерпан
+ * баланс, нет ключа) или не записался черновик.
+ *
+ * ⚠️ ТЕКСТ ОШИБКИ НЕ ДОЛЖЕН ПРЕДЛАГАТЬ ДЕЙСТВИЕ, КОТОРОЕ НЕ МОЖЕТ ПОМОЧЬ. Раньше
+ *    сюда попадал `MSG_PARSE_FAILED` со словами «попробуйте ещё раз» — 2026-08-08
+ *    в бою при исчерпанном балансе Claude API человек полчаса переформулировал
+ *    сообщение, пытаясь угодить боту, которому нечем было отвечать. «Ещё раз» на
+ *    инфраструктурном сбое переводит нашу проблему в разряд пользовательских.
+ */
+const MSG_UNAVAILABLE =
+  'Разбор временно недоступен — это на нашей стороне. Сообщите администратору CRM.';
 const MSG_EMPTY = 'В тексте не нашлось ни контакта, ни компании.';
 
 const CB_CREATED = 'Готово';
@@ -60,6 +76,7 @@ const CB_EXPIRED = 'Черновик устарел';
 const CB_NEED_KIND = 'Выберите: контакт или компания';
 const CB_FAILED = 'Не удалось. Откройте CRM';
 const CB_NO_RIGHTS = 'У вашей роли нет права создавать записи';
+const CB_DUPLICATE_INN = 'Такая компания уже есть';
 
 /** Минимальный интерфейс Bot API, который даёт вызывающий (index.ts). */
 export interface BotApi {
@@ -321,6 +338,14 @@ export async function handleCaptureText(
   };
 
   const parsedRaw = await invokeJson(supabase, 'ai-capture', { text: rawText });
+  // ⚠️ ДВА РАЗНЫХ ИСХОДА, РАНЬШЕ СКЛЕЕННЫЕ В ОДНУ СТРОКУ. `invokeJson` отдаёт
+  //    `null` ТОЛЬКО на сбое вызова — это наша сторона, и «попробуйте ещё раз»
+  //    там ложный совет. Ответ, не легший в схему, — другое дело: он приходит
+  //    объектом, и повтор с другой формулировкой может сработать.
+  if (parsedRaw === null) {
+    await say(MSG_UNAVAILABLE);
+    return;
+  }
   const parsed = narrowCapture((parsedRaw as { result?: unknown } | null)?.result);
   if (!parsed) {
     await say(MSG_PARSE_FAILED);
@@ -387,7 +412,9 @@ export async function handleCaptureText(
   const draftId = (draftRow as { id?: string } | null)?.id ?? null;
   if (draftErr || !draftId) {
     console.error('telegram-webhook: черновик не записан:', draftErr?.message ?? 'нет id');
-    await say(MSG_PARSE_FAILED);
+    // Разбор к этому моменту УЖЕ состоялся — «не удалось разобрать текст» здесь
+    // было бы неправдой, а «пришлите ещё раз» — бесполезным советом.
+    await say(MSG_UNAVAILABLE);
     return;
   }
 
@@ -509,6 +536,32 @@ export async function handleCaptureCallback(
       await bot.edit(cq.chat_id as number, cq.message_id as number, buildAppliedText(result.kind, result.label ?? ''), {
         replyMarkup: buildAppliedKeyboard(appUrl, result.kind, result.id),
       });
+    }
+    return;
+  }
+
+  // ⚠️ ШТАТНЫЙ ИСХОД, А НЕ СБОЙ (111, S-TG-3-INN-DUP). Вставка компании упёрлась в
+  //    `uq_companies_org_inn`: такая организация в org уже заведена. Раньше это
+  //    приходило исключением и человек видел «Не удалось. Откройте CRM» — без
+  //    единого слова про ИНН и с живой кнопкой, дающей ровно тот же ответ.
+  if (result.status === 'duplicate_inn') {
+    await bot.answer(cq.id, CB_DUPLICATE_INN);
+    if (canEdit) {
+      // `id` может прийти NULL: запись удалили между падением вставки и поиском.
+      // Тогда текст без кнопки — ссылка в никуда хуже её отсутствия.
+      const appUrl = result.id ? await loadAppUrl(supabase, actor.org_id) : null;
+      await bot.edit(
+        cq.chat_id as number,
+        cq.message_id as number,
+        buildAppliedText('company', result.label ?? '', 'duplicate_inn'),
+        {
+          // Клавиатуру снимаем в любом случае: работа по черновику закончена, он
+          // закрыт как applied, и повторное нажатие даст тот же ответ.
+          replyMarkup: result.id
+            ? buildAppliedKeyboard(appUrl, 'company', result.id)
+            : { inline_keyboard: [] },
+        },
+      );
     }
     return;
   }
