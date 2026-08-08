@@ -259,7 +259,23 @@
 > «Расшифровка временно недоступна» — функция жива, ключа нет.** Зеркала `glossary.ts`/`cleanup-prompt.ts`
 > (`src/lib/transcribe/` ↔ `supabase/functions/transcribe/`) держит
 > `tests/unit/transcribe-mirror.test.ts` — как `chz-groups`;
-> следующая свободная после неё — **107**;
+> **107 (S-TG-1, эпик Telegram) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`107_telegram_core.sql`):
+> аддитивна — четыре таблицы (`telegram_accounts`, `telegram_link_tokens`,
+> `telegram_outbox`, `telegram_updates`), шесть функций, триггер `trg_zz_telegram_outbox`
+> на `notifications` и **вторая минутная cron-джоба** `tg-send`. Существующих объектов не
+> трогает: `notifications` получает только новый AFTER-триггер, CHECK по `type` не
+> расширяется. ⚠️ Реген типов нужен: до него в `src/types/database.ts` живёт стаб
+> `TelegramAccount`, а в `src/lib/hooks/use-telegram-account.ts` — стаб схемы
+> `DatabaseWithTelegram` + обёртка `telegramClient()`; снимаются вместе с регенерацией.
+> ⚠️ **Порядок гейта:** apply 107 → деплой edge `telegram-send` / `telegram-webhook` →
+> Vault-секреты `telegram_send_key` / `telegram_send_url` → `setWebhook`. Apply раньше
+> деплоя безопасен: без секретов тик выходит молча, очередь копится в `pending`.
+> Тем же PR, без миграции: **седьмая и восьмая Edge Functions** `telegram-send`
+> (`verify_jwt = false`, X-Dispatch-Key) и `telegram-webhook` (`verify_jwt = false`,
+> X-Telegram-Bot-Api-Secret-Token), плюс **одноразовая `tg-probe`** (`verify_jwt = true`) —
+> проба достижимости `api.telegram.org` из региона Supabase Edge, ШАГ 0 спринта;
+> **удаляется вместе со строкой в `config.toml` сразу после ответа**;
+> следующая свободная после неё — **108**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -769,6 +785,13 @@ definer-триггерами/планировщиком (INSERT-политики
 **RLS**: `notif_select`/`notif_update`/`notif_delete` — `org_id = current_org_id()`
 И `recipient_id = auth.uid()`. **Realtime**: добавлена в `supabase_realtime`.
 
+⚠️ **107 (S-TG-1) вешает на таблицу AFTER-триггер `trg_zz_telegram_outbox`** — доставку в
+Telegram. Схему и CHECK он не трогает, но делает `notifications` точкой входа мессенджера:
+**любой новый тип уведомления автоматически уезжает в Telegram**, а формат его сообщения
+задаётся в `telegram_notification_text()` (107) и зеркале
+`src/lib/domain/telegram-message.ts`. Добавляя седьмое значение `type`, править надо ЧЕТЫРЕ
+места: CHECK, `NotificationType`, `NotificationBell.tsx` и обе половины telegram-текста.
+
 ### pipelines / pipeline_stages _(Sprint 1 «Pipelines & Directions»)_
 DDL введён вне нумерованных миграций; описан в `src/types/database.ts`
 (`Pipeline`, `PipelineStage`). Глобальные справочники воронок.
@@ -1151,6 +1174,133 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
   пересмотра — сотни тысяч строк. Cron **`webhook-cleanup` `15 6 * * *`** — пятая джоба
   проекта, утренняя цепочка с шагом 5 минут (`0 6` / `5 6` / `10 6` / `15 6`) плюс минутная
   `webhook-retry`.
+
+---
+
+### telegram_accounts / telegram_link_tokens / telegram_outbox / telegram_updates _(107, S-TG-1, эпик Telegram — **НАПИСАНА, НЕ ПРИМЕНЕНА**)_ — Telegram
+
+**Telegram — ТРАНСПОРТ ДЛЯ `notifications`, а не источник событий.** Триггер
+`trg_zz_telegram_outbox` (AFTER INSERT ON `notifications`) кладёт строку в очередь, если у
+получателя есть привязка. Поэтому все шесть существующих типов (`task_assigned`,
+`project_assigned`, `deal_won`, `automation`, `spawn_suggest`, `webhook_disabled`) поехали в
+мессенджер **без единой правки** в порождающих местах (baseline `notify_*`, 045, 050, 051,
+079, 088, 090) — и каждый будущий тип поедет тоже. Альтернатива «дёргать Telegram из каждого
+триггера» отвергнута: она размазала бы знание о мессенджере по всей схеме.
+
+**Токен бота в БД не попадает никогда** — только в Function Secrets. В Vault лежат лишь
+`telegram_send_key` / `telegram_send_url` (форма 089: `cron.job.command` хранится и читается
+открытым текстом).
+
+**`telegram_accounts`** — привязка профиля к чату. `created_by` нет намеренно: строку создаёт
+edge под service_role, где `auth.uid()` пуст, а владелец записан в `profile_id`.
+
+| Колонка | Тип | Замечания |
+|---|---|---|
+| id | uuid | PK |
+| org_id | uuid | NOT NULL → organizations, `trg_aa_freeze_org_id` |
+| profile_id | uuid | NOT NULL → profiles, **UNIQUE** — один человек, один мессенджер |
+| telegram_user_id | bigint | NOT NULL, **UNIQUE** — один Telegram не слушает за двоих. **`bigint`, не `int`**: ID давно вышли за 2³¹ |
+| telegram_chat_id | bigint | NOT NULL — куда шлём |
+| username | text | nullable: в Telegram он необязателен и меняется на их стороне. Только для отображения, искать по нему нельзя |
+| linked_at | timestamptz | NOT NULL default now() |
+
+**RLS — привязка ЛИЧНАЯ, не командная.** SELECT/DELETE только своей строки
+(`org_id = current_org_id()` **и** `profile_id = auth.uid()`); **owner/admin чужих привязок не
+видят** — это адрес в стороннем мессенджере, персональные данные сотрудника, а не рабочая
+запись. **INSERT/UPDATE политик нет вовсе** и гранты отозваны: единственный путь создания —
+DEFINER-RPC `link_telegram_account` под service_role. Подделать `telegram_user_id` из браузера
+физически нечем. В публикации `supabase_realtime` — ради одного сценария: вкладка открыта,
+человек ушёл в Telegram, сказал `/start` и вернулся; без подписки он видит «не привязан» и
+жмёт F5.
+
+⚠️ Побочный эффект org-first в политике: член двух org после переключения своей строки не
+видит. Самолечится — повторный `/start` пересоздаёт её с актуальным `org_id`
+(`link_telegram_account` делает delete+insert, а не update: `trg_aa_freeze_org_id` запретил бы
+смену `org_id`).
+
+**`telegram_link_tokens`** — одноразовые токены привязки. `encode(gen_random_bytes(24),'hex')`,
+а не uuid: uuid предсказуем по формату, а токен вставляют в чат. TTL **15 минут**.
+**Клиенту таблица недоступна вообще** (`revoke all` + RLS без политик): свой токен он получает
+возвратом RPC, чужой не нужен никому. Почему токен, а не «напиши боту свой email» — второе это
+спуфинг чужого профиля одним сообщением.
+
+**`telegram_outbox`** — очередь исходящих. Очередь, а не fire-and-forget: Telegram отвечает
+**429 с `parameters.retry_after`** и **403 при блокировке бота**, и то и другое надо пережить.
+`status` — CHECK `pending|sent|error`; **текст фиксируется при постановке и не пересобирается**
+(сделку могли переименовать — человек получил бы сообщение про событие, которого не было).
+Индекс **`idx_telegram_outbox_queue (next_retry_at) where status='pending'`** — partial, точная
+копия приёма 088; на нём стоит дешёвый выход тика. **Клиенту недоступна вообще**: в тексте
+лежит содержимое уведомлений.
+
+**`telegram_updates`** (`update_id bigint PK`, `received_at`) — идемпотентность входящих:
+Telegram ретраит апдейт, если ответ не пришёл за таймаут. **`org_id` здесь нет и не должно
+быть** — бот один на инсталляцию, апдейт приходит раньше, чем известно, чей он; это журнал
+транспорта, а не тенантные данные, и конвенция org-таблицы к нему не применяется.
+**ДОЛГ S-TG-2:** ретеншн — таблица растёт монотонно.
+
+**Функции:**
+
+- `telegram_escape_html(text)` → text _(INVOKER, immutable, ACL пуст)_ — `& < >`, **амперсанд
+  первым** (иначе `&lt;` станет `&amp;lt;`). Имя компании вида «ООО «Ромашка & Ко»» без этого
+  роняет `sendMessage`.
+- `telegram_notification_text(type, entity_type, entity_id, payload, app_url)` → text
+  _(INVOKER, immutable, ACL пуст)_ — заголовок, суть, ссылка. **ТОЧКА СИНХРОНИЗАЦИИ SQL↔TS:**
+  зеркало живёт в `src/lib/domain/telegram-message.ts` и покрыто
+  `tests/unit/telegram-message.test.ts` (SQL-функции тестового окружения в проекте не имеют).
+  Заголовки/тело — зеркало `TYPE_LABEL`/`payloadTitle`, путь — зеркало `entityRoute`; все три
+  в `src/components/layout/NotificationBell.tsx`. Базовый URL — `organizations.settings.app_url`
+  с фолбэком на `APP_ORIGIN` из `src/lib/utils/entity-links.ts`; **не прошёл узкий регэксп ⇒
+  сообщение без ссылки** (регэксп не пропускает `& < >` и пробел — поэтому ссылку не нужно
+  экранировать отдельно).
+- `create_telegram_link_token()` → text _(DEFINER, `authenticated`)_ — токен для текущего
+  `auth.uid()`; гасит прежние неиспользованные токены профиля. NULL-safe гарды на `auth.uid()`
+  и `current_org_id()` → 42501.
+- `link_telegram_account(p_token, p_telegram_user_id, p_chat_id, p_username)` → jsonb
+  _(DEFINER, только `service_role`)_ — **RPC, а не прямая запись из edge**: проверка токена,
+  создание привязки и его гашение обязаны быть одной транзакцией, `for update` на строке токена
+  сериализует два одновременных `/start`. Наружу `{ok, reason}`; причины отказа сведены к
+  `invalid_token` намеренно.
+- `claim_telegram_outbox(p_limit)` → table _(DEFINER, только `service_role`)_ — атомарный
+  захват батча, `for update skip locked` + **лизинг 2 минуты** и `attempts + 1`. Форма
+  `claim_webhook_deliveries` (088). ⚠️ Нужен не «для симметрии»: джоба минутная, а 25
+  сообщений при медленном Telegram упираются в таймаут 10 с каждое — тик может не уложиться
+  в минуту, и следующий забрал бы те же строки. Дубль в личном чате живого человека заметен
+  сильнее, чем дубль вебхука. Лизинг вместо `next_retry_at = null` — умерший isolate иначе
+  оставил бы строку захваченной навсегда.
+- `enqueue_telegram_notification()` _(DEFINER, триггер)_ — **`EXCEPTION WHEN OTHERS THEN RETURN
+  NEW` обязателен**: AFTER-исполнитель на чужой транзакции, сбой доставки в мессенджер не имеет
+  права откатить назначение задачи. Та же политика, что у `notify_*` / `run_stage_automations`
+  (050) / `run_dwell_automations` (079).
+- `telegram_send_tick()` → void _(DEFINER, `service_role`)_ — форма дословно повторяет
+  `dispatch_webhooks_tick()` (089): дешёвый выход по partial-индексу, секреты из Vault,
+  `net.http_post` fire-and-forget, глушитель исключений. Cron **`tg-send` `* * * * *`** —
+  **вторая минутная джоба проекта**; при пустой очереди это один индексный скан и выход.
+
+**Edge-функции** (`supabase/functions/`, обе `verify_jwt = false`):
+
+- **`telegram-send`** — дренит очередь под service_role. Авторизация: `X-Dispatch-Key` против
+  `TELEGRAM_SEND_KEY` (сравнение без ранней остановки), данных не принимает (POST без тела).
+  Батч **25** берётся через `claim_telegram_outbox`, а не голым SELECT. Таймаут **10 с**.
+  Исходы: `ok:true` → `sent`; **429 → `next_retry_at = now() + retry_after`, статус остаётся
+  `pending`, а `attempts` ОТКАТЫВАЕТСЯ на дозахватное значение** (429 — расписание, а не
+  отказ: иначе пять «подожди 30 секунд» закрыли бы сообщение как ошибку); **4xx кроме 408 →
+  `error` без ретраев** (403 «bot was blocked», 400 «chat not found»/«can't parse entities» —
+  ретрай их не лечит); 5xx/408/сеть → бэкофф **1 м / 5 м / 15 м / 1 ч**, после 5-й попытки
+  `error`. Текст **уже экранирован в SQL** — второй раз экранировать нельзя (`&amp;amp;`).
+- **`telegram-webhook`** — только `/start <token>`. **ОБЯЗАТЕЛЬНАЯ** проверка
+  `X-Telegram-Bot-Api-Secret-Token` против `TELEGRAM_WEBHOOK_SECRET`; **пустой секрет в
+  окружении = закрыто**, а не «пропускаем». Всегда **200**, даже на непонятное: не-200
+  заставляет Telegram повторять по нарастающей и отключить хук. Ответ пользователю — **прямым
+  `sendMessage`, не через outbox**: это реакция на его действие, очередь добавила бы до минуты.
+  Всё остальное (свободный текст, `callback_query`) — 200 и молчание, разбор в S-TG-2.
+
+⚠️ **ОСОЗНАННОЕ ОТСТУПЛЕНИЕ ОТ «EDGE НЕ ПИШЕТ В БД»** (инвариант хендоффа 2026-08-08, эпик
+голоса). Там он держался, потому что рядом был браузер с сессией пользователя. Здесь браузера
+нет: очередь дренит cron, сообщения шлёт бот — закрыть строку, кроме самой функции, некому.
+Компенсация: обе таблицы, куда пишет edge (`telegram_outbox`, `telegram_updates`), для
+`authenticated` закрыты полностью; это транспорт, а не рабочие данные; всё, что меняет рабочие
+данные, идёт через RPC с явным актором (`link_telegram_account` здесь, отметки «Выполнено» —
+S-TG-2).
 
 ---
 

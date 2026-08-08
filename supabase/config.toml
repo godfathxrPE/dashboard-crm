@@ -71,3 +71,56 @@ verify_jwt = true
 # переопределяет модель вычитки без правки кода, дефолт claude-sonnet-5).
 [functions.transcribe]
 verify_jwt = true
+
+# S-TG-1, ШАГ 0: одноразовая проба достижимости api.telegram.org ИЗ EDGE.
+#
+# ⚠️ УДАЛИТЬ вместе с supabase/functions/tg-probe/ сразу после получения ответа.
+#    Ответ на вопрос «доступен ли Telegram из региона Supabase» не выводится из
+#    документации, а curl с макбука отвечает на другой вопрос (разные маршруты).
+#    Деплой edge вне полномочий CC — поэтому проба едет в репо, ответ снимает гейт.
+#
+# verify_jwt = true — ради пробы новых открытых миру endpoint'ов не заводим.
+# Секрет: TELEGRAM_BOT_TOKEN (наружу не отдаётся ни при каком исходе).
+[functions.tg-probe]
+verify_jwt = true
+
+# S-TG-1: дренаж очереди telegram_outbox (telegram-send).
+#
+# ⚠️ verify_jwt = false — ВТОРАЯ функция проекта без проверки JWT на шлюзе, и
+#    вынужденно по той же причине, что webhook-dispatch: её зовёт БД
+#    (telegram_send_tick, 107) через pg_net, а у БД JWT нет. Взамен — своя
+#    авторизация: заголовок X-Dispatch-Key сверяется без ранней остановки с
+#    Function Secret TELEGRAM_SEND_KEY.
+#
+#    Второй контур: функция НЕ ПРИНИМАЕТ ДАННЫХ (POST без тела, очередь читает
+#    сама), поэтому даже с валидным ключом ей нельзя продиктовать ни текст
+#    сообщения, ни адресата.
+#
+#    Отступление от «edge не пишет в БД» — осознанное и описано в шапке
+#    index.ts: браузера с сессией пользователя здесь нет, закрыть строку очереди
+#    больше некому. telegram_outbox для authenticated закрыта полностью.
+#
+#    Секреты, которые нужны ДО первого вызова:
+#      • TELEGRAM_BOT_TOKEN — токен бота от @BotFather. В БД не попадает никогда;
+#      • TELEGRAM_SEND_KEY  (то же значение — в Vault под именем
+#        telegram_send_key, см. 107);
+#      • Vault telegram_send_url = https://<ref>.supabase.co/functions/v1/telegram-send
+[functions.telegram-send]
+verify_jwt = false
+
+# S-TG-1: входящие апдейты Telegram (telegram-webhook). В спринте — только /start.
+#
+# ⚠️ verify_jwt = false — Telegram JWT НЕ НОСИТ и носить не может. Компенсация —
+#    ОБЯЗАТЕЛЬНАЯ проверка заголовка X-Telegram-Bot-Api-Secret-Token против
+#    Function Secret TELEGRAM_WEBHOOK_SECRET (значение задаётся при setWebhook).
+#    Не совпал — 401. Без этой проверки endpoint открыт миру: любой, угадавший
+#    URL, слал бы боту фальшивые /start и привязывал чужие профили.
+#    Пустой секрет в окружении трактуется как «закрыто», а не как «пропускаем».
+#
+#    Идемпотентность — telegram_updates(update_id) (107): Telegram ретраит апдейт,
+#    если ответ не пришёл за таймаут. На всё остальное функция отвечает 200 и
+#    молчит: не-200 заставляет Telegram повторять по нарастающей и отключить хук.
+#
+#    Секреты: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
+[functions.telegram-webhook]
+verify_jwt = false

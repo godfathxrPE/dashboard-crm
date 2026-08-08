@@ -1,0 +1,129 @@
+// ═══════════════════════════════════════════════════════
+// S-TG-1: текст уведомления, уезжающего в Telegram.
+//
+// ⚠️ ЭТО ЗЕРКАЛО, А НЕ РАНТАЙМ. Боевой текст собирает SQL —
+//    `public.telegram_notification_text()` в `supabase/migrations/107_telegram_core.sql`,
+//    и вызывается он из триггера `trg_zz_telegram_outbox` на `notifications`. Из
+//    браузера этот путь не проходит вообще: `telegram_outbox` для `authenticated`
+//    закрыта полностью.
+//
+//    ЗАЧЕМ ТОГДА КОПИЯ. Правила формата (какой заголовок у типа, что показывать при
+//    пустом payload, что экранировать, куда ведёт ссылка) — единственная в спринте
+//    часть, которую можно проверить тестами: SQL-функции в этом проекте тестового
+//    окружения не имеют, а ошибка в экранировании ломает отправку молча, на первом же
+//    названии компании с амперсандом. Здесь она ловится в `npm test`.
+//
+//    ЦЕНА. Два места вместо одного. Правится ТЕМ ЖЕ коммитом, что 107 — тот же
+//    приём и та же дисциплина, что у зеркал промптов edge-функций (S-R3-VOICE-1) и
+//    у `WEBHOOK_EVENT_BY_TRIGGER` (090). Расхождение зеркала с SQL — баг, а не
+//    «два варианта».
+//
+// ⚠️ Заголовки/тело — зеркало `TYPE_LABEL` и `payloadTitle`, путь — зеркало
+//    `entityRoute`; все три живут в `src/components/layout/NotificationBell.tsx`.
+//    Человек, читающий одно и то же уведомление в колокольчике и в мессенджере,
+//    должен видеть один и тот же текст, иначе это два продукта с общей таблицей.
+// ═══════════════════════════════════════════════════════
+
+import type { NotificationType } from '@/types/database';
+
+/**
+ * Фолбэк базового URL — тот же литерал, что `APP_ORIGIN` в
+ * `src/lib/utils/entity-links.ts`. Импортом не связаны намеренно: зеркало обязано
+ * читаться рядом с SQL, где импортировать неоткуда.
+ */
+export const TELEGRAM_APP_ORIGIN_FALLBACK = 'https://dashboard-crm-ten.vercel.app';
+
+/**
+ * Базовый URL признаётся годным, только если он похож на базовый URL. Регэксп
+ * намеренно уже, чем «валидный URL»: он не пропускает `&`, `<`, `>` и пробел —
+ * поэтому собранная ссылка не может сломать `parse_mode: 'HTML'` и не требует
+ * отдельного экранирования. Зеркало условия из 107.
+ */
+const APP_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:[0-9]{1,5})?(\/[A-Za-z0-9._~/-]*)?$/;
+
+const TYPE_HEAD: Record<NotificationType, string> = {
+  task_assigned: 'Назначена задача',
+  project_assigned: 'Назначена сделка',
+  deal_won: 'Сделка выиграна',
+  automation: 'Автоматизация',
+  spawn_suggest: 'Пора создать внедрение',
+  webhook_disabled: 'Вебхук отключён',
+};
+
+/** Тип вне словаря приходит только из будущей миграции — не падаем, а деградируем. */
+const FALLBACK_HEAD = 'Уведомление';
+
+export interface TelegramNotificationInput {
+  type: string;
+  entity_type: string;
+  entity_id: string;
+  payload: { title?: string | null; text?: string | null } | null;
+  /** `organizations.settings.app_url`; null/мусор ⇒ сообщение уйдёт без ссылки. */
+  appUrl?: string | null;
+}
+
+/**
+ * Экранирование под `parse_mode: 'HTML'` у Telegram.
+ *
+ * Порядок обязателен: `&` первым, иначе он съест собственные подстановки
+ * (`&lt;` превратился бы в `&amp;lt;`). Три символа — ровно то, что требует
+ * Telegram; кавычки в тексте (не в атрибуте) экранировать не нужно.
+ */
+export function escapeTelegramHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Пустая строка и пробелы — то же, что отсутствие значения. */
+function clean(value: string | null | undefined): string | null {
+  const trimmed = (value ?? '').trim();
+  return trimmed === '' ? null : escapeTelegramHtml(trimmed);
+}
+
+/** Путь в приложении. Зеркало `entityRoute` из NotificationBell. */
+export function notificationPath(type: string, entityType: string, entityId: string): string {
+  // task_overdue-автоматизация несёт entity_type='tasks' → доска задач (иначе ушла
+  // бы в /deals/{task_id} = 404). Проверять ДО общей automation-ветки.
+  if (type === 'automation' && entityType === 'tasks') return '/tasks';
+  if (type === 'spawn_suggest') return `/deals/${entityId}?spawn=1`;
+  // У endpoint'а нет своего роута: ведём в Настройки, где секция «Вебхуки».
+  if (type === 'webhook_disabled') return '/settings';
+  if (type === 'project_assigned' || type === 'deal_won' || type === 'automation') {
+    return `/deals/${entityId}`;
+  }
+  return '/tasks';
+}
+
+/**
+ * Готовый текст сообщения: заголовок жирным, суть, ссылка.
+ *
+ * Ссылки может не быть — и это штатный исход, а не ошибка: ссылка в никуда хуже её
+ * отсутствия.
+ */
+export function buildTelegramNotificationText(input: TelegramNotificationInput): string {
+  const title = clean(input.payload?.title);
+  const text = clean(input.payload?.text);
+
+  // Заголовок — литерал из закрытого набора, экранировать нечего.
+  const head = TYPE_HEAD[input.type as NotificationType] ?? FALLBACK_HEAD;
+
+  let body: string;
+  if (input.type === 'deal_won') {
+    body = title
+      ? `Сделка «${title}» выиграна — создайте внедрение`
+      : 'Сделка выиграна — создайте внедрение';
+  } else if (input.type === 'automation') {
+    body = text ?? title ?? head;
+  } else if (input.type === 'spawn_suggest') {
+    body = text ?? (title ? `Сделка «${title}» — пора создать внедрение` : head);
+  } else {
+    body = title ?? head;
+  }
+
+  const appUrl = input.appUrl ?? null;
+  const link =
+    appUrl && APP_URL_RE.test(appUrl)
+      ? appUrl.replace(/\/+$/, '') + notificationPath(input.type, input.entity_type, input.entity_id)
+      : null;
+
+  return `<b>${head}</b>\n${body}${link ? `\n${link}` : ''}`;
+}
