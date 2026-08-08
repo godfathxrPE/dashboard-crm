@@ -3104,6 +3104,177 @@ export type Database = {
           },
         ]
       }
+      telegram_accounts: {
+        Row: {
+          created_at: string
+          id: string
+          linked_at: string
+          org_id: string
+          profile_id: string
+          telegram_chat_id: number
+          telegram_user_id: number
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          linked_at?: string
+          org_id: string
+          profile_id: string
+          telegram_chat_id: number
+          telegram_user_id: number
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          linked_at?: string
+          org_id?: string
+          profile_id?: string
+          telegram_chat_id?: number
+          telegram_user_id?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_accounts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_accounts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_link_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          org_id: string
+          profile_id: string
+          token: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          org_id: string
+          profile_id: string
+          token: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          org_id?: string
+          profile_id?: string
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_link_tokens_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_link_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_outbox: {
+        Row: {
+          attempts: number
+          chat_id: number
+          created_at: string
+          id: string
+          last_error: string | null
+          next_retry_at: string | null
+          notification_id: string | null
+          org_id: string
+          sent_at: string | null
+          status: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          chat_id: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_retry_at?: string | null
+          notification_id?: string | null
+          org_id: string
+          sent_at?: string | null
+          status?: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          chat_id?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          next_retry_at?: string | null
+          notification_id?: string | null
+          org_id?: string
+          sent_at?: string | null
+          status?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_outbox_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_outbox_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_updates: {
+        Row: {
+          received_at: string
+          update_id: number
+        }
+        Insert: {
+          received_at?: string
+          update_id: number
+        }
+        Update: {
+          received_at?: string
+          update_id?: number
+        }
+        Relationships: []
+      }
       transcripts: {
         Row: {
           char_count: number
@@ -3384,6 +3555,15 @@ export type Database = {
         Args: { p_project_id: string; p_row: Json; p_target_stage_id: string }
         Returns: Json
       }
+      claim_telegram_outbox: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          chat_id: number
+          id: string
+          message_text: string
+        }[]
+      }
       claim_webhook_deliveries: {
         Args: { p_limit?: number }
         Returns: {
@@ -3432,6 +3612,7 @@ export type Database = {
         Args: { p_name: string; p_project_id: string }
         Returns: string
       }
+      create_telegram_link_token: { Args: never; Returns: string }
       create_webhook_endpoint: {
         Args: { p_description?: string; p_name: string; p_url: string }
         Returns: {
@@ -3475,6 +3656,15 @@ export type Database = {
       lane_to_category: {
         Args: { p: Database["public"]["Enums"]["task_lane"] }
         Returns: string
+      }
+      link_telegram_account: {
+        Args: {
+          p_chat_id: number
+          p_telegram_user_id: number
+          p_token: string
+          p_username?: string
+        }
+        Returns: Json
       }
       recalc_delivery_progress: {
         Args: { p_project_id: string }
@@ -3544,6 +3734,18 @@ export type Database = {
           week_start: string
         }[]
       }
+      telegram_escape_html: { Args: { p_text: string }; Returns: string }
+      telegram_notification_text: {
+        Args: {
+          p_app_url: string
+          p_entity_id: string
+          p_entity_type: string
+          p_payload: Json
+          p_type: string
+        }
+        Returns: string
+      }
+      telegram_send_tick: { Args: never; Returns: undefined }
       toggle_checklist_item: {
         Args: { p_checked: boolean; p_checklist_id: string; p_item_key: string }
         Returns: Json

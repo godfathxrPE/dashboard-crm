@@ -259,22 +259,21 @@
 > «Расшифровка временно недоступна» — функция жива, ключа нет.** Зеркала `glossary.ts`/`cleanup-prompt.ts`
 > (`src/lib/transcribe/` ↔ `supabase/functions/transcribe/`) держит
 > `tests/unit/transcribe-mirror.test.ts` — как `chz-groups`;
-> **107 (S-TG-1, эпик Telegram) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`107_telegram_core.sql`):
-> аддитивна — четыре таблицы (`telegram_accounts`, `telegram_link_tokens`,
+> **107 (S-TG-1, эпик Telegram) — ПРИМЕНЕНА гейтом 2026-08-08 `20260808130945`**
+> (`107_telegram_core.sql`; сквозной смок пройден: `/start` → привязка → уведомление →
+> `sent`): аддитивна — четыре таблицы (`telegram_accounts`, `telegram_link_tokens`,
 > `telegram_outbox`, `telegram_updates`), шесть функций, триггер `trg_zz_telegram_outbox`
 > на `notifications` и **вторая минутная cron-джоба** `tg-send`. Существующих объектов не
 > трогает: `notifications` получает только новый AFTER-триггер, CHECK по `type` не
-> расширяется. ⚠️ Реген типов нужен: до него в `src/types/database.ts` живёт стаб
-> `TelegramAccount`, а в `src/lib/hooks/use-telegram-account.ts` — стаб схемы
-> `DatabaseWithTelegram` + обёртка `telegramClient()`; снимаются вместе с регенерацией.
-> ⚠️ **Порядок гейта:** apply 107 → деплой edge `telegram-send` / `telegram-webhook` →
-> Vault-секреты `telegram_send_key` / `telegram_send_url` → `setWebhook`. Apply раньше
-> деплоя безопасен: без секретов тик выходит молча, очередь копится в `pending`.
+> расширяется. **Типы перегенерены (S-TG-1-CLOSE), стабы сняты** — ручной `TelegramAccount`
+> в `src/types/database.ts` стал алиасом к автогенерации, `DatabaseWithTelegram` и
+> `telegramClient()` из хука удалены.
 > Тем же PR, без миграции: **седьмая и восьмая Edge Functions** `telegram-send`
 > (`verify_jwt = false`, X-Dispatch-Key) и `telegram-webhook` (`verify_jwt = false`,
-> X-Telegram-Bot-Api-Secret-Token), плюс **одноразовая `tg-probe`** (`verify_jwt = true`) —
-> проба достижимости `api.telegram.org` из региона Supabase Edge, ШАГ 0 спринта;
-> **удаляется вместе со строкой в `config.toml` сразу после ответа**;
+> X-Telegram-Bot-Api-Secret-Token) — **задеплоены 2026-08-08, ACTIVE**. Одноразовая
+> `tg-probe` (ШАГ 0, достижимость `api.telegram.org` из edge) отработала **до** спринта:
+> **GO**, бот `torii_crm_bot` (id `8569873194`) — и удалена коммитом `6d1d946`.
+> 📄 **Runbook подключения, ротации и диагностики — [`docs/TELEGRAM-SETUP.md`](./TELEGRAM-SETUP.md)**;
 > следующая свободная после неё — **108**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -1177,7 +1176,10 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 ---
 
-### telegram_accounts / telegram_link_tokens / telegram_outbox / telegram_updates _(107, S-TG-1, эпик Telegram — **НАПИСАНА, НЕ ПРИМЕНЕНА**)_ — Telegram
+### telegram_accounts / telegram_link_tokens / telegram_outbox / telegram_updates _(107, S-TG-1, эпик Telegram — **applied 2026-08-08 `20260808130945`**)_ — Telegram
+
+📄 **Операционка — [`docs/TELEGRAM-SETUP.md`](./TELEGRAM-SETUP.md)**: подключение с нуля,
+скрипты ротации секретов, таблица «симптом ⇒ причина». Здесь — только схема.
 
 **Telegram — ТРАНСПОРТ ДЛЯ `notifications`, а не источник событий.** Триггер
 `trg_zz_telegram_outbox` (AFTER INSERT ON `notifications`) кладёт строку в очередь, если у

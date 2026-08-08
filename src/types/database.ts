@@ -802,28 +802,18 @@ export const CONVERSATION_KINDS = ['general', 'project', 'group', 'dm'] as const
 
 export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
 
-// ═══ S-TG-1: привязка Telegram (миграция 107 — на гейте) ═══
+// ═══ S-TG-1: привязка Telegram (107, ПРИМЕНЕНА 2026-08-08 `20260808130945`) ═══
 //
-// ⚠️ СТАБ. `npm run db:gen-types` до apply 107 запускать нельзя — таблицы в живой БД
-//    ещё нет. После apply тип приезжает в `supabase.gen.ts` автогенерацией, и этот
-//    блок СНИМАЕТСЯ (третий раз повторяющийся приём: 041/048/092/094).
+// Ручной стаб снят — тип берётся из автогенерации. Сужать здесь нечего: ни одной
+// text-колонки с CHECK у таблицы нет, так что алиас 1:1, а не Omit-надстройка.
 //
-// Из четырёх таблиц 107 клиенту видна ровно одна: `telegram_link_tokens`,
-// `telegram_outbox` и `telegram_updates` для `authenticated` закрыты полностью
-// (revoke all + RLS без политик) — типов для них нет намеренно, а не по забывчивости.
+// ⚠️ `telegram_user_id` / `telegram_chat_id` — в БД `bigint`, автогенерация отдаёт
+//    `number`. Это безопасно: Telegram ID сейчас ~7·10^9 при потолке
+//    Number.MAX_SAFE_INTEGER 9·10^15. Осознанно принято, а не просмотрено.
 //
-// `telegram_user_id` / `telegram_chat_id` — в БД `bigint`. В TS это `number`, и это
-// безопасно: Telegram ID сейчас ~7·10^9, потолок Number.MAX_SAFE_INTEGER (9·10^15)
-// не близко. PostgREST отдаёт bigint числом, пока он в этот потолок укладывается.
-export interface TelegramAccount {
-  id: string;
-  org_id: string;
-  profile_id: string;
-  telegram_user_id: number;
-  telegram_chat_id: number;
-  /** Может быть null: username в Telegram необязателен и меняется на его стороне. */
-  username: string | null;
-  linked_at: string;
-  created_at: string;
-  updated_at: string;
-}
+// ⚠️ Из четырёх таблиц 107 приложению доступна ровно одна. `telegram_link_tokens`,
+//    `telegram_outbox` и `telegram_updates` в `supabase.gen.ts` тоже есть —
+//    автогенерация описывает СХЕМУ, а не права, — но для `authenticated` они закрыты
+//    полностью (revoke all + RLS без политик). Доменных типов им не заводить: тип,
+//    который компилируется, не означает запрос, который выполнится.
+export type TelegramAccount = Database['public']['Tables']['telegram_accounts']['Row'];

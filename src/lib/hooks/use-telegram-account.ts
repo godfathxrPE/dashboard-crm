@@ -1,10 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRealtimeSync } from '@/lib/hooks/use-realtime';
-import type { Database, TelegramAccount } from '@/types/database';
+import type { TelegramAccount } from '@/types/database';
 
 /**
  * S-TG-1: привязка Telegram к профилю (миграция 107).
@@ -20,57 +19,15 @@ import type { Database, TelegramAccount } from '@/types/database';
  *    → сказал боту `/start` → вернулся во вкладку. Вкладка всё это время открыта и
  *    ничего не знает. Без подписки человек видит «не привязан» и жмёт F5.
  *
- * ⚠️ СТАБ СХЕМЫ ДО РЕГЕНЕРАЦИИ. 107 применяется на гейте, а код пишется до, так что
- *    таблицы и функции ещё нет в `supabase.gen.ts`. После apply + `npm run
- *    db:gen-types` стаб и `telegramClient()` удаляются, вместо них — `createClient()`
- *    напрямую (ровно так сняли стаб вебхуков после 088).
- *
- *    ⚠️⚠️ Стаб объявлен через `type`, а НЕ `interface`. postgrest-js требует
- *    `Row extends Record<string, unknown>`; `interface` неявной index signature не
- *    получает, констрейнт `GenericTable` не выполняется, и `.delete()/.rpc()`
- *    схлопываются в `never`/`undefined` с сообщением, которое на index signature не
- *    намекает никак. Час, потерянный на этом в S-R2-SIGNOFF-1, повторять не надо.
+ * ⚠️ В `supabase.gen.ts` видны все четыре таблицы 107 и все её функции — автогенерация
+ *    описывает СХЕМУ, а не права. Обращаться отсюда можно только к
+ *    `telegram_accounts`: `telegram_link_tokens` / `telegram_outbox` /
+ *    `telegram_updates` для `authenticated` закрыты полностью, и `link_telegram_account`
+ *    тоже (её ACL — только service_role, место вызова — edge). Тип, который
+ *    компилируется, здесь не означает запрос, который выполнится.
  *
  * Ключ кеша без org_id — конвенция проекта: смена организации означает перелогин.
  */
-
-// ═══════════════════════════════════════════════════════
-// Стаб схемы до регенерации
-// ═══════════════════════════════════════════════════════
-
-type TelegramAccountRowDb = {
-  id: string;
-  org_id: string;
-  profile_id: string;
-  telegram_user_id: number;
-  telegram_chat_id: number;
-  username: string | null;
-  linked_at: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type DatabaseWithTelegram = Omit<Database, 'public'> & {
-  public: Omit<Database['public'], 'Tables' | 'Functions'> & {
-    Tables: Database['public']['Tables'] & {
-      telegram_accounts: {
-        Row: TelegramAccountRowDb;
-        Insert: Partial<TelegramAccountRowDb>;
-        Update: Partial<TelegramAccountRowDb>;
-        Relationships: [];
-      };
-    };
-    // `link_telegram_account` в стаб НЕ входит намеренно: её ACL — только
-    // service_role, из браузера её не вызвать, и место ей в edge, а не здесь.
-    Functions: Database['public']['Functions'] & {
-      create_telegram_link_token: { Args: Record<string, never>; Returns: string };
-    };
-  };
-};
-
-function telegramClient(): SupabaseClient<DatabaseWithTelegram> {
-  return createClient() as unknown as SupabaseClient<DatabaseWithTelegram>;
-}
 
 export const telegramAccountKey = () => ['telegram-account'] as const;
 
@@ -91,7 +48,7 @@ export function useTelegramAccount() {
     queryKey: telegramAccountKey(),
     staleTime: 1000 * 60,
     queryFn: async (): Promise<TelegramAccount | null> => {
-      const supabase = telegramClient();
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('telegram_accounts')
         .select(
@@ -99,7 +56,7 @@ export function useTelegramAccount() {
         )
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as TelegramAccount | null;
+      return data ?? null;
     },
   });
 }
@@ -115,7 +72,7 @@ export function useTelegramAccount() {
 export function useCreateTelegramLinkToken() {
   return useMutation({
     mutationFn: async (): Promise<string> => {
-      const supabase = telegramClient();
+      const supabase = createClient();
       const { data, error } = await supabase.rpc('create_telegram_link_token');
       if (error) throw error;
       if (typeof data !== 'string' || data === '') {
@@ -138,7 +95,7 @@ export function useUnlinkTelegram() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const supabase = telegramClient();
+      const supabase = createClient();
       const { error } = await supabase.from('telegram_accounts').delete().eq('id', id);
       if (error) throw error;
     },
