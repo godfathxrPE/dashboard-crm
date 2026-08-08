@@ -4,6 +4,8 @@ import {
   extractInn,
   phoneKey,
   extractEmail,
+  findCaptureDuplicate,
+  normalizeCompanyName,
 } from '@/lib/utils/capture-helpers';
 
 // ═══════════════════════════════════════════════════════
@@ -133,5 +135,123 @@ describe('extractEmail', () => {
     expect(extractEmail('Иванов Пётр, тел 8-912-345-67-89')).toBeNull();
     expect(extractEmail('собака@ — не адрес')).toBeNull();
     expect(extractEmail('')).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-TG-3 — дедуп переехал сюда из `use-quick-capture.ts`: у правила стало два
+// клиента (веб-виджет и бот). Тесты — на само правило, а не на источник строк:
+// разойдясь, эти два дедупа завели бы из мессенджера дубль на тексте, где веб
+// дубль показывает.
+// ═══════════════════════════════════════════════════════
+
+const CONTACTS = [
+  { id: 'c1', first_name: 'Пётр', last_name: 'Иванов', email: 'P.Ivanov@Romashka.RU', phone: null },
+  {
+    id: 'c2',
+    first_name: 'Анна',
+    last_name: null,
+    email: null,
+    phone: '8 (912) 345-67-89',
+    phones: [{ value: '+7 495 000-11-22' }],
+  },
+];
+
+const COMPANIES = [
+  { id: 'k1', name: 'ООО «Ромашка»', inn: INN10 },
+  { id: 'k2', name: 'АО "Василёк"', inn: null },
+];
+
+describe('findCaptureDuplicate', () => {
+  it('находит контакт по email без учёта регистра', () => {
+    expect(
+      findCaptureDuplicate({ contact: { email: 'p.ivanov@romashka.ru' } }, null, CONTACTS, COMPANIES),
+    ).toEqual({ kind: 'contact', id: 'c1', label: 'Пётр Иванов' });
+  });
+
+  it('находит контакт по email, спрятанному в notes', () => {
+    expect(
+      findCaptureDuplicate(
+        { contact: { email: '', notes: 'писать на p.ivanov@romashka.ru' } },
+        null,
+        CONTACTS,
+        COMPANIES,
+      )?.id,
+    ).toBe('c1');
+  });
+
+  it('находит контакт по телефону в любом формате — ключ 10 цифр', () => {
+    expect(findCaptureDuplicate({ contact: { phone: '+79123456789' } }, null, CONTACTS, COMPANIES)?.id).toBe('c2');
+  });
+
+  it('находит контакт по НЕОСНОВНОМУ телефону из phones', () => {
+    // Мультителефон — единственная причина, по которой дедуп нельзя переложить
+    // на PostgREST-фильтр: `phones` jsonb, подстроку в нём `cs` не найдёт.
+    expect(findCaptureDuplicate({ contact: { phone: '8 495 0001122' } }, null, CONTACTS, COMPANIES)?.id).toBe('c2');
+  });
+
+  it('не печатает «null» в подписи контакта без фамилии', () => {
+    const hit = findCaptureDuplicate({ contact: { phone: '+79123456789' } }, null, CONTACTS, COMPANIES);
+    expect(hit?.label).toBe('Анна');
+  });
+
+  it('находит компанию по ИНН точно', () => {
+    expect(findCaptureDuplicate({ company: { name: 'что угодно' } }, INN10, [], COMPANIES)).toEqual({
+      kind: 'company',
+      id: 'k1',
+      label: 'ООО «Ромашка»',
+    });
+  });
+
+  it('находит компанию по названию без ОПФ, кавычек и регистра', () => {
+    expect(findCaptureDuplicate({ company: { name: 'ЗАО Василёк' } }, null, [], COMPANIES)?.id).toBe('k2');
+  });
+
+  it('не ищет компанию по слишком короткому названию', () => {
+    expect(findCaptureDuplicate({ company: { name: 'АО' } }, null, [], COMPANIES)).toBeNull();
+  });
+
+  it('контакт имеет приоритет над компанией при заполненных обеих ветках', () => {
+    // Подпись в письме почти всегда несёт и человека, и его работодателя;
+    // «уже есть» про человека точнее, чем про компанию.
+    const hit = findCaptureDuplicate(
+      { contact: { email: 'p.ivanov@romashka.ru' }, company: { name: 'ООО Ромашка' } },
+      INN10,
+      CONTACTS,
+      COMPANIES,
+    );
+    expect(hit).toEqual({ kind: 'contact', id: 'c1', label: 'Пётр Иванов' });
+  });
+
+  it('возвращает null, когда сверять нечем', () => {
+    expect(findCaptureDuplicate({ contact: { email: '', phone: '' } }, null, CONTACTS, COMPANIES)).toBeNull();
+    expect(findCaptureDuplicate({}, null, CONTACTS, COMPANIES)).toBeNull();
+  });
+});
+
+describe('normalizeCompanyName', () => {
+  // ⚠️ Регрессия S-TG-3: до этого спринта ОПФ не срезалась НИКОГДА — `\b` в JS
+  // определён через [A-Za-z0-9_], и рядом с кириллицей границы слова нет.
+  it('срезает ОПФ — кириллическую, вопреки \\b', () => {
+    expect(normalizeCompanyName('ООО «Ромашка»')).toBe('ромашка');
+    expect(normalizeCompanyName('ЗАО Василёк')).toBe('василёк');
+    expect(normalizeCompanyName('ИП Петров')).toBe('петров');
+  });
+
+  it('приводит разные написания одной компании к одному ключу', () => {
+    const forms = ['ООО «Ромашка»', 'ООО "Ромашка"', 'ооо ромашка', 'Ромашка', 'ООО"Ромашка"'];
+    expect(new Set(forms.map(normalizeCompanyName)).size).toBe(1);
+  });
+
+  it('не съедает ОПФ внутри слова', () => {
+    // «АО» как часть названия — не форма собственности.
+    expect(normalizeCompanyName('Аокомпания')).toBe('аокомпания');
+    expect(normalizeCompanyName('Заозёрье')).toBe('заозёрье');
+  });
+
+  it('схлопывает лишние пробелы и пустое', () => {
+    expect(normalizeCompanyName('  ООО   «Ромашка»  ')).toBe('ромашка');
+    expect(normalizeCompanyName('ООО')).toBe('');
+    expect(normalizeCompanyName('')).toBe('');
   });
 });

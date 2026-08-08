@@ -15,16 +15,13 @@ import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
 import { primaryPhone, normalizePhones } from '@/lib/validators/phone';
-
-/** Нормализация названия для сравнения: без ОПФ, кавычек и регистра */
-function normalizeCompanyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[«»"'“”]/g, '')
-    .replace(/\b(ооо|ао|зао|пао|оао|нао|ип)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// ⚠️ S-TG-3: локальная копия `normalizeCompanyName` удалена. Правило жило в ТРЁХ
+//    местах (здесь, в use-quick-capture и — с этого спринта — в боте) и во всех
+//    трёх молча не работало: `\b` в JS определён через `\w` = [A-Za-z0-9_], то есть
+//    рядом с кириллицей границы слова НЕ существует и `\b(ооо|ао|…)\b` не срезал
+//    ОПФ никогда. «ООО Ромашка» и «Ромашка» дублями не считались. Та же грабля,
+//    что в S-CHAT-TASK-1. Теперь определение одно и починено.
+import { normalizeCompanyName } from '@/lib/utils/capture-helpers';
 
 interface CompanyModalProps {
   isOpen: boolean;

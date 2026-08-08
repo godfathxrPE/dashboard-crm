@@ -1,7 +1,12 @@
+// ⚠️ S-TG-3: определение `normalizePhone` переехало в
+//    `supabase/functions/_shared/capture-helpers.ts` (под именем `normalizePhoneDigits`).
+//    Причина механическая: тот же ключ телефона считает дедуп быстрого ввода из
+//    Telegram, а Deno-функция до этого файла не дотягивается — здесь есть импортеры
+//    с алиасом `@/`, которых у неё нет. Копия правила «8 → 7» в двух местах
+//    означала бы, что дедуп из бота и дедуп из формы однажды разойдутся.
+//    Для всех потребителей ничего не изменилось: имя, путь и поведение прежние.
 /** Нормализация телефона для сравнения: только цифры, 8 → 7 */
-export function normalizePhone(p: string): string {
-  return p.replace(/\D/g, '').replace(/^8/, '7');
-}
+export { normalizePhoneDigits as normalizePhone } from '../../../supabase/functions/_shared/capture-helpers';
 
 /** Display-format RU phone → +7 (XXX) XXX-XX-XX.
  *  Недеструктивно: непарсируемое (напр. "7110") возвращаем как есть. */

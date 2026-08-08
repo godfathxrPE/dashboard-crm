@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { captureResultSchema, type CaptureResult } from '@/lib/validators/capture';
-import { extractEmail, phoneKey } from '@/lib/utils/capture-helpers';
+import { findCaptureDuplicate, type CaptureDuplicate } from '@/lib/utils/capture-helpers';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useCompanies } from '@/lib/hooks/use-companies';
 
@@ -14,21 +14,15 @@ import { useCompanies } from '@/lib/hooks/use-companies';
  * Кэша у разбора нет намеренно (`useMutation`, не `useQuery`): это одноразовое
  * действие над одноразовым текстом, инвалидировать нечего и переиспользовать
  * нечего.
+ *
+ * ⚠️ S-TG-3: САМО ПРАВИЛО ДЕДУПА ЗДЕСЬ БОЛЬШЕ НЕ ЖИВЁТ. Оно переехало в
+ *    `capture-helpers` (`findCaptureDuplicate`), потому что у него появился второй
+ *    клиент — бот. Здесь остался только источник строк: списки из кэша React Query.
+ *    Бот подставляет в ту же функцию строки, вычитанные из БД. Разъехавшись, эти
+ *    два дедупа дали бы дубль из мессенджера на тексте, на котором веб дубль видит.
  */
 
-export type CaptureDuplicate =
-  | { kind: 'contact'; id: string; label: string }
-  | { kind: 'company'; id: string; label: string };
-
-/** Название компании без ОПФ, кавычек и регистра — как в дедупе CompanyModal. */
-function normalizeCompanyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[«»"'“”]/g, '')
-    .replace(/\b(ооо|ао|зао|пао|оао|нао|ип)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+export type { CaptureDuplicate };
 
 async function parseText(text: string): Promise<CaptureResult> {
   const supabase = createClient();
@@ -70,49 +64,10 @@ export function useQuickCapture() {
   const { data: contacts = [] } = useContacts();
   const { data: companies = [] } = useCompanies();
 
-  /**
-   * Первый похожий существующий объект или null.
-   *
-   * Контакт — по email или любому из телефонов (нормализованных до 10 цифр).
-   * Компания — по ИНН (точно) или названию без ОПФ. `inn` приходит отдельным
-   * параметром: модель его не извлекает (инвариант), его даёт `extractInn`.
-   */
+  /** Первый похожий существующий объект или null. Правило — в `capture-helpers`. */
   const findDuplicate = useCallback(
-    (result: CaptureResult, inn: string | null): CaptureDuplicate | null => {
-      const c = result.contact;
-      if (c) {
-        const email = (c.email || extractEmail(c.notes) || '').trim().toLowerCase() || null;
-        const key = phoneKey(c.phone);
-        if (email || key) {
-          const hit = contacts.find((row) => {
-            if (email && row.email && row.email.trim().toLowerCase() === email) return true;
-            if (!key) return false;
-            if (phoneKey(row.phone) === key) return true;
-            return (row.phones ?? []).some((p) => phoneKey(p.value) === key);
-          });
-          if (hit) {
-            return {
-              kind: 'contact',
-              id: hit.id,
-              // 13 из 88 контактов прода без фамилии: рукописный тип врёт (string),
-              // а `${null}` в шаблонной строке печатает «null» (learnings 2026-08-04).
-              label: [hit.first_name, hit.last_name].filter(Boolean).join(' '),
-            };
-          }
-        }
-      }
-
-      const norm = result.company?.name ? normalizeCompanyName(result.company.name) : '';
-      if (inn || norm.length >= 3) {
-        const hit = companies.find((row) => {
-          if (inn && row.inn && row.inn.trim() === inn) return true;
-          return norm.length >= 3 && normalizeCompanyName(row.name) === norm;
-        });
-        if (hit) return { kind: 'company', id: hit.id, label: hit.name };
-      }
-
-      return null;
-    },
+    (result: CaptureResult, inn: string | null): CaptureDuplicate | null =>
+      findCaptureDuplicate(result, inn, contacts, companies),
     [contacts, companies],
   );
 

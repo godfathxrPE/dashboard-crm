@@ -25,6 +25,7 @@
 // ═══════════════════════════════════════════════════════
 
 import type { NotificationType } from '@/types/database';
+import { escapeTelegramHtml } from '../../../supabase/functions/_shared/telegram-capture';
 
 /**
  * Фолбэк базового URL — тот же литерал, что `APP_ORIGIN` в
@@ -105,13 +106,16 @@ export interface TelegramNotificationInput {
 /**
  * Экранирование под `parse_mode: 'HTML'` у Telegram.
  *
- * Порядок обязателен: `&` первым, иначе он съест собственные подстановки
- * (`&lt;` превратился бы в `&amp;lt;`). Три символа — ровно то, что требует
- * Telegram; кавычки в тексте (не в атрибуте) экранировать не нужно.
+ * ⚠️ S-TG-3: тело переехало в `supabase/functions/_shared/telegram-capture.ts` —
+ *    ровно то же экранирование понадобилось карточке быстрого ввода, которую
+ *    собирает Deno-функция, а до этого файла она не дотягивается (здесь импорт
+ *    `@/types/database`). ТРЕТЬЕЙ копии в TS быть не должно: их и так две с
+ *    учётом SQL (`public.telegram_escape_html`, 107), и та существует только
+ *    потому, что из plpgsql импортировать неоткуда.
  */
-export function escapeTelegramHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// ⚠️ Импорт стоит наверху файла, а реэкспорт здесь: `export … from` НЕ связывает
+//    имя локально, и `clean()` ниже перестал бы его видеть.
+export { escapeTelegramHtml };
 
 /** Пустая строка и пробелы — то же, что отсутствие значения. */
 function clean(value: string | null | undefined): string | null {
