@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search, CheckSquare, FolderKanban, Building2, Users, Phone, CalendarDays, Settings, BarChart3,
-  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles, MessageCircle, ClipboardPlus,
+  Plus, Sun, Bookmark, UserPlus, Rocket, Sparkles, MessageCircle, ClipboardPlus, FileText,
 } from 'lucide-react';
 import { projectHref } from '@/lib/utils/project-href';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -56,6 +56,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/calls': 'Звонки',
   '/tasks': 'Задачи',
   '/meetings': 'Встречи',
+  '/transcripts': 'Транскрипты',
   '/leads': 'Лиды',
   '/calendar': 'Календарь',
 };
@@ -201,6 +202,7 @@ export function CommandPalette() {
       { id: 'nav-leads', label: 'Лиды', icon: UserPlus, href: '/leads', section: 'Навигация' },
       { id: 'nav-calls', label: 'Звонки', icon: Phone, href: '/calls', section: 'Навигация' },
       { id: 'nav-meetings', label: 'Встречи', icon: CalendarDays, href: '/meetings', section: 'Навигация' },
+      { id: 'nav-transcripts', label: 'Транскрипты', icon: FileText, href: '/transcripts', section: 'Навигация' },
       { id: 'nav-calendar', label: 'Календарь', icon: CalendarDays, href: '/calendar', section: 'Навигация' },
       { id: 'nav-analytics', label: 'Аналитика', icon: BarChart3, href: '/analytics', section: 'Навигация' },
       { id: 'nav-settings', label: 'Настройки', icon: Settings, href: '/settings', section: 'Навигация' },

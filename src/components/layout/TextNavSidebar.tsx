@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight,
   Sun, LayoutDashboard, MessageCircle, CheckSquare, Zap, DollarSign, Folder,
-  Users, Building2, Phone, CalendarDays, Calendar, BarChart3, Settings,
+  Users, Building2, Phone, CalendarDays, Calendar, FileText, BarChart3, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUiStore } from '@/lib/stores/ui-store';
@@ -36,6 +36,9 @@ const MAIN_NAV = [
   { href: '/companies', label: 'Компании',  jpLabel: '企業一覧',       icon: Building2,       sectionColor: '#22C55E' },
   { href: '/calls',     label: 'Звонки',    jpLabel: '通話記録',       icon: Phone,           sectionColor: '#F59E0B', badgeKey: 'calls' as const },
   { href: '/meetings',  label: 'Встречи',   jpLabel: '会議予定',       icon: CalendarDays,    sectionColor: '#F43F5E' },
+  // S-AI-VIS-2: расшифровки — тот же смысловой ряд, что звонки и встречи, поэтому
+  // сразу за ними. badgeKey нет намеренно: счётчик непрочитанных тут бессмыслен.
+  { href: '/transcripts', label: 'Транскрипты', jpLabel: '文字起こし', icon: FileText,   sectionColor: '#0EA5E9' },
   { href: '/calendar',  label: 'Календарь', jpLabel: 'カレンダー',     icon: Calendar,        sectionColor: '#6366F1' },
 ] as const;
 

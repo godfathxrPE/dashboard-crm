@@ -13,7 +13,7 @@ import {
   type TaskEventRow,
   type ProjectEventRow,
 } from '@/lib/timeline/adapters';
-import { mergeAiRunRows, type AiRunTimelineRow } from '@/lib/timeline/ai-run-merge';
+import { fetchAiRunRows } from '@/lib/timeline/ai-run-sources';
 import { presetTitle } from '@/lib/constants/ai-presets';
 import type { TimelineEvent } from '@/types/timeline';
 import { describeEvent } from '@/lib/utils/activity-events';
@@ -196,72 +196,15 @@ async function fetchActivity(
   return [...byId.values()].map(activityToEvent);
 }
 
-const AI_RUN_SELECT = 'id, preset_key, entity_type, created_at';
-
 /**
- * Прогоны в ленте сущности — ДВА источника (S-AI-VIS-1):
- *  1. по звонкам и встречам сущности (`entity_id ∈ (…)`) — как было;
- *  2. по самой сущности (`entity_type` = тип хаба, `entity_id` = её id) — прогоны
- *     вроде брифа по компании, у которых `entity_id` и есть компания. Без него
- *     семь готовых брифов были невидимы в ленте той самой компании.
- *
- * Контакт-хаб получает только первый источник: `ai_runs.entity_type` — это
- * call|meeting|project|company, своих прогонов у контакта не бывает.
+ * Прогоны в ленте сущности. Сбор обоих источников (S-AI-VIS-1) переехал в
+ * `timeline/ai-run-sources.ts` (S-AI-VIS-2): у него появился второй потребитель —
+ * сводный AI-блок карточки компании, и копия запроса разошлась бы с этой.
+ * Здесь остаётся только адаптация строк в события ленты.
  */
-async function fetchAiRuns(
-  entityType: TimelineEntityType,
-  col: string,
-  id: string,
-): Promise<TimelineEvent[]> {
-  const supabase = createClient();
-  // call|meeting id набор сущности → ai_runs.entity_id ∈ (…). UUID уникальны
-  // между таблицами, поэтому единый .in по entity_id безопасен.
-  const [calls, meetings] = await Promise.all([
-    supabase.from('calls').select('id').eq(col, id),
-    supabase.from('meetings').select('id').eq(col, id),
-  ]);
-  if (calls.error) throw calls.error;
-  if (meetings.error) throw meetings.error;
-  const entityIds = [
-    ...(calls.data ?? []).map((c) => c.id as string),
-    ...(meetings.data ?? []).map((m) => m.id as string),
-  ];
-
-  const viaChildren = async (): Promise<AiRunTimelineRow[]> => {
-    if (entityIds.length === 0) return [];
-    const { data, error } = await supabase
-      .from('ai_runs')
-      .select(AI_RUN_SELECT)
-      // ⚠️ Батчинга `.in()` тут НЕТ, хотя `entityIds` (все звонки + встречи сущности за
-      // её историю) — единственный список в проекте, который может дорасти до лимита
-      // длины URL. Нарезка ломает `limit(PER_SOURCE_LIMIT)`: он стал бы лимитом НА БАТЧ,
-      // и добор пришлось бы досортировывать на клиенте. Записано остатком S-DEBT-TRUTH-1.
-      // Второй источник ниже список не сокращает — он `.eq`, а не `.in`.
-      .in('entity_id', entityIds)
-      .order('created_at', { ascending: false })
-      .limit(PER_SOURCE_LIMIT);
-    if (error) throw error;
-    return (data ?? []) as AiRunTimelineRow[];
-  };
-
-  const viaSelf = async (): Promise<AiRunTimelineRow[]> => {
-    // 'contact' в домен `ai_runs.entity_type` не входит — запрос заведомо пуст,
-    // и посылать его незачем.
-    if (entityType === 'contact') return [];
-    const { data, error } = await supabase
-      .from('ai_runs')
-      .select(AI_RUN_SELECT)
-      .eq('entity_type', entityType)
-      .eq('entity_id', id)
-      .order('created_at', { ascending: false })
-      .limit(PER_SOURCE_LIMIT);
-    if (error) throw error;
-    return (data ?? []) as AiRunTimelineRow[];
-  };
-
-  const [children, own] = await Promise.all([viaChildren(), viaSelf()]);
-  // Лимит — после слияния: два источника по 50 иначе дали бы до 100 событий.
-  return mergeAiRunRows([children, own], PER_SOURCE_LIMIT).map((r) => ({
+async function fetchAiRuns(entityType: TimelineEntityType, id: string): Promise<TimelineEvent[]> {
+  const rows = await fetchAiRunRows(entityType, id, PER_SOURCE_LIMIT);
+  return rows.map((r) => ({
     id: `ai_run:${r.id}`,
     sourceId: r.id,
     kind: 'ai_run' as const,
@@ -323,7 +266,7 @@ export function useEntityTimeline(
 
   const aiRuns = useQuery({
     queryKey: ['timeline', 'ai_run', entityType, entityId],
-    queryFn: () => fetchAiRuns(entityType, col, entityId!),
+    queryFn: () => fetchAiRuns(entityType, entityId!),
     enabled: enabled && includeSystem,
     staleTime: STALE_TIME,
   });

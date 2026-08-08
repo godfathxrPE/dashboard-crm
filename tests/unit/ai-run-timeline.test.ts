@@ -5,11 +5,17 @@ import { presetTitle } from '@/lib/constants/ai-presets';
 // S-AI-VIS-1. Два источника прогонов в ленте (по звонкам/встречам сущности и по
 // самой сущности) и человеческое имя пресета вместо машинного ключа.
 
-const row = (id: string, created_at: string, preset_key = 'analytic_note'): AiRunTimelineRow => ({
+const row = (
+  id: string,
+  created_at: string,
+  preset_key = 'analytic_note',
+  status = 'done',
+): AiRunTimelineRow => ({
   id,
   preset_key,
   entity_type: 'call',
   created_at,
+  status,
 });
 
 describe('mergeAiRunRows', () => {

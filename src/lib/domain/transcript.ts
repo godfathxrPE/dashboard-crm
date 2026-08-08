@@ -48,3 +48,25 @@ export function formatCharCount(chars: number): string {
   if (chars < 1000) return `${Math.round(chars)} знаков`;
   return `${Math.round(chars / 1000).toLocaleString('ru')} тыс. знаков`;
 }
+
+/**
+ * Начало текста для колонки списка (S-AI-VIS-2).
+ *
+ * Рез по границе слова, а не по счётчику символов: обрубок «…договорились о поста»
+ * читается как опечатка, а не как обрыв. Перевод строки в превью схлопывается в
+ * пробел — расшифровка размечена репликами, и в одну строку таблицы они не влезут.
+ *
+ * Текст короче лимита не трогаем вовсе: многоточие после короткой реплики врало бы
+ * о том, что там есть продолжение.
+ */
+export function textPreview(text: string | null | undefined, limit = 120): string {
+  if (typeof text !== 'string') return '';
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= limit) return flat;
+  const cut = flat.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  // Слово длиннее лимита (ссылка, склейка без пробелов) — режем по символам,
+  // иначе `lastSpace === -1` дал бы пустую строку.
+  const body = lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
+  return `${body.trimEnd()}…`;
+}
