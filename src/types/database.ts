@@ -801,3 +801,29 @@ export type StakeholderRole = (typeof STAKEHOLDER_ROLES)[number];
 export const CONVERSATION_KINDS = ['general', 'project', 'group', 'dm'] as const;
 
 export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
+
+// ═══ S-TG-1: привязка Telegram (миграция 107 — на гейте) ═══
+//
+// ⚠️ СТАБ. `npm run db:gen-types` до apply 107 запускать нельзя — таблицы в живой БД
+//    ещё нет. После apply тип приезжает в `supabase.gen.ts` автогенерацией, и этот
+//    блок СНИМАЕТСЯ (третий раз повторяющийся приём: 041/048/092/094).
+//
+// Из четырёх таблиц 107 клиенту видна ровно одна: `telegram_link_tokens`,
+// `telegram_outbox` и `telegram_updates` для `authenticated` закрыты полностью
+// (revoke all + RLS без политик) — типов для них нет намеренно, а не по забывчивости.
+//
+// `telegram_user_id` / `telegram_chat_id` — в БД `bigint`. В TS это `number`, и это
+// безопасно: Telegram ID сейчас ~7·10^9, потолок Number.MAX_SAFE_INTEGER (9·10^15)
+// не близко. PostgREST отдаёт bigint числом, пока он в этот потолок укладывается.
+export interface TelegramAccount {
+  id: string;
+  org_id: string;
+  profile_id: string;
+  telegram_user_id: number;
+  telegram_chat_id: number;
+  /** Может быть null: username в Telegram необязателен и меняется на его стороне. */
+  username: string | null;
+  linked_at: string;
+  created_at: string;
+  updated_at: string;
+}

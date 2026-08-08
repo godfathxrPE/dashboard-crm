@@ -5,6 +5,7 @@ import { Settings, Palette, Upload, ExternalLink, Pencil } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
+import { TelegramSection } from '@/components/settings/TelegramSection';
 import { GatesSection } from '@/components/settings/GatesSection';
 import { AutomationsSection } from '@/components/settings/AutomationsSection';
 import { WebhooksSection } from '@/components/settings/WebhooksSection';
@@ -98,6 +99,10 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
             </div>
           )}
         </div>
+
+        {/* Telegram — ЛИЧНАЯ привязка (S-TG-1), поэтому сразу под профилем и выше
+            командных секций: она про себя, а не про организацию, и видна всем ролям */}
+        <TelegramSection />
 
         {/* Team (owner/admin only) */}
         <TeamSection />
