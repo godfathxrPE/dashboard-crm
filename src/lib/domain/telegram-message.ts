@@ -54,11 +54,50 @@ const TYPE_HEAD: Record<NotificationType, string> = {
 /** Тип вне словаря приходит только из будущей миграции — не падаем, а деградируем. */
 const FALLBACK_HEAD = 'Уведомление';
 
+/**
+ * S-TG-PRIORITY (109): приписка к заголовку напоминания.
+ *
+ * ⚠️ ТОЛЬКО ДВА ВЕРХНИХ УРОВНЯ. У `normal` маркера нет намеренно: маркер,
+ *    который есть у всех, не значит ничего — так система приоритетов и
+ *    обесценивается. Всё, чего нет в словаре (отсутствующий ключ у уведомлений,
+ *    созданных до 109; мусор; будущее значение enum), даёт пустую приписку.
+ *
+ * ⚠️ Возвращает `''`, а НЕ `undefined`/`null`: в SQL-зеркале конкатенация с NULL
+ *    съела бы заголовок целиком. Здесь `+ undefined` дал бы «undefined» в тексте —
+ *    разные симптомы, одна причина, поэтому и там, и тут пустая строка.
+ */
+function prioritySuffix(priority: string | null | undefined): string {
+  // ⚠️ `switch`, а НЕ поиск по объекту-словарю. Словарь наследует прототип, и
+  //    `SUFFIX['constructor']` вернул бы функцию — truthy, то есть в заголовок
+  //    уехал бы «function Object() {...}». Значение приходит из enum и таких
+  //    строк содержать не может, но защита от мусора, которая ломается на
+  //    мусоре определённого вида, — это не защита. Заодно форма один в один
+  //    совпадает с `CASE` в SQL-оригинале (109).
+  switch (priority) {
+    case 'important':
+      return ' · важно';
+    case 'critical':
+      return ' · критично';
+    default:
+      return '';
+  }
+}
+
 export interface TelegramNotificationInput {
   type: string;
   entity_type: string;
   entity_id: string;
-  payload: { title?: string | null; text?: string | null } | null;
+  payload: {
+    title?: string | null;
+    text?: string | null;
+    /**
+     * 109: `tasks.priority` строкой. Тип намеренно широкий, а не
+     * `'normal' | 'important' | 'critical'`: payload приходит из БД
+     * нетипизированным JSON, и сузить его типом значит соврать компилятору —
+     * сужение делает `PRIORITY_SUFFIX` в рантайме.
+     */
+    priority?: string | null;
+  } | null;
   /** `organizations.settings.app_url`; null/мусор ⇒ сообщение уйдёт без ссылки. */
   appUrl?: string | null;
 }
@@ -106,8 +145,12 @@ export function buildTelegramNotificationText(input: TelegramNotificationInput):
   const title = clean(input.payload?.title);
   const text = clean(input.payload?.text);
 
-  // Заголовок — литерал из закрытого набора, экранировать нечего.
-  const head = TYPE_HEAD[input.type as NotificationType] ?? FALLBACK_HEAD;
+  // Заголовок — литерал из закрытого набора, экранировать нечего. 109: у
+  // напоминания к нему добавляется приоритет — тоже литерал, из enum, не от
+  // человека, поэтому экранированию не подлежит.
+  const head =
+    (TYPE_HEAD[input.type as NotificationType] ?? FALLBACK_HEAD) +
+    (input.type === 'task_reminder' ? prioritySuffix(input.payload?.priority) : '');
 
   let body: string;
   if (input.type === 'deal_won') {
