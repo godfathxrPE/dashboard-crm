@@ -284,7 +284,6 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             <EntityTimeline
               entityType="company"
               entityId={companyId}
-              options={{ includeSystem: true }}
               onOpenEvent={handleOpenEvent}
               kindFilter={COMPANY_TIMELINE_KINDS}
               splitUpcoming

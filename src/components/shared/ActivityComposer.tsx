@@ -8,7 +8,7 @@ import { useLogActivity } from '@/lib/hooks/use-activity-log';
 // ActivityComposer — ввод заметки (comment_added) для любой сущности.
 // S-NOTES-TIMELINE-1: вынесен из ProjectDetail в shared, чтобы стоять на
 // сделке, контакте и компании. entityType выбирает FK-колонку activity_log;
-// read-часть — в <EntityTimeline> (includeSystem). Инвалидацию ленты
+// read-часть — в <EntityTimeline>. Инвалидацию ленты
 // (['timeline']) делает useLogActivity.
 // ═══════════════════════════════════════════════════════
 

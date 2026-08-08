@@ -944,7 +944,6 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         <EntityTimeline
           entityType="project"
           entityId={projectId}
-          options={{ includeSystem: true }}
           onOpenEvent={handleOpenEvent}
         />
       </div>

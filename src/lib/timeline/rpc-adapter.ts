@@ -31,10 +31,12 @@ const TIMELINE_KINDS: readonly TimelineKind[] = [
 /**
  * Строка RPC `entity_timeline`.
  *
- * Тип ЛОКАЛЬНЫЙ, а не из `supabase.gen.ts`: миграция 112 не применена, функции в
- * сгенерированных типах ещё нет, а править их руками запрещено (правило 2). После
- * apply + реген она появится в `Database['public']['Functions']['entity_timeline']`
- * — тогда этот интерфейс заменяется на `Returns[number]`, и больше ничего не меняется.
+ * Тип ЛОКАЛЬНЫЙ, а не `Returns[number]` из `supabase.gen.ts`. После apply 112 функция
+ * в сгенерированных типах есть, но генератор объявил все её колонки НЕ-nullable
+ * (`actor_id: string`), а `ref_type`/`ref_id`/`actor_id` у части источников NULL —
+ * взять его форму значило бы соврать компилятору. Править сгенерированные типы руками
+ * запрещено (правило 2), поэтому форма описана здесь и сужается `isTimelineRpcRow`.
+ * Набор колонок 113 не меняет — меняется только сигнатура аргументов.
  */
 export interface TimelineRpcRow {
   ts: string;
@@ -84,7 +86,7 @@ function text(p: Record<string, unknown>, key: string): string | null {
  *
  * `ref_type`/`ref_id` (та же ссылка в машинном виде) сейчас не читаются: открытие
  * события идёт по `kind` + `sourceId` (`open-event.ts`), и менять это сверх задачи
- * незачем. Колонки останутся для S-TL-2, где источников станет больше.
+ * незачем. Колонки останутся для спринта новых источников, где их станет больше.
  */
 function sourceIdOf(row: TimelineRpcRow): string {
   return row.id.slice(row.kind.length + 1);
@@ -174,8 +176,10 @@ export function rpcRowToEvent(row: TimelineRpcRow, now: number = Date.now()): Ti
         title: `AI: ${presetTitle(text(p, 'preset_key') ?? '')}`,
         date: row.ts,
         icon: 'ai_run',
-        // actorId намеренно не проставляется: прежняя лента его у прогонов не имела,
-        // и заполнение из `ai_runs.created_by` сломало бы построчное совпадение. S-TL-2.
+        // S-TL-2: автор прогона проставляется. В 112 сюда приезжал `null` — RPC
+        // намеренно не отдавал `created_by`, чтобы лента совпала с прежней построчно.
+        // Критерия больше нет, 113 отдаёт `ai_runs.created_by` (NOT NULL).
+        actorId: createdBy ?? undefined,
       };
   }
 }

@@ -112,3 +112,25 @@ describe('isNoteEvent — заметка человека vs системная 
     expect(isNoteEvent(undefined)).toBe(false);
   });
 });
+
+// S-TL-2: запись журнала «встречу запланировали» и сама встреча — РАЗНЫЕ события
+// ленты. До этого спринта обе рисовались как «Встреча: X» и на карточке компании
+// читались как дубль (находка гейта S-TL-1).
+describe('describeEvent — meeting_scheduled не спорит с событием встречи', () => {
+  test('запись журнала — «Запланирована встреча: …»', () => {
+    expect(describeEvent(entry('meeting_scheduled', { title: 'Фитнес Десерты' }))).toBe(
+      'Запланирована встреча: Фитнес Десерты',
+    );
+  });
+
+  test('заголовок НЕ совпадает с заголовком события kind=meeting того же названия', () => {
+    const title = 'Фитнес Десерты';
+    // `meetingToEvent` собирает ровно эту строку — дублировать её нельзя.
+    const meetingEventTitle = `Встреча: ${title}`;
+    expect(describeEvent(entry('meeting_scheduled', { title }))).not.toBe(meetingEventTitle);
+  });
+
+  test('без title — заголовок не разваливается', () => {
+    expect(describeEvent(entry('meeting_scheduled', {}))).toBe('Запланирована встреча: ');
+  });
+});

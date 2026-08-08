@@ -47,7 +47,7 @@ import { EntityTimeline } from '@/components/shared/EntityTimeline';
 
 const MEETING_ID = '11111111-1111-1111-1111-111111111111';
 
-/** Одна валидная строка RPC — форма из `entity_timeline` (миграция 112). */
+/** Одна валидная строка RPC — форма из `entity_timeline` (миграции 112/113). */
 const ROW = {
   ts: '2026-08-06T09:00:00.000Z',
   id: `meeting:${MEETING_ID}`,
@@ -63,7 +63,7 @@ function setup() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <EntityTimeline entityType="company" entityId="c-1" options={{ includeSystem: true }} />
+      <EntityTimeline entityType="company" entityId="c-1" />
     </QueryClientProvider>,
   );
 }
@@ -86,7 +86,13 @@ describe('useEntityTimeline — вызов RPC', () => {
 
     expect(rpcCalls).toHaveLength(1);
     expect(rpcCalls[0].fn).toBe('entity_timeline');
-    expect(rpcCalls[0].args).toMatchObject({ p_entity_type: 'company', p_entity_id: 'c-1' });
+    // S-TL-2: первая страница идёт БЕЗ курсора — обе его половины `null`.
+    expect(rpcCalls[0].args).toMatchObject({
+      p_entity_type: 'company',
+      p_entity_id: 'c-1',
+      p_before: null,
+      p_before_id: null,
+    });
   });
 
   it('пустой ответ — это «нет активности», а не ошибка', async () => {

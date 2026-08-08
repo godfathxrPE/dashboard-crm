@@ -7,15 +7,21 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { isNoteEvent } from '@/lib/utils/activity-events';
-import { useEntityTimeline, type TimelineEntityType, type UseEntityTimelineOptions } from '@/lib/hooks/use-entity-timeline';
+import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
 // ═══════════════════════════════════════════════════════
 // <EntityTimeline> — переиспользуемая лента активности сущности.
-// Данные — useEntityTimeline (серверный фильтр). Компонент тонкий:
-// группировка (Просрочено → Этот месяц → Ранее), клиентский фильтр
-// по kind (данные уже в памяти, без повторных запросов), клик по
+// Данные — useEntityTimeline (серверная сборка + keyset-пагинация).
+// Компонент тонкий: группировка (Просрочено → Этот месяц → Ранее),
+// клиентский фильтр по kind, кнопка «Показать раньше», клик по
 // событию → onOpenEvent (родитель решает, что открыть).
+//
+// ⚠️ S-TL-2, ДОЛГ: клиентский фильтр по `kind` фильтрует ЗАГРУЖЕННЫЕ страницы,
+// а не ленту. Выбрав «Звонки», человек видит звонки только из уже загруженных
+// событий. Так было и до пагинации, но с кнопкой «Показать раньше» это стало
+// заметно. Лечится только серверным фильтром — параметром RPC `p_kinds text[]`
+// (S-TL-3). Полумеру в виде подписи-подсказки сознательно не добавляем.
 // ═══════════════════════════════════════════════════════
 
 /**
@@ -34,7 +40,6 @@ interface EntityTimelineProps {
   onOpenEvent?: (event: TimelineEvent) => void;
   /** Опциональное действие в строке (напр. AI-кнопка для звонков) — держит компонент generic */
   renderAction?: (event: TimelineEvent) => ReactNode;
-  options?: UseEntityTimelineOptions;
   className?: string;
 
   // ═══ S-R2-CO360-1: опциональные расширения. Все три по умолчанию выключены —
@@ -42,8 +47,8 @@ interface EntityTimelineProps {
 
   /**
    * Какие kinds вообще предлагать чипами и показывать. Фильтр применяется к УЖЕ
-   * ЗАГРУЖЕННЫМ событиям — запрос не меняется (иначе счётчики источников поехали
-   * бы относительно `PER_SOURCE_LIMIT`). Не задан → дефолтный набор.
+   * ЗАГРУЖЕННЫМ страницам — запрос не меняется (серверный фильтр по видам —
+   * `p_kinds` в RPC, S-TL-3). Не задан → дефолтный набор.
    */
   kindFilter?: TimelineKind[];
   /**
@@ -157,10 +162,12 @@ function sameMonth(iso: string, ref: Date): boolean {
 }
 
 export function EntityTimeline({
-  entityType, entityId, onOpenEvent, renderAction, options, className,
+  entityType, entityId, onOpenEvent, renderAction, className,
   kindFilter, splitUpcoming = false, filter: filterProp, onFilterChange, showFilters = true,
 }: EntityTimelineProps) {
-  const { events: allEvents, isLoading, error } = useEntityTimeline(entityType, entityId, options);
+  const {
+    events: allEvents, isLoading, error, hasMore, loadMore, isLoadingMore,
+  } = useEntityTimeline(entityType, entityId);
   const [localFilter, setLocalFilter] = useState<TimelineFilterValue>('all');
 
   // Управляемый режим — только когда переданы ОБА props: одиночный `filter` без
@@ -297,6 +304,29 @@ export function EntityTimeline({
             </div>
           ))}
         </div>
+      )}
+
+      {/*
+        Кнопка, а не бесконечная прокрутка: лента живёт в блоке с `max-h` и своим
+        скроллом, а страница под ней скроллится сама — scroll-триггер во вложенном
+        скроллере ведёт себя непредсказуемо. Прокрутку можно надстроить позже поверх
+        той же механики.
+
+        Кнопка стоит ВНЕ скроллера намеренно: иначе до неё пришлось бы долистывать
+        ленту, а при активном фильтре («Нет событий этого типа») она бы вовсе исчезла
+        — то есть единственный способ догрузить события выбранного вида пропадал бы
+        ровно тогда, когда он нужен.
+      */}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => loadMore()}
+          disabled={isLoadingMore}
+          className="mt-3 w-full rounded-lg border border-border py-2 text-xs text-text-dim
+                     transition-colors hover:bg-surface-hover hover:text-text-main disabled:opacity-50"
+        >
+          {isLoadingMore ? 'Загружаем…' : 'Показать раньше'}
+        </button>
       )}
     </div>
   );

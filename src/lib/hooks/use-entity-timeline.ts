@@ -1,23 +1,31 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { isTimelineRpcRow, rpcRowToEvent } from '@/lib/timeline/rpc-adapter';
-import type { TimelineEvent, TimelineKind } from '@/types/timeline';
+import {
+  TIMELINE_PAGE_SIZE,
+  flattenTimelinePages,
+  nextTimelineCursor,
+  type TimelineCursor,
+} from '@/lib/timeline/cursor';
+import type { TimelineEvent } from '@/types/timeline';
 import { useActorMap } from './use-actor';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
 //
 // S-TL-1: шесть запросов из браузера (calls, meetings, tasks, projects,
-// activity_log, ai_runs) плюс два вспомогательных (проекты сущности, звонки+встречи
-// для ai_runs) заменены ОДНИМ RPC `entity_timeline`. Слияние, дедуп и сортировка
-// уехали в SQL — здесь остаётся только резолв актора id→имя.
+// activity_log, ai_runs) плюс два вспомогательных заменены ОДНИМ RPC `entity_timeline`.
 //
-// Состав и порядок ленты при этом НЕ изменились: это критерий приёмки спринта,
-// а не пожелание. Заголовки по-прежнему собирает TypeScript (`rpc-adapter.ts` →
-// `adapters.ts` / `describeEvent` / `presetTitle`) — слой представления в БД не живёт.
+// S-TL-2: у ленты появилось дно. Лимит переехал С ИСТОЧНИКА НА СТРАНИЦУ, и RPC
+// научился keyset-курсору `(ts, id)` — отсюда `useInfiniteQuery` вместо `useQuery`.
+// Состав первой страницы при этом НАМЕРЕННО изменился: теперь это честные последние
+// 50 событий, а не «до 50 от каждого источника».
+//
+// Заголовки по-прежнему собирает TypeScript (`rpc-adapter.ts` → `adapters.ts` /
+// `describeEvent` / `presetTitle`) — слой представления в БД не живёт.
 // ═══════════════════════════════════════════════════════
 
 export type TimelineEntityType = 'contact' | 'company' | 'project';
@@ -25,50 +33,50 @@ export type TimelineEntityType = 'contact' | 'company' | 'project';
 const STALE_TIME = 60_000;
 
 /**
- * Лимит НА ИСТОЧНИК, а не на ленту — так было в шести запросах, так осталось в RPC.
- * Глобальный keyset-курсор появится в S-TL-2 вместе с прокруткой «раньше», где смена
- * состава будет намеренной и заметной.
+ * Аргументы RPC пятиаргументной `entity_timeline` (миграция 113).
+ *
+ * ⚠️ Тип ЛОКАЛЬНЫЙ, потому что 113 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` лежит
+ * трёхаргументная сигнатура 112 (`p_entity_type, p_entity_id, p_limit`), и вызов
+ * с `p_before` не прошёл бы проверку лишних свойств. Править сгенерированные типы
+ * руками запрещено (правило 2). После apply + регена этот блок и каст снимаются —
+ * больше ничего не меняется.
+ *
+ * ⚠️ Кастуется КЛИЕНТ, а не метод. `const rpc = supabase.rpc` отрывает метод от
+ * объекта: внутри supabase-js он читает `this.rest`, оторванный вызов бросает
+ * TypeError ещё ДО сети, а React Query ловит бросок из queryFn молча — так лента
+ * и «опустела» в FIX S-TL-1-RPC-THIS при исправном сервере.
  */
-const PER_SOURCE_LIMIT = 50;
-
-export interface UseEntityTimelineOptions {
-  /**
-   * `activity_log` + `ai_runs` в ленте.
-   *
-   * @deprecated С S-TL-1 флаг больше не экономит запросы: RPC отдаёт все шесть
-   * источников всегда, и `false` теперь просто прячет два вида на клиенте. Все три
-   * потребителя (`ProjectDetail`, `CompanyDetail`, `ContactDetailHub`) передают `true`,
-   * так что на живых экранах он не меняет ничего. Флаг оставлен, чтобы не трогать
-   * публичный контракт трёх компонентов сверх задачи спринта, и снимается в S-TL-2
-   * вместе с чипами фильтра. Дефолт (`false`) сохранён прежний — иначе вызов без
-   * опций тихо получил бы два новых вида событий.
-   */
-  includeSystem?: boolean;
+interface TimelineRpcArgs {
+  p_entity_type: TimelineEntityType;
+  p_entity_id: string;
+  p_before: string | null;
+  p_before_id: string | null;
+  p_limit: number;
 }
 
-/** Виды, которые прячет `includeSystem: false`. */
-const SYSTEM_KINDS: readonly TimelineKind[] = ['activity', 'ai_run'];
+interface TimelineRpcClient {
+  rpc(
+    fn: 'entity_timeline',
+    args: TimelineRpcArgs,
+  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+}
 
-async function fetchTimeline(
+async function fetchTimelinePage(
   entityType: TimelineEntityType,
   entityId: string,
+  cursor: TimelineCursor | null,
 ): Promise<TimelineEvent[]> {
-  // ⚠️ `rpc` зовётся ТОЛЬКО методом. До регена типов здесь стояло
-  // `const rpc = supabase.rpc as unknown as UntypedRpc` — обход отсутствующей
-  // сигнатуры, который отрывал метод от клиента: внутри supabase-js он читает
-  // `this.rest`, и оторванный вызов бросал TypeError ещё ДО сети. React Query
-  // ловит бросок из queryFn молча — лента рисовала «Пока нет активности» при
-  // исправном сервере. Если типа функции опять не окажется, кастовать нужно
-  // КЛИЕНТ (`createClient() as unknown as { rpc: F }`), а не метод.
-  const supabase = createClient();
+  const supabase = createClient() as unknown as TimelineRpcClient;
   const { data, error } = await supabase.rpc('entity_timeline', {
     p_entity_type: entityType,
     p_entity_id: entityId,
-    p_limit: PER_SOURCE_LIMIT,
+    p_before: cursor?.ts ?? null,
+    p_before_id: cursor?.id ?? null,
+    p_limit: TIMELINE_PAGE_SIZE,
   });
   if (error) throw error;
 
-  // `overdue` у задачи — функция текущего времени: одна отсечка на всю выборку,
+  // `overdue` у задачи — функция текущего времени: одна отсечка на всю страницу,
   // как было в прежнем `fetchTasks`.
   const now = Date.now();
   const rows: unknown[] = Array.isArray(data) ? data : [];
@@ -78,32 +86,43 @@ async function fetchTimeline(
 export function useEntityTimeline(
   entityType: TimelineEntityType,
   entityId: string | null | undefined,
-  opts: UseEntityTimelineOptions = {},
 ) {
   const enabled = Boolean(entityId);
-  const includeSystem = opts.includeSystem ?? false;
 
-  // Ключ без подключа источника: прежние `['timeline', 'call', …]` исчезли вместе
-  // с шестью запросами. Инвалидации в use-activity-log / use-calls / use-meetings /
-  // use-tasks идут префиксом `['timeline']` и продолжают работать без правок.
-  const timeline = useQuery({
+  // Ключ без подключа источника и без курсора: страницы живут внутри одной записи
+  // кеша `useInfiniteQuery`. Инвалидации в use-activity-log / use-calls / use-meetings /
+  // use-tasks идут префиксом `['timeline']` и продолжают работать без правок —
+  // они сбрасывают ленту целиком, к первой странице, и это верно: новое событие
+  // приходит сверху.
+  const timeline = useInfiniteQuery({
     queryKey: ['timeline', entityType, entityId],
-    queryFn: () => fetchTimeline(entityType, entityId!),
+    initialPageParam: null as TimelineCursor | null,
+    queryFn: ({ pageParam }) => fetchTimelinePage(entityType, entityId!, pageParam),
+    getNextPageParam: (lastPage) => nextTimelineCursor(lastPage),
     enabled,
     staleTime: STALE_TIME,
   });
 
   // Резолв актора id→имя — на сборке (одна Map из useTeamMembers-кеша, не N запросов).
+  // ⚠️ Зависимость — `timeline.data?.pages`, а не одна страница: иначе имена
+  // проставлялись бы только у первой, и «Показать раньше» добавляло бы события
+  // без авторов.
   const actorMap = useActorMap();
   const events = useMemo(() => {
-    const all = timeline.data ?? [];
-    const visible = includeSystem ? all : all.filter((e) => !SYSTEM_KINDS.includes(e.kind));
-    // Сортировка не нужна: RPC уже отдал по убыванию `ts`, с тем же разрешением
-    // (миллисекунды) и тем же разбором ничьих, что давал прежний `Array#sort`.
-    return visible.map((e) => (e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e));
-  }, [timeline.data, includeSystem, actorMap]);
+    const all = flattenTimelinePages(timeline.data?.pages);
+    // Сортировка не нужна: RPC отдаёт страницу по `ts desc, id desc`, а страницы
+    // идут в порядке запросов — то есть уже по убыванию.
+    return all.map((e) => (e.actorId ? { ...e, actorName: actorMap.get(e.actorId) } : e));
+  }, [timeline.data?.pages, actorMap]);
 
   // Ошибка отдаётся наружу намеренно: без неё сбой queryFn неотличим от «событий
   // нет» — ровно так дефект S-TL-1 и дожил до владельца.
-  return { events, isLoading: timeline.isLoading, error: timeline.error as Error | null };
+  return {
+    events,
+    isLoading: timeline.isLoading,
+    error: timeline.error as Error | null,
+    hasMore: timeline.hasNextPage,
+    loadMore: timeline.fetchNextPage,
+    isLoadingMore: timeline.isFetchingNextPage,
+  };
 }

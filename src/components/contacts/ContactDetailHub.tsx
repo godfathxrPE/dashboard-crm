@@ -585,7 +585,6 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
             <EntityTimeline
               entityType="contact"
               entityId={contactId}
-              options={{ includeSystem: true }}
               onOpenEvent={handleOpenEvent}
               renderAction={renderTimelineAction}
             />
