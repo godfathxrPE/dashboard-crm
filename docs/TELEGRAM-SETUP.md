@@ -46,13 +46,13 @@
 1. **Бот.** [@BotFather](https://t.me/BotFather) → `/newbot` → имя и username → токен.
 2. **Токен в secrets.**
    ```bash
-   supabase secrets set TELEGRAM_BOT_TOKEN='<токен от BotFather>' --project-ref uoiavcabxgdjugzryrmj
+   npx -y supabase@latest secrets set TELEGRAM_BOT_TOKEN='<токен от BotFather>' --project-ref uoiavcabxgdjugzryrmj
    ```
    Кавычки одинарные: в токене есть `:`.
 3. **Деплой функций** (если ещё не сделан):
    ```bash
-   supabase functions deploy telegram-send    --project-ref uoiavcabxgdjugzryrmj
-   supabase functions deploy telegram-webhook --project-ref uoiavcabxgdjugzryrmj
+   npx -y supabase@latest functions deploy telegram-send    --project-ref uoiavcabxgdjugzryrmj
+   npx -y supabase@latest functions deploy telegram-webhook --project-ref uoiavcabxgdjugzryrmj
    ```
    Обе с `verify_jwt = false` — это прописано в `supabase/config.toml` вместе с причиной.
 4. **`TELEGRAM_WEBHOOK_SECRET` + `setWebhook`** — скриптом из § 3.1. Руками не делать.
@@ -101,7 +101,7 @@ read -rsp 'TELEGRAM_BOT_TOKEN: ' TG_TOKEN; echo
 
 SECRET=$(openssl rand -hex 32)
 
-supabase secrets set "TELEGRAM_WEBHOOK_SECRET=$SECRET" --project-ref "$REF"
+npx -y supabase@latest secrets set "TELEGRAM_WEBHOOK_SECRET=$SECRET" --project-ref "$REF"
 
 # Секрет доезжает до рантайма функции НЕ мгновенно. Без паузы получишь тот же 401
 # и будешь искать его не там.
@@ -132,7 +132,7 @@ REF=uoiavcabxgdjugzryrmj
 
 KEY=$(openssl rand -hex 32)
 
-supabase secrets set "TELEGRAM_SEND_KEY=$KEY" --project-ref "$REF"
+npx -y supabase@latest secrets set "TELEGRAM_SEND_KEY=$KEY" --project-ref "$REF"
 
 cat <<SQL
 
