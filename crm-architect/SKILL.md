@@ -185,6 +185,7 @@ Workflow:
 - [ ] **org_id / RLS-паттерн соблюдён** (org-граница первым конъюнктом, роль через `current_org_role()`, ownership через `owner_id`/`created_by`, не `user_id`)
 - [ ] **Новые функции по hardening-конвенции** (`SECURITY DEFINER SET search_path = public, pg_temp` + адресный ACL)
 - [ ] **Миграции не применяются из CC** — пишутся и коммитятся, применяет гейт Cowork
+- [ ] **Новый раздел приложения — шесть точек правки**, не одна (страница · `TextNavSidebar` · `section-colors` · `ContentHeader` · `AuraOrbs`+`globals.css` · `CommandPalette` дважды). Таблицу с последствиями пропуска — в `learnings.md`
 - [ ] **Числовой порог в сиде сверен с живой БД** — «сколько строк попадёт сегодня»; ноль допустим, но как решение, не как сюрприз
 - [ ] **Правка памяти доехала до всех копий**: изменения в `crm-architect/` (репо) → `./scripts/skill-deploy.sh` → загрузка `crm-architect.skill` в Customize → Skills. Без последнего шага гейт следующего спринта читает прежнюю версию
 
