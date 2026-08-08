@@ -2,12 +2,28 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { chunkForIn } from '@/lib/utils/query-batching';
+import {
+  isSavableTranscriptText,
+  shouldCreateNewTranscript,
+} from '@/lib/domain/transcript';
 import { useRealtimeSync } from './use-realtime';
 import type { AiEntityType } from '@/lib/constants/ai-presets';
 import type { AiRunRow, TranscriptRow, TranscriptInsert } from '@/types/database';
 
 // 085: 'project' — сущность read-only пресетов по сделке.
 export type AiRunEntity = AiEntityType;
+
+/**
+ * Сущность, к которой транскрипт вообще можно привязать. Не сужение «на всякий
+ * случай»: политика `transcripts_insert` проверяет EXISTS по `calls`/`meetings`,
+ * поэтому для сделки и компании запись невозможна по построению.
+ */
+export type TranscriptEntity = Extract<AiRunEntity, 'call' | 'meeting'>;
+
+export function canHaveTranscript(entityType: AiRunEntity): entityType is TranscriptEntity {
+  return entityType === 'call' || entityType === 'meeting';
+}
 
 /**
  * Откуда взялся текст транскрипта. 106 расширил CHECK `transcripts.source` до
@@ -45,6 +61,146 @@ export function useTranscript(entityType: AiRunEntity, entityId: string | null) 
         .maybeSingle();
       if (error) throw error;
       return data as TranscriptRow | null;
+    },
+  });
+}
+
+type Db = ReturnType<typeof createClient>;
+
+/**
+ * Ключи кэша, которые обязан сбросить любой, кто записал транскрипт: сама
+ * расшифровка сущности и признак «есть расшифровка» для списков (бейдж).
+ * Один список на всех, чтобы новый вызывающий не забыл половину.
+ */
+function invalidateTranscriptKeys(
+  qc: ReturnType<typeof useQueryClient>,
+  entityType: AiRunEntity,
+  entityId: string,
+) {
+  qc.invalidateQueries({ queryKey: ['transcript', entityType, entityId] });
+  // Префиксом: ключ витрины включает производную от списка id, и точного ключа
+  // тут не знает никто — звонок может лежать сразу в нескольких открытых списках.
+  qc.invalidateQueries({ queryKey: ['transcripts-presence'] });
+}
+
+/**
+ * upsert транскрипта: переиспользуем последнюю строку, если текст совпал, иначе
+ * заводим новую (история версий сохраняется — см. `shouldCreateNewTranscript`).
+ *
+ * S-AI-VIS-1: вынесено из `useStartRun`, потому что вызывающих теперь двое —
+ * запуск пресета и сохранение расшифровки по факту готовности. Пустой текст сюда
+ * не приходит: оба вызывающих отсекают его раньше, а молчаливый `null` из общей
+ * точки записи было бы легко не заметить.
+ */
+export async function upsertTranscript(
+  supabase: Db,
+  params: {
+    entityType: TranscriptEntity;
+    entityId: string;
+    text: string;
+    source: TranscriptSource;
+  },
+): Promise<string> {
+  const { entityType, entityId, text, source } = params;
+
+  const { data: last } = await supabase
+    .from('transcripts')
+    .select('id, content')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (last && !shouldCreateNewTranscript(last.content, text)) return last.id as string;
+
+  // `org_id` не пишем — его проставляет БД (конвенция проекта).
+  const insert: Omit<TranscriptInsert, 'source'> & { source: TranscriptSource } = {
+    entity_type: entityType,
+    entity_id: entityId,
+    content: text,
+    char_count: text.length,
+    source,
+  };
+  const { data: created, error } = await supabase
+    .from('transcripts')
+    .insert(insert)
+    .select('id')
+    .single();
+  if (error) throw error;
+  return created.id as string;
+}
+
+/**
+ * Сохранить расшифровку саму по себе, без запуска пресета.
+ *
+ * S-AI-VIS-1: раньше транскрипт попадал в БД только внутри `useStartRun`, то есть
+ * в момент запуска пресета. Расшифровка — самостоятельная ценность (за неё уже
+ * заплачено), и терять её из-за ненажатой кнопки нельзя.
+ *
+ * Сохранение ≠ запуск: прогон по-прежнему стартует только человек.
+ */
+export function useSaveTranscript() {
+  const supabase = createClient();
+  const qc = useQueryClient();
+
+  return useMutation<
+    { transcriptId: string | null },
+    Error,
+    { entityType: TranscriptEntity; entityId: string; text: string; source: TranscriptSource }
+  >({
+    mutationFn: async ({ entityType, entityId, text, source }) => {
+      // Пустой/пробельный текст не сохраняется вовсе — не ошибка, просто нечего писать.
+      if (!isSavableTranscriptText(text)) return { transcriptId: null };
+      const transcriptId = await upsertTranscript(supabase, { entityType, entityId, text, source });
+      return { transcriptId };
+    },
+    onSuccess: (_res, vars) => {
+      invalidateTranscriptKeys(qc, vars.entityType, vars.entityId);
+    },
+  });
+}
+
+/**
+ * Признак «у этой строки есть расшифровка» для СПИСКА звонков/встреч — один запрос
+ * на весь список, а не `useTranscript` в цикле.
+ *
+ * Возвращает Map id → объём в знаках (последняя версия транскрипта). Содержимое не
+ * тянем: списку нужен факт наличия и порядок величины, а не текст на сотню килобайт.
+ */
+export function useTranscriptPresence(entityType: TranscriptEntity, ids: string[]) {
+  const supabase = createClient();
+  // Ключ обязан включать производную от списка id (урок S-DEBT-TRUTH-1): иначе
+  // ответ по одному списку переиспользуется для другого. Сортировка — чтобы
+  // перестановка тех же id не считалась новым ключом.
+  const idsKey = [...ids].sort().join(',');
+
+  return useQuery({
+    queryKey: ['transcripts-presence', entityType, idsKey],
+    enabled: ids.length > 0,
+    staleTime: 60_000,
+    queryFn: async (): Promise<Map<string, number>> => {
+      const byId = new Map<string, number>();
+      // `.in()` роняется и на пустом, и на слишком длинном списке — обе границы
+      // держит `chunkForIn`. Пустой вход сюда не доходит (`enabled`), длинный —
+      // режется; порядок между батчами не гарантирован, поэтому «последнюю версию»
+      // выбираем по created_at внутри батча, а не по позиции в ответе.
+      for (const batch of chunkForIn(ids)) {
+        const { data, error } = await supabase
+          .from('transcripts')
+          .select('entity_id, char_count, created_at')
+          .eq('entity_type', entityType)
+          .in('entity_id', batch)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        for (const row of data ?? []) {
+          // Первая встреченная строка id — самая свежая (сортировка по created_at desc).
+          if (!byId.has(row.entity_id as string)) {
+            byId.set(row.entity_id as string, (row.char_count as number) ?? 0);
+          }
+        }
+      }
+      return byId;
     },
   });
 }
@@ -121,7 +277,7 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
       // только call|meeting (политика transcripts_insert проверяет EXISTS по
       // calls/meetings). Сюда можно попасть только по ошибке вызывающего — падаем
       // явно, а не пишем мусор. 104: 'company' добавлена в тот же безтранскриптный путь.
-      if (entityType === 'project' || entityType === 'company') {
+      if (!canHaveTranscript(entityType)) {
         throw new Error(
           entityType === 'project'
             ? 'К сделке нельзя привязать транскрипт — запускайте прогон без текста'
@@ -129,35 +285,9 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
         );
       }
 
-      // 1. upsert транскрипта: переиспользуем последний, если текст совпал, иначе новый.
-      const { data: last } = await supabase
-        .from('transcripts')
-        .select('id, content')
-        .eq('entity_type', entityType)
-        .eq('entity_id', entityId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let transcriptId: string;
-      if (last && last.content === text) {
-        transcriptId = last.id as string;
-      } else {
-        const insert: Omit<TranscriptInsert, 'source'> & { source: TranscriptSource } = {
-          entity_type: entityType,
-          entity_id: entityId,
-          content: text,
-          char_count: text.length,
-          source,
-        };
-        const { data: created, error: insErr } = await supabase
-          .from('transcripts')
-          .insert(insert)
-          .select('id')
-          .single();
-        if (insErr) throw insErr;
-        transcriptId = created.id as string;
-      }
+      // 1. upsert транскрипта — общая точка записи с `useSaveTranscript`
+      //    (S-AI-VIS-1): правило «изменился текст → новый транскрипт» одно на двоих.
+      const transcriptId = await upsertTranscript(supabase, { entityType, entityId, text, source });
 
       // 2. invoke edge-функции.
       const { data, error } = await supabase.functions.invoke('ai-run', {
@@ -168,7 +298,7 @@ export function useStartRun(entityType: AiRunEntity, entityId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ai_runs', entityType, entityId] });
-      qc.invalidateQueries({ queryKey: ['transcript', entityType, entityId] });
+      invalidateTranscriptKeys(qc, entityType, entityId);
     },
   });
 }

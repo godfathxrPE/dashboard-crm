@@ -29,8 +29,15 @@ import { estimateTranscribeCost, formatDuration, type WhisperModel } from '@/lib
  */
 
 interface TranscribeDropzoneProps {
-  /** Готовый текст → в textarea вкладки «Вставить». */
-  onResult: (text: string) => void;
+  /**
+   * Готовый текст → в textarea вкладки «Вставить».
+   *
+   * S-AI-VIS-1: второй аргумент — вычитан ли текст целиком. Частичный результат
+   * тоже уходит наверх и тоже сохраняется: за распознавание уже заплачено, и текст
+   * с сырыми кусками лучше отсутствующего. Родителю это нужно, чтобы честно
+   * подписать сохранение, а не выдать недовычитанный текст за готовый.
+   */
+  onResult: (text: string, complete: boolean) => void;
 }
 
 type Staged = { blob: Blob; name: string; durationSec: number | null };
@@ -135,7 +142,7 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
 
   /** Текст принят человеком — уходит в поле «Вставить», панель очищается. */
   const accept = (text: string, complete: boolean) => {
-    onResult(text);
+    onResult(text, complete);
     setStaged(null);
     reset();
     toast.success(

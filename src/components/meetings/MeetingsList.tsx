@@ -14,6 +14,8 @@ import { useThemeStore } from '@/lib/stores/theme-store';
 import { cn } from '@/lib/utils/cn';
 import { MeetingModal } from './MeetingModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
+import { TranscriptBadge } from '@/components/ai/TranscriptBadge';
+import { useTranscriptPresence } from '@/lib/hooks/use-ai-run';
 import { localDateKey } from '@/lib/utils/date-helpers';
 
 export function MeetingsList() {
@@ -59,6 +61,10 @@ export function MeetingsList() {
     deleteMeeting.mutate(id);
   }
 
+  // S-AI-VIS-1: расшифровки всего списка — ОДИН запрос, не по запросу на карточку.
+  const meetingIds = useMemo(() => (meetings ?? []).map((m) => m.id), [meetings]);
+  const { data: transcriptChars } = useTranscriptPresence('meeting', meetingIds);
+
   if (isLoading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
   }
@@ -98,6 +104,7 @@ export function MeetingsList() {
                   onAi={() => { setAiFocus(undefined); setAiMeeting(m); }}
                   onProgression={() => { setAiFocus('progression'); setAiMeeting(m); }}
                   onDelete={() => handleDelete(m.id)}
+                  transcriptChars={transcriptChars?.get(m.id) ?? null}
                   isUpcoming
                 />
               </div>
@@ -123,6 +130,7 @@ export function MeetingsList() {
                   onAi={() => { setAiFocus(undefined); setAiMeeting(m); }}
                   onProgression={() => { setAiFocus('progression'); setAiMeeting(m); }}
                   onDelete={() => handleDelete(m.id)}
+                  transcriptChars={transcriptChars?.get(m.id) ?? null}
                 />
               </div>
             ))}
@@ -186,6 +194,7 @@ function MeetingCard({
   onAi,
   onProgression,
   onDelete,
+  transcriptChars = null,
   isUpcoming = false,
 }: {
   meeting: Meeting;
@@ -193,6 +202,8 @@ function MeetingCard({
   onAi: () => void;
   onProgression: () => void;
   onDelete: () => void;
+  /** Объём расшифровки в знаках; null — расшифровки нет, бейдж не рисуем. */
+  transcriptChars?: number | null;
   isUpcoming?: boolean;
 }) {
   // Aura: статус встречи — НЕ палка сбоку, а цвет date-бейджа + data-атрибут
@@ -251,6 +262,14 @@ function MeetingCard({
           <p className="mt-0.5 text-xs text-accent">→ {meeting.next_step}</p>
         )}
       </div>
+
+      {/* S-AI-VIS-1: бейдж расшифровки — вне блока действий: тот проявляется по
+          наведению, а признак «расшифровка есть» обязан быть виден сразу. */}
+      {transcriptChars !== null && (
+        <div className="mt-0.5 shrink-0">
+          <TranscriptBadge chars={transcriptChars} onClick={onAi} />
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

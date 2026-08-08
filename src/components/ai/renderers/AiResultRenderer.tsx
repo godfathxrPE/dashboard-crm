@@ -18,13 +18,17 @@ import { CompanyBriefRenderer } from './CompanyBriefRenderer';
 
 /** Диспетчер: рендерер выбирается по preset_key прогона.
  *  `deal_progression` сюда не попадает — у него не рендерер, а диф-панель с
- *  применением в сделку (ветка в AiRunPanel). */
+ *  применением в сделку (ветка в AiRunPanel).
+ *
+ *  S-AI-VIS-1: `onCreateTask` необязателен — модалка просмотра результата из ленты
+ *  формы задачи не держит, и кнопка «Создать задачу», которая ничего не делает,
+ *  там была бы хуже её отсутствия. */
 export function AiResultRenderer({
   run,
   onCreateTask,
 }: {
   run: AiRunRow;
-  onCreateTask: (item: ActionItem) => void;
+  onCreateTask?: (item: ActionItem) => void;
 }) {
   if (run.status !== 'done' || !run.result) return null;
 

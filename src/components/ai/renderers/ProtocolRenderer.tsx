@@ -26,7 +26,8 @@ export function ProtocolRenderer({
   onCreateTask,
 }: {
   result: ProtocolResult;
-  onCreateTask: (item: ActionItem) => void;
+  /** Не передан — поручения показываются, кнопки создания задачи нет (S-AI-VIS-1). */
+  onCreateTask?: (item: ActionItem) => void;
 }) {
   return (
     <div className="space-y-3 text-sm">
@@ -48,13 +49,15 @@ export function ProtocolRenderer({
                     {item.due ? ` · Срок: ${item.due}` : ''}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onCreateTask(item)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface-hover"
-                >
-                  <Plus size={12} /> Создать задачу
-                </button>
+                {onCreateTask && (
+                  <button
+                    type="button"
+                    onClick={() => onCreateTask(item)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface-hover"
+                  >
+                    <Plus size={12} /> Создать задачу
+                  </button>
+                )}
               </li>
             ))}
           </ul>

@@ -58,6 +58,8 @@ import { AiDealModal } from '@/components/ai/AiDealModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
+import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
+import type { AiRunRow } from '@/types/database';
 import type { TimelineEvent } from '@/types/timeline';
 import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
@@ -230,12 +232,17 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
 
   // Клик по событию единой ленты → общий маппинг kind→действие (тот же, что contact/company)
+  // S-AI-VIS-1: прогон, открытый кликом по AI-событию ленты (модалка просмотра).
+  const [viewingRun, setViewingRun] = useState<AiRunRow | null>(null);
+
   function handleOpenEvent(e: TimelineEvent) {
     void openTimelineEvent(e, {
       router,
       onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
       onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
       onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+      // S-AI-VIS-1: AI-событие ленты больше не молчит — открывает свой результат.
+      onAiRun: (run) => setViewingRun(run),
     });
   }
 
@@ -1007,6 +1014,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           onCancel={() => setRollback(null)}
         />
       )}
+
+      <AiRunResultModal run={viewingRun} onClose={() => setViewingRun(null)} />
     </>
   );
 }

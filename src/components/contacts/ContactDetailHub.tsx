@@ -27,6 +27,8 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
+import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
+import type { AiRunRow } from '@/types/database';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import type { Task } from '@/types/entities';
@@ -152,6 +154,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // S-AI-VIS-1: прогон, открытый кликом по AI-событию ленты (модалка просмотра).
+  const [viewingRun, setViewingRun] = useState<AiRunRow | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkCompanyId, setLinkCompanyId] = useState('');
@@ -246,6 +250,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
       onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
       onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
       onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+      // S-AI-VIS-1: AI-событие ленты больше не молчит — открывает свой результат.
+      onAiRun: (run) => setViewingRun(run),
     });
   }
 
@@ -603,6 +609,8 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
           contactId={aiCall.contact_id}
         />
       )}
+
+      <AiRunResultModal run={viewingRun} onClose={() => setViewingRun(null)} />
     </div>
   );
 }
