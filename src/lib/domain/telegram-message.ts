@@ -66,13 +66,21 @@ const FALLBACK_HEAD = 'Уведомление';
  *    съела бы заголовок целиком. Здесь `+ undefined` дал бы «undefined» в тексте —
  *    разные симптомы, одна причина, поэтому и там, и тут пустая строка.
  */
-const PRIORITY_SUFFIX: Record<string, string> = {
-  important: ' · важно',
-  critical: ' · критично',
-};
-
 function prioritySuffix(priority: string | null | undefined): string {
-  return (priority && PRIORITY_SUFFIX[priority]) || '';
+  // ⚠️ `switch`, а НЕ поиск по объекту-словарю. Словарь наследует прототип, и
+  //    `SUFFIX['constructor']` вернул бы функцию — truthy, то есть в заголовок
+  //    уехал бы «function Object() {...}». Значение приходит из enum и таких
+  //    строк содержать не может, но защита от мусора, которая ломается на
+  //    мусоре определённого вида, — это не защита. Заодно форма один в один
+  //    совпадает с `CASE` в SQL-оригинале (109).
+  switch (priority) {
+    case 'important':
+      return ' · важно';
+    case 'critical':
+      return ' · критично';
+    default:
+      return '';
+  }
 }
 
 export interface TelegramNotificationInput {

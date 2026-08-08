@@ -290,7 +290,7 @@
 > незакрытой задачи `deadline` стоял у **3**, `remind_min` — у **1**, обе вместе — у **0**.
 > 📄 **Runbook подключения, ротации и диагностики — [`docs/TELEGRAM-SETUP.md`](./TELEGRAM-SETUP.md)**;
 >
-> **109 (S-TG-PRIORITY) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`109_telegram_priority.sql`; номер сверен
+> **109 (S-TG-PRIORITY) — applied 2026-08-08 `20260808170347`** (`109_telegram_priority.sql`; номер сверен
 > запросом к `schema_migrations` 2026-08-08 — последняя применённая `20260808152233`).
 > Приоритет задачи в заголовке напоминания. **Таблиц, индексов и cron НЕ трогает** — только
 > `create or replace` двух функций: `enqueue_task_reminders()` кладёт в payload ключ

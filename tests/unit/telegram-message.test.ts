@@ -385,6 +385,10 @@ describe('task_reminder — приоритет в заголовке (109, S-TG-
     // Приписка не должна протечь в текст ни в каком виде.
     expect(withPriority('мусор')).not.toContain('undefined');
     expect(withPriority('мусор')).not.toContain('мусор');
+    // Ключи прототипа Object: словарь вернул бы функцию (truthy) и напечатал её
+    // в заголовке. Найдено на гейте 109 — поэтому в коде switch, а не Record.
+    expect(head(withPriority('constructor'))).toBe('<b>Скоро дедлайн</b>');
+    expect(head(withPriority('toString'))).toBe('<b>Скоро дедлайн</b>');
   });
 
   it('приоритет НЕ добавляется к чужим типам — граница фикса', () => {
