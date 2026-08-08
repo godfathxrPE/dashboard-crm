@@ -3158,6 +3158,69 @@ export type Database = {
           },
         ]
       }
+      telegram_capture_drafts: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          created_entity_id: string | null
+          duplicate_id: string | null
+          duplicate_kind: string | null
+          id: string
+          kind: string
+          org_id: string
+          payload: Json
+          profile_id: string
+          source_text: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          created_entity_id?: string | null
+          duplicate_id?: string | null
+          duplicate_kind?: string | null
+          id?: string
+          kind: string
+          org_id: string
+          payload: Json
+          profile_id: string
+          source_text: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          created_entity_id?: string | null
+          duplicate_id?: string | null
+          duplicate_kind?: string | null
+          id?: string
+          kind?: string
+          org_id?: string
+          payload?: Json
+          profile_id?: string
+          source_text?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_capture_drafts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telegram_capture_drafts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telegram_link_tokens: {
         Row: {
           created_at: string
@@ -3640,6 +3703,19 @@ export type Database = {
       }
       dispatch_webhooks_tick: { Args: never; Returns: undefined }
       enqueue_task_reminders: { Args: never; Returns: undefined }
+      entity_timeline: {
+        Args: { p_entity_id: string; p_entity_type: string; p_limit?: number }
+        Returns: {
+          actor_id: string
+          id: string
+          kind: string
+          payload: Json
+          ref_id: string
+          ref_type: string
+          source: string
+          ts: string
+        }[]
+      }
       get_webhook_secrets: {
         Args: { p_endpoint_ids: string[] }
         Returns: {
@@ -3756,6 +3832,14 @@ export type Database = {
       }
       telegram_send_tick: { Args: never; Returns: undefined }
       telegram_task_keyboard: { Args: { p_task_id: string }; Returns: Json }
+      tg_apply_capture: {
+        Args: { p_actor_id: string; p_draft_id: string; p_kind?: string }
+        Returns: Json
+      }
+      tg_cancel_capture: {
+        Args: { p_actor_id: string; p_draft_id: string }
+        Returns: Json
+      }
       tg_complete_task: {
         Args: { p_actor_id: string; p_task_id: string }
         Returns: string
