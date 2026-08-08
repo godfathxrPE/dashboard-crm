@@ -142,8 +142,20 @@ export interface CaptureCardInput {
   kind: 'contact' | 'company' | 'unclear';
   contact?: CaptureCardContact | null;
   company?: CaptureCardCompany | null;
-  /** Найденный дубль: меняет и текст, и набор кнопок. */
-  duplicate?: { kind: 'contact' | 'company'; id: string; label: string } | null;
+  /**
+   * Найденный дубль: меняет и текст, и набор кнопок.
+   *
+   * ⚠️ `matchedBy` — не украшение отчёта, а признак, от которого зависит НАБОР
+   *    КНОПОК (S-TG-3-INN-DUP). Структурное зеркало `CaptureDuplicate` из
+   *    `capture-helpers.ts`; импортировать его сюда нельзя (правило файла — без
+   *    импортов), поэтому форма повторена, а не подключена.
+   */
+  duplicate?: {
+    kind: 'contact' | 'company';
+    id: string;
+    label: string;
+    matchedBy?: 'inn' | 'name' | 'email' | 'phone' | null;
+  } | null;
   /** Базовый URL приложения; невалидный/пустой ⇒ url-кнопки не будет. */
   appUrl?: string | null;
 }
@@ -247,6 +259,14 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
       { text: BTN_CANCEL, callback_data: CAPTURE_CANCEL_PREFIX + draftId },
     ];
 
+    // ⚠️ СОВПАДЕНИЕ ПО ИНН — «ВСЁ РАВНО СОЗДАТЬ» НЕ ПОКАЗЫВАЕМ (S-TG-3-INN-DUP).
+    //    Вставка упрётся в `uq_companies_org_inn (org_id, inn)`, то есть кнопка не
+    //    может сработать никогда; честный ответ от RPC (111) её не оправдывает —
+    //    кнопка, которая гарантированно не выполнится, это дефект интерфейса.
+    //    По НАЗВАНИЮ кнопка остаётся: два юрлица с похожими названиями и разными
+    //    ИНН — обычное дело, и там «всё равно создать» отрабатывает.
+    const innMatch = duplicate.matchedBy === 'inn';
+
     // На `unclear` «Всё равно создать» неоднозначно — ветку всё ещё нужно
     // выбрать, поэтому вместо неё те же две кнопки выбора.
     const buttons: TelegramInlineButton[][] =
@@ -262,7 +282,9 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
         : [
             [
               ...(url ? [{ text: BTN_OPEN, url }] : []),
-              { text: BTN_CREATE_ANYWAY, callback_data: CAPTURE_APPLY_PREFIX + draftId },
+              ...(innMatch
+                ? []
+                : [{ text: BTN_CREATE_ANYWAY, callback_data: CAPTURE_APPLY_PREFIX + draftId }]),
             ],
             cancelRow,
           ];
@@ -270,8 +292,12 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
     return {
       text:
         `<b>Похоже, это уже есть</b>\n${escapeTelegramHtml(duplicate.label)}` +
+        // Без объяснения пропавшая кнопка читается как сбой бота, а не как ответ.
+        (innMatch ? '\n\nСовпадает ИНН — это та же организация.' : '') +
         (url ? '' : '\n\nСсылку на запись собрать не удалось — откройте CRM вручную.'),
-      reply_markup: { inline_keyboard: buttons },
+      // Ряд может оказаться пустым (совпадение по ИНН + ссылка не собралась) —
+      // пустые ряды Telegram не любит, и смысла в них нет.
+      reply_markup: { inline_keyboard: buttons.filter((row) => row.length > 0) },
     };
   }
 
@@ -319,16 +345,34 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
   };
 }
 
+/** Исход применения черновика, который видит человек. Зеркало `status` из RPC. */
+export type AppliedOutcome = 'created' | 'duplicate_inn';
+
 /**
  * Сообщение после применения — им ЗАМЕЩАЕТСЯ карточка.
  *
  * ⚠️ БЕЗ `parse_mode` на стороне вызова (см. `editMessageText` в telegram-webhook):
  *    Telegram отдаёт `message.text` уже разрисованным, и вернуть его с HTML нельзя.
  *    Поэтому здесь НЕ экранируем и не размечаем — текст уходит как есть.
+ *
+ * ⚠️ ИСХОД `duplicate_inn` — ПАРАМЕТР ЭТОГО СБОРЩИКА, А НЕ ВТОРОЙ СБОРЩИК
+ *    (S-TG-3-INN-DUP). Разница между «создана» и «уже заведена» — одно слово в
+ *    одной строке; отдельная функция ради него развела бы форматы сообщений,
+ *    которые обязаны выглядеть одинаково (это одно и то же место в диалоге).
  */
-export function buildAppliedText(kind: 'contact' | 'company', label: string): string {
-  const what = kind === 'contact' ? 'Контакт создан' : 'Компания создана';
-  return label ? `✓ ${what}: ${label}` : `✓ ${what}`;
+export function buildAppliedText(
+  kind: 'contact' | 'company',
+  label: string,
+  outcome: AppliedOutcome = 'created',
+): string {
+  const what =
+    outcome === 'duplicate_inn'
+      ? 'Компания с этим ИНН уже заведена'
+      : kind === 'contact'
+        ? 'Контакт создан'
+        : 'Компания создана';
+  const mark = outcome === 'duplicate_inn' ? '•' : '✓';
+  return label ? `${mark} ${what}: ${label}` : `${mark} ${what}`;
 }
 
 /** Клавиатура сообщения об успехе: одна ссылка, если она собралась. */

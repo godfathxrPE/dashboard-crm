@@ -166,7 +166,7 @@ describe('findCaptureDuplicate', () => {
   it('находит контакт по email без учёта регистра', () => {
     expect(
       findCaptureDuplicate({ contact: { email: 'p.ivanov@romashka.ru' } }, null, CONTACTS, COMPANIES),
-    ).toEqual({ kind: 'contact', id: 'c1', label: 'Пётр Иванов' });
+    ).toEqual({ kind: 'contact', id: 'c1', label: 'Пётр Иванов', matchedBy: 'email' });
   });
 
   it('находит контакт по email, спрятанному в notes', () => {
@@ -200,11 +200,27 @@ describe('findCaptureDuplicate', () => {
       kind: 'company',
       id: 'k1',
       label: 'ООО «Ромашка»',
+      matchedBy: 'inn',
     });
   });
 
   it('находит компанию по названию без ОПФ, кавычек и регистра', () => {
     expect(findCaptureDuplicate({ company: { name: 'ЗАО Василёк' } }, null, [], COMPANIES)?.id).toBe('k2');
+  });
+
+  it('различает совпадение по ИНН и по названию — от этого зависит набор кнопок бота', () => {
+    // S-TG-3-INN-DUP: «Всё равно создать» на совпадении по ИНН не может
+    // сработать (уникальный индекс), на совпадении по названию — может.
+    expect(
+      findCaptureDuplicate({ company: { name: 'ООО Ромашка' } }, INN10, [], COMPANIES)?.matchedBy,
+    ).toBe('inn');
+    expect(
+      findCaptureDuplicate({ company: { name: 'ООО Ромашка' } }, null, [], COMPANIES)?.matchedBy,
+    ).toBe('name');
+    expect(
+      findCaptureDuplicate({ contact: { phone: '+79123456789' } }, null, CONTACTS, COMPANIES)
+        ?.matchedBy,
+    ).toBe('phone');
   });
 
   it('не ищет компанию по слишком короткому названию', () => {
@@ -220,7 +236,7 @@ describe('findCaptureDuplicate', () => {
       CONTACTS,
       COMPANIES,
     );
-    expect(hit).toEqual({ kind: 'contact', id: 'c1', label: 'Пётр Иванов' });
+    expect(hit).toEqual({ kind: 'contact', id: 'c1', matchedBy: 'email', label: 'Пётр Иванов' });
   });
 
   it('возвращает null, когда сверять нечем', () => {

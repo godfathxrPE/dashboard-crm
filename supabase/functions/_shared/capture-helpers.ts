@@ -190,9 +190,16 @@ export interface DedupCaptureInput {
   company?: { name?: string | null } | null;
 }
 
+/**
+ * По чему найдено совпадение. Поле ОПЦИОНАЛЬНО: веб-виджет его не читает и от
+ * появления не меняется, а боту оно нужно (S-TG-3-INN-DUP) — «Всё равно создать»
+ * на совпадении по ИНН не может сработать никогда, там уникальный индекс
+ * `uq_companies_org_inn`. Совпадение по НАЗВАНИЮ такого ограничения не имеет:
+ * два юрлица с похожими названиями и разными ИНН — обычное дело.
+ */
 export type CaptureDuplicate =
-  | { kind: 'contact'; id: string; label: string }
-  | { kind: 'company'; id: string; label: string };
+  | { kind: 'contact'; id: string; label: string; matchedBy?: 'email' | 'phone' }
+  | { kind: 'company'; id: string; label: string; matchedBy?: 'inn' | 'name' };
 
 /**
  * Первый похожий существующий объект или null.
@@ -200,6 +207,10 @@ export type CaptureDuplicate =
  * Контакт — по email или любому из телефонов (нормализованных до 10 цифр).
  * Компания — по ИНН (точно) или названию без ОПФ. `inn` приходит отдельным
  * параметром: модель его не извлекает (инвариант), его даёт `extractInn`.
+ *
+ * В ответе есть `matchedBy` — по чему именно совпало. Нужен потребителю, который
+ * решает, можно ли «создать всё равно»: по названию можно, по ИНН нельзя
+ * (уникальный индекс, см. `CaptureDuplicate`).
  *
  * ⚠️ Контакт проверяется ПЕРВЫМ и при совпадении завершает поиск. Порядок значим
  *    для `intent='unclear'`, где заполнены обе ветки: подпись в письме почти
@@ -217,31 +228,34 @@ export function findCaptureDuplicate(
     const email = (c.email || extractEmail(c.notes ?? '') || '').trim().toLowerCase() || null;
     const key = phoneKey(c.phone);
     if (email || key) {
-      const hit = contacts.find((row) => {
-        if (email && row.email && row.email.trim().toLowerCase() === email) return true;
-        if (!key) return false;
-        if (phoneKey(row.phone) === key) return true;
-        return (row.phones ?? []).some((p) => phoneKey(p.value) === key);
-      });
-      if (hit) {
-        return {
-          kind: 'contact',
-          id: hit.id,
-          // 13 из 89 контактов прода без фамилии: рукописный тип врёт (string),
-          // а `${null}` в шаблонной строке печатает «null» (learnings 2026-08-04).
-          label: [hit.first_name, hit.last_name].filter(Boolean).join(' '),
-        };
+      // Цикл, а не `find`: нужно не только «нашлось», но и ПО ЧЕМУ нашлось.
+      // Порядок проверок внутри строки прежний (email → телефон), поэтому
+      // выбранная строка та же, что и раньше.
+      for (const row of contacts) {
+        // 13 из 89 контактов прода без фамилии: рукописный тип врёт (string),
+        // а `${null}` в шаблонной строке печатает «null» (learnings 2026-08-04).
+        const label = [row.first_name, row.last_name].filter(Boolean).join(' ');
+        if (email && row.email && row.email.trim().toLowerCase() === email) {
+          return { kind: 'contact', id: row.id, label, matchedBy: 'email' };
+        }
+        if (!key) continue;
+        if (phoneKey(row.phone) === key || (row.phones ?? []).some((p) => phoneKey(p.value) === key)) {
+          return { kind: 'contact', id: row.id, label, matchedBy: 'phone' };
+        }
       }
     }
   }
 
   const norm = result.company?.name ? normalizeCompanyName(result.company.name) : '';
   if (inn || norm.length >= 3) {
-    const hit = companies.find((row) => {
-      if (inn && row.inn && row.inn.trim() === inn) return true;
-      return norm.length >= 3 && normalizeCompanyName(row.name) === norm;
-    });
-    if (hit) return { kind: 'company', id: hit.id, label: hit.name };
+    for (const row of companies) {
+      if (inn && row.inn && row.inn.trim() === inn) {
+        return { kind: 'company', id: row.id, label: row.name, matchedBy: 'inn' };
+      }
+      if (norm.length >= 3 && normalizeCompanyName(row.name) === norm) {
+        return { kind: 'company', id: row.id, label: row.name, matchedBy: 'name' };
+      }
+    }
   }
 
   return null;
