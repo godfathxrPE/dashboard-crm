@@ -632,12 +632,15 @@ export interface Membership {
 // S-WON-AUTO-1: deal_won — сервер-триггер уведомляет владельца выигранной сделки
 // R2-P0-E (079): spawn_suggest — действие suggest_spawn предлагает создать внедрение
 // B2 (088): webhook_disabled — endpoint отключён автоматически после серии провалов
+// S-TG-2 (108): task_reminder — пятиминутный планировщик enqueue_task_reminders за
+//   remind_min до дедлайна; в Telegram уезжает транспортом 107 и несёт кнопку
+//   «Выполнено».
 //
-// ⚠️ Синхронно с CHECK `notifications_type_check` (088:п.13). Точка расхождения
-//    SQL↔TS: значение, добавленное здесь без миграции, упадёт на INSERT.
+// ⚠️ Синхронно с CHECK `notifications_type_check` (088:п.13, расширен 108). Точка
+//    расхождения SQL↔TS: значение, добавленное здесь без миграции, упадёт на INSERT.
 export type NotificationType =
   | 'task_assigned' | 'project_assigned' | 'deal_won' | 'automation' | 'spawn_suggest'
-  | 'webhook_disabled';
+  | 'webhook_disabled' | 'task_reminder';
 
 /** Роль, которую можно пригласить — owner назначается только внутри org, не по инвайту. */
 export type InvitableRole = Exclude<OrgRole, 'owner'>;

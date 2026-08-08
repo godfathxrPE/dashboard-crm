@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap, Sparkles, Webhook } from 'lucide-react';
+import { Bell, CheckSquare, Briefcase, Check, Rocket, Zap, Sparkles, Webhook, AlarmClock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import {
   useNotifications,
@@ -25,6 +25,8 @@ function entityRoute(n: Notification): string {
   // B2 (088): endpoint отключён после серии провалов. entity_id — id endpoint'а,
   // отдельного роута у него нет: ведём в Настройки, где живёт секция «Вебхуки».
   if (n.type === 'webhook_disabled') return '/settings';
+  // S-TG-2 (108): напоминание о задаче — та же доска, что у task_assigned.
+  if (n.type === 'task_reminder') return '/tasks';
   // S-WON-AUTO-1: deal_won ведёт на сделку — там кнопка «Создать проект внедрения».
   // S-WF-2B: automation (entity_type='projects') ведёт на сделку (серверный бэкстоп deals→projects).
   if (n.type === 'project_assigned' || n.type === 'deal_won' || n.type === 'automation')
@@ -39,6 +41,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   automation: 'Автоматизация',
   spawn_suggest: 'Пора создать внедрение',
   webhook_disabled: 'Вебхук отключён',
+  task_reminder: 'Скоро дедлайн',
 };
 
 function TypeIcon({ type }: { type: NotificationType }) {
@@ -48,6 +51,7 @@ function TypeIcon({ type }: { type: NotificationType }) {
     : type === 'automation' ? Zap
     : type === 'spawn_suggest' ? Sparkles
     : type === 'webhook_disabled' ? Webhook
+    : type === 'task_reminder' ? AlarmClock
     : Briefcase;
   return <Icon size={14} className="shrink-0 text-accent" />;
 }
@@ -83,6 +87,11 @@ function payloadTitle(n: Notification): string {
       p?.text?.trim() ||
       (title ? `Сделка «${title}» — пора создать внедрение` : TYPE_LABEL[n.type])
     );
+  }
+  // S-TG-2 (108): планировщик кладёт готовую строку «„задача“ — срок ДД.ММ ЧЧ:ММ МСК»
+  // в payload.text; title — голый текст задачи, фолбэк.
+  if (n.type === 'task_reminder') {
+    return p?.text?.trim() || title || TYPE_LABEL[n.type];
   }
   return title || TYPE_LABEL[n.type];
 }

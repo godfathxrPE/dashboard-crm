@@ -273,8 +273,23 @@
 > X-Telegram-Bot-Api-Secret-Token) — **задеплоены 2026-08-08, ACTIVE**. Одноразовая
 > `tg-probe` (ШАГ 0, достижимость `api.telegram.org` из edge) отработала **до** спринта:
 > **GO**, бот `torii_crm_bot` (id `8569873194`) — и удалена коммитом `6d1d946`.
+>
+> **108 (S-TG-2, эпик Telegram) — applied 2026-08-08 `20260808152233`** (`108_telegram_reminders.sql`;
+> следующий свободный номер после 107 — сверено запросом к `schema_migrations` 2026-08-08).
+> Аддитивна: `notifications_type_check` расширяется седьмым `task_reminder` (**только
+> расширение**), `tasks` получает `reminded_at` + partial-индекс + триггер сброса,
+> `telegram_outbox` — `reply_markup`; пять новых функций (`telegram_task_keyboard`,
+> `enqueue_task_reminders`, `reset_task_reminded_at`, `tg_complete_task`,
+> `cleanup_telegram_transport`), две переписаны (`telegram_notification_text`,
+> `enqueue_telegram_notification`), `claim_telegram_outbox` пересоздана через **DROP +
+> CREATE** (меняется тип возврата). Две новые cron-джобы: `tg-reminders` `*/5 * * * *` и
+> `tg-cleanup` `20 6 * * *`. **Требует редеплоя обеих edge-функций**; apply раньше деплоя
+> безопасен — старая `telegram-send` игнорирует лишнее поле в ответе `claim_*` и шлёт
+> сообщения без кнопок, старая `telegram-webhook` молча отвечает 200 на `callback_query`.
+> ⚠️ **До apply фича молчит по данным, а не только по коду:** на 2026-08-08 из 551
+> незакрытой задачи `deadline` стоял у **3**, `remind_min` — у **1**, обе вместе — у **0**.
 > 📄 **Runbook подключения, ротации и диагностики — [`docs/TELEGRAM-SETUP.md`](./TELEGRAM-SETUP.md)**;
-> следующая свободная после неё — **108**;
+> следующая свободная после неё — **109**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
 > **060 зарезервирована и НЕ занята — идти вперёд, не возвращаться к ней**;
@@ -772,7 +787,7 @@ definer-триггерами/планировщиком (INSERT-политики
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE |
 | recipient_id | uuid | NOT NULL → profiles ON DELETE CASCADE (получатель) |
 | actor_id | uuid | → profiles ON DELETE SET NULL (кто назначил) |
-| type | text | CHECK `task_assigned`/`project_assigned`/**`deal_won`**/**`automation`**/**`spawn_suggest`** _(+`deal_won` 045, +`automation` 050, +`spawn_suggest` 079)_ |
+| type | text | CHECK `task_assigned`/`project_assigned`/**`deal_won`**/**`automation`**/**`spawn_suggest`**/`webhook_disabled`/**`task_reminder`** _(+`deal_won` 045, +`automation` 050, +`spawn_suggest` 079, +`webhook_disabled` 088, **+`task_reminder` 108**)_ |
 | entity_type | text | NOT NULL (`tasks`/`projects`) |
 | entity_id | uuid | NOT NULL |
 | payload | jsonb | DEFAULT `{}` (`{title}` — text задачи / name сделки) |
@@ -790,6 +805,14 @@ Telegram. Схему и CHECK он не трогает, но делает `notif
 задаётся в `telegram_notification_text()` (107) и зеркале
 `src/lib/domain/telegram-message.ts`. Добавляя седьмое значение `type`, править надо ЧЕТЫРЕ
 места: CHECK, `NotificationType`, `NotificationBell.tsx` и обе половины telegram-текста.
+
+⚠️ **108 (S-TG-2) это и сделала — `task_reminder` заведён во всех четырёх местах разом.**
+Правило проверено на практике: пропуск любого из них даёт либо 23514 на INSERT (нет CHECK),
+либо `undefined` в шапке колокольчика (нет `TYPE_LABEL`), либо сообщение с заголовком
+«Уведомление» в Telegram (нет ветки в `telegram_notification_text`). Тем же PR 108
+навесила на пару (`type` ∈ {`task_assigned`,`task_reminder`}, `entity_type='tasks'`)
+inline-клавиатуру — то есть **пятое место у задачных типов**:
+`enqueue_telegram_notification` + `telegram_task_keyboard()`.
 
 ### pipelines / pipeline_stages _(Sprint 1 «Pipelines & Directions»)_
 DDL введён вне нумерованных миграций; описан в `src/types/database.ts`
@@ -1238,7 +1261,11 @@ DEFINER-RPC `link_telegram_account` под service_role. Подделать `tel
 Telegram ретраит апдейт, если ответ не пришёл за таймаут. **`org_id` здесь нет и не должно
 быть** — бот один на инсталляцию, апдейт приходит раньше, чем известно, чей он; это журнал
 транспорта, а не тенантные данные, и конвенция org-таблицы к нему не применяется.
-**ДОЛГ S-TG-2:** ретеншн — таблица растёт монотонно.
+~~**ДОЛГ S-TG-2:** ретеншн — таблица растёт монотонно.~~ **Закрыт в 108:**
+`cleanup_telegram_transport()` + суточный cron `tg-cleanup` (`20 6 * * *`), горизонт **30
+дней** — как у `cleanup_webhook_deliveries` (089). Чистит `telegram_updates` целиком и
+`telegram_outbox` в статусах `sent`/`error`. **`pending` не удаляется ни при каком
+возрасте**: застрявшая в очереди строка — симптом поломки транспорта, а не мусор.
 
 **Функции:**
 
@@ -1262,7 +1289,10 @@ Telegram ретраит апдейт, если ответ не пришёл за
   создание привязки и его гашение обязаны быть одной транзакцией, `for update` на строке токена
   сериализует два одновременных `/start`. Наружу `{ok, reason}`; причины отказа сведены к
   `invalid_token` намеренно.
-- `claim_telegram_outbox(p_limit)` → table _(DEFINER, только `service_role`)_ — атомарный
+- `claim_telegram_outbox(p_limit)` → table _(DEFINER, только `service_role`; **108 добавила в
+  возврат `reply_markup` через DROP + CREATE** — тип возврата на месте не меняется,
+  «cannot change return type of existing function»; сигнатура аргументов та же, поэтому
+  ловушки 42725 на старых вызовах нет)_ — атомарный
   захват батча, `for update skip locked` + **лизинг 2 минуты** и `attempts + 1`. Форма
   `claim_webhook_deliveries` (088). ⚠️ Нужен не «для симметрии»: джоба минутная, а 25
   сообщений при медленном Telegram упираются в таймаут 10 с каждое — тик может не уложиться
@@ -1278,6 +1308,41 @@ Telegram ретраит апдейт, если ответ не пришёл за
   `net.http_post` fire-and-forget, глушитель исключений. Cron **`tg-send` `* * * * *`** —
   **вторая минутная джоба проекта**; при пустой очереди это один индексный скан и выход.
 
+**Добавлено 108 (S-TG-2):**
+
+- `telegram_task_keyboard(task_id)` → jsonb _(INVOKER, immutable, ACL пуст)_ — inline-кнопка
+  «✓ Выполнено». **`callback_data` строго `tgdone:<uuid>`, никакого JSON**: лимит Telegram
+  64 байта тут ни при чём (43 из 64), дело в том, что разбор чужого ввода тем безопаснее,
+  чем жёстче формат. Зеркало — `buildTaskKeyboard` в `src/lib/domain/telegram-message.ts`;
+  разбор (`parseTaskCallbackData`) зеркалом **не** является — SQL-версии у него нет,
+  он живёт в `telegram-webhook` и в домене ради тестов.
+- `enqueue_task_reminders()` → void _(DEFINER, `service_role`)_ — планировщик напоминаний,
+  cron **`tg-reminders` `*/5 * * * *`**. Отбор: `lane <> 'done'` и `remind_min`/`deadline`
+  не NULL, `reminded_at is null`, `now()` в окне `[deadline - remind_min, deadline)`.
+  **Получатель — `coalesce(assigned_to, created_by)`, и это не мелочь**: на 2026-08-08 из
+  551 незакрытой задачи исполнитель стоял у **восьми**; без фолбэка фича молчала бы почти
+  по всей базе (тот же приём — `isMine` в `task-view.ts`, `run_overdue_automations` 051).
+  `org_id` берётся **из строки задачи**, не из `current_org_id()` (в cron-контексте NULL).
+  ⚠️ **Порядок обязателен: сначала INSERT в `notifications`, потом `reminded_at := now()`** —
+  наоборот было бы тихой потерей. Пять минут, а не минута: ±5 мин человеку безразличны,
+  холостых пробуждений в пять раз меньше.
+- `reset_task_reminded_at()` _(триггер `trg_ab_reset_reminded_at`, BEFORE UPDATE OF
+  `deadline`, `remind_min`)_ — **уточнение инварианта «ровно одно напоминание на задачу»**:
+  отметка относится к КОНКРЕТНОМУ сроку, а не к строке навсегда. Без сброса задача с
+  перенесённым на неделю дедлайном не напомнила бы о себе никогда, и это читалось бы как
+  «напоминания не работают».
+- `tg_complete_task(p_actor_id, p_task_id)` → text _(DEFINER, только `service_role`)_ —
+  закрытие задачи по кнопке. **Актор передаётся явно**: под service_role `auth.uid()` = NULL,
+  и функция, полагающаяся на него, молча закрыла бы гард. Проверки по порядку и все NULL-safe:
+  аргументы (22023) → членство в org задачи (42501) → `coalesce(assigned_to, created_by) =
+  актор` (42501) → `lane = 'done'`. Возврат `done|already_done|not_found` — **text, а не
+  boolean**: боту нужны три разных ответа. ⚠️ **`memberships.profile_id`, не `user_id`** —
+  колонки `user_id` в таблице нет, вариант с ней падал бы 42703 на первом нажатии.
+  `completed_at` ставит триггер `trg_stamp_completed_at` (072) — он BEFORE UPDATE OF `lane`
+  и срабатывает в том числе на definer-апдейте; руками не писать.
+- `cleanup_telegram_transport()` → integer _(DEFINER, `service_role`)_ — ретеншн 30 дней,
+  cron `tg-cleanup` `20 6 * * *`. См. `telegram_updates` выше.
+
 **Edge-функции** (`supabase/functions/`, обе `verify_jwt = false`):
 
 - **`telegram-send`** — дренит очередь под service_role. Авторизация: `X-Dispatch-Key` против
@@ -1289,20 +1354,36 @@ Telegram ретраит апдейт, если ответ не пришёл за
   `error` без ретраев** (403 «bot was blocked», 400 «chat not found»/«can't parse entities» —
   ретрай их не лечит); 5xx/408/сеть → бэкофф **1 м / 5 м / 15 м / 1 ч**, после 5-й попытки
   `error`. Текст **уже экранирован в SQL** — второй раз экранировать нельзя (`&amp;amp;`).
-- **`telegram-webhook`** — только `/start <token>`. **ОБЯЗАТЕЛЬНАЯ** проверка
+  **108:** `reply_markup` из строки очереди подмешивается в `sendMessage` только когда не NULL.
+- **`telegram-webhook`** — `/start <token>` (107) и **`callback_query` (108)**.
+  **ОБЯЗАТЕЛЬНАЯ** проверка
   `X-Telegram-Bot-Api-Secret-Token` против `TELEGRAM_WEBHOOK_SECRET`; **пустой секрет в
   окружении = закрыто**, а не «пропускаем». Всегда **200**, даже на непонятное: не-200
   заставляет Telegram повторять по нарастающей и отключить хук. Ответ пользователю — **прямым
   `sendMessage`, не через outbox**: это реакция на его действие, очередь добавила бы до минуты.
-  Всё остальное (свободный текст, `callback_query`) — 200 и молчание, разбор в S-TG-2.
+  Свободный текст — 200 и молчание, разбор в S-TG-3.
+
+  **Ветка `callback_query` (108).** Порядок: секрет → идемпотентность по `update_id` (обе из
+  107, **до** любых действий) → разбор `data` → резолв актора → RPC → ответ.
+  ⚠️ **Актор резолвится по `from.id`, а НЕ по `message.chat.id`**: в личном чате они
+  совпадают, но кнопку можно нажать и в пересланном сообщении — там chat чужой, а `from`
+  всегда тот, кто нажал. ⚠️ **`answerCallbackQuery` обязателен в КАЖДОЙ ветке, включая
+  ошибочные** — без ответа кнопка «крутится» до таймаута и человек жмёт её повторно.
+  На `done`/`already_done` дополнительно `editMessageText`: отметка «✓ Выполнено» и
+  **`reply_markup: {inline_keyboard: []}`** — без снятия кнопка остаётся нажимаемой.
+  ⚠️ **`editMessageText` идёт БЕЗ `parse_mode`**: Telegram отдаёт `message.text` уже
+  разрисованным (разметка вынесена в `entities`, а `& < >` вернулись в исходном виде), и
+  отправка его обратно с `parse_mode: HTML` уронила бы правку на первом же амперсанде.
+  Цена — жирный заголовок в отредактированном сообщении становится обычным текстом.
+  Ошибка `42501` из RPC → «Это не ваша задача»; прочее → «Не удалось, откройте в CRM».
 
 ⚠️ **ОСОЗНАННОЕ ОТСТУПЛЕНИЕ ОТ «EDGE НЕ ПИШЕТ В БД»** (инвариант хендоффа 2026-08-08, эпик
 голоса). Там он держался, потому что рядом был браузер с сессией пользователя. Здесь браузера
 нет: очередь дренит cron, сообщения шлёт бот — закрыть строку, кроме самой функции, некому.
 Компенсация: обе таблицы, куда пишет edge (`telegram_outbox`, `telegram_updates`), для
 `authenticated` закрыты полностью; это транспорт, а не рабочие данные; всё, что меняет рабочие
-данные, идёт через RPC с явным актором (`link_telegram_account` здесь, отметки «Выполнено» —
-S-TG-2).
+данные, идёт через RPC с явным актором (`link_telegram_account`; **108 — `tg_complete_task`,
+и обещание выполнено: прямого UPDATE по `tasks` из edge нет**).
 
 ---
 
@@ -1416,7 +1497,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 > `null_internal_stage` зануляет legacy `stage` у `internal` **и** `delivery`;
 > все delivery move-пути UI шлют `stage: null` явно (optimistic-консистентность).
 
-### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at, **+099 source_message_id**)_
+### tasks _(004, +013, +032 column_id, +046 gantt-даты, +052 WBS, +038 is_milestone, +069 recurrence, +070 scheduled_*, +072 completed_at, +099 source_message_id, **+108 reminded_at**)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1438,7 +1519,8 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 | parent_task_id | uuid | _052 (S-WBS-1)_ nullable → tasks(id) ON DELETE SET NULL. Родитель WBS-иерархии. Валидатор `check_task_parent_valid` (DEFINER, триггер `trg_zz_check_task_parent` before insert/update of parent_task_id,project_id): self-ref/cross-org/cross-project/цикл (recursive CTE вверх к корню) → `23514`/`23503`/`42501`/`P0001`. Partial-индекс `idx_tasks_parent`. AFTER-триггер `orphan_children_on_project_move` (upd project_id родителя) обнуляет `parent_task_id` осиротевших детей |
 | wbs_code | text | _052 (S-WBS-1)_ nullable. Код WBS (напр. `1.3.11`); префикс у названия на доске/Gantt. Сводный бар на Gantt = обёртка дат детей |
 | source_message_id | uuid | _099 (S-CHAT-TASK-1) — **ПРИМЕНЕНА**_ nullable → `messages(id)` **ON DELETE SET NULL** (удалили сообщение — задача жива, теряется только ссылка на источник). Заполняется ТОЛЬКО карточкой подтверждения в чате; ни один триггер/RPC её не трогает. Partial unique **`uq_tasks_source_message`** `(source_message_id) WHERE source_message_id IS NOT NULL` — ключ идемпотентности «одно сообщение → одна задача». **Второго индекса на колонке нет** (гейт снял `idx_tasks_source_message`): predicate partial unique совпадает с условием `.in('source_message_id', …)`, чтение ленты он обслуживает сам. Заводить — только если появится сценарий «несколько задач на сообщение» и unique уйдёт |
-| remind_min | int | |
+| remind_min | int | nullable, «за сколько минут до дедлайна напомнить». Заведено в 004, **доставки не имело до 108** — теперь его читает `enqueue_task_reminders()`. Значения UI: 15 / 60 / 180 / 1440. Поле осмысленно **только вместе с `deadline`**: без него планировщик задачу не видит, поэтому в `TaskModal` select настоящим `disabled` при пустом дедлайне |
+| reminded_at | timestamptz | _108 (S-TG-2)_ nullable — ключ идемпотентности пятиминутного тика: одно напоминание на срок. Ставится **после** вставки уведомления. **Сбрасывается в NULL триггером `trg_ab_reset_reminded_at`** при переносе `deadline` или смене `remind_min`. Partial-индекс `idx_tasks_reminder_due (deadline) WHERE reminded_at IS NULL AND remind_min IS NOT NULL AND lane <> 'done'` |
 | sort_order | int | DEFAULT 0. С _032_ разрез per-column для проектных задач |
 | assigned_to / created_by | uuid | → profiles |
 | **org_id** | uuid | **NOT NULL** |

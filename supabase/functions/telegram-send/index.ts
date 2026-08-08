@@ -1,4 +1,4 @@
-// supabase/functions/telegram-send/index.ts — S-TG-1
+// supabase/functions/telegram-send/index.ts — S-TG-1, + reply_markup в S-TG-2
 //
 // Дренаж очереди `telegram_outbox`: берёт готовые строки и отправляет их ботом.
 // Зовётся БД (telegram_send_tick, 107) через pg_net, а не браузером.
@@ -56,6 +56,8 @@ interface OutboxRow {
   chat_id: number;
   message_text: string;
   attempts: number;
+  /** S-TG-2 (108): inline-клавиатура. NULL — сообщение без кнопок. */
+  reply_markup: Record<string, unknown> | null;
 }
 
 /** Ответ Telegram Bot API. `parameters.retry_after` приходит только с 429. */
@@ -173,6 +175,12 @@ async function sendOne(supabase: any, botToken: string, row: OutboxRow): Promise
         // экранировать нельзя — получились бы «&amp;amp;».
         parse_mode: 'HTML',
         disable_web_page_preview: true,
+        // S-TG-2 (108): клавиатуру собирает telegram_task_keyboard в SQL и кладёт в
+        // строку очереди. Ключ подмешивается ТОЛЬКО когда она есть: `reply_markup:
+        // null` Telegram принимает, а `reply_markup: undefined` после JSON.stringify
+        // исчез бы сам — но явное условие читается однозначно и не зависит от того,
+        // как ведёт себя сериализатор.
+        ...(row.reply_markup ? { reply_markup: row.reply_markup } : {}),
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

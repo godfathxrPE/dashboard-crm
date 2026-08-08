@@ -240,6 +240,10 @@ export function useCreateTask() {
         // S-CHAT-TASK-1 (099): ссылка на сообщение-источник. Той же природы, что поля
         // выше — Task=Row требует поле в литерале. Непусто только у задач из чата.
         source_message_id: input.source_message_id ?? null,
+        // S-TG-2 (108): отметка об отправленном напоминании. Той же природы, что
+        // completed_at выше — ставит только планировщик enqueue_task_reminders, у
+        // только что созданной задачи её быть не может. Истину даст рефетч onSettled.
+        reminded_at: null,
       };
 
       // Личный борд ['tasks'] — всегда; доска ['tasks','board',pid] отфильтрована
