@@ -2966,6 +2966,7 @@ export type Database = {
           project_id: string | null
           recurrence_template_id: string | null
           remind_min: number | null
+          reminded_at: string | null
           scheduled_end: string | null
           scheduled_start: string | null
           sort_order: number | null
@@ -2994,6 +2995,7 @@ export type Database = {
           project_id?: string | null
           recurrence_template_id?: string | null
           remind_min?: number | null
+          reminded_at?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
           sort_order?: number | null
@@ -3022,6 +3024,7 @@ export type Database = {
           project_id?: string | null
           recurrence_template_id?: string | null
           remind_min?: number | null
+          reminded_at?: string | null
           scheduled_end?: string | null
           scheduled_start?: string | null
           sort_order?: number | null
@@ -3210,6 +3213,7 @@ export type Database = {
           next_retry_at: string | null
           notification_id: string | null
           org_id: string
+          reply_markup: Json | null
           sent_at: string | null
           status: string
           text: string
@@ -3224,6 +3228,7 @@ export type Database = {
           next_retry_at?: string | null
           notification_id?: string | null
           org_id: string
+          reply_markup?: Json | null
           sent_at?: string | null
           status?: string
           text: string
@@ -3238,6 +3243,7 @@ export type Database = {
           next_retry_at?: string | null
           notification_id?: string | null
           org_id?: string
+          reply_markup?: Json | null
           sent_at?: string | null
           status?: string
           text?: string
@@ -3562,6 +3568,7 @@ export type Database = {
           chat_id: number
           id: string
           message_text: string
+          reply_markup: Json
         }[]
       }
       claim_webhook_deliveries: {
@@ -3579,6 +3586,7 @@ export type Database = {
           url: string
         }[]
       }
+      cleanup_telegram_transport: { Args: never; Returns: number }
       cleanup_webhook_deliveries: { Args: never; Returns: number }
       complete_onboarding: {
         Args: { p_full_name: string; p_job_title: string; p_phone: string }
@@ -3631,6 +3639,7 @@ export type Database = {
         Returns: undefined
       }
       dispatch_webhooks_tick: { Args: never; Returns: undefined }
+      enqueue_task_reminders: { Args: never; Returns: undefined }
       get_webhook_secrets: {
         Args: { p_endpoint_ids: string[] }
         Returns: {
@@ -3746,6 +3755,11 @@ export type Database = {
         Returns: string
       }
       telegram_send_tick: { Args: never; Returns: undefined }
+      telegram_task_keyboard: { Args: { p_task_id: string }; Returns: Json }
+      tg_complete_task: {
+        Args: { p_actor_id: string; p_task_id: string }
+        Returns: string
+      }
       toggle_checklist_item: {
         Args: { p_checked: boolean; p_checklist_id: string; p_item_key: string }
         Returns: Json
