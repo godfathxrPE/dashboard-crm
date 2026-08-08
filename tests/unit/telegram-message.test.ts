@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildTaskKeyboard,
   buildTelegramNotificationText,
   escapeTelegramHtml,
   notificationPath,
+  parseTaskCallbackData,
+  shouldAttachTaskKeyboard,
   TELEGRAM_APP_ORIGIN_FALLBACK,
 } from '@/lib/domain/telegram-message';
 
@@ -255,5 +258,159 @@ describe('notificationPath — зеркало entityRoute из NotificationBell'
 
   it('неизвестный тип уходит на доску задач', () => {
     expect(notificationPath('whatever', 'whatever', TASK_ID)).toBe('/tasks');
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-TG-2 (108): седьмой тип и кнопка «Выполнено»
+// ═══════════════════════════════════════════════════════
+
+describe('buildTelegramNotificationText — task_reminder (108)', () => {
+  it('готовую строку планировщика берёт из payload.text', () => {
+    expect(
+      buildTelegramNotificationText({
+        type: 'task_reminder',
+        entity_type: 'tasks',
+        entity_id: TASK_ID,
+        payload: { title: 'Отправить КП', text: '«Отправить КП» — срок 09.08 14:00 МСК · ERP' },
+        appUrl: ORIGIN,
+      }),
+    ).toBe(
+      `<b>Скоро дедлайн</b>\n«Отправить КП» — срок 09.08 14:00 МСК · ERP\n${ORIGIN}/tasks`,
+    );
+  });
+
+  it('без проекта — та же форма, просто без хвоста', () => {
+    expect(
+      buildTelegramNotificationText({
+        type: 'task_reminder',
+        entity_type: 'tasks',
+        entity_id: TASK_ID,
+        payload: { title: 'Позвонить', text: '«Позвонить» — срок 09.08 14:00 МСК' },
+        appUrl: ORIGIN,
+      }),
+    ).toBe(`<b>Скоро дедлайн</b>\n«Позвонить» — срок 09.08 14:00 МСК\n${ORIGIN}/tasks`);
+  });
+
+  it('planner не собрал text — падаем на title, а не на пустоту', () => {
+    expect(
+      buildTelegramNotificationText({
+        type: 'task_reminder',
+        entity_type: 'tasks',
+        entity_id: TASK_ID,
+        payload: { title: 'Позвонить' },
+        appUrl: ORIGIN,
+      }),
+    ).toBe(`<b>Скоро дедлайн</b>\nПозвонить\n${ORIGIN}/tasks`);
+  });
+
+  it('пустой payload — тело равно заголовку типа', () => {
+    expect(
+      buildTelegramNotificationText({
+        type: 'task_reminder',
+        entity_type: 'tasks',
+        entity_id: TASK_ID,
+        payload: null,
+        appUrl: ORIGIN,
+      }),
+    ).toBe(`<b>Скоро дедлайн</b>\nСкоро дедлайн\n${ORIGIN}/tasks`);
+  });
+
+  it('амперсанд в названии компании не роняет parse_mode HTML', () => {
+    const out = buildTelegramNotificationText({
+      type: 'task_reminder',
+      entity_type: 'tasks',
+      entity_id: TASK_ID,
+      payload: { title: 'КП', text: '«КП для ООО «Ромашка & Ко»» — срок 09.08 14:00 МСК' },
+      appUrl: ORIGIN,
+    });
+    expect(out).toContain('Ромашка &amp; Ко');
+    expect(out).not.toContain('Ромашка & Ко');
+  });
+
+  it('без app_url — уходит без ссылки', () => {
+    expect(
+      buildTelegramNotificationText({
+        type: 'task_reminder',
+        entity_type: 'tasks',
+        entity_id: TASK_ID,
+        payload: { text: 'Срок сегодня' },
+        appUrl: null,
+      }),
+    ).toBe('<b>Скоро дедлайн</b>\nСрок сегодня');
+  });
+
+  it('маршрут — доска задач', () => {
+    expect(notificationPath('task_reminder', 'tasks', TASK_ID)).toBe('/tasks');
+  });
+});
+
+describe('buildTaskKeyboard / shouldAttachTaskKeyboard', () => {
+  it('callback_data строго tgdone:<uuid>', () => {
+    expect(buildTaskKeyboard(TASK_ID)).toEqual({
+      inline_keyboard: [[{ text: '✓ Выполнено', callback_data: `tgdone:${TASK_ID}` }]],
+    });
+  });
+
+  it('укладывается в лимит Telegram 64 байта', () => {
+    const data = buildTaskKeyboard(TASK_ID).inline_keyboard[0][0].callback_data;
+    expect(new TextEncoder().encode(data).length).toBeLessThanOrEqual(64);
+  });
+
+  it('кнопку получают только задачные типы', () => {
+    expect(shouldAttachTaskKeyboard('task_assigned', 'tasks')).toBe(true);
+    expect(shouldAttachTaskKeyboard('task_reminder', 'tasks')).toBe(true);
+  });
+
+  it('automation про задачу кнопки НЕ получает — это просрочка, а не «отметь»', () => {
+    expect(shouldAttachTaskKeyboard('automation', 'tasks')).toBe(false);
+  });
+
+  it('сделка кнопки не получает даже с задачным типом', () => {
+    expect(shouldAttachTaskKeyboard('task_assigned', 'projects')).toBe(false);
+    expect(shouldAttachTaskKeyboard('deal_won', 'projects')).toBe(false);
+  });
+});
+
+describe('parseTaskCallbackData — разбор чужого ввода', () => {
+  it('валидная кнопка отдаёт id задачи', () => {
+    expect(parseTaskCallbackData(`tgdone:${TASK_ID}`)).toBe(TASK_ID);
+  });
+
+  it('чужой префикс отвергается', () => {
+    expect(parseTaskCallbackData(`tgstage:${TASK_ID}`)).toBeNull();
+    expect(parseTaskCallbackData(`done:${TASK_ID}`)).toBeNull();
+    // Префикс обязан быть в НАЧАЛЕ, а не где-нибудь внутри.
+    expect(parseTaskCallbackData(`x:tgdone:${TASK_ID}`)).toBeNull();
+  });
+
+  it('мусор вместо uuid отвергается', () => {
+    expect(parseTaskCallbackData('tgdone:')).toBeNull();
+    expect(parseTaskCallbackData('tgdone:not-a-uuid')).toBeNull();
+    expect(parseTaskCallbackData("tgdone:' or 1=1--")).toBeNull();
+  });
+
+  it('верхний регистр и обёртки — не наш формат', () => {
+    // ⚠️ uuid С БУКВАМИ: у TASK_ID из одних цифр toUpperCase() — no-op, и тест
+    //    прошёл бы, даже будь регэксп регистронезависимым.
+    const hex = 'abcdef01-2345-4abc-8def-0123456789ab';
+    expect(parseTaskCallbackData(`tgdone:${hex}`)).toBe(hex);
+    expect(parseTaskCallbackData(`tgdone:${hex.toUpperCase()}`)).toBeNull();
+    expect(parseTaskCallbackData(`tgdone:{${hex}}`)).toBeNull();
+  });
+
+  it('хвост после uuid отвергается — форма проверяется целиком', () => {
+    expect(parseTaskCallbackData(`tgdone:${TASK_ID}extra`)).toBeNull();
+    expect(parseTaskCallbackData(`tgdone:${TASK_ID} `)).toBeNull();
+  });
+
+  it('слишком длинная строка отвергается ДО разбора: лимит транспорта 64 байта', () => {
+    expect(parseTaskCallbackData(`tgdone:${TASK_ID}${'x'.repeat(40)}`)).toBeNull();
+  });
+
+  it('null / undefined / не строка', () => {
+    expect(parseTaskCallbackData(null)).toBeNull();
+    expect(parseTaskCallbackData(undefined)).toBeNull();
+    expect(parseTaskCallbackData('')).toBeNull();
   });
 });

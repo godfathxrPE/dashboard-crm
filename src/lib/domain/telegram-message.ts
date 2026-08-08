@@ -48,6 +48,7 @@ const TYPE_HEAD: Record<NotificationType, string> = {
   automation: 'Автоматизация',
   spawn_suggest: 'Пора создать внедрение',
   webhook_disabled: 'Вебхук отключён',
+  task_reminder: 'Скоро дедлайн', // 108, S-TG-2
 };
 
 /** Тип вне словаря приходит только из будущей миграции — не падаем, а деградируем. */
@@ -85,6 +86,8 @@ export function notificationPath(type: string, entityType: string, entityId: str
   // бы в /deals/{task_id} = 404). Проверять ДО общей automation-ветки.
   if (type === 'automation' && entityType === 'tasks') return '/tasks';
   if (type === 'spawn_suggest') return `/deals/${entityId}?spawn=1`;
+  // 108: явно, хотя совпадает с фолбэком. У задачи нет detail-роута — доска.
+  if (type === 'task_reminder') return '/tasks';
   // У endpoint'а нет своего роута: ведём в Настройки, где секция «Вебхуки».
   if (type === 'webhook_disabled') return '/settings';
   if (type === 'project_assigned' || type === 'deal_won' || type === 'automation') {
@@ -115,6 +118,10 @@ export function buildTelegramNotificationText(input: TelegramNotificationInput):
     body = text ?? title ?? head;
   } else if (input.type === 'spawn_suggest') {
     body = text ?? (title ? `Сделка «${title}» — пора создать внедрение` : head);
+  } else if (input.type === 'task_reminder') {
+    // 108: срок и название проекта собраны в payload.text планировщиком
+    // (enqueue_task_reminders); title — голый текст задачи, он же фолбэк.
+    body = text ?? title ?? head;
   } else {
     body = title ?? head;
   }
@@ -126,4 +133,65 @@ export function buildTelegramNotificationText(input: TelegramNotificationInput):
       : null;
 
   return `<b>${head}</b>\n${body}${link ? `\n${link}` : ''}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// S-TG-2 (108): кнопка «Выполнено» — формат callback_data
+//
+// ⚠️ ЗДЕСЬ ЗЕРКАЛО ТОЛЬКО У СБОРКИ. `buildTaskKeyboard` дублирует
+//    `public.telegram_task_keyboard()` (108) — клавиатуру строит SQL, эта копия
+//    существует ради тестов, как и остальной файл. А вот `parseTaskCallbackData`
+//    зеркалом НЕ является: разбор живёт только в edge `telegram-webhook`, и
+//    отдельной SQL-версии у него нет.
+// ═══════════════════════════════════════════════════════
+
+/** Единственный префикс, который бот берётся разбирать. Всё прочее — чужой ввод. */
+export const TASK_DONE_PREFIX = 'tgdone:';
+
+/** Жёсткий лимит Telegram на callback_data. Префикс 7 + uuid 36 = 43 — с запасом. */
+const CALLBACK_DATA_MAX_BYTES = 64;
+
+/**
+ * UUID v4-подобный, без вольностей: без фигурных скобок, без верхнего регистра,
+ * без `urn:uuid:`. Строгость здесь дешевле, чем `select` по мусорному id.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export interface TelegramInlineKeyboard {
+  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+}
+
+/**
+ * Типы, у которых сообщение получает кнопку. `automation` сюда НЕ входит, хотя
+ * тоже носит `entity_type='tasks'`: это уведомление о просрочке, и «закрыть одним
+ * тапом» — не то действие, которого от человека ждут. Зеркало условия в
+ * `enqueue_telegram_notification` (108).
+ */
+export const TASK_KEYBOARD_TYPES: readonly NotificationType[] = ['task_assigned', 'task_reminder'];
+
+export function shouldAttachTaskKeyboard(type: string, entityType: string): boolean {
+  return entityType === 'tasks' && (TASK_KEYBOARD_TYPES as readonly string[]).includes(type);
+}
+
+export function buildTaskKeyboard(taskId: string): TelegramInlineKeyboard {
+  return {
+    inline_keyboard: [[{ text: '✓ Выполнено', callback_data: `${TASK_DONE_PREFIX}${taskId}` }]],
+  };
+}
+
+/**
+ * Разбор `callback_data` из нажатия кнопки.
+ *
+ * ⚠️ ВОЗВРАЩАЕТ `null` НА ВСЁМ, ЧТО НЕ ЛЕГЛО В ФОРМУ ТОЧНО. Это единственная
+ *    точка, где в бота приходит строка, выбранная не нами: Telegram отдаёт
+ *    `callback_data` как есть, а нажать её может кто угодно, у кого сохранилось
+ *    старое сообщение. Проверяем длину (лимит транспорта — уже признак подделки),
+ *    префикс и форму uuid; права проверяет RPC, здесь только формат.
+ */
+export function parseTaskCallbackData(data: string | null | undefined): string | null {
+  if (typeof data !== 'string') return null;
+  if (new TextEncoder().encode(data).length > CALLBACK_DATA_MAX_BYTES) return null;
+  if (!data.startsWith(TASK_DONE_PREFIX)) return null;
+  const id = data.slice(TASK_DONE_PREFIX.length);
+  return UUID_RE.test(id) ? id : null;
 }

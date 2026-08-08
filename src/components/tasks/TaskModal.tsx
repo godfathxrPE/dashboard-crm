@@ -74,6 +74,17 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
 
   const selectedPriority = watch('priority');
 
+  // S-TG-2 (108): напоминание отсчитывается ОТ дедлайна — без него планировщик
+  // задачу не увидит вовсе. Поэтому поле не «серое на вид», а настоящим disabled:
+  // выбор, который ничего не сделает, хуже отсутствующего.
+  const hasDeadline = Boolean(watch('deadline'));
+
+  useEffect(() => {
+    // Дедлайн сняли — снимаем и напоминание: иначе значение осталось бы в форме,
+    // спрятанное за disabled, и уехало бы в БД мёртвым грузом.
+    if (!hasDeadline) setValue('remind_min', null);
+  }, [hasDeadline, setValue]);
+
   // S-WBS-1: список кандидатов-родителей — задачи ТОГО ЖЕ проекта (родитель без
   // проекта не имеет смысла). Хук дизейблится при пустом projectId.
   const currentProjectId = watch('project_id');
@@ -379,20 +390,34 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             )}
           </div>
 
-          {/* Remind */}
+          {/* Remind — S-TG-2 (108): доставку этому полю даёт enqueue_task_reminders */}
           <div>
             <label className="block text-xs font-medium text-text-dim mb-1">
               Напомнить до дедлайна
             </label>
             <select
-              {...register('remind_min', { valueAsNumber: true })}
-              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
+              // ⚠️ `setValueAs`, а НЕ `valueAsNumber`. RHF на valueAsNumber отдаёт для
+              //    пустой строки NaN, а Zod `z.number()` NaN отвергает — выбор
+              //    «Не напоминать» после любого другого значения молча ломал сабмит
+              //    (ошибку этого поля форма нигде не рендерит). Тот же приём, что у
+              //    `parent_task_id` выше.
+              {...register('remind_min', {
+                setValueAs: (v) => (v === '' || v === null ? null : Number(v)),
+              })}
+              disabled={!hasDeadline}
+              className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Не напоминать</option>
               <option value={15}>За 15 минут</option>
               <option value={60}>За 1 час</option>
+              <option value={180}>За 3 часа</option>
               <option value={1440}>За 1 день</option>
             </select>
+            {!hasDeadline && (
+              <p className="mt-1 text-xs text-text-dim">
+                Сначала укажите дедлайн — напоминание считается от него
+              </p>
+            )}
           </div>
       </form>
     </Modal>

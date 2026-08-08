@@ -1,8 +1,8 @@
-// supabase/functions/telegram-webhook/index.ts — S-TG-1
+// supabase/functions/telegram-webhook/index.ts — S-TG-1, + callback_query в S-TG-2
 //
-// Входящие апдейты от Telegram. В ЭТОМ СПРИНТЕ ОБРАБАТЫВАЕТСЯ ТОЛЬКО `/start <token>`.
-// Всё остальное — 200 и молчание. Кнопки «Выполнено», напоминания и быстрый ввод —
-// S-TG-2/S-TG-3, и разбирать их заранее «на будущее» здесь нечем.
+// Входящие апдейты от Telegram: `/start <token>` (привязка, S-TG-1) и нажатие
+// кнопки «Выполнено» (`callback_query` с data `tgdone:<uuid>`, S-TG-2).
+// Всё остальное — 200 и молчание. Быстрый ввод — S-TG-3.
 //
 // ⚠️ `verify_jwt = false` — Telegram JWT НЕ НОСИТ и носить не может. Это осознанно
 //    и компенсируется тремя вещами:
@@ -17,6 +17,10 @@
 //       проверка токена, создание строки и её гашение — одна транзакция с
 //       `for update`. Два одновременных `/start` с одним токеном иначе дали бы две
 //       привязки.
+//    4. S-TG-2: закрытие задачи — тоже RPC (tg_complete_task) С ЯВНЫМ АКТОРОМ.
+//       Прямого UPDATE по `tasks` здесь нет и быть не может: функция работает под
+//       service_role, где `auth.uid()` = NULL, то есть RLS не защищает ничего.
+//       Актор берётся из привязки, права проверяет сама RPC.
 //
 // ⚠️ ВСЕГДА 200, даже на непонятное. Не-200 заставляет Telegram повторять апдейт по
 //    нарастающей и в итоге отключить вебхук. Единственное исключение — 401 на
@@ -38,7 +42,7 @@ const MSG_BAD_TOKEN =
 const MSG_NO_TOKEN =
   'Привязка делается из CRM: Настройки → Telegram → «Подключить Telegram».';
 
-/** Минимальная форма апдейта. Всё, чего здесь нет, в этом спринте не разбирается. */
+/** Минимальная форма апдейта. Всё, чего здесь нет, не разбирается. */
 interface TelegramUpdate {
   update_id?: number;
   message?: {
@@ -46,6 +50,49 @@ interface TelegramUpdate {
     chat?: { id?: number };
     from?: { id?: number; username?: string };
   };
+  /** S-TG-2: нажатие inline-кнопки. */
+  callback_query?: {
+    id?: string;
+    data?: string;
+    from?: { id?: number };
+    message?: {
+      message_id?: number;
+      text?: string;
+      chat?: { id?: number };
+    };
+  };
+}
+
+// ═══ S-TG-2: формат callback_data ═══
+//
+// ⚠️ ЗЕРКАЛО `src/lib/domain/telegram-message.ts` (там же юнит-тесты) и
+//    `public.telegram_task_keyboard()` (108). Импортом не связаны: edge-функция
+//    бандлится отдельно от приложения и до `src/` не дотягивается. Правится тем же
+//    коммитом — расхождение означает кнопку, которую бот не понимает.
+const TASK_DONE_PREFIX = 'tgdone:';
+const CALLBACK_DATA_MAX_BYTES = 64;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const CB_DONE = 'Готово';
+const CB_ALREADY = 'Задача уже закрыта';
+const CB_FOREIGN = 'Это не ваша задача';
+const CB_NOT_LINKED = 'Профиль не привязан — откройте Настройки в CRM';
+const CB_FAILED = 'Не удалось. Откройте задачу в CRM';
+const CB_UNKNOWN = 'Кнопка устарела';
+
+/**
+ * Разбор `callback_data`. Возвращает `null` на всём, что не легло в форму ТОЧНО.
+ *
+ * Это единственная точка, где в бота приходит строка, выбранную не нами: нажать
+ * кнопку может кто угодно, у кого сохранилось старое сообщение. Длина, префикс,
+ * форма uuid — здесь только формат; права проверяет RPC.
+ */
+function parseTaskCallbackData(data: string | null | undefined): string | null {
+  if (typeof data !== 'string') return null;
+  if (new TextEncoder().encode(data).length > CALLBACK_DATA_MAX_BYTES) return null;
+  if (!data.startsWith(TASK_DONE_PREFIX)) return null;
+  const id = data.slice(TASK_DONE_PREFIX.length);
+  return UUID_RE.test(id) ? id : null;
 }
 
 function ok(): Response {
@@ -71,19 +118,72 @@ function timingSafeEqual(a: string, b: string): boolean {
  * Без `parse_mode`: тексты — литералы выше, размечать в них нечего, а plain text
  * снимает вопрос экранирования целиком.
  */
-async function reply(botToken: string, chatId: number, text: string): Promise<void> {
+function reply(botToken: string, chatId: number, text: string): Promise<void> {
+  // Сбой глотается внутри callBotApi: привязка при этом уже создана и работает,
+  // а ронять обработку нельзя — Telegram начнёт ретраить и создаст вторую попытку.
+  return callBotApi(botToken, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+  });
+}
+
+/** Общая обёртка над Bot API: сбой одного вызова не имеет права ронять обработку. */
+async function callBotApi(
+  botToken: string,
+  method: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
   try {
-    await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
+    await fetch(`${TELEGRAM_API}/bot${botToken}/${method}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (e) {
-    // Ответить не смогли — привязка при этом уже создана и работает. Ронять
-    // обработку нельзя: Telegram начнёт ретраить и создаст вторую попытку привязки.
-    console.error('telegram-webhook: ответ не ушёл:', e instanceof Error ? e.message : String(e));
+    console.error(
+      `telegram-webhook: ${method} не прошёл:`,
+      e instanceof Error ? e.message : String(e),
+    );
   }
+}
+
+/**
+ * ⚠️ ОБЯЗАТЕЛЕН В КАЖДОЙ ВЕТКЕ, ВКЛЮЧАЯ ОШИБОЧНЫЕ. Без ответа кнопка у человека
+ *    «крутится» до таймаута Telegram, и он жмёт её ещё раз.
+ */
+function answerCallback(botToken: string, callbackId: string, text: string): Promise<void> {
+  return callBotApi(botToken, 'answerCallbackQuery', {
+    callback_query_id: callbackId,
+    text,
+  });
+}
+
+/**
+ * Дописать к сообщению отметку и СНЯТЬ КЛАВИАТУРУ. Без снятия кнопка остаётся
+ * нажимаемой, и человек будет жать её повторно на уже закрытой задаче.
+ *
+ * ⚠️ БЕЗ `parse_mode`. Telegram отдаёт `message.text` уже РАЗМЕЧЕННЫМ (сущности
+ *    вынесены в `entities`, а `&`, `<`, `>` вернулись в исходном виде). Отправить
+ *    его обратно с parse_mode HTML нельзя: имя компании с амперсандом уронило бы
+ *    правку. Цена — жирный заголовок в отредактированном сообщении становится
+ *    обычным текстом; это уже отработанное сообщение, и читаемость важнее.
+ */
+async function markMessageDone(
+  botToken: string,
+  chatId: number,
+  messageId: number,
+  originalText: string,
+  mark: string,
+): Promise<void> {
+  await callBotApi(botToken, 'editMessageText', {
+    chat_id: chatId,
+    message_id: messageId,
+    text: `${originalText}\n\n${mark}`,
+    disable_web_page_preview: true,
+    reply_markup: { inline_keyboard: [] },
+  });
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -127,19 +227,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
+
+  if (!botToken) {
+    console.error('telegram-webhook: TELEGRAM_BOT_TOKEN не задан');
+    return ok();
+  }
+
+  // ── S-TG-2: нажатие кнопки «Выполнено» ──────────────────────────────
+  // Ветка `/start` ниже НЕ ТРОГАЕТСЯ: привязка и закрытие задачи — разные апдейты,
+  // и пересечься они не могут (у одного `message`, у другого `callback_query`).
+  if (update.callback_query) {
+    await handleCallbackQuery(supabase, botToken, update.callback_query);
+    return ok();
+  }
+
   const text = update.message?.text?.trim() ?? '';
   const chatId = update.message?.chat?.id;
   const fromId = update.message?.from?.id;
 
-  // Не `/start` — молчим. Любые другие апдейты (свободный текст, callback_query)
-  // разбирает S-TG-2; отвечать на них «не понимаю» значит учить людей, что бот
-  // умеет переписку, которой у него нет.
+  // Не `/start` — молчим. Свободный текст разбирает S-TG-3; отвечать на него
+  // «не понимаю» значит учить людей, что бот умеет переписку, которой у него нет.
   if (!text.startsWith('/start') || typeof chatId !== 'number' || typeof fromId !== 'number') {
-    return ok();
-  }
-
-  if (!botToken) {
-    console.error('telegram-webhook: TELEGRAM_BOT_TOKEN не задан');
     return ok();
   }
 
@@ -168,3 +276,99 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   return ok();
 });
+
+/**
+ * S-TG-2: кнопка «Выполнено».
+ *
+ * ⚠️ ДАННЫЕ МЕНЯЕТ ТОЛЬКО RPC `tg_complete_task` С ЯВНЫМ АКТОРОМ. Прямого UPDATE
+ *    здесь нет и быть не может: функция работает под service_role, где
+ *    `auth.uid()` = NULL, то есть RLS не защищает ничего. Актор берётся из
+ *    привязки (`telegram_accounts.profile_id` по `from.id`), а права — org и
+ *    владение задачей — проверяет сама RPC.
+ *
+ * ⚠️ РЕЗОЛВ АКТОРА ИДЁТ ПО `from.id`, А НЕ ПО `message.chat.id`. Для личного чата
+ *    они совпадают, но кнопку можно нажать и в пересланном сообщении: там chat —
+ *    чужой, а `from` всегда тот, кто нажал.
+ */
+async function handleCallbackQuery(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  botToken: string,
+  cq: NonNullable<TelegramUpdate['callback_query']>,
+): Promise<void> {
+  const callbackId = cq.id;
+  // Без id ответить нечем — и подтвердить нажатие невозможно. Дальше не идём:
+  // менять данные по запросу, на который нельзя ответить, значит оставить
+  // человека в неведении о результате.
+  if (typeof callbackId !== 'string' || callbackId === '') return;
+
+  const taskId = parseTaskCallbackData(cq.data);
+  if (!taskId) {
+    await answerCallback(botToken, callbackId, CB_UNKNOWN);
+    return;
+  }
+
+  const fromId = cq.from?.id;
+  if (typeof fromId !== 'number') {
+    await answerCallback(botToken, callbackId, CB_FAILED);
+    return;
+  }
+
+  const { data: account, error: accErr } = await supabase
+    .from('telegram_accounts')
+    .select('profile_id')
+    .eq('telegram_user_id', fromId)
+    .maybeSingle();
+
+  if (accErr) {
+    console.error('telegram-webhook: чтение привязки упало:', accErr.message);
+    await answerCallback(botToken, callbackId, CB_FAILED);
+    return;
+  }
+
+  const actorId = (account as { profile_id?: string } | null)?.profile_id;
+  if (!actorId) {
+    await answerCallback(botToken, callbackId, CB_NOT_LINKED);
+    return;
+  }
+
+  const { data: result, error } = await supabase.rpc('tg_complete_task', {
+    p_actor_id: actorId,
+    p_task_id: taskId,
+  });
+
+  if (error) {
+    // 42501 — единственный ожидаемый отказ: задача чужая или актор вне её org.
+    // Остальное — настоящая поломка, и человеку про неё говорить нечего, кроме
+    // «откройте в CRM».
+    if (error.code === '42501') {
+      await answerCallback(botToken, callbackId, CB_FOREIGN);
+      return;
+    }
+    console.error('telegram-webhook: tg_complete_task упал:', error.message);
+    await answerCallback(botToken, callbackId, CB_FAILED);
+    return;
+  }
+
+  const chatId = cq.message?.chat?.id;
+  const messageId = cq.message?.message_id;
+  const originalText = cq.message?.text ?? '';
+  const canEdit = typeof chatId === 'number' && typeof messageId === 'number';
+
+  if (result === 'done' || result === 'already_done') {
+    await answerCallback(botToken, callbackId, result === 'done' ? CB_DONE : CB_ALREADY);
+    // Клавиатуру снимаем в ОБОИХ случаях: на уже закрытой задаче кнопка так же
+    // бессмысленна, как на только что закрытой.
+    if (canEdit) {
+      await markMessageDone(botToken, chatId, messageId, originalText, '✓ Выполнено');
+    }
+    return;
+  }
+
+  // 'not_found' — задачу удалили между отправкой сообщения и нажатием. Кнопку
+  // тоже убираем: возвращаться к ней незачем.
+  await answerCallback(botToken, callbackId, CB_FAILED);
+  if (canEdit) {
+    await markMessageDone(botToken, chatId, messageId, originalText, '— задача не найдена');
+  }
+}

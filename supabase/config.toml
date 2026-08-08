@@ -96,7 +96,9 @@ verify_jwt = true
 [functions.telegram-send]
 verify_jwt = false
 
-# S-TG-1: входящие апдейты Telegram (telegram-webhook). В спринте — только /start.
+# S-TG-1: входящие апдейты Telegram (telegram-webhook). /start — привязка;
+# S-TG-2 (108) добавила callback_query «Выполнено» → RPC tg_complete_task с явным
+# актором (прямого UPDATE по tasks из функции нет — под service_role RLS не защищает).
 #
 # ⚠️ verify_jwt = false — Telegram JWT НЕ НОСИТ и носить не может. Компенсация —
 #    ОБЯЗАТЕЛЬНАЯ проверка заголовка X-Telegram-Bot-Api-Secret-Token против

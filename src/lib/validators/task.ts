@@ -17,7 +17,9 @@ export const taskFormSchema = z.object({
   // Отдельная ось от deadline «сделать к» и start_date/end_date (даты Ганта).
   scheduled_start: z.string().nullable().default(null),
   scheduled_end: z.string().nullable().default(null),
-  remind_min: z.number().nullable().default(null),
+  // S-TG-2 (108): минуты «за сколько до дедлайна». Ноль и отрицательные отсекаем —
+  // напоминание в момент дедлайна или после него это уже просрочка (task_overdue, 051).
+  remind_min: z.number().int().positive().nullable().default(null),
   assigned_to: z.string().uuid().nullable().optional(),
   // PCT-1: колонка проектной доски (для задач с project_id)
   column_id: z.string().uuid().nullable().optional(),
