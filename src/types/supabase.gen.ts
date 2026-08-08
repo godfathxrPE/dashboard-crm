@@ -3704,7 +3704,13 @@ export type Database = {
       dispatch_webhooks_tick: { Args: never; Returns: undefined }
       enqueue_task_reminders: { Args: never; Returns: undefined }
       entity_timeline: {
-        Args: { p_entity_id: string; p_entity_type: string; p_limit?: number }
+        Args: {
+          p_before?: string
+          p_before_id?: string
+          p_entity_id: string
+          p_entity_type: string
+          p_limit?: number
+        }
         Returns: {
           actor_id: string
           id: string
