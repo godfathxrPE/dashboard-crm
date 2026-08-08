@@ -72,18 +72,6 @@ verify_jwt = true
 [functions.transcribe]
 verify_jwt = true
 
-# S-TG-1, ШАГ 0: одноразовая проба достижимости api.telegram.org ИЗ EDGE.
-#
-# ⚠️ УДАЛИТЬ вместе с supabase/functions/tg-probe/ сразу после получения ответа.
-#    Ответ на вопрос «доступен ли Telegram из региона Supabase» не выводится из
-#    документации, а curl с макбука отвечает на другой вопрос (разные маршруты).
-#    Деплой edge вне полномочий CC — поэтому проба едет в репо, ответ снимает гейт.
-#
-# verify_jwt = true — ради пробы новых открытых миру endpoint'ов не заводим.
-# Секрет: TELEGRAM_BOT_TOKEN (наружу не отдаётся ни при каком исходе).
-[functions.tg-probe]
-verify_jwt = true
-
 # S-TG-1: дренаж очереди telegram_outbox (telegram-send).
 #
 # ⚠️ verify_jwt = false — ВТОРАЯ функция проекта без проверки JWT на шлюзе, и
