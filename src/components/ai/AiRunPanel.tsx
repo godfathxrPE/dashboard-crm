@@ -8,6 +8,8 @@ import {
   useEntityRuns,
   useStartRun,
   useRunRating,
+  useSaveTranscript,
+  canHaveTranscript,
   type AiRunEntity,
   type TranscriptSource,
 } from '@/lib/hooks/use-ai-run';
@@ -72,6 +74,7 @@ export function AiRunPanel({
   const { data: runs } = useEntityRuns(entityType, entityId);
   const start = useStartRun(entityType, entityId);
   const rating = useRunRating();
+  const saveTranscript = useSaveTranscript();
 
   const [text, setText] = useState('');
   // S-R3-VOICE-1: откуда взялся текст в поле — прокидывается в `transcripts.source`.
@@ -79,6 +82,13 @@ export function AiRunPanel({
   // доведённый человеком, и знать это полезнее, чем «paste» после одной запятой.
   const [source, setSource] = useState<TranscriptSource>('paste');
   const [mode, setMode] = useState<'paste' | 'audio'>('paste');
+  /**
+   * S-AI-VIS-1: что именно уже сохранено в БД. Хранится вместе с текстом, а не
+   * одним флагом: человек правит расшифровку прямо в поле, и «сохранено» про
+   * прежнюю версию — вранье. Тоста мало по той же причине, по которой его не
+   * хватило в S-FIX-VOICE-1: тост исчезает, а вопрос «сохранилось ли» остаётся.
+   */
+  const [saved, setSaved] = useState<{ text: string; complete: boolean } | null>(null);
   const seededRef = useRef<string | null>(null);
   useEffect(() => {
     if (transcript && seededRef.current !== transcript.id) {
@@ -101,7 +111,39 @@ export function AiRunPanel({
   const presets = presetsForEntity(entityType);
   const hasText = text.trim().length > 0;
   // Транскрипт (а значит и расшифровка аудио) существует только у звонка и встречи.
-  const canTranscribe = entityType === 'call' || entityType === 'meeting';
+  const canTranscribe = canHaveTranscript(entityType);
+  const entityWhere = entityType === 'call' ? 'в звонке' : 'во встрече';
+
+  /**
+   * Расшифровка готова → она сразу уходит в БД, не дожидаясь пресета.
+   * До S-AI-VIS-1 транскрипт писался только внутри запуска прогона: не нажал
+   * пресет — расшифровка умирала вместе с состоянием компонента.
+   *
+   * Частичный результат сохраняем тоже: за распознавание уже заплачено, и текст
+   * с сырыми кусками лучше отсутствующего — дочистить его можно прямо в поле.
+   * Сохранение ≠ запуск: прогон по-прежнему стартует человек.
+   */
+  const handleTranscribed = (result: string, complete: boolean) => {
+    setText(result);
+    setSource('audio');
+    // Текст готов — возвращаем человека к полю, где он его вычитает глазами
+    // и сам запустит пресет. Автозапуска прогона нет намеренно.
+    setMode('paste');
+    if (!canHaveTranscript(entityType) || result.trim() === '') return;
+    setSaved({ text: result, complete });
+    saveTranscript.mutate(
+      { entityType, entityId, text: result, source: 'audio' },
+      {
+        // Помечаем свежую строку как уже «посеянную»: иначе эффект ниже увидит
+        // прилетевший с сервера транскрипт как новый, перезапишет поле тем же
+        // текстом и сбросит `source` в 'paste' — пометка «расшифровка аудио»
+        // исчезла бы через секунду после сохранения.
+        onSuccess: ({ transcriptId }) => {
+          if (transcriptId) seededRef.current = transcriptId;
+        },
+      },
+    );
+  };
 
   // 085: пресету с needsTranscript транскрипт обязателен; остальным хватает заметок
   // сущности — прогон уйдёт по пути { entity_type, entity_id } без транскрипта.
@@ -183,15 +225,7 @@ export function AiRunPanel({
           двух мест ввода одного текста одновременно. */}
       {canTranscribe && mode === 'audio' ? (
         <div className="mb-3">
-          <TranscribeDropzone
-            onResult={(result) => {
-              setText(result);
-              setSource('audio');
-              // Текст готов — возвращаем человека к полю, где он его вычитает глазами
-              // и сам запустит пресет. Автозапуска прогона нет намеренно.
-              setMode('paste');
-            }}
-          />
+          <TranscribeDropzone onResult={handleTranscribed} />
         </div>
       ) : (
         <>
@@ -208,6 +242,31 @@ export function AiRunPanel({
             {source === 'audio' && <span className="text-accent">расшифровка аудио</span>}
             <span>{text.length.toLocaleString('ru')} симв.</span>
           </div>
+
+          {/* Факт сохранения — строкой, а не только тостом: тост исчезает, а вопрос
+              «сохранилось ли» остаётся (урок S-FIX-VOICE-1). */}
+          {saved && (
+            <p className="mt-1 flex items-start gap-1 text-meta">
+              {saveTranscript.isPending ? (
+                <span className="text-text-mute">Сохраняю расшифровку…</span>
+              ) : saveTranscript.isError ? (
+                <span className="text-red">
+                  Не удалось сохранить расшифровку — текст остался в поле и уйдёт в
+                  транскрипт при запуске пресета
+                </span>
+              ) : saved.text !== text ? (
+                <span className="text-text-mute">
+                  Правка не сохранена — она уйдёт в новый транскрипт при запуске пресета
+                </span>
+              ) : (
+                <span className="text-green">
+                  <Check size={11} className="mr-0.5 inline align-[-1px]" />
+                  Расшифровка сохранена {entityWhere}
+                  {!saved.complete && ' — вычитана не полностью'}
+                </span>
+              )}
+            </p>
+          )}
         </>
       )}
 
@@ -237,7 +296,10 @@ export function AiRunPanel({
           );
         })}
       </div>
-      {!hasText && (
+      {/* Во вкладке «Аудио» подсказку не показываем: технически она верна, но во время
+          расшифровки читается как «ничего не происходит» — на боевом прогоне владелец
+          по ней решил, что процесс закончился, хотя шёл блок 1 из 7. */}
+      {!hasText && mode !== 'audio' && (
         <p className="mt-1 text-meta text-text-mute">
           {hasEntityNotes
             ? 'Транскрипта нет — доступны пресеты, работающие по заметкам. Протокол и SPIN-разбор требуют текста разговора.'

@@ -28,6 +28,8 @@ import {
 } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
+import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
+import type { AiRunRow } from '@/types/database';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { AiCompanyModal } from '@/components/ai/AiCompanyModal';
 import { CallModal } from '@/components/calls/CallModal';
@@ -98,12 +100,17 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Клик по событию ленты → общий маппинг kind→действие (тот же, что в контакте/сделке)
+  // S-AI-VIS-1: прогон, открытый кликом по AI-событию ленты (модалка просмотра).
+  const [viewingRun, setViewingRun] = useState<AiRunRow | null>(null);
+
   function handleOpenEvent(e: TimelineEvent) {
     void openTimelineEvent(e, {
       router,
       onCall: (call) => { setEditingCall(call); setCallModalOpen(true); },
       onMeeting: (m) => { setEditingMeeting(m); setMeetingModalOpen(true); },
       onTask: (t) => { setEditingTask(t); setTaskModalOpen(true); },
+      // S-AI-VIS-1: AI-событие ленты больше не молчит — открывает свой результат.
+      onAiRun: (run) => setViewingRun(run),
     });
   }
 
@@ -307,6 +314,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         companyId={companyId}
         companyName={company.name}
       />
+
+      <AiRunResultModal run={viewingRun} onClose={() => setViewingRun(null)} />
     </>
   );
 }

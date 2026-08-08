@@ -15,6 +15,8 @@ import { staggerClass } from '@/lib/utils/stagger';
 import { CALL_STATUS_CONFIG, formatDuration, type CallStatus } from '@/lib/validators/call';
 import { CallModal } from './CallModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
+import { TranscriptBadge } from '@/components/ai/TranscriptBadge';
+import { useTranscriptPresence } from '@/lib/hooks/use-ai-run';
 import { CallTracker } from './CallTracker';
 import { CheckSquare } from 'lucide-react';
 
@@ -75,6 +77,12 @@ export function CallLog() {
 
   // Подтверждение удаления — inline на месте иконки (S-DEBT-CONFIRM-1), по одной строке.
   const confirmDelete = useConfirm();
+
+  // S-AI-VIS-1: какие звонки имеют расшифровку — ОДИН запрос на весь список
+  // (не `useTranscript` на строку). Считаем по всем звонкам, а не по текущей
+  // вкладке: список тот же, а ключ кэша не пересобирается при переключении.
+  const callIds = useMemo(() => (calls ?? []).map((c) => c.id), [calls]);
+  const { data: transcriptChars } = useTranscriptPresence('call', callIds);
 
   if (isLoading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 size={24} className="animate-spin text-accent" /></div>;
@@ -250,6 +258,16 @@ export function CallLog() {
                         Выполнен
                       </button>
                     </div>
+                  )}
+
+                  {/* S-AI-VIS-1: бейдж расшифровки — рядом с действиями, но ВНЕ них:
+                      действия появляются по наведению, а признак «расшифровка есть»
+                      обязан быть виден сразу, иначе его снова никто не найдёт. */}
+                  {transcriptChars?.has(call.id) && (
+                    <TranscriptBadge
+                      chars={transcriptChars.get(call.id)!}
+                      onClick={() => { setAiFocus(undefined); setAiCall(call); }}
+                    />
                   )}
 
                   {/* Actions */}
