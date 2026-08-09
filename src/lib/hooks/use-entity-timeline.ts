@@ -10,7 +10,7 @@ import {
   nextTimelineCursor,
   type TimelineCursor,
 } from '@/lib/timeline/cursor';
-import type { TimelineEvent } from '@/types/timeline';
+import type { TimelineEvent, TimelineKindFilter } from '@/types/timeline';
 import { useActorMap } from './use-actor';
 
 // ═══════════════════════════════════════════════════════
@@ -24,6 +24,11 @@ import { useActorMap } from './use-actor';
 // Состав первой страницы при этом НАМЕРЕННО изменился: теперь это честные последние
 // 50 событий, а не «до 50 от каждого источника».
 //
+// S-TL-3: фильтр по видам стал ЗАПРОСОМ, а не срезом загруженного. До этого чип
+// «Звонки» показывал звонки только из уже загруженных страниц — с появлением
+// пагинации в S-TL-2 это стало прямым враньём. Виды уходят в `p_kinds`, смена
+// набора даёт новый `queryKey` и новую ленту с первой страницы.
+//
 // Заголовки по-прежнему собирает TypeScript (`rpc-adapter.ts` → `adapters.ts` /
 // `describeEvent` / `presetTitle`) — слой представления в БД не живёт.
 // ═══════════════════════════════════════════════════════
@@ -33,13 +38,13 @@ export type TimelineEntityType = 'contact' | 'company' | 'project';
 const STALE_TIME = 60_000;
 
 /**
- * Аргументы RPC пятиаргументной `entity_timeline` (миграция 113).
+ * Аргументы RPC шестиаргументной `entity_timeline` (миграция 114).
  *
- * ⚠️ Тип ЛОКАЛЬНЫЙ, потому что 113 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` лежит
- * трёхаргументная сигнатура 112 (`p_entity_type, p_entity_id, p_limit`), и вызов
- * с `p_before` не прошёл бы проверку лишних свойств. Править сгенерированные типы
- * руками запрещено (правило 2). После apply + регена этот блок и каст снимаются —
- * больше ничего не меняется.
+ * ⚠️ Тип ЛОКАЛЬНЫЙ, потому что 114 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` лежит
+ * пятиаргументная сигнатура 113 (без `p_kinds`), и вызов с ним не прошёл бы
+ * проверку лишних свойств. Править сгенерированные типы руками запрещено
+ * (правило 2). После apply + регена этот блок и каст снимаются — больше ничего
+ * не меняется.
  *
  * ⚠️ Кастуется КЛИЕНТ, а не метод. `const rpc = supabase.rpc` отрывает метод от
  * объекта: внутри supabase-js он читает `this.rest`, оторванный вызов бросает
@@ -52,6 +57,8 @@ interface TimelineRpcArgs {
   p_before: string | null;
   p_before_id: string | null;
   p_limit: number;
+  /** `null` = все виды. Пустой массив в RPC не уходит — он означал бы пустую ленту. */
+  p_kinds: string[] | null;
 }
 
 interface TimelineRpcClient {
@@ -65,6 +72,7 @@ async function fetchTimelinePage(
   entityType: TimelineEntityType,
   entityId: string,
   cursor: TimelineCursor | null,
+  kinds: readonly TimelineKindFilter[] | null,
 ): Promise<TimelineEvent[]> {
   const supabase = createClient() as unknown as TimelineRpcClient;
   const { data, error } = await supabase.rpc('entity_timeline', {
@@ -73,6 +81,7 @@ async function fetchTimelinePage(
     p_before: cursor?.ts ?? null,
     p_before_id: cursor?.id ?? null,
     p_limit: TIMELINE_PAGE_SIZE,
+    p_kinds: kinds && kinds.length > 0 ? [...kinds] : null,
   });
   if (error) throw error;
 
@@ -86,18 +95,30 @@ async function fetchTimelinePage(
 export function useEntityTimeline(
   entityType: TimelineEntityType,
   entityId: string | null | undefined,
+  /**
+   * Виды для серверного фильтра. `undefined` (и пустой массив) = все виды,
+   * `p_kinds` уходит как `null`.
+   */
+  kinds?: readonly TimelineKindFilter[],
 ) {
   const enabled = Boolean(entityId);
+  const kindsKey = kinds && kinds.length > 0 ? [...kinds].sort() : 'all';
 
-  // Ключ без подключа источника и без курсора: страницы живут внутри одной записи
-  // кеша `useInfiniteQuery`. Инвалидации в use-activity-log / use-calls / use-meetings /
-  // use-tasks идут префиксом `['timeline']` и продолжают работать без правок —
-  // они сбрасывают ленту целиком, к первой странице, и это верно: новое событие
-  // приходит сверху.
+  // Ключ без курсора: страницы живут внутри одной записи кеша `useInfiniteQuery`.
+  // Инвалидации в use-activity-log / use-calls / use-meetings / use-tasks идут
+  // префиксом `['timeline']` и продолжают работать без правок — они сбрасывают
+  // ленту целиком, к первой странице, и это верно: новое событие приходит сверху.
+  //
+  // ⚠️ S-TL-3: набор видов ОБЯЗАН быть частью ключа. Без него React Query отдал бы
+  // на «Задачи» кеш от «Все» — то есть чужую ленту, молча и мгновенно. Он же даёт
+  // сброс пагинации: смена чипа заводит новую запись кеша, а с ней и первую
+  // страницу без курсора. Ключ нормализован сортировкой: порядок чипов у родителя
+  // — не свойство данных, и ['task','call'] не должен заводить второй кеш.
   const timeline = useInfiniteQuery({
-    queryKey: ['timeline', entityType, entityId],
+    queryKey: ['timeline', entityType, entityId, kindsKey],
     initialPageParam: null as TimelineCursor | null,
-    queryFn: ({ pageParam }) => fetchTimelinePage(entityType, entityId!, pageParam),
+    queryFn: ({ pageParam }) =>
+      fetchTimelinePage(entityType, entityId!, pageParam, kinds ?? null),
     getNextPageParam: (lastPage) => nextTimelineCursor(lastPage),
     enabled,
     staleTime: STALE_TIME,

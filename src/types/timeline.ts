@@ -7,6 +7,18 @@
 
 export type TimelineKind = 'call' | 'meeting' | 'task' | 'project' | 'activity' | 'ai_run';
 
+/**
+ * S-TL-3: словарь серверного фильтра `entity_timeline(p_kinds text[])`.
+ *
+ * Шесть настоящих видов плюс производный `note` — срез внутри `activity_log`
+ * (`event_type in NOTE_EVENT_TYPES`). Отдельным `TimelineKind` его сделать нельзя:
+ * источник тот же, и `kind` у события остаётся `activity`.
+ *
+ * Тип живёт здесь, а не в `<EntityTimeline>`, потому что его принимает ХУК: иначе
+ * `use-entity-timeline.ts` пришлось бы импортировать из компонента.
+ */
+export type TimelineKindFilter = TimelineKind | 'note';
+
 export type TimelineStatus = 'done' | 'pending' | 'overdue';
 
 export type TimelineEvent = {

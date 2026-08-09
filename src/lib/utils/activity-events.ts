@@ -159,10 +159,22 @@ function describeChanges(p: Record<string, unknown>): string | null {
  * порождают клиентские хуки и триггеры БД: смены стадий, аудит полей (087),
  * автоматизации, AI-прогоны, удаления. Поэтому лента может честно предложить
  * «Заметки» отдельно от «Системы» — а не звать заметками весь журнал.
+ *
+ * ⚠️ S-TL-3: ЭТОТ СПИСОК ПРОДУБЛИРОВАН В SQL — ветка `src_activity` функции
+ * `entity_timeline` (миграция `114_entity_timeline_kinds.sql`) считает срез
+ * `p_kinds = ['note']` тем же перечнем. SQL не умеет импортировать TS-константу,
+ * поэтому при добавлении типа заметки править надо ОБА МЕСТА: разойдутся они
+ * молча — чип «Заметки» просто покажет не то.
  */
 export const NOTE_EVENT_TYPES: readonly string[] = ['comment_added'];
 
-/** Заметка это или системная запись. Вход — сырой `event_type` (может быть null). */
+/**
+ * Заметка это или системная запись. Вход — сырой `event_type` (может быть null).
+ *
+ * ⚠️ S-TL-3: единственным потребителем был клиентский фильтр `<EntityTimeline>`,
+ * который переехал в SQL. Функция оставлена как читаемая обёртка над
+ * `NOTE_EVENT_TYPES` для следующего консьюмера — сегодня её зовёт только тест.
+ */
 export function isNoteEvent(eventType: string | null | undefined): boolean {
   return eventType != null && NOTE_EVENT_TYPES.includes(eventType);
 }
