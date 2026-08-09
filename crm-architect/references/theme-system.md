@@ -123,6 +123,14 @@ Token contexts: `:root` (общие дефолты, `--font-app: var(--font-manr
 --purple  --purple-l  --purple-text
 --teal-text
 
+/* Семантика состояния (S-UI-SEMANTIC-1) — alias на палитру, объявлены ОДНИМ блоком
+   :root в конце globals.css. В темах их не переопределяют: тема правит палитру,
+   семантика едет следом (класс темы на <html> = том же элементе, что :root). */
+--danger   --danger-l   --danger-text    /* → --red   */
+--success  --success-l  --success-text   /* → --green  */
+--warning  --warning-l  --warning-text   /* → --yellow */
+--info     --info-l     --info-text      /* → --blue   */
+
 /* Радиусы / тени / стекло / анимация */
 --radius --radius-s --radius-m --radius-l
 --shadow-xs --shadow-sm --shadow-md --shadow-lg  --shadow-card --shadow-card-hover
@@ -130,6 +138,13 @@ Token contexts: `:root` (общие дефолты, `--font-app: var(--font-manr
 --glass-bg  --glass-border  --glass-blur  --glass-inset
 --ease-out  --ease-spring  --duration-fast  --duration-normal
 ```
+
+**Палитра vs семантика:** `--red` отвечает «какой цвет», `--danger` — «что это значит».
+Цвет состояния операции (ошибка, успех, просрочка) берём семантическим токеном; красный
+приоритет задачи или стадия сделки — палитровым, это домен, а не danger. Токен, на который
+может сослаться `src/components/**`, **нельзя объявлять внутри `.t-*`**: в остальных шести
+темах его не будет, и `color` тихо унаследует чужой цвет, а `border-*` исчезнет совсем
+(learnings, S-UI-SEMANTIC-1).
 
 **Заливка vs текст:** для текста/иконок на светлом фоне бери `*-text`-токен (тёмный вариант,
 AA), для заливок (`.bg-accent`, орбы, кнопки) — базовый (яркий). В светлых темах есть
