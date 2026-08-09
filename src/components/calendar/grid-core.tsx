@@ -1,9 +1,14 @@
 'use client';
 
-// Механика вертикальной сетки тайм-блоков — общий модуль для недельной (WeekGrid)
-// и командной (TeamDayGrid) сеток. Извлечено из WeekGrid БЕЗ изменения поведения
-// (A2a/A2b/A2c): константы оси, геометрия, упаковка колонки, read-only MeetingBlock.
-// .tsx (не .ts) — модуль экспортирует React-компонент MeetingBlock.
+// Механика вертикальной сетки тайм-блоков. Извлечено из WeekGrid БЕЗ изменения
+// поведения (A2a/A2b/A2c): константы оси, геометрия, упаковка колонки, read-only
+// MeetingBlock. .tsx (не .ts) — модуль экспортирует React-компонент MeetingBlock.
+//
+// S-CAL-LANES-1: WeekGrid удалён (неделя стала горизонтальной лентой WeekLanes),
+// живой потребитель вертикальной механики — только TeamDayGrid. Экспорты под drag
+// (SNAP, MIN_DUR, MoveData, DraggableTimeBlock) НЕ вычищаются намеренно: их
+// использует «Команда», а горизонтальный drag ленты вернётся в S-CAL-LANES-2.
+// Ось (START_HOUR..END_HOUR) общая для сетки и ленты — она одна на проект.
 
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useDraggable } from '@dnd-kit/core';

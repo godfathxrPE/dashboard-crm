@@ -19,7 +19,7 @@ import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
-import { WeekGrid } from '@/components/calendar/WeekGrid';
+import { WeekLanes, type LaneDeadline } from '@/components/calendar/WeekLanes';
 import { TeamDayGrid } from '@/components/calendar/TeamDayGrid';
 import type { Task } from '@/types/entities';
 
@@ -105,30 +105,66 @@ export function CalendarView() {
     ? `${weekStart.getDate()}–${weekEnd.getDate()} ${FULL_MONTHS[weekStart.getMonth()]}`
     : `${weekStart.getDate()} ${FULL_MONTHS[weekStart.getMonth()]} – ${weekEnd.getDate()} ${FULL_MONTHS[weekEnd.getMonth()]}`;
 
+  // Семь ключей МСК отображаемой недели — один набор на все выборки ленты.
+  const weekKeys = useMemo(
+    () =>
+      new Set(
+        Array.from({ length: 7 }, (_, i) =>
+          mskDateKey(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)),
+        ),
+      ),
+    [weekStart],
+  );
+
   // Задачи недели: scheduled_start задан, мои, дата (МСК) в пределах недели.
   const weekTasks = useMemo(() => {
     if (view !== 'week') return [];
-    const keys = new Set(
-      Array.from({ length: 7 }, (_, i) =>
-        mskDateKey(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)),
-      ),
-    );
     return tasks.filter(
-      (t) => t.scheduled_start && isMine(t, currentUserId) && keys.has(mskDateKey(t.scheduled_start)),
+      (t) => t.scheduled_start && isMine(t, currentUserId) && weekKeys.has(mskDateKey(t.scheduled_start)),
     );
-  }, [view, weekStart, tasks, currentUserId]);
+  }, [view, weekKeys, tasks, currentUserId]);
+
+  // S-CAL-LANES-1: мои задачи недели БЕЗ времени — на дорожку их не поставить,
+  // но и терять нельзя: счётчик «+N без времени» в паспорте дня, по дню срока.
+  const weekUndatedTasks = useMemo(() => {
+    if (view !== 'week') return [];
+    return tasks.filter(
+      (t) =>
+        !t.scheduled_start && t.deadline && t.lane !== 'done' &&
+        isMine(t, currentUserId) && weekKeys.has(mskDateKey(t.deadline)),
+    );
+  }, [view, weekKeys, tasks, currentUserId]);
 
   // A2c: встречи недели (org-scoped RLS). Скоуп — все встречи недели; персональный
   // фильтр по вовлечённости — под фазу B/команду. Матч по календарной дате.
   const weekMeetings = useMemo(() => {
     if (view !== 'week') return [];
-    const keys = new Set(
-      Array.from({ length: 7 }, (_, i) =>
-        mskDateKey(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i)),
-      ),
-    );
-    return meetings.filter((m) => m.date && keys.has(m.date.slice(0, 10)));
-  }, [view, weekStart, meetings]);
+    return meetings.filter((m) => m.date && weekKeys.has(m.date.slice(0, 10)));
+  }, [view, weekKeys, meetings]);
+
+  // S-CAL-LANES-1: звонки недели. В прежней сетке их не было вовсе — при том что
+  // на живых данных это самый плотный вид событий org (14 звонков против 1 встречи),
+  // и без них лента показывала бы пустую неделю. Скоуп org-wide, как у встреч.
+  const weekCalls = useMemo(() => {
+    if (view !== 'week') return [];
+    return calls.filter((c) => c.date && weekKeys.has(mskDateKey(c.date)));
+  }, [view, weekKeys, calls]);
+
+  // S-CAL-LANES-1: дедлайны сделок недели — из того же `useProjects`, что и
+  // месячный вид (`eventsMap`), без нового запроса. Закрытые сделки не показываем
+  // тем же правилом, что месяц. `projects.deadline` — колонка `date` (не timestamptz,
+  // в отличие от `tasks.deadline`), поэтому день берётся срезом, как в месяце:
+  // одно поле не должно читаться в проекте двумя разными способами.
+  const weekDeadlines = useMemo<LaneDeadline[]>(() => {
+    if (view !== 'week') return [];
+    const out: LaneDeadline[] = [];
+    for (const p of projects) {
+      if (p.status === 'won' || p.status === 'lost' || !p.deadline) continue;
+      const dateKey = p.deadline.slice(0, 10);
+      if (weekKeys.has(dateKey)) out.push({ id: p.id, title: p.name, dateKey });
+    }
+    return out;
+  }, [view, weekKeys, projects]);
 
   // B1: командный день — отображаемый день (локальная полночь) + метка «Среда, 23 июля».
   const dayDate = useMemo(
@@ -171,11 +207,6 @@ export function CalendarView() {
     if (t) { setEditTask(t); setSlotDefaults(null); setTaskModalOpen(true); }
   }
 
-  // A2b: drag/resize блока → оптимистичный патч scheduled_start/end (onMutate уже optimistic).
-  function handleReschedule(id: string, scheduled_start: string, scheduled_end: string) {
-    updateTask.mutate({ id, scheduled_start, scheduled_end });
-  }
-
   // B2: командный drag → reschedule (+ опц. reassign). assigned_to в патче → оптимистичный
   // onMutate перекладывает блок в дорожку нового исполнителя; триггер notify_task_assigned
   // шлёт ему уведомление сам. Обратимо драгом назад — модалка подтверждения не нужна.
@@ -194,6 +225,18 @@ export function CalendarView() {
   function handleMeetingClick(id: string) {
     const m = meetings.find((x) => x.id === id);
     if (m) { setEditMeeting(m); setMeetingModalOpen(true); }
+  }
+
+  // S-CAL-LANES-1: чипы звонка и дедлайна ведут ровно туда же, куда события
+  // месячного вида (`openEvent`) — CallModal и карточка сделки.
+  function handleCallClick(id: string) {
+    const c = calls.find((x) => x.id === id);
+    if (c) { setEditCall(c); setCallModalOpen(true); }
+  }
+
+  function handleDeadlineClick(projectId: string) {
+    const project = projects.find((p) => p.id === projectId);
+    router.push(project ? projectHref(project) : `/deals/${projectId}`);
   }
 
   // Build events map for the month
@@ -349,7 +392,19 @@ export function CalendarView() {
         </div>
       ) : view === 'week' ? (
         <div style={{ overflowX: 'auto' }}>
-          <WeekGrid weekStart={weekStart} tasks={weekTasks} meetings={weekMeetings} onSlotClick={handleSlotClick} onBlockClick={handleBlockClick} onReschedule={handleReschedule} onMeetingClick={handleMeetingClick} />
+          <WeekLanes
+            weekStart={weekStart}
+            tasks={weekTasks}
+            undatedTasks={weekUndatedTasks}
+            meetings={weekMeetings}
+            calls={weekCalls}
+            deadlines={weekDeadlines}
+            onSlotClick={handleSlotClick}
+            onBlockClick={handleBlockClick}
+            onMeetingClick={handleMeetingClick}
+            onCallClick={handleCallClick}
+            onDeadlineClick={handleDeadlineClick}
+          />
         </div>
       ) : (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
