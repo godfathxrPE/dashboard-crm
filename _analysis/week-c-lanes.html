@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Вариант C — «Лента недели» (горизонтальные дорожки)</title>
+<style>
+  :root {
+    --bg:#F6F6F7; --surface:#FFFFFF; --surface2:#F3F3F4; --surface3:#EAEAEC;
+    --border:#E5E5E8; --border2:#D6D6DB;
+    --text:#1A1A1E; --text-dim:#5A5A64; --text-mute:#66666F;
+    --accent:#0E7C86; --accent-l:rgba(14,124,134,0.08); --accent-l2:rgba(14,124,134,0.16);
+    --on-accent:#fff;
+    --danger:#CC3B2E; --danger-l:rgba(204,59,46,0.09);
+    --info:#2563C9;   --info-l:rgba(37,99,201,0.09);
+    --purple:#7C5CD4; --purple-l:rgba(124,92,212,0.09);
+    --radius:10px; --radius-s:6px;
+    --ease:cubic-bezier(0.16,1,0.3,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font:400 0.8125rem/1.4 Inter,system-ui,sans-serif; padding:1.5rem; }
+  .badge-note { display:inline-block; background:var(--accent-l2); color:var(--accent); font-size:0.6875rem; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:0.25rem 0.625rem; border-radius:999px; margin-bottom:0.75rem; }
+  h1 { font-size:1rem; font-weight:600; margin-bottom:1rem; }
+  h1 span { color:var(--text-mute); font-weight:400; }
+
+  .cal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; max-width:75rem; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; border-bottom:1px solid var(--border); }
+  .nav { display:flex; align-items:center; gap:0.75rem; }
+  .nav b { font-size:0.9375rem; font-weight:500; min-width:11rem; text-align:center; }
+  .icon-btn { display:flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border:1px solid var(--border); border-radius:var(--radius-s); background:transparent; color:var(--text-dim); cursor:pointer; }
+  .tabs { display:flex; border:1px solid var(--border); border-radius:var(--radius-s); overflow:hidden; }
+  .tabs button { border:none; background:transparent; font:inherit; font-size:0.75rem; padding:0.3rem 0.875rem; color:var(--text-dim); cursor:pointer; }
+  .tabs button.on { background:var(--accent); color:var(--on-accent); }
+  .today-btn { border:1px solid var(--border); border-radius:var(--radius-s); background:transparent; font:inherit; font-size:0.75rem; padding:0.3rem 0.875rem; color:var(--text-dim); cursor:pointer; }
+
+  /* Дни = строки, часы = горизонтальная ось. Неделя читается как Гант:
+     форма загрузки видна сразу, свободные окна — буквально пустые места. */
+  .lanes { position:relative; }
+  .hours { display:grid; grid-template-columns:9rem 1fr; border-bottom:1px solid var(--border); }
+  .hours .scale { position:relative; height:1.5rem; }
+  .hours .scale i { position:absolute; top:0.2rem; transform:translateX(-50%); font-style:normal; font-size:0.625rem; color:var(--text-mute); font-variant-numeric:tabular-nums; }
+
+  .lane { display:grid; grid-template-columns:9rem 1fr; border-bottom:1px solid var(--border); }
+  .lane:last-child { border-bottom:none; }
+  .lane.wknd { background:var(--surface2); }
+  .lane.today { background:var(--accent-l); box-shadow:inset 3px 0 0 var(--accent); }
+
+  /* Паспорт дня слева: дата + итог + свободное окно */
+  .dinfo { padding:0.6rem 0.75rem; border-right:1px solid var(--border); }
+  .dinfo .row { display:flex; align-items:baseline; gap:0.4rem; }
+  .dinfo .dw { font-size:0.6875rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-mute); }
+  .dinfo .dn { font-size:1.0625rem; font-weight:600; }
+  .lane.today .dinfo .dn { color:var(--accent); }
+  .dinfo .sum { margin-left:auto; font-size:0.6875rem; color:var(--text-mute); font-variant-numeric:tabular-nums; }
+  .dinfo .gap { font-size:0.625rem; color:var(--text-mute); margin-top:0.15rem; }
+  .dinfo .gap b { color:var(--accent); font-weight:600; }
+
+  /* Полотно дорожки */
+  .track { position:relative; min-height:3.4rem; }
+  .vline { position:absolute; top:0; bottom:0; border-left:1px solid var(--border); opacity:0.6; }
+
+  /* Событие-пилюля: позиция = время, ширина = длительность (мин. ширина под текст) */
+  .chip { position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:0.3rem; font-size:0.6875rem; font-weight:500; border-radius:999px; padding:0.25rem 0.6rem 0.25rem 0.45rem; white-space:nowrap; cursor:pointer; transition:transform .15s var(--ease), box-shadow .15s var(--ease); }
+  .chip:hover { transform:translateY(-50%) translateY(-1px); box-shadow:0 3px 10px rgba(20,20,25,0.12); z-index:3; }
+  .chip svg { flex:none; }
+  .chip b { font-weight:600; font-variant-numeric:tabular-nums; }
+  .chip.call { background:var(--info-l); color:var(--info); border:1px solid transparent; }
+  .chip.meet { background:var(--purple-l); color:var(--purple); }
+  .chip.task { background:var(--surface); color:var(--text-dim); border:1px solid var(--border2); }
+  .chip.task.crit { border-color:var(--danger); color:var(--danger); }
+  .chip.dl { background:var(--danger-l); color:var(--danger); }
+  .chip .name { color:var(--text); max-width:11rem; overflow:hidden; text-overflow:ellipsis; }
+  .chip.task .name { color:var(--text-dim); }
+
+  /* Две строки в дорожке при пересечении */
+  .chip.r2 { top:72%; }
+  .chip.r1 { top:28%; }
+
+  /* Линия «сейчас» — вертикаль через всю неделю */
+  .now-v { position:absolute; top:1.5rem; bottom:0; border-left:2px solid var(--danger); z-index:2; pointer-events:none; }
+  .now-v b { position:absolute; top:-1.3rem; left:50%; transform:translateX(-50%); background:var(--danger); color:#fff; font-size:0.625rem; font-weight:600; padding:0.1rem 0.3rem; border-radius:4px; font-variant-numeric:tabular-nums; }
+
+  .legend { display:flex; gap:1rem; padding:0.6rem 1rem; border-top:1px solid var(--border); font-size:0.6875rem; color:var(--text-dim); }
+  .legend span { display:flex; align-items:center; gap:0.3rem; }
+  .legend i { width:0.55rem; height:0.55rem; border-radius:50%; }
+
+  @media (prefers-reduced-motion: reduce) { .chip { transition:none; } }
+</style>
+</head>
+<body>
+<div class="badge-note">Вариант C · Лента недели</div>
+<h1>Дни — строки, время — горизонталь <span>— неделя читается как Гант (паттерн уже знаком по задачам): форма нагрузки и свободные окна видны без скролла</span></h1>
+
+<div class="cal">
+  <div class="topbar">
+    <div class="nav">
+      <button class="icon-btn">‹</button><b>11 – 17 августа</b><button class="icon-btn">›</button>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      <div class="tabs"><button>Месяц</button><button class="on">Неделя</button><button>Команда</button></div>
+      <button class="today-btn">Сегодня</button>
+    </div>
+  </div>
+
+  <div class="lanes">
+    <!-- Ось часов 08–20: каждый час = 1/12 ширины -->
+    <div class="hours">
+      <div></div>
+      <div class="scale">
+        <i style="left:0%">08</i><i style="left:8.33%">09</i><i style="left:16.67%">10</i><i style="left:25%">11</i><i style="left:33.33%">12</i><i style="left:41.67%">13</i><i style="left:50%">14</i><i style="left:58.33%">15</i><i style="left:66.67%">16</i><i style="left:75%">17</i><i style="left:83.33%">18</i><i style="left:91.67%">19</i>
+      </div>
+    </div>
+
+    <!-- Пн -->
+    <div class="lane">
+      <div class="dinfo">
+        <div class="row"><span class="dw">Пн</span><span class="dn">11</span><span class="sum">2</span></div>
+        <div class="gap">окно <b>11 – 16</b></div>
+      </div>
+      <div class="track">
+        <i class="vline" style="left:8.33%"></i><i class="vline" style="left:16.67%"></i><i class="vline" style="left:25%"></i><i class="vline" style="left:33.33%"></i><i class="vline" style="left:41.67%"></i><i class="vline" style="left:50%"></i><i class="vline" style="left:58.33%"></i><i class="vline" style="left:66.67%"></i><i class="vline" style="left:75%"></i><i class="vline" style="left:83.33%"></i><i class="vline" style="left:91.67%"></i>
+        <span class="chip call" style="left:18%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <b>10:10</b><span class="name">Хороший вкус</span>
+        </span>
+        <span class="chip task" style="left:66.67%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <b>16:00</b><span class="name">Статусы задач недели</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Вт: пересечение → две мини-строки -->
+    <div class="lane">
+      <div class="dinfo">
+        <div class="row"><span class="dw">Вт</span><span class="dn">12</span><span class="sum">4</span></div>
+        <div class="gap">окно <b>13 – 15:30</b></div>
+      </div>
+      <div class="track" style="min-height:4.2rem;">
+        <i class="vline" style="left:8.33%"></i><i class="vline" style="left:16.67%"></i><i class="vline" style="left:25%"></i><i class="vline" style="left:33.33%"></i><i class="vline" style="left:41.67%"></i><i class="vline" style="left:50%"></i><i class="vline" style="left:58.33%"></i><i class="vline" style="left:66.67%"></i><i class="vline" style="left:75%"></i><i class="vline" style="left:83.33%"></i><i class="vline" style="left:91.67%"></i>
+        <span class="chip dl r1" style="left:1%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          <span class="name">Перспектива — дедлайн</span>
+        </span>
+        <span class="chip meet r2" style="left:8.33%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <b>09:00</b><span class="name">Стратек — демо этапа</span>
+        </span>
+        <span class="chip task crit r1" style="left:37.5%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <b>12:30</b><span class="name">КП: смета</span>
+        </span>
+        <span class="chip call r2" style="left:62.5%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <b>15:30</b><span class="name">Молкомбинат</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Ср -->
+    <div class="lane">
+      <div class="dinfo">
+        <div class="row"><span class="dw">Ср</span><span class="dn">13</span></div>
+        <div class="gap">весь день свободен</div>
+      </div>
+      <div class="track">
+        <i class="vline" style="left:8.33%"></i><i class="vline" style="left:16.67%"></i><i class="vline" style="left:25%"></i><i class="vline" style="left:33.33%"></i><i class="vline" style="left:41.67%"></i><i class="vline" style="left:50%"></i><i class="vline" style="left:58.33%"></i><i class="vline" style="left:66.67%"></i><i class="vline" style="left:75%"></i><i class="vline" style="left:83.33%"></i><i class="vline" style="left:91.67%"></i>
+      </div>
+    </div>
+
+    <!-- Чт (сегодня) -->
+    <div class="lane today">
+      <div class="dinfo">
+        <div class="row"><span class="dw">Чт</span><span class="dn">14</span><span class="sum">4</span></div>
+        <div class="gap">окно <b>12:20 – 14:20</b></div>
+      </div>
+      <div class="track" style="min-height:4.2rem;">
+        <i class="vline" style="left:8.33%"></i><i class="vline" style="left:16.67%"></i><i class="vline" style="left:25%"></i><i class="vline" style="left:33.33%"></i><i class="vline" style="left:41.67%"></i><i class="vline" style="left:50%"></i><i class="vline" style="left:58.33%"></i><i class="vline" style="left:66.67%"></i><i class="vline" style="left:75%"></i><i class="vline" style="left:83.33%"></i><i class="vline" style="left:91.67%"></i>
+        <span class="chip call r1" style="left:9.7%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <b>09:10</b><span class="name">ИНН из бота</span>
+        </span>
+        <span class="chip meet r2" style="left:26.4%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <b>11:10</b><span class="name">Смета этапа 2</span>
+        </span>
+        <span class="chip task r1" style="left:53%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <b>14:20</b><span class="name">Протокол → задачи</span>
+        </span>
+        <span class="chip call r2" style="left:72.4%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <b>16:40</b><span class="name">Хороший вкус</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Пт -->
+    <div class="lane">
+      <div class="dinfo">
+        <div class="row"><span class="dw">Пт</span><span class="dn">15</span><span class="sum">1</span></div>
+        <div class="gap">окно <b>после 12</b></div>
+      </div>
+      <div class="track">
+        <i class="vline" style="left:8.33%"></i><i class="vline" style="left:16.67%"></i><i class="vline" style="left:25%"></i><i class="vline" style="left:33.33%"></i><i class="vline" style="left:41.67%"></i><i class="vline" style="left:50%"></i><i class="vline" style="left:58.33%"></i><i class="vline" style="left:66.67%"></i><i class="vline" style="left:75%"></i><i class="vline" style="left:83.33%"></i><i class="vline" style="left:91.67%"></i>
+        <span class="chip task" style="left:16.67%">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <b>10:00</b><span class="name">Ревизия воронки · 2 ч</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Сб, Вс -->
+    <div class="lane wknd">
+      <div class="dinfo"><div class="row"><span class="dw">Сб</span><span class="dn">16</span></div></div>
+      <div class="track" style="min-height:2.4rem;"></div>
+    </div>
+    <div class="lane wknd">
+      <div class="dinfo"><div class="row"><span class="dw">Вс</span><span class="dn">17</span></div></div>
+      <div class="track" style="min-height:2.4rem;"></div>
+    </div>
+
+    <!-- Сейчас: 14:05 ≈ 50.7% оси 08–20, вертикаль по всей неделе -->
+    <div class="now-v" style="left: calc(9rem + (100% - 9rem) * 0.507);"><b>14:05</b></div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--info)"></i>Звонок</span>
+    <span><i style="background:var(--purple)"></i>Встреча</span>
+    <span><i style="background:var(--border2)"></i>Задача</span>
+    <span><i style="background:var(--danger)"></i>Дедлайн / критично</span>
+  </div>
+</div>
+</body>
+</html>

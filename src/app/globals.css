@@ -775,6 +775,26 @@
   [style*="translateX"] { transform: none !important; transition: opacity 0.1s !important; }
 }
 
+/* ═══ S-CAL-LANES-1: чип события на дорожке недели ═══
+   Вертикальное центрирование живёт ЗДЕСЬ, а не в inline-стиле компонента:
+   inline-transform выиграл бы у :hover по специфичности, и чип на ховере
+   прыгал бы на пол-высоты вниз вместо подъёма на 1px. Компонент задаёт
+   только `top` (ряд упаковки), transform — целиком за CSS. */
+.lane-chip {
+  transform: translateY(-50%);
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+.lane-chip:hover {
+  transform: translateY(-50%) translateY(-1px);
+  box-shadow: var(--shadow-md);
+  z-index: 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lane-chip { transition: none; }
+  .lane-chip:hover { transform: translateY(-50%); }
+}
+
 /* ═══ hover-only «+ добавить» в таблицах (AUDIT C3 — глобально) ═══
    Скрыто по умолчанию (color: transparent), показ на hover строки И
    :focus-within (a11y: доступно с клавиатуры). Раньше пер-темно
