@@ -259,6 +259,11 @@ export function useCreateTask() {
     onSuccess: (result, input) => {
       if (input.project_id) {
         logActivity(input.project_id, 'task_created', {
+          // S-COST-TRUTH-1: без `task_id` событие ленты немое навсегда — по заголовку
+          // задачу не найти (у шаблонов внедрения они повторяются буквально), а
+          // бэкфилл 478 старых записей невозможен по той же причине. Берётся id
+          // ОТВЕТА сервера, а не оптимистичный `temp-…` из onMutate.
+          task_id: result.id,
           title: input.text,
           priority: input.priority ?? 'normal',
         });
@@ -320,7 +325,8 @@ export function useUpdateTask() {
     },
     onSuccess: (result, vars) => {
       if (vars.lane === 'done' && result.project_id) {
-        logActivity(result.project_id, 'task_completed', { title: result.text });
+        // S-COST-TRUTH-1: `task_id` — см. комментарий у `task_created` выше.
+        logActivity(result.project_id, 'task_completed', { task_id: result.id, title: result.text });
       }
     },
     onError: (_err, _input, context) => {

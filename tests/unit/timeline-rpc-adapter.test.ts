@@ -141,6 +141,77 @@ describe('rpcRowToEvent', () => {
     // S-UI-CLARITY-1: без eventType системную запись не отличить от заметки
     expect(e.eventType).toBe('stage_change');
     expect(e.actorId).toBe('actor-2');
+    // S-COST-TRUTH-1: у события не про задачу ссылки на задачу быть не должно
+    expect(e.refType).toBeUndefined();
+    expect(e.sourceId).toBe(UUID);
+  });
+
+  // ═══ S-COST-TRUTH-1: событие журнала о задаче открывается ═══
+  const TASK_UUID = '99999999-8888-7777-6666-555555555555';
+
+  it('activity: task_created с task_id — sourceId это id ЗАДАЧИ, событие помечено refType', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: {
+          event_type: 'task_created',
+          payload: { task_id: TASK_UUID, title: 'Приёмка отчёта', priority: 'normal' },
+        },
+      }),
+      NOW,
+    );
+
+    expect(e.sourceId).toBe(TASK_UUID);
+    expect(e.refType).toBe('task');
+    // Ключ строки остаётся id записи ЖУРНАЛА — иначе два события об одной задаче
+    // («создана» и «выполнена») схлопнулись бы в один React-key.
+    expect(e.id).toBe(`activity:${UUID}`);
+    // Заголовок спринт не трогает
+    expect(e.title).toBe('Задача: Приёмка отчёта');
+    expect(e.eventType).toBe('task_created');
+  });
+
+  it('activity: task_completed с task_id — тот же разбор', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'task_completed', payload: { task_id: TASK_UUID, title: 'Приёмка отчёта' } },
+      }),
+      NOW,
+    );
+
+    expect(e.sourceId).toBe(TASK_UUID);
+    expect(e.refType).toBe('task');
+    expect(e.title).toBe('Выполнено: Приёмка отчёта');
+  });
+
+  it('activity: старое событие без task_id — поведение прежнее, клик молчит', () => {
+    // 478 записей в проде написаны до спринта: task_id в payload нет и не появится.
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'task_created', payload: { title: 'Приёмка отчёта', priority: 'normal' } },
+      }),
+      NOW,
+    );
+
+    expect(e.refType).toBeUndefined();
+    // sourceId остался id записи журнала — открывать по нему задачу нечем
+    expect(e.sourceId).toBe(UUID);
+    expect(e.title).toBe('Задача: Приёмка отчёта');
+  });
+
+  it('activity: task_id не строка — как будто его нет (payload пишет клиент, не БД)', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'task_created', payload: { task_id: 42, title: 'Приёмка отчёта' } },
+      }),
+      NOW,
+    );
+
+    expect(e.refType).toBeUndefined();
+    expect(e.sourceId).toBe(UUID);
   });
 
   it('ai_run: в заголовке человеческое имя пресета, а не машинный ключ', () => {

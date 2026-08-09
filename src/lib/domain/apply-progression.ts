@@ -151,6 +151,11 @@ export async function applyProgressionPatch(
     }
 
     // ── 4. Задачи. company_id/contact_id — от СДЕЛКИ, не от предложения ──
+    // S-COST-TRUTH-1: id вставленных строк нужны событиям журнала ниже. Insert
+    // многострочный, поэтому `.select('id')` отдаёт МАССИВ — сопоставляем по индексу
+    // (`insert ... returning` сохраняет порядок VALUES), а не берём первый id на всю
+    // пачку: три задачи с одним и тем же `task_id` открывали бы одну карточку.
+    let insertedTaskIds: string[] = [];
     if (tasks.length > 0) {
       const rows = tasks.map((t) => ({
         text: t.text,
@@ -164,8 +169,9 @@ export async function applyProgressionPatch(
         // после создания, а `1..N` — дедлайн в случайное время суток.
         deadline: t.due_in_days === undefined ? null : mskDeadlineInDays(t.due_in_days),
       }));
-      const { error } = await supabase.from('tasks').insert(rows);
+      const { data: inserted, error } = await supabase.from('tasks').insert(rows).select('id');
       if (error) throw error;
+      insertedTaskIds = (inserted ?? []).map((r) => r.id);
     }
 
     // ── 5. Audit trail (I4) ──
@@ -191,11 +197,15 @@ export async function applyProgressionPatch(
           ...(force ? { forced_stale: true } : {}),
         },
       },
-      ...tasks.map((t) => ({
+      ...tasks.map((t, i) => ({
         project_id: projectId,
         user_id: userId,
         event_type: 'task_created',
         payload: {
+          // S-COST-TRUTH-1: ключ вовсе не кладём, если id по индексу не пришёл —
+          // `task_id: null` в payload прошёл бы проверку «поле есть» в адаптере
+          // ленты и дал бы клик в никуда.
+          ...(insertedTaskIds[i] ? { task_id: insertedTaskIds[i] } : {}),
           title: t.text,
           priority: t.priority ?? 'normal',
           source: PROGRESSION_EVENT,

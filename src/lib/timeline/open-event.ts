@@ -6,7 +6,9 @@
 // project → навигация на карточку сделки.
 // call/meeting/task/ai_run → точечная выборка строки по id (`.eq('id',…).single()`,
 //   НЕ org-fetch) и открытие модалки через колбэк хаба.
-// activity → без действия: у записи журнала нет своей карточки.
+// activity → без действия: у записи журнала нет своей карточки. Единственное
+//   исключение (S-COST-TRUTH-1) — событие о задаче с `task_id` в payload: у него
+//   `refType='task'`, и оно открывает задачу.
 // ═══════════════════════════════════════════════════════
 
 import { createClient } from '@/lib/supabase/client';
@@ -52,12 +54,9 @@ export async function openTimelineEvent(event: TimelineEvent, ctx: OpenTimelineE
       if (data) ctx.onMeeting(data as unknown as Meeting);
       return;
     }
-    case 'task': {
-      if (!ctx.onTask) return;
-      const { data } = await supabase.from('tasks').select(TASK_SELECT).eq('id', event.sourceId).single();
-      if (data) ctx.onTask(data as unknown as Task);
+    case 'task':
+      await openTask(event.sourceId, ctx);
       return;
-    }
     case 'ai_run': {
       if (!ctx.onAiRun) return;
       // Тянем строку целиком: модалка просмотра показывает и результат, и статус,
@@ -66,7 +65,25 @@ export async function openTimelineEvent(event: TimelineEvent, ctx: OpenTimelineE
       if (data) ctx.onAiRun(data as unknown as AiRunRow);
       return;
     }
+    case 'activity':
+      // S-COST-TRUTH-1. У записи журнала своей карточки нет — открывать нечего.
+      // Исключение одно: событие о задаче, несущее `task_id` (адаптер положил его
+      // id в `sourceId` и пометил событие `refType='task'`). Открывается тем же
+      // путём, что `kind='task'`, — иначе появилось бы второе поведение «открыть
+      // задачу», и они разъехались бы при первой правке.
+      //
+      // ⚠️ У 478 событий, написанных до 2026-08-09, `task_id` в payload нет —
+      // `refType` не проставлен, и клик по ним молчит. Бэкфилл невозможен.
+      if (event.refType === 'task') await openTask(event.sourceId, ctx);
+      return;
     default:
-      return; // activity — записи журнала нечего открывать
+      return;
   }
+}
+
+async function openTask(taskId: string, ctx: OpenTimelineEventCtx): Promise<void> {
+  if (!ctx.onTask) return;
+  const supabase = createClient();
+  const { data } = await supabase.from('tasks').select(TASK_SELECT).eq('id', taskId).single();
+  if (data) ctx.onTask(data as unknown as Task);
 }

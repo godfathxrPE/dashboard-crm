@@ -100,6 +100,20 @@ function text(p: Record<string, unknown>, key: string): string | null {
 }
 
 /**
+ * S-COST-TRUTH-1. Вложенный объект payload'а.
+ *
+ * У `kind='activity'` строка RPC несёт `{ event_type, payload }` — сам payload записи
+ * журнала лежит ВНУТРИ (так его ждёт `describeEvent`), поэтому `text(p, 'task_id')`
+ * прочитал бы уровнем выше и всегда возвращал null.
+ */
+function nested(p: Record<string, unknown>, key: string): Record<string, unknown> {
+  const v = p[key];
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
+}
+
+/**
  * `id` строки RPC — уже `${kind}:${uuid}` (его собирает SQL, чтобы ключ был уникален
  * между источниками). Адаптеры собирают тот же префикс сами, поэтому им нужен голый
  * uuid. Правило одно на все шесть видов — ветвлений здесь нет.
@@ -185,10 +199,22 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
         created_by: createdBy,
       });
 
-    case 'activity':
+    case 'activity': {
+      // S-COST-TRUTH-1. `task_created`/`task_completed` с 2026-08-09 кладут в payload
+      // `task_id` — такое событие открывает карточку задачи, и его `sourceId` — id
+      // ЗАДАЧИ, а не строки журнала. Ключ строки (`id`) остаётся `activity:<id лога>`,
+      // так что уникальность в ленте не страдает.
+      //
+      // ⚠️ 478 записей, написанных ДО спринта, `task_id` не несут — ветка на них не
+      // срабатывает, клик молчит ровно как раньше. Это не недоделка, а цена того, что
+      // поле не завели сразу: бэкфилл невозможен — заголовки задач не уникальны
+      // (у шаблонов внедрения они повторяются буквально), связать событие с задачей
+      // задним числом не по чему.
+      const taskId = text(nested(p, 'payload'), 'task_id');
       return {
         id: row.id,
-        sourceId,
+        sourceId: taskId ?? sourceId,
+        ...(taskId ? { refType: 'task' as const } : {}),
         kind: 'activity',
         // payload источника лежит ВНУТРИ `row.payload`, рядом с `event_type` —
         // ровно та форма, которую `describeEvent` читает у строки `activity_log`.
@@ -198,6 +224,7 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
         actorId: createdBy ?? undefined,
         eventType: text(p, 'event_type'),
       };
+    }
 
     case 'ai_run':
       return {
