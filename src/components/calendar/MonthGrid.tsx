@@ -73,14 +73,29 @@ export function MonthGrid({
 
   return (
     <div>
-      {deadlines.length > 0 && (
-        <FocusStrip deadlines={deadlines} onSelectDay={onSelectDay} />
-      )}
+      {/* Одна карточка на весь месяц: полоса фокуса → шапка Пн…Вс → сетка.
+          Внешняя рамка и радиус живут здесь, у ячеек только внутренние линии
+          (иначе крайние hairline висели бы в воздухе), `overflow: hidden`
+          подрезает углы.
 
-      {/* Контейнер сетки: внешняя рамка и радиус живут здесь, у ячеек только
-          внутренние линии. Иначе крайние hairline висели бы в воздухе, а углы
-          сетки торчали бы из-под скругления. `overflow: hidden` их подрезает. */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+          ⚠️ `background: --surface` обязателен. Без него ячейки прозрачны, и
+          сквозь сетку светит `--bg` страницы — месяц выглядел «мутным» рядом
+          с неделей, у которой фон карточки задан с самого начала (`WeekLanes`).
+          Заодно выходные на `--surface2` получают тот контраст к соседям, ради
+          которого заливка и вводилась.
+
+          ⚠️ Рамка — `--cal-line`, тот же токен, что у внутренних линий. С
+          `--border` периметр был БЛЕДНЕЕ внутренних линий после их усиления,
+          и карточка читалась как незакрытая. */}
+      <div style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--cal-line)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+      }}>
+        {deadlines.length > 0 && (
+          <FocusStrip deadlines={deadlines} onSelectDay={onSelectDay} />
+        )}
         {/* Шапка Пн…Вс — заголовок таблицы: разделители между колонками и общая
             нижняя граница. Трек-функция обязана совпадать с сеткой ниже. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', textAlign: 'center', borderBottom: '1px solid var(--cal-line)' }}>
@@ -240,11 +255,11 @@ function FocusStrip({
         alignItems: 'center',
         gap: '0.75rem',
         flexWrap: 'wrap',
+        // Полоса — шапка карточки месяца, а не отдельный блок: своя рамка и
+        // радиус сняты (S-CAL-MONTH-3), от сетки её отделяет общая линия.
         background: 'var(--surface2)',
-        border: '0.5px solid var(--border)',
-        borderRadius: 'var(--radius-s)',
+        borderBottom: '1px solid var(--cal-line)',
         padding: '0.5rem 0.75rem',
-        marginBottom: 12,
       }}
     >
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-mute)' }}>
