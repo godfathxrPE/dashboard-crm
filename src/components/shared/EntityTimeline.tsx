@@ -254,7 +254,7 @@ export function EntityTimeline({
           ловит молча, и в консоли с логами БД не остаётся ничего (дефект S-TL-1).
         */
       error ? (
-        <p className="py-6 text-center text-xs text-red">
+        <p className="py-6 text-center text-xs text-danger">
           Не удалось загрузить активность. Обновите страницу.
         </p>
       ) : events.length === 0 ? (
@@ -299,7 +299,7 @@ export function EntityTimeline({
                         </p>
                       </button>
                       {event.status === 'overdue' && (
-                        <span className="mt-1 shrink-0 rounded-full bg-red-l px-1.5 py-0.5 text-xs font-medium text-red">
+                        <span className="mt-1 shrink-0 rounded-full bg-danger-l px-1.5 py-0.5 text-xs font-medium text-danger">
                           Просрочено
                         </span>
                       )}
