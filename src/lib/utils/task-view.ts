@@ -19,7 +19,22 @@ export function taskSource(task: Task): TaskSource {
 // вся просрочка sales-задач (assigned_to=NULL) выпадает из дефолтного Список/Мои.
 // Делегированное другому (assigned_to=чужой) не подхватывается — второе условие
 // требует assigned_to IS NULL. `== null` намеренно ловит и optimistic-undefined.
-export function isMine(task: Task, userId: string | null): boolean {
+
+/**
+ * Минимум, от которого зависит «Мои» — два поля владения.
+ *
+ * S-TASKS-FIX-2 расширил сигнатуру с `Task` до этой формы: набор на массовое
+ * удаление (`domain/task-delete.ts`) обязан отбирать «мои» ТЕМ ЖЕ предикатом,
+ * что список, а не своей копией — иначе кнопка «Удалить выполненные (N)» и
+ * фильтр «Мои» разойдутся ровно в том месте, где расхождение стоит данных.
+ * `Task` этой форме удовлетворяет, все прежние вызовы работают как были.
+ */
+export interface OwnedTaskLike {
+  assigned_to?: string | null;
+  created_by?: string | null;
+}
+
+export function isMine(task: OwnedTaskLike, userId: string | null): boolean {
   if (!userId) return false;
   if (task.assigned_to === userId) return true;
   return task.assigned_to == null && task.created_by === userId;

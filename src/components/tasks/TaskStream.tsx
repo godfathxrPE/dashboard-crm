@@ -15,6 +15,12 @@ interface TaskStreamProps {
   canEdit: boolean;
   /** TaskModal живёт на Modal-примитиве (не в ui-store) — гасим j/k, пока он открыт. */
   modalOpen?: boolean;
+  /**
+   * S-TASKS-FIX-2: предикат «эту строку мне разрешено удалить» (зеркало RLS).
+   * Предикат, а не флаг: право зависит от автора конкретной строки, и считать
+   * его строке самой значило бы тащить в неё роль и id пользователя.
+   */
+  canDelete?: (task: Task) => boolean;
 }
 
 /**
@@ -26,7 +32,7 @@ interface TaskStreamProps {
  * S-TASKS-POLISH-1, з.4: j/k по плоской очереди (паттерн TodayView/QueueRow) —
  * Enter открывает модалку, d — «Готово». Table получает то же от DataTable.
  */
-export function TaskStream({ tasks, now, onEdit, canEdit, modalOpen }: TaskStreamProps) {
+export function TaskStream({ tasks, now, onEdit, canEdit, modalOpen, canDelete }: TaskStreamProps) {
   const groups = useMemo(() => groupByBucket(tasks, now), [tasks, now]);
   const flat = useMemo(() => groups.flatMap((g) => g.tasks), [groups]);
   // Смещения кажд. группы в плоской очереди — для kbdIndex строк внутри groups.map
@@ -95,6 +101,7 @@ export function TaskStream({ tasks, now, onEdit, canEdit, modalOpen }: TaskStrea
                       canEdit={canEdit}
                       kbdIndex={offset + ti}
                       focused={activeIndex === offset + ti}
+                      canDelete={canDelete?.(t)}
                     />
                   ))}
                 </div>
@@ -111,6 +118,7 @@ export function TaskStream({ tasks, now, onEdit, canEdit, modalOpen }: TaskStrea
                     canEdit={canEdit}
                     kbdIndex={offset + ti}
                     focused={activeIndex === offset + ti}
+                    canDelete={canDelete?.(t)}
                   />
                 ))}
               </div>

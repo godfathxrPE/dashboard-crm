@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils/cn';
 import { useCreateTask, useUpdateTask, useProjectBoard } from '@/lib/hooks/use-tasks';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
+import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { Modal } from '@/components/shared/Modal';
 import {
   contactBelongsToCompany,
@@ -53,6 +54,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
     register,
     handleSubmit,
     reset,
+    control,
     setValue,
     getValues,
     watch,
@@ -126,15 +128,34 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
 
   // S-FIX-BATCH-1: контакты — только выбранной компании (без компании — все).
   const selectedCompanyId = watch('company_id');
-  const contactOptions = useMemo(
-    () => contactsForCompany(contacts, selectedCompanyId),
+
+  /**
+   * S-TASKS-FIX-2: компания и контакт — `Combobox`, а не нативный `<select>`.
+   *
+   * Нативный селект ищет ПО ПРЕФИКСУ: набранное «фитнес» сверялось с началом
+   * строки, а компания записана `ООО "Фитнес Десерты"` — совпадения нет, и при
+   * 268 компаниях это читалось как «компании не существует». `Combobox` ищет
+   * подстрокой по `label` и по `sub` — поэтому в `sub` кладём ИНН: сверка
+   * контрагента по ИНН (маркировка) — обычный сценарий, а в селекте ИНН не было
+   * вовсе. Нормализация ОПФ сюда НЕ переезжает: она про дедуп по ИНН
+   * (`functions/company-lookup/normalize.ts`), у неё другой контракт, и третья
+   * копия правил ОПФ разошлась бы с двумя первыми.
+   */
+  const companyOptions: ComboboxOption[] = useMemo(
+    () => (companies ?? []).map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
+    [companies],
+  );
+  const contactOptions: ComboboxOption[] = useMemo(
+    () =>
+      contactsForCompany(contacts, selectedCompanyId).map((c) => ({
+        value: c.id,
+        label: [c.first_name, c.last_name].filter(Boolean).join(' '),
+        // 1:1 с CallModal. Без выбранной компании список полный, и имя компании
+        // в `sub` — единственное, что различает двух однофамильцев.
+        sub: c.phone ?? c.companies?.[0]?.company.name ?? undefined,
+      })),
     [contacts, selectedCompanyId],
   );
-
-  // Регистрации связанных полей разворачиваем, чтобы дописать свой onChange
-  // ПОСЛЕ RHF-овского: сброс/вывод должны видеть уже применённое значение.
-  const companyField = register('company_id');
-  const contactField = register('contact_id');
 
   /**
    * Смена компании при выбранном контакте: чужой контакт снимаем. Иначе он
@@ -143,13 +164,12 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
    * Делаем на onChange, а не в useEffect: эффект сработал бы и на reset при
    * открытии, молча затерев контакт в уже сохранённой задаче.
    */
-  function handleCompanyChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    companyField.onChange(e);
-    const nextCompanyId = e.target.value || null;
+  function handleCompanyChange(val: string | null, onChange: (v: string | null) => void) {
+    onChange(val);
     const currentContactId = getValues('contact_id');
-    if (!nextCompanyId || !currentContactId) return; // «не указана» → список снова полный
+    if (!val || !currentContactId) return; // «не указана» → список снова полный
     const current = (contacts ?? []).find((c) => c.id === currentContactId);
-    if (!current || !contactBelongsToCompany(current, nextCompanyId)) {
+    if (!current || !contactBelongsToCompany(current, val)) {
       setValue('contact_id', null, { shouldDirty: true });
     }
   }
@@ -160,12 +180,11 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
    * только создание и только пустое поле. `projects: []` — вывод проекта здесь не
    * нужен (у задачи свой список проектов и своя семантика привязки).
    */
-  function handleContactChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    contactField.onChange(e);
+  function handleContactChange(val: string | null, onChange: (v: string | null) => void) {
+    onChange(val);
     if (editTask) return;
-    const contactId = e.target.value || null;
-    if (!contactId || getValues('company_id')) return;
-    const derived = deriveFromContact(contactId, { contacts, projects: [] });
+    if (!val || getValues('company_id')) return;
+    const derived = deriveFromContact(val, { contacts, projects: [] });
     if (derived.company_id) setValue('company_id', derived.company_id, { shouldDirty: true });
   }
 
@@ -315,30 +334,43 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             </div>
           </div>
 
-          {/* Company + Contact */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Company + Contact — каждое на всю ширину, как в CallModal.
+              В два столбца (как было при нативных <select>) поле выходило ~165px, и
+              вместе с ним ужимался попап: `useAnchoredRect` берёт ширину триггера,
+              поэтому `ООО "Фитнес Десерты"` в списке превращалось в `ООО "ФИ...` —
+              найти компанию поиск помогал, а УЗНАТЬ найденную уже нет. Смок это и
+              показал: результат по «фитнес» был неотличим от любого другого ООО «Ф…». */}
+          <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-text-dim mb-1">Компания</label>
-              <select
-                {...companyField}
-                onChange={handleCompanyChange}
-                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
-              >
-                <option value="">— не указана —</option>
-                {(companies ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <Controller
+                name="company_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox
+                    options={companyOptions}
+                    value={field.value ?? null}
+                    onChange={(val) => handleCompanyChange(val, field.onChange)}
+                    placeholder="— не указана —"
+                  />
+                )}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-text-dim mb-1">Контакт</label>
-              <select
-                {...contactField}
-                onChange={handleContactChange}
-                className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
-              >
-                <option value="">— не указан —</option>
-                {contactOptions.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-              </select>
-              {/* Пустой <select> без подписи читается как «не загрузилось» */}
+              <Controller
+                name="contact_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox
+                    options={contactOptions}
+                    value={field.value ?? null}
+                    onChange={(val) => handleContactChange(val, field.onChange)}
+                    placeholder="— не указан —"
+                  />
+                )}
+              />
+              {/* Пустой список без подписи читается как «не загрузилось» */}
               {selectedCompanyId && contactOptions.length === 0 && (
                 <p className="mt-1 text-xs text-text-dim">У этой компании нет контактов</p>
               )}

@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { chunkForIn } from '@/lib/utils/query-batching';
 import { useRealtimeSync } from './use-realtime';
 import type { Task, TaskInsert, TaskUpdate } from '@/types/entities';
 import type { TaskLane, Json } from '@/types/database';
@@ -627,6 +628,63 @@ export function useDeleteTask() {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
       // P2b (B3): variables — только id; удаление могло уменьшить progress_total
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
+/**
+ * S-TASKS-FIX-2: массовое удаление задач — «Удалить выполненные (N)» в списке.
+ *
+ * Один `DELETE … WHERE id IN (…)` на батч, а не N запросов подряд: 79 удалений
+ * поштучно — это 79 round-trip'ов и 79 инвалидаций кэша, каждая из которых
+ * перерисовывает список.
+ *
+ * ⚠️ Границы `.in()` держит `chunkForIn` (S-DEBT-TRUTH-1), а не вызывающий:
+ *    ПУСТОЙ `.in()` роняет PostgREST (ноль батчей → запроса просто нет), длинный
+ *    упирается в лимит длины query string ещё до Postgres.
+ *
+ * ⚠️ Атомарности между батчами нет: если упадёт второй, первый уже удалён. Так и
+ *    оставлено — транзакция на N батчей требует RPC (тот же долг, что у
+ *    `useShiftTasks`), а `onSettled` всё равно перечитывает список с сервера,
+ *    поэтому расхождение живёт до конца обработчика, а не до перезагрузки.
+ *    Ошибку показывает глобальный обработчик мутаций.
+ *
+ * Кого можно удалять — решает `domain/task-delete.ts`, не этот хук: он получает
+ * готовый список id и не знает про роли (`InlineConfirm`-принцип «примитив не
+ * знает про мутации», зеркально).
+ */
+export function useDeleteTasks() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const batch of chunkForIn(ids)) {
+        const { error } = await supabase.from('tasks').delete().in('id', batch);
+        if (error) throw error;
+      }
+    },
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
+      const snapshots = snapshotTaskCaches(queryClient);
+
+      // Set, а не `includes` в фильтре: у владельца в наборе бывает под сотню id,
+      // а патч прогоняется по каждому срезу префикса ['tasks'].
+      const doomed = new Set(ids);
+      patchTaskCaches(queryClient, (old) => (old ?? []).filter((t) => !doomed.has(t.id)));
+
+      return { snapshots };
+    },
+    onError: (_err, _ids, context) => {
+      rollbackTaskCaches(queryClient, context?.snapshots);
+    },
+    onSettled: () => {
+      // Тот же набор, что у одиночного удаления: список, KPI дашборда, ленты,
+      // прогресс проектов.
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['timeline'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
