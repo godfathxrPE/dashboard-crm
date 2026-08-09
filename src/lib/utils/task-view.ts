@@ -1,5 +1,5 @@
 import type { Task } from '@/types/entities';
-import { mskDateKey } from './date-helpers';
+import { mskDateKey, mskEndOfDayIso } from './date-helpers';
 
 // ─── Классификатор источника задачи ────────────────────────────────────────
 // projects.type: 'client' → sales-задача (сделка), 'internal'|'delivery' →
@@ -135,6 +135,84 @@ export function groupByBucket(
   return BUCKET_ORDER.filter((b) => map.has(b)).map((b) => ({
     bucket: b,
     tasks: map.get(b)!.sort((x, y) => compareInBucket(x, y, b)),
+  }));
+}
+
+// ─── Обратная ось: бакет → дедлайн (S-TASKS-BOARD-1) ────────────────────────
+// Доска по срокам роняет карточку в колонку — это ЗАПИСЬ дедлайна. Правило
+// одно: результат обязан вернуться в ТУ ЖЕ колонку при следующем рендере,
+// иначе карточка «отскакивает». Инвариант проверяется тестом (round-trip).
+//
+// Время суток — всегда конец дня по МСК (mskEndOfDayIso, конвенция проекта:
+// дедлайн «сегодня» не может быть моментом клика, иначе задача просрочена
+// через секунду). Свою арифметику над UTC не писать — только хелперы.
+
+/** Результат дропа. `deadline: null` — осознанная очистка («Без даты»). */
+export interface BucketDrop {
+  deadline: string | null;
+}
+
+/**
+ * Дедлайн, который положит задачу в бакет `bucket` относительно `now`.
+ * `null` — бакет НЕ принимает дроп (нет представимого дня или бакет бессмысленен
+ * как цель). Колонка с `null` рендерится без droppable.
+ *
+ * - overdue    → null. Ронять в просрочку намеренно нельзя: это состояние,
+ *                а не план. Единственный способ туда попасть — время.
+ * - today      → конец сегодняшнего дня
+ * - tomorrow   → конец завтрашнего
+ * - this_week  → конец недели (вс). NB: в сб/вс конец недели совпадает с
+ *                сегодня/завтра — бакет схлопывается, дропа нет → null.
+ * - later      → конец первого дня, который taskDateBucket уже относит к `later`
+ * - no_date    → { deadline: null } — очистить срок
+ */
+export function deadlineForBucket(bucket: DateBucket, now: Date): BucketDrop | null {
+  const todayKey = mskDateKey(now);
+
+  switch (bucket) {
+    case 'overdue':
+      return null;
+    case 'no_date':
+      return { deadline: null };
+    case 'today':
+      return { deadline: mskEndOfDayIso(todayKey) };
+    case 'tomorrow':
+      return { deadline: mskEndOfDayIso(shiftKey(todayKey, 1)) };
+    case 'this_week': {
+      const eow = endOfWeekKey(todayKey);
+      // Схлопывание: вс → eow === today; сб → eow === tomorrow.
+      if (eow <= shiftKey(todayKey, 1)) return null;
+      return { deadline: mskEndOfDayIso(eow) };
+    }
+    case 'later': {
+      // Якорь — ПОСЛЕДНИЙ день, который taskDateBucket ещё не считает `later`,
+      // то есть max(завтра, конец недели). Просто `eow + 1` ломается в вс:
+      // там eow === today, и eow+1 попадает в бакет `tomorrow` — карточка,
+      // бро́шенная в «Позже», отскочила бы в «Завтра». Ключи YYYY-MM-DD
+      // сравниваются лексикографически = хронологически.
+      const tomorrowKey = shiftKey(todayKey, 1);
+      const eow = endOfWeekKey(todayKey);
+      const anchor = eow > tomorrowKey ? eow : tomorrowKey;
+      return { deadline: mskEndOfDayIso(shiftKey(anchor, 1)) };
+    }
+  }
+}
+
+/** Все бакеты в порядке оси, включая пустые: колонка-приёмник обязана
+ *  существовать, даже когда в ней ноль карточек. Отличие от groupByBucket,
+ *  который пустые опускает (список их и не рисует). */
+export function boardColumns(
+  tasks: Task[],
+  now: Date,
+): { bucket: DateBucket; tasks: Task[] }[] {
+  const map = new Map<DateBucket, Task[]>();
+  for (const t of tasks) {
+    const b = taskDateBucket(t, now);
+    (map.get(b) ?? map.set(b, []).get(b)!).push(t);
+  }
+  return BUCKET_ORDER.map((b) => ({
+    bucket: b,
+    tasks: (map.get(b) ?? []).sort((x, y) => compareInBucket(x, y, b)),
   }));
 }
 

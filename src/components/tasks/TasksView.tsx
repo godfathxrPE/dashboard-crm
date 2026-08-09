@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX, Repeat, Trash2 } from 'lucide-react';
+import { LayoutList, Table2, Columns3, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX, Repeat, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useTasks, useDeleteTasks } from '@/lib/hooks/use-tasks';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { TaskStream } from './TaskStream';
 import { TasksTable } from './TasksTable';
+import { TaskBoard } from './TaskBoard';
 import { TaskModal } from './TaskModal';
 import { RecurringTemplatesModal } from './RecurringTemplatesModal';
 import { taskSource, isMine, matchesQuery, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
@@ -34,6 +35,9 @@ function isSource(v: string): v is TaskSource {
 }
 
 type EmptyReason = 'no-source' | 'no-search' | 'no-tasks' | null;
+
+/** S-TASKS-BOARD-1: третий вид — канбан по срокам (`?view=board`). */
+type TasksViewMode = 'stream' | 'table' | 'board';
 
 export function TasksView() {
   const router = useRouter();
@@ -58,7 +62,9 @@ export function TasksView() {
   const [query, setQuery] = useState('');
 
   // ─── URL-состояние ───
-  const view: 'stream' | 'table' = searchParams.get('view') === 'table' ? 'table' : 'stream';
+  // Неизвестное значение молча падает в `stream` — сознательно, как было с двумя видами.
+  const rawView = searchParams.get('view');
+  const view: TasksViewMode = rawView === 'table' ? 'table' : rawView === 'board' ? 'board' : 'stream';
   const who: 'mine' | 'all' = searchParams.get('who') === 'all' ? 'all' : 'mine';
   const showDone = searchParams.get('done') === '1';
   // MUST: источник — отдельный параметр ?src с явным дефолтом deal,personal (проекты
@@ -79,8 +85,8 @@ export function TasksView() {
     [router, pathname, searchParams],
   );
 
-  const switchView = (v: 'stream' | 'table') =>
-    setParam((p) => (v === 'table' ? p.set('view', 'table') : p.delete('view')));
+  const switchView = (v: TasksViewMode) =>
+    setParam((p) => (v === 'stream' ? p.delete('view') : p.set('view', v)));
 
   const setWho = (w: 'mine' | 'all') =>
     setParam((p) => (w === 'all' ? p.set('who', 'all') : p.delete('who')));
@@ -243,7 +249,7 @@ export function TasksView() {
 
       {/* Строка управления */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {/* Переключатель Список / Таблица */}
+        {/* Переключатель Список / Таблица / Доска */}
         <div className="inline-flex items-center rounded-lg border border-border p-0.5">
           <button
             onClick={() => switchView('stream')}
@@ -262,6 +268,15 @@ export function TasksView() {
             )}
           >
             <Table2 size={14} /> Таблица
+          </button>
+          <button
+            onClick={() => switchView('board')}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-sm font-medium transition-colors',
+              view === 'board' ? 'bg-accent-l text-accent' : 'text-text-mute hover:text-text-main',
+            )}
+          >
+            <Columns3 size={14} /> Доска
           </button>
         </div>
 
@@ -374,6 +389,8 @@ export function TasksView() {
           onClearQuery={() => setQuery('')}
           onCreateTask={openCreate}
         />
+      ) : view === 'board' ? (
+        <TaskBoard tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} canDelete={canDeleteRow} />
       ) : view === 'table' ? (
         <TasksTable tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} canDelete={canDeleteRow} />
       ) : (
