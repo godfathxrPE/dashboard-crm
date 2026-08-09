@@ -63,7 +63,9 @@ export function MonthGrid({
         <FocusStrip deadlines={deadlines} onSelectDay={onSelectDay} />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: 4 }}>
+      {/* ⚠️ minmax(0, 1fr), а не 1fr, И тот же gap, что у сетки ниже. Причины разные,
+          обе про совпадение шапки со столбцами — см. комментарий у сетки. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2, textAlign: 'center', marginBottom: 4 }}>
         {DAY_NAMES.map((d) => (
           <div key={d} style={{ fontSize: 11, color: 'var(--text-mute)', padding: '6px 0', fontWeight: 500, letterSpacing: '0.03em' }}>
             {d}
@@ -71,7 +73,14 @@ export function MonthGrid({
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+      {/* ⚠️ `1fr` здесь НЕЛЬЗЯ: это minmax(auto, 1fr), а `auto` у grid item — это его
+          min-content. Чип несёт название в одну строку (nowrap + ellipsis), и его
+          min-content тянет колонку вширь: замер в Chromium 09.08 при viewport 1280 —
+          колонка с чипами 242px против 163px у соседних. Дни разной ширины, а шапка
+          Пн…Вс (сетка без содержимого) остаётся равномерной — подписи перестают
+          стоять над своими столбцами. minmax(0, 1fr) снимает нижнюю границу, и
+          лишнее уходит в ellipsis, как и задумано. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2 }}>
         {Array.from({ length: offset }).map((_, i) => <div key={`e-${i}`} />)}
         {days.map(({ day, key, weekend }) => {
           const events = eventsByDay[key] ?? [];
