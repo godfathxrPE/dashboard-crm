@@ -3709,6 +3709,7 @@ export type Database = {
           p_before_id?: string
           p_entity_id: string
           p_entity_type: string
+          p_kinds?: string[]
           p_limit?: number
         }
         Returns: {
