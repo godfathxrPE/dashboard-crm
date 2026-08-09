@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, CalendarClock, CalendarDays, Building2, Briefcase, Repeat, Clock } from 'lucide-react';
+import { Check, CalendarClock, CalendarDays, Building2, Briefcase, Repeat, Clock, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { daysOverdue } from '@/lib/utils/task-view';
 import { mskTimeRange } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
@@ -34,11 +35,24 @@ interface TaskStreamRowProps {
   /** Позиция в плоской очереди для j/k (S-TASKS-POLISH-1, з.4 — паттерн QueueRow/W2d). */
   kbdIndex?: number;
   focused?: boolean;
+  /**
+   * S-TASKS-FIX-2: разрешено ли удалять ЭТУ строку (зеркало RLS `tasks_delete` —
+   * `canDeleteTask`). Решает `TasksView`, у которого есть роль и id пользователя;
+   * строка сама роль не запрашивает. Иконка показывается только у выполненных.
+   */
+  canDelete?: boolean;
 }
 
-export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex, focused }: TaskStreamRowProps) {
+export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex, focused, canDelete }: TaskStreamRowProps) {
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+  // Цель — `true`, а не объект: в строке одно опасное действие, и объект-цель
+  // каждый рендер новый (шапка InlineConfirm).
+  const confirmDelete = useConfirm<true>();
   const done = task.lane === 'done';
+  const asking = confirmDelete.isAsking(true);
+  // «Удаление выполненных» буквально: удалять из списка можно только `done`.
+  const showDelete = canEdit && !!canDelete && done;
   const href = projectHref(task);
   const overdueBy = isOverdue ? daysOverdue(task, now) : 0;
   const timeBlock = mskTimeRange(task.scheduled_start, task.scheduled_end);
@@ -149,32 +163,65 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex,
         </span>
       )}
 
-      {/* Quick actions на hover|focus (F-12: не теряются при kbd-навигации) */}
+      {/* Quick actions на hover|focus (F-12: не теряются при kbd-навигации).
+          `group-focus-within/row` — вход с клавиатуры: табом дошли до кнопки внутри,
+          а блок был бы прозрачным. `asking` держит блок видимым, пока висит
+          подтверждение: иначе уход мышью прятал бы живой вопрос. */}
       {canEdit && (
         <div
           className={cn(
-            'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100',
-            focused && 'opacity-100',
+            'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity',
+            'group-hover/row:opacity-100 group-focus-within/row:opacity-100',
+            (focused || asking) && 'opacity-100',
           )}
         >
-          <button
-            type="button"
-            onClick={pushToTomorrow}
-            title="На завтра"
-            aria-label="Перенести на завтра"
-            className="rounded p-1 text-text-mute hover:text-accent hover:bg-surface2"
-          >
-            <CalendarClock size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-            title="Дата…"
-            aria-label="Изменить дату"
-            className="rounded p-1 text-text-mute hover:text-accent hover:bg-surface2"
-          >
-            <CalendarDays size={14} />
-          </button>
+          {asking ? (
+            // stopPropagation на обёртке: клик по «Удалить?»/«Отмена» иначе всплыл
+            // бы до onClick строки и открыл модалку редактирования поверх вопроса.
+            <span onClick={(e) => e.stopPropagation()}>
+              <InlineConfirm
+                question="Удалить?"
+                onConfirm={() => {
+                  deleteTask.mutate(task.id);
+                  confirmDelete.cancel();
+                }}
+                onCancel={confirmDelete.cancel}
+                pending={deleteTask.isPending}
+              />
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={pushToTomorrow}
+                title="На завтра"
+                aria-label="Перенести на завтра"
+                className="rounded p-1 text-text-mute hover:text-accent hover:bg-surface2"
+              >
+                <CalendarClock size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                title="Дата…"
+                aria-label="Изменить дату"
+                className="rounded p-1 text-text-mute hover:text-accent hover:bg-surface2"
+              >
+                <CalendarDays size={14} />
+              </button>
+              {showDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); confirmDelete.ask(true); }}
+                  title="Удалить задачу"
+                  aria-label="Удалить задачу"
+                  className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-red"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

@@ -2,21 +2,29 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX, Repeat } from 'lucide-react';
+import { LayoutList, Table2, Plus, Loader2, Check, Search, ListChecks, Filter, SearchX, Repeat, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useTasks } from '@/lib/hooks/use-tasks';
+import { useTasks, useDeleteTasks } from '@/lib/hooks/use-tasks';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { SavedViewChips } from '@/components/ui/SavedViewChips';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { TaskStream } from './TaskStream';
 import { TasksTable } from './TasksTable';
 import { TaskModal } from './TaskModal';
 import { RecurringTemplatesModal } from './RecurringTemplatesModal';
 import { taskSource, isMine, matchesQuery, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
 import { excludePlanItems } from '@/lib/domain/plan-item';
+import {
+  bulkDeleteSet,
+  canDeleteTask,
+  deleteScopeLabel,
+  pluralTasksAcc,
+  type DeleteActor,
+} from '@/lib/domain/task-delete';
 import type { Task } from '@/types/entities';
 
 const DEFAULT_SOURCES: TaskSource[] = ['deal', 'personal'];
@@ -38,9 +46,13 @@ export function TasksView() {
   const canEdit = role !== 'viewer';
   const currentUserId = user?.id ?? null;
 
+  const deleteTasks = useDeleteTasks();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [recurringOpen, setRecurringOpen] = useState(false);
+  // Массовое удаление — одно опасное действие на экран, цель `true` (шапка InlineConfirm).
+  const confirmBulk = useConfirm<true>();
   // Поиск — общий на оба вида (S-TASKS-POLISH-1, з.3). Локальный стейт, НЕ в URL
   // (learnings: q в URL сознательно не переносим — blast radius).
   const [query, setQuery] = useState('');
@@ -73,8 +85,12 @@ export function TasksView() {
   const setWho = (w: 'mine' | 'all') =>
     setParam((p) => (w === 'all' ? p.set('who', 'all') : p.delete('who')));
 
-  const toggleDone = () =>
+  const toggleDone = () => {
+    // Выход из режима «Выполнено» снимает висящий вопрос: иначе он всплыл бы при
+    // возврате в режим — уже про другой набор.
+    confirmBulk.cancel();
     setParam((p) => (showDone ? p.delete('done') : p.set('done', '1')));
+  };
 
   const toggleSource = (src: string) =>
     setParam((p) => {
@@ -157,6 +173,27 @@ export function TasksView() {
 
   const headerCount = showDone ? doneCount : activeCount;
   const headerNoun = showDone ? 'выполнено' : who === 'mine' ? 'моих активных' : 'активных';
+
+  // ─── S-TASKS-FIX-2: удаление выполненных ───
+  const actor: DeleteActor = useMemo(() => ({ userId: currentUserId, role }), [currentUserId, role]);
+
+  // Точечное удаление: право на КОНКРЕТНУЮ строку — зеркало RLS `tasks_delete`
+  // (owner/admin либо автор). Ссылка стабильна, пока не сменились id/роль: строки
+  // и таблица memo-зависят от неё.
+  const canDeleteRow = useCallback((t: Task) => canDeleteTask(t, actor), [actor]);
+
+  /**
+   * Набор массового удаления считается от `queried` — того, что РЕАЛЬНО на экране
+   * (источник → Мои/Все → «Выполнено» → поиск). Не от `doneCount`: тот игнорирует
+   * поиск и не знает про права, и кнопка обещала бы больше, чем удалит.
+   * Отсечку «не мои» и «не строки плана» держит сам `bulkDeleteSet`.
+   */
+  const bulkSet = useMemo(() => bulkDeleteSet(queried, actor), [queried, actor]);
+  const bulkIds = useMemo(() => bulkSet.map((t) => t.id), [bulkSet]);
+  // Сколько выполненных на экране НЕ уйдёт (чужие / не автор) — про это надо сказать
+  // прямо, иначе «удалить выполненные» прочитается как «все, что вижу».
+  const keptCount = queried.length - bulkSet.length;
+  const scopeLabel = deleteScopeLabel({ who, sources: activeSources, query });
 
   if (tasksLoading || authLoading) {
     return (
@@ -277,6 +314,22 @@ export function TasksView() {
           {doneCount > 0 && <span className="tabular-nums">{doneCount}</span>}
         </button>
 
+        {/* S-TASKS-FIX-2: массовое удаление — только в режиме «Выполнено» и только
+            когда в видимом наборе есть что удалять. N — размер НАБОРА, а не
+            doneCount: кнопка обязана называть число, которое удалит. */}
+        {showDone && canEdit && bulkSet.length > 0 && (
+          <button
+            onClick={() => confirmBulk.ask(true)}
+            disabled={deleteTasks.isPending}
+            className="inline-flex items-center gap-1.5 rounded-full border border-input bg-surface px-3
+                       py-1 text-sm font-medium text-text-dim transition-colors hover:border-red/50
+                       hover:text-red disabled:opacity-50"
+          >
+            <Trash2 size={14} />
+            {deleteTasks.isPending ? 'Удаляем…' : `Удалить выполненные (${bulkSet.length})`}
+          </button>
+        )}
+
         <SavedViewChips />
       </div>
 
@@ -322,9 +375,32 @@ export function TasksView() {
           onCreateTask={openCreate}
         />
       ) : view === 'table' ? (
-        <TasksTable tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} />
+        <TasksTable tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} canDelete={canDeleteRow} />
       ) : (
-        <TaskStream tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} modalOpen={modalOpen} />
+        <TaskStream tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} modalOpen={modalOpen} canDelete={canDeleteRow} />
+      )}
+
+      {/* Подтверждение массового удаления. `overlay`, а не `inline`: отката нет
+          (физический DELETE, `deleted_at` в схеме нет ни у одной таблицы), и
+          последствие обязано быть прочитано, а не мигнуть в строке. Число и скоуп
+          в тексте — иначе «удалить выполненные» читается как «все в базе». */}
+      {showDone && confirmBulk.isAsking(true) && bulkSet.length > 0 && (
+        <InlineConfirm
+          mode="overlay"
+          question={`Удалить ${bulkSet.length} выполненных ${pluralTasksAcc(bulkSet.length)}?`}
+          consequence={
+            `Скоуп: ${scopeLabel}. Отменить нельзя.` +
+            (keptCount > 0
+              ? ` Ещё ${keptCount} на экране создали другие — они останутся.`
+              : '')
+          }
+          confirmLabel={`Удалить ${bulkSet.length}`}
+          pending={deleteTasks.isPending}
+          onConfirm={() => {
+            deleteTasks.mutate(bulkIds, { onSettled: () => confirmBulk.cancel() });
+          }}
+          onCancel={confirmBulk.cancel}
+        />
       )}
 
       <TaskModal

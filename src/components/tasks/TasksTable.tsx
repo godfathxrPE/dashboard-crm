@@ -2,10 +2,11 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Check, Repeat, Clock } from 'lucide-react';
+import { Check, Repeat, Clock, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { cn } from '@/lib/utils/cn';
-import { useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useUpdateTask, useDeleteTask } from '@/lib/hooks/use-tasks';
+import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { useTeamMembers, type TeamMember } from '@/lib/hooks/use-team-members';
 import { mskTimeRange } from '@/lib/utils/date-helpers';
 import { PRIORITY_CONFIG } from '@/lib/validators/task';
@@ -44,6 +45,43 @@ function DoneCell({ task, canEdit }: { task: Task; canEdit: boolean }) {
   );
 }
 
+/**
+ * S-TASKS-FIX-2: точечное удаление в виде «Таблица» — паритет со «Списком».
+ * Иконка появляется по hover строки (`group` вешает на `<tr>` сам DataTable) и по
+ * `focus-within` (вход табом). Подтверждение — `InlineConfirm`, не `window.confirm`.
+ */
+function DeleteCell({ task }: { task: Task }) {
+  const deleteTask = useDeleteTask();
+  const confirm = useConfirm<true>();
+  const asking = confirm.isAsking(true);
+
+  // stopPropagation: у DataTable строка кликабельна (onRowClick → openEdit), и клик
+  // по «Удалить?» иначе открыл бы модалку поверх вопроса.
+  return (
+    <span onClick={(e) => e.stopPropagation()}>
+      {asking ? (
+        <InlineConfirm
+          question="Удалить?"
+          onConfirm={() => { deleteTask.mutate(task.id); confirm.cancel(); }}
+          onCancel={confirm.cancel}
+          pending={deleteTask.isPending}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => confirm.ask(true)}
+          title="Удалить задачу"
+          aria-label="Удалить задачу"
+          className="rounded p-1 text-text-mute opacity-0 transition-opacity hover:text-red
+                     focus:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
+    </span>
+  );
+}
+
 function Assignee({ member }: { member: TeamMember | undefined }) {
   if (!member) return <span className="text-xs text-text-mute">—</span>;
   const initials = member.full_name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('');
@@ -67,6 +105,8 @@ interface TasksTableProps {
   now: Date;
   onEdit: (task: Task) => void;
   canEdit: boolean;
+  /** S-TASKS-FIX-2: предикат «эту строку разрешено удалить» (зеркало RLS `tasks_delete`). */
+  canDelete?: (task: Task) => boolean;
 }
 
 /**
@@ -76,7 +116,7 @@ interface TasksTableProps {
  * «Срок». Колонки несортируемы, чтобы сохранить группировку. Поиск поднят в
  * TasksView (общий на оба вида) — внутренний поиск DataTable скрыт.
  */
-export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
+export function TasksTable({ tasks, now, onEdit, canEdit, canDelete }: TasksTableProps) {
   const { data: members } = useTeamMembers();
   const byId = useMemo(
     () => new Map((members ?? []).map((m) => [m.id, m])),
@@ -88,6 +128,13 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
   const sorted = useMemo(
     () => groupByBucket(tasks, now).flatMap((g) => g.tasks),
     [tasks, now],
+  );
+
+  // Колонка удаления добавляется, только если в наборе есть что удалять: пустой
+  // столбец «на всякий случай» съедал бы ширину у «Задачи» в обычном режиме.
+  const anyDeletable = useMemo(
+    () => (canEdit && canDelete ? tasks.some((t) => t.lane === 'done' && canDelete(t)) : false),
+    [tasks, canEdit, canDelete],
   );
 
   const columns: Column<Task>[] = useMemo(
@@ -188,8 +235,21 @@ export function TasksTable({ tasks, now, onEdit, canEdit }: TasksTableProps) {
         width: '160px',
         render: (t) => <Assignee member={t.assigned_to ? byId.get(t.assigned_to) : undefined} />,
       },
+      ...(anyDeletable
+        ? [
+            {
+              key: 'delete',
+              label: '',
+              width: '96px',
+              // Только выполненные и только разрешённые RLS — остальным строкам
+              // пустая ячейка, а не серая иконка, которая молча ничего не делает.
+              render: (t: Task) =>
+                t.lane === 'done' && canDelete?.(t) ? <DeleteCell task={t} /> : null,
+            } satisfies Column<Task>,
+          ]
+        : []),
     ],
-    [byId, now, canEdit],
+    [byId, now, canEdit, anyDeletable, canDelete],
   );
 
   return (
