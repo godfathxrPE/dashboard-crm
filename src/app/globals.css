@@ -795,6 +795,22 @@
   .lane-chip:hover { transform: translateY(-50%); }
 }
 
+/* S-CAL-MONTH-1: тот же чип в ячейке месяца. Отдельный класс, а не `.lane-chip`:
+   у дорожки в трансформе сидит центрирование translateY(-50%) на `top: N%`,
+   в потоке ячейки оно сдвинуло бы чип на пол-высоты вверх. */
+.cell-chip {
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+.cell-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell-chip { transition: none; }
+  .cell-chip:hover { transform: none; }
+}
+
 /* ═══ hover-only «+ добавить» в таблицах (AUDIT C3 — глобально) ═══
    Скрыто по умолчанию (color: transparent), показ на hover строки И
    :focus-within (a11y: доступно с клавиатуры). Раньше пер-темно
@@ -1253,30 +1269,29 @@ table { font-variant-numeric: tabular-nums; }
 .t-aura .cal-day:hover {
   background: var(--surface2) !important;
 }
+/* S-CAL-MONTH-1: ячейка месяца больше не «цифра на 44px», а контейнер 6.75rem
+   с чипами событий. Заливка ВСЕЙ ячейки фиолетовым (как было у [data-selected])
+   положила бы чипы на насыщенный фон и убила их читаемость, поэтому пилюля и
+   кольцо переехали на кружок даты `.cal-day-num` — тот элемент, который в новом
+   макете и несёт состояние дня. Гамма и приёмы прежние, фирменный вид тот же.
+   Правила `.cal-day-dot` удалены вместе с самим уголком-треугольником. */
 /* Сегодня — кольцо цвета акцента раздела (не плоская заливка) */
-.t-aura .cal-day[data-today]:not([data-selected]) {
+.t-aura .cal-day[data-today]:not([data-selected]) .cal-day-num {
   background: rgba(124,92,212,0.10) !important;
   box-shadow: inset 0 0 0 1.5px var(--purple);
   color: var(--purple) !important;
   font-weight: 600 !important;
 }
 /* Выбранный день — фиолетовая пилюля (скруглённая, не чёрный квадрат) */
-.t-aura .cal-day[data-selected] {
+.t-aura .cal-day[data-selected] .cal-day-num {
   background: var(--purple) !important;
   color: #fff !important;
   box-shadow: 0 2px 8px rgba(124,92,212,0.35);
 }
-/* День с событием — чистая точка-индикатор вместо уголка-треугольника */
-.t-aura .cal-day-dot {
-  width: 5px !important; height: 5px !important;
-  border: none !important;
-  border-radius: 50% !important;
-  background: var(--purple) !important;
-  bottom: 5px !important; right: 50% !important;
-  transform: translateX(50%);
-}
-.t-aura .cal-day[data-selected] .cal-day-dot {
-  background: #fff !important;
+/* Открытый в peek день — подсветка контейнера и фиолетовая рамка вместо заливки */
+.t-aura .cal-day[data-selected] {
+  background: var(--surface2) !important;
+  box-shadow: inset 0 0 0 1.5px var(--purple);
 }
 /* MeetingCard ставит data-meeting-status (палки border-l отключены в JS).
    Предстоящая — янтарный бейдж, прошедшая — приглушённый.              */

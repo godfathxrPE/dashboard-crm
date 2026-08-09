@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Phone, Calendar, CheckSquare, Briefcase, Flag, Plus, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCalls, type Call } from '@/lib/hooks/use-calls';
 import { useMeetings, type Meeting } from '@/lib/hooks/use-meetings';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
@@ -14,25 +14,21 @@ import { useMeetingAttendees } from '@/lib/hooks/use-meeting-attendees';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { isMine } from '@/lib/utils/task-view';
 import { projectHref } from '@/lib/utils/project-href';
-import { localDateKey, localDateTimeKey, mskDateKey } from '@/lib/utils/date-helpers';
+import { localDateKey, localDateTimeKey, mskDateKey, mskMinutesOfDay, mskTime } from '@/lib/utils/date-helpers';
 import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { WeekLanes, type LaneDeadline } from '@/components/calendar/WeekLanes';
 import { TeamDayGrid } from '@/components/calendar/TeamDayGrid';
+import { MonthGrid } from '@/components/calendar/MonthGrid';
+import { DayPeek } from '@/components/calendar/DayPeek';
+import { MEETING_NOMINAL_MIN, timeToMin } from '@/components/calendar/grid-core';
+import type { CalEvent } from '@/components/calendar/cal-event';
+import { monthDeadlines } from '@/lib/domain/month-cells';
 import type { Task } from '@/types/entities';
 
-interface CalEvent {
-  id: string;
-  type: 'call' | 'meeting' | 'task' | 'deal-step' | 'deal-deadline';
-  title: string;
-  time?: string;
-  sub?: string;
-}
-
 const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const FULL_DAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 const FULL_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 
@@ -83,10 +79,8 @@ export function CalendarView() {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-  const offset = firstDay === 0 ? 6 : firstDay - 1;
   const todayStr = localDateKey();
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   // A2a: недельная сетка — понедельник недели currentDate + метка диапазона.
   const weekStart = useMemo(() => {
@@ -239,42 +233,55 @@ export function CalendarView() {
     router.push(project ? projectHref(project) : `/deals/${projectId}`);
   }
 
-  // Build events map for the month
+  // События по дням месяца.
+  //
+  // ⚠️ Ключ дня — МСК (`mskDateKey`), как во всём календарном коде проекта.
+  // До S-CAL-MONTH-1 звонки и задачи попадали в ячейку по `date.slice(0,10)`,
+  // то есть по UTC-дате: звонок 09.08 в 00:30 МСК ложился в ячейку 8-го, а
+  // недельная лента показывала его 9-го — два вида противоречили друг другу.
+  // Незаметно, пока в ячейке был только счётчик; на чипе видно время, и
+  // расхождение стало бы видно глазом. `meetings.date` и `projects.deadline` —
+  // колонки `date`, не timestamptz: у них срез строки и есть календарный день.
   const eventsMap = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
-    const add = (key: string, ev: CalEvent) => { if (!map[key]) map[key] = []; map[key].push(ev); };
+    const add = (key: string, ev: CalEvent) => { (map[key] ??= []).push(ev); };
 
     calls.forEach((c) => {
-      if (c.date) {
-        const key = c.date.slice(0, 10);
-        const d = new Date(c.date);
-        add(key, {
-          id: c.id, type: 'call',
-          title: c.contact ? `${c.contact.first_name} ${c.contact.last_name}` : c.company?.name ?? 'Звонок',
-          time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-          sub: c.company?.name,
-        });
-      }
+      if (!c.date) return;
+      const startMin = mskMinutesOfDay(c.date);
+      // Длительность звонка — фактическая, иначе номинал: те же 30 минут, что
+      // берёт упаковка дорожки недели.
+      const durMin = c.duration_s ? Math.round(c.duration_s / 60) : 30;
+      add(mskDateKey(c.date), {
+        id: c.id, kind: 'call',
+        title: c.contact ? `${c.contact.first_name} ${c.contact.last_name}` : c.company?.name ?? 'Звонок',
+        time: mskTime(c.date),
+        startMin, endMin: startMin + durMin,
+        sub: c.company?.name,
+      });
     });
 
     meetings.forEach((m) => {
-      if (m.date) {
-        add(m.date.slice(0, 10), {
-          id: m.id, type: 'meeting',
-          title: m.title,
-          time: m.time?.slice(0, 5),
-          sub: m.location ?? undefined,
-        });
-      }
+      if (!m.date) return;
+      const startMin = timeToMin(m.time);
+      add(m.date.slice(0, 10), {
+        id: m.id, kind: 'meeting',
+        title: m.title,
+        time: startMin === null ? null : (m.time?.slice(0, 5) ?? null),
+        startMin,
+        endMin: startMin === null ? null : startMin + MEETING_NOMINAL_MIN,
+        sub: m.location ?? undefined,
+      });
     });
 
+    // Задача попадает в день по СРОКУ, а времени у срока нет — в паспорте дня
+    // такие идут строкой «+N без времени», как в неделе.
     tasks.forEach((t) => {
-      if (t.deadline && t.lane !== 'done') {
-        add(t.deadline.slice(0, 10), {
-          id: t.id, type: 'task',
-          title: t.text,
-        });
-      }
+      if (!t.deadline || t.lane === 'done') return;
+      add(mskDateKey(t.deadline), {
+        id: t.id, kind: 'task', title: t.text,
+        time: null, startMin: null, endMin: null,
+      });
     });
 
     // Сделки: шаг (next_action_date) и дедлайн — главные даты CRM после W1a
@@ -282,15 +289,17 @@ export function CalendarView() {
       if (p.status === 'won' || p.status === 'lost') return;
       if (p.next_action_date) {
         add(p.next_action_date.slice(0, 10), {
-          id: p.id, type: 'deal-step',
+          id: p.id, kind: 'deal-step',
           title: p.name,
+          time: null, startMin: null, endMin: null,
           sub: p.next_step ?? 'шаг по сделке',
         });
       }
       if (p.deadline) {
         add(p.deadline.slice(0, 10), {
-          id: p.id, type: 'deal-deadline',
+          id: p.id, kind: 'deal-deadline',
           title: p.name,
+          time: null, startMin: null, endMin: null,
           sub: 'дедлайн сделки',
         });
       }
@@ -299,44 +308,56 @@ export function CalendarView() {
     return map;
   }, [calls, meetings, tasks, projects]);
 
+  // Фокус-полоса: дедлайны сделок отображаемого месяца. Источник — тот же
+  // `useProjects`, что у сетки и у недели; второго запроса нет.
+  const focusDeadlines = useMemo(
+    () =>
+      monthDeadlines(
+        projects
+          .filter((p) => p.status !== 'won' && p.status !== 'lost' && !!p.deadline)
+          .map((p) => ({ id: p.id, title: p.name, dateKey: p.deadline!.slice(0, 10) })),
+        monthPrefix,
+        todayStr,
+      ),
+    [projects, monthPrefix, todayStr],
+  );
+
   const dayEvents = selectedDate ? (eventsMap[selectedDate] ?? []) : [];
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-  const goToday = () => { setCurrentDate(new Date()); setSelectedDate(todayStr); };
-
-  const typeIcon = (type: string) => {
-    if (type === 'call') return <Phone size={14} strokeWidth={1.5} />;
-    if (type === 'meeting') return <Calendar size={14} strokeWidth={1.5} />;
-    if (type === 'deal-step') return <Briefcase size={14} strokeWidth={1.5} />;
-    if (type === 'deal-deadline') return <Flag size={14} strokeWidth={1.5} />;
-    return <CheckSquare size={14} strokeWidth={1.5} />;
-  };
-  const typeLabel = (type: string) =>
-    type === 'call' ? 'Звонок'
-    : type === 'meeting' ? 'Встреча'
-    : type === 'deal-step' ? 'Шаг по сделке'
-    : type === 'deal-deadline' ? 'Дедлайн сделки'
-    : 'Задача';
+  // «Сегодня» ведёт к текущей дате, но peek не открывает: раньше этот клик
+  // наполнял панель справа, теперь он распахнул бы поверх сетки целую панель,
+  // о которой не просили.
+  const goToday = () => setCurrentDate(new Date());
 
   // Клик по событию: звонок/встреча — модалка редактирования; сделка — карточка; задача — доска
   function openEvent(ev: CalEvent) {
-    if (ev.type === 'call') {
+    if (ev.kind === 'call') {
       const call = calls.find((c) => c.id === ev.id);
       if (call) { setEditCall(call); setCallModalOpen(true); }
       return;
     }
-    if (ev.type === 'meeting') {
+    if (ev.kind === 'meeting') {
       const meeting = meetings.find((m) => m.id === ev.id);
       if (meeting) { setEditMeeting(meeting); setMeetingModalOpen(true); }
       return;
     }
-    if (ev.type === 'deal-step' || ev.type === 'deal-deadline') {
+    if (ev.kind === 'deal-step' || ev.kind === 'deal-deadline') {
       const project = projects.find((p) => p.id === ev.id);
       router.push(project ? projectHref(project) : `/deals/${ev.id}`);
       return;
     }
     router.push('/tasks');
+  }
+
+  // Создание из паспорта дня. Peek остаётся открытым под модалкой (её оверлей
+  // помечен `data-modal-overlay` и попадает в `keepOpenSelector`): после
+  // сохранения новое событие видно в том же дне, без повторного клика.
+  function createTaskOnDay() {
+    setEditTask(null);
+    setSlotDefaults(null);
+    setTaskModalOpen(true);
   }
 
   return (
@@ -407,130 +428,31 @@ export function CalendarView() {
           />
         </div>
       ) : (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, minHeight: 500 }}>
-      {/* Grid */}
-      <div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: 4 }}>
-          {DAY_NAMES.map((d) => (
-            <div key={d} style={{ fontSize: 11, color: 'var(--text-mute)', padding: '6px 0', fontWeight: 500, letterSpacing: '0.03em' }}>{d}</div>
-          ))}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
-          {Array.from({ length: offset }).map((_, i) => <div key={`e-${i}`} />)}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isToday = ds === todayStr;
-            const isSel = ds === selectedDate;
-            const hasEv = !!eventsMap[ds];
-            const evCount = eventsMap[ds]?.length ?? 0;
-
-            return (
-              <div
-                key={day}
-                onClick={() => setSelectedDate(ds)}
-                className="cal-day"
-                data-today={isToday ? '' : undefined}
-                data-selected={isSel ? '' : undefined}
-                data-has-event={hasEv ? '' : undefined}
-                style={{
-                  padding: '10px 4px', cursor: 'pointer', textAlign: 'center',
-                  position: 'relative', minHeight: 44, fontSize: 14,
-                  /* S-UI-SEMANTIC-1b: было color: var(--surface) — в тёмных темах surface
-                     полупрозрачно-белый, и цифра на ярком акценте исчезала (tidal 2.46:1).
-                     «Сегодня» было var(--surface) — белый кирпич в washi/fuji/minimal;
-                     теперь тинт + кольцо, как у aura. Aura переопределяет всё это
-                     в globals.css через !important — её вид не меняется. */
-                  background: isSel ? 'var(--accent)' : isToday ? 'var(--accent-l)' : 'transparent',
-                  color: isSel ? 'var(--on-accent)' : 'var(--text)',
-                  boxShadow: isToday && !isSel ? 'inset 0 0 0 1.5px var(--accent)' : undefined,
-                  borderRadius: 'var(--radius-s)',
-                  fontWeight: isToday ? 600 : 400,
-                  transition: 'background 0.15s',
-                }}
-              >
-                {day}
-                {hasEv && <span className="cal-day-dot" style={{
-                  position: 'absolute', bottom: 3, right: 3, width: 0, height: 0,
-                  borderLeft: '5px solid transparent',
-                  borderBottom: `5px solid ${isSel ? 'var(--on-accent)' : 'var(--accent)'}`,
-                }} />}
-                {evCount > 0 && <div style={{ fontSize: 9, color: isSel ? 'var(--on-accent)' : 'var(--text-mute)', opacity: isSel ? 0.75 : 1, marginTop: 2 }}>{evCount}</div>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Day events */}
-      <div style={{ borderLeft: '0.5px solid var(--border)', paddingLeft: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-dim)', marginBottom: 12, letterSpacing: '0.02em' }}>
-          {selectedDate ? `${FULL_DAYS[new Date(selectedDate).getDay()]}, ${new Date(selectedDate).getDate()} ${FULL_MONTHS[new Date(selectedDate).getMonth()]}` : 'Выберите дату'}
-        </div>
-
-        {/* Создание на выбранный день */}
-        {selectedDate && (
-          <div className="mb-3 flex gap-1.5">
-            <button
-              onClick={() => { setEditCall(null); setCallModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta
-                         text-text-dim transition-colors hover:border-accent hover:text-accent"
-            >
-              <Plus size={11} /> Звонок
-            </button>
-            <button
-              onClick={() => { setEditMeeting(null); setMeetingModalOpen(true); }}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta
-                         text-text-dim transition-colors hover:border-accent hover:text-accent"
-            >
-              <Plus size={11} /> Встреча
-            </button>
-          </div>
-        )}
-
-        {!selectedDate && (
-          <div style={{ fontSize: 12, color: 'var(--text-mute)', padding: '40px 16px', textAlign: 'center', maxWidth: 220, margin: '0 auto' }}>
-            Выбери день в календаре слева, чтобы увидеть звонки, встречи и задачи.
-          </div>
-        )}
-
-        {dayEvents.length === 0 && selectedDate && (
-          <div style={{ fontSize: 12, color: 'var(--text-mute)', padding: '20px 0', textAlign: 'center' }}>Нет событий</div>
-        )}
-
-        {dayEvents.map((ev) => (
-          <div key={`${ev.type}-${ev.id}`} onClick={() => openEvent(ev)} style={{
-            padding: '10px 12px', border: '0.5px solid var(--border)', marginBottom: 8, cursor: 'pointer',
-            transition: 'background 0.15s',
-          }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              {typeIcon(ev.type)}
-              <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-mute)', letterSpacing: '0.03em' }}>
-                {typeLabel(ev.type).toUpperCase()}
-              </span>
-              {(ev.type === 'call' || ev.type === 'meeting') && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setAiEvent({ type: ev.type as 'call' | 'meeting', id: ev.id }); }}
-                  aria-label="AI-анализ"
-                  style={{ marginLeft: 'auto', display: 'inline-flex', padding: 2, color: 'var(--text-mute)', cursor: 'pointer' }}
-                >
-                  <Sparkles size={13} />
-                </button>
-              )}
-              {ev.time && <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: (ev.type === 'call' || ev.type === 'meeting') ? 8 : 'auto' }}>{ev.time}</span>}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{ev.title}</div>
-            {ev.sub && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{ev.sub}</div>}
-          </div>
-        ))}
-      </div>
-    </div>
+        <MonthGrid
+          year={year}
+          month={month}
+          todayKey={todayStr}
+          selectedKey={selectedDate}
+          eventsByDay={eventsMap}
+          deadlines={focusDeadlines}
+          onSelectDay={setSelectedDate}
+          onOpenEvent={openEvent}
+        />
       )}
+
+    {/* Паспорт дня. Только в месяце: у недели и «Команды» день раскрыт сеткой. */}
+    {view === 'month' && selectedDate && (
+      <DayPeek
+        dateKey={selectedDate}
+        events={dayEvents}
+        onClose={() => setSelectedDate(null)}
+        onOpenEvent={openEvent}
+        onOpenAi={(ev) => setAiEvent({ type: ev.kind as 'call' | 'meeting', id: ev.id })}
+        onCreateCall={() => { setEditCall(null); setCallModalOpen(true); }}
+        onCreateMeeting={() => { setEditMeeting(null); setMeetingModalOpen(true); }}
+        onCreateTask={createTaskOnDay}
+      />
+    )}
 
     <CallModal
       isOpen={callModalOpen}
@@ -556,6 +478,11 @@ export function CalendarView() {
       isOpen={taskModalOpen}
       onClose={() => { setTaskModalOpen(false); setEditTask(null); setSlotDefaults(null); }}
       editTask={editTask}
+      // Задача из паспорта дня получает СРОК на этот день, а не интервал:
+      // в ячейку месяца задача попадает по `deadline`, и созданная тут же
+      // должна появиться в том дне, из которого её создали. Из слота недели
+      // приходит интервал — там ось времени есть.
+      defaultDeadline={!editTask && !slotDefaults && selectedDate ? `${selectedDate}T18:00` : null}
       defaultScheduledStart={slotDefaults?.start ?? null}
       defaultScheduledEnd={slotDefaults?.end ?? null}
     />

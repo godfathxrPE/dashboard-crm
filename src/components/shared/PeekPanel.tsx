@@ -1,14 +1,24 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { X, ArrowUpRight } from 'lucide-react';
 
 interface PeekPanelProps {
   title: string;
-  /** Переход на полную страницу сущности */
-  href: string;
+  /**
+   * Переход на полную страницу сущности. Необязателен: у peek дня месяца
+   * (S-CAL-MONTH-1) полной страницы нет — день не сущность, и ссылка
+   * «Открыть полностью» вела бы в никуда.
+   */
+  href?: string;
+  /**
+   * Селектор источников, клик по которым МЕНЯЕТ содержимое peek, а не закрывает
+   * его. Строка таблицы (`tbody tr`) зашита всегда — это исходный контракт с
+   * DataTable; ячейка дня месяца приходит сюда как `[data-cal-day]`.
+   */
+  keepOpenSelector?: string;
   onClose: () => void;
   children: ReactNode;
 }
@@ -19,16 +29,39 @@ interface PeekPanelProps {
  * Закрытие: Escape, крестик, клик вне панели. Клик по строке таблицы
  * НЕ закрывает — это смена содержимого peek (обрабатывает DataTable).
  */
-export function PeekPanel({ title, href, onClose, children }: PeekPanelProps) {
+export function PeekPanel({ title, href, keepOpenSelector, onClose, children }: PeekPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const keepOpenRef = useRef(keepOpenSelector);
+  keepOpenRef.current = keepOpenSelector;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // A11y: фокус возвращается туда, откуда peek открыли. Без этого после Escape
+  // фокус остаётся на <body>, и Tab начинает обход страницы с начала — из сетки
+  // месяца, где день открывают с клавиатуры, выйти было бы некуда.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    return () => {
+      if (!opener || !opener.isConnected) return;
+      // Панель к этому моменту уже снята, поэтому её собственный фокус (крестик,
+      // ссылка) успел схлопнуться на <body> — это и есть «уходить некуда».
+      // А вот если фокус на живом элементе страницы, пользователь уже кликнул
+      // мимо и работает дальше: отбирать фокус у него нельзя.
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      opener.focus();
+    };
+  }, []);
 
   useEffect(() => {
     function handlePointerDown(e: MouseEvent) {
       const target = e.target as HTMLElement;
       if (panelRef.current?.contains(target)) return;
       if (target.closest('tbody tr')) return;
+      if (keepOpenRef.current && target.closest(keepOpenRef.current)) return;
       onCloseRef.current();
     }
 
@@ -49,7 +82,13 @@ export function PeekPanel({ title, href, onClose, children }: PeekPanelProps) {
     };
   }, []);
 
-  if (typeof document === 'undefined') return null;
+  // ⚠️ Портал появляется ТОЛЬКО после монтирования, а не по ветке
+  // `typeof document === 'undefined'`. Ветка давала разный markup на сервере и
+  // на клиенте, и React ронял гидрацию всей страницы («server rendered HTML
+  // didn't match»). Пока peek открывался лишь кликом по строке таблицы, в SSR
+  // он не попадал и дефект спал; peek дня (S-CAL-MONTH-1) открыт уже в первом
+  // рендере, если в адресе есть `?date=` — и разбудил его.
+  if (!mounted) return null;
 
   return createPortal(
     <aside
@@ -65,14 +104,16 @@ export function PeekPanel({ title, href, onClose, children }: PeekPanelProps) {
     >
       <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-main">{title}</h2>
-        <Link
-          href={href}
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1
-                     text-xs text-text-dim transition-colors hover:border-accent hover:text-accent"
-        >
-          Открыть полностью
-          <ArrowUpRight size={12} />
-        </Link>
+        {href && (
+          <Link
+            href={href}
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1
+                       text-xs text-text-dim transition-colors hover:border-accent hover:text-accent"
+          >
+            Открыть полностью
+            <ArrowUpRight size={12} />
+          </Link>
+        )}
         <button
           onClick={onClose}
           aria-label="Закрыть"
