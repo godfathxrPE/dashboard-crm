@@ -42,20 +42,34 @@ interface MonthGridProps {
 export function MonthGrid({
   year, month, todayKey, selectedKey, eventsByDay, deadlines, onSelectDay, onOpenEvent,
 }: MonthGridProps) {
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
-  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  // S-CAL-MONTH-2: сетка считается ПРЯМОУГОЛЬНИКОМ из полных недель — заглушки
+  // до первого числа и после последнего попадают в тот же массив. При hairline
+  // это не косметика: без хвостовых заглушек линии оборвались бы посреди
+  // последней недели, а месяц кончался бы ступенькой.
+  const cells = useMemo(() => {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDow = new Date(year, month, 1).getDay();
+    const offset = firstDow === 0 ? 6 : firstDow - 1; // сетка с понедельника
+    const total = Math.ceil((offset + daysInMonth) / 7) * 7;
 
-  const days = useMemo(
-    () =>
-      Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1;
-        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dow = new Date(year, month, day).getDay();
-        return { day, key, weekend: dow === 0 || dow === 6 };
-      }),
-    [year, month, daysInMonth],
-  );
+    return Array.from({ length: total }, (_, i) => {
+      const col = i % 7;
+      const day = i - offset + 1;
+      const inMonth = day >= 1 && day <= daysInMonth;
+      return {
+        i,
+        // Колонки 5 и 6 при раскладке с понедельника — всегда Сб и Вс, дату
+        // для этого разбирать не нужно.
+        weekend: col >= 5,
+        lastCol: col === 6,
+        lastRow: i >= total - 7,
+        day: inMonth ? day : null,
+        key: inMonth
+          ? `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          : null,
+      };
+    });
+  }, [year, month]);
 
   return (
     <div>
@@ -63,40 +77,75 @@ export function MonthGrid({
         <FocusStrip deadlines={deadlines} onSelectDay={onSelectDay} />
       )}
 
-      {/* ⚠️ minmax(0, 1fr), а не 1fr, И тот же gap, что у сетки ниже. Причины разные,
-          обе про совпадение шапки со столбцами — см. комментарий у сетки. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2, textAlign: 'center', marginBottom: 4 }}>
-        {DAY_NAMES.map((d) => (
-          <div key={d} style={{ fontSize: 11, color: 'var(--text-mute)', padding: '6px 0', fontWeight: 500, letterSpacing: '0.03em' }}>
-            {d}
-          </div>
-        ))}
-      </div>
-
-      {/* ⚠️ `1fr` здесь НЕЛЬЗЯ: это minmax(auto, 1fr), а `auto` у grid item — это его
-          min-content. Чип несёт название в одну строку (nowrap + ellipsis), и его
-          min-content тянет колонку вширь: замер в Chromium 09.08 при viewport 1280 —
-          колонка с чипами 242px против 163px у соседних. Дни разной ширины, а шапка
-          Пн…Вс (сетка без содержимого) остаётся равномерной — подписи перестают
-          стоять над своими столбцами. minmax(0, 1fr) снимает нижнюю границу, и
-          лишнее уходит в ellipsis, как и задумано. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2 }}>
-        {Array.from({ length: offset }).map((_, i) => <div key={`e-${i}`} />)}
-        {days.map(({ day, key, weekend }) => {
-          const events = eventsByDay[key] ?? [];
-          const { visible, hiddenCount } = sliceCellChips(events);
-          const isToday = key === todayKey;
-          const isSel = key === selectedKey;
-
-          return (
+      {/* Контейнер сетки: внешняя рамка и радиус живут здесь, у ячеек только
+          внутренние линии. Иначе крайние hairline висели бы в воздухе, а углы
+          сетки торчали бы из-под скругления. `overflow: hidden` их подрезает. */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+        {/* Шапка Пн…Вс — заголовок таблицы: разделители между колонками и общая
+            нижняя граница. Трек-функция обязана совпадать с сеткой ниже. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', textAlign: 'center', borderBottom: '1px solid var(--cal-line)' }}>
+          {DAY_NAMES.map((d, i) => (
             <div
-              key={day}
+              key={d}
+              style={{
+                fontSize: 11, color: 'var(--text-mute)', padding: '6px 0',
+                fontWeight: 500, letterSpacing: '0.03em',
+                borderRight: i === 6 ? undefined : '1px solid var(--cal-line)',
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* ⚠️ `1fr` здесь НЕЛЬЗЯ: это minmax(auto, 1fr), а `auto` у grid item — это его
+            min-content. Чип несёт название в одну строку (nowrap + ellipsis), и его
+            min-content тянет колонку вширь: замер в Chromium 09.08 при viewport 1280 —
+            колонка с чипами 242px против 163px у соседних. Дни разной ширины, а шапка
+            Пн…Вс (сетка без содержимого) остаётся равномерной — подписи перестают
+            стоять над своими столбцами. minmax(0, 1fr) снимает нижнюю границу, и
+            лишнее уходит в ellipsis, как и задумано.
+            ⚠️ `gap` нет и быть не должно: hairline рисуется границами ячеек, а зазор
+            между ними разрезал бы линии на пунктир. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
+          {cells.map((cell) => {
+            const edges = {
+              borderRight: cell.lastCol ? undefined : '1px solid var(--cal-line)',
+              borderBottom: cell.lastRow ? undefined : '1px solid var(--cal-line)',
+            };
+
+            // Заглушка недели: линии и фон выходного те же, но это не день —
+            // ни курсора, ни фокуса, ни обработчиков, ни `data-cal-day`
+            // (по нему peek отличает «клик по другому дню» от «клика мимо»).
+            if (cell.key === null) {
+              return (
+                <div
+                  key={`blank-${cell.i}`}
+                  aria-hidden
+                  style={{
+                    minHeight: `${CELL_MIN_REM}rem`,
+                    background: cell.weekend ? 'var(--surface2)' : undefined,
+                    ...edges,
+                  }}
+                />
+              );
+            }
+
+            const key = cell.key;
+            const events = eventsByDay[key] ?? [];
+            const { visible, hiddenCount } = sliceCellChips(events);
+            const isToday = key === todayKey;
+            const isSel = key === selectedKey;
+
+            return (
+            <div
+              key={key}
               // Роль кнопки, а не <button>: внутри ячейки лежат кнопки чипов, а
               // вложенная в button кнопка — невалидный HTML (браузер разорвёт
               // разметку, и чипы окажутся вне ячейки).
               role="button"
               tabIndex={0}
-              aria-label={`${day} число, ${pluralEvents(events.length)}`}
+              aria-label={`${cell.day} число, ${pluralEvents(events.length)}`}
               onClick={() => onSelectDay(key)}
               onKeyDown={(e) => {
                 // Только со самой ячейки: Enter на чипе внутри неё открывает
@@ -110,6 +159,7 @@ export function MonthGrid({
               data-cal-day
               data-today={isToday ? '' : undefined}
               data-selected={isSel ? '' : undefined}
+              data-weekend={cell.weekend ? '' : undefined}
               data-has-event={events.length > 0 ? '' : undefined}
               style={{
                 display: 'flex',
@@ -120,13 +170,12 @@ export function MonthGrid({
                 cursor: 'pointer',
                 textAlign: 'left',
                 fontSize: 14,
-                // Выбранный день — подсветка контейнера, а не заливка акцентом:
-                // акцентная плашка под чипами убила бы их читаемость. Состояние
-                // дня несёт кружок даты (`.cal-day-num`), см. globals.css.
-                background: isSel ? 'var(--surface2)' : weekend ? 'var(--surface2)' : 'transparent',
-                boxShadow: isSel ? 'inset 0 0 0 1.5px var(--accent)' : undefined,
-                borderRadius: 'var(--radius-s)',
-                transition: 'background 0.15s',
+                ...edges,
+                // ⚠️ Фон и кольцо дня — В CSS (globals.css, `.cal-day[...]`), не тут.
+                // Инлайновый `background` выигрывает у любого правила таблицы стилей
+                // без `!important`, то есть заглушил бы `:hover` — ровно поэтому у
+                // прежнего аура-правила стоял `!important`. Состояния и ховер живут
+                // одним слоем, иначе ховер снова окажется темо-специфичным.
               }}
             >
               <span
@@ -146,7 +195,7 @@ export function MonthGrid({
                   color: isToday ? 'var(--on-accent)' : 'var(--text)',
                 }}
               >
-                {day}
+                {cell.day}
               </span>
 
               {visible.length > 0 && (
@@ -172,8 +221,9 @@ export function MonthGrid({
                 </div>
               )}
             </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
