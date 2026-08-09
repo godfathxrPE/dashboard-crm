@@ -15,11 +15,43 @@
 // Модуль чистый: ни React, ни геометрии в rem — только минуты оси.
 // ═══════════════════════════════════════════════════════
 
-/** ~ширина полного чипа в минутах оси при 7 колонках дорожки. */
-export const CHIP_NOMINAL_MIN = 100;
+// ⚠️ S-CAL-LANES-1-FIX: НОМИНАЛ В МИНУТАХ НЕ МОЖЕТ БЫТЬ КОНСТАНТОЙ.
+// Чип имеет фиксированную ширину в rem, а сколько это минут оси — зависит от
+// ширины дорожки, то есть от вьюпорта. Замер в Chromium (гейт 09.08): полный чип
+// 250px; на минимальной ширине контейнера (56rem → дорожка 752px, ось 900 мин)
+// это 300 минут, а не 100 — звонок 10:10 и задача 12:00 попадали в один ряд и
+// наезжали друг на друга на 158px. Инвариант «в ряду нет пересечений» держался
+// в минутах и не держался в пикселях — ровно там, где его видно.
+// Поэтому номинал считается из фактической ширины (chipSpanMinutes), а константы
+// ниже остались только как fallback до первого замера ResizeObserver.
 
-/** ~ширина сжатого чипа (иконка + HH:MM, без названия). */
+/** Ширина полного чипа: паддинги + иконка + HH:MM + название (maxWidth 11rem). */
+export const CHIP_FULL_REM = 15.5;
+/** Ширина сжатого чипа: паддинги + иконка + HH:MM, без названия. */
+export const CHIP_COMPRESSED_REM = 4.5;
+
+/** Fallback-номинал до первого замера. Заведомо мал — держит только первый кадр. */
+export const CHIP_NOMINAL_MIN = 100;
 export const CHIP_COMPRESSED_MIN = 40;
+
+/**
+ * Сколько минут оси занимает чип при данной ширине дорожки.
+ * `laneWidthPx` — ширина полотна БЕЗ паспорта дня; `rootFontPx` — размер корневого
+ * шрифта (rem не равен 16px, если пользователь увеличил шрифт в браузере — а он
+ * имеет право, и вёрстка проекта на rem именно ради этого).
+ */
+export function chipSpanMinutes(
+  laneWidthPx: number,
+  axisMin: number,
+  rootFontPx: number,
+): { full: number; compressed: number } {
+  if (laneWidthPx <= 0 || axisMin <= 0) return { full: CHIP_NOMINAL_MIN, compressed: CHIP_COMPRESSED_MIN };
+  const minPerPx = axisMin / laneWidthPx;
+  return {
+    full: Math.round(CHIP_FULL_REM * rootFontPx * minPerPx),
+    compressed: Math.round(CHIP_COMPRESSED_REM * rootFontPx * minPerPx),
+  };
+}
 
 export interface LaneSpan<T> {
   item: T;
@@ -40,7 +72,11 @@ export interface PackedChip<T> extends LaneSpan<T> {
   renderStartMin: number;
 }
 
-export function packLane<T>(items: LaneSpan<T>[]): PackedChip<T>[] {
+export function packLane<T>(
+  items: LaneSpan<T>[],
+  nominalMin: number = CHIP_NOMINAL_MIN,
+  compressedMin: number = CHIP_COMPRESSED_MIN,
+): PackedChip<T>[] {
   const sorted = [...items].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
   // Правая граница занятого места в каждом ряду, в минутах оси.
   const rowEnds: [number, number] = [-Infinity, -Infinity];
@@ -58,7 +94,7 @@ export function packLane<T>(items: LaneSpan<T>[]): PackedChip<T>[] {
       row = rowEnds[0] <= rowEnds[1] ? 0 : 1;
     }
 
-    const width = compressed ? CHIP_COMPRESSED_MIN : CHIP_NOMINAL_MIN;
+    const width = compressed ? compressedMin : nominalMin;
     // Сжатие само по себе наложение НЕ снимает: узкий чип всё равно начинается
     // внутри соседа. Поэтому сжатый ещё и сдвигается вправо до конца занятого
     // места — только вместе эти два действия дают обещанное «не наложением».

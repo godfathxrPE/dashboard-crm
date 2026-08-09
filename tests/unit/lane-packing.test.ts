@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { packLane, laneRows, CHIP_NOMINAL_MIN, CHIP_COMPRESSED_MIN } from '@/lib/domain/lane-packing';
+import {
+  packLane, laneRows, chipSpanMinutes,
+  CHIP_NOMINAL_MIN, CHIP_COMPRESSED_MIN, CHIP_FULL_REM,
+} from '@/lib/domain/lane-packing';
 
 // S-CAL-LANES-1: коллизия чипов дорожки — ПИКСЕЛЬНАЯ, а не временная. Тесты
 // фиксируют именно это: события, которые по времени не пересекаются, всё равно
@@ -91,4 +94,76 @@ describe('laneRows', () => {
   it('пусто → 0', () => expect(laneRows([])).toBe(0));
   it('только ряд 0 → 1', () => expect(laneRows(packLane(spans([600])))).toBe(1));
   it('задет ряд 1 → 2', () => expect(laneRows(packLane(spans([600, 630])))).toBe(2));
+});
+
+// ═══════════════════════════════════════════════════════
+// S-CAL-LANES-1-FIX: инвариант проверяется В ПИКСЕЛЯХ.
+//
+// Тесты выше держат «в ряду нет пересечений» в минутах — и держали его честно,
+// пока номинал был константой. Замер в Chromium показал, что константа занижена
+// втрое: полный чип 250px = 300 минут оси на минимальной ширине, а не 100. Ниже —
+// та же проверка, но через chipSpanMinutes от реальной геометрии.
+// ═══════════════════════════════════════════════════════
+
+const AXIS_MIN = (22 - 7) * 60;          // ось проекта 07:00–22:00
+const LANE_PX_NARROW = (56 - 9) * 16;    // minWidth 56rem минус паспорт 9rem
+const ROOT_FONT = 16;
+
+describe('chipSpanMinutes', () => {
+  it('на узкой дорожке полный чип занимает втрое больше старой константы', () => {
+    const span = chipSpanMinutes(LANE_PX_NARROW, AXIS_MIN, ROOT_FONT);
+    expect(span.full).toBeGreaterThan(CHIP_NOMINAL_MIN * 2.5);
+  });
+
+  it('чем шире дорожка, тем меньше минут занимает чип', () => {
+    const narrow = chipSpanMinutes(LANE_PX_NARROW, AXIS_MIN, ROOT_FONT);
+    const wide = chipSpanMinutes(LANE_PX_NARROW * 2, AXIS_MIN, ROOT_FONT);
+    expect(wide.full).toBeLessThan(narrow.full);
+  });
+
+  it('увеличенный шрифт браузера расширяет чип — вёрстка на rem, ось на минутах', () => {
+    const base = chipSpanMinutes(LANE_PX_NARROW, AXIS_MIN, ROOT_FONT);
+    const zoomed = chipSpanMinutes(LANE_PX_NARROW, AXIS_MIN, ROOT_FONT * 1.25);
+    expect(zoomed.full).toBeGreaterThan(base.full);
+  });
+
+  it('нулевая ширина (до первого замера) → fallback, не деление на ноль', () => {
+    expect(chipSpanMinutes(0, AXIS_MIN, ROOT_FONT)).toEqual({
+      full: CHIP_NOMINAL_MIN, compressed: CHIP_COMPRESSED_MIN,
+    });
+  });
+});
+
+describe('packLane с номиналом от реальной ширины', () => {
+  const span = chipSpanMinutes(LANE_PX_NARROW, AXIS_MIN, ROOT_FONT);
+
+  it('регресс гейта: звонок 10:10 и задача 12:00 не остаются в одном ряду', () => {
+    // Именно эта пара накладывалась на 158px при константном номинале.
+    const out = packLane(
+      [
+        { item: 'call', startMin: 10 * 60 + 10, endMin: 10 * 60 + 40 },
+        { item: 'task', startMin: 12 * 60, endMin: 13 * 60 },
+      ],
+      span.full, span.compressed,
+    );
+    expect(rowsOf(out)).toEqual([0, 1]);
+  });
+
+  it('в каждом ряду чипы не перекрываются ПО ШИРИНЕ ЧИПА, а не по длительности', () => {
+    const out = packLane(spans([9 * 60, 10 * 60, 11 * 60, 14 * 60, 16 * 60], 30), span.full, span.compressed);
+    for (const row of [0, 1] as const) {
+      const inRow = out.filter((p) => p.row === row).sort((a, b) => a.renderStartMin - b.renderStartMin);
+      for (let i = 0; i < inRow.length - 1; i++) {
+        const width = inRow[i].compressed ? span.compressed : span.full;
+        const occupiedUntil = Math.max(inRow[i].renderStartMin + width, inRow[i].endMin);
+        expect(inRow[i + 1].renderStartMin).toBeGreaterThanOrEqual(occupiedUntil);
+      }
+    }
+  });
+
+  it('CHIP_FULL_REM согласован с maxWidth названия — иначе номинал снова соврёт', () => {
+    // 11rem название + иконка/время/паддинги ≈ 4.5rem. Если в Chip поменяют
+    // maxWidth, этот тест обязан упасть вместе с ним.
+    expect(CHIP_FULL_REM).toBeGreaterThanOrEqual(11 + 4);
+  });
 });

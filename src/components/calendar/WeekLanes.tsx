@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type MouseEvent } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Flag } from 'lucide-react';
 import type { Task } from '@/types/entities';
 import type { Call } from '@/lib/hooks/use-calls';
@@ -8,7 +8,7 @@ import type { Meeting } from '@/lib/hooks/use-meetings';
 import { KIND_META } from '@/lib/timeline/kind-meta';
 import { mskDateKey, mskMinutesOfDay, mskTime } from '@/lib/utils/date-helpers';
 import { formatFreeWindow, type TimedInterval } from '@/lib/domain/day-windows';
-import { packLane, laneRows, type PackedChip } from '@/lib/domain/lane-packing';
+import { packLane, laneRows, chipSpanMinutes, CHIP_NOMINAL_MIN, CHIP_COMPRESSED_MIN, type PackedChip } from '@/lib/domain/lane-packing';
 import {
   START_HOUR, END_HOUR, START_MIN, END_MIN, MEETING_NOMINAL_MIN, clamp, timeToMin,
 } from '@/components/calendar/grid-core';
@@ -115,6 +115,26 @@ export function WeekLanes({
     [weekStart],
   );
 
+  // Ширина чипа в минутах оси — из фактической ширины дорожки, не константой
+  // (см. шапку lane-packing.ts: константа давала наложение на узком экране).
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [chipSpan, setChipSpan] = useState({ full: CHIP_NOMINAL_MIN, compressed: CHIP_COMPRESSED_MIN });
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      const rootFontPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      // Полотно = ширина обёртки минус паспорт дня. Обёртка имеет minWidth 56rem,
+      // поэтому при узком окне здесь окажется 56rem, а не ширина вьюпорта — то же
+      // число, что видит верстка, а не то, что видит window.
+      const lanePx = entry.contentRect.width - INFO_REM * rootFontPx;
+      setChipSpan(chipSpanMinutes(lanePx, AXIS_MIN, rootFontPx));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const perDay = useMemo(() => {
     const buckets: Record<string, LaneEvent[]> = {};
     const push = (key: string, ev: LaneEvent) => { (buckets[key] ??= []).push(ev); };
@@ -176,10 +196,14 @@ export function WeekLanes({
     // Упаковка — по пиксельной коллизии, не по временной (см. lane-packing).
     const out: Record<string, PackedChip<LaneEvent>[]> = {};
     for (const key of Object.keys(buckets)) {
-      out[key] = packLane(buckets[key].map((ev) => ({ item: ev, startMin: ev.startMin, endMin: ev.endMin })));
+      out[key] = packLane(
+        buckets[key].map((ev) => ({ item: ev, startMin: ev.startMin, endMin: ev.endMin })),
+        chipSpan.full,
+        chipSpan.compressed,
+      );
     }
     return out;
-  }, [calls, meetings, tasks, deadlines]);
+  }, [calls, meetings, tasks, deadlines, chipSpan]);
 
   // Задачи без времени — счётчиком в паспорте, по дню срока.
   const undatedPerDay = useMemo(() => {
@@ -221,6 +245,7 @@ export function WeekLanes({
 
   return (
     <div
+      ref={wrapRef}
       style={{
         minWidth: '56rem',
         border: '0.5px solid var(--border)',
@@ -429,14 +454,19 @@ function Chip({ ev, row, rows, compressed, leftPct, onOpen }: ChipProps) {
   const topPct = rows === 2 ? (row === 0 ? 28 : 72) : 50;
   const label = `${KIND_LABEL[ev.kind]}${ev.timeLabel ? ` ${ev.timeLabel}` : ''}, ${ev.title}`;
 
+  // ⚠️ Цвет вида несёт ИКОНКА, а не текст. `KIND_META.fg` подписан «цвет иконки»,
+  // под графику (≥3:1), и подобран под неё: время на чипе — 11px, ему нужно 4.5:1,
+  // а text-green давал 3.9:1, text-yellow 3.84:1 — на дорожке «сегодня» ещё ниже,
+  // там тинт ложится на тинт. Текст берёт --text: 15:1 во всех семи темах.
   return (
     <button
       type="button"
       onClick={() => onOpen(ev)}
       aria-label={label}
       title={compressed ? label : undefined}
-      className={`lane-chip ${meta.dot} ${ev.critical ? 'text-danger-text' : meta.fg}`}
+      className={`lane-chip ${meta.dot}`}
       style={{
+        color: 'var(--text)',
         position: 'absolute',
         left: `${leftPct}%`,
         top: `${topPct}%`,
@@ -457,14 +487,18 @@ function Chip({ ev, row, rows, compressed, leftPct, onOpen }: ChipProps) {
         zIndex: 1,
       }}
     >
-      <Icon size={11} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+      <Icon
+        size={11}
+        strokeWidth={2.2}
+        className={ev.critical ? 'text-danger-text' : meta.fg}
+        style={{ flexShrink: 0 }}
+      />
       {ev.timeLabel && (
         <b style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{ev.timeLabel}</b>
       )}
       {!compressed && (
         <span
           style={{
-            color: ev.critical ? undefined : 'var(--text)',
             maxWidth: '11rem',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
