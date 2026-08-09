@@ -43,6 +43,24 @@ const config: Config = {
         'yellow-l': 'var(--yellow-l)',
         purple: 'var(--purple)',
         'purple-l': 'var(--purple-l)',
+        // S-UI-SEMANTIC-1: семантический слой состояний. Палитровые токены выше
+        // (red/green/yellow/blue) отвечают «какой цвет», эти — «что это значит».
+        // Массовая замена 614 палитровых использований НЕ делалась намеренно: в
+        // большинстве мест red — это домен (приоритет, стадия, статус сделки), а не
+        // danger. Семантику берём там, где цвет означает состояние операции.
+        // Источник значений — :root в конце globals.css, alias на палитру темы.
+        danger: 'var(--danger)',
+        'danger-l': 'var(--danger-l)',
+        'danger-text': 'var(--danger-text)',
+        success: 'var(--success)',
+        'success-l': 'var(--success-l)',
+        'success-text': 'var(--success-text)',
+        warning: 'var(--warning)',
+        'warning-l': 'var(--warning-l)',
+        'warning-text': 'var(--warning-text)',
+        info: 'var(--info)',
+        'info-l': 'var(--info-l)',
+        'info-text': 'var(--info-text)',
         chart: {
           fjord: '#5B5EA6',
           granit: '#6D5D7B',
