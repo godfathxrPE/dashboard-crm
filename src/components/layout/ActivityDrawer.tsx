@@ -9,11 +9,9 @@ import { useCalls } from '@/lib/hooks/use-calls';
 import { useMeetings, useMyMeetings } from '@/lib/hooks/use-meetings';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
-import { useRecentActivity } from '@/lib/hooks/use-activity-log';
-import { useActorMap } from '@/lib/hooks/use-actor';
+import { useOrgTimeline } from '@/lib/hooks/use-entity-timeline';
 import { Bracket } from '@/components/ui/Bracket';
 import { localDateKey } from '@/lib/utils/date-helpers';
-import { describeEvent } from '@/lib/utils/activity-events';
 
 // ═══════════════════════════════════════════════════════
 // Main Drawer
@@ -264,31 +262,34 @@ function StatsWidget() {
 // ═══════════════════════════════════════════════════════
 
 function ActivityWidget() {
-  const { data: entries = [] } = useRecentActivity(5);
-  const actorMap = useActorMap();
+  // S-TL-4: org-лента вместо `useRecentActivity`. Прежний хук читал `activity_log`
+  // напрямую, и в дровере было видно 801 событие организации из 1510 — без звонков,
+  // встреч, задач, сделок и AI-прогонов.
+  const { events } = useOrgTimeline(undefined, 5);
 
   return (
     <Section title="АКТИВНОСТЬ">
-      {entries.map((entry) => {
-        const actorName = entry.user_id ? actorMap.get(entry.user_id) : undefined;
+      {events.map((event) => {
         return (
-        <div key={entry.id} style={{
+        <div key={event.id} style={{
           display: 'flex', justifyContent: 'space-between',
           padding: '5px 0', fontSize: 11,
           borderBottom: '0.5px solid var(--border)',
           color: 'var(--text-dim)',
         }}>
-          {/* Текст события — общий describeEvent (те же формулировки, что в ленте
-              сущности); сырой event_type пользователю не показываем. Имя проекта
-              рядом, когда оно есть: `useRecentActivity` уже отдаёт его типизированно. */}
+          {/* Заголовок собран адаптерами ленты (те же формулировки, что на карточке
+              сущности) — `describeEvent` здесь больше не зовётся, он умеет только
+              записи журнала. Имя родителя рядом, когда оно есть: у события может не
+              быть привязки вовсе, и это законно. */}
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {describeEvent(entry)}
-            {entry.project?.name && <span style={{ color: 'var(--text-mute)' }}> · {entry.project.name}</span>}
-            {actorName && <span style={{ color: 'var(--text-mute)' }}> • {actorName}</span>}
+            {event.title}
+            {event.parentName && <span style={{ color: 'var(--text-mute)' }}> · {event.parentName}</span>}
+            {event.actorName && <span style={{ color: 'var(--text-mute)' }}> • {event.actorName}</span>}
           </span>
           <span style={{ color: 'var(--text-mute)', fontSize: 10, flexShrink: 0, marginLeft: 6 }}>
             {(() => {
-              const mins = Math.floor((Date.now() - new Date(entry.created_at!).getTime()) / 60000);
+              // Свой формат времени (5м / 2ч / 3д) — стиль дровера, не общий relativeTime.
+              const mins = Math.floor((Date.now() - new Date(event.date).getTime()) / 60000);
               if (mins < 60) return `${mins}м`;
               const hrs = Math.floor(mins / 60);
               if (hrs < 24) return `${hrs}ч`;

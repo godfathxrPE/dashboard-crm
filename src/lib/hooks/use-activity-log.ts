@@ -33,27 +33,6 @@ export function useActivityLog(projectId: string) {
   });
 }
 
-/** Последние записи из activity_log (все проекты) */
-export function useRecentActivity(limit = 10) {
-  useRealtimeSync('activity_log', QUERY_KEY);
-
-  return useQuery({
-    queryKey: [...QUERY_KEY, 'recent', limit],
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('activity_log')
-        .select('*, project:projects(id, name)')
-        .neq('event_type', TRANSITION_METRIC_EVENT)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return (data ?? []) as (ActivityLog & { project?: { id: string; name: string } | null })[];
-    },
-  });
-}
-
 /**
  * Лог активности с гибкой привязкой к сущности (S-NOTES-TIMELINE-1).
  * Передавай ровно один из project_id/contact_id/company_id (заметка на

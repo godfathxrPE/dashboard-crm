@@ -46,7 +46,24 @@ export interface TimelineRpcRow {
   actor_id: string | null;
   ref_type: string | null;
   ref_id: string | null;
+  /**
+   * S-TL-4 (115). ⚠️ ОПЦИОНАЛЬНЫ НАМЕРЕННО: до применения 115 функция отдаёт восемь
+   * колонок без них, и жёсткая проверка в `isTimelineRpcRow` отправила бы КАЖДУЮ
+   * строку в отсев — лента опустела бы целиком и молча, ровно как в
+   * FIX S-TL-1-RPC-THIS. Отсутствие родителя и так законно (у 304 записей журнала
+   * из 801 привязки нет), поэтому `undefined` читается как «нет родителя».
+   */
+  parent_type?: string | null;
+  parent_id?: string | null;
   payload: Record<string, unknown> | null;
+}
+
+/** Значения `parent_type`, которые клиент умеет резолвить в имя. */
+const PARENT_TYPES = ['project', 'company', 'contact'] as const;
+type ParentType = (typeof PARENT_TYPES)[number];
+
+function isParentType(v: unknown): v is ParentType {
+  return typeof v === 'string' && (PARENT_TYPES as readonly string[]).includes(v);
 }
 
 /**
@@ -68,6 +85,9 @@ export function isTimelineRpcRow(v: unknown): v is TimelineRpcRow {
     (r.actor_id === null || typeof r.actor_id === 'string') &&
     (r.ref_type === null || typeof r.ref_type === 'string') &&
     (r.ref_id === null || typeof r.ref_id === 'string') &&
+    // 115: пара parent_* проверяется мягко — см. комментарий у полей.
+    (r.parent_type == null || typeof r.parent_type === 'string') &&
+    (r.parent_id == null || typeof r.parent_id === 'string') &&
     (r.payload === null || (typeof r.payload === 'object' && !Array.isArray(r.payload)))
   );
 }
@@ -100,6 +120,19 @@ function sourceIdOf(row: TimelineRpcRow): string {
  * к следующему запросу.
  */
 export function rpcRowToEvent(row: TimelineRpcRow, now: number = Date.now()): TimelineEvent {
+  // ⚠️ Родитель проставляется ОДНИМ местом поверх результата вида, а не в каждой из
+  // шести веток switch: шесть копий одного присваивания разъехались бы при первой же
+  // правке — тот же класс, что дедуп ОПФ в трёх копиях (S-TG-3).
+  // Пара согласуется здесь же: `parent_type` без `parent_id` (и наоборот) — не
+  // «частично известный родитель», а мусор, и клиент пошёл бы искать имя по null.
+  const parentType = isParentType(row.parent_type) ? row.parent_type : null;
+  const parentId = typeof row.parent_id === 'string' ? row.parent_id : null;
+  const parent =
+    parentType && parentId ? { parentType, parentId } : { parentType: null, parentId: null };
+  return { ...baseEvent(row, now), ...parent };
+}
+
+function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
   const p = row.payload ?? {};
   const sourceId = sourceIdOf(row);
   const createdBy = row.actor_id;

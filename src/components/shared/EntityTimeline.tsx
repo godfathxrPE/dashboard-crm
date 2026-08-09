@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import {
-  Phone, Calendar, CheckSquare, FolderKanban, Activity, Sparkles,
-  ChevronRight, Loader2, type LucideIcon,
-} from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+// S-TL-4: иконка и цвет вида — из общего модуля. Вторая такая карта жила на
+// дашборде (по `event_type`) и после переезда виджета на org-ленту стала копией.
+import { KIND_META } from '@/lib/timeline/kind-meta';
 import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/timeline';
 
@@ -31,7 +31,10 @@ import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/ti
  * учить второму имени того же источника. С S-TL-3 срез считает SQL
  * (`p_kinds = ['note']`), а не клиент.
  */
-export type TimelineFilterValue = 'all' | TimelineKindFilter;
+// ⚠️ УЖЕ, чем `TimelineKindFilter`: чипы карточки предлагают шесть видов и `note`,
+// но не `stage`/`deleted` — эти два завёл дашборд (S-TL-4), и на карточке сущности
+// им места нет. Значение отсюда всегда валидный `TimelineKindFilter`, обратное неверно.
+export type TimelineFilterValue = 'all' | TimelineKind | 'note';
 
 interface EntityTimelineProps {
   entityType: TimelineEntityType;
@@ -74,15 +77,6 @@ interface EntityTimelineProps {
   /** Скрыть встроенный ряд чипов — родитель рисует свой в другом месте макета. */
   showFilters?: boolean;
 }
-
-const KIND_META: Record<TimelineKind, { icon: LucideIcon; dot: string; fg: string }> = {
-  call:     { icon: Phone,        dot: 'bg-blue-l',   fg: 'text-blue' },
-  meeting:  { icon: Calendar,     dot: 'bg-green-l',  fg: 'text-green' },
-  task:     { icon: CheckSquare,  dot: 'bg-yellow-l', fg: 'text-yellow' },
-  project:  { icon: FolderKanban, dot: 'bg-accent-l', fg: 'text-accent' },
-  activity: { icon: Activity,     dot: 'bg-surface2', fg: 'text-text-mute' },
-  ai_run:   { icon: Sparkles,     dot: 'bg-accent-l', fg: 'text-accent' },
-};
 
 // Подписи чипов по kind. S-UI-CLARITY-1: `activity` больше не «Заметки» — это
 // activity_log целиком (смены стадий, аудит полей, автоматизации), и честное имя

@@ -12,6 +12,10 @@ import {
 } from '@/lib/timeline/cursor';
 import type { TimelineEvent, TimelineKindFilter } from '@/types/timeline';
 import { useActorMap } from './use-actor';
+import { useRealtimeSync } from './use-realtime';
+import { useProjects } from './use-projects';
+import { useCompanies } from './use-companies';
+import { useContacts } from './use-contacts';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
@@ -33,9 +37,17 @@ import { useActorMap } from './use-actor';
 // `describeEvent` / `presetTitle`) — слой представления в БД не живёт.
 // ═══════════════════════════════════════════════════════
 
-export type TimelineEntityType = 'contact' | 'company' | 'project';
+/**
+ * S-TL-4: четвёртое значение — `'org'`, уровень организации. Отдельной функции
+ * `org_timeline()` не заводится: копия тела разошлась бы с оригиналом при первой
+ * же правке веток, и разошлась бы молча — лента просто показала бы другое.
+ */
+export type TimelineEntityType = 'contact' | 'company' | 'project' | 'org';
 
 const STALE_TIME = 60_000;
+
+/** Ключ org-ленты для realtime-инвалидации: префикс, накрывающий все её срезы. */
+const ORG_TIMELINE_KEY = ['timeline', 'org'] as const;
 
 /**
  * Аргументы RPC шестиаргументной `entity_timeline` (миграция 114).
@@ -53,7 +65,8 @@ const STALE_TIME = 60_000;
  */
 interface TimelineRpcArgs {
   p_entity_type: TimelineEntityType;
-  p_entity_id: string;
+  /** `null` — только для `'org'`: там идентификатор сущности не нужен. */
+  p_entity_id: string | null;
   p_before: string | null;
   p_before_id: string | null;
   p_limit: number;
@@ -70,9 +83,10 @@ interface TimelineRpcClient {
 
 async function fetchTimelinePage(
   entityType: TimelineEntityType,
-  entityId: string,
+  entityId: string | null,
   cursor: TimelineCursor | null,
   kinds: readonly TimelineKindFilter[] | null,
+  limit: number,
 ): Promise<TimelineEvent[]> {
   const supabase = createClient() as unknown as TimelineRpcClient;
   const { data, error } = await supabase.rpc('entity_timeline', {
@@ -80,7 +94,7 @@ async function fetchTimelinePage(
     p_entity_id: entityId,
     p_before: cursor?.ts ?? null,
     p_before_id: cursor?.id ?? null,
-    p_limit: TIMELINE_PAGE_SIZE,
+    p_limit: limit,
     p_kinds: kinds && kinds.length > 0 ? [...kinds] : null,
   });
   if (error) throw error;
@@ -100,8 +114,13 @@ export function useEntityTimeline(
    * `p_kinds` уходит как `null`.
    */
   kinds?: readonly TimelineKindFilter[],
+  /** Размер страницы. Виджетам org-ленты нужно 5 и 20, карточке — полные 50. */
+  limit: number = TIMELINE_PAGE_SIZE,
 ) {
-  const enabled = Boolean(entityId);
+  // ⚠️ S-TL-4: у `'org'` идентификатора сущности НЕТ, и прежнее `Boolean(entityId)`
+  // навсегда оставило бы запрос выключенным — лента молча не загрузилась бы, без
+  // ошибки и без спиннера. Тот же класс немого сбоя, что FIX S-TL-1-RPC-THIS.
+  const enabled = entityType === 'org' || Boolean(entityId);
   const kindsKey = kinds && kinds.length > 0 ? [...kinds].sort() : 'all';
 
   // Ключ без курсора: страницы живут внутри одной записи кеша `useInfiniteQuery`.
@@ -114,12 +133,16 @@ export function useEntityTimeline(
   // сброс пагинации: смена чипа заводит новую запись кеша, а с ней и первую
   // страницу без курсора. Ключ нормализован сортировкой: порядок чипов у родителя
   // — не свойство данных, и ['task','call'] не должен заводить второй кеш.
+  //
+  // ⚠️ `limit` тоже часть ключа: у виджета дровера страница из 5 событий, у дашборда
+  // из 20, и общий кеш отдал бы одному из них чужой размер — а вместе с ним и
+  // неверное «есть ещё» (признак дна — НЕПОЛНАЯ страница, то есть функция лимита).
   const timeline = useInfiniteQuery({
-    queryKey: ['timeline', entityType, entityId, kindsKey],
+    queryKey: ['timeline', entityType, entityId ?? null, kindsKey, limit],
     initialPageParam: null as TimelineCursor | null,
     queryFn: ({ pageParam }) =>
-      fetchTimelinePage(entityType, entityId!, pageParam, kinds ?? null),
-    getNextPageParam: (lastPage) => nextTimelineCursor(lastPage),
+      fetchTimelinePage(entityType, entityId ?? null, pageParam, kinds ?? null, limit),
+    getNextPageParam: (lastPage) => nextTimelineCursor(lastPage, limit),
     enabled,
     staleTime: STALE_TIME,
   });
@@ -146,4 +169,78 @@ export function useEntityTimeline(
     loadMore: timeline.fetchNextPage,
     isLoadingMore: timeline.isFetchingNextPage,
   };
+}
+
+// ═══════════════════════════════════════════════════════
+// useOrgTimeline — та же лента на уровне организации (S-TL-4).
+//
+// Заменяет `useRecentActivity`, который читал `activity_log` напрямую и питал два
+// виджета: «Последние действия» на дашборде (20) и `ActivityWidget` в дровере (5).
+// Оба показывали ТОЛЬКО журнал: на 2026-08-09 это 801 событие из 1510 — без звонков,
+// встреч, задач, сделок и AI-прогонов.
+//
+// Резолв родителя живёт ЗДЕСЬ, а не в `useEntityTimeline`: на карточке сущности
+// родитель не нужен (карточка и есть ответ), а три списочных хука, поднятые в общем
+// хуке, тянули бы `companies`/`contacts` на каждой карточке сделки.
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Org-лента с резолвом имени родителя.
+ *
+ * ⚠️ Цена контекста — два списочных запроса на дашборде: `useProjects` там уже
+ * поднят, а `useCompanies`/`useContacts` нет (прежний `useRecentActivity` обходился
+ * вложенным `project:projects(id,name)`, то есть одним). Списки кешируются на всё
+ * приложение (staleTime 60 с, realtime), поэтому платится это один раз за сессию.
+ */
+export function useOrgTimeline(
+  kinds?: readonly TimelineKindFilter[],
+  limit: number = 20,
+) {
+  // ⚠️ ЧАСТИЧНЫЙ realtime, и это записано намеренно. `useRecentActivity` держал
+  // `useRealtimeSync('activity_log', ['activity_log'])`, и новая запись журнала
+  // обновляла виджет сама. У ленты своей подписки не было — молча потерять то, что
+  // работало, хуже, чем честно покрыть половину: журнал приезжает сразу, а новая
+  // задача, звонок или встреча — по истечении staleTime или по инвалидации из своих
+  // мутаций (они бьют по префиксу `['timeline']`). Подписки на шесть таблиц ради
+  // виджета в 20 строк здесь не окупаются.
+  useRealtimeSync('activity_log', ORG_TIMELINE_KEY);
+
+  const timeline = useEntityTimeline('org', null, kinds, limit);
+  const parentMap = useParentNameMap();
+
+  const events = useMemo(
+    () =>
+      timeline.events.map((e) =>
+        e.parentId ? { ...e, parentName: parentMap.get(e.parentId) } : e,
+      ),
+    [timeline.events, parentMap],
+  );
+
+  return { ...timeline, events };
+}
+
+/**
+ * `parentId → имя` из трёх уже кешируемых списков.
+ *
+ * Ключ — голый id без типа: uuid уникален между таблицами (тот же приём, что в
+ * `ai-run-sources.ts` и в `scope_children` самой функции), поэтому одной Map хватает
+ * и разбор `parentType` на клиенте не нужен. `parentType` при этом остаётся в
+ * событии — по нему строится ССЫЛКА, и вот там тип обязателен.
+ */
+function useParentNameMap(): Map<string, string> {
+  const { data: projects } = useProjects();
+  const { data: companies } = useCompanies();
+  const { data: contacts } = useContacts();
+
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) map.set(p.id, p.name);
+    for (const c of companies ?? []) map.set(c.id, c.name);
+    // У контакта имени одной колонкой нет — только `first_name` + `last_name`
+    // (второй nullable). Склейка та же, что в ContactDetailHub.
+    for (const c of contacts ?? []) {
+      map.set(c.id, `${c.first_name} ${c.last_name ?? ''}`.trim());
+    }
+    return map;
+  }, [projects, companies, contacts]);
 }

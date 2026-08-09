@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
   FolderKanban,
@@ -9,12 +9,7 @@ import {
   TrendingUp,
   Banknote,
   Calendar,
-  Clock,
-  ArrowRightLeft,
-  MessageSquare,
   Users,
-  Pencil,
-  Trash2,
 } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { useProjects } from '@/lib/hooks/use-projects';
@@ -22,15 +17,12 @@ import { projectHref } from '@/lib/utils/project-href';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { useRecentActivity } from '@/lib/hooks/use-activity-log';
-import { useActorMap } from '@/lib/hooks/use-actor';
 import { formatBudget } from '@/lib/validators/project';
-import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
 import { AnimatedNumber } from '@/components/shared/AnimatedNumber';
 import { PortfolioRiskWidget } from './PortfolioRiskWidget';
+import { RecentActivityList } from './RecentActivityList';
 import { FujiWatermark } from './FujiWatermark';
 import { staggerClass } from '@/lib/utils/stagger';
-import type { ActivityLog } from '@/types/entities';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { dealMetrics } from '@/lib/selectors/deal-metrics';
 
@@ -431,134 +423,6 @@ function UpcomingDeadlines() {
                   {urg.label}
                 </span>
               </a>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// Recent Activity (global)
-// ═══════════════════════════════════════════════════════
-
-const EVENT_ICON: Record<string, typeof ArrowRightLeft> = {
-  stage_change: ArrowRightLeft,
-  stage_changed: ArrowRightLeft,
-  call_logged: Phone,
-  task_created: CheckSquare,
-  task_completed: CheckSquare,
-  meeting_scheduled: Calendar,
-  project_updated: Pencil,
-  comment_added: MessageSquare,
-  entity_deleted: Trash2,
-};
-
-const EVENT_COLOR: Record<string, string> = {
-  stage_change: 'text-blue',
-  stage_changed: 'text-blue',
-  call_logged: 'text-green',
-  task_created: 'text-purple',
-  task_completed: 'text-purple',
-  meeting_scheduled: 'text-yellow',
-  project_updated: 'text-text-dim',
-  comment_added: 'text-text-mute',
-  entity_deleted: 'text-red',
-};
-
-const ACTIVITY_TABS = [
-  { key: 'all', label: 'Все', filter: () => true },
-  { key: 'stage', label: 'Стадии', filter: (a: ActivityLog) => a.event_type === 'stage_change' || a.event_type === 'stage_changed' },
-  { key: 'call', label: 'Звонки', filter: (a: ActivityLog) => a.event_type === 'call_logged' },
-  { key: 'task', label: 'Задачи', filter: (a: ActivityLog) => a.event_type === 'task_created' || a.event_type === 'task_completed' },
-  { key: 'delete', label: 'Удаления', filter: (a: ActivityLog) => a.event_type === 'entity_deleted' },
-] as const;
-
-function RecentActivityList() {
-  const { data: entries, isLoading } = useRecentActivity(20);
-  const actorMap = useActorMap();
-  const themeVal4 = useThemeStore((s) => s.theme);
-  const isFuji = themeVal4 === 't-fuji';
-  const [activeTab, setActiveTab] = useState('all');
-
-  if (isLoading) {
-    return (
-      <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
-        <div className="mb-3 h-3 w-32 rounded bg-border/50" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="mb-2 h-8 rounded bg-border/30" />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative overflow-hidden p-4 rounded-xl bg-surface elevation-hover">
-      {isFuji ? <FujiWatermark text="АКТИВНОСТЬ" /> : (
-        <div className="mb-3 flex items-center gap-2">
-          <Clock size={14} className="text-text-dim" />
-          <span className="text-xs font-semibold text-text-dim">Последние действия</span>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="mb-3 flex gap-1 border-b border-border">
-        {ACTIVITY_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-2.5 py-1.5 text-meta transition-colors -mb-px ${
-              activeTab === tab.key
-                ? 'text-accent border-b-2 border-accent font-medium'
-                : 'text-text-dim hover:text-text-main'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {(!entries || entries.length === 0) ? (
-        <div className="flex flex-col items-center py-6 text-center">
-          <Clock size={20} className="mb-2 text-text-mute" />
-          <p className="text-xs text-text-dim">Нет активности</p>
-          <a href="/deals" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</a>
-        </div>
-      ) : (
-        <div data-timeline-scroll="compact" className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">
-          {entries.filter(ACTIVITY_TABS.find((t) => t.key === activeTab)?.filter ?? (() => true)).map((entry) => {
-            const Icon = EVENT_ICON[entry.event_type] ?? MessageSquare;
-            const color = EVENT_COLOR[entry.event_type] ?? 'text-text-mute';
-            const projectName = (entry as any).project?.name;
-            const projectId = entry.project_id;
-            const actorName = entry.user_id ? actorMap.get(entry.user_id) : undefined;
-
-            const Tag = projectId ? 'a' : 'div';
-
-            return (
-              <Tag
-                key={entry.id}
-                {...(projectId ? { href: `/deals/${projectId}` } : {})}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5
-                           transition-colors hover:bg-surface-hover"
-              >
-                <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-bg ${color}`}>
-                  <Icon size={10} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-xs text-text-dim">
-                    {describeEvent(entry)}
-                  </span>
-                  {projectName && (
-                    <span className="text-xs text-text-main font-medium">{projectName}</span>
-                  )}
-                </div>
-                <span className="shrink-0 text-xs text-text-mute">
-                  {relativeTime(entry.created_at)}
-                  {actorName && <span className="ml-1">• {actorName}</span>}
-                </span>
-              </Tag>
             );
           })}
         </div>
