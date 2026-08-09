@@ -811,6 +811,46 @@
   .cell-chip:hover { transform: none; }
 }
 
+/* ═══ Ячейка дня месяца: фон, ховер, фокус — ОДНИМ слоем ═══
+   S-CAL-MONTH-2. До этого ховер существовал ровно один — `.t-aura .cal-day:hover`,
+   и в шести темах из семи ячейка на наведение не отвечала вовсе. Тот же класс
+   дефекта, что `--danger` в S-UI-SEMANTIC-1: состояние ОБЩЕГО компонента,
+   объявленное внутри одной темы.
+
+   ⚠️ Фон дня тоже здесь, а не в инлайне `MonthGrid`. Инлайновый `background`
+   выигрывает у любого правила таблицы стилей без `!important` — а он стоял на
+   КАЖДОЙ ячейке (хотя бы `transparent`), то есть `:hover` из общего слоя не
+   применился бы ни разу. Ровно поэтому у аура-правила и был `!important`.
+   Порядок правил значим: `[data-selected]` идёт последним, чтобы его акцентное
+   кольцо не подменялось ховерным контуром при наведении на выбранный день. */
+.cal-day {
+  transition: background var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+.cal-day[data-weekend] { background: var(--surface2); }
+/* Контур ховера — `--border-input`, а не `--border2`. У `--border2` нет общего
+   для тем смысла: в washi он (#E5DFD5) СВЕТЛЕЕ обычной линии `--border`
+   (#D8D2C8), и контур давал 1.08:1 к фону — то есть в washi ховера снова не
+   было бы, ровно тот дефект, который этот спринт и чинит. `--border-input`
+   в каждой теме подписан «интерактив-рамка ≥3:1 к surface» — по смыслу это
+   и есть рамка интерактивного элемента; замер по семи темам: 2.84–4.08:1. */
+.cal-day:hover {
+  background: var(--surface2);
+  box-shadow: inset 0 0 0 1.5px var(--border-input);
+}
+.cal-day[data-weekend]:hover { background: var(--surface3); }
+.cal-day:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  outline: none;
+}
+.cal-day[data-selected] {
+  background: var(--surface2);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cal-day { transition: none; }
+}
+
 /* ═══ hover-only «+ добавить» в таблицах (AUDIT C3 — глобально) ═══
    Скрыто по умолчанию (color: transparent), показ на hover строки И
    :focus-within (a11y: доступно с клавиатуры). Раньше пер-темно
@@ -1259,16 +1299,17 @@ table { font-variant-numeric: tabular-nums; }
 }
 
 /* ── Календарь в Aura: живые дни вместо плоской сетки ──────────────────
-   CalendarView рендерит inline-стили → нужен !important для override.
-   Раздел calendar = фиолетовая атмосфера, дни откликаются той же гаммой. */
-.t-aura .cal-day {
-  border-radius: var(--radius) !important;
-  transition: background 0.18s var(--ease-out), transform 0.12s var(--ease-out) !important;
-}
-/* Hover любого дня — мягкая подсветка */
-.t-aura .cal-day:hover {
-  background: var(--surface2) !important;
-}
+   Раздел calendar = фиолетовая атмосфера, дни откликаются той же гаммой.
+
+   S-CAL-MONTH-2: отсюда ушли три вещи.
+   • `border-radius: var(--radius) !important` на ячейке — с hairline-границами
+     скругление рвало линии на стыках. Радиус теперь у КОНТЕЙНЕРА сетки
+     (`MonthGrid`), и углы подрезаются его `overflow: hidden`.
+   • `.t-aura .cal-day:hover` — переехал в общий слой: он был единственным
+     ховером ячейки во всём проекте, и шесть остальных тем сидели без него.
+   • `transition … !important` — `!important` был нужен, пока `MonthGrid`
+     держал переход в инлайне; инлайна больше нет, переход в общем слое.
+   Фирменные пилюля даты и кольцо «сегодня» остаются здесь — это гамма темы. */
 /* S-CAL-MONTH-1: ячейка месяца больше не «цифра на 44px», а контейнер 6.75rem
    с чипами событий. Заливка ВСЕЙ ячейки фиолетовым (как было у [data-selected])
    положила бы чипы на насыщенный фон и убила их читаемость, поэтому пилюля и
