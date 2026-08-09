@@ -22,6 +22,10 @@
   --text: #1a1916;  --text-dim: #6b6860;  --text-mute: #6f6d68;
   --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent);
   --accent: #b5622a;  --accent-l: rgba(181,98,42,0.08);  --accent-l2: rgba(181,98,42,0.16);
+  /* S-UI-SEMANTIC-1b: текст на акцентной заливке. Светлые темы наследуют белый,
+     тёмные переопределяют цветом фона (яркий акцент + белый в них 2.5–3.7:1 — FAIL;
+     тот же приём, что .t-frost button.bg-accent ниже, где он помечен known debt). */
+  --on-accent: #ffffff;
   --green: #2e7d52;  --green-l: rgba(46,125,82,0.09);
   --red: #c0392b;  --red-l: rgba(192,57,43,0.09);
   --blue: #2d6ab4;  --blue-l: rgba(45,106,180,0.09);
@@ -56,7 +60,8 @@
   --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.46:1 к surface */
   --text: #eef2ff;  --text-dim: #94a4d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
-  --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);  --accent-text: #7eb0ff;  /* P1 §2.8: solid #5b8aff на accent-l тинте 4.0:1 → 5.85:1 */
+  --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);  --accent-text: #7eb0ff;
+  --on-accent: #0d1020;  /* 5.87:1 на accent */  /* P1 §2.8: solid #5b8aff на accent-l тинте 4.0:1 → 5.85:1 */
   --green: #5BB88E;  --green-l: rgba(91,184,142,0.14);
   --red: #E8795A;  --red-l: rgba(232,121,90,0.14);
   --blue: #5FA8E8;  --blue-l: rgba(95,168,232,0.14);
@@ -89,7 +94,8 @@
   --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.63:1 к surface */
   --text: #e8f0ff;  --text-dim: #94a8d4;  --text-mute: #7e90c0;
   --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
-  --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);  --accent-text: #c9a0ff;  /* P1 §2.8: 3.82:1 badge → 6.77:1 */
+  --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);  --accent-text: #c9a0ff;
+  --on-accent: #0a0e1a;  /* 5.15:1 на accent */  /* P1 §2.8: 3.82:1 badge → 6.77:1 */
   --green: #20e8a0;  --green-l: rgba(32,232,160,0.12);
   --red: #ff6090;  --red-l: rgba(255,96,144,0.12);
   --blue: #40b8ff;  --blue-l: rgba(64,184,255,0.12);
@@ -124,6 +130,7 @@
   --text: #c0d8cc;  --text-dim: #7aa08c;  --text-mute: #709080;
   --sidebar-indicator: rgba(255,255,255,0.08);  --sidebar-active-text: var(--accent);
   --accent: #48b890;  --accent-l: rgba(72,184,144,0.14);  --accent-l2: rgba(72,184,144,0.24);
+  --on-accent: #080f0d;  /* 7.87:1 на accent (белый на этом акценте — 2.46:1) */
   --green: #40c088;  --green-l: rgba(64,192,136,0.12);
   --red: #c86858;  --red-l: rgba(200,104,88,0.12);  --red-text: #e09080;  /* P1 §2.8: 4.27:1 badge → 6.46:1 */
   --blue: #5ca8d0;  --blue-l: rgba(92,168,208,0.12);

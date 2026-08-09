@@ -308,14 +308,14 @@ export function CalendarView() {
           <button onClick={() => (view === 'week' ? shiftDays(7) : view === 'team' ? shiftDays(1) : nextMonth())} style={navBtn}><ChevronRight size={18} /></button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', border: '0.5px solid var(--border)' }}>
+          <div style={{ display: 'flex', border: '0.5px solid var(--border)', borderRadius: 'var(--radius-s)', overflow: 'hidden' }}>
             {(['month', 'week', 'team'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 style={{
                   ...navBtn, border: 'none', fontSize: 12, padding: '4px 12px',
-                  ...(view === v ? { background: 'var(--accent)', color: 'var(--surface)' } : {}),
+                  ...(view === v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : {}),
                 }}
               >
                 {v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'Команда'}
@@ -382,9 +382,16 @@ export function CalendarView() {
                 style={{
                   padding: '10px 4px', cursor: 'pointer', textAlign: 'center',
                   position: 'relative', minHeight: 44, fontSize: 14,
-                  background: isSel ? 'var(--accent)' : isToday ? 'var(--surface)' : 'transparent',
-                  color: isSel ? 'var(--surface)' : 'var(--text)',
-                  fontWeight: isToday ? 500 : 400,
+                  /* S-UI-SEMANTIC-1b: было color: var(--surface) — в тёмных темах surface
+                     полупрозрачно-белый, и цифра на ярком акценте исчезала (tidal 2.46:1).
+                     «Сегодня» было var(--surface) — белый кирпич в washi/fuji/minimal;
+                     теперь тинт + кольцо, как у aura. Aura переопределяет всё это
+                     в globals.css через !important — её вид не меняется. */
+                  background: isSel ? 'var(--accent)' : isToday ? 'var(--accent-l)' : 'transparent',
+                  color: isSel ? 'var(--on-accent)' : 'var(--text)',
+                  boxShadow: isToday && !isSel ? 'inset 0 0 0 1.5px var(--accent)' : undefined,
+                  borderRadius: 'var(--radius-s)',
+                  fontWeight: isToday ? 600 : 400,
                   transition: 'background 0.15s',
                 }}
               >
@@ -392,9 +399,9 @@ export function CalendarView() {
                 {hasEv && <span className="cal-day-dot" style={{
                   position: 'absolute', bottom: 3, right: 3, width: 0, height: 0,
                   borderLeft: '5px solid transparent',
-                  borderBottom: `5px solid ${isSel ? 'var(--surface)' : 'var(--accent)'}`,
+                  borderBottom: `5px solid ${isSel ? 'var(--on-accent)' : 'var(--accent)'}`,
                 }} />}
-                {evCount > 0 && <div style={{ fontSize: 9, color: isSel ? 'rgba(255,255,255,0.6)' : 'var(--text-mute)', marginTop: 2 }}>{evCount}</div>}
+                {evCount > 0 && <div style={{ fontSize: 9, color: isSel ? 'var(--on-accent)' : 'var(--text-mute)', opacity: isSel ? 0.75 : 1, marginTop: 2 }}>{evCount}</div>}
               </div>
             );
           })}
