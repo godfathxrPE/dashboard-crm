@@ -3707,7 +3707,7 @@ export type Database = {
         Args: {
           p_before?: string
           p_before_id?: string
-          p_entity_id: string
+          p_entity_id?: string
           p_entity_type: string
           p_kinds?: string[]
           p_limit?: number
@@ -3716,6 +3716,8 @@ export type Database = {
           actor_id: string
           id: string
           kind: string
+          parent_id: string
+          parent_type: string
           payload: Json
           ref_id: string
           ref_type: string
