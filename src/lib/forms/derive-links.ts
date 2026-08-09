@@ -12,9 +12,38 @@
  */
 
 /** Минимальная форма контакта: привязки к компаниям через contact_company. */
-interface ContactLike {
+export interface ContactLike {
   id: string;
   companies?: { company_id: string }[] | null;
+}
+
+/**
+ * Контакт связан с компанией. Связь M:N через junction `contact_company`
+ * (`contact.companies[]`), поля `company_id` на контакте НЕТ — проверять по
+ * массиву. Без выбранной компании принадлежность не определена → false;
+ * «показывать ли всех» решает вызывающий (см. `contactsForCompany`).
+ */
+export function contactBelongsToCompany(
+  contact: ContactLike,
+  companyId: string | null | undefined,
+): boolean {
+  if (!companyId) return false;
+  return !!contact.companies?.some((cc) => cc.company_id === companyId);
+}
+
+/**
+ * Контакты, доступные при выбранной компании: её контакты, а без компании —
+ * все. Единственная точка этого правила: до S-FIX-BATCH-1 предикат был скопирован
+ * в четыре места, а в `TaskModal` его не было вовсе — при выбранной компании
+ * список показывал все контакты организации.
+ */
+export function contactsForCompany<C extends ContactLike>(
+  contacts: C[] | null | undefined,
+  companyId: string | null | undefined,
+): C[] {
+  const list = contacts ?? [];
+  if (!companyId) return list;
+  return list.filter((c) => contactBelongsToCompany(c, companyId));
 }
 
 /** Минимальная форма проекта: принадлежность контакту. */

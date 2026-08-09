@@ -38,6 +38,7 @@ import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
+import { contactBelongsToCompany } from '@/lib/forms/derive-links';
 import type { Task } from '@/types/entities';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
@@ -131,7 +132,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
 
   // Контакты, привязанные к этой компании
   const linkedContacts = (allContacts ?? []).filter((c) =>
-    c.companies?.some((cc) => cc.company_id === companyId)
+    contactBelongsToCompany(c, companyId)
   );
 
   // Проекты этой компании — один массив из кеша `useProjects()`, делится на

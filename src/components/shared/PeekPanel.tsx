@@ -96,7 +96,7 @@ export function PeekPanel({ title, href, keepOpenSelector, onClose, children }: 
       data-peek-panel
       role="complementary"
       aria-label={title}
-      className="peek-panel fixed right-0 top-0 z-40 flex h-screen w-[440px] max-w-[90vw] flex-col bg-surface"
+      className="peek-panel fixed right-0 top-0 z-40 flex h-screen w-[440px] max-w-[90vw] flex-col bg-popover"
       style={{
         borderLeft: '0.5px solid var(--border)',
         boxShadow: 'var(--elevation-3)',

@@ -27,7 +27,7 @@ export const TableHeader = forwardRef<HTMLTableSectionElement, HTMLAttributes<HT
     return (
       <thead
         ref={ref}
-        className={cn('bg-surface sticky top-0 z-[1]', className)}
+        className={cn('bg-popover sticky top-0 z-[1]', className)}
         {...props}
       >
         {children}

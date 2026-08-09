@@ -123,3 +123,29 @@ export function applyPlanMapping(row: unknown[], mapping: Record<number, PlanFie
     wbs: String(raw.wbs ?? '').trim(),
   };
 }
+
+/**
+ * S-FIX-BATCH-1: строки, повторяющиеся ВНУТРИ одного файла.
+ *
+ * Ключ — WBS-код, если он есть (в плане он и есть идентификатор строки), иначе
+ * текст задачи. Регистр и лишние пробелы не считаются различием: «Закупки» и
+ * «закупки » — одна строка плана, набранная дважды.
+ *
+ * Импорт на этом не останавливается — файл может законно содержать одинаковые
+ * названия в разных фазах («Согласование протокола интервью» у каждого процесса),
+ * поэтому дубли показываются как предупреждение в превью, а не как ошибка.
+ * ⚠️ Повторный прогон ТОГО ЖЕ файла эта функция не ловит — она видит только один
+ * файл; защита от второго импорта в проект здесь не реализована.
+ */
+export function findDuplicatePlanRows(rows: PlanRow[]): { key: string; count: number }[] {
+  const counts = new Map<string, { key: string; count: number }>();
+  for (const r of rows) {
+    const raw = r.wbs.trim() || r.taskText.trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    const hit = counts.get(key);
+    if (hit) hit.count += 1;
+    else counts.set(key, { key: raw, count: 1 });
+  }
+  return [...counts.values()].filter((c) => c.count > 1).sort((a, b) => b.count - a.count);
+}

@@ -341,7 +341,7 @@ export function CallLog() {
 
       {/* Task suggestion toast */}
       {taskSuggestion && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-surface p-4 elevation-3">
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm rounded-xl border border-border bg-popover p-4 elevation-3">
           <div className="mb-1 flex items-center gap-2">
             <CheckSquare size={14} className="text-accent" />
             <span className="text-sm font-medium text-text-main">Создать задачу?</span>

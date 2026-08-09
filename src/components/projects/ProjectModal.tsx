@@ -19,6 +19,7 @@ import {
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
+import { contactsForCompany } from '@/lib/forms/derive-links';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { Modal } from '@/components/shared/Modal';
@@ -161,11 +162,7 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
   );
 
   const contactOptions: ComboboxOption[] = useMemo(() => {
-    const list = selectedCompanyId
-      ? contacts.filter((c) =>
-          c.companies?.some((cc) => cc.company_id === selectedCompanyId),
-        )
-      : contacts;
+    const list = contactsForCompany(contacts, selectedCompanyId);
     return list.map((c) => ({
       value: c.id,
       label: [c.last_name, c.first_name].filter(Boolean).join(' '),

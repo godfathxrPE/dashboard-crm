@@ -282,7 +282,7 @@ export function ExcelImportButton() {
           onClick={() => step !== 'importing' && closeModal()}
         >
           <div
-            style={{ position: 'relative', zIndex: 1000, width: '90vw', maxWidth: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--surface, #fff)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
+            style={{ position: 'relative', zIndex: 1000, width: '90vw', maxWidth: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -346,7 +346,7 @@ export function ExcelImportButton() {
                 )}
                 <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
                   <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-surface">
+                    <thead className="sticky top-0 bg-popover">
                       <tr className="border-b border-border">
                         <th className="px-2 py-1.5 text-left text-text-mute font-medium">Компания</th>
                         <th className="px-2 py-1.5 text-left text-text-mute font-medium">ИНН</th>

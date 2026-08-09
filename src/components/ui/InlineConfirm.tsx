@@ -185,7 +185,7 @@ export function InlineConfirm({
         role="alertdialog"
         aria-modal="true"
         aria-label={question}
-        className="w-full max-w-xs rounded-xl border border-border bg-surface p-4 text-center elevation-3"
+        className="w-full max-w-xs rounded-xl border border-border bg-popover p-4 text-center elevation-3"
       >
         <p className="text-sm font-medium text-text-main">{question}</p>
         {consequence && <p className="mt-1 text-xs text-text-dim">{consequence}</p>}

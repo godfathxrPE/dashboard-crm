@@ -124,7 +124,12 @@ export function Modal({
             className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-black/30 p-6"
             data-modal-confirm
           >
-            <div className="w-full max-w-xs rounded-xl border border-border bg-surface p-4 elevation-3 text-center">
+            {/* bg-popover, НЕ bg-surface: в тёмных темах --surface полупрозрачный
+                (rgba(...,0.07) у frost/tidal), и панель просвечивала на поля формы
+                под собой. Сама модалка solid, потому что [data-modal] переопределён
+                на --popover в .t-frost/.t-aurora/.t-tidal (globals.css) — вложенный
+                confirm под это правило не попадал, так как красился утилитой. */}
+            <div className="w-full max-w-xs rounded-xl border border-border bg-popover p-4 elevation-3 text-center">
               <p className="text-sm font-medium text-text-main">
                 Есть несохранённые изменения
               </p>

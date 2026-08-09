@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { autoDetectPlanMapping, parsePlanDate, parseMilestone, applyPlanMapping } from '@/lib/utils/plan-import-helpers';
+import { autoDetectPlanMapping, parsePlanDate, parseMilestone, applyPlanMapping, findDuplicatePlanRows, type PlanRow } from '@/lib/utils/plan-import-helpers';
 
 describe('autoDetectPlanMapping', () => {
   test('фаза / этап работ → phase', () => {
@@ -149,5 +149,42 @@ describe('applyPlanMapping', () => {
       milestone: false,
       wbs: '',
     });
+  });
+});
+
+describe('findDuplicatePlanRows', () => {
+  const row = (over: Partial<PlanRow>): PlanRow => ({
+    phase: '', taskText: '', start: null, end: null, milestone: false, wbs: '', ...over,
+  });
+
+  test('ключ — WBS-код, если он есть', () => {
+    const dups = findDuplicatePlanRows([
+      row({ wbs: '1.1', taskText: 'Обследование' }),
+      row({ wbs: '1.1', taskText: 'Совсем другой текст' }),
+      row({ wbs: '1.2', taskText: 'Обследование' }),
+    ]);
+    expect(dups).toEqual([{ key: '1.1', count: 2 }]);
+  });
+
+  test('без WBS ключом становится текст; регистр и пробелы не различают', () => {
+    const dups = findDuplicatePlanRows([
+      row({ taskText: 'Закупки' }),
+      row({ taskText: 'закупки ' }),
+      row({ taskText: 'Складской учет' }),
+    ]);
+    expect(dups).toEqual([{ key: 'Закупки', count: 2 }]);
+  });
+
+  test('дублей нет → пустой массив; пустые строки не считаются', () => {
+    expect(findDuplicatePlanRows([row({ taskText: 'А' }), row({ taskText: 'Б' })])).toEqual([]);
+    expect(findDuplicatePlanRows([row({}), row({}), row({ wbs: '  ' })])).toEqual([]);
+  });
+
+  test('сортировка по убыванию количества копий', () => {
+    const dups = findDuplicatePlanRows([
+      row({ taskText: 'дважды' }), row({ taskText: 'дважды' }),
+      row({ taskText: 'трижды' }), row({ taskText: 'трижды' }), row({ taskText: 'трижды' }),
+    ]);
+    expect(dups.map((d) => d.count)).toEqual([3, 2]);
   });
 });
