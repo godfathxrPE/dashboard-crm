@@ -1,11 +1,10 @@
 'use client';
 
 import { useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { Flag } from 'lucide-react';
 import type { Task } from '@/types/entities';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
-import { KIND_META } from '@/lib/timeline/kind-meta';
+import { EventChip, chipMeta, CHIP_KIND_LABEL, type ChipKind } from '@/components/calendar/EventChip';
 import { mskDateKey, mskMinutesOfDay, mskTime } from '@/lib/utils/date-helpers';
 import { formatFreeWindow, type TimedInterval } from '@/lib/domain/day-windows';
 import { packLane, laneRows, chipSpanMinutes, CHIP_NOMINAL_MIN, CHIP_COMPRESSED_MIN, type PackedChip } from '@/lib/domain/lane-packing';
@@ -47,7 +46,8 @@ const TASK_NOMINAL_MIN = 60;
  *  чтобы упаковка не считала его точкой и не сажала на него соседний чип. */
 const CHIP_ANCHOR_MIN = 60;
 
-type LaneKind = 'call' | 'meeting' | 'task' | 'deadline';
+// S-CAL-MONTH-1: виды чипа переехали в `EventChip` — общий компонент недели и месяца.
+type LaneKind = ChipKind;
 
 interface LaneEvent {
   key: string;
@@ -88,22 +88,6 @@ interface WeekLanesProps {
   onCallClick: (callId: string) => void;
   onDeadlineClick: (projectId: string) => void;
 }
-
-const KIND_LABEL: Record<LaneKind, string> = {
-  call: 'Звонок',
-  meeting: 'Встреча',
-  task: 'Задача',
-  deadline: 'Дедлайн сделки',
-};
-
-// Цветовая пара чипа — из KIND_META, единственной карты «вид → иконка и цвет»
-// в проекте (её же читают лента сущности и виджет дашборда). Своей карты здесь
-// нет и не заводится: две уже сливали в одну, третья разошлась бы молча.
-// `deadline` — не TimelineKind (дедлайн сделки не событие ленты), поэтому у него
-// одного пара задана явно: тревожный тинт + Flag, как в спеке.
-const DEADLINE_META = { icon: Flag, dot: 'bg-danger-l', fg: 'text-danger-text' } as const;
-
-const chipMeta = (kind: LaneKind) => (kind === 'deadline' ? DEADLINE_META : KIND_META[kind]);
 
 export function WeekLanes({
   weekStart, tasks, undatedTasks, meetings, calls, deadlines,
@@ -369,17 +353,36 @@ export function WeekLanes({
                   style={{ position: 'absolute', inset: 0, cursor: 'pointer', zIndex: 0 }}
                 />
 
-                {packed.map((p) => (
-                  <Chip
-                    key={p.item.key}
-                    ev={p.item}
-                    row={p.row}
-                    rows={rows}
-                    compressed={p.compressed}
-                    leftPct={pctOfMin(Math.min(p.renderStartMin, END_MIN))}
-                    onOpen={openChip}
-                  />
-                ))}
+                {packed.map((p) => {
+                  // Позиция = время начала, вертикаль = ряд упаковки. Ширина — по
+                  // содержимому (макет: пилюля), поэтому чип ограничен правым краем
+                  // дорожки, а название режется ellipsis: чип, вылезший за край,
+                  // спрятал бы конец недели под горизонтальный скролл.
+                  const leftPct = pctOfMin(Math.min(p.renderStartMin, END_MIN));
+                  const topPct = rows === 2 ? (p.row === 0 ? 28 : 72) : 50;
+                  return (
+                    <EventChip
+                      key={p.item.key}
+                      layout="lane"
+                      kind={p.item.kind}
+                      title={p.item.title}
+                      timeLabel={p.item.timeLabel}
+                      critical={p.item.critical}
+                      compressed={p.compressed}
+                      onClick={() => openChip(p.item)}
+                      style={{
+                        position: 'absolute',
+                        left: `${leftPct}%`,
+                        top: `${topPct}%`,
+                        // Пол в 4rem: у события в самом конце оси остаток ширины ушёл бы
+                        // в минус и чип схлопнулся бы в точку — пусть лучше выйдет за
+                        // край и обрежется.
+                        maxWidth: `max(4rem, calc(${100 - leftPct}% - 0.5rem))`,
+                        zIndex: 1,
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           );
@@ -441,85 +444,10 @@ export function WeekLanes({
               className={chipMeta(kind).fg}
               style={{ width: '0.55rem', height: '0.55rem', borderRadius: '50%', background: 'currentColor' }}
             />
-            {KIND_LABEL[kind]}
+            {CHIP_KIND_LABEL[kind]}
           </span>
         ))}
       </div>
     </div>
-  );
-}
-
-interface ChipProps {
-  ev: LaneEvent;
-  row: 0 | 1;
-  rows: 0 | 1 | 2;
-  compressed: boolean;
-  leftPct: number;
-  onOpen: (ev: LaneEvent) => void;
-}
-
-// Позиция = время начала, вертикаль = ряд упаковки. Ширина — по содержимому
-// (макет: пилюля), поэтому чип ограничен правым краем дорожки, а название режется
-// ellipsis: чип, вылезший за край, спрятал бы конец недели под горизонтальный скролл.
-function Chip({ ev, row, rows, compressed, leftPct, onOpen }: ChipProps) {
-  const meta = chipMeta(ev.kind);
-  const Icon = meta.icon;
-  const topPct = rows === 2 ? (row === 0 ? 28 : 72) : 50;
-  const label = `${KIND_LABEL[ev.kind]}${ev.timeLabel ? ` ${ev.timeLabel}` : ''}, ${ev.title}`;
-
-  // ⚠️ Цвет вида несёт ИКОНКА, а не текст. `KIND_META.fg` подписан «цвет иконки»,
-  // под графику (≥3:1), и подобран под неё: время на чипе — 11px, ему нужно 4.5:1,
-  // а text-green давал 3.9:1, text-yellow 3.84:1 — на дорожке «сегодня» ещё ниже,
-  // там тинт ложится на тинт. Текст берёт --text: 15:1 во всех семи темах.
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(ev)}
-      aria-label={label}
-      title={compressed ? label : undefined}
-      className={`lane-chip ${meta.dot}`}
-      style={{
-        color: 'var(--text)',
-        position: 'absolute',
-        left: `${leftPct}%`,
-        top: `${topPct}%`,
-        // Пол в 4rem: у события в самом конце оси остаток ширины ушёл бы в минус
-        // и чип схлопнулся бы в точку — пусть лучше выйдет за край и обрежется.
-        maxWidth: `max(4rem, calc(${100 - leftPct}% - 0.5rem))`,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.3rem',
-        padding: '0.25rem 0.6rem 0.25rem 0.45rem',
-        borderRadius: '999px',
-        border: ev.critical ? '1px solid var(--danger)' : '1px solid transparent',
-        fontFamily: 'inherit',
-        fontSize: '0.6875rem',
-        fontWeight: 500,
-        whiteSpace: 'nowrap',
-        cursor: 'pointer',
-        zIndex: 1,
-      }}
-    >
-      <Icon
-        size={11}
-        strokeWidth={2.2}
-        className={ev.critical ? 'text-danger-text' : meta.fg}
-        style={{ flexShrink: 0 }}
-      />
-      {ev.timeLabel && (
-        <b style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{ev.timeLabel}</b>
-      )}
-      {!compressed && (
-        <span
-          style={{
-            maxWidth: '11rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {ev.title}
-        </span>
-      )}
-    </button>
   );
 }
