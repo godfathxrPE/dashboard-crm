@@ -11,6 +11,7 @@ import { useProjectColumns, useCreateColumn } from '@/lib/hooks/use-project-colu
 import {
   autoDetectPlanMapping,
   applyPlanMapping,
+  findDuplicatePlanRows,
   type PlanFieldKey,
   type PlanRow,
 } from '@/lib/utils/plan-import-helpers';
@@ -134,6 +135,9 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
   );
   const uniquePhases = [...new Set(preview.map((r) => r.phase).filter(Boolean))];
   const invalidDatesCount = preview.filter((r) => r.start && r.end && r.end < r.start).length;
+  // S-FIX-BATCH-1: повторы внутри файла — предупреждение, не запрет (одинаковые
+  // названия в разных фазах законны).
+  const duplicateRows = findDuplicatePlanRows(preview);
 
   async function executeImport() {
     setStep('importing');
@@ -222,7 +226,7 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
           onClick={() => step !== 'importing' && closeModal()}
         >
           <div
-            style={{ position: 'relative', zIndex: 1000, width: '90vw', maxWidth: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--surface, #fff)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
+            style={{ position: 'relative', zIndex: 1000, width: '90vw', maxWidth: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -291,6 +295,16 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
                   <AlertTriangle size={14} />
                   Задачи будут добавлены (существующие не заменяются)
                 </div>
+                {duplicateRows.length > 0 && (
+                  <div className="mb-3 flex items-start gap-2 rounded-lg bg-yellow-l px-3 py-2 text-xs text-yellow">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>
+                      Повторяются в файле: {duplicateRows.length}{' '}
+                      {duplicateRows.length === 1 ? 'строка' : 'строк'} — напр. «{duplicateRows[0].key}»
+                      ×{duplicateRows[0].count}. Будут созданы все копии.
+                    </span>
+                  </div>
+                )}
                 {invalidDatesCount > 0 && (
                   <div className="mb-3 flex items-center gap-2 rounded-lg bg-yellow-l px-3 py-2 text-xs text-yellow">
                     <AlertTriangle size={14} />
@@ -299,7 +313,7 @@ export function PlanImportButton({ projectId, canImport }: { projectId: string; 
                 )}
                 <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
                   <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-surface">
+                    <thead className="sticky top-0 bg-popover">
                       <tr className="border-b border-border">
                         <th className="px-2 py-1.5 text-left text-text-mute font-medium">Фаза</th>
                         <th className="px-2 py-1.5 text-left text-text-mute font-medium">Задача</th>

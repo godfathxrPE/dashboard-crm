@@ -11,7 +11,7 @@ import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { Modal } from '@/components/shared/Modal';
-import { deriveFromContact } from '@/lib/forms/derive-links';
+import { contactBelongsToCompany, contactsForCompany, deriveFromContact } from '@/lib/forms/derive-links';
 import { localDateKey, localDateTimeKey, datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers';
 
 function DetailsSection({ register }: { register: any }) {
@@ -65,21 +65,26 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   const { data: projects } = useProjects();
   const isProjectActive = useIsProjectActive();
 
-  const { register, handleSubmit, reset, control, setValue, getValues, formState: { errors, isSubmitting, isDirty } } = useForm<CallFormValues>({
+  const { register, handleSubmit, reset, control, setValue, getValues, watch, formState: { errors, isSubmitting, isDirty } } = useForm<CallFormValues>({
     resolver: zodResolver(callFormSchema),
   });
+
+  // S-FIX-BATCH-1: тот же дефект, что в TaskModal, — список контактов не сужался
+  // выбранной компанией. Combobox требует, чтобы выбранное лежало в options,
+  // поэтому чужой контакт при смене компании снимается (см. handleCompanyChange).
+  const selectedCompanyId = watch('company_id');
 
   const companyOptions: ComboboxOption[] = useMemo(
     () => (companies ?? []).map((c) => ({ value: c.id, label: c.name, sub: c.inn ?? undefined })),
     [companies],
   );
   const contactOptions: ComboboxOption[] = useMemo(
-    () => (contacts ?? []).map((c) => ({
+    () => contactsForCompany(contacts, selectedCompanyId).map((c) => ({
       value: c.id,
       label: [c.first_name, c.last_name].filter(Boolean).join(' '),
       sub: c.phone ?? c.companies?.[0]?.company.name ?? undefined,
     })),
-    [contacts],
+    [contacts, selectedCompanyId],
   );
   const projectOptions: ComboboxOption[] = useMemo(
     () => (projects ?? []).filter(isProjectActive).map((p) => ({ value: p.id, label: p.name })),
@@ -92,6 +97,18 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
     const derived = deriveFromContact(contactId, { contacts, projects, isActiveProject: isProjectActive });
     if (derived.company_id && !getValues('company_id')) setValue('company_id', derived.company_id, { shouldDirty: true });
     if (derived.project_id && !getValues('project_id')) setValue('project_id', derived.project_id, { shouldDirty: true });
+  };
+
+  // Ручной выбор компании: чужой контакт снимаем — иначе он останется в звонке,
+  // но исчезнет из сузившегося списка (Combobox покажет пусто, а в БД он лежит).
+  const handleCompanyChange = (val: string | null, onChange: (v: string | null) => void) => {
+    onChange(val);
+    const contactId = getValues('contact_id');
+    if (!val || !contactId) return;
+    const current = (contacts ?? []).find((c) => c.id === contactId);
+    if (!current || !contactBelongsToCompany(current, val)) {
+      setValue('contact_id', null, { shouldDirty: true });
+    }
   };
 
   // Ручной выбор контакта (не на reset — onChange зовётся только пользователем).
@@ -205,7 +222,8 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
               name="company_id"
               control={control}
               render={({ field }) => (
-                <Combobox options={companyOptions} value={field.value ?? null} onChange={field.onChange}
+                <Combobox options={companyOptions} value={field.value ?? null}
+                  onChange={(val) => handleCompanyChange(val, field.onChange)}
                   placeholder="— не указана —" />
               )}
             />

@@ -16,6 +16,7 @@ import { TasksTable } from './TasksTable';
 import { TaskModal } from './TaskModal';
 import { RecurringTemplatesModal } from './RecurringTemplatesModal';
 import { taskSource, isMine, matchesQuery, TASK_SOURCES, SOURCE_LABELS, type TaskSource } from '@/lib/utils/task-view';
+import { excludePlanItems } from '@/lib/domain/plan-item';
 import type { Task } from '@/types/entities';
 
 const DEFAULT_SOURCES: TaskSource[] = ['deal', 'personal'];
@@ -90,7 +91,13 @@ export function TasksView() {
   const openEdit = useCallback((t: Task) => { setEditTask(t); setModalOpen(true); }, []);
 
   // ─── Фильтрация (чистые шаги над массивом) ───
-  const all = useMemo(() => tasks ?? [], [tasks]);
+  // S-FIX-BATCH-1: строки плана отсекаются ВСЕГДА и до всех прочих осей — они
+  // живут на доске «План» и в Ганте, а в списке задач их быть не должно ни как
+  // проектных, ни как личных. Именно `all`, а не `visible`: на нём же считаются
+  // счётчики чипов и заголовка, иначе цифры разошлись бы со списком.
+  // Подпись «WBS-задачи проектов скрыты» ниже управляет ИСТОЧНИКОМ (project),
+  // а не этим признаком, — совпадение слов, не дублирование фильтра.
+  const all = useMemo(() => excludePlanItems(tasks ?? []), [tasks]);
   // «Сейчас» пересчитывается при каждой загрузке задач (иначе бакеты устаревают за
   // полночь при открытой вкладке); стабильная ссылка нужна для memo в дочерних видах.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -287,15 +294,22 @@ export function TasksView() {
         />
       </div>
 
-      {/* Подпись про скрытые WBS-задачи проектов */}
-      {!activeSources.includes('project') && (
-        <p className="mb-3 text-xs text-text-mute">
-          WBS-задачи проектов скрыты — живут в досках проектов.{' '}
-          <button onClick={showProjects} className="text-accent hover:underline">
-            Показать
-          </button>
-        </p>
-      )}
+      {/* S-FIX-BATCH-1: подпись говорила «WBS-задачи проектов скрыты», а кнопка
+          добавляла ИСТОЧНИК «Проекты» — и приводила задачи проектов, но не строки
+          плана. Теперь строки плана скрыты всегда (excludePlanItems), поэтому
+          подпись разведена на два факта: что прячет чип и что не вернётся вовсе. */}
+      <p className="mb-3 text-xs text-text-mute">
+        {!activeSources.includes('project') && (
+          <>
+            Задачи проектов скрыты.{' '}
+            <button onClick={showProjects} className="text-accent hover:underline">
+              Показать
+            </button>
+            {' · '}
+          </>
+        )}
+        Строки плана (WBS) живут на доске «План» и в Ганте проекта.
+      </p>
 
       {/* Контент */}
       {emptyReason ? (

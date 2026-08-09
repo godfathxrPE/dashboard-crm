@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/Badge';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { Combobox, type ComboboxOption } from '@/components/shared';
 import { cn } from '@/lib/utils/cn';
+import { contactBelongsToCompany } from '@/lib/forms/derive-links';
 import type { StakeholderRole } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
@@ -200,8 +201,7 @@ function StakeholderAddForm({
   // Уже добавленные исключены здесь, а не только unique-нарушением на сервере.
   const options: ComboboxOption[] = useMemo(() => {
     const available = contacts.filter((c) => !excluded.has(c.id));
-    const isOwn = (c: (typeof available)[number]) =>
-      !!companyId && !!c.companies?.some((cc) => cc.company_id === companyId);
+    const isOwn = (c: (typeof available)[number]) => contactBelongsToCompany(c, companyId);
     const rank = (c: (typeof available)[number]) => (isOwn(c) ? 0 : 1);
     return [...available]
       .sort((a, b) => rank(a) - rank(b) || contactSortKey(a).localeCompare(contactSortKey(b), 'ru'))

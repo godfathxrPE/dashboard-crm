@@ -10,6 +10,11 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { Modal } from '@/components/shared/Modal';
 import {
+  contactBelongsToCompany,
+  contactsForCompany,
+  deriveFromContact,
+} from '@/lib/forms/derive-links';
+import {
   taskFormSchema,
   type TaskFormValues,
   LANE_CONFIG,
@@ -49,6 +54,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors, isDirty },
   } = useForm<TaskFormValues>({
@@ -117,6 +123,51 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
     () => (projectTasks ?? []).filter((t) => !excludedParentIds.has(t.id)),
     [projectTasks, excludedParentIds],
   );
+
+  // S-FIX-BATCH-1: контакты — только выбранной компании (без компании — все).
+  const selectedCompanyId = watch('company_id');
+  const contactOptions = useMemo(
+    () => contactsForCompany(contacts, selectedCompanyId),
+    [contacts, selectedCompanyId],
+  );
+
+  // Регистрации связанных полей разворачиваем, чтобы дописать свой onChange
+  // ПОСЛЕ RHF-овского: сброс/вывод должны видеть уже применённое значение.
+  const companyField = register('company_id');
+  const contactField = register('contact_id');
+
+  /**
+   * Смена компании при выбранном контакте: чужой контакт снимаем. Иначе он
+   * остаётся в задаче невидимым — отфильтрованный список его не показывает,
+   * а в БД он лежит и противоречит компании.
+   * Делаем на onChange, а не в useEffect: эффект сработал бы и на reset при
+   * открытии, молча затерев контакт в уже сохранённой задаче.
+   */
+  function handleCompanyChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    companyField.onChange(e);
+    const nextCompanyId = e.target.value || null;
+    const currentContactId = getValues('contact_id');
+    if (!nextCompanyId || !currentContactId) return; // «не указана» → список снова полный
+    const current = (contacts ?? []).find((c) => c.id === currentContactId);
+    if (!current || !contactBelongsToCompany(current, nextCompanyId)) {
+      setValue('contact_id', null, { shouldDirty: true });
+    }
+  }
+
+  /**
+   * Обратный порядок (сначала контакт): подставляем компанию, если она у контакта
+   * ровно одна. Тот же `deriveFromContact`, что в CallModal, и те же гейты —
+   * только создание и только пустое поле. `projects: []` — вывод проекта здесь не
+   * нужен (у задачи свой список проектов и своя семантика привязки).
+   */
+  function handleContactChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    contactField.onChange(e);
+    if (editTask) return;
+    const contactId = e.target.value || null;
+    if (!contactId || getValues('company_id')) return;
+    const derived = deriveFromContact(contactId, { contacts, projects: [] });
+    if (derived.company_id) setValue('company_id', derived.company_id, { shouldDirty: true });
+  }
 
   // Заполняем форму при редактировании
   useEffect(() => {
@@ -269,7 +320,8 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             <div>
               <label className="block text-xs font-medium text-text-dim mb-1">Компания</label>
               <select
-                {...register('company_id')}
+                {...companyField}
+                onChange={handleCompanyChange}
                 className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
               >
                 <option value="">— не указана —</option>
@@ -279,12 +331,17 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
             <div>
               <label className="block text-xs font-medium text-text-dim mb-1">Контакт</label>
               <select
-                {...register('contact_id')}
+                {...contactField}
+                onChange={handleContactChange}
                 className="w-full rounded-lg border border-input bg-surface2 px-3 py-2 text-sm text-text-main focus:border-accent focus:outline-none"
               >
                 <option value="">— не указан —</option>
-                {(contacts ?? []).map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+                {contactOptions.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
               </select>
+              {/* Пустой <select> без подписи читается как «не загрузилось» */}
+              {selectedCompanyId && contactOptions.length === 0 && (
+                <p className="mt-1 text-xs text-text-dim">У этой компании нет контактов</p>
+              )}
             </div>
           </div>
 
