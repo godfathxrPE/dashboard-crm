@@ -33,6 +33,10 @@ const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 /** Ширина паспорта дня. Тот же rem — в gridTemplateColumns и в позиции линии «сейчас». */
 const INFO_REM = 9;
+
+/** Полуширина плашки «сейчас» в долях оси: подпись часа под ней прячется.
+ *  Плашка ~2.6rem при дорожке ≥47rem → ~2.8% оси, берём с запасом. */
+const NOW_LABEL_HALF_FRAC = 0.02;
 const AXIS_MIN = END_MIN - START_MIN;
 
 /** Звонок в схеме без длительности → номинал для упаковки (duration_s, если есть). */
@@ -259,23 +263,32 @@ export function WeekLanes({
         <div style={{ display: 'grid', gridTemplateColumns: gridCols, borderBottom: '0.5px solid var(--border)' }}>
           <div />
           <div style={{ position: 'relative', height: '1.5rem' }}>
-            {hours.map((h, i) => (
-              <span
-                key={h}
-                style={{
-                  position: 'absolute',
-                  top: '0.2rem',
-                  left: `${pctOfMin(h * 60)}%`,
-                  // Первую подпись не центрируем — половина ушла бы за край дорожки.
-                  transform: i === 0 ? 'none' : 'translateX(-50%)',
-                  fontSize: '0.625rem',
-                  color: 'var(--text-mute)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {String(h).padStart(2, '0')}
-              </span>
-            ))}
+            {hours.map((h, i) => {
+              // Подпись часа, на которую наезжает метка «сейчас», прячем. Метка
+              // (`HH:MM` на плашке) шире подписи и рисуется поверх — без этого
+              // «15:42» и «16» сливались в нечитаемое пятно во всех семи темах
+              // (смок 09.08). Порог — половина ширины плашки в долях оси.
+              const hidden = showNow && Math.abs(pctOfMin(h * 60) / 100 - nowFrac) < NOW_LABEL_HALF_FRAC;
+              return (
+                <span
+                  key={h}
+                  aria-hidden={hidden || undefined}
+                  style={{
+                    position: 'absolute',
+                    top: '0.2rem',
+                    left: `${pctOfMin(h * 60)}%`,
+                    // Первую подпись не центрируем — половина ушла бы за край дорожки.
+                    transform: i === 0 ? 'none' : 'translateX(-50%)',
+                    fontSize: '0.625rem',
+                    color: 'var(--text-mute)',
+                    fontVariantNumeric: 'tabular-nums',
+                    visibility: hidden ? 'hidden' : undefined,
+                  }}
+                >
+                  {String(h).padStart(2, '0')}
+                </span>
+              );
+            })}
           </div>
         </div>
 
