@@ -83,14 +83,14 @@ export function MonthGrid({
       <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
         {/* Шапка Пн…Вс — заголовок таблицы: разделители между колонками и общая
             нижняя граница. Трек-функция обязана совпадать с сеткой ниже. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', textAlign: 'center', borderBottom: '1px solid var(--cal-line)' }}>
           {DAY_NAMES.map((d, i) => (
             <div
               key={d}
               style={{
                 fontSize: 11, color: 'var(--text-mute)', padding: '6px 0',
                 fontWeight: 500, letterSpacing: '0.03em',
-                borderRight: i === 6 ? undefined : '1px solid var(--border)',
+                borderRight: i === 6 ? undefined : '1px solid var(--cal-line)',
               }}
             >
               {d}
@@ -110,8 +110,8 @@ export function MonthGrid({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
           {cells.map((cell) => {
             const edges = {
-              borderRight: cell.lastCol ? undefined : '1px solid var(--border)',
-              borderBottom: cell.lastRow ? undefined : '1px solid var(--border)',
+              borderRight: cell.lastCol ? undefined : '1px solid var(--cal-line)',
+              borderBottom: cell.lastRow ? undefined : '1px solid var(--cal-line)',
             };
 
             // Заглушка недели: линии и фон выходного те же, но это не день —
