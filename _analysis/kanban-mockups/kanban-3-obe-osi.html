@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ru" class="t-minimal">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Две оси + матрица — dashboard-crm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══ Токены: 1:1 с globals.css (сокращённый набор) ═══ */
+:root{
+  --font-manrope:'Manrope';--font-inter:'Inter';--font-onest:'Onest';--font-plex:'IBM Plex Sans';
+  --danger:var(--red);--danger-l:var(--red-l);--danger-text:var(--red-text);
+  --warning:var(--yellow);--warning-l:var(--yellow-l);--warning-text:var(--yellow-text);
+  --success:var(--green);--success-l:var(--green-l);--success-text:var(--green-text);
+}
+.t-aura{
+  --bg:#EFEFF3;--surface:#FFFFFF;--surface2:#F6F6FA;--surface3:#EAEAF1;
+  --border:#E2E2EC;--border2:#D2D2DE;--border-input:#8a8a9a;
+  --text:#16161D;--text-dim:#59596D;--text-mute:#61617A;
+  --accent:#484D57;--accent-l:rgba(72,77,87,0.09);--accent-l2:rgba(72,77,87,0.16);--accent-text:#343840;
+  --green:#2F8F5B;--green-l:rgba(47,143,91,0.10);--green-text:#27794D;
+  --red:#D14343;--red-l:rgba(209,67,67,0.10);--red-text:#C13636;
+  --blue:#3B7FD4;--blue-l:rgba(59,127,212,0.10);--blue-text:#2F6CBB;
+  --yellow:#B0810F;--yellow-l:rgba(176,129,15,0.10);--yellow-text:#8F690C;
+  --purple:#7C5CD4;--purple-l:rgba(124,92,212,0.10);--purple-text:#6947C4;
+  --radius:12px;--radius-s:8px;--radius-m:12px;--radius-l:18px;
+  --shadow-card:0 1px 3px rgba(22,22,29,0.06),0 1px 2px rgba(22,22,29,0.04);
+  --shadow-card-hover:0 4px 12px rgba(22,22,29,0.08),0 1px 3px rgba(22,22,29,0.05);
+  --elevation-3:0 12px 40px rgba(22,22,29,0.14),0 4px 8px rgba(22,22,29,0.06);
+  --font-app:var(--font-onest);
+}
+.t-washi{
+  --bg:#F5F0E8;--surface:#FDFCFA;--surface2:#EDE7DB;--surface3:#E5DFD5;
+  --border:#D8D2C8;--border2:#C9C2B6;--border-input:#8a8073;
+  --text:#2C2C2C;--text-dim:#645E58;--text-mute:#67615C;
+  --accent:#C23B3B;--accent-l:rgba(194,59,59,0.10);--accent-l2:rgba(194,59,59,0.25);--accent-text:#B33434;
+  --green:#5E7A3A;--green-l:rgba(94,122,58,0.12);--green-text:#4E6A2E;
+  --red:#C23B3B;--red-l:rgba(194,59,59,0.10);--red-text:#B33434;
+  --blue:#2B5F8A;--blue-l:rgba(43,95,138,0.12);--blue-text:#2B5F8A;
+  --yellow:#D4993A;--yellow-l:rgba(212,153,58,0.12);--yellow-text:#826112;
+  --purple:#7B68A8;--purple-l:rgba(123,104,168,0.12);--purple-text:#665393;
+  --radius:4px;--radius-s:2px;--radius-m:4px;--radius-l:8px;
+  --shadow-card:0 1px 3px rgba(44,44,44,0.07),0 1px 2px rgba(44,44,44,0.05);
+  --shadow-card-hover:0 4px 12px rgba(44,44,44,0.09),0 1px 3px rgba(44,44,44,0.06);
+  --elevation-3:0 12px 40px rgba(44,44,44,0.16),0 4px 8px rgba(44,44,44,0.07);
+  --font-app:var(--font-manrope);
+}
+.t-fuji{
+  --bg:#EDE8DF;--surface:#FDFCF8;--surface2:#F0EBE2;--surface3:#E3DDD2;
+  --border:#DDD5C5;--border2:#C8C0B0;--border-input:#877e70;
+  --text:#1A2744;--text-dim:#545C64;--text-mute:#5C626A;
+  --accent:#2B5078;--accent-l:rgba(43,80,120,0.08);--accent-l2:rgba(43,80,120,0.16);--accent-text:#2B5078;
+  --green:#4A7A5A;--green-l:rgba(74,122,90,0.10);--green-text:#3A6248;
+  --red:#C23B3B;--red-l:rgba(194,59,59,0.09);--red-text:#BA3939;
+  --blue:#2B5078;--blue-l:rgba(43,80,120,0.08);--blue-text:#2B5078;
+  --yellow:#C4AA78;--yellow-l:rgba(196,170,120,0.12);--yellow-text:#7A6538;
+  --purple:#6A5A8E;--purple-l:rgba(106,90,142,0.09);--purple-text:#6A5A8E;
+  --radius:10px;--radius-s:4px;--radius-m:10px;--radius-l:14px;
+  --shadow-card:0 1px 3px rgba(26,39,68,0.07),0 1px 2px rgba(26,39,68,0.05);
+  --shadow-card-hover:0 4px 12px rgba(26,39,68,0.09),0 1px 3px rgba(26,39,68,0.06);
+  --elevation-3:0 12px 40px rgba(26,39,68,0.15),0 4px 8px rgba(26,39,68,0.07);
+  --font-app:var(--font-plex);
+}
+.t-minimal{
+  --bg:#F6F6F7;--surface:#FFFFFF;--surface2:#F3F3F4;--surface3:#EAEAEC;
+  --border:#E5E5E8;--border2:#D6D6DB;--border-input:#8A8A93;
+  --text:#1A1A1E;--text-dim:#5A5A64;--text-mute:#66666F;
+  --accent:#0E7C86;--accent-l:rgba(14,124,134,0.08);--accent-l2:rgba(14,124,134,0.16);--accent-text:#0A6771;
+  --green:#1B8A4C;--green-l:rgba(27,138,76,0.09);--green-text:#177B43;
+  --red:#CC3B2E;--red-l:rgba(204,59,46,0.09);--red-text:#B02A24;
+  --blue:#2563C9;--blue-l:rgba(37,99,201,0.09);--blue-text:#1D68BC;
+  --yellow:#B0680A;--yellow-l:rgba(176,104,10,0.10);--yellow-text:#846300;
+  --purple:#7C5CD4;--purple-l:rgba(124,92,212,0.09);--purple-text:#6F4BC8;
+  --radius:10px;--radius-s:6px;--radius-m:10px;--radius-l:14px;
+  --shadow-card:0 1px 2px rgba(20,20,25,0.04);
+  --shadow-card-hover:0 1px 3px rgba(20,20,25,0.05),0 1px 2px rgba(20,20,25,0.04);
+  --elevation-3:0 12px 40px rgba(20,20,25,0.11),0 4px 8px rgba(20,20,25,0.05);
+  --font-app:var(--font-inter);
+  font-feature-settings:'cv11';
+}
+.t-frost{
+  --bg:#0d1020;--surface:rgba(255,255,255,0.07);--surface2:rgba(255,255,255,0.04);--surface3:rgba(255,255,255,0.10);
+  --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);--border-input:rgba(255,255,255,0.42);
+  --text:#eef2ff;--text-dim:#94a4d4;--text-mute:#8494c4;
+  --accent:#5b8aff;--accent-l:rgba(91,138,255,0.15);--accent-l2:rgba(91,138,255,0.25);--accent-text:#7eb0ff;
+  --green:#5BB88E;--green-l:rgba(91,184,142,0.14);--green-text:#6cc89e;
+  --red:#E8795A;--red-l:rgba(232,121,90,0.14);--red-text:#F08A6C;
+  --blue:#5FA8E8;--blue-l:rgba(95,168,232,0.14);--blue-text:#74b6f0;
+  --yellow:#F0C45E;--yellow-l:rgba(240,196,94,0.14);--yellow-text:#F0C45E;
+  --purple:#A070E0;--purple-l:rgba(160,112,224,0.14);--purple-text:#c9a0f5;
+  --radius:12px;--radius-s:8px;--radius-m:12px;--radius-l:16px;
+  --shadow-card:0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover:0 6px 28px rgba(0,0,0,0.32),inset 0 1px 0 rgba(255,255,255,0.16);
+  --elevation-3:0 16px 48px rgba(0,0,0,0.5);
+  --font-app:var(--font-manrope);
+  --card-solid:#1c2138;
+}
+.t-aurora{
+  --bg:#0a0e1a;--surface:rgba(255,255,255,0.055);--surface2:rgba(255,255,255,0.035);--surface3:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.18);--border-input:rgba(255,255,255,0.42);
+  --text:#e8f0ff;--text-dim:#94a8d4;--text-mute:#8494c4;
+  --accent:#a060ff;--accent-l:rgba(160,96,255,0.15);--accent-l2:rgba(160,96,255,0.25);--accent-text:#c9a0ff;
+  --green:#20e8a0;--green-l:rgba(32,232,160,0.12);--green-text:#20e8a0;
+  --red:#ff6090;--red-l:rgba(255,96,144,0.12);--red-text:#ff7ba3;
+  --blue:#40b8ff;--blue-l:rgba(64,184,255,0.12);--blue-text:#40b8ff;
+  --yellow:#ffe060;--yellow-l:rgba(255,224,96,0.12);--yellow-text:#ffe060;
+  --purple:#a060ff;--purple-l:rgba(160,96,255,0.12);--purple-text:#d0b0ff;
+  --radius:8px;--radius-s:5px;--radius-m:8px;--radius-l:12px;
+  --shadow-card:0 4px 24px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.08);
+  --shadow-card-hover:0 6px 28px rgba(0,0,0,0.38),inset 0 1px 0 rgba(255,255,255,0.12);
+  --elevation-3:0 16px 48px rgba(0,0,0,0.55);
+  --font-app:var(--font-manrope);
+  --card-solid:#181c2c;
+}
+.t-tidal{
+  --bg:#080f0d;--surface:rgba(60,140,100,0.07);--surface2:rgba(60,140,100,0.04);--surface3:rgba(60,140,100,0.10);
+  --border:rgba(80,160,120,0.15);--border2:rgba(80,160,120,0.25);--border-input:rgba(255,255,255,0.37);
+  --text:#c0d8cc;--text-dim:#7aa08c;--text-mute:#79997f;
+  --accent:#48b890;--accent-l:rgba(72,184,144,0.14);--accent-l2:rgba(72,184,144,0.24);--accent-text:#5cc8a0;
+  --green:#40c088;--green-l:rgba(64,192,136,0.12);--green-text:#4fce95;
+  --red:#c86858;--red-l:rgba(200,104,88,0.12);--red-text:#e09080;
+  --blue:#5ca8d0;--blue-l:rgba(92,168,208,0.12);--blue-text:#6cb6da;
+  --yellow:#b8a058;--yellow-l:rgba(184,160,88,0.12);--yellow-text:#c2ac64;
+  --purple:#8878b0;--purple-l:rgba(136,120,176,0.12);--purple-text:#a898c8;
+  --radius:8px;--radius-s:5px;--radius-m:8px;--radius-l:12px;
+  --shadow-card:0 2px 12px rgba(0,0,0,0.2);
+  --shadow-card-hover:0 4px 16px rgba(0,0,0,0.28);
+  --elevation-3:0 16px 48px rgba(0,0,0,0.5);
+  --font-app:var(--font-manrope);
+  --card-solid:#12211b;
+}
+
+/* ═══ База ═══ */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--font-app),system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.tn{font-variant-numeric:tabular-nums}
+
+/* ═══ Демо-хром (не часть макета) ═══ */
+.demo-bar{
+  flex:none;display:flex;align-items:center;gap:10px;
+  padding:8px 16px;border-bottom:1px solid var(--border);
+  background:var(--surface2);font-size:12px;color:var(--text-dim);
+}
+.demo-bar .lbl{color:var(--text-mute);letter-spacing:0.04em;text-transform:uppercase;font-size:10px;font-weight:600}
+.tchip{
+  display:inline-flex;align-items:center;gap:6px;padding:3px 9px;
+  border-radius:99px;border:1px solid var(--border);background:var(--surface);
+  font-size:12px;color:var(--text-dim);transition:border-color .15s;
+}
+.tchip:hover{border-color:var(--border-input)}
+.tchip.on{border-color:var(--accent-text);color:var(--text);font-weight:600}
+.tchip .sw{width:9px;height:9px;border-radius:99px;flex:none}
+
+/* ═══ Шапка страницы ═══ */
+.page{flex:1;display:flex;flex-direction:column;min-height:0;padding:20px 24px 0}
+.page-head{flex:none;display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-0.01em}
+.page-count{margin-left:12px;font-size:13px;color:var(--text-mute)}
+.head-actions{display:flex;align-items:center;gap:8px}
+.btn-ghost{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 12px;font-size:13px;
+  border:1px solid var(--border);border-radius:var(--radius-s);color:var(--text-dim);
+}
+.btn-ghost:hover{background:var(--surface2)}
+.btn-cta{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 14px;font-size:13px;font-weight:600;
+  border-radius:var(--radius-s);background:var(--accent-text);color:var(--bg);
+}
+.t-frost .btn-cta,.t-aurora .btn-cta,.t-tidal .btn-cta{background:var(--accent);color:var(--bg)}
+
+/* ═══ Тулбар ═══ */
+.toolbar{flex:none;display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.seg{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:var(--radius-s);padding:2px}
+.seg button{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 10px;font-size:13px;font-weight:500;
+  border-radius:calc(var(--radius-s) - 2px);color:var(--text-mute);transition:color .15s,background .15s;
+}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--accent-l);color:var(--accent-text)}
+.vsep{width:1px;height:16px;background:var(--border)}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 11px;font-size:13px;font-weight:500;
+  border-radius:99px;border:1px solid var(--border);color:var(--text-dim);
+}
+.chip.on{border-color:var(--accent-text);color:var(--accent-text)}
+.chip .n{color:var(--text-mute);font-weight:400}
+.chip.on .n{color:var(--accent-text)}
+
+/* ═══ Доска ═══ */
+.board-wrap{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;padding-bottom:16px}
+.board{display:flex;gap:14px;height:100%;min-width:min-content}
+.col{
+  width:288px;flex:none;display:flex;flex-direction:column;min-height:0;
+}
+.col-h{
+  flex:none;display:flex;align-items:baseline;gap:7px;
+  padding:7px 4px 9px;border-top:2px solid var(--rail,var(--border2));
+  margin-bottom:2px;
+}
+.col-h .name{font-size:13px;font-weight:600;color:var(--text-dim)}
+.col-h .cnt{font-size:12px;color:var(--text-mute)}
+.col-h .when{margin-left:auto;font-size:11px;color:var(--text-mute)}
+.col-h .wip{margin-left:auto;font-size:11px;color:var(--text-mute)}
+.col-h .wip.over{color:var(--warning-text);font-weight:600}
+.col-hint{flex:none;font-size:11px;color:var(--text-mute);padding:0 4px 8px;line-height:1.4}
+.col-body{
+  flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;
+  padding:2px 2px 8px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
+  border-radius:var(--radius-m);transition:background .15s;
+}
+.col.drop .col-body{background:var(--accent-l);outline:1px dashed var(--accent-text);outline-offset:-1px}
+.col-add{
+  flex:none;display:flex;align-items:center;gap:6px;padding:7px 8px;margin:2px 2px 0;
+  font-size:12.5px;color:var(--text-mute);border-radius:var(--radius-s);
+  opacity:0;transition:opacity .15s,background .15s;
+}
+.col:hover .col-add{opacity:1}
+.col-add:hover{background:var(--surface2);color:var(--text-dim)}
+.col-empty{
+  border:1px dashed var(--border2);border-radius:var(--radius-m);
+  padding:18px 12px;text-align:center;font-size:12px;color:var(--text-mute);
+}
+.col-more{
+  flex:none;padding:7px 8px;font-size:12px;color:var(--accent-text);
+  border-radius:var(--radius-s);text-align:left;
+}
+.col-more:hover{background:var(--accent-l)}
+
+/* ═══ Подложка колонок (wells) ═══ */
+.board.wells .col{
+  background:var(--surface2);border-radius:var(--radius-l);
+  padding:4px 8px 8px;
+}
+.board.wells .col-h{padding:9px 4px 9px;margin-bottom:0}
+.board.wells .col-body{padding:2px 0 6px}
+.board.wells .col-add{margin:2px 0 0}
+/* + семантика: цвет только у исключений */
+.board.wells.sem .col[data-col="overdue"]{background:var(--danger-l)}
+.board.wells.sem .col[data-col="today"]{background:var(--accent-l)}
+/* Бэклог в режиме wells: зона разбора = пунктирная рамка без заливки */
+.board.wells .col.backlog{
+  background:transparent;border:1px dashed var(--border2);
+  border-left-style:dashed;padding-left:8px;margin-left:4px;
+}
+
+/* Бэклог «Без даты» */
+.col.backlog{
+  width:302px;border-left:1px dashed var(--border2);padding-left:14px;margin-left:4px;
+}
+.col.backlog .col-h{border-top-color:transparent}
+.col.backlog .col-body .card{background:var(--surface2)}
+.t-frost .col.backlog .col-body .card,.t-aurora .col.backlog .col-body .card,.t-tidal .col.backlog .col-body .card{background:var(--surface2)}
+
+/* ═══ Карточка ═══ */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);
+  box-shadow:var(--shadow-card);padding:10px 12px;cursor:grab;
+  transition:box-shadow .15s,border-color .15s,transform .15s;
+  display:flex;flex-direction:column;gap:7px;
+}
+.card:hover{border-color:var(--border2);box-shadow:var(--shadow-card-hover);transform:translateY(-1px)}
+.card.dragging{opacity:0.4}
+.card-top{display:flex;align-items:flex-start;gap:8px}
+.chk{
+  flex:none;width:15px;height:15px;margin-top:2px;border-radius:99px;
+  border:1.5px solid var(--border-input);transition:border-color .15s;
+  display:flex;align-items:center;justify-content:center;
+}
+.chk:hover{border-color:var(--accent-text)}
+.card.done .chk{background:var(--green-text);border-color:var(--green-text);color:var(--surface)}
+.t-frost .card.done .chk,.t-aurora .card.done .chk,.t-tidal .card.done .chk{color:var(--bg)}
+.card-text{
+  font-size:13px;line-height:1.4;color:var(--text);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.card.done .card-text{color:var(--text-mute);text-decoration:line-through}
+.card-meta{display:flex;align-items:center;gap:8px;min-height:16px;padding-left:23px}
+.prio{flex:none;width:6px;height:6px;border-radius:99px}
+.prio.critical{background:var(--danger)}
+.prio.important{background:var(--warning)}
+.mchip{
+  display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--text-mute);
+  max-width:150px;white-space:nowrap;overflow:hidden;
+}
+.mchip svg{flex:none}
+.mchip{flex:none}
+.mchip.link{flex:0 1 auto;min-width:0}
+.mchip .tx{overflow:hidden;text-overflow:ellipsis}
+.mchip.due{margin-left:auto}
+.mchip.od{color:var(--danger-text);font-weight:600;margin-left:auto}
+
+/* ═══ Свёрнутая колонка «Выполнено» ═══ */
+.col.rail-done{width:44px;transition:width .2s}
+.col.rail-done .col-h,.col.rail-done .col-body,.col.rail-done .col-add{display:none}
+.rail-btn{
+  height:100%;width:100%;border:1px dashed var(--border2);border-radius:var(--radius-m);
+  display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0;
+  color:var(--text-mute);font-size:12px;font-weight:600;
+}
+.rail-btn:hover{background:var(--surface2);color:var(--text-dim)}
+.rail-btn .vtx{writing-mode:vertical-rl;letter-spacing:0.05em}
+.col.rail-done.open{width:288px}
+.col.rail-done.open .col-h,.col.rail-done.open .col-body{display:flex}
+.col.rail-done.open .rail-btn{display:none}
+
+/* ═══ Матрица ═══ */
+.matrix{flex:1;min-height:0;overflow:auto;padding-bottom:16px}
+.mx{display:grid;grid-template-columns:132px repeat(4,minmax(230px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius-l);overflow:hidden;min-width:min-content}
+.mx>div{background:var(--bg);padding:10px 12px}
+.mx .hc{background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-dim);display:flex;align-items:baseline;gap:6px}
+.mx .hc .cnt{font-weight:400;color:var(--text-mute);font-size:11px}
+.mx .hr{background:var(--surface2);font-size:12px;font-weight:600;color:var(--text-dim);display:flex;align-items:center;gap:7px}
+.mx .hr .dot{width:7px;height:7px;border-radius:99px;flex:none}
+.mx .cell{display:flex;flex-direction:column;gap:6px;min-height:64px}
+.mcard{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-s);
+  box-shadow:var(--shadow-card);padding:6px 9px;font-size:12px;line-height:1.35;color:var(--text);
+  display:flex;align-items:center;gap:7px;cursor:grab;
+}
+.mcard:hover{border-color:var(--border2)}
+.mcard .prio{margin:0}
+.mcard .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .od{flex:none}
+.mx .hc.hot{color:var(--danger-text)}
+
+/* скроллбары */
+::-webkit-scrollbar{height:8px;width:8px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <span class="lbl">Прототип · Две оси + матрица</span>
+  <span style="flex:1"></span>
+  <span class="lbl">Фон колонок</span>
+  <div id="colbg" style="display:flex;gap:6px;margin-right:14px">
+    <button class="tchip" data-bg="air">Воздух</button>
+    <button class="tchip" data-bg="well">Подложка</button>
+    <button class="tchip on" data-bg="wellsem">Подложка + цвет</button>
+  </div>
+  <span class="lbl">Тема</span>
+  <div id="themes" style="display:flex;gap:6px"></div>
+</div>
+
+<div class="page">
+  <div class="page-head">
+    <div>
+      <span class="page-title">Задачи</span>
+      <span class="page-count tn">374 моих активных</span>
+    </div>
+    <div class="head-actions">
+      <button class="btn-ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4"/><path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/></svg>Повторяющиеся</button>
+      <button class="btn-cta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Задача</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="seg">
+      <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Список</button>
+      <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg>Таблица</button>
+      <button class="on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>Доска</button>
+    </div>
+    <span class="vsep"></span>
+    <div class="seg">
+      <button class="on tn">Мои 374</button>
+      <button class="tn">Все 374</button>
+    </div>
+    <span class="vsep"></span>
+    <span class="chip on">Сделки <span class="n tn">1</span></span>
+    <span class="chip">Проекты <span class="n tn">73</span></span>
+    <span class="chip on">Личное <span class="n tn">373</span></span>
+    <span class="vsep"></span>
+    <span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Выполнено <span class="n tn">79</span></span>
+    <span style="flex:1"></span>
+    <div class="seg" id="axis-seg" style="display:none">
+      <button data-mode="dates">Сроки</button>
+      <button data-mode="lanes">Статус</button>
+      <button data-mode="matrix">Матрица</button>
+    </div>
+  </div>
+
+  <div class="board-wrap" id="board-wrap"><div class="board" id="board"></div></div>
+  <div class="matrix" id="matrix" style="display:none"></div>
+</div>
+
+<script>
+/* ═════════ Конфиг варианта ═════════ */
+const VARIANT = 'both'; // 'dates' | 'lanes' | 'both'
+
+/* ═════════ Данные (реалистичный срез) ═════════ */
+// link k: d=сделка, p=проект, c=компания
+const T = [
+  {t:'Прозвон по списку К7 — вернуть 12 контрагентов в сопровождение', p:'critical', link:{k:'c',n:'ИИоТ / К7'}, od:3, b:'overdue', l:'now'},
+  {t:'Ответ по замечаниям к протоколу моделирования', p:'important', link:{k:'p',n:'Внедрение 1С:ERP'}, od:2, b:'overdue', l:'now'},
+  {t:'Счёт на продление лицензий Клеверенс', p:'normal', link:{k:'c',n:'Айрон-Пласт'}, od:1, b:'overdue', l:'next'},
+  {t:'Вернуть ОС по анкете обследования склада', p:'normal', link:{k:'d',n:'Ориент Продактс'}, od:5, b:'overdue', l:'wait'},
+
+  {t:'получить ОС по КП от Глеба 7 августа', p:'important', link:{k:'d',n:'Ориент Продактс'}, b:'today', l:'now'},
+  {t:'Демо Честного Знака: маркировка остатков', p:'normal', link:{k:'c',n:'Айрон-Пласт'}, time:'14:00–15:00', b:'today', l:'now'},
+  {t:'Пересчитать ROI-модель для КП: сценарий «этапами»', p:'important', link:{k:'d',n:'Северсталь-Метиз'}, b:'today', l:'now'},
+  {t:'Уточнить у Рената Кусаметова стоимость кастомного варианта склиза', p:'normal', link:null, time:'16:25', b:'today', l:'next'},
+
+  {t:'Согласовать скоуп этапа 2 с РП', p:'important', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'tomorrow', l:'now'},
+  {t:'Подготовить вопросы к интервью по контуру «Закупки»', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'tomorrow', l:'next'},
+  {t:'Разослать протокол встречи по маркировке', p:'normal', link:{k:'c',n:'Русагро'}, b:'tomorrow', l:'next'},
+  {t:'Проверить статус заявки в ГИС МТ', p:'normal', link:null, b:'tomorrow', l:'wait'},
+
+  {t:'Разработка протокола моделирования по блокам процессов и перечню функциональных разрывов', p:'important', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'week', l:'next'},
+  {t:'Подписание протокола моделирования и перечня разрывов заказчиком', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'week', l:'wait'},
+  {t:'Формализация бизнес-процессов в нотации BPMN по контурам учёта', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'week', l:'next'},
+  {t:'Статус-отчёт по вехам проекта для стёркома', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, time:'пт 12:00', b:'week', l:'next'},
+
+  {t:'Разработка Roadmap Проекта. Оценка последующих этапов', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'later', l:'next'},
+  {t:'Моделирование интеграции с «1С Бухгалтерия предприятия»', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'later', l:'wait'},
+  {t:'Сдача-приёмка моделей по бизнес-процессам', p:'normal', link:{k:'p',n:'Внедрение 1С:ERP'}, b:'later', l:'wait'},
+
+  {t:'Складской учёт', p:'normal', link:null, b:'nodate', l:'next'},
+  {t:'Закупки', p:'normal', link:null, b:'nodate', l:'next'},
+  {t:'Продажи, Ценообразование, Скидки', p:'normal', link:null, b:'nodate', l:'wait'},
+  {t:'Разработка отчёта о моделировании', p:'normal', link:null, b:'nodate', l:'next'},
+  {t:'Учёт затрат, расчёт себестоимости', p:'normal', link:null, b:'nodate', l:'wait'},
+  {t:'Управление доставкой', p:'normal', link:null, b:'nodate', l:'wait'},
+  {t:'Обновить шаблон протокола моделирования', p:'normal', link:null, b:'nodate', l:'next'},
+
+  {t:'Отправить закрывающие по этапу 1', p:'normal', link:{k:'d',n:'Ориент Продактс'}, done:1, b:'done', l:'done'},
+  {t:'Созвон с Глебом: презентация КП', p:'normal', link:{k:'d',n:'Ориент Продактс'}, done:1, b:'done', l:'done'},
+  {t:'Собрать реестр СИЗ для пилота маркировки', p:'normal', link:{k:'c',n:'Русагро'}, done:1, b:'done', l:'done'},
+  {t:'Черновик регламента обмена 1С ↔ ГИС МТ', p:'normal', link:null, done:1, b:'done', l:'done'},
+];
+
+const DATE_COLS = [
+  {id:'overdue', name:'Просрочено', rail:'var(--danger)', when:''},
+  {id:'today', name:'Сегодня', rail:'var(--accent-text)', when:'вс, 9 авг'},
+  {id:'tomorrow', name:'Завтра', when:'пн, 10 авг'},
+  {id:'week', name:'Эта неделя', when:'до вс, 16 авг'},
+  {id:'later', name:'Позже', when:''},
+  {id:'nodate', name:'Без даты', backlog:true, more:366,
+   hint:'Перетащи на день — срок поставится сам.'},
+];
+const LANE_COLS = [
+  {id:'now', name:'Сейчас', rail:'var(--accent-text)', wip:7},
+  {id:'next', name:'Следующие'},
+  {id:'wait', name:'Отложено'},
+  {id:'done', name:'Выполнено', railDone:true},
+];
+
+const ICONS = {
+  d:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+  p:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  c:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/></svg>',
+  clock:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  check:'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  plus:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  chev:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+};
+const DUE_LABEL = {overdue:null, today:'сегодня', tomorrow:'завтра', week:'до вс', later:'25 авг', nodate:null, done:null};
+
+/* ═════════ Рендер ═════════ */
+function cardHTML(task, key, showDue){
+  const m = [];
+  if (task.p !== 'normal') m.push(`<span class="prio ${task.p}" title="${task.p==='critical'?'Критичный':'Важный'}"></span>`);
+  if (task.link) m.push(`<span class="mchip link">${ICONS[task.link.k]}<span class="tx">${task.link.n}</span></span>`);
+  if (task.time) m.push(`<span class="mchip tn">${ICONS.clock}${task.time}</span>`);
+  if (task.od) m.push(`<span class="mchip od tn">${task.od} дн.</span>`);
+  else if (showDue && DUE_LABEL[task.b]) m.push(`<span class="mchip due tn">${DUE_LABEL[task.b]}</span>`);
+  return `<article class="card${task.done?' done':''}" draggable="true" data-key="${key}">
+    <div class="card-top">
+      <button class="chk" aria-label="${task.done?'Вернуть в работу':'Отметить выполненной'}">${task.done?ICONS.check:''}</button>
+      <p class="card-text">${task.t}</p>
+    </div>
+    ${m.length?`<div class="card-meta">${m.join('')}</div>`:''}
+  </article>`;
+}
+
+function renderBoard(mode){
+  const cols = mode === 'dates' ? DATE_COLS : LANE_COLS;
+  const field = mode === 'dates' ? 'b' : 'l';
+  const board = document.getElementById('board');
+  board.innerHTML = cols.map(col=>{
+    const items = T.filter(t=>t[field]===col.id);
+    const railStyle = col.rail ? `style="--rail:${col.rail}"` : '';
+    let head;
+    if (col.wip){
+      const over = items.length > col.wip;
+      head = `<div class="col-h" ${railStyle}><span class="name">${col.name}</span><span class="cnt tn">${items.length}</span><span class="wip tn ${over?'over':''}">WIP ${items.length}/${col.wip}</span></div>`;
+    } else {
+      const cnt = col.more ? items.length + col.more : items.length;
+      head = `<div class="col-h" ${railStyle}><span class="name">${col.name}</span><span class="cnt tn">${cnt}</span>${col.when?`<span class="when tn">${col.when}</span>`:''}</div>`;
+    }
+    let body = items.length
+      ? items.map(t=>cardHTML(t, T.indexOf(t), mode==='lanes')).join('')
+      : `<div class="col-empty">Пусто — перетащи сюда</div>`;
+    if (col.more) body += `<button class="col-more">Ещё ${col.more} — открыть разбор</button>`;
+    const add = `<button class="col-add">${ICONS.plus} Задача</button>`;
+    if (col.railDone){
+      return `<section class="col rail-done" data-col="${col.id}">
+        <button class="rail-btn" title="Развернуть">${ICONS.chev}<span class="vtx">${col.name} · <span class="tn">79</span></span></button>
+        <div class="col-h"><span class="name">${col.name}</span><span class="cnt tn">79</span></div>
+        <div class="col-body">${body}</div>
+      </section>`;
+    }
+    return `<section class="col${col.backlog?' backlog':''}" data-col="${col.id}">
+      ${head}
+      ${col.hint?`<div class="col-hint">${col.hint}</div>`:''}
+      <div class="col-body">${body}</div>
+      ${add}
+    </section>`;
+  }).join('');
+  bindDnd();
+  const rail = board.querySelector('.rail-done .rail-btn');
+  if (rail) rail.addEventListener('click', ()=>rail.closest('.col').classList.add('open'));
+}
+
+function renderMatrix(){
+  const rows = [
+    {id:'now', name:'Сейчас', dot:'var(--accent-text)'},
+    {id:'next', name:'Следующие', dot:'var(--border2)'},
+    {id:'wait', name:'Отложено', dot:'var(--border2)'},
+  ];
+  const cols = [
+    {id:['overdue'], name:'Просрочено', hot:true},
+    {id:['today'], name:'Сегодня'},
+    {id:['tomorrow','week'], name:'Скоро'},
+    {id:['later','nodate'], name:'Позже · без даты'},
+  ];
+  const mx = document.getElementById('matrix');
+  let html = '<div class="mx"><div class="hc"></div>';
+  html += cols.map(c=>{
+    const n = T.filter(t=>!t.done && c.id.includes(t.b)).length;
+    return `<div class="hc ${c.hot?'hot':''}">${c.name}<span class="cnt tn">${n}</span></div>`;
+  }).join('');
+  for (const r of rows){
+    html += `<div class="hr"><span class="dot" style="background:${r.dot}"></span>${r.name}</div>`;
+    for (const c of cols){
+      const items = T.filter(t=>t.l===r.id && c.id.includes(t.b));
+      html += `<div class="cell">${items.map(t=>
+        `<div class="mcard" draggable="true">${t.p!=='normal'?`<span class="prio ${t.p}"></span>`:''}<span class="tx">${t.t}</span>${t.od?`<span class="mchip od tn" style="margin-left:auto">${t.od} дн.</span>`:''}</div>`
+      ).join('')}</div>`;
+    }
+  }
+  html += '</div>';
+  mx.innerHTML = html;
+}
+
+/* ═════════ Drag&drop (демо) ═════════ */
+let dragEl = null;
+function bindDnd(){
+  document.querySelectorAll('.card').forEach(c=>{
+    c.addEventListener('dragstart', e=>{ dragEl=c; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    c.addEventListener('dragend', ()=>{ dragEl?.classList.remove('dragging'); dragEl=null; document.querySelectorAll('.col.drop').forEach(x=>x.classList.remove('drop')); });
+  });
+  document.querySelectorAll('.col').forEach(col=>{
+    const body = col.querySelector('.col-body');
+    if (!body) return;
+    col.addEventListener('dragover', e=>{ e.preventDefault(); col.classList.add('drop'); });
+    col.addEventListener('dragleave', e=>{ if(!col.contains(e.relatedTarget)) col.classList.remove('drop'); });
+    col.addEventListener('drop', e=>{
+      e.preventDefault(); col.classList.remove('drop');
+      if (dragEl){ body.appendChild(dragEl); const empty=body.querySelector('.col-empty'); if(empty) empty.remove(); }
+    });
+  });
+}
+
+/* ═════════ Темы ═════════ */
+const THEMES = [
+  ['t-aura','Аура','#E0A03A'],['t-washi','Washi','#C23B3B'],['t-fuji','Fuji','#2B5078'],
+  ['t-minimal','Minimal','#0E7C86'],['t-frost','Frost','#6ba3be'],['t-aurora','Aurora','#7c6bc4'],['t-tidal','Tidal','#4a9e8e'],
+];
+const themesBox = document.getElementById('themes');
+themesBox.innerHTML = THEMES.map(([cls,name,sw])=>
+  `<button class="tchip${document.documentElement.classList.contains(cls)?' on':''}" data-t="${cls}"><span class="sw" style="background:${sw}"></span>${name}</button>`
+).join('');
+themesBox.addEventListener('click', e=>{
+  const b = e.target.closest('[data-t]'); if(!b) return;
+  document.documentElement.className = b.dataset.t;
+  themesBox.querySelectorAll('.tchip').forEach(x=>x.classList.toggle('on', x===b));
+});
+
+/* ═════════ Фон колонок ═════════ */
+const colbgBox = document.getElementById('colbg');
+function applyColbg(mode){
+  const board = document.getElementById('board');
+  board.classList.toggle('wells', mode!=='air');
+  board.classList.toggle('sem', mode==='wellsem');
+}
+colbgBox.addEventListener('click', e=>{
+  const b = e.target.closest('[data-bg]'); if(!b) return;
+  colbgBox.querySelectorAll('.tchip').forEach(x=>x.classList.toggle('on', x===b));
+  applyColbg(b.dataset.bg);
+});
+function currentColbg(){ return colbgBox.querySelector('.on').dataset.bg; }
+
+/* ═════════ Режимы ═════════ */
+function setMode(mode){
+  const isMx = mode==='matrix';
+  document.getElementById('board-wrap').style.display = isMx?'none':'';
+  document.getElementById('matrix').style.display = isMx?'':'none';
+  if (isMx) renderMatrix(); else { renderBoard(mode); applyColbg(currentColbg()); }
+  document.querySelectorAll('#axis-seg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===mode));
+}
+if (VARIANT==='both'){
+  const seg = document.getElementById('axis-seg');
+  seg.style.display='';
+  seg.addEventListener('click', e=>{ const b=e.target.closest('[data-mode]'); if(b) setMode(b.dataset.mode); });
+  setMode('dates');
+} else {
+  setMode(VARIANT);
+}
+</script>
+</body>
+</html>
