@@ -6,10 +6,11 @@ import { useState } from 'react';
 import { GripVertical, Pencil, Trash2, ArrowRight, AlertTriangle } from 'lucide-react';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { formatBudget } from '@/lib/validators/project';
-import { getDealHealth, getNextActionOverdueDays, getStageAging } from '@/lib/utils/deal-health';
+import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { useDwellThresholds } from '@/lib/hooks/use-org-settings';
+import { useStageTimeGauge } from '@/lib/hooks/use-stage-gauge';
+import { StageTimeRing } from '@/components/shared/StageTimeRing';
 import { Badge } from '@/components/ui/Badge';
 
 // phase_group (pipeline_stages) → color-токен. Свой словарь: в карте воронки
@@ -90,8 +91,6 @@ export function ProjectCard({
   };
 
   const { data: allPipelineStages } = usePipelineStages();
-  // Пороги «залипания» из настроек org; пустые ⇒ хардкод-фолбэк в resolveDwellThreshold.
-  const dwellThresholds = useDwellThresholds();
 
   // Путь B: стадия — только из pipeline_stages (stage_id); legacy `stage`/STAGE_CONFIG не читаем.
   const pipelineStage = allPipelineStages?.find((s) => s.id === project.stage_id);
@@ -106,6 +105,13 @@ export function ProjectCard({
 
   const isTerminal = pipelineStage?.is_won || pipelineStage?.is_lost
     || project.status === 'won' || project.status === 'lost';
+
+  // S-PIPELINE-RING-2: кольцо времени стадии — тот же датчик, что у ячейки кокпита.
+  // У терминальной карточки (won/lost) времени стадии нет смысла — передаём null.
+  const timeGauge = useStageTimeGauge(
+    isTerminal ? null : project.stage_entered_at,
+    isTerminal ? null : pipelineStage ?? null,
+  );
 
   return (
     <div
@@ -171,17 +177,24 @@ export function ProjectCard({
           </div>
         )}
 
-        {/* Budget */}
-        {project.budget != null && project.budget > 0 ? (
-          <div className="mt-1 text-sm font-medium text-text-main tabular-nums">
-            {formatBudget(project.budget)}
-          </div>
-        ) : (
-          <div className="mt-1 flex items-center gap-1 text-yellow" title="Бюджет не указан">
-            <AlertTriangle size={11} />
-            <span className="text-xs">Бюджет</span>
-          </div>
-        )}
+        {/* Budget + кольцо времени стадии (S-PIPELINE-RING-2).
+            Кольцо стоит здесь, а не в строке дедлайна: дедлайн есть не у всех
+            сделок, а сигнал времени обязан быть виден всегда. */}
+        <div className="mt-1 flex items-center gap-2">
+          {project.budget != null && project.budget > 0 ? (
+            <span className="text-sm font-medium text-text-main tabular-nums">
+              {formatBudget(project.budget)}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-yellow" title="Бюджет не указан">
+              <AlertTriangle size={11} />
+              <span className="text-xs">Бюджет</span>
+            </span>
+          )}
+          <span className="ml-auto">
+            <StageTimeRing gauge={timeGauge} showDays />
+          </span>
+        </div>
 
         {/* Deadline */}
         {project.deadline && (() => {
@@ -211,11 +224,6 @@ export function ProjectCard({
         {/* Одна строка внимания (F-04): свёрнуты next-step + возраст-в-стадии + health */}
         {(() => {
           const dh = getDealHealth(project);
-          const aging = !isTerminal && project.stage_entered_at
-            ? getStageAging(project.stage_entered_at, pipelineStage?.phase_group ?? null, {
-                thresholds: dwellThresholds,
-              })
-            : null;
 
           // 1. шаг просрочен (red)
           if (dh === 'overdue-action') {
@@ -226,10 +234,7 @@ export function ProjectCard({
           if (dh === 'no-action') {
             return <AttentionLine tone="yellow" dot="outline" text={project.next_step?.trim() ? 'нет даты шага' : 'нет следующего шага'} />;
           }
-          // 3. залипла в стадии (yellow)
-          if (aging?.isStale && aging.daysInStage) {
-            return <AttentionLine tone="yellow" dot="outline" text={`залипла ${aging.daysInStage} дн. в «${stageLabel}»`} />;
-          }
+          // S-PIPELINE-RING-2: «залипла» из стека снята — время стадии всегда видно кольцом (не гасится острыми сигналами)
           // 4. ok — следующий шаг мелким (mute), либо ничего
           if (!project.next_step) return null;
           return (

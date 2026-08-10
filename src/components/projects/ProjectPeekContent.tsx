@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { Building2, User } from 'lucide-react';
 import type { Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { useStageTimeGauge } from '@/lib/hooks/use-stage-gauge';
 import { useActivityLog } from '@/lib/hooks/use-activity-log';
 import { formatBudget } from '@/lib/validators/project';
 import { describeEvent, relativeTime } from '@/lib/utils/activity-events';
 import { Badge } from '@/components/ui/Badge';
+import { StageTimeRing } from '@/components/shared/StageTimeRing';
 import { DealFocusPanel } from './DealFocusPanel';
 
 /**
@@ -21,14 +23,27 @@ export function ProjectPeekContent({ project }: { project: Project }) {
   const { data: entries = [] } = useActivityLog(project.id);
 
   // Путь B: имя стадии — только из pipeline_stages (stage_id), legacy `stage` не читаем.
-  const stageName = stages?.find((s) => s.id === project.stage_id)?.name ?? '—';
+  const stage = stages?.find((s) => s.id === project.stage_id) ?? null;
+  const stageName = stage?.name ?? '—';
+
+  // S-PIPELINE-RING-2: время стадии тем же датчиком, что у кокпита и канбана.
+  // Терминальная сделка (won/lost) кольца не получает.
+  const isTerminal = !!stage?.is_won || !!stage?.is_lost
+    || project.status === 'won' || project.status === 'lost';
+  const timeGauge = useStageTimeGauge(
+    isTerminal ? null : project.stage_entered_at,
+    isTerminal ? null : stage,
+  );
 
   return (
     <div>
       {/* Статус-строка: стадия + направление + бюджет + дедлайн */}
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
-          {stageName}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
+            {stageName}
+          </span>
+          <StageTimeRing gauge={timeGauge} showDays />
         </span>
         <Badge color={project.direction === 'erp' ? 'purple' : 'blue'} size="sm">
           {project.direction === 'iiot' ? 'IIoT' : 'ERP'}

@@ -17,7 +17,9 @@ import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
-import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
+import { useCompletenessRules, useDwellThresholds, useStageTargetDays } from '@/lib/hooks/use-org-settings';
+import { resolveStageNorm, stageTimeGauge, type StageTimeGauge } from '@/lib/domain/stage-norm';
+import { StageTimeRing } from '@/components/shared/StageTimeRing';
 import { projectHref } from '@/lib/utils/project-href';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { ProjectModal } from './ProjectModal';
@@ -64,6 +66,21 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
   }, [allStages]);
 
   const completenessRules = useCompletenessRules();
+  const dwell = useDwellThresholds();
+  const targetDays = useStageTargetDays();
+
+  // ⚠️ Один `now` на рендер таблицы, а не `new Date()` в ячейке: в ячейке-функции
+  // хук звать нельзя (`useStageTimeGauge` тут не годится), а свежая дата на строку
+  // развела бы точки отсчёта в пределах одного экрана.
+  const now = new Date();
+
+  /** Датчик времени стадии строки; терминал и пустой stage_entered_at ⇒ кольца нет. */
+  const rowGauge = (p: Project): StageTimeGauge | null => {
+    const st = p.stage_id ? stagesMap.get(p.stage_id) : undefined;
+    if (!st || st.is_won || st.is_lost) return null;
+    if (p.status === 'won' || p.status === 'lost' || !p.stage_entered_at) return null;
+    return stageTimeGauge(p.stage_entered_at, resolveStageNorm(st, targetDays, dwell), now);
+  };
 
   const projects = useMemo(
     () => applySegment(
@@ -128,8 +145,13 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
       label: 'Стадия',
       sortable: true,
       render: (p) => (
-        <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
-          {getStageName(p, stagesMap)}
+        // S-PIPELINE-RING-2: кольцо перед именем стадии; дни — в title кольца,
+        // отдельной колонки под них в таблице нет.
+        <span className="inline-flex items-center gap-1.5">
+          <StageTimeRing gauge={rowGauge(p)} size="0.875rem" />
+          <span className="rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent">
+            {getStageName(p, stagesMap)}
+          </span>
         </span>
       ),
     },
