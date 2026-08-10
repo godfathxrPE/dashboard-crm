@@ -38,6 +38,7 @@ export function GlobalModals() {
         defaultContactId={ctx?.contactId ?? null}
         defaultCompanyId={ctx?.companyId ?? null}
         defaultProjectId={ctx?.projectId ?? null}
+        defaultLeadId={ctx?.leadId ?? null}
       />
       <ProjectModal
         isOpen={activeModal === 'project'} onClose={closeModal} editProject={null}
@@ -48,6 +49,7 @@ export function GlobalModals() {
         defaultContactId={ctx?.contactId ?? null}
         defaultCompanyId={ctx?.companyId ?? null}
         defaultProjectId={ctx?.projectId ?? null}
+        defaultLeadId={ctx?.leadId ?? null}
       />
       <MeetingModal
         isOpen={activeModal === 'meeting'} onClose={closeModal} editMeeting={null}

@@ -35,8 +35,11 @@ export function useActivityLog(projectId: string) {
 
 /**
  * Лог активности с гибкой привязкой к сущности (S-NOTES-TIMELINE-1).
- * Передавай ровно один из project_id/contact_id/company_id (заметка на
+ * Передавай ровно один из project_id/contact_id/company_id/lead_id (заметка на
  * контакте/компании не имеет project_id). org_id НЕ шлём — ставит триггер.
+ *
+ * S-LEAD-HUB-2a: `lead_id` (118) — без него заметка с карточки лида уходила бы
+ * вообще без привязки и в его ленту не возвращалась.
  */
 export function useLogActivity() {
   const qc = useQueryClient();
@@ -46,6 +49,7 @@ export function useLogActivity() {
       project_id?: string;
       contact_id?: string;
       company_id?: string;
+      lead_id?: string;
       event_type: string;
       payload?: Json;
     }) => {
@@ -61,6 +65,7 @@ export function useLogActivity() {
         project_id?: string;
         contact_id?: string;
         company_id?: string;
+        lead_id?: string;
       } = {
         user_id: user.id,
         event_type: input.event_type,
@@ -69,6 +74,7 @@ export function useLogActivity() {
       if (input.project_id) row.project_id = input.project_id;
       if (input.contact_id) row.contact_id = input.contact_id;
       if (input.company_id) row.company_id = input.company_id;
+      if (input.lead_id) row.lead_id = input.lead_id;
 
       const { error } = await supabase.from('activity_log').insert(row);
       if (error) throw error;

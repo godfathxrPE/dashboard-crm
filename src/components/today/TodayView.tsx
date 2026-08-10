@@ -177,7 +177,7 @@ export function TodayView() {
       primary: () => updateCall.mutate({ id: c.id, status: 'done' as const }),
     })),
     ...staleLeads.map(({ lead: l }) => ({
-      open: () => router.push('/leads'),
+      open: () => router.push(`/leads/${l.id}`),
       primary: () => updateLead.mutate(
         l.status === 'new'
           ? { id: l.id, status: 'contacted' as const }
@@ -302,7 +302,7 @@ export function TodayView() {
                       {s.days} дн. {l.status === 'new' ? 'в новых' : 'без движения'}
                     </span>
                   }
-                  onOpen={() => router.push('/leads')}
+                  onOpen={() => router.push(`/leads/${l.id}`)}
                   primary={l.status === 'new'
                     ? { label: 'Связаться', onClick: () => updateLead.mutate({ id: l.id, status: 'contacted' }) }
                     : { label: 'Квалифицировать', onClick: () => updateLead.mutate({ id: l.id, status: 'qualified' }) }}

@@ -10,6 +10,14 @@ export const taskFormSchema = z.object({
   project_id: z.string().nullable().default(null),
   company_id: z.string().nullable().default(null),
   contact_id: z.string().nullable().default(null),
+  /**
+   * S-LEAD-HUB-2a (118): задача по лиду. Своего селектора в форме НЕТ — поле
+   * приходит контекстом (`defaultLeadId` из карточки лида) и дальше живёт в строке.
+   * Исключительности «лид или CRM-связи», как у звонка, здесь не заводим: у задачи
+   * нет выбора лида в UI, а `convert_lead` (119) сам достраивает project/company/
+   * contact, оставляя `lead_id` меткой происхождения.
+   */
+  lead_id: z.string().uuid().nullable().default(null),
   deadline: z.string().nullable().default(null),
   start_date: z.string().nullable().default(null),
   end_date: z.string().nullable().default(null),

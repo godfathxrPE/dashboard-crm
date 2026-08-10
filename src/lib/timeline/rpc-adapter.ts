@@ -58,8 +58,14 @@ export interface TimelineRpcRow {
   payload: Record<string, unknown> | null;
 }
 
-/** Значения `parent_type`, которые клиент умеет резолвить в имя. */
-const PARENT_TYPES = ['project', 'company', 'contact'] as const;
+/**
+ * Значения `parent_type`, которые клиент умеет резолвить в имя.
+ *
+ * ⚠️ Список — фильтр, а не документация: `isParentType` отсеивает всё, чего здесь нет,
+ * и родитель схлопывается в `null` МОЛЧА, без ошибки. Ровно поэтому `'lead'` (120)
+ * добавляется сюда тем же коммитом, что и ветка лида в SQL.
+ */
+const PARENT_TYPES = ['project', 'company', 'contact', 'lead'] as const;
 type ParentType = (typeof PARENT_TYPES)[number];
 
 function isParentType(v: unknown): v is ParentType {

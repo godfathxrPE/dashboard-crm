@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   DndContext,
@@ -99,11 +99,14 @@ function regulatoryMonths(deadline: string | null): number | null {
 
 function LeadCard({
   lead,
+  onOpen,
   onEdit,
   onStatusChange,
   onConvert,
 }: {
   lead: Lead;
+  /** S-LEAD-HUB-2a: заголовок ведёт на карточку `/leads/[id]`, «Ред.» — в модалку. */
+  onOpen: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onStatusChange: (id: string, status: LeadStatus, reason?: DisqualifyReason) => void;
   onConvert: (lead: Lead) => void;
@@ -132,7 +135,7 @@ function LeadCard({
       {/* Title + source + температура */}
       <div className="mb-1.5 flex items-start justify-between gap-2">
         <button
-          onClick={() => onEdit(lead)}
+          onClick={() => onOpen(lead)}
           className="text-left text-sm font-medium text-text-main hover:text-accent transition-colors leading-tight"
         >
           {lead.title}
@@ -487,43 +490,22 @@ export function LeadsView() {
     setModalOpen(true);
   }, []);
 
-  // ═══ Deep link ?lead=<id> (S-R2-PEEK-2) ═══
-  // «Полная карточка» лида — это LeadModal: страницы `leads/[id]` в проекте нет,
-  // а обязательный `href` у PeekConfig есть. Приём тот же, что `?spawn=1`/`?ai=1`
-  // на карточке сделки. Побочная польза — лид стал адресуемым ссылкой.
+  // Открыть карточку лида. Соглашение то же, что у контактов и компаний
+  // (`onRowClick` → страница): заголовок и строка ведут на карточку, правка — в модалку.
+  const handleOpen = useCallback((lead: Lead) => {
+    router.push(`/leads/${lead.id}`);
+  }, [router]);
+
+  // ═══ Совместимость со старыми ссылками `?lead=<id>` (S-LEAD-HUB-2a) ═══
+  // Костыль S-R2-PEEK-2 (модалка вместо страницы + ручной replaceState) снят: у лида
+  // есть `/leads/[id]`. Осталась одна строка — редирект: ссылки из писем, закладок и
+  // прошлых peek'ов не должны ломаться. Ждать загрузки списка больше НЕ нужно —
+  // страница сама грузит лид по id и сама умеет показать конвертированного, на
+  // котором прежний эффект молча схлопывался в редирект на список.
   const leadParam = searchParams.get('lead');
-  // Ключ уже отработанного параметра: рефетч списка не должен повторно открывать
-  // модалку после того, как пользователь её закрыл.
-  const handledLeadParam = useRef<string | null>(null);
-
-  // `router.replace` тут дал бы RSC round-trip: /leads — dynamic-страница, App Router
-  // сходит за payload прежде чем поменять URL. Правка query без навигации — штатный
-  // путь Next 15 (`window.history.replaceState`), `useSearchParams` на неё реагирует.
-  const clearLeadParam = useCallback(() => {
-    if (leadParam) window.history.replaceState(null, '', '/leads');
-  }, [leadParam]);
-
   useEffect(() => {
-    if (!leadParam) {
-      handledLeadParam.current = null;
-      return;
-    }
-    // Ждём список: снять параметр раньше загрузки — значит «ссылка не работает
-    // при холодном заходе».
-    if (isLoading) return;
-    if (handledLeadParam.current === leadParam) return;
-    handledLeadParam.current = leadParam;
-
-    const target = leads?.find((l) => l.id === leadParam);
-    if (target) {
-      setEditLead(target);
-      setModalOpen(true);
-      return;
-    }
-    // Конвертированный лид (useLeads его отфильтровала) или мусорный id —
-    // молча снимаем параметр: пустая модалка хуже, чем её отсутствие.
-    router.replace('/leads', { scroll: false });
-  }, [leadParam, isLoading, leads, router]);
+    if (leadParam) router.replace(`/leads/${leadParam}`);
+  }, [leadParam, router]);
 
   const handleConvert = useCallback((lead: Lead) => {
     setConvertLead(lead);
@@ -547,7 +529,7 @@ export function LeadsView() {
       label: 'Название',
       sortable: true,
       render: (l) => (
-        <button onClick={() => handleEdit(l)} className="font-medium text-text-main hover:text-accent transition-colors text-left">
+        <button onClick={() => handleOpen(l)} className="font-medium text-text-main hover:text-accent transition-colors text-left">
           {l.title}
         </button>
       ),
@@ -740,6 +722,7 @@ export function LeadsView() {
                     <LeadCard
                       key={lead.id}
                       lead={lead}
+                      onOpen={handleOpen}
                       onEdit={handleEdit}
                       onStatusChange={handleStatusChange}
                       onConvert={handleConvert}
@@ -764,14 +747,15 @@ export function LeadsView() {
           data={filtered}
           columns={columns}
           keyField="id"
-          onRowClick={handleEdit}
+          onRowClick={handleOpen}
           peek={(l) => ({
             title: l.title,
-            href: `/leads?lead=${l.id}`,
+            href: `/leads/${l.id}`,
             content: <LeadPeekContent lead={l} />,
           })}
-          // «Открыть полностью» из peek ведёт на /leads?lead=<id> и поднимает модалку —
-          // панель под ней (z-40, без оверлея) осталась бы висеть после её закрытия.
+          // «Открыть полностью» из peek теперь уводит на страницу лида, но
+          // `peekSuppressed` остаётся: модалки на самом списке никуда не делись, а
+          // панель (z-40, без оверлея) висела бы под ними.
           peekSuppressed={modalOpen || convertLead !== null}
           searchPlaceholder="Поиск по названию, компании..."
           emptyMessage="Нет лидов"
@@ -845,7 +829,7 @@ export function LeadsView() {
       {/* Modals */}
       <LeadModal
         isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditLead(null); clearLeadParam(); }}
+        onClose={() => { setModalOpen(false); setEditLead(null); }}
         editLead={editLead}
       />
       {convertLead && (

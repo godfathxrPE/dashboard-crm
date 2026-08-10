@@ -12,12 +12,14 @@ import { useLogActivity } from '@/lib/hooks/use-activity-log';
 // (['timeline']) делает useLogActivity.
 // ═══════════════════════════════════════════════════════
 
-type Entity = 'project' | 'contact' | 'company';
+// S-LEAD-HUB-2a: четвёртая сущность — лид (`activity_log.lead_id`, миграция 118).
+type Entity = 'project' | 'contact' | 'company' | 'lead';
 
-const FK_KEY: Record<Entity, 'project_id' | 'contact_id' | 'company_id'> = {
+const FK_KEY: Record<Entity, 'project_id' | 'contact_id' | 'company_id' | 'lead_id'> = {
   project: 'project_id',
   contact: 'contact_id',
   company: 'company_id',
+  lead: 'lead_id',
 };
 
 interface ActivityComposerProps {

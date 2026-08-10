@@ -305,7 +305,8 @@ export function CommandPalette() {
         label: l.title,
         sub: l.company_name_raw ?? undefined,
         icon: UserPlus,
-        href: '/leads',
+        // S-LEAD-HUB-2a: карточка лида, а не список — как у компаний и контактов выше.
+        href: `/leads/${l.id}`,
         section: 'Лиды',
       });
     }
