@@ -178,7 +178,17 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
       next={next}
       restCount={restCount}
       restGroupsCount={restGroupsCount}
-      metaRight={currentIndex >= 0 ? `${currentIndex + 1} из ${stages.length}` : null}
+      metaRight={
+        // Гейт-фикс S-PIPELINE-COCKPIT-1: вероятность ТЕКУЩЕЙ стадии ушла из шапки
+        // вместе с пилюлей (F5) и не жила больше нигде — кнопка next несёт вероятность
+        // СЛЕДУЮЩЕЙ. Возвращена сюда; подписана словом (S-UI-CLARITY-1).
+        currentIndex >= 0
+          ? `${currentIndex + 1} из ${stages.length}` +
+            (!isDelivery && currentStage.probability != null
+              ? ` · вероятность ${currentStage.probability}%`
+              : '')
+          : null
+      }
       locked={locked}
       map={
         <div className="flex flex-col gap-2">

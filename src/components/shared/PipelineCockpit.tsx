@@ -146,7 +146,9 @@ export function PipelineCockpit({
             />
           )}
           <span className="relative text-[0.8125rem] font-semibold text-text-main">{current.name}</span>
-          {gauge?.days != null && (
+          {/* Гейт-фикс S-PIPELINE-COCKPIT-1: у терминала (won/lost/completed) возраст
+              стадии — шум («Выиграна · 45 дн.» читается как проблема), счётчик скрыт. */}
+          {!locked && gauge?.days != null && (
             <span
               className={cn(
                 'relative inline-flex items-center gap-1 text-meta tabular-nums',
