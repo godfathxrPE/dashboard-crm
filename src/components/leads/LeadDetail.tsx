@@ -19,6 +19,8 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { daysSince } from '@/lib/utils/date-helpers';
 import { getLeadHealth, getLeadActionOverdueDays } from '@/lib/utils/lead-health';
 import { LeadHealthMark } from './LeadHealthMark';
+import { PipelineCockpit } from '@/components/shared/PipelineCockpit';
+import { StageRail } from '@/components/shared/StageRail';
 import { formatBudget } from '@/lib/validators/project';
 import { formatPhone } from '@/lib/utils/phone';
 import { STAKEHOLDER_ROLE_CONFIG } from '@/lib/constants/stakeholders';
@@ -155,6 +157,19 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const isDisqualified = lead.status === 'disqualified';
   const readOnly = isConverted;
   const stepIndex = STEPPER.findIndex((s) => s.status === lead.status);
+  const currentStepLabel =
+    LEAD_STATUS_CONFIG[lead.status]?.label ?? STEPPER[stepIndex]?.label ?? lead.status;
+
+  // Следующий шаг статуса — ТЕ ЖЕ мутации, что были у кнопок степпера (одна
+  // мутация с канбаном), просто собраны в один объект для кокпита.
+  const nextStep =
+    lead.status === 'new'
+      ? { label: 'Связаться', locked: false, onClick: () => status.change(lead.id, 'contacted') }
+      : lead.status === 'contacted'
+        ? { label: 'Квалифицировать', locked: false, onClick: () => status.change(lead.id, 'qualified') }
+        : lead.status === 'qualified'
+          ? { label: 'Конвертировать', locked: false, onClick: () => setConvertOpen(true) }
+          : null;
   const overdueDays = lead.next_action_date ? getLeadActionOverdueDays(lead.next_action_date) : 0;
   const regMonths = regulatoryMonths(lead.regulatory_deadline);
   const contactedDays = lead.first_contacted_at ? daysSince(lead.first_contacted_at) : null;
@@ -240,7 +255,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         </div>
       </div>
 
-      {/* ═══ Степпер статусов ═══ */}
+      {/* ═══ Кокпит статусов ═══ */}
       <div className="mb-4 rounded-xl border border-border bg-surface p-3">
         {isDisqualified ? (
           // Терминальная ветка — отдельной меткой, а не колонкой степпера:
@@ -261,54 +276,50 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             </button>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {STEPPER.map((step, i) => {
-              const done = stepIndex >= 0 && i <= stepIndex;
-              return (
-                <span key={step.status} className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      'rounded-lg px-2.5 py-1 text-xs font-medium',
-                      done ? 'bg-accent-l text-accent' : 'text-text-mute',
-                    )}
-                  >
-                    {LEAD_STATUS_CONFIG[step.status]?.label ?? step.label}
-                  </span>
-                  {i < STEPPER.length - 1 && <span className="text-text-mute">›</span>}
-                </span>
-              );
-            })}
-
-            {/* Действия — те же, что на карточке канбана, и через ту же мутацию */}
-            <span className="ml-auto flex items-center gap-1">
-              {lead.status === 'new' && (
-                <button
-                  onClick={() => status.change(lead.id, 'contacted')}
-                  className="rounded-lg px-2.5 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent-l"
-                >
-                  Связаться
-                </button>
+          <>
+            {/* S-PIPELINE-COCKPIT-1: тот же кокпит, что у сделки и проекта внедрения.
+                Тайм-часть ячейки НЕ выдумывается (`gauge={null}`): у лида нет ни
+                stage_entered_at, ни норм стадий — сигнал времени несут LeadHealthMark
+                в ячейке и строка фокус-панели, и второй источник тут врал бы. */}
+            <PipelineCockpit
+              pastCount={stepIndex > 0 ? stepIndex : 0}
+              pastNames={STEPPER.slice(0, Math.max(0, stepIndex)).map(
+                (s) => LEAD_STATUS_CONFIG[s.status]?.label ?? s.label,
               )}
-              {lead.status === 'contacted' && !rejecting && (
-                <>
-                  <button
-                    onClick={() => status.change(lead.id, 'qualified')}
-                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-green transition-colors hover:bg-green-l"
-                  >
-                    Квалифицировать
-                  </button>
+              current={{ name: currentStepLabel }}
+              gauge={null}
+              currentExtra={<LeadHealthMark lead={lead} />}
+              gate={null}
+              next={nextStep}
+              extraActions={
+                lead.status === 'contacted' && !rejecting ? (
                   <button
                     onClick={() => setRejecting(true)}
                     className="rounded-lg px-2.5 py-1 text-xs font-medium text-red transition-colors hover:bg-red-l"
                   >
                     Отклонить
                   </button>
-                </>
-              )}
-            </span>
+                ) : null
+              }
+              restCount={stepIndex >= 0 ? STEPPER.length - stepIndex - 1 : 0}
+              metaRight={stepIndex >= 0 ? `${stepIndex + 1} из ${STEPPER.length}` : null}
+              locked={isConverted}
+              map={
+                // Карта лида read-only: откат статуса из карты — отдельное продуктовое
+                // решение (у лида нет ни модалки перехода, ни подтверждения отката).
+                <StageRail
+                  stages={STEPPER.map((step) => ({
+                    id: step.status,
+                    name: LEAD_STATUS_CONFIG[step.status]?.label ?? step.label,
+                  }))}
+                  currentIndex={stepIndex}
+                  locked
+                />
+              }
+            />
 
             {rejecting && (
-              <div className="flex w-full flex-wrap items-center gap-1 border-t border-border/50 pt-2">
+              <div className="mt-2 flex w-full flex-wrap items-center gap-1 border-t border-border/50 pt-2">
                 <span className="w-full text-xs text-text-mute">Причина отказа:</span>
                 {disqualifyReasons.map((r) => (
                   <button
@@ -328,7 +339,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                 </button>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 

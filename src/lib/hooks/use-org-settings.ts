@@ -4,7 +4,11 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
-import { parseOrgSettings, readCompletenessOverrides } from '@/lib/validators/org-settings';
+import {
+  parseOrgSettings,
+  readCompletenessOverrides,
+  readStageTargetDays,
+} from '@/lib/validators/org-settings';
 import { DEFAULT_RULES, resolveRules, type CompletenessRules } from '@/lib/domain/deal-completeness';
 import type { DwellThresholds } from '@/lib/utils/deal-health';
 import type { Json, OrgSettings } from '@/types/database';
@@ -101,6 +105,19 @@ export function useReconnectDays(): number {
 export function useDwellThresholds(): DwellThresholds {
   const { data } = useOrgSettings();
   return data?.stage_dwell_defaults ?? EMPTY_THRESHOLDS;
+}
+
+/**
+ * Нормы дней по конкретным стадиям (S-PIPELINE-COCKPIT-1). `undefined` — валидное
+ * значение: `resolveStageNorm` падает на порог phase_group, то есть ненастроенная
+ * org видит ту же норму, что и бейдж «залипла». Пишущего UI пока нет.
+ *
+ * `useMemo` — не косметика: ридер строит новый объект на каждый вызов, и без
+ * мемоизации значение нельзя было бы класть в зависимости потребителей.
+ */
+export function useStageTargetDays(): Record<string, number> | undefined {
+  const { data } = useOrgSettings();
+  return useMemo(() => readStageTargetDays(data), [data]);
 }
 
 /**

@@ -53,10 +53,26 @@ const completenessRulesSchema = z.record(
     .optional(),
 );
 
+/**
+ * Org-оверрайд нормы дней на КОНКРЕТНУЮ стадию: `{ [stage_id]: days }`
+ * (S-PIPELINE-COCKPIT-1). Нет ключа/стадии — норма группы
+ * (`stage_dwell_defaults` → фолбэки `STALE_BY_PHASE`).
+ *
+ * ⚠️ Почему не колонка `pipeline_stages.target_days`: `pipelines`/`pipeline_stages` —
+ * глобальные словари вне тенант-модели (RLS `USING true`, у клиента только SELECT),
+ * org-специфичной настройке в них не место. Развилка S-R2-DWELL-CFG закрыта
+ * решением «четвёртая сущность не заводится».
+ */
+const stageTargetDaysSchema = z.record(
+  z.string(),
+  z.number().int().min(STAGE_DWELL_MIN).max(STAGE_DWELL_MAX).optional(),
+);
+
 export const orgSettingsSchema = z
   .object({
     reconnect_days: reconnectDaysSchema.optional(),
     stage_dwell_defaults: stageDwellDefaultsSchema.optional(),
+    stage_target_days: stageTargetDaysSchema.optional(),
     completeness_rules: completenessRulesSchema.optional(),
   })
   .passthrough();
@@ -64,7 +80,7 @@ export const orgSettingsSchema = z
 export type OrgSettingsInput = z.input<typeof orgSettingsSchema>;
 
 /**
- * phase_group воронки продаж — порядок и подписи как в `PipelineBoard`/`StackedPipeline`.
+ * phase_group воронки продаж — порядок и подписи как в `PipelineBoard`/`phase-labels.ts`.
  * Живёт рядом со схемой: ключи формы и ключи jsonb — один список, чтобы не разъехались.
  * Групп внедрения (initiated/planning/execution/completed) здесь нет намеренно —
  * бейдж «залипла» настраивается для сделок; внедрения падают на `default`/фолбэк.
@@ -189,6 +205,37 @@ export function readCompletenessOverrides(
       weight <= COMPLETENESS_WEIGHT_MAX
     ) {
       out[key] = { weight };
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Нормы дней по стадиям из настроек org (`settings.stage_target_days`).
+ *
+ * Читается кастом по той же причине, что `completeness_rules`: ключ живёт в jsonb
+ * через `.passthrough()`, а `src/types/database.ts` руками не правится (правило 2
+ * контракта). Мусор, нецелые и значения вне 1..365 отбрасываются поштучно —
+ * одна кривая стадия не роняет нормы остальных.
+ *
+ * Возвращает `undefined`, если валидных ключей нет: `resolveStageNorm` тогда
+ * падает на порог группы, а не на пустой объект-оверрайд.
+ */
+export function readStageTargetDays(
+  settings: OrgSettings | null | undefined,
+): Record<string, number> | undefined {
+  const raw = (settings as Record<string, unknown> | null | undefined)?.stage_target_days;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+  const out: Record<string, number> = {};
+  for (const [stageId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (
+      typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= STAGE_DWELL_MIN &&
+      value <= STAGE_DWELL_MAX
+    ) {
+      out[stageId] = value;
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;

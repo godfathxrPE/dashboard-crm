@@ -38,7 +38,7 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
   if (!isWon) return null;
 
   // Лейбл текущего состояния = phase_group стадии delivery-пайплайна (тот же
-  // маппинг, что в ProjectDetail/StackedPipeline — не хардкодим слаги).
+  // маппинг, что в `lib/constants/phase-labels.ts` — не хардкодим слаги).
   const phaseLabel = (stageId: string | null): string => {
     const st = stages?.find((s) => s.id === stageId);
     const g = st?.phase_group ?? '';

@@ -12,7 +12,8 @@ import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { useDwellThresholds } from '@/lib/hooks/use-org-settings';
 import { Badge } from '@/components/ui/Badge';
 
-// phase_group (pipeline_stages) → color-токен, как в StackedPipeline
+// phase_group (pipeline_stages) → color-токен. Свой словарь: в карте воронки
+// (StageRail) категория цветом больше не кодируется, подписи — phase-labels.ts.
 const PHASE_COLOR: Record<string, string> = {
   attraction: 'var(--track-prep-current)',
   working: 'var(--track-exp-current)',

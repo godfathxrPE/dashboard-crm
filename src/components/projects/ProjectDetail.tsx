@@ -35,12 +35,10 @@ import type { ProjectType } from '@/types/database';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Meeting } from '@/lib/hooks/use-meetings';
 import { formatBudget, parseBudgetInput } from '@/lib/validators/project';
-import { StackedPipeline } from './StackedPipeline';
 import { DeliveryCompletionModal } from './DeliveryCompletionModal';
 import { DealDeliveryHub } from './DealDeliveryHub';
-import { DealProgressBar } from './DealProgressBar';
 import { DealFocusPanel } from './DealFocusPanel';
-import { StageReadiness } from './StageReadiness';
+import { ProjectStageCockpit } from './ProjectStageCockpit';
 import { ProjectChecklists } from './ProjectChecklists';
 import { ProjectFiles } from './ProjectFiles';
 import { ProjectVideos } from './ProjectVideos';
@@ -67,7 +65,7 @@ import { HealthDot } from '@/components/shared/HealthDot';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
-import { DELIVERY_PHASE_LABELS, deliveryKindLabel, hasTaskProgress } from '@/lib/constants/delivery-phases';
+import { deliveryKindLabel, hasTaskProgress } from '@/lib/constants/delivery-phases';
 import { SpawnWizard } from './SpawnWizard';
 import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
 import { safeHref } from '@/lib/utils/safe-href';
@@ -287,7 +285,6 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
   // S29.1 / Путь B: «живой» контур стадии — из stage_id (pipeline_stages), legacy enum `stage` больше не читаем.
   const headerStage = allPipelineStages?.find((s) => s.id === project.stage_id) ?? null;
-  const headerProb = headerStage?.probability ?? null;
   // S-DLV-HEALTH-1: health внедрения — из project-level полей; терминальные не краснят
   const deliveryHealth = isDelivery
     ? getDeliveryHealth({
@@ -362,27 +359,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             {!isDelivery && <CompletenessBadge project={project} />}
           </div>
           <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
-            {/* S-UI-POLISH-1 (п.3): пилюля текущей стадии — solid-акцент (bg-accent/green
-                + текст на --bg), а не тинт: находится взглядом за секунду в любой теме */}
-            {/* S-UI-CLARITY-1: процент подписан словом. Рядом в шапке живут ещё два
-                числа другой природы — доля пройденной воронки (StackedPipeline) и
-                заполненность полей (CompletenessBadge); без подписи три величины
-                читались как одна с ошибкой округления. */}
-            <span
-              title={!isDelivery && headerStage ? 'Вероятность закрытия сделки на этой стадии' : undefined}
-              className={`rounded-full px-2 py-0.5 text-xs font-medium text-[var(--bg)] ${headerProb != null && headerProb > 50 ? 'bg-green' : 'bg-accent'}`}
-            >
-              {(() => {
-                // Delivery: «Состояние · текущая фаза» (phase_group → лейбл, стадия = фаза СДР)
-                if (isDelivery && headerStage) {
-                  const phaseLabel = DELIVERY_PHASE_LABELS[headerStage.phase_group ?? ''] ?? headerStage.phase_group ?? '—';
-                  return `${phaseLabel} · ${headerStage.name}`;
-                }
-                // S29.1 / Путь B: бейдж — из stage_id (живой контур); legacy enum больше не читаем.
-                if (headerStage) return `${headerStage.name} · вероятность ${headerStage.probability ?? 0}%`;
-                return '—';
-              })()}
-            </span>
+            {/* S-PIPELINE-COCKPIT-1 (F5): пилюля текущей стадии и пилюля «Состояние · фаза»
+                отсюда УБРАНЫ — имя стадии живёт в ячейке кокпита ниже, и два места для
+                одной величины были ровно тем дублем, который кокпит закрывает. */}
             {/* P2b (B3): прогресс задач — отдельная метрика, НЕ смешиваем со стадийным % */}
             {isDelivery && hasTaskProgress(project.progress_total) && (
               <span className="rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-text-dim">
@@ -401,15 +380,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             <span>
               Создан {new Date(project.created_at).toLocaleDateString('ru-RU')}
             </span>
-            {project.status === 'open' && project.stage_entered_at && (() => {
-              const d = Math.floor((Date.now() - new Date(project.stage_entered_at).getTime()) / 86400000);
-              if (d < 1) return null;
-              return (
-                <span style={d > 30 ? { color: 'var(--red-text, var(--red))' } : undefined}>
-                  · {d} дн. в стадии
-                </span>
-              );
-            })()}
+            {/* S-PIPELINE-COCKPIT-1 (F5): «· N дн. в стадии» уехало в ячейку кокпита —
+                там возраст стоит рядом с нормой стадии и красится по её расходу,
+                а не по хардкод-порогу 30 дней. */}
           </div>
         </div>
 
@@ -559,93 +532,13 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           два разных места для одного решения и были тем разрозненным UX, который
           закрывает A5 роадмапа. Кнопки «Выиграна»/«Проиграна» выше открывают её. */}
 
-      {/* Deal Progress Bar — client ERP only (IIoT uses StackedPipeline below) */}
-      {project.type === 'client' && project.direction === 'erp' && project.pipeline_id && project.stage_id && (
-        <div className="mb-4">
-          <DealProgressBar
-            pipelineId={project.pipeline_id}
-            currentStageId={project.stage_id}
-            readOnly={project.status === 'won' || project.status === 'lost'}
-            onStageClick={(newStageId) => {
-              if (!allPipelineStages) return;
-              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
-              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
-              if (!currentStageObj || !targetStageObj) return;
-              if (targetStageObj.order_index === currentStageObj.order_index) return;
-
-              // Назад по воронке — только через подтверждение (S-DEBT-CONFIRM-1:
-              // оверлей вместо confirm, решение уезжает в applyRollback).
-              if (targetStageObj.order_index < currentStageObj.order_index) {
-                setRollback({ stageId: newStageId, stageName: targetStageObj.name, kind: 'deal' });
-                return;
-              }
-
-              openTransition({ project, toStageId: newStageId });
-            }}
-          />
-        </div>
-      )}
-
-      {/* Multi-track Pipeline — client IIoT only. S29.1: на stage_id, гейт-баннер переиспользован. */}
-      {project.type === 'client' && project.direction === 'iiot' && project.pipeline_id && project.stage_id && (
+      {/* S-PIPELINE-COCKPIT-1: единый «Кокпит» вместо трёх разных языков воронки
+          (DealProgressBar у ERP, StackedPipeline у IIoT, StackedPipeline у delivery).
+          Кокпит сам решает, что показать: тайм-ячейку, готовность гейта, кнопку
+          следующей стадии и карту воронки — контракты переходов прежние. */}
+      {project.pipeline_id && project.stage_id && (project.type === 'client' || isDelivery) && (
         <div className="mb-6">
-          <StackedPipeline
-            pipelineId={project.pipeline_id}
-            currentStageId={project.stage_id}
-            readOnly={project.status === 'won' || project.status === 'lost'}
-            onStageClick={(newStageId) => {
-              if (!allPipelineStages) return;
-              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
-              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
-              if (!currentStageObj || !targetStageObj) return;
-              if (targetStageObj.order_index === currentStageObj.order_index) return;
-
-              // Назад по воронке — только через подтверждение (S-DEBT-CONFIRM-1).
-              if (targetStageObj.order_index < currentStageObj.order_index) {
-                setRollback({ stageId: newStageId, stageName: targetStageObj.name, kind: 'deal' });
-                return;
-              }
-
-              openTransition({ project, toStageId: newStageId });
-            }}
-          />
-        </div>
-      )}
-
-      {/* Delivery P1 (B5): фазовый грид проекта внедрения — состояния (phase_group)
-          с фазами СДР внутри; StackedPipeline универсален по слагам (лейблы
-          delivery подмешаны из delivery-phases.ts). Legacy stage не пишем (B6). */}
-      {isDelivery && project.pipeline_id && project.stage_id && (
-        <div className="mb-6">
-          <StackedPipeline
-            pipelineId={project.pipeline_id}
-            currentStageId={project.stage_id}
-            readOnly={project.status === 'completed'}
-            onStageClick={(newStageId) => {
-              if (!allPipelineStages) return;
-              const currentStageObj = allPipelineStages.find((s) => s.id === project.stage_id);
-              const targetStageObj = allPipelineStages.find((s) => s.id === newStageId);
-              if (!currentStageObj || !targetStageObj) return;
-              if (targetStageObj.order_index === currentStageObj.order_index) return;
-
-              // Назад по фазам — только через подтверждение (S-DEBT-CONFIRM-1).
-              if (targetStageObj.order_index < currentStageObj.order_index) {
-                setRollback({
-                  stageId: newStageId,
-                  stageName: targetStageObj.name,
-                  kind: 'delivery',
-                });
-                return;
-              }
-
-              // ⚠️ ЗДЕСЬ МОДАЛКИ ПЕРЕХОДА НЕТ И НЕ ДОЛЖНО БЫТЬ (S-R2-TRANSITION-1b).
-              // Это фазовый грид ПРОЕКТА ВНЕДРЕНИЯ (СДР), а не воронка продаж:
-              // ни причин won/lost, ни During-полей гейта у фаз нет. Модалка здесь
-              // спрашивала бы «причину выигрыша» у этапа монтажа. Запись идёт
-              // напрямую через сервис 1a — единый вход сохраняется.
-              moveToStageId(project.id, newStageId);
-            }}
-          />
+          <ProjectStageCockpit project={project} onRollback={setRollback} />
         </div>
       )}
 
@@ -658,12 +551,10 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {project.type === 'client' && project.status === 'open' && <DealFocusPanel project={project} />}
 
       {/* S-R2-TRANSITION-1b: баннер отказа гейта СНЯТ — отказ показывает модалка
-          перехода, там же, где требования можно закрыть. Диагностический чек-лист
-          готовности (StageReadiness) ниже остаётся: он про «что нужно сделать»,
-          а не про «переход отклонён». */}
-
-      {/* Sprint 27: чек-лист готовности к следующей стадии (гейты) — только client */}
-      {project.type === 'client' && project.status === 'open' && <StageReadiness project={project} />}
+          перехода, там же, где требования можно закрыть.
+          S-PIPELINE-COCKPIT-1: отдельный чек-лист готовности (StageReadiness) тоже
+          снят — те же требования и в тех же формулировках несёт элемент
+          «готовность m/t» кокпита, рядом с кнопкой перехода, а не в третьем месте. */}
 
       {/* S-DEAL-HUB-1: дочерние внедрения won-сделки (компонент сам скрыт, если не won).
           onCreateDelivery открывает Win Wizard (S-WIN-WIZARD-1). */}

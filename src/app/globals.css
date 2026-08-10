@@ -2010,4 +2010,15 @@ table tbody tr[data-kbd-focused] {
   --success: var(--green);   --success-l: var(--green-l);   --success-text: var(--green-text, var(--green));
   --warning: var(--yellow);  --warning-l: var(--yellow-l);  --warning-text: var(--yellow-text, var(--yellow));
   --info:    var(--blue);    --info-l:    var(--blue-l);    --info-text:    var(--blue-text, var(--blue));
+
+  /* S-PIPELINE-COCKPIT-1: тайм-заливка ячейки текущей стадии (PipelineCockpit).
+     Смесь от --bg (solid во всех темах) + палитра активной темы через тот же
+     alias-слой на :root, что и семантика выше — rgba для pipeline-заливок
+     запрещён: полупрозрачная заливка на тёмных темах просвечивает подложку и
+     текст на ней перестаёт читаться. Прецедент смеси — --cal-line.
+     ⚠️ НЕ объявлять внутри .t-* — переменная из одной темы = невидимый дефект
+     в шести остальных (тот же дефект, что был у --danger). */
+  --time-ok-fill:   color-mix(in srgb, var(--bg) 84%, var(--accent));
+  --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
+  --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
 }
