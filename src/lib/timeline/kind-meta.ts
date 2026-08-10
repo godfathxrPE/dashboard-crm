@@ -44,7 +44,7 @@ export const KIND_META: Record<TimelineKind, TimelineKindMeta> = {
  * значит выдавать ссылку, которая через раз ведёт в 404.
  */
 export function parentHref(
-  parentType: 'project' | 'company' | 'contact' | null | undefined,
+  parentType: 'project' | 'company' | 'contact' | 'lead' | null | undefined,
   parentId: string | null | undefined,
 ): string | null {
   if (!parentType || !parentId) return null;
@@ -53,5 +53,8 @@ export function parentHref(
   // сам — тот же контракт, что описан в `project-href.ts` для точек без `type`.
   if (parentType === 'project') return `/deals/${parentId}`;
   if (parentType === 'company') return `/companies/${parentId}`;
+  // S-LEAD-HUB-2a: ветка ДО финального fallthrough — без неё лид уехал бы
+  // в `/contacts/<id лида>`, то есть на карточку несуществующего контакта.
+  if (parentType === 'lead') return `/leads/${parentId}`;
   return `/contacts/${parentId}`;
 }

@@ -17,6 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/tasks': 'Задачи',
   '/deals': 'Сделки',
   '/projects': 'Проекты',
+  '/leads': 'Лиды',
   '/contacts': 'Контакты',
   '/companies': 'Компании',
   '/calls': 'Звонки',

@@ -33,6 +33,9 @@ interface TaskModalProps {
   defaultProjectId?: string | null;
   defaultContactId?: string | null;
   defaultCompanyId?: string | null;
+  /** S-LEAD-HUB-2a: задача по лиду («+Задача» с карточки лида). Селектора в форме нет —
+   *  связь приходит контекстом и уходит в `tasks.lead_id`. */
+  defaultLeadId?: string | null;
   /** Préfill текста задачи при создании (напр. action item из AI-протокола) */
   defaultText?: string | null;
   /** Préfill дедлайна при создании, YYYY-MM-DDTHH:mm или ISO */
@@ -44,7 +47,7 @@ interface TaskModalProps {
   defaultScheduledEnd?: string | null;
 }
 
-export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultLeadId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd }: TaskModalProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { data: companies } = useCompanies();
@@ -198,6 +201,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         project_id: editTask.project_id,
         company_id: editTask.company_id ?? null,
         contact_id: editTask.contact_id ?? null,
+        lead_id: editTask.lead_id ?? null,
         deadline: isoToDatetimeLocal(editTask.deadline),
         start_date: editTask.start_date ?? null,
         end_date: editTask.end_date ?? null,
@@ -216,6 +220,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         project_id: defaultProjectId ?? null,
         company_id: defaultCompanyId ?? null,
         contact_id: defaultContactId ?? null,
+        lead_id: defaultLeadId ?? null,
         deadline: isoToDatetimeLocal(defaultDeadline),
         start_date: null,
         end_date: null,
@@ -227,7 +232,7 @@ export function TaskModal({ isOpen, onClose, editTask, defaultProjectId, default
         wbs_code: null,
       });
     }
-  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd, reset]);
+  }, [editTask, defaultProjectId, defaultContactId, defaultCompanyId, defaultLeadId, defaultText, defaultDeadline, defaultLane, defaultScheduledStart, defaultScheduledEnd, reset]);
 
   function onSubmit(values: TaskFormValues) {
     // datetime-local (локальное время) → ISO UTC для timestamptz-полей;

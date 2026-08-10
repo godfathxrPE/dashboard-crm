@@ -256,10 +256,11 @@ cron-джоба `webhook-retry` (`dispatch_webhooks_tick()`). Транспорт
 `action_type='webhook'` в движке автоматизаций. Подпись — HMAC, SSRF-фильтр отбивает
 резолв в приватные адреса. `vault` через PostgREST недоступен — секрет читается иначе.
 
-### Лиды (`leads/LeadsView.tsx` + `LeadModal.tsx`, миграции 016/018 + **117–119**)
+### Лиды (`leads/LeadsView.tsx` + `LeadDetail.tsx`, миграции 016/018 + **117–120**)
 
-Канбан 4 колонок + таблица, конверсия через RPC `convert_lead`, полоса
-«Конвертированы». С S-LEAD-CORE-1 лид — рабочая сущность, а не плоский триаж:
+Канбан 4 колонок + таблица + **карточка `/leads/[id]`**, конверсия через RPC
+`convert_lead`, полоса «Конвертированы». С S-LEAD-CORE-1 лид — рабочая сущность,
+а не плоский триаж:
 
 - **Ownership переехал с `user_id` на `owner_id` → profiles** (117, бэкфилл + DEFAULT
   `auth.uid()`). `user_id` остался NOT NULL и его читает legacy-ветка гарда
@@ -279,6 +280,18 @@ cron-джоба `webhook-retry` (`dispatch_webhooks_tick()`). Транспорт
 - **Конверсия переносит историю** (119): звонки и задачи лида получают
   contact/company/project созданных сущностей, квалификация — в `pinned_note` сделки
   (только если та пуста). `lead_id` не зануляется: жизнь до сделки остаётся видимой.
+- **Карточка `/leads/[id]`** (S-LEAD-HUB-2a): шапка → степпер статусов
+  (`disqualified` — терминальная метка, НЕ колонка) → фокус-панель (шаг/дата/SLA,
+  язык `DealFocusPanel`) → квалификация → `EntityTimeline` + `ActivityComposer`.
+  Данные — `useLead(id)` с ключом `['leads','one',id]`: список режет
+  `converted`, а карточка обязана открывать и их. Статус меняет общий
+  `useLeadStatusChange()` — одна мутация на канбан и карточку.
+  Костыль `?lead=<id>` снят, от него остался редирект ради старых ссылок.
+- **`TimelineEntityType` = `contact | company | project | org | lead`** (120). Домен
+  расширяется в ПЯТИ местах разом: SQL-ветки, `PARENT_TYPES` в `rpc-adapter`,
+  `parentType` в `types/timeline`, `parentHref` в `kind-meta`, `Entity`/`FK_KEY` в
+  `ActivityComposer` (+ `lead_id` в `use-activity-log`). Пропуск второго — ТИХАЯ
+  потеря: `isParentType` отсеет родителя в `null` без ошибки.
 
 ### Стейкхолдеры сделки (`projects/DealStakeholders.tsx`, миграция 092)
 

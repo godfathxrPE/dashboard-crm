@@ -11,6 +11,8 @@ export interface ModalContext {
   contactId?: string;
   companyId?: string;
   projectId?: string;
+  /** S-LEAD-HUB-2a: «+Звонок»/«+Задача» с карточки лида (`/leads/[id]`). */
+  leadId?: string;
 }
 
 interface UiState {

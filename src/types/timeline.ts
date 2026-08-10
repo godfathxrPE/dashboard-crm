@@ -55,7 +55,7 @@ export type TimelineEvent = {
    * без него строка «Задача: Приёмка отчёта» бесполезна.
    * `null` — законное значение: у 304 записей журнала из 801 привязки нет вовсе.
    */
-  parentType?: 'project' | 'company' | 'contact' | null;
+  parentType?: 'project' | 'company' | 'contact' | 'lead' | null;
   parentId?: string | null;
   /**
    * Имя родителя — проставляет `useOrgTimeline` из кэшей `useProjects`/

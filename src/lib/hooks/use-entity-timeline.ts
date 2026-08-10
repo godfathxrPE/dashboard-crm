@@ -16,6 +16,7 @@ import { useRealtimeSync } from './use-realtime';
 import { useProjects } from './use-projects';
 import { useCompanies } from './use-companies';
 import { useContacts } from './use-contacts';
+import { useLeads } from './use-leads';
 
 // ═══════════════════════════════════════════════════════
 // useEntityTimeline — единая лента активности сущности.
@@ -42,7 +43,12 @@ import { useContacts } from './use-contacts';
  * `org_timeline()` не заводится: копия тела разошлась бы с оригиналом при первой
  * же правке веток, и разошлась бы молча — лента просто показала бы другое.
  */
-export type TimelineEntityType = 'contact' | 'company' | 'project' | 'org';
+/**
+ * S-LEAD-HUB-2a: пятое значение — `'lead'` (миграция 120). Источников у лида три из
+ * шести (`calls`/`tasks`/`activity_log`): колонки `lead_id` у `meetings`, `projects`
+ * и `ai_runs` нет — так решено в дизайне сущности, а не забыто.
+ */
+export type TimelineEntityType = 'contact' | 'company' | 'project' | 'org' | 'lead';
 
 const STALE_TIME = 60_000;
 
@@ -231,6 +237,7 @@ function useParentNameMap(): Map<string, string> {
   const { data: projects } = useProjects();
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
+  const { data: leads } = useLeads();
 
   return useMemo(() => {
     const map = new Map<string, string>();
@@ -241,6 +248,12 @@ function useParentNameMap(): Map<string, string> {
     for (const c of contacts ?? []) {
       map.set(c.id, `${c.first_name} ${c.last_name ?? ''}`.trim());
     }
+    // ⚠️ `useLeads()` режет конвертированных (`.neq('status','converted')`), и для
+    // карты имён это ДОПУСТИМО: после конверсии родителем события становится сделка
+    // (в `case` функции лид стоит последним — см. 120), а её имя даёт `projects`.
+    // Имя останется неразрешённым только у события НЕконвертированного лида,
+    // которого нет в списке, — такого случая у списка без фильтров нет.
+    for (const l of leads ?? []) map.set(l.id, l.title);
     return map;
-  }, [projects, companies, contacts]);
+  }, [projects, companies, contacts, leads]);
 }

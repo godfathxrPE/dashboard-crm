@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { Lead, LeadInsert, LeadConversionResult, Direction } from '@/types/database';
+import type { Lead, LeadInsert, LeadStatus, LeadConversionResult, Direction } from '@/types/database';
 
 const QUERY_KEY = ['leads'] as const;
 
@@ -69,6 +69,35 @@ export function useLeads() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchLeads,
+    staleTime: 1000 * 60,
+  });
+}
+
+/**
+ * Один лид по id — для страницы `/leads/[id]` (S-LEAD-HUB-2a).
+ *
+ * ⚠️ Отдельный ключ `['leads','one',id]`, а НЕ выборка из кеша `['leads']`: список
+ * режет конвертированных (`.neq('status','converted')`), и по прямой ссылке
+ * конвертированный лид из него не достался бы — а это ровно тот случай, ради
+ * которого страница и заводится (раньше `?lead=<id>` на нём молча падал в редирект).
+ * Ключ — под префиксом `['leads']`, поэтому инвалидации списка накрывают и его.
+ */
+export function useLead(id: string | null | undefined) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'one', id ?? null],
+    queryFn: async (): Promise<Lead | null> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', id as string)
+        // `maybeSingle`, а не `single`: удалённый/чужой лид — это «не найден»
+        // (страница покажет пустое состояние), а не ошибка запроса.
+        .maybeSingle();
+      if (error) throw error;
+      return (data as Lead | null) ?? null;
+    },
+    enabled: Boolean(id),
     staleTime: 1000 * 60,
   });
 }
@@ -158,8 +187,11 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: updateLead,
     onMutate: async (updated) => {
+      // Префикс `['leads']` накрывает и `['leads','one',id]` — отдельная отмена не нужна.
       await qc.cancelQueries({ queryKey: QUERY_KEY });
       const prev = qc.getQueryData<Lead[]>(QUERY_KEY);
+      const oneKey = [...QUERY_KEY, 'one', updated.id];
+      const prevOne = qc.getQueryData<Lead | null>(oneKey);
 
       qc.setQueryData<Lead[]>(QUERY_KEY, (old) =>
         (old ?? []).map((l) =>
@@ -169,15 +201,52 @@ export function useUpdateLead() {
         ),
       );
 
-      return { prev };
+      // S-LEAD-HUB-2a: кеш карточки патчится ОТДЕЛЬНО — он не срез списка, а своя
+      // запись. Без этого правка шага на `/leads/[id]` отыгрывалась бы назад до
+      // прихода рефетча (и вовсе не появлялась бы у конвертированного лида,
+      // которого в списке нет).
+      if (prevOne) {
+        qc.setQueryData<Lead | null>(oneKey, {
+          ...prevOne,
+          ...updated,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      return { prev, prevOne, oneKey };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev);
+      if (ctx?.prevOne && ctx.oneKey) qc.setQueryData(ctx.oneKey, ctx.prevOne);
     },
     onSettled: () => {
+      // Инвалидация по префиксу: список, «конвертированные» и карточка разом.
       qc.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
+}
+
+/**
+ * Смена статуса лида — одна на канбан и на карточку `/leads/[id]`.
+ *
+ * S-LEAD-HUB-2a: вынесено из `LeadsView`, чтобы у страницы и канбана было одно
+ * правило, а не две копии. Правило ровно одно и живёт здесь: причина отказа
+ * принадлежит только `disqualified`, и восстановление лида её ЧИСТИТ — иначе
+ * «Новый» тащил бы за собой прошлогоднее «Нет бюджета».
+ * Штампы времени (`first_contacted_at`/`qualified_at`) ставит БД (118).
+ */
+export function useLeadStatusChange() {
+  const updateLead = useUpdateLead();
+
+  return {
+    isPending: updateLead.isPending,
+    change: (id: string, status: LeadStatus, reason?: string | null) =>
+      updateLead.mutate({
+        id,
+        status,
+        disqualify_reason: status === 'disqualified' ? reason ?? null : null,
+      }),
+  };
 }
 
 /** Delete lead — optimistic */
