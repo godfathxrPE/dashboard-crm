@@ -241,14 +241,10 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                 >
                   Ред.
                 </button>
-                {lead.status === 'qualified' && (
-                  <button
-                    onClick={() => setConvertOpen(true)}
-                    className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                  >
-                    Конвертировать <ArrowRight size={12} />
-                  </button>
-                )}
+                {/* Гейт S-PIPELINE-COCKPIT-1: «Конвертировать» здесь снята — действие воронки
+                    живёт ТОЛЬКО в кокпите (кнопка next у qualified). Дубль CTA в шапке и в
+                    строке кокпита предлагал одно действие дважды. «К сделке» выше — навигация,
+                    она остаётся. */}
               </>
             )}
           </div>
