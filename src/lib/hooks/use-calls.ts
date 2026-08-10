@@ -49,14 +49,6 @@ export interface CallUpdate extends Partial<CallInsert> {
 
 const QUERY_KEY = ['calls'] as const;
 
-/**
- * ⚠️ `as unknown as Call` ниже — временно, до регена типов.
- *
- * 118 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` у `calls` нет колонки `lead_id`, и
- * прямой `as Call` даёт TS2352 («недостаточное перекрытие»). Править
- * сгенерированные типы руками запрещено (правило 2). После apply + регена
- * `unknown` из трёх мест снимается, тип сходится сам.
- */
 const SELECT_WITH_JOINS = `
   *,
   company:companies(id, name),
@@ -72,7 +64,7 @@ async function fetchCalls(): Promise<Call[]> {
     .order('date', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as unknown as Call[];
+  return (data ?? []) as Call[];
 }
 
 /**
@@ -107,7 +99,7 @@ async function createCall(call: CallInsert): Promise<Call> {
     .single();
 
   if (error) throw error;
-  return data as unknown as Call;
+  return data as Call;
 }
 
 async function updateCall({ id, ...updates }: CallUpdate): Promise<Call> {
@@ -120,7 +112,7 @@ async function updateCall({ id, ...updates }: CallUpdate): Promise<Call> {
     .single();
 
   if (error) throw error;
-  return data as unknown as Call;
+  return data as Call;
 }
 
 async function deleteCall(id: string): Promise<void> {

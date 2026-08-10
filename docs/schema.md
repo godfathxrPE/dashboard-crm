@@ -391,10 +391,11 @@
 > колонок, enum, индексов и cron не трогает ⇒ **реген типов нужен ради сигнатуры И
 > набора колонок функции**. Редеплоя edge не требует.
 >
-> **117–119 (S-LEAD-CORE-1) — НАПИСАНЫ, НЕ ПРИМЕНЕНЫ** (номера сверены запросом к
-> `schema_migrations` 2026-08-10 — последняя применённая по-прежнему `20260809092051`;
-> файл 116 тоже ждёт гейта). Применяются СТРОГО по порядку: 118 опирается на колонки
-> из 117, 119 — на обе. **117 `117_lead_work_fields.sql`** — двенадцать колонок работы
+> **117–119 (S-LEAD-CORE-1) — ПРИМЕНЕНЫ ГЕЙТОМ 2026-08-10**, по порядку:
+> **117 = `20260810083737 lead_work_fields`**, **118 = `20260810084604 lead_activity_links`**,
+> **119 = `20260810084635 convert_lead_history`**. Порядок был обязателен: 118 опирается
+> на колонки 117, 119 — на обе. Типы регенерированы на гейте, касты сняты (см. ниже).
+> ⚠️ Файл **116 всё ещё ждёт гейта** — он писался до 117–119 и в ledger не попал. **117 `117_lead_work_fields.sql`** — двенадцать колонок работы
 > и квалификации у `leads`, ownership переезжает с legacy `user_id` на **`owner_id`
 > → profiles** (с бэкфиллом), политики `leads_insert`/`leads_update`/`leads_delete`
 > пересобраны на `owner_id` и `to authenticated`; ⚠️ **ужесточение прав**: INSERT
@@ -405,9 +406,27 @@
 > (`log_lead_status_change` → `lead_status_changed`) и удаления (`log_delete_lead`).
 > **119 `119_convert_lead_history.sql`** — `convert_lead` переносит историю лида на
 > созданные компанию/контакт/сделку и кладёт квалификацию в `pinned_note`; сигнатура
-> та же ⇒ `create or replace` без `drop`. ⚠️ **Реген типов нужен** (новые колонки у
-> четырёх таблиц): до него в `use-leads.ts` живут касты payload'ов, в `use-calls.ts`
-> — три `as unknown as Call`. Редеплоя edge не требует.
+> та же ⇒ `create or replace` без `drop`. **Реген типов выполнен гейтом**, временные
+> касты сняты: `asLeadInsert`/`asLeadUpdate` в `use-leads.ts` удалены, `as unknown as Call`
+> в `use-calls.ts` (4 места, не 3) → `as Call`. Редеплоя edge не требует.
+>
+> **Протокол гейта 117–119 (2026-08-10).** Бэкфилл: 1 лид, `owner_id = user_id`
+> проставлен. Advisors — **без регрессий**: 31 WARN + 4 INFO, набор идентичен
+> базлайну до apply; три новые DEFINER-функции в advisors НЕ появились (revoke от
+> `authenticated` сработал), новых `unindexed_foreign_keys` по `lead_id` нет —
+> partial-индексы 118 засчитаны как покрытие FK. ACL `convert_lead` пережил
+> `create or replace` (`authenticated` → execute = true). Ролевые смоки (транзакции
+> с rollback, роль понижалась временно): viewer INSERT → **42501**; viewer SELECT
+> org-wide → видит; manager INSERT → ok; manager UPDATE/DELETE чужого лида → **0 строк**;
+> manager UPDATE своего → 1 строка; manager `convert_lead` чужого лида → **42501**.
+> Сквозной сценарий под owner: лид → звонок+задача с `lead_id` → `contacted`
+> (`first_contacted_at` проставлен триггером) → `qualified` (`qualified_at`) →
+> `convert_lead` → звонок и задача получили `project_id`/`company_id`/`contact_id`,
+> `lead_id` сохранён, `pinned_note` собран из боли + ЧЗ-групп + дедлайна, в журнале
+> три `lead_status_changed`. Отдельно проверено ОТКЛОНЕНИЕ спринта: лид, назначенный
+> manager'у (`owner_id`) при авторе-owner (`user_id`), **конвертируется назначенным**,
+> и владельцем сделки становится он — до правки гарда это был бы 42501. Прод-данные
+> не изменены (все смоки в rollback).
 > Следующая свободная после них — **120**;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -1729,7 +1748,7 @@ org — 0. Отличие от `deal_stakeholders` (там tamper дал 42501) 
 | project_id | uuid | → projects ON DELETE SET NULL |
 | column_id | uuid | _032 (PCT-1)_ → project_columns ON DELETE SET NULL. **Истина** для задач с `project_id` (доска исполнения); для задач без проекта — NULL |
 | company_id / contact_id | uuid | _013_ → companies / contacts |
-| lead_id | uuid | _118 (**написана, не применена**)_ → leads ON DELETE SET NULL. Задача по лиду до конверсии; partial idx `idx_tasks_lead`. `convert_lead` (119) достраивает project/company/contact, `lead_id` не зануляет |
+| lead_id | uuid | _118 (**applied 2026-08-10**)_ → leads ON DELETE SET NULL. Задача по лиду до конверсии; partial idx `idx_tasks_lead`. `convert_lead` (119) достраивает project/company/contact, `lead_id` не зануляет |
 | deadline | timestamptz | «**сделать к**» — дата обязательства (ось дедлайна, не расписания) |
 | scheduled_start | timestamptz | _070 (S-TIMEBLOCK-A1)_ nullable. «**когда делаю**» — начало тайм-блока в сетке дня/недели. Ось независима от `deadline` |
 | scheduled_end | timestamptz | _070_ nullable. Конец тайм-блока; `CHECK tasks_scheduled_order_chk` (`scheduled_end > scheduled_start`, NULL-толерантный). Partial-индексы `idx_tasks_scheduled`, `idx_tasks_assignee_scheduled` (assigned_to, scheduled_start) |
@@ -1824,7 +1843,7 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 > cross-project, cross-org). Hardening — тот же валидатор на `BEFORE UPDATE OF predecessor_id,
 > successor_id`. Зафиксировано в комментарии 062.
 
-### calls _(005, +028 ai_summary, +118 lead_id **НАПИСАНА, НЕ ПРИМЕНЕНА**)_
+### calls _(005, +028 ai_summary, +118 lead_id **applied 2026-08-10 · `20260810084604`**)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -1866,7 +1885,7 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 > RLS не трогаем — существующие UPDATE-политики calls/meetings (owner/admin ∨
 > created_by) покрывают новые колонки. Рендерится на клиенте **только как текст**.
 
-### leads _(016, +018 dedupe, +117 поля работы **НАПИСАНА, НЕ ПРИМЕНЕНА**)_
+### leads _(016, +018 dedupe, +117 поля работы **applied 2026-08-10 · `20260810083737`**)_
 
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
@@ -2350,7 +2369,7 @@ SELECT 0 строк, INSERT 42501; viewer — SELECT видит, INSERT 42501, D
 | project_id | uuid | **nullable** → projects (в живой БД nullable, не CASCADE) |
 | contact_id | uuid | _042_ → contacts ON DELETE CASCADE. Entity-link (лента активности контакта). Partial idx `idx_activity_log_contact` WHERE NOT NULL |
 | company_id | uuid | _042_ → companies ON DELETE CASCADE. Partial idx `idx_activity_log_company` WHERE NOT NULL |
-| lead_id | uuid | _118 (**написана, не применена**)_ → leads ON DELETE CASCADE. Partial idx `idx_activity_log_lead` WHERE NOT NULL. Пишет `log_lead_status_change()` (событие `lead_status_changed`). ⚠️ Журнал УДАЛЕНИЯ лида `lead_id` не заполняет — CASCADE снёс бы запись |
+| lead_id | uuid | _118 (**applied 2026-08-10**)_ → leads ON DELETE CASCADE. Partial idx `idx_activity_log_lead` WHERE NOT NULL. Пишет `log_lead_status_change()` (событие `lead_status_changed`). ⚠️ Журнал УДАЛЕНИЯ лида `lead_id` не заполняет — CASCADE снёс бы запись |
 | user_id | uuid | nullable → auth.users. **С 087 NULL штатен**: UPDATE из cron/service-контекста пишется без актора (`auth.uid()` пуст). Подстановка `owner_id` запрещена — это была бы ложь в аудите |
 | event_type | text | NOT NULL |
 | payload | jsonb | DEFAULT `{}` |

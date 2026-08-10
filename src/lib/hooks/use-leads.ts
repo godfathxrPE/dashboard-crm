@@ -2,30 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type {
-  Lead,
-  LeadInsert,
-  LeadConversionResult,
-  Direction,
-  TablesInsert,
-  TablesUpdate,
-} from '@/types/database';
+import type { Lead, LeadInsert, LeadConversionResult, Direction } from '@/types/database';
 
 const QUERY_KEY = ['leads'] as const;
-
-/**
- * ⚠️ Касты payload'ов ниже — временные, ровно до регена типов.
- *
- * 117 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` у `leads` нет ни новых колонок, ни
- * default'а у `user_id` (там он required в Insert). Править сгенерированные типы
- * руками запрещено (правило 2), поэтому кастуется КОНКРЕТНЫЙ payload, а не клиент
- * и тем более не метод (`const from = supabase.from` оторвал бы его от объекта —
- * FIX S-TL-1-RPC-THIS). Домены `Lead`/`LeadInsert` рукописные и уже полные, так что
- * проверку типов на границе приложения касты не снимают. После apply + регена
- * снимаются обе строки и этот комментарий.
- */
-const asLeadInsert = (v: LeadInsert) => v as unknown as TablesInsert<'leads'>;
-const asLeadUpdate = (v: Partial<LeadInsert>) => v as unknown as TablesUpdate<'leads'>;
 
 // ═══════════════════════════════════════════════════════
 // Queries
@@ -54,25 +33,25 @@ async function createLead(lead: LeadInsert): Promise<Lead> {
   // (назначение через AssigneeSelect) уходит как есть и default перекрывает.
   const { data, error } = await supabase
     .from('leads')
-    .insert(asLeadInsert(lead))
+    .insert(lead)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as unknown as Lead;
+  return data as Lead;
 }
 
 async function updateLead({ id, ...updates }: Partial<LeadInsert> & { id: string }): Promise<Lead> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('leads')
-    .update(asLeadUpdate(updates))
+    .update(updates)
     .eq('id', id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as unknown as Lead;
+  return data as Lead;
 }
 
 async function deleteLead(id: string): Promise<void> {

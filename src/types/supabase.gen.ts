@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activities: {
@@ -124,6 +99,7 @@ export type Database = {
           created_at: string | null
           event_type: string
           id: string
+          lead_id: string | null
           org_id: string
           payload: Json | null
           project_id: string | null
@@ -135,6 +111,7 @@ export type Database = {
           created_at?: string | null
           event_type: string
           id?: string
+          lead_id?: string | null
           org_id: string
           payload?: Json | null
           project_id?: string | null
@@ -146,6 +123,7 @@ export type Database = {
           created_at?: string | null
           event_type?: string
           id?: string
+          lead_id?: string | null
           org_id?: string
           payload?: Json | null
           project_id?: string | null
@@ -164,6 +142,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -507,6 +492,7 @@ export type Database = {
           date: string
           duration_s: number | null
           id: string
+          lead_id: string | null
           next_step: string | null
           org_id: string
           project_id: string | null
@@ -524,6 +510,7 @@ export type Database = {
           date?: string
           duration_s?: number | null
           id?: string
+          lead_id?: string | null
           next_step?: string | null
           org_id: string
           project_id?: string | null
@@ -541,6 +528,7 @@ export type Database = {
           date?: string
           duration_s?: number | null
           id?: string
+          lead_id?: string | null
           next_step?: string | null
           org_id?: string
           project_id?: string | null
@@ -567,6 +555,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -1334,6 +1329,8 @@ export type Database = {
       }
       leads: {
         Row: {
+          budget_status: string
+          chz_groups: string[] | null
           company_name_raw: string | null
           contact_name_raw: string | null
           converted_at: string | null
@@ -1341,20 +1338,32 @@ export type Database = {
           converted_contact_id: string | null
           converted_deal_id: string | null
           created_at: string | null
+          decision_role: string | null
           direction: string | null
           disqualify_reason: string | null
           email: string | null
+          estimated_value: number | null
+          first_contacted_at: string | null
           id: string
+          next_action_date: string | null
+          next_step: string | null
           notes: string | null
           org_id: string
+          owner_id: string | null
+          pain: string | null
           phone: string | null
+          qualified_at: string | null
+          regulatory_deadline: string | null
           source: string | null
           status: string
+          temperature: string | null
           title: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          budget_status?: string
+          chz_groups?: string[] | null
           company_name_raw?: string | null
           contact_name_raw?: string | null
           converted_at?: string | null
@@ -1362,20 +1371,32 @@ export type Database = {
           converted_contact_id?: string | null
           converted_deal_id?: string | null
           created_at?: string | null
+          decision_role?: string | null
           direction?: string | null
           disqualify_reason?: string | null
           email?: string | null
+          estimated_value?: number | null
+          first_contacted_at?: string | null
           id?: string
+          next_action_date?: string | null
+          next_step?: string | null
           notes?: string | null
           org_id: string
+          owner_id?: string | null
+          pain?: string | null
           phone?: string | null
+          qualified_at?: string | null
+          regulatory_deadline?: string | null
           source?: string | null
           status?: string
+          temperature?: string | null
           title: string
           updated_at?: string | null
-          user_id: string
+          user_id?: string
         }
         Update: {
+          budget_status?: string
+          chz_groups?: string[] | null
           company_name_raw?: string | null
           contact_name_raw?: string | null
           converted_at?: string | null
@@ -1383,15 +1404,25 @@ export type Database = {
           converted_contact_id?: string | null
           converted_deal_id?: string | null
           created_at?: string | null
+          decision_role?: string | null
           direction?: string | null
           disqualify_reason?: string | null
           email?: string | null
+          estimated_value?: number | null
+          first_contacted_at?: string | null
           id?: string
+          next_action_date?: string | null
+          next_step?: string | null
           notes?: string | null
           org_id?: string
+          owner_id?: string | null
+          pain?: string | null
           phone?: string | null
+          qualified_at?: string | null
+          regulatory_deadline?: string | null
           source?: string | null
           status?: string
+          temperature?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -1423,6 +1454,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2960,6 +2998,7 @@ export type Database = {
           id: string
           is_milestone: boolean
           lane: Database["public"]["Enums"]["task_lane"]
+          lead_id: string | null
           org_id: string
           parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
@@ -2989,6 +3028,7 @@ export type Database = {
           id?: string
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
+          lead_id?: string | null
           org_id: string
           parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -3018,6 +3058,7 @@ export type Database = {
           id?: string
           is_milestone?: boolean
           lane?: Database["public"]["Enums"]["task_lane"]
+          lead_id?: string | null
           org_id?: string
           parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -3068,6 +3109,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -4013,9 +4061,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       activity_type: [
