@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -67,6 +67,12 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
     },
   });
 
+  // Сырая строка поля «Бюджет» в РУБЛЯХ (в форме — копейки). Своя, а не
+  // `defaultValue`: модалка между открытиями не размонтируется, `reset()` из
+  // эффекта приходит после монтирования и неуправляемый инпут не обновляет —
+  // программный préfill просто не отобразился бы (та же грабля, что в LeadModal).
+  const [amountInput, setAmountInput] = useState('');
+
   // Pre-fill from lead data + автоподбор существующих компании/контакта
   useEffect(() => {
     if (!lead) return;
@@ -100,8 +106,15 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
       contact_email: lead.email,
       direction: lead.direction ?? 'iiot',
       deal_title: lead.title,
-      deal_amount: null,
+      // S-LEAD-HUB-2b: сумма сделки — из оценки лида (117), а не пустая.
+      // ⚠️ ЕДИНИЦА — КОПЕЙКИ, как и `estimated_value`: `deal_amount` уходит в
+      // `p_deal_amount` → `projects.budget`, а `parseBudgetInput` (единственный
+      // другой источник этого поля) тоже отдаёт копейки. Делить на 100 здесь —
+      // значит занизить бюджет сделки стократно; в рубли переводится ТОЛЬКО
+      // отображаемая строка инпута ниже.
+      deal_amount: lead.estimated_value,
     });
+    setAmountInput(lead.estimated_value != null ? String(lead.estimated_value / 100) : '');
   }, [lead, reset, companies, contacts]);
 
   const onSubmit = async (values: LeadConversionFormData) => {
@@ -337,8 +350,9 @@ export function LeadConversionModal({ isOpen, onClose, lead }: LeadConversionMod
                   type="text"
                   inputMode="decimal"
                   placeholder="150000"
-                  defaultValue=""
+                  value={amountInput}
                   onChange={(e) => {
+                    setAmountInput(e.target.value);
                     field.onChange(parseBudgetInput(e.target.value));
                   }}
                   className="w-full rounded-lg border border-input bg-surface px-3 py-2

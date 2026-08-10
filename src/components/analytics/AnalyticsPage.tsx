@@ -7,6 +7,8 @@ import { CTAButton } from '@/components/ui/CTAButton';
 import { WeeklyReview } from './WeeklyReview';
 import { ExportPanel } from './ExportPanel';
 import { TasksAnalytics } from './TasksAnalytics';
+// S-LEAD-HUB-2b: воронка лидов. Без `dynamic` — recharts внутри нет (таблицы и полосы).
+import { LeadsAnalytics } from './LeadsAnalytics';
 
 // W4a: recharts-чарты — dynamic-чанком, первый чанк /analytics без recharts.
 function ChartSkeleton() {
@@ -51,6 +53,8 @@ export function AnalyticsPage() {
         </div>
         {/* M6: pipeline на всю ширину; ExportPanel — утилита, ушла вниз строкой (ниже) */}
         <PipelineChart />
+        {/* S-LEAD-HUB-2b: воронка лидов — источники, конверсия, скорость первого касания */}
+        <LeadsAnalytics />
         {/* S-ANALYTICS-1: task-аналитика (серверные RPC 072) — completion/throughput/cycle/aging */}
         <TasksAnalytics />
         {/* Экспорт — служебная полоса, последним элементом страницы */}

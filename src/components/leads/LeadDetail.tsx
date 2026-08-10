@@ -16,9 +16,9 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { useLead, useLeadStatusChange, useUpdateLead } from '@/lib/hooks/use-leads';
 import { useUiStore } from '@/lib/stores/ui-store';
-import { leadStaleness } from '@/lib/constants/leads';
 import { daysSince } from '@/lib/utils/date-helpers';
-import { getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { getLeadHealth, getLeadActionOverdueDays } from '@/lib/utils/lead-health';
+import { LeadHealthMark } from './LeadHealthMark';
 import { formatBudget } from '@/lib/validators/project';
 import { formatPhone } from '@/lib/utils/phone';
 import { STAKEHOLDER_ROLE_CONFIG } from '@/lib/constants/stakeholders';
@@ -119,7 +119,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
     [router],
   );
 
-  const stale = useMemo(() => (lead ? leadStaleness(lead) : null), [lead]);
+  const health = useMemo(() => (lead ? getLeadHealth(lead) : null), [lead]);
 
   if (isLoading) {
     return (
@@ -155,7 +155,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const isDisqualified = lead.status === 'disqualified';
   const readOnly = isConverted;
   const stepIndex = STEPPER.findIndex((s) => s.status === lead.status);
-  const overdueDays = lead.next_action_date ? getNextActionOverdueDays(lead.next_action_date) : 0;
+  const overdueDays = lead.next_action_date ? getLeadActionOverdueDays(lead.next_action_date) : 0;
   const regMonths = regulatoryMonths(lead.regulatory_deadline);
   const contactedDays = lead.first_contacted_at ? daysSince(lead.first_contacted_at) : null;
   const roleLabel = lead.decision_role
@@ -368,23 +368,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                   {overdueDays > 0 && (
                     <span className="font-medium text-red">шаг просрочен {overdueDays} дн.</span>
                   )}
-                  {stale && stale.level !== 'ok' && (
-                    <span
-                      className="flex items-center gap-1 font-medium"
-                      style={{
-                        color: stale.level === 'cold'
-                          ? 'var(--red-text, var(--red))'
-                          : 'var(--yellow-text, var(--yellow))',
-                      }}
-                      title={lead.status === 'new' ? 'Дней без первого касания' : 'Дней без движения'}
-                    >
-                      <span className={cn(
-                        'inline-block h-[6px] w-[6px] rounded-full',
-                        stale.level === 'cold' ? 'bg-current' : 'border border-current',
-                      )} />
-                      {stale.days} дн.
-                    </span>
-                  )}
+                  {/* Метка общая с канбаном и peek; при просроченном шаге она
+                      дублировала бы строку слева, поэтому показываем только молчание. */}
+                  {health?.reason === 'idle' && <LeadHealthMark lead={lead} />}
                   {contactedDays !== null && (
                     <span className="text-text-dim">
                       первое касание {contactedDays === 0 ? 'сегодня' : `${contactedDays} дн. назад`}

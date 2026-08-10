@@ -14,7 +14,8 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils/cn';
-import { leadStaleness } from '@/lib/constants/leads';
+import { getLeadActionOverdueDays } from '@/lib/utils/lead-health';
+import { LeadHealthMark } from './LeadHealthMark';
 import {
   Plus,
   Loader2,
@@ -44,7 +45,6 @@ import {
   type DisqualifyReason,
 } from '@/lib/validators/lead';
 import { formatBudget } from '@/lib/validators/project';
-import { getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { localDateKey, diffDaysKey } from '@/lib/utils/date-helpers';
 import { Badge } from '@/components/ui/Badge';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
@@ -119,7 +119,7 @@ function LeadCard({
 
   const regMonths = regulatoryMonths(lead.regulatory_deadline);
   // Язык просрочки — как у сделки (DealFocusPanel): та же функция, та же формулировка.
-  const stepOverdueDays = lead.next_action_date ? getNextActionOverdueDays(lead.next_action_date) : 0;
+  const stepOverdueDays = lead.next_action_date ? getLeadActionOverdueDays(lead.next_action_date) : 0;
 
   return (
     <div
@@ -212,29 +212,15 @@ function LeadCard({
         </div>
       )}
 
-      {/* Date + возраст в статусе (rotting для лидов — язык меток как у сделок: ○/●) */}
+      {/* Дата + здоровье лида. S-LEAD-HUB-2b: метка общая с peek и карточкой,
+          и она уже знает про запланированный шаг — «7 дн. без движения» поверх
+          назначенного на завтра звонка карточка больше не показывает. */}
       <div className="mb-2 flex items-center gap-2 text-xs text-text-mute">
         {new Date(lead.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
-        {(() => {
-          const s = leadStaleness(lead);
-          if (s.level === 'ok') return null;
-          const color = s.level === 'cold'
-            ? 'var(--red-text, var(--red))'
-            : 'var(--yellow-text, var(--yellow))';
-          return (
-            <span
-              className="flex items-center gap-1 font-medium"
-              style={{ color }}
-              title={lead.status === 'new' ? 'Дней без первого касания' : 'Дней без движения'}
-            >
-              <span className={cn(
-                'inline-block h-[6px] w-[6px] rounded-full',
-                s.level === 'cold' ? 'bg-current' : 'border border-current',
-              )} />
-              {s.days} дн.
-            </span>
-          );
-        })()}
+        {/* При просроченном шаге метка повторила бы строку шага выше слово в слово
+            (смок поймал дубль «просрочен 2 дн.» дважды на одной карточке) —
+            показываем её только для молчания. Та же развязка, что в LeadDetail. */}
+        {stepOverdueDays === 0 && <LeadHealthMark lead={lead} />}
       </div>
 
       {/* Reject: выбор причины */}
@@ -618,7 +604,7 @@ export function LeadsView() {
       label: 'Шаг',
       render: (l) => {
         if (!l.next_step && !l.next_action_date) return <span className="text-text-mute">—</span>;
-        const overdueDays = l.next_action_date ? getNextActionOverdueDays(l.next_action_date) : 0;
+        const overdueDays = l.next_action_date ? getLeadActionOverdueDays(l.next_action_date) : 0;
         return (
           <span className="text-sm text-text-dim">
             {l.next_step ?? 'Шаг не описан'}
@@ -751,7 +737,7 @@ export function LeadsView() {
           peek={(l) => ({
             title: l.title,
             href: `/leads/${l.id}`,
-            content: <LeadPeekContent lead={l} />,
+            content: <LeadPeekContent lead={l} ownerName={l.owner_id ? ownerName(l.owner_id) : null} />,
           })}
           // «Открыть полностью» из peek теперь уводит на страницу лида, но
           // `peekSuppressed` остаётся: модалки на самом списке никуда не делись, а

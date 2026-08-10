@@ -287,6 +287,21 @@ cron-джоба `webhook-retry` (`dispatch_webhooks_tick()`). Транспорт
   `converted`, а карточка обязана открывать и их. Статус меняет общий
   `useLeadStatusChange()` — одна мутация на канбан и карточку.
   Костыль `?lead=<id>` снят, от него остался редирект ради старых ссылок.
+- **Здоровье лида — `lib/utils/lead-health.ts`** (S-LEAD-HUB-2b), рядом с
+  `deal-health.ts`, но НЕ общий с ним: `getLeadHealth(lead, now)` →
+  `{level, days, reason}`, и **запланированный шаг глушит staleness** — лид с датой
+  на послезавтра из очереди уходит. Метка `LeadHealthMark` одна на канбан, peek и
+  карточку. ⚠️ `getLeadActionOverdueDays` считает через `diffDaysKey` (ключи дня),
+  а не как `getNextActionOverdueDays` у сделки: тот в UTC+ занижает просрочку на
+  сутки — долг записан в BACKLOG.
+- **Аналитика воронки** — `lib/domain/stats.ts` (`median`/`share`, ноль импортов),
+  `lib/domain/lead-metrics.ts` (`aggregateLeadFunnel`, без параметра `now` — все
+  метрики это дельты сохранённых штампов) и `components/analytics/LeadsAnalytics.tsx`
+  (без `dynamic`: recharts внутри нет). Данные — `useLeadsForAnalytics(fromISO)`,
+  НЕ `useConvertedLeads()` (там `.limit(100)`, это лента полосы). Медиана всегда
+  рядом с размером выборки; пустое состояние обязательно — `NaN%` читается как поломка.
+- **Realtime лидов** (121): подписка живёт в `useLeads()` и в `useLead(id)` — карточка
+  списка не держит.
 - **`TimelineEntityType` = `contact | company | project | org | lead`** (120). Домен
   расширяется в ПЯТИ местах разом: SQL-ветки, `PARENT_TYPES` в `rpc-adapter`,
   `parentType` в `types/timeline`, `parentHref` в `kind-meta`, `Entity`/`FK_KEY` в
