@@ -8,7 +8,7 @@ import { ru } from 'date-fns/locale';
 import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake, Target } from 'lucide-react';
 import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
 import { useLeads, useUpdateLead } from '@/lib/hooks/use-leads';
-import { leadStaleness } from '@/lib/constants/leads';
+import { getLeadHealth, compareLeadHealth } from '@/lib/utils/lead-health';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useMeetings, useMyMeetings } from '@/lib/hooks/use-meetings';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -90,13 +90,17 @@ export function TodayView() {
   // пул. Залежавшийся лид — проблема организации, и молчать о нём тому, кто может его
   // взять, только потому что заводил его не он, — ровно способ его потерять.
   //
-  // Лиды без реакции: new > 1 дн., contacted > 7 дн. (пороги в lib/constants/leads)
-  const staleLeads = useMemo(
+  // S-LEAD-HUB-2b: очередь считает ЗДОРОВЬЕ лида, а не только его возраст.
+  // Запланированный шаг глушит staleness (`getLeadHealth`), поэтому лид, к которому
+  // менеджер вернётся послезавтра, из очереди уходит, а лид с просроченным шагом
+  // приходит в неё, даже будучи «свежим». Порядок — `compareLeadHealth`: просрочка
+  // это обещание клиенту, молчание — только риск.
+  const leadsNeedingAction = useMemo(
     () => leads
       .filter((l) => l.status === 'new' || l.status === 'contacted')
-      .map((l) => ({ lead: l, s: leadStaleness(l) }))
-      .filter((r) => r.s.level !== 'ok')
-      .sort((a, b) => b.s.days - a.s.days),
+      .map((l) => ({ lead: l, h: getLeadHealth(l) }))
+      .filter((r) => r.h.level !== 'ok')
+      .sort((a, b) => compareLeadHealth(a.h, b.h)),
     [leads],
   );
   const nowTasks = useMemo(() => {
@@ -151,7 +155,7 @@ export function TodayView() {
       .sort((a, b) => (b.days ?? Infinity) - (a.days ?? Infinity)); // холоднее сверху
   }, [contacts, projects, isProjectActive, lastTouch, reconnectDays]);
 
-  const total = overdueCalls.length + todayCalls.length + staleLeads.length + nowTasks.length
+  const total = overdueCalls.length + todayCalls.length + leadsNeedingAction.length + nowTasks.length
     + rottingDeals.length + todayMeetings.length + coolingContacts.length;
 
   const bumpCall = (id: string, iso: string) => {
@@ -159,6 +163,11 @@ export function TodayView() {
     d.setDate(d.getDate() + 1);
     updateCall.mutate({ id, date: d.toISOString() });
   };
+
+  // «Шаг сделан» — тот же жест, что у сделки (DealFocusPanel): чистим ОБА поля
+  // одним апдейтом, иначе осиротевшая дата снова поднимет лид в очередь.
+  const markLeadStepDone = (id: string) =>
+    updateLead.mutate({ id, next_step: null, next_action_date: null });
 
   const openDeal = (p: Project) => { setEditProject(p); setModalOpen(true); };
 
@@ -176,13 +185,17 @@ export function TodayView() {
       open: () => router.push('/calls'),
       primary: () => updateCall.mutate({ id: c.id, status: 'done' as const }),
     })),
-    ...staleLeads.map(({ lead: l }) => ({
+    ...leadsNeedingAction.map(({ lead: l, h }) => ({
       open: () => router.push(`/leads/${l.id}`),
-      primary: () => updateLead.mutate(
-        l.status === 'new'
-          ? { id: l.id, status: 'contacted' as const }
-          : { id: l.id, status: 'qualified' as const },
-      ),
+      // Действие по клавише `d` обязано совпадать с кнопкой в строке — иначе
+      // клавиатура и мышь делают разное с одной и той же строкой.
+      primary: () => (h.level === 'overdue-action'
+        ? markLeadStepDone(l.id)
+        : updateLead.mutate(
+            l.status === 'new'
+              ? { id: l.id, status: 'contacted' as const }
+              : { id: l.id, status: 'qualified' as const },
+          )),
     })),
     ...nowTasks.map((t) => ({
       open: () => router.push('/tasks'),
@@ -206,7 +219,7 @@ export function TodayView() {
   ];
   const offTodayCalls = overdueCalls.length;
   const offLeads = offTodayCalls + todayCalls.length;
-  const offTasks = offLeads + staleLeads.length;
+  const offTasks = offLeads + leadsNeedingAction.length;
   const offDeals = offTasks + nowTasks.length;
   const offCooling = offDeals + rottingDeals.length;
   const offMeetings = offCooling + coolingSlice.length;
@@ -285,27 +298,32 @@ export function TodayView() {
             ))}
           </Section>
 
-          {/* 3.5. Лиды без реакции (скорость первого касания) */}
-          <Section title="Лиды без реакции" count={staleLeads.length} icon={<Target size={13} />}>
-            {staleLeads.map(({ lead: l, s }, i) => {
-              const color = s.level === 'cold' ? RED : YELLOW;
+          {/* 3.5. Лиды: шаг и реакция — секция больше не только про молчание */}
+          <Section title="Лиды: шаг и реакция" count={leadsNeedingAction.length} icon={<Target size={13} />}>
+            {leadsNeedingAction.map(({ lead: l, h }, i) => {
+              const overdueStep = h.level === 'overdue-action';
+              const color = overdueStep || h.level === 'cold' ? RED : YELLOW;
               return (
                 <QueueRow
                   key={l.id}
                   kbdIndex={offLeads + i}
                   focused={activeIndex === offLeads + i}
-                  marker={{ filled: s.level === 'cold', color }}
+                  marker={{ filled: overdueStep || h.level === 'cold', color }}
                   title={l.title}
                   subtitle={l.company_name_raw ?? l.contact_name_raw ?? undefined}
                   meta={
                     <span style={{ color }}>
-                      {s.days} дн. {l.status === 'new' ? 'в новых' : 'без движения'}
+                      {overdueStep
+                        ? `шаг просрочен ${h.days} дн.`
+                        : `${h.days} дн. ${l.status === 'new' ? 'в новых' : 'без движения'}`}
                     </span>
                   }
                   onOpen={() => router.push(`/leads/${l.id}`)}
-                  primary={l.status === 'new'
-                    ? { label: 'Связаться', onClick: () => updateLead.mutate({ id: l.id, status: 'contacted' }) }
-                    : { label: 'Квалифицировать', onClick: () => updateLead.mutate({ id: l.id, status: 'qualified' }) }}
+                  primary={overdueStep
+                    ? { label: 'Шаг сделан', onClick: () => markLeadStepDone(l.id) }
+                    : l.status === 'new'
+                      ? { label: 'Связаться', onClick: () => updateLead.mutate({ id: l.id, status: 'contacted' }) }
+                      : { label: 'Квалифицировать', onClick: () => updateLead.mutate({ id: l.id, status: 'qualified' }) }}
                 />
               );
             })}

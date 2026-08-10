@@ -1,27 +1,32 @@
 'use client';
 
 import { Building2, Mail, Phone, User } from 'lucide-react';
-import { cn } from '@/lib/utils/cn';
 import { Badge } from '@/components/ui/Badge';
-import { leadStaleness } from '@/lib/constants/leads';
 import {
   LEAD_STATUS_CONFIG,
   LEAD_SOURCE_CONFIG,
+  LEAD_TEMPERATURE_CONFIG,
   DISQUALIFY_REASON_CONFIG,
   type DisqualifyReason,
 } from '@/lib/validators/lead';
+import { formatBudget } from '@/lib/validators/project';
 import { formatPhone } from '@/lib/utils/phone';
+import { LeadHealthMark } from './LeadHealthMark';
 import type { Lead } from '@/types/database';
 
 /**
- * Содержимое peek-панели лида (S-R2-PEEK-2). Новых запросов нет — все поля
- * уже в строке. Статус/источник/причина отказа и возраст берутся теми же
- * конфигами и той же `leadStaleness`, что карточка канбана: второй набор
- * цветов и второй расчёт возраста разошлись бы с доской.
+ * Содержимое peek-панели лида (S-R2-PEEK-2). Статус/источник/причина отказа и
+ * здоровье берутся теми же конфигами и тем же `LeadHealthMark`, что карточка
+ * канбана: второй набор цветов и второй расчёт разошлись бы с доской.
+ *
+ * S-LEAD-HUB-2b: добавлены поля работы (117) — температура, сумма, шаг,
+ * ответственный. Запросов компонент НЕ делает: все поля уже в строке, а имя
+ * ответственного приходит пропом от списка (он и так резолвит его для колонки).
+ * ⚠️ Хук данных внутри превратил бы presentational-компонент в требующий
+ * QueryClient — семь существующих тестов рендерят его голым, и это правильно.
  */
-export function LeadPeekContent({ lead }: { lead: Lead }) {
+export function LeadPeekContent({ lead, ownerName }: { lead: Lead; ownerName?: string | null }) {
   const statusCfg = LEAD_STATUS_CONFIG[lead.status];
-  const staleness = leadStaleness(lead);
 
   const hasRaw = !!(lead.company_name_raw || lead.contact_name_raw || lead.phone || lead.email);
 
@@ -39,6 +44,11 @@ export function LeadPeekContent({ lead }: { lead: Lead }) {
         {lead.direction && (
           <Badge color={lead.direction === 'erp' ? 'purple' : 'blue'} size="sm">
             {lead.direction === 'iiot' ? 'IIoT' : 'ERP'}
+          </Badge>
+        )}
+        {lead.temperature && (
+          <Badge color={LEAD_TEMPERATURE_CONFIG[lead.temperature].color} size="sm">
+            {LEAD_TEMPERATURE_CONFIG[lead.temperature].label}
           </Badge>
         )}
       </div>
@@ -74,26 +84,34 @@ export function LeadPeekContent({ lead }: { lead: Lead }) {
         {!hasRaw && <p className="text-xs text-text-mute">Данные не заполнены</p>}
       </div>
 
-      {/* Возраст — та же ○/● семантика и те же подписи, что на карточке канбана */}
+      {/* Работа по лиду (117): шаг, сумма, ответственный — то, ради чего peek и открывают */}
+      {(lead.next_step || lead.estimated_value != null || ownerName) && (
+        <div className="space-y-1 border-t border-border/50 pt-3 text-xs">
+          {lead.next_step && (
+            <p className="text-text-dim">
+              <span className="text-text-mute">Шаг: </span>
+              {lead.next_step}
+            </p>
+          )}
+          {lead.estimated_value != null && (
+            <p className="text-text-dim">
+              <span className="text-text-mute">Сумма: </span>
+              <span className="font-medium text-text-main tabular-nums">{formatBudget(lead.estimated_value)}</span>
+            </p>
+          )}
+          {ownerName && (
+            <p className="text-text-dim">
+              <span className="text-text-mute">Ответственный: </span>
+              {ownerName}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Дата создания + здоровье (метка знает про запланированный шаг) */}
       <p className="flex items-center gap-2 text-xs text-text-mute">
         {new Date(lead.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
-        {staleness.level !== 'ok' && (
-          <span
-            className="flex items-center gap-1 font-medium"
-            style={{
-              color: staleness.level === 'cold'
-                ? 'var(--red-text, var(--red))'
-                : 'var(--yellow-text, var(--yellow))',
-            }}
-            title={lead.status === 'new' ? 'Дней без первого касания' : 'Дней без движения'}
-          >
-            <span className={cn(
-              'inline-block h-[6px] w-[6px] rounded-full',
-              staleness.level === 'cold' ? 'bg-current' : 'border border-current',
-            )} />
-            {staleness.days} дн.
-          </span>
-        )}
+        <LeadHealthMark lead={lead} />
       </p>
 
       {lead.disqualify_reason && (

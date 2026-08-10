@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { useRealtimeSync } from './use-realtime';
 import type { Lead, LeadInsert, LeadStatus, LeadConversionResult, Direction } from '@/types/database';
 
 const QUERY_KEY = ['leads'] as const;
@@ -66,6 +67,12 @@ async function deleteLead(id: string): Promise<void> {
 
 /** All non-converted leads */
 export function useLeads() {
+  // S-LEAD-HUB-2b (121): лид — общий пул, его разбирают несколько человек, и
+  // расхождение канбанов до минуты (staleTime + инвалидации только своих мутаций)
+  // здесь дороже, чем у приватных задач. Ключ — префикс `['leads']`: инвалидация
+  // накрывает и `['leads','one',id]`, и `['leads','converted']`.
+  useRealtimeSync('leads', QUERY_KEY);
+
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchLeads,
@@ -83,6 +90,12 @@ export function useLeads() {
  * Ключ — под префиксом `['leads']`, поэтому инвалидации списка накрывают и его.
  */
 export function useLead(id: string | null | undefined) {
+  // Подписка нужна И здесь: страница `/leads/[id]` списка не держит, а `useLeads()`
+  // на ней не вызывается — без своей подписки карточка осталась бы единственным
+  // экраном лида без живого обновления. Канал общий, refcount в `use-realtime`
+  // рассчитан на несколько потребителей (второй вызов новый канал не создаёт).
+  useRealtimeSync('leads', QUERY_KEY);
+
   return useQuery({
     queryKey: [...QUERY_KEY, 'one', id ?? null],
     queryFn: async (): Promise<Lead | null> => {
@@ -99,6 +112,36 @@ export function useLead(id: string | null | undefined) {
     },
     enabled: Boolean(id),
     staleTime: 1000 * 60,
+  });
+}
+
+/**
+ * Лиды за период — ДЛЯ АНАЛИТИКИ, включая конвертированных и дисквалифицированных
+ * (S-LEAD-HUB-2b).
+ *
+ * ⚠️ `useConvertedLeads()` для этого не годится и не переиспользуется: у него
+ * `.limit(100)` и сортировка по `converted_at` — это лента полосы «Конвертированы»,
+ * а не выборка за период. Расширить его лимит значило бы утяжелить полосу ради
+ * блока, который открывают раз в неделю.
+ *
+ * `limit(1000)` — потолок выборки; при его достижении цифры станут занижены, но
+ * это на порядки выше текущего потока (в проде единицы лидов).
+ */
+export function useLeadsForAnalytics(fromISO: string) {
+  return useQuery({
+    queryKey: [...QUERY_KEY, 'analytics', fromISO],
+    queryFn: async (): Promise<Lead[]> => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .gte('created_at', fromISO)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []) as Lead[];
+    },
+    staleTime: 1000 * 60 * 5,
   });
 }
 
