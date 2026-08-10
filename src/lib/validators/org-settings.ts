@@ -136,6 +136,10 @@ export const orgSettingsFormSchema = z.object({
   // `.default({})` — секция полноты необязательна на входе: форма всегда её подаёт,
   // а вызовы схемы без неё (в т.ч. существующие тесты нормативов) остаются валидными.
   completeness: z.record(z.string(), completenessFieldSchema).default({}),
+  // Нормы по стадиям (S-STAGE-NORMS-UI-3): ключ — stage_id, поле — та же строка
+  // с теми же границами, что у нормативов группы (`dwellFieldSchema` переиспользован,
+  // а не скопирован: диапазон у обеих настроек один и расходиться не должен).
+  stage_targets: z.record(z.string(), dwellFieldSchema).default({}),
 });
 export type OrgSettingsFormValues = z.infer<typeof orgSettingsFormSchema>;
 
@@ -179,6 +183,59 @@ export function buildStageDwellDefaults(
     if (Number.isInteger(n) && n >= STAGE_DWELL_MIN && n <= STAGE_DWELL_MAX) out[key] = n;
   }
   return out;
+}
+
+/**
+ * Нормы по стадиям (jsonb) → строковые поля формы: нет оверрайда ⇒ пустое поле
+ * ⇒ действует порог группы. Поля заводятся на ВСЕ переданные стадии, а не только
+ * на те, у кого оверрайд есть, — иначе RHF не знал бы про пустое поле стадии.
+ */
+export function stageTargetsToFormValues(
+  current: Record<string, number> | undefined,
+  stageIds: string[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const id of stageIds) {
+    const v = current?.[id];
+    out[id] = typeof v === 'number' ? String(v) : '';
+  }
+  return out;
+}
+
+/**
+ * Значения формы → патч `settings.stage_target_days`.
+ *
+ * ⚠️ Пустое поле ключ НЕ пишет (то же правило, что у `buildStageDwellDefaults`):
+ * ключ со значением `null` остановил бы `??`-цепочку `resolveStageNorm` до порога
+ * группы, и «как по умолчанию» перестало бы работать.
+ *
+ * ⚠️ Оверрайды стадий, которых НЕТ в форме (стадия удалена из словаря, воронки ещё
+ * не догрузились), сохраняются: перезапись объекта целиком их бы стёрла — тот же
+ * приём, что у `buildCompletenessPatch` с чужими ключами.
+ *
+ * ⚠️ Пустой итог — `undefined`, а НЕ `{}` (здесь контракт отличается от dwell
+ * намеренно): в merge-патче `{...current, ...patch}` значение `undefined` выпадает
+ * при сериализации в jsonb, то есть очистка всех полей убирает ключ целиком,
+ * а не оставляет мёртвый `{}` в настройках организации.
+ */
+export function buildStageTargetDays(
+  values: Record<string, string>,
+  current: Record<string, number> | undefined,
+): Record<string, number> | undefined {
+  const out: Record<string, number> = {};
+
+  for (const [stageId, value] of Object.entries(current ?? {})) {
+    if (!(stageId in values) && typeof value === 'number') out[stageId] = value;
+  }
+
+  for (const [stageId, raw] of Object.entries(values)) {
+    const trimmed = raw?.trim() ?? '';
+    if (trimmed === '') continue; // «как порог группы» — ключа нет
+    const n = Number(trimmed);
+    if (Number.isInteger(n) && n >= STAGE_DWELL_MIN && n <= STAGE_DWELL_MAX) out[stageId] = n;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /**

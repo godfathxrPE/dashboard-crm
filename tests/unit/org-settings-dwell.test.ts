@@ -2,11 +2,14 @@ import { describe, test, expect } from 'vitest';
 import {
   buildStageDwellDefaults,
   stageDwellToForm,
+  buildStageTargetDays,
+  stageTargetsToFormValues,
   orgSettingsFormSchema,
   STAGE_DWELL_MAX,
   STAGE_DWELL_MIN,
 } from '@/lib/validators/org-settings';
 import { resolveDwellThreshold } from '@/lib/utils/deal-health';
+import { resolveStageNorm } from '@/lib/domain/stage-norm';
 
 // S-R2-DWELL-CFG — форма нормативов «дней в стадии» ↔ jsonb organizations.settings.
 const EMPTY_FORM = { attraction: '', working: '', approval: '', closing: '' };
@@ -108,5 +111,91 @@ describe('orgSettingsFormSchema — валидация полей нормати
       orgSettingsFormSchema.safeParse({ ...base, stage_dwell: { ...EMPTY_FORM, working: '-3' } })
         .success,
     ).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-STAGE-NORMS-UI-3 — нормы по КОНКРЕТНЫМ стадиям (settings.stage_target_days).
+// Зеркало пары выше; отличие контракта одно и намеренное: пустой итог — undefined.
+// ═══════════════════════════════════════════════════════
+
+const S1 = '11111111-1111-4111-8111-111111111111';
+const S2 = '22222222-2222-4222-8222-222222222222';
+
+describe('buildStageTargetDays — пустое поле не превращается в ключ', () => {
+  test('все поля пустые ⇒ undefined (ключ в патч не попадает вовсе)', () => {
+    expect(buildStageTargetDays({ [S1]: '', [S2]: '' }, undefined)).toBeUndefined();
+  });
+
+  test('заполнено одно ⇒ ровно один ключ числом', () => {
+    const out = buildStageTargetDays({ [S1]: '5', [S2]: '' }, undefined);
+    expect(out).toEqual({ [S1]: 5 });
+    expect(Object.values(out!).every((v) => typeof v === 'number')).toBe(true);
+  });
+
+  test('пробелы = пусто; мусор и выход за диапазон отбрасываются', () => {
+    expect(buildStageTargetDays({ [S1]: '   ' }, undefined)).toBeUndefined();
+    expect(buildStageTargetDays({ [S1]: '0' }, undefined)).toBeUndefined();
+    expect(buildStageTargetDays({ [S1]: 'abc' }, undefined)).toBeUndefined();
+    expect(buildStageTargetDays({ [S1]: '7.5' }, undefined)).toBeUndefined();
+    expect(buildStageTargetDays({ [S1]: String(STAGE_DWELL_MAX + 1) }, undefined)).toBeUndefined();
+    expect(buildStageTargetDays({ [S1]: String(STAGE_DWELL_MIN) }, undefined)).toEqual({
+      [S1]: STAGE_DWELL_MIN,
+    });
+  });
+
+  test('очистка поля убирает ключ этой стадии, чужие оверрайды живы', () => {
+    const saved = { [S1]: 5, [S2]: 9 };
+    expect(buildStageTargetDays({ [S1]: '', [S2]: '9' }, saved)).toEqual({ [S2]: 9 });
+  });
+
+  test('оверрайд стадии, которой нет в форме, переживает сохранение', () => {
+    // Стадия удалена из словаря или воронки ещё не догрузились — стирать нельзя.
+    expect(buildStageTargetDays({ [S1]: '' }, { [S2]: 12 })).toEqual({ [S2]: 12 });
+  });
+});
+
+describe('stageTargetsToFormValues — обратное преобразование', () => {
+  test('нет оверрайдов ⇒ поле на каждую стадию, все пустые', () => {
+    expect(stageTargetsToFormValues(undefined, [S1, S2])).toEqual({ [S1]: '', [S2]: '' });
+  });
+
+  test('оверрайд чужой стадии в поля не протекает', () => {
+    expect(stageTargetsToFormValues({ 'other-id': 8 }, [S1])).toEqual({ [S1]: '' });
+  });
+
+  test('round-trip форма → jsonb → форма', () => {
+    const form = { [S1]: '10', [S2]: '' };
+    expect(stageTargetsToFormValues(buildStageTargetDays(form, undefined), [S1, S2])).toEqual(form);
+  });
+});
+
+describe('resolveStageNorm поверх пары — приоритет оверрайда над порогом группы', () => {
+  test('оверрайд стадии бьёт норматив группы, пустое поле — нет', () => {
+    const targets = buildStageTargetDays({ [S1]: '3', [S2]: '' }, undefined);
+    const groups = buildStageDwellDefaults({ ...EMPTY_FORM, attraction: '9' });
+    expect(resolveStageNorm({ id: S1, phase_group: 'attraction' }, targets, groups)).toBe(3);
+    expect(resolveStageNorm({ id: S2, phase_group: 'attraction' }, targets, groups)).toBe(9);
+  });
+});
+
+describe('orgSettingsFormSchema — валидация полей норм стадий', () => {
+  const base = { reconnect_days: 21, stage_dwell: EMPTY_FORM };
+
+  test('пустое поле валидно, число в диапазоне валидно', () => {
+    expect(orgSettingsFormSchema.safeParse({ ...base, stage_targets: { [S1]: '' } }).success).toBe(true);
+    expect(orgSettingsFormSchema.safeParse({ ...base, stage_targets: { [S1]: '30' } }).success).toBe(true);
+  });
+
+  test('вне диапазона и нецелое отбиваются', () => {
+    expect(orgSettingsFormSchema.safeParse({ ...base, stage_targets: { [S1]: '0' } }).success).toBe(false);
+    expect(
+      orgSettingsFormSchema.safeParse({ ...base, stage_targets: { [S1]: String(STAGE_DWELL_MAX + 1) } }).success,
+    ).toBe(false);
+    expect(orgSettingsFormSchema.safeParse({ ...base, stage_targets: { [S1]: '7.5' } }).success).toBe(false);
+  });
+
+  test('секция необязательна на входе — прежние вызовы схемы остаются валидными', () => {
+    expect(orgSettingsFormSchema.safeParse(base).success).toBe(true);
   });
 });

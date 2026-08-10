@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { SlidersHorizontal } from 'lucide-react';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useOrgSettings, useUpdateOrgSettings } from '@/lib/hooks/use-org-settings';
+import type { OrgSettings } from '@/types/database';
 import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
 import { resolveDwellThreshold } from '@/lib/utils/deal-health';
+import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { phaseLabel } from '@/lib/constants/phase-labels';
 import {
   orgSettingsFormSchema,
   buildStageDwellDefaults,
@@ -16,6 +19,9 @@ import {
   buildCompletenessPatch,
   completenessToForm,
   readCompletenessOverrides,
+  readStageTargetDays,
+  buildStageTargetDays,
+  stageTargetsToFormValues,
   DWELL_PHASE_GROUPS,
   RECONNECT_DAYS_MAX,
   RECONNECT_DAYS_MIN,
@@ -53,6 +59,43 @@ export function OrgSettingsSection() {
 
   // Строковые значения полей норматива: ключа нет ⇒ пустая строка ⇒ «как по умолчанию».
   const dwellValues = useMemo(() => stageDwellToForm(dwell), [dwell]);
+
+  // ── Нормы стадий (S-STAGE-NORMS-UI-3) ──
+  // Словари воронок глобальные (только SELECT) — грузим как везде.
+  const { data: pipelines } = usePipelines();
+  const { data: allStages } = usePipelineStages();
+  const stageTargets = useMemo(() => readStageTargetDays(settings), [settings]);
+
+  /** Активные стадии по воронкам, отсортированные — хук ни того, ни другого не делает. */
+  const stagesByPipeline = useMemo(() => {
+    const map = new Map<string, typeof allStages>();
+    (allStages ?? [])
+      .filter((st) => !st.is_won && !st.is_lost)
+      .forEach((st) => {
+        const list = map.get(st.pipeline_id) ?? [];
+        list.push(st);
+        map.set(st.pipeline_id, list);
+      });
+    map.forEach((list) => list?.sort((a, b) => a.order_index - b.order_index));
+    return map;
+  }, [allStages]);
+
+  // Поля формы заводятся на ВСЕ стадии всех воронок, а не только видимой:
+  // смена селекта не должна терять несохранённый ввод по другой воронке.
+  const allStageIds = useMemo(
+    () => [...stagesByPipeline.values()].flatMap((list) => (list ?? []).map((st) => st.id)),
+    [stagesByPipeline],
+  );
+  const stageTargetValues = useMemo(
+    () => stageTargetsToFormValues(stageTargets, allStageIds),
+    [stageTargets, allStageIds],
+  );
+
+  // Выбранная воронка — UI-состояние, а не значение настройки: в RHF ему не место.
+  const [pipelineId, setPipelineId] = useState<string | null>(null);
+  const effectivePipelineId =
+    pipelineId ?? pipelines?.find((p) => p.entity_type === 'deal')?.id ?? pipelines?.[0]?.id ?? null;
+  const visibleStages = effectivePipelineId ? stagesByPipeline.get(effectivePipelineId) ?? [] : [];
   const completenessValues = useMemo(
     () => completenessToForm(completenessOverrides),
     [completenessOverrides],
@@ -68,17 +111,31 @@ export function OrgSettingsSection() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<OrgSettingsFormValues>({
     resolver: zodResolver(orgSettingsFormSchema),
-    values: { reconnect_days: current, stage_dwell: dwellValues, completeness: completenessValues },
+    values: {
+      reconnect_days: current,
+      stage_dwell: dwellValues,
+      completeness: completenessValues,
+      stage_targets: stageTargetValues,
+    },
   });
 
   // Значения приезжают асинхронно — синхронизируем «чистое» состояние формы,
   // иначе isDirty остаётся true сразу после загрузки.
   useEffect(() => {
-    reset({ reconnect_days: current, stage_dwell: dwellValues, completeness: completenessValues });
-  }, [current, dwellValues, completenessValues, reset]);
+    reset({
+      reconnect_days: current,
+      stage_dwell: dwellValues,
+      completeness: completenessValues,
+      stage_targets: stageTargetValues,
+    });
+  }, [current, dwellValues, completenessValues, stageTargetValues, reset]);
+
+  // Нормативы групп из ЖИВОЙ формы — плейсхолдеры норм стадий считаются от них.
+  const watchedDwell = watch('stage_dwell');
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -91,6 +148,13 @@ export function OrgSettingsSection() {
         // completeness_rules живёт в jsonb через passthrough (в интерфейсе OrgSettings
         // его нет: database.ts руками не правится) — патч собирает валидатор.
         ...buildCompletenessPatch(values.completeness, completenessOverrides),
+        // stage_target_days — такой же passthrough-ключ (в интерфейсе OrgSettings его
+        // нет намеренно), поэтому идёт одним кастом, как completeness_rules. Пустой
+        // итог — `undefined`: значение выпадает при сериализации в jsonb, то есть
+        // очистка всех полей убирает ключ, а не оставляет мёртвый `{}`.
+        ...({
+          stage_target_days: buildStageTargetDays(values.stage_targets, stageTargets),
+        } as unknown as OrgSettings),
       });
       toast.success('Настройки сохранены');
     } catch (err) {
@@ -169,6 +233,78 @@ export function OrgSettingsSection() {
               Пустое поле — как по умолчанию (значение в подсказке). Допустимо{' '}
               {STAGE_DWELL_MIN}–{STAGE_DWELL_MAX}.
             </p>
+          </div>
+
+          {/* ── Нормы стадий (S-STAGE-NORMS-UI-3) ── */}
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs font-medium text-text-dim">Нормы стадий</p>
+            <p className="text-xs text-text-mute">
+              Норма дней на конкретную стадию. Пусто — действует порог группы (настройка
+              выше). Красит заливку стадии на карточке и кольцо в списках.
+            </p>
+
+            <select
+              value={effectivePipelineId ?? ''}
+              onChange={(e) => setPipelineId(e.target.value)}
+              disabled={isLoading}
+              aria-label="Воронка"
+              className={`${inputCls} w-auto max-w-full`}
+            >
+              {(pipelines ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="space-y-2">
+              {visibleStages.map((stage) => {
+                // Плейсхолдер — норма, которая подействует при пустом поле: порог
+                // группы С УЧЁТОМ несохранённых значений формы, а не только сохранённых,
+                // иначе подсказка врала бы сразу после правки норматива выше.
+                const inherited = resolveDwellThreshold(stage.phase_group, {
+                  ...dwell,
+                  ...buildStageDwellDefaults(watchedDwell ?? dwellValues, dwell),
+                });
+                return (
+                  <div key={stage.id} className="flex items-start gap-3">
+                    <input
+                      id={`stage_target_${stage.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={STAGE_DWELL_MIN}
+                      max={STAGE_DWELL_MAX}
+                      step={1}
+                      disabled={isLoading}
+                      placeholder={String(inherited)}
+                      // ⚠️ Без `valueAsNumber`: пустая строка стала бы NaN и «как порог
+                      // группы» перестало бы отличаться от «ноль». Число делает патч.
+                      {...register(`stage_targets.${stage.id}`)}
+                      className={`${inputCls} w-16 shrink-0`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor={`stage_target_${stage.id}`}
+                        className="block text-xs text-text-dim"
+                      >
+                        {stage.name}
+                      </label>
+                      <p className="text-[0.6875rem] leading-snug text-text-mute">
+                        {phaseLabel(stage.phase_group)}
+                      </p>
+                      {errors.stage_targets?.[stage.id] && (
+                        <p className="text-xs text-red">
+                          {errors.stage_targets[stage.id]?.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {visibleStages.length === 0 && (
+                <p className="text-xs text-text-mute">У этой воронки нет активных стадий.</p>
+              )}
+            </div>
           </div>
 
           {/* ── Полнота сделки (S-R3-TRUST-1) ── */}
