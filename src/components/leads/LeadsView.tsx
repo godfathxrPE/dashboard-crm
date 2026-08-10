@@ -23,6 +23,7 @@ import {
   Download,
   ArrowRight,
   Phone,
+  Banknote,
   Building2,
   User,
   LayoutGrid,
@@ -32,13 +33,19 @@ import {
 } from 'lucide-react';
 import { useLeads, useConvertedLeads, useUpdateLead, useDeleteLead } from '@/lib/hooks/use-leads';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import {
   LEAD_STATUS_CONFIG,
   LEAD_SOURCE_CONFIG,
+  LEAD_TEMPERATURE_CONFIG,
+  LEAD_BUDGET_STATUS_CONFIG,
   DISQUALIFY_REASON_CONFIG,
   disqualifyReasons,
   type DisqualifyReason,
 } from '@/lib/validators/lead';
+import { formatBudget } from '@/lib/validators/project';
+import { getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { localDateKey, diffDaysKey } from '@/lib/utils/date-helpers';
 import { Badge } from '@/components/ui/Badge';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -72,6 +79,21 @@ const KANBAN_TEXT: Record<LeadStatus, string> = {
 };
 
 // ═══════════════════════════════════════════════════════
+// Регуляторный дедлайн: месяцев до обязательности маркировки
+//
+// Срочность в этом домене создаёт не клиент, а государство — волны обязательности
+// по товарным группам. Показываем только ближний горизонт (≤ 12 мес.): «через 5 лет»
+// аргументом для звонка не является, а место на карточке занимает.
+// ═══════════════════════════════════════════════════════
+
+function regulatoryMonths(deadline: string | null): number | null {
+  if (!deadline) return null;
+  const days = diffDaysKey(localDateKey(), deadline);
+  if (days < 0 || days > 366) return null;
+  return Math.max(0, Math.round(days / 30));
+}
+
+// ═══════════════════════════════════════════════════════
 // Lead Card (Kanban)
 // ═══════════════════════════════════════════════════════
 
@@ -92,6 +114,10 @@ function LeadCard({
   // не активируют drag благодаря activationConstraint distance: 8
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: lead.id });
 
+  const regMonths = regulatoryMonths(lead.regulatory_deadline);
+  // Язык просрочки — как у сделки (DealFocusPanel): та же функция, та же формулировка.
+  const stepOverdueDays = lead.next_action_date ? getNextActionOverdueDays(lead.next_action_date) : 0;
+
   return (
     <div
       ref={setNodeRef}
@@ -103,7 +129,7 @@ function LeadCard({
         isDragging && 'relative z-50 rotate-1 opacity-80 shadow-card-hover',
       )}
     >
-      {/* Title + source */}
+      {/* Title + source + температура */}
       <div className="mb-1.5 flex items-start justify-between gap-2">
         <button
           onClick={() => onEdit(lead)}
@@ -111,19 +137,33 @@ function LeadCard({
         >
           {lead.title}
         </button>
-        {lead.source && (
-          <Badge color="accent" size="sm">
-            {LEAD_SOURCE_CONFIG[lead.source]?.label ?? lead.source}
-          </Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {lead.temperature && (
+            <Badge color={LEAD_TEMPERATURE_CONFIG[lead.temperature].color} size="sm">
+              {LEAD_TEMPERATURE_CONFIG[lead.temperature].label}
+            </Badge>
+          )}
+          {lead.source && (
+            <Badge color="accent" size="sm">
+              {LEAD_SOURCE_CONFIG[lead.source]?.label ?? lead.source}
+            </Badge>
+          )}
+        </div>
       </div>
 
-      {/* Direction badge */}
-      {lead.direction && (
-        <div className="mb-1.5">
-          <Badge color={lead.direction === 'erp' ? 'purple' : 'blue'} size="sm">
-            {lead.direction === 'iiot' ? 'IIoT' : 'ERP'}
-          </Badge>
+      {/* Direction + дедлайн маркировки */}
+      {(lead.direction || regMonths !== null) && (
+        <div className="mb-1.5 flex flex-wrap items-center gap-1">
+          {lead.direction && (
+            <Badge color={lead.direction === 'erp' ? 'purple' : 'blue'} size="sm">
+              {lead.direction === 'iiot' ? 'IIoT' : 'ERP'}
+            </Badge>
+          )}
+          {regMonths !== null && (
+            <Badge color="yellow" size="sm">
+              {regMonths === 0 ? 'ЧЗ: срок наступил' : `ЧЗ через ${regMonths} мес.`}
+            </Badge>
+          )}
         </div>
       )}
 
@@ -147,7 +187,27 @@ function LeadCard({
             {formatPhone(lead.phone)}
           </span>
         )}
+        {lead.estimated_value != null && (
+          <span className="flex items-center gap-1 text-xs font-medium text-text-main tabular-nums">
+            <Banknote size={9} />
+            {formatBudget(lead.estimated_value)}
+          </span>
+        )}
       </div>
+
+      {/* Следующий шаг — язык фокус-панели сделки. Просрочка показывается и без
+          текста шага: назначенная дата без действия — тоже пропущенный срок. */}
+      {(lead.next_step || stepOverdueDays > 0) && (
+        <div className="mb-2 flex items-start gap-1 text-xs text-text-dim">
+          <ArrowRight size={9} className="mt-0.5 shrink-0" />
+          <span className="min-w-0">
+            {lead.next_step ?? 'Шаг не описан'}
+            {stepOverdueDays > 0 && (
+              <span className="ml-1 font-medium text-red">— просрочен {stepOverdueDays} дн.</span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Date + возраст в статусе (rotting для лидов — язык меток как у сделок: ○/●) */}
       <div className="mb-2 flex items-center gap-2 text-xs text-text-mute">
@@ -363,7 +423,15 @@ export function LeadsView() {
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
   const { data: role } = useOrgRole();
-  const canCreate = role != null && role !== 'viewer'; // T2: viewer не создаёт (RLS 42501)
+  // 117: теперь это не только UI-гейт — политика `leads_insert` требует
+  // owner/admin/manager, viewer получит 42501 (старая leads_insert_own роль не проверяла).
+  const canCreate = role != null && role !== 'viewer';
+
+  const { data: teamMembers = [] } = useTeamMembers();
+  const ownerName = useCallback(
+    (id: string) => teamMembers.find((m) => m.id === id)?.full_name ?? '—',
+    [teamMembers],
+  );
 
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [modalOpen, setModalOpen] = useState(false);
@@ -537,6 +605,50 @@ export function LeadsView() {
       ) : <span className="text-text-mute">—</span>,
     },
     {
+      key: 'owner_id',
+      label: 'Ответственный',
+      sortable: true,
+      render: (l) => l.owner_id ? (
+        <span className="text-sm text-text-main">{ownerName(l.owner_id)}</span>
+      ) : <span className="text-text-mute">—</span>,
+      searchValue: (l) => (l.owner_id ? ownerName(l.owner_id) : ''),
+    },
+    {
+      key: 'temperature',
+      label: 'Температура',
+      sortable: true,
+      render: (l) => l.temperature ? (
+        <Badge color={LEAD_TEMPERATURE_CONFIG[l.temperature].color} size="sm">
+          {LEAD_TEMPERATURE_CONFIG[l.temperature].label}
+        </Badge>
+      ) : <span className="text-text-mute">—</span>,
+    },
+    {
+      key: 'estimated_value',
+      label: 'Сумма',
+      sortable: true,
+      render: (l) => l.estimated_value != null ? (
+        <span className="text-sm font-medium text-text-main tabular-nums">{formatBudget(l.estimated_value)}</span>
+      ) : <span className="text-text-mute">—</span>,
+    },
+    {
+      key: 'next_step',
+      label: 'Шаг',
+      render: (l) => {
+        if (!l.next_step && !l.next_action_date) return <span className="text-text-mute">—</span>;
+        const overdueDays = l.next_action_date ? getNextActionOverdueDays(l.next_action_date) : 0;
+        return (
+          <span className="text-sm text-text-dim">
+            {l.next_step ?? 'Шаг не описан'}
+            {overdueDays > 0 && (
+              <span className="ml-1 font-medium text-red">— просрочен {overdueDays} дн.</span>
+            )}
+          </span>
+        );
+      },
+      searchValue: (l) => l.next_step ?? '',
+    },
+    {
       key: 'created_at',
       label: 'Создан',
       sortable: true,
@@ -687,6 +799,16 @@ export function LeadsView() {
                     contact: l.contact_name_raw ?? '',
                     phone: l.phone ?? '',
                     email: l.email ?? '',
+                    owner: l.owner_id ? ownerName(l.owner_id) : '',
+                    temperature: l.temperature ? LEAD_TEMPERATURE_CONFIG[l.temperature].label : '',
+                    // Рубли, а не копейки: CSV читает человек и считает в Excel.
+                    estimated_value: l.estimated_value != null ? l.estimated_value / 100 : '',
+                    next_step: l.next_step ?? '',
+                    next_action_date: l.next_action_date ?? '',
+                    budget_status: LEAD_BUDGET_STATUS_CONFIG[l.budget_status]?.label ?? l.budget_status,
+                    chz_groups: l.chz_groups?.join('; ') ?? '',
+                    regulatory_deadline: l.regulatory_deadline ?? '',
+                    first_contacted_at: l.first_contacted_at ?? '',
                     created_at: l.created_at,
                   })),
                   'leads',
@@ -699,6 +821,15 @@ export function LeadsView() {
                     { key: 'contact', label: 'Контакт' },
                     { key: 'phone', label: 'Телефон' },
                     { key: 'email', label: 'Email' },
+                    { key: 'owner', label: 'Ответственный' },
+                    { key: 'temperature', label: 'Температура' },
+                    { key: 'estimated_value', label: 'Сумма, ₽' },
+                    { key: 'next_step', label: 'Следующий шаг' },
+                    { key: 'next_action_date', label: 'Дата шага' },
+                    { key: 'budget_status', label: 'Бюджет' },
+                    { key: 'chz_groups', label: 'ЧЗ-группы' },
+                    { key: 'regulatory_deadline', label: 'Дедлайн маркировки' },
+                    { key: 'first_contacted_at', label: 'Первое касание' },
                     { key: 'created_at', label: 'Создан' },
                   ],
                 );

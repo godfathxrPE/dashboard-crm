@@ -546,8 +546,15 @@ export type RecurringCadence = 'daily' | 'weekdays' | 'weekly' | 'monthly';
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'disqualified' | 'converted';
 export type LeadSource = 'call' | 'website' | 'referral' | 'cold' | 'inbound' | 'event';
 
+// S-LEAD-CORE-1 (117): ручная метка приоритета и состояние бюджета.
+// Зеркала CHECK `leads_temperature_check` / `leads_budget_status_check` —
+// значения меняются ТОЛЬКО вместе с ними, иначе 23514 при записи.
+export type LeadTemperature = 'hot' | 'warm' | 'cold';
+export type LeadBudgetStatus = 'unknown' | 'none' | 'estimated' | 'confirmed';
+
 export interface Lead {
   id: string;
+  /** DEPRECATED с 117: автор строки. Ответственный — `owner_id`. */
   user_id: string;
   org_id: string;
   title: string;
@@ -566,6 +573,25 @@ export interface Lead {
   converted_at: string | null;
   created_at: string;
   updated_at: string;
+  // ═══ 117: поля работы ═══
+  /** Ответственный → profiles. NULL у строк, где бэкфилл из user_id не нашёл профиль. */
+  owner_id: string | null;
+  next_step: string | null;
+  next_action_date: string | null;
+  temperature: LeadTemperature | null;
+  /** КОПЕЙКИ, как projects.budget / quotes.amount. */
+  estimated_value: number | null;
+  // ═══ 117: квалификация ═══
+  pain: string | null;
+  budget_status: LeadBudgetStatus;
+  /** Роль контакта в решении — словарь StakeholderRole, но БД её не проверяет. */
+  decision_role: string | null;
+  /** Названия товарных групп ЧЗ из lib/data/chz-groups.ts. */
+  chz_groups: string[] | null;
+  regulatory_deadline: string | null;
+  // ═══ 117: штампы (ставит trg_zz_stamp_lead_status, клиент их не пишет) ═══
+  first_contacted_at: string | null;
+  qualified_at: string | null;
 }
 
 export interface LeadInsert {
@@ -580,6 +606,17 @@ export interface LeadInsert {
   email?: string | null;
   notes?: string | null;
   disqualify_reason?: string | null;
+  // 117. `user_id` тут НЕТ намеренно: его ставит default `auth.uid()`.
+  owner_id?: string | null;
+  next_step?: string | null;
+  next_action_date?: string | null;
+  temperature?: LeadTemperature | null;
+  estimated_value?: number | null;
+  pain?: string | null;
+  budget_status?: LeadBudgetStatus;
+  decision_role?: string | null;
+  chz_groups?: string[] | null;
+  regulatory_deadline?: string | null;
 }
 
 export interface LeadConversionResult {

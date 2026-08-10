@@ -2,9 +2,30 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { Lead, LeadInsert, LeadConversionResult, Direction } from '@/types/database';
+import type {
+  Lead,
+  LeadInsert,
+  LeadConversionResult,
+  Direction,
+  TablesInsert,
+  TablesUpdate,
+} from '@/types/database';
 
 const QUERY_KEY = ['leads'] as const;
+
+/**
+ * ⚠️ Касты payload'ов ниже — временные, ровно до регена типов.
+ *
+ * 117 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts` у `leads` нет ни новых колонок, ни
+ * default'а у `user_id` (там он required в Insert). Править сгенерированные типы
+ * руками запрещено (правило 2), поэтому кастуется КОНКРЕТНЫЙ payload, а не клиент
+ * и тем более не метод (`const from = supabase.from` оторвал бы его от объекта —
+ * FIX S-TL-1-RPC-THIS). Домены `Lead`/`LeadInsert` рукописные и уже полные, так что
+ * проверку типов на границе приложения касты не снимают. После apply + регена
+ * снимаются обе строки и этот комментарий.
+ */
+const asLeadInsert = (v: LeadInsert) => v as unknown as TablesInsert<'leads'>;
+const asLeadUpdate = (v: Partial<LeadInsert>) => v as unknown as TablesUpdate<'leads'>;
 
 // ═══════════════════════════════════════════════════════
 // Queries
@@ -28,30 +49,30 @@ async function fetchLeads(): Promise<Lead[]> {
 
 async function createLead(lead: LeadInsert): Promise<Lead> {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
+  // 117: `user_id` и `owner_id` ставит БД (default `auth.uid()`), поэтому и лишний
+  // round-trip за `getUser()` больше не нужен. Переданный формой `owner_id`
+  // (назначение через AssigneeSelect) уходит как есть и default перекрывает.
   const { data, error } = await supabase
     .from('leads')
-    .insert({ ...lead, user_id: user.id })
+    .insert(asLeadInsert(lead))
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Lead;
+  return data as unknown as Lead;
 }
 
 async function updateLead({ id, ...updates }: Partial<LeadInsert> & { id: string }): Promise<Lead> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('leads')
-    .update(updates)
+    .update(asLeadUpdate(updates))
     .eq('id', id)
     .select('*')
     .single();
 
   if (error) throw error;
-  return data as Lead;
+  return data as unknown as Lead;
 }
 
 async function deleteLead(id: string): Promise<void> {
@@ -122,6 +143,21 @@ export function useCreateLead() {
         converted_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // 117: поля работы — из формы, иначе карточка на секунду теряет то,
+        // что человек только что ввёл (optimistic-объект рендерится целиком).
+        owner_id: newLead.owner_id ?? null,
+        next_step: newLead.next_step ?? null,
+        next_action_date: newLead.next_action_date ?? null,
+        temperature: newLead.temperature ?? null,
+        estimated_value: newLead.estimated_value ?? null,
+        pain: newLead.pain ?? null,
+        budget_status: newLead.budget_status ?? 'unknown',
+        decision_role: newLead.decision_role ?? null,
+        chz_groups: newLead.chz_groups ?? null,
+        regulatory_deadline: newLead.regulatory_deadline ?? null,
+        // Штампы ставит БД (trg_zz_stamp_lead_status) — оптимистично не угадываем.
+        first_contacted_at: null,
+        qualified_at: null,
       };
 
       qc.setQueryData<Lead[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);

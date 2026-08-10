@@ -256,6 +256,30 @@ cron-джоба `webhook-retry` (`dispatch_webhooks_tick()`). Транспорт
 `action_type='webhook'` в движке автоматизаций. Подпись — HMAC, SSRF-фильтр отбивает
 резолв в приватные адреса. `vault` через PostgREST недоступен — секрет читается иначе.
 
+### Лиды (`leads/LeadsView.tsx` + `LeadModal.tsx`, миграции 016/018 + **117–119**)
+
+Канбан 4 колонок + таблица, конверсия через RPC `convert_lead`, полоса
+«Конвертированы». С S-LEAD-CORE-1 лид — рабочая сущность, а не плоский триаж:
+
+- **Ownership переехал с `user_id` на `owner_id` → profiles** (117, бэкфилл + DEFAULT
+  `auth.uid()`). `user_id` остался NOT NULL и его читает legacy-ветка гарда
+  `convert_lead`; клиент колонку больше не пишет вовсе. RLS: `leads_update`/`leads_delete`
+  — на `owner_id`, `leads_insert` **впервые проверяет роль** (owner/admin/manager;
+  до 117 viewer мог создать лид вопреки UI).
+- **Поля работы**: `next_step` / `next_action_date` / `temperature` / `estimated_value`
+  (КОПЕЙКИ, как `projects.budget`) — язык сделок, чтобы лид читался тем же взглядом.
+  Квалификация: `pain` / `budget_status` / `decision_role` / `chz_groups` /
+  `regulatory_deadline`. Штампы `first_contacted_at` / `qualified_at` ставит триггер.
+- **Лид вошёл в граф активностей** (118): `lead_id` у `calls`/`tasks`/`activity_log`,
+  журнал смены статуса (`lead_status_changed`) и удаления (`log_delete_lead`).
+  В `CallModal` — либо лид, либо CRM-связи: двойную привязку UI создать не даёт.
+- **Авто-прогресс `new → contacted` по состоявшемуся звонку живёт в КЛИЕНТЕ**
+  (`use-calls.ts`, условный UPDATE `.eq('status','new')`), не в триггере — каскады
+  статусов из триггеров в этом проекте признаны граблей.
+- **Конверсия переносит историю** (119): звонки и задачи лида получают
+  contact/company/project созданных сущностей, квалификация — в `pinned_note` сделки
+  (только если та пуста). `lead_id` не зануляется: жизнь до сделки остаётся видимой.
+
 ### Стейкхолдеры сделки (`projects/DealStakeholders.tsx`, миграция 092)
 
 Люди со стороны клиента с ролью в сделке (ЛПР / влияющий / пользователь) —

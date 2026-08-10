@@ -32,6 +32,19 @@ function makeLead(over: Partial<Lead> = {}): Lead {
     converted_at: null,
     created_at: daysAgo(0),
     updated_at: daysAgo(0),
+    // 117: поля работы и квалификации — пустой лид, как сразу после создания.
+    owner_id: null,
+    next_step: null,
+    next_action_date: null,
+    temperature: null,
+    estimated_value: null,
+    pain: null,
+    budget_status: 'unknown',
+    decision_role: null,
+    chz_groups: null,
+    regulatory_deadline: null,
+    first_contacted_at: null,
+    qualified_at: null,
     ...over,
   };
 }

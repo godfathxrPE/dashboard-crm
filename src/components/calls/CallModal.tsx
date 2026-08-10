@@ -7,6 +7,7 @@ import { callFormSchema, callStatuses, CALL_STATUS_CONFIG, type CallFormValues }
 import { useCreateCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
+import { useLeads } from '@/lib/hooks/use-leads';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
@@ -52,16 +53,19 @@ interface CallModalProps {
   defaultProjectId?: string | null;
   defaultContactId?: string | null;
   defaultCompanyId?: string | null;
+  /** S-LEAD-CORE-1: звонок по лиду (кнопка «+Звонок» из карточки лида). */
+  defaultLeadId?: string | null;
   /** Préfill даты при создании (из календаря), YYYY-MM-DD */
   defaultDate?: string | null;
   onSaved?: (values: { next_step?: string | null; project_id?: string | null }) => void;
 }
 
-export function CallModal({ isOpen, onClose, editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultDate, onSaved }: CallModalProps) {
+export function CallModal({ isOpen, onClose, editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultLeadId, defaultDate, onSaved }: CallModalProps) {
   const create = useCreateCall();
   const update = useUpdateCall();
   const { data: companies } = useCompanies();
   const { data: contacts } = useContacts();
+  const { data: leads } = useLeads();
   const { data: projects } = useProjects();
   const isProjectActive = useIsProjectActive();
 
@@ -90,6 +94,27 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
     () => (projects ?? []).filter(isProjectActive).map((p) => ({ value: p.id, label: p.name })),
     [projects, isProjectActive],
   );
+  // `useLeads` уже отдаёт только НЕ конвертированные: у конвертированного звонок
+  // вешается на сделку, а не на лид.
+  const leadOptions: ComboboxOption[] = useMemo(
+    () => (leads ?? []).map((l) => ({
+      value: l.id,
+      label: l.title,
+      sub: l.company_name_raw ?? l.contact_name_raw ?? undefined,
+    })),
+    [leads],
+  );
+
+  // Либо лид (до конверсии), либо CRM-сущности (после). Двойной привязки не городим:
+  // историю на компанию/контакт/сделку переносит `convert_lead` (119).
+  const selectedLeadId = watch('lead_id');
+  const hasCrmLink = Boolean(watch('company_id') || watch('contact_id') || watch('project_id'));
+
+  // Ручной выбор CRM-связи снимает лид — но только пользовательский, не reset:
+  // у звонка конвертированного лида обе связи законны, и затирать их нельзя.
+  const dropLeadOnCrmLink = (val: string | null) => {
+    if (val && selectedLeadId) setValue('lead_id', null, { shouldDirty: true });
+  };
 
   // Автоподстановка связей (компания/проект) из контакта — только пустые поля,
   // не перетирая ручной выбор/явные defaults. Общая логика для onChange и open.
@@ -103,6 +128,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   // но исчезнет из сузившегося списка (Combobox покажет пусто, а в БД он лежит).
   const handleCompanyChange = (val: string | null, onChange: (v: string | null) => void) => {
     onChange(val);
+    dropLeadOnCrmLink(val);
     const contactId = getValues('contact_id');
     if (!val || !contactId) return;
     const current = (contacts ?? []).find((c) => c.id === contactId);
@@ -114,6 +140,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
   // Ручной выбор контакта (не на reset — onChange зовётся только пользователем).
   const handleContactChange = (val: string | null, onChange: (v: string | null) => void) => {
     onChange(val);
+    dropLeadOnCrmLink(val);
     if (val) applyDerived(val);
   };
 
@@ -123,6 +150,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
         company_id: editCall.company_id,
         contact_id: editCall.contact_id,
         project_id: editCall.project_id,
+        lead_id: editCall.lead_id,
         date: isoToDatetimeLocal(editCall.date) ?? '',
         status: editCall.status,
         next_step: editCall.next_step,
@@ -132,6 +160,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
     } else {
       reset({
         company_id: defaultCompanyId ?? null, contact_id: defaultContactId ?? null, project_id: defaultProjectId ?? null,
+        lead_id: defaultLeadId ?? null,
         // AUDIT 3.9: локальное время, НЕ UTC (звонок в 00:30 МСК давал вчерашнюю дату)
         date: defaultDate ? `${defaultDate}T10:00` : localDateTimeKey(),
         // Звонок на будущую дату из календаря — это план, не факт
@@ -139,7 +168,7 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
         next_step: null, agreements: null, duration_s: null,
       });
     }
-  }, [editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultDate, reset]);
+  }, [editCall, defaultProjectId, defaultContactId, defaultCompanyId, defaultLeadId, defaultDate, reset]);
 
   // Автоподстановка при ОТКРЫТИИ модалки с контактом (defaultContactId → reset,
   // а reset onChange не триггерит). Только режим создания; один раз на открытие;
@@ -250,11 +279,35 @@ export function CallModal({ isOpen, onClose, editCall, defaultProjectId, default
               name="project_id"
               control={control}
               render={({ field }) => (
-                <Combobox options={projectOptions} value={field.value ?? null} onChange={field.onChange}
+                <Combobox options={projectOptions} value={field.value ?? null}
+                  onChange={(val) => { field.onChange(val); dropLeadOnCrmLink(val); }}
                   placeholder="— не указан —" />
               )}
             />
           </div>
+
+          {/* Lead — только пока звонок не привязан к CRM-сущностям. У звонка,
+              переехавшего на сделку при конверсии, поле видно, но заблокировано:
+              происхождение показываем, редактировать двойную привязку не даём. */}
+          {(!hasCrmLink || selectedLeadId) && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">Лид</label>
+              <Controller
+                name="lead_id"
+                control={control}
+                render={({ field }) => (
+                  <Combobox options={leadOptions} value={field.value ?? null} onChange={field.onChange}
+                    disabled={hasCrmLink}
+                    placeholder="— не указан —" />
+                )}
+              />
+              {hasCrmLink && selectedLeadId && (
+                <p className="mt-0.5 text-xs text-text-mute">
+                  Звонок перенесён на сделку при конверсии — связь с лидом сохранена.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Section divider with expand toggle */}
           <DetailsSection register={register} />

@@ -1,4 +1,9 @@
 import { LEGACY_STAGE_LABELS, formatBudget } from '@/lib/validators/project';
+import {
+  LEAD_STATUS_CONFIG,
+  DISQUALIFY_REASON_CONFIG,
+  type DisqualifyReason,
+} from '@/lib/validators/lead';
 import { AUTOMATION_STATUS_LABEL } from '@/lib/constants/automation';
 import { formatDateShort } from '@/lib/utils/dates';
 import type { ActivityLog } from '@/types/entities';
@@ -16,6 +21,7 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   companies: 'компания',
   calls: 'звонок',
   meetings: 'встреча',
+  leads: 'лид',
 };
 
 /** Русские лейблы колонок сделки для project_updated.fields_changed.
@@ -248,6 +254,16 @@ export function describeEvent(entry: ActivityLog): string {
     case 'ai_summary_generated': {
       const kind = ENTITY_TYPE_LABEL[p.entity_type as string];
       return kind ? `AI-резюме готово: ${kind}` : 'AI-резюме готово';
+    }
+    case 'lead_status_changed': {
+      // S-LEAD-CORE-1 (118): пишет триггер `trg_zy_log_lead_status`. Без этой ветки
+      // событие уехало бы в ленту сырым фолбэком «Событие: lead_status_changed».
+      const to = LEAD_STATUS_CONFIG[String(p.to)]?.label ?? String(p.to);
+      const title = p.title ? `: ${p.title}` : '';
+      const reason = p.to === 'disqualified' && p.disqualify_reason
+        ? ` (${DISQUALIFY_REASON_CONFIG[p.disqualify_reason as DisqualifyReason]?.label ?? p.disqualify_reason})`
+        : '';
+      return `Лид → ${to}${reason}${title}`;
     }
     case 'entity_deleted': {
       const entityType = ENTITY_TYPE_LABEL[p.entity_type as string] ?? String(p.entity_type);
