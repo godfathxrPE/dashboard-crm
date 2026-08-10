@@ -28,12 +28,12 @@ async function fetchLeads(): Promise<Lead[]> {
 
 async function createLead(lead: LeadInsert): Promise<Lead> {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
+  // 117: `user_id` и `owner_id` ставит БД (default `auth.uid()`), поэтому и лишний
+  // round-trip за `getUser()` больше не нужен. Переданный формой `owner_id`
+  // (назначение через AssigneeSelect) уходит как есть и default перекрывает.
   const { data, error } = await supabase
     .from('leads')
-    .insert({ ...lead, user_id: user.id })
+    .insert(lead)
     .select('*')
     .single();
 
@@ -122,6 +122,21 @@ export function useCreateLead() {
         converted_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // 117: поля работы — из формы, иначе карточка на секунду теряет то,
+        // что человек только что ввёл (optimistic-объект рендерится целиком).
+        owner_id: newLead.owner_id ?? null,
+        next_step: newLead.next_step ?? null,
+        next_action_date: newLead.next_action_date ?? null,
+        temperature: newLead.temperature ?? null,
+        estimated_value: newLead.estimated_value ?? null,
+        pain: newLead.pain ?? null,
+        budget_status: newLead.budget_status ?? 'unknown',
+        decision_role: newLead.decision_role ?? null,
+        chz_groups: newLead.chz_groups ?? null,
+        regulatory_deadline: newLead.regulatory_deadline ?? null,
+        // Штампы ставит БД (trg_zz_stamp_lead_status) — оптимистично не угадываем.
+        first_contacted_at: null,
+        qualified_at: null,
       };
 
       qc.setQueryData<Lead[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);

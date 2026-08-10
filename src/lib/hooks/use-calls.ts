@@ -12,6 +12,8 @@ export interface Call {
   company_id: string | null;
   contact_id: string | null;
   project_id: string | null;
+  /** S-LEAD-CORE-1 (118): звонок по лиду до конверсии. */
+  lead_id: string | null;
   date: string;
   status: CallStatus;
   next_step: string | null;
@@ -33,6 +35,7 @@ export interface CallInsert {
   company_id?: string | null;
   contact_id?: string | null;
   project_id?: string | null;
+  lead_id?: string | null;
   date: string;
   status?: CallStatus;
   next_step?: string | null;
@@ -62,6 +65,29 @@ async function fetchCalls(): Promise<Call[]> {
 
   if (error) throw error;
   return (data ?? []) as Call[];
+}
+
+/**
+ * S-LEAD-CORE-1: авто-прогресс лида по HubSpot-паттерну — залогированный
+ * состоявшийся звонок и есть «первое касание».
+ *
+ * Решение КЛИЕНТСКОЕ намеренно: каскады статусов из триггеров в этом проекте
+ * признаны граблей (два пересекающихся триггера на стадии `projects` не чинятся
+ * до сих пор). Штамп `first_contacted_at` при этом ставит БД — на смену статуса,
+ * откуда бы она ни пришла.
+ *
+ * `.eq('status','new')` вместо «прочитать статус и решить»: условие проверяет
+ * сервер в том же запросе, гонки «два звонка подряд» нет, а лид, уже уехавший
+ * в contacted/qualified, назад не откатывается. Ошибку глотаем: не смог обновить
+ * статус (например, чужой лид — 42501) — звонок всё равно записан, и это главное.
+ */
+async function advanceLeadToContacted(leadId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase
+    .from('leads')
+    .update({ status: 'contacted' })
+    .eq('id', leadId)
+    .eq('status', 'new');
 }
 
 async function createCall(call: CallInsert): Promise<Call> {
@@ -112,6 +138,7 @@ export function useCreateCall() {
         company_id: newItem.company_id ?? null,
         contact_id: newItem.contact_id ?? null,
         project_id: newItem.project_id ?? null,
+        lead_id: newItem.lead_id ?? null,
         date: newItem.date,
         status: newItem.status ?? 'done',
         next_step: newItem.next_step ?? null,
@@ -126,7 +153,7 @@ export function useCreateCall() {
       qc.setQueryData<Call[]>(QUERY_KEY, (old) => [optimistic, ...(old ?? [])]);
       return { prev };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.project_id) {
         const contactName = result.contact
           ? `${result.contact.first_name} ${result.contact.last_name}`
@@ -137,10 +164,17 @@ export function useCreateCall() {
           duration: result.duration_s,
         });
       }
+      // Состоявшийся звонок по лиду двигает его из «Новый» в «Контакт».
+      if (result.lead_id && result.status === 'done') {
+        await advanceLeadToContacted(result.lead_id);
+      }
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
-    onSettled: () => {
+    onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // Звонок с lead_id меняет и сам лид (статус + штамп first_contacted_at от
+      // триггера) — без этой строки канбан лидов остаётся на «Новый» до перезахода.
+      if (vars.lead_id) qc.invalidateQueries({ queryKey: ['leads'] });
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
@@ -169,8 +203,10 @@ export function useUpdateCall() {
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(QUERY_KEY, ctx.prev); },
-    onSettled: () => {
+    onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
+      // Правка привязки к лиду так же меняет его ленту, как и создание звонка.
+      if (vars.lead_id) qc.invalidateQueries({ queryKey: ['leads'] });
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });

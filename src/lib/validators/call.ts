@@ -21,6 +21,12 @@ export const callFormSchema = z.object({
   company_id: z.string().uuid().nullable().default(null),
   contact_id: z.string().uuid().nullable().default(null),
   project_id: z.string().uuid().nullable().default(null),
+  /**
+   * S-LEAD-CORE-1 (118): звонок по лиду до конверсии. Либо лид, либо CRM-сущности
+   * — двойная привязка не городится (см. CallModal): после конверсии историю
+   * переносит `convert_lead`, и лид остаётся только меткой происхождения.
+   */
+  lead_id: z.string().uuid().nullable().default(null),
   date: z.string().min(1, 'Укажи дату'),
   status: z.enum(callStatuses).default('done'),
   next_step: z.string().nullable().default(null),
