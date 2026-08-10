@@ -1,4 +1,5 @@
 import type { DealStatus } from '@/types/database';
+import { diffDaysKey, localDateKey } from '@/lib/utils/date-helpers';
 
 export type HealthLevel = 'green' | 'yellow' | 'red';
 
@@ -76,16 +77,33 @@ export function getDealHealth(project: ProjectForNextAction): DealHealth {
   if (project.status !== 'open') return 'ok';
   if (!project.next_step?.trim()) return 'no-action';
   if (!project.next_action_date) return 'no-action';
+  // ⚠️ Сравнение НАМЕРЕННО оставлено на прежней арифметике (S-TAILS-1): от смещения
+  // локальной полуночи страдало ДЕЛЕНИЕ в getNextActionOverdueDays, а знак `<`
+  // устойчив — граница суток сдвинута одинаково у обеих дат. Перевод на diffDaysKey
+  // менял бы условие попадания сделки в очередь дня, и это отдельная задача со
+  // своим смоком, а не «доведение до единообразия».
   const today = new Date(new Date().toDateString());
   if (new Date(project.next_action_date) < today) return 'overdue-action';
   return 'ok';
 }
 
-/** Насколько дней просрочена дата следующего шага (>= 0). */
-export function getNextActionOverdueDays(nextActionDate: string): number {
-  const today = new Date(new Date().toDateString());
-  const diff = today.getTime() - new Date(nextActionDate).getTime();
-  return Math.max(0, Math.floor(diff / 86400000));
+/**
+ * Насколько дней просрочена дата следующего шага (>= 0).
+ *
+ * ⚠️ S-TAILS-1: прежняя реализация занижала просрочку на сутки в UTC+. Она
+ * считала `new Date(now.toDateString()) - new Date('YYYY-MM-DD')`, то есть
+ * разницу между ЛОКАЛЬНОЙ полуночью сегодня и UTC-полуночью цели: в MSK (UTC+3)
+ * это минус три часа, и `floor` съедал целый день — вчерашний шаг показывался
+ * как «просрочен 0 дн.». Теперь обе даты сравниваются как КЛЮЧИ ДНЯ через
+ * `diffDaysKey` (нормализация на UTC-полдне, устойчиво к DST) — тот же приём,
+ * что у `getLeadActionOverdueDays` в `lead-health.ts`, где дефект нашли раньше.
+ *
+ * ⚠️ `now` — параметр с дефолтом: без него функция недетерминирована и её нельзя
+ * протестировать (`leadStaleness` в 2b читала `Date.now()` мимо переданного
+ * времени, и тест этого не ловил).
+ */
+export function getNextActionOverdueDays(nextActionDate: string, now: Date = new Date()): number {
+  return Math.max(0, diffDaysKey(nextActionDate, localDateKey(now)));
 }
 
 // ═══════════════════════════════════════════════════════
