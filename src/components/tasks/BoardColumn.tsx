@@ -5,6 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils/cn';
 import { BoardCard } from './BoardCard';
 import { BUCKET_LABELS, deadlineForBucket, type DateBucket } from '@/lib/utils/task-view';
+import { mskDayCaption } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 
 /**
@@ -25,19 +26,6 @@ const WELL: Partial<Record<DateBucket, string>> = {
  *  «Без даты» закрываются капом + кнопкой, которая называет остаток числом.
  *  Молчаливого усечения быть не должно. */
 const PAGE = 50;
-
-/** «вс, 9 авг» — МСК, не browser-local: колонка обязана называть тот же день,
- *  что запишет `deadlineForBucket`. Intl в ru-RU отдаёт «авг.» с точкой — режем. */
-function dayCaption(iso: string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: 'Europe/Moscow',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  })
-    .format(new Date(iso))
-    .replace(/\.$/, '');
-}
 
 interface BoardColumnProps {
   bucket: DateBucket;
@@ -68,10 +56,11 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
   const showDropHint = isOver && droppable;
 
   // Подпись — только у датовых бакетов: у «Просрочено» и «Позже» дня нет,
-  // у «Без даты» вместо подписи подсказка про разбор.
+  // у «Без даты» вместо подписи подсказка про разбор. Форматтер общий с
+  // карточкой (`mskDayCaption`) — шапка и карточка обязаны называть один день.
   const caption =
     drop?.deadline && (bucket === 'today' || bucket === 'tomorrow' || bucket === 'this_week')
-      ? (bucket === 'this_week' ? 'до ' : '') + dayCaption(drop.deadline)
+      ? (bucket === 'this_week' ? 'до ' : '') + mskDayCaption(drop.deadline, { weekday: true })
       : null;
 
   const visible = tasks.slice(0, shown);
@@ -119,7 +108,14 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
         }
       >
         {visible.map((t) => (
-          <BoardCard key={t.id} task={t} now={now} onEdit={onEdit} canEdit={canEdit} />
+          <BoardCard
+            key={t.id}
+            task={t}
+            bucket={bucket}
+            now={now}
+            onEdit={onEdit}
+            canEdit={canEdit}
+          />
         ))}
 
         {tasks.length === 0 && (

@@ -102,18 +102,30 @@ export function TaskBoard({ tasks, now, onEdit, canEdit }: TaskBoardProps) {
       const task = tasks.find((t) => t.id === active.id);
       if (!task) return;
 
+      // Дроп — ДЕЙСТВИЕ, а не рендер: часы читаем здесь, а не берём `now` пропом.
+      // `now` из TasksView пересчитывается только при смене ССЫЛКИ на tasks, а
+      // React Query её сохраняет, когда данные не изменились, — во вкладке,
+      // открытой через полночь, проп указывает на вчера, и в БД уехал бы
+      // вчерашний конец дня: задача просрочена сразу после дропа, молча.
+      // Правило «никаких Date.now() в домене» не нарушено: домен по-прежнему
+      // получает «сейчас» аргументом, просто его читает тот, кто совершает
+      // действие. Следствие: если сутки сменились при открытой вкладке, карточка
+      // встанет не в ту колонку, куда её бросили, — и это верно, день реально
+      // другой; рефетч перерисует доску. Подгонять под ожидание нельзя.
+      const at = new Date();
+
       // Дроп в свой же бакет — no-op: писать тот же день значило бы сдвинуть
       // время дедлайна на конец дня и без нужды сбросить reminded_at триггером.
-      if (taskDateBucket(task, now) === overId) return;
+      if (taskDateBucket(task, at) === overId) return;
 
-      const drop = deadlineForBucket(overId, now);
+      const drop = deadlineForBucket(overId, at);
       if (drop === null) return;
 
       // ОДНА мутация на дроп: useUpdateTask уже несёт optimistic + патч всех
       // срезов кэша. Никаких reorder_tasks — sort_order здесь не трогаем вовсе.
       updateTask.mutate({ id: task.id, deadline: drop.deadline });
     },
-    [tasks, now, updateTask],
+    [tasks, updateTask],
   );
 
   return (

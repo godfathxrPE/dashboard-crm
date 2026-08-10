@@ -6,8 +6,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Check, Briefcase, Building2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
-import { daysOverdue } from '@/lib/utils/task-view';
-import { mskTimeRange } from '@/lib/utils/date-helpers';
+import { daysOverdue, type DateBucket } from '@/lib/utils/task-view';
+import { mskTimeRange, mskDayCaption } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 
 // Точка приоритета — семантические токены темы inline (как в TaskStreamRow).
@@ -31,6 +31,11 @@ function projectHref(t: Task): string | null {
 
 interface BoardCardProps {
   task: Task;
+  /**
+   * Колонка, в которой карточка стоит. Правую позицию меты решает БАКЕТ, а не
+   * задача: карточка обязана знать, что уже сказала шапка колонки.
+   */
+  bucket: DateBucket;
   now: Date;
   onEdit: (task: Task) => void;
   canEdit: boolean;
@@ -46,7 +51,7 @@ interface BoardCardProps {
  * Внутри карточки НЕТ поповеров и JS-тултипов: доска лежит в `overflow-x-auto`,
  * всплывашка там клиппится краем скролл-контейнера. Подсказки — нативный `title`.
  */
-export function BoardCard({ task, now, onEdit, canEdit }: BoardCardProps) {
+export function BoardCard({ task, bucket, now, onEdit, canEdit }: BoardCardProps) {
   const updateTask = useUpdateTask();
   const { setNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: task.id,
@@ -54,12 +59,26 @@ export function BoardCard({ task, now, onEdit, canEdit }: BoardCardProps) {
 
   const done = task.lane === 'done';
   const href = projectHref(task);
-  const overdueBy = daysOverdue(task, now);
   const timeBlock = mskTimeRange(task.scheduled_start, task.scheduled_end);
   const dot = PRIORITY_DOT[task.priority];
+
+  // Правая позиция меты — функция КОЛОНКИ, а не задачи:
+  //   overdue           → «N дн.» просрочки: шапка дня не называет, и просрочка тут главное;
+  //   later             → дата «25 авг»: шапки с днём там нет, а у задачи день есть,
+  //                       иначе 25 августа и 25 октября выглядят одинаково;
+  //   today/tomorrow/this_week → ничего, день уже назван в шапке колонки;
+  //   no_date           → ничего, дня нет.
+  // Отсюда `daysOverdue` считается ТОЛЬКО в `overdue`. Это структурно закрывает
+  // дефект гейта: `taskDateBucket` кладёт ВЫПОЛНЕННУЮ задачу с прошедшим сроком
+  // в `later`, а карточка звала `daysOverdue` без оглядки на колонку — и в режиме
+  // «Выполнено» сделанное горело красной просрочкой. В Списке этого нет: там
+  // `TaskStream` передаёт `isOverdue={bucket === 'overdue'}`, решает не строка.
+  const overdueBy = bucket === 'overdue' ? daysOverdue(task, now) : 0;
+  const laterDate = bucket === 'later' && task.deadline ? mskDayCaption(task.deadline) : null;
+
   // Нижняя строка рисуется только когда в ней есть что показать — пустая
   // «полка» под каждой карточкой съедала бы высоту колонки ни за что.
-  const hasMeta = Boolean(dot || href || task.company || timeBlock || overdueBy > 0);
+  const hasMeta = Boolean(dot || href || task.company || timeBlock || overdueBy > 0 || laterDate);
 
   function toggleDone(e: React.MouseEvent) {
     e.stopPropagation();
@@ -159,6 +178,13 @@ export function BoardCard({ task, now, onEdit, canEdit }: BoardCardProps) {
               style={{ color: 'var(--danger-text)' }}
             >
               {overdueBy} дн.
+            </span>
+          )}
+
+          {/* Дата в «Позже» — справка, а не сигнал: мета-стиль, без акцента. */}
+          {laterDate && (
+            <span className="ml-auto shrink-0 text-meta tabular-nums text-text-mute">
+              {laterDate}
             </span>
           )}
         </div>
