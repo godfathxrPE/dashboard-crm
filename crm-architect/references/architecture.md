@@ -16,8 +16,10 @@
 │   │       ├── layout.tsx            — Shell: TextNavSidebar + ActivityDrawer, data-section
 │   │       ├── overview/page.tsx     — KPI-обзор (DashboardHome): cards, charts, feed
 │   │       ├── tasks/page.tsx        — рендерит `<TasksView/>` (раздел пересобран,
-│   │       │                           S-TASKS-RESTRUCTURE-1: стрим по датам + Таблица,
-│   │       │                           lane-борд `KanbanBoard` выведен из дефолта — легаси)
+│   │       │                           S-TASKS-RESTRUCTURE-1: стрим по датам + Таблица;
+│   │       │                           S-TASKS-BOARD-1: третий вид «Доска» — канбан по
+│   │       │                           срокам; lane-борд `KanbanBoard` выведен из
+│   │       │                           дефолта — легаси)
 │   │       ├── deals/                — **КЛИЕНТСКИЕ СДЕЛКИ** (воронка продаж)
 │   │       │   ├── page.tsx          — Kanban + table view, chip filters
 │   │       │   └── [id]/page.tsx     — ProjectDetail: chevron pipeline, files, единая Активность (EntityTimeline)
@@ -348,8 +350,9 @@ v1: только `deals`, только конъюнкция (AND). Порог п
   «На завтра» (звонки/задачи). Все мутации — существующие optimistic-хуки.
 - Empty state: «Всё разобрано» + ссылка на /overview.
 
-### Раздел «Задачи» (`tasks/page.tsx` → `TasksView`) — S-TASKS-RESTRUCTURE-1/MYFILTER-1/POLISH-1
-- **`TasksView.tsx`** — контейнер: переключатель Список/Таблица (`?view`), Мои/Все
+### Раздел «Задачи» (`tasks/page.tsx` → `TasksView`) — S-TASKS-RESTRUCTURE-1/MYFILTER-1/POLISH-1/BOARD-1
+- **`TasksView.tsx`** — контейнер: переключатель Список/Таблица/**Доска** (`?view`:
+  отсутствует → `stream`, `table`, `board`; неизвестное молча падает в `stream`), Мои/Все
   (`?who`, дефолт Мои), фильтр источника Сделки/Проекты/Личное (`?src`, дефолт
   `deal,personal` — проекты скрыты за явным «Показать»), чип Выполнено (`?done`),
   локальный поиск (`query`, **НЕ в URL** — сознательно, blast radius), `SavedViewChips`.
@@ -362,9 +365,30 @@ v1: только `deals`, только конъюнкция (AND). Порог п
 - **`TasksTable.tsx`** — вид «Таблица»: обёртка над `shared/DataTable` (`hideSearch` —
   поиск общий из `TasksView`, не дублируется); колонки Задача/Связь/Срок/
   Приоритет/Исполнитель, метка бакета в «Срок».
+- **`TaskBoard.tsx` / `BoardColumn.tsx` / `BoardCard.tsx`** — вид «Доска» (S-TASKS-BOARD-1,
+  `?view=board`): канбан ПО СРОКАМ, колонки = дата-бакеты в порядке `BUCKET_ORDER`,
+  включая пустые. Получает тот же `queried`, что Список и Таблица — расхождение
+  наборов между видами невозможно по построению.
+  - **Дроп = запись `deadline`** (одна мутация `useUpdateTask`, optimistic уже внутри).
+    `sort_order` **не трогается вовсе**: он lane-scoped, и перемешивание его датами
+    сломало бы порядок lane-борда и Ганта. Порядок в колонке — `compareInBucket`.
+  - **Часы читаются в `handleDragEnd`, а не берутся пропом `now`** — см. learnings
+    «протухший `now`»: проп указывает на вчера во вкладке, открытой через полночь.
+  - Колонка-отказ (`deadlineForBucket === null`) остаётся **droppable** и поглощает
+    дроп; `useDroppable({disabled})` там запрещён (learnings). Отказ решает
+    `onDragEnd`, подсветка `isOver` гасится.
+  - Заливка колонок — `--danger-l` (Просрочено) / `--info-l` (Сегодня), остальные
+    `--surface2`, «Без даты» — пунктирная зона без заливки. **`--accent-l` запрещён**:
+    в washi `--accent === --red`, см. `theme-system.md`.
+  - Правую мету карточки определяет **бакет**, а не задача: `overdue` → «N дн.»,
+    `later` → дата, датовые колонки → ничего (день назван в шапке).
+  - Кап рендера `PAGE = 50` на колонку + кнопка с остатком числом; виртуализации нет.
+  - Клавиатура — `use-board-nav` + `lib/domain/board-nav.ts` (S-TASKS-BOARD-2),
+    **не** общий `use-keyboard-nav`: тот держит плоскую очередь.
 - **`components/tasks/KanbanBoard.tsx`** — старый lane-борд (now/next/wait/done,
   `@dnd-kit`) **выведен из дефолта**, но файл жив (экспортируется из `index.ts`,
-  нигде не рендерится) — дешёвый откат при необходимости.
+  нигде не рендерится) — дешёвый откат при необходимости. **Не путать с `TaskBoard`**:
+  тот по срокам и в дефолте, этот по `lane` и мёртв.
 - **`lib/utils/task-view.ts`** — чистые хелперы раздела (0 `any`):
   - `taskSource(task) → 'deal'|'project'|'personal'` — из `projects.type`
     (`client`→deal, `internal`|`delivery`→project, нет `project_id`→personal).
@@ -378,6 +402,19 @@ v1: только `deals`, только конъюнкция (AND). Порог п
     `created_by===me`) (MYFILTER-1: «Мои» подхватывают мои неназначенные —
     иначе вся просрочка sales-задач с `assigned_to=NULL` выпадает из дефолта).
   - `matchesQuery(task, q)` — поиск по тексту + имени проекта/компании.
+  - **`deadlineForBucket(bucket, now) → {deadline} | null`** (BOARD-1) — ОБРАТНАЯ
+    функция оси: какой дедлайн положит задачу в этот бакет. `null` = бакет не
+    принимает дроп (`overdue` всегда; `this_week` в сб/вс — конец недели там
+    схлопывается в сегодня/завтра). `{deadline: null}` = очистить срок (`no_date`).
+    Время суток — `mskEndOfDayIso`, конвенция проекта. `later` берёт якорем
+    **max(завтра, конец недели) + 1**, а не `eow + 1`: в вс `eow === today`, и
+    `+1` попадал бы в `tomorrow` — карточка отскакивала из колонки, куда её бросили.
+    **Живёт в этом же файле рядом с `taskDateBucket` намеренно** — разнесённые по
+    файлам прямая и обратная функции разойдутся при первой правке границ недели, и
+    разойдутся молча. Инвариант round-trip закрыт `tests/unit/task-board-axis.test.ts`.
+  - `boardColumns(tasks, now)` — все бакеты в порядке оси, **включая пустые**
+    (в отличие от `groupByBucket`, который пустые опускает): колонка-приёмник
+    обязана существовать и без карточек.
 - **Data-нюанс**: `tasks.lane` не тронут — истина для личных задач + вход
   optimistic-хуков; `TaskModal` поле «Столбец» пишет `lane`. `use-tasks` select
   `+= project:projects(id, name, type), company:companies(id, name)`. Миграций в

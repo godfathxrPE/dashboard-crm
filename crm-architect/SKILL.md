@@ -177,6 +177,7 @@ Workflow:
 - [ ] Hook changes include optimistic updates
 - [ ] CSS changes scoped to theme (`.t-aura {}`)
 - [ ] No hardcoded colors — CSS variables only
+- [ ] **Цвет, кодирующий смысл, взят семантическим токеном (`--danger`/`--info`/…), НЕ `--accent`** — и прогнан по всем 7 темам: в `t-washi` акцент === `--red`, в `t-aura` акцент вообще не цветной (`theme-system.md`)
 - [ ] Commit message included
 - [ ] No `storageKey` or `flowType` overrides in Supabase client (default `'pkce'` корректен; `flowType: 'implicit'` ломает SSR code exchange)
 - [ ] DELETE operations rely on DB CASCADE, not client-side cleanup
