@@ -5,6 +5,7 @@ import {
   taskDateBucket,
   boardColumns,
 } from '@/lib/utils/task-view';
+import { mskDayCaption } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 
 const t = (deadline: string | null, lane = 'now'): Task =>
@@ -51,6 +52,29 @@ describe('deadlineForBucket — семантика', () => {
     const week = deadlineForBucket('this_week', WED)!.deadline!;
     const later = deadlineForBucket('later', WED)!.deadline!;
     expect(later > week).toBe(true);
+  });
+});
+
+describe('устойчивость к протухшему now (S-TASKS-BOARD-2)', () => {
+  it('вчерашний now пишет вчерашний конец дня — поэтому часы читаются при дропе', () => {
+    const yesterday = new Date('2026-08-11T09:00:00Z');
+    const today = new Date('2026-08-12T09:00:00Z');
+    const stale = deadlineForBucket('today', yesterday)!.deadline!;
+    // Документирующий тест: именно это и уехало бы в БД, если бы `now` брался
+    // пропом из рендера. Проверяем ПРИЧИНУ, а не обходной путь.
+    expect(taskDateBucket({ deadline: stale, lane: 'now' } as Task, today)).toBe('overdue');
+    const fresh = deadlineForBucket('today', today)!.deadline!;
+    expect(taskDateBucket({ deadline: fresh, lane: 'now' } as Task, today)).toBe('today');
+  });
+});
+
+describe('mskDayCaption', () => {
+  it('день берётся по МСК, а не по локали браузера', () => {
+    // 21:30 UTC = 00:30 МСК следующих суток — граница, на которой врёт local.
+    expect(mskDayCaption('2026-08-11T21:30:00.000Z')).toBe('12 авг');
+  });
+  it('weekday добавляет день недели и не оставляет точку', () => {
+    expect(mskDayCaption('2026-08-09T09:00:00.000Z', { weekday: true })).toBe('вс, 9 авг');
   });
 });
 

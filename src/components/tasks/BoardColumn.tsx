@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils/cn';
 import { BoardCard } from './BoardCard';
 import { BUCKET_LABELS, deadlineForBucket, type DateBucket } from '@/lib/utils/task-view';
+import { mskDayCaption } from '@/lib/utils/date-helpers';
 import type { Task } from '@/types/entities';
 
 /**
@@ -26,28 +27,17 @@ const WELL: Partial<Record<DateBucket, string>> = {
  *  Молчаливого усечения быть не должно. */
 const PAGE = 50;
 
-/** «вс, 9 авг» — МСК, не browser-local: колонка обязана называть тот же день,
- *  что запишет `deadlineForBucket`. Intl в ru-RU отдаёт «авг.» с точкой — режем. */
-function dayCaption(iso: string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    timeZone: 'Europe/Moscow',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  })
-    .format(new Date(iso))
-    .replace(/\.$/, '');
-}
-
 interface BoardColumnProps {
   bucket: DateBucket;
   tasks: Task[];
   now: Date;
   onEdit: (task: Task) => void;
   canEdit: boolean;
+  /** Клавиатурный фокус доски (`useBoardNav`); визуальный, без DOM-фокуса. */
+  focusedId?: string | null;
 }
 
-export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumnProps) {
+export function BoardColumn({ bucket, tasks, now, onEdit, canEdit, focusedId }: BoardColumnProps) {
   const [shown, setShown] = useState(PAGE);
 
   // Дроп-цель и подпись берутся из ОДНОЙ функции: подпись «до вс, 16 авг» не
@@ -68,13 +58,23 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
   const showDropHint = isOver && droppable;
 
   // Подпись — только у датовых бакетов: у «Просрочено» и «Позже» дня нет,
-  // у «Без даты» вместо подписи подсказка про разбор.
+  // у «Без даты» вместо подписи подсказка про разбор. Форматтер общий с
+  // карточкой (`mskDayCaption`) — шапка и карточка обязаны называть один день.
   const caption =
     drop?.deadline && (bucket === 'today' || bucket === 'tomorrow' || bucket === 'this_week')
-      ? (bucket === 'this_week' ? 'до ' : '') + dayCaption(drop.deadline)
+      ? (bucket === 'this_week' ? 'до ' : '') + mskDayCaption(drop.deadline, { weekday: true })
       : null;
 
-  const visible = tasks.slice(0, shown);
+  // Кап рендера и клавиатура обязаны договориться: `moveFocus` ходит по ВСЕМУ
+  // набору колонки, а рисуются первые `shown`. Без этого `j` за 50-ю карточку
+  // уводил бы фокус в нерендеренную строку — визуально он просто исчезает, и
+  // Enter открывает «непонятно что». Раскрываем ровно до нужной карточки.
+  const focusRow = focusedId ? tasks.findIndex((t) => t.id === focusedId) : -1;
+  useEffect(() => {
+    if (focusRow >= shown) setShown(focusRow + 1);
+  }, [focusRow, shown]);
+
+  const visible = tasks.slice(0, Math.max(shown, focusRow + 1));
   const rest = tasks.length - visible.length;
 
   return (
@@ -119,7 +119,15 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
         }
       >
         {visible.map((t) => (
-          <BoardCard key={t.id} task={t} now={now} onEdit={onEdit} canEdit={canEdit} />
+          <BoardCard
+            key={t.id}
+            task={t}
+            bucket={bucket}
+            now={now}
+            onEdit={onEdit}
+            canEdit={canEdit}
+            focused={focusedId === t.id}
+          />
         ))}
 
         {tasks.length === 0 && (

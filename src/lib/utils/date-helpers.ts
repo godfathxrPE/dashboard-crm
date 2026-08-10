@@ -115,6 +115,21 @@ export function mskDayMonth(iso: string | null | undefined): string | null {
   return `${key.slice(8, 10)}.${key.slice(5, 7)}`;
 }
 
+/** Короткая дата по МСК: «9 авг», с `weekday` — «вс, 9 авг».
+ *  Одна календарная ось на проект: и подпись колонки доски, и дата на карточке
+ *  идут отсюда, иначе на границе суток они назовут разные дни.
+ *  Intl в ru-RU отдаёт «авг.» с точкой — режем. */
+export function mskDayCaption(iso: string, opts?: { weekday?: boolean }): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    ...(opts?.weekday ? { weekday: 'short' as const } : {}),
+    day: 'numeric',
+    month: 'short',
+  })
+    .format(new Date(iso))
+    .replace(/\.$/, '');
+}
+
 /** Конец календарного дня YYYY-MM-DD по МСК → ISO UTC (timestamptz).
  *  Дедлайн «сегодня» обязан быть концом дня, а не моментом клика: иначе задача
  *  просрочена через секунду после создания (D2, S-R2-AI-HARDEN).

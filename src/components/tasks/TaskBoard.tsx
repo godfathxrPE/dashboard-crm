@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useUpdateTask } from '@/lib/hooks/use-tasks';
+import { useBoardNav } from '@/lib/hooks/use-board-nav';
 import { BoardColumn } from './BoardColumn';
 import {
   boardColumns,
@@ -53,6 +54,13 @@ interface TaskBoardProps {
    * иначе, чем два соседних.
    */
   canDelete?: (task: Task) => boolean;
+  /**
+   * `TaskModal` живёт на примитиве `shared/Modal.tsx`, а не в `ui-store` —
+   * автогейт по `activeModal` его не видит. Ровно та же грабля, что уже описана
+   * для `TaskStream`: без этого пропа `j/k/h/l` двигали бы доску под открытой
+   * модалкой.
+   */
+  modalOpen?: boolean;
 }
 
 /**
@@ -70,11 +78,52 @@ interface TaskBoardProps {
  *   на изменении `deadline` (108). Клиентский дубль разошёлся бы с ним при
  *   первой правке триггера.
  */
-export function TaskBoard({ tasks, now, onEdit, canEdit }: TaskBoardProps) {
+export function TaskBoard({ tasks, now, onEdit, canEdit, modalOpen }: TaskBoardProps) {
   const updateTask = useUpdateTask();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  /** Очередь клавиатурных переносов — см. `onMove` ниже. */
+  const moveChain = useRef<Promise<void>>(Promise.resolve());
 
   const columns = useMemo(() => boardColumns(tasks, now), [tasks, now]);
+
+  // Клавиатура: j/k внутри колонки, h/l между колонками, Shift+H/L переносит
+  // карточку. Часы для переноса хук читает сам в момент нажатия — по той же
+  // причине, что `handleDragEnd` ниже.
+  const { focusedId } = useBoardNav({
+    columns,
+    onSelect: onEdit,
+    onAction: canEdit
+      ? (t) => updateTask.mutate({ id: t.id, lane: t.lane === 'done' ? 'now' : 'done' })
+      : undefined,
+    onMove: canEdit
+      ? (id, bucket) => {
+          // `deadlineForBucket` здесь заведомо не null: цель отобрана этим же
+          // предикатом внутри `moveTarget`. Гард всё равно оставлен — иначе `!`
+          // молча уронил бы мутацию при будущей правке оси.
+          const drop = deadlineForBucket(bucket, new Date());
+          if (drop === null) return;
+          // Переносы идут ЦЕПОЧКОЙ, а не параллельно. При удержании Shift+L
+          // три PATCH в одну строку уходят одновременно, и побеждает не
+          // последний: на смоуке доска показывала «Без даты», а сервер оставил
+          // «Эта неделя» — рефетч возвращал карточку назад. Дроп мышью этого
+          // класса не знает (одно перетаскивание = одна запись), поэтому
+          // сериализация живёт здесь, а не в useUpdateTask.
+          // `catch` обязателен: без него первая же неудача рвёт цепочку и все
+          // последующие переносы молча перестают уходить. Ошибку показывает
+          // сам useUpdateTask (откат кэша + глобальный тост).
+          moveChain.current = moveChain.current.then(() =>
+            updateTask.mutateAsync({ id, deadline: drop.deadline }).then(
+              () => undefined,
+              () => undefined,
+            ),
+          );
+        }
+      : undefined,
+    isActive: () => !modalOpen,
+    containerRef,
+    enabled: columns.some((c) => c.tasks.length > 0),
+  });
 
   // Те же значения, что в KanbanBoard — поведение drag во всём приложении одинаковое.
   const sensors = useSensors(
@@ -102,18 +151,30 @@ export function TaskBoard({ tasks, now, onEdit, canEdit }: TaskBoardProps) {
       const task = tasks.find((t) => t.id === active.id);
       if (!task) return;
 
+      // Дроп — ДЕЙСТВИЕ, а не рендер: часы читаем здесь, а не берём `now` пропом.
+      // `now` из TasksView пересчитывается только при смене ССЫЛКИ на tasks, а
+      // React Query её сохраняет, когда данные не изменились, — во вкладке,
+      // открытой через полночь, проп указывает на вчера, и в БД уехал бы
+      // вчерашний конец дня: задача просрочена сразу после дропа, молча.
+      // Правило «никаких Date.now() в домене» не нарушено: домен по-прежнему
+      // получает «сейчас» аргументом, просто его читает тот, кто совершает
+      // действие. Следствие: если сутки сменились при открытой вкладке, карточка
+      // встанет не в ту колонку, куда её бросили, — и это верно, день реально
+      // другой; рефетч перерисует доску. Подгонять под ожидание нельзя.
+      const at = new Date();
+
       // Дроп в свой же бакет — no-op: писать тот же день значило бы сдвинуть
       // время дедлайна на конец дня и без нужды сбросить reminded_at триггером.
-      if (taskDateBucket(task, now) === overId) return;
+      if (taskDateBucket(task, at) === overId) return;
 
-      const drop = deadlineForBucket(overId, now);
+      const drop = deadlineForBucket(overId, at);
       if (drop === null) return;
 
       // ОДНА мутация на дроп: useUpdateTask уже несёт optimistic + патч всех
       // срезов кэша. Никаких reorder_tasks — sort_order здесь не трогаем вовсе.
       updateTask.mutate({ id: task.id, deadline: drop.deadline });
     },
-    [tasks, now, updateTask],
+    [tasks, updateTask],
   );
 
   return (
@@ -123,7 +184,10 @@ export function TaskBoard({ tasks, now, onEdit, canEdit }: TaskBoardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className={`${BOARD_HEIGHT} flex min-h-0 gap-3.5 overflow-x-auto overflow-y-hidden pb-4`}>
+      <div
+        ref={containerRef}
+        className={`${BOARD_HEIGHT} flex min-h-0 gap-3.5 overflow-x-auto overflow-y-hidden pb-4`}
+      >
         {columns.map(({ bucket, tasks: colTasks }) => (
           <BoardColumn
             key={bucket}
@@ -132,6 +196,7 @@ export function TaskBoard({ tasks, now, onEdit, canEdit }: TaskBoardProps) {
             now={now}
             onEdit={onEdit}
             canEdit={canEdit}
+            focusedId={focusedId}
           />
         ))}
       </div>
