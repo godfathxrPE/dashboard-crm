@@ -452,7 +452,7 @@
 > фактом, а не рассуждением; лента лида при этом сохраняет 5 событий (`lead_id` не
 > занулён), лента сделки видит `call` и `task`. Прод-данные не изменены.
 >
-> **121 (S-LEAD-HUB-2b) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`121_leads_realtime.sql`; номер
+> **121 (S-LEAD-HUB-2b) — ПРИМЕНЕНА ГЕЙТОМ 2026-08-10, версия `20260810114146`** (`121_leads_realtime.sql`; номер
 > сверен запросом к `schema_migrations` 2026-08-10 — последняя применённая
 > `20260810104424 lead_timeline`). Одна строка: `alter publication supabase_realtime
 > add table public.leads` — лид был единственной сущностью ядра без живого обновления,
@@ -1964,7 +1964,7 @@ FK `activity_log.lead_id` — ON DELETE CASCADE, запись снесло бы 
 ⚠️ Каскадов статуса из триггеров **нет намеренно** (грабля двух пересекающихся
 триггеров на `projects`): статус лида меняет только клиент.
 
-**Realtime (121, НАПИСАНА, НЕ ПРИМЕНЕНА):** `leads` в publication `supabase_realtime`;
+**Realtime (121, applied 2026-08-10 · `20260810114146`):** `leads` в publication `supabase_realtime`; REPLICA IDENTITY — default (PK), проверено гейтом; SELECT-политика одна (org-wide), поэтому подписчик получает события только по видимым строкам;
 клиент — `useRealtimeSync('leads', ['leads'])` из `useLeads()` И из `useLead(id)`
 (карточка `/leads/[id]` списка не держит; канал общий, refcount в `use-realtime`).
 `REPLICA IDENTITY` — default. RLS применяется к realtime: подписчик видит только то,
