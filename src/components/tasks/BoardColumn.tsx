@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils/cn';
 import { BoardCard } from './BoardCard';
@@ -33,9 +33,11 @@ interface BoardColumnProps {
   now: Date;
   onEdit: (task: Task) => void;
   canEdit: boolean;
+  /** Клавиатурный фокус доски (`useBoardNav`); визуальный, без DOM-фокуса. */
+  focusedId?: string | null;
 }
 
-export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumnProps) {
+export function BoardColumn({ bucket, tasks, now, onEdit, canEdit, focusedId }: BoardColumnProps) {
   const [shown, setShown] = useState(PAGE);
 
   // Дроп-цель и подпись берутся из ОДНОЙ функции: подпись «до вс, 16 авг» не
@@ -63,7 +65,16 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
       ? (bucket === 'this_week' ? 'до ' : '') + mskDayCaption(drop.deadline, { weekday: true })
       : null;
 
-  const visible = tasks.slice(0, shown);
+  // Кап рендера и клавиатура обязаны договориться: `moveFocus` ходит по ВСЕМУ
+  // набору колонки, а рисуются первые `shown`. Без этого `j` за 50-ю карточку
+  // уводил бы фокус в нерендеренную строку — визуально он просто исчезает, и
+  // Enter открывает «непонятно что». Раскрываем ровно до нужной карточки.
+  const focusRow = focusedId ? tasks.findIndex((t) => t.id === focusedId) : -1;
+  useEffect(() => {
+    if (focusRow >= shown) setShown(focusRow + 1);
+  }, [focusRow, shown]);
+
+  const visible = tasks.slice(0, Math.max(shown, focusRow + 1));
   const rest = tasks.length - visible.length;
 
   return (
@@ -115,6 +126,7 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit }: BoardColumn
             now={now}
             onEdit={onEdit}
             canEdit={canEdit}
+            focused={focusedId === t.id}
           />
         ))}
 

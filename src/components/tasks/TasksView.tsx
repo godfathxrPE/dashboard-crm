@@ -390,7 +390,7 @@ export function TasksView() {
           onCreateTask={openCreate}
         />
       ) : view === 'board' ? (
-        <TaskBoard tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} canDelete={canDeleteRow} />
+        <TaskBoard tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} modalOpen={modalOpen} canDelete={canDeleteRow} />
       ) : view === 'table' ? (
         <TasksTable tasks={queried} now={now} onEdit={openEdit} canEdit={canEdit} canDelete={canDeleteRow} />
       ) : (

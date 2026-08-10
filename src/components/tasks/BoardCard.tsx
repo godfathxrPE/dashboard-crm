@@ -39,6 +39,11 @@ interface BoardCardProps {
   now: Date;
   onEdit: (task: Task) => void;
   canEdit: boolean;
+  /**
+   * Клавиатурный фокус — ВИЗУАЛЬНЫЙ, без DOM-фокуса (см. комментарий про
+   * `tabIndex` в теле компонента).
+   */
+  focused?: boolean;
 }
 
 /**
@@ -51,7 +56,7 @@ interface BoardCardProps {
  * Внутри карточки НЕТ поповеров и JS-тултипов: доска лежит в `overflow-x-auto`,
  * всплывашка там клиппится краем скролл-контейнера. Подсказки — нативный `title`.
  */
-export function BoardCard({ task, bucket, now, onEdit, canEdit }: BoardCardProps) {
+export function BoardCard({ task, bucket, now, onEdit, canEdit, focused }: BoardCardProps) {
   const updateTask = useUpdateTask();
   const { setNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: task.id,
@@ -86,16 +91,33 @@ export function BoardCard({ task, bucket, now, onEdit, canEdit }: BoardCardProps
   }
 
   return (
+    /*
+     * ⚠️ `tabIndex` карточке НЕ добавлять. Карточка — `useDraggable`, и с
+     * реальным DOM-фокусом `KeyboardSensor` из dnd-kit перехватит `Space` и
+     * стрелки на себя (подъём и перемещение), отобрав их у навигации доски.
+     * Наш фокус визуальный, как в `TaskStream`, — конфликта нет ровно поэтому.
+     * Отсюда же известный долг: навигация не объявлена скрин-ридеру. Это
+     * конвенция всего проекта, а не регресс доски; полный a11y — отдельный эпик.
+     */
     <article
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      data-task-id={task.id}
+      // Маркер фокуса — `data-*`, а не `aria-selected`: у `<article>` implicit
+      // `role=article`, который `aria-selected` не поддерживает (eslint
+      // jsx-a11y/role-supports-aria-props). У соседей (`TaskStreamRow`,
+      // `QueueRow`) это `<div>` без роли, потому там атрибут и живёт. Класть
+      // невалидную ARIA ради симметрии смысла нет: скрин-ридеру она всё равно
+      // ничего не сообщает — навигация ему не объявлена (известный долг ниже).
+      // `|| undefined` — чтобы атрибут не висел как `data-kbd-focused="false"`.
+      data-kbd-focused={focused || undefined}
       onClick={() => onEdit(task)}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
         'flex touch-none cursor-grab flex-col gap-[7px] rounded border border-border bg-surface',
         'px-3 py-2.5 shadow-card transition-shadow active:cursor-grabbing',
-        'hover:border-border2 hover:shadow-card-hover',
+        focused ? 'kbd-focus-row' : 'hover:border-border2 hover:shadow-card-hover',
         isDragging && 'opacity-40',
       )}
     >
