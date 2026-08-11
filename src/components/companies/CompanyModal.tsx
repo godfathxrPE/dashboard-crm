@@ -11,6 +11,8 @@ import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
+import { CHZ_GROUPS } from '@/lib/data/chz-groups';
+import { cn } from '@/lib/utils/cn';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';
 import { Modal } from '@/components/shared/Modal';
@@ -41,6 +43,13 @@ interface CompanyModalProps {
 const INPUT_CLASS =
   'w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main ' +
   'placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
+
+/**
+ * S-LEAD-CARRY-1: список групп для пикера — тот же вывод, что в `LeadModal`
+ * (дедуп по имени, алфавит по-русски). Контрол один на два места намеренно:
+ * второй вид контрола для того же справочника развёл бы их поведение.
+ */
+const CHZ_GROUP_NAMES = [...new Set(CHZ_GROUPS.map((g) => g.group))].sort((a, b) => a.localeCompare(b, 'ru'));
 
 export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyModalProps) {
   const router = useRouter();
@@ -76,6 +85,19 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
   const nameVal = watch('name');
   const innVal = watch('inn');
   const statusVal = watch('inn_status');
+  const currentChz = watch('chz_groups');
+  const chzCount = currentChz?.length ?? 0;
+
+  // Копия `toggleChz` из LeadModal: тот же справочник — то же поведение.
+  const toggleChz = (group: string) => {
+    const current = currentChz ?? [];
+    const next = current.includes(group)
+      ? current.filter((g) => g !== group)
+      : [...current, group];
+    // Пустой массив → null: «не выяснено» и «выяснили, что групп нет» — разные вещи,
+    // и в БД это NULL против '{}'.
+    setValue('chz_groups', next.length > 0 ? next : null, { shouldDirty: true });
+  };
   const duplicate = useMemo(() => {
     const inn = innVal?.trim() || null;
     const norm = nameVal ? normalizeCompanyName(nameVal) : '';
@@ -115,6 +137,9 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
         inn_verified_at: editCompany.inn_verified_at ?? null,
         // 103 тоже ещё на гейте → та же защита `?? null`.
         okved: editCompany.okved ?? null,
+        // 123 на гейте → та же защита. Массив кладётся как есть: порядок групп
+        // выбирал человек, и пересортировывать его нельзя.
+        chz_groups: editCompany.chz_groups ?? null,
       });
       // Заполненные реквизиты не прячем: они уже часть карточки.
       setShowLegal(Boolean(editCompany.legal_name || editCompany.kpp || editCompany.ogrn || editCompany.legal_address));
@@ -125,7 +150,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
         name: '', inn: null, industry: null, website: null, phone: null, phones: [],
         email: null, address: null, notes: null, owner_id: null,
         kpp: null, ogrn: null, legal_name: null, legal_address: null,
-        inn_status: null, inn_verified_at: null, okved: null,
+        inn_status: null, inn_verified_at: null, okved: null, chz_groups: null,
         ...prefill,
       });
       // Реквизиты, приехавшие из ЕГРЮЛ вместе с préfill, обязаны быть видны до
@@ -386,6 +411,43 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
               </button>
             </div>
           )}
+
+          {/* ═══ Маркировка «Честный Знак» (S-LEAD-CARRY-1) ═══
+              Конверсия лида — не единственный путь: компанию заводят и напрямую,
+              и профиль обязан правиться руками. Контрол — копия пикера LeadModal
+              (тот же справочник, те же тогглы, тот же контракт «пусто → null»). */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-text-dim">
+              Группы «Честного Знака»
+              {chzCount > 0 && <span className="ml-1 text-accent">· {chzCount}</span>}
+            </label>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border p-2">
+              <div className="flex flex-wrap gap-1">
+                {CHZ_GROUP_NAMES.map((g) => {
+                  const on = currentChz?.includes(g) ?? false;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => toggleChz(g)}
+                      aria-pressed={on}
+                      className={cn(
+                        'rounded-lg border px-2 py-0.5 text-xs transition-colors',
+                        on
+                          ? 'border-accent bg-accent-l text-accent'
+                          : 'border-border text-text-mute hover:text-text-main',
+                      )}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="mt-0.5 text-xs text-text-mute">
+              Что компания маркирует на самом деле. Пусто — покажем предположение по ОКВЭД.
+            </p>
+          </div>
 
           {/* Notes */}
           <div>

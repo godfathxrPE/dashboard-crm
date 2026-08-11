@@ -10,6 +10,7 @@ import { DealHealthDot } from '@/components/shared/DealHealthDot';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { ChzBadge } from '@/components/shared/ChzBadge';
 import { chzStatusLabel, type ChzGroup } from '@/lib/data/chz-groups';
+import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { isTerminalDeal, ruPlural } from '@/lib/utils/company-360';
 import { useCompanyTeamTouch } from '@/lib/hooks/use-company-team-touch';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
@@ -38,6 +39,12 @@ interface CompanyHighlightsProps {
   deliveries: Project[];
   stages: PipelineStage[] | undefined;
   chzGroups: ChzGroup[];
+  /**
+   * S-LEAD-CARRY-1: откуда взялся профиль. Виджет обязан подписывать источник —
+   * `derived` считан из ОКВЭД (гипотеза), `declared` подтверждён человеком.
+   * Одна и та же подпись на оба случая приписала бы человеческий ввод реестру.
+   */
+  chzSource: ChzProfile['source'];
 }
 
 /** Классы сетки — статическими строками: Tailwind JIT не видит конкатенацию. */
@@ -52,7 +59,7 @@ const GRID_BY_COUNT: Record<number, string> = {
 const HEALTH_RANK: Record<DealHealth, number> = { 'overdue-action': 2, 'no-action': 1, ok: 0 };
 
 export function CompanyHighlights({
-  companyId, deals, deliveries, stages, chzGroups,
+  companyId, deals, deliveries, stages, chzGroups, chzSource,
 }: CompanyHighlightsProps) {
   const { data: teamTouch } = useCompanyTeamTouch(companyId);
   const { data: members } = useTeamMembers();
@@ -170,12 +177,23 @@ export function CompanyHighlights({
             {chz.note && <span className="truncate" title={chz.note}>{chz.note}</span>}
           </Meta>
           {/* Честность источника живёт при самом сигнале, а не в отдельной карточке:
-              «по основному ОКВЭД» — это ограничение ВЫВОДА (дополнительные коды ЕГРЮЛ
-              не отдаёт), и читать его нужно там, где по выводу принимают решение. */}
-          <p className="mt-1 truncate text-meta text-text-mute"
-            title="Справочник от 2026-08 · сопоставление по основному ОКВЭД; дополнительные коды ЕГРЮЛ не учитываются">
-            Справочник 2026-08 · по основному ОКВЭД
-          </p>
+              ограничение вывода нужно читать там, где по выводу принимают решение.
+              S-LEAD-CARRY-1: подписи ДВЕ, и разница смысловая, а не косметическая.
+              `derived` — гипотеза из ОКВЭД, и оговорка про дополнительные коды ЕГРЮЛ
+              относится именно к ней. `declared` подтвердил человек (лид при конверсии
+              или карточка компании) — ОКВЭД тут вообще ни при чём, и ссылаться на
+              реестр значило бы выдать человеческий ввод за факт реестра. */}
+          {chzSource === 'declared' ? (
+            <p className="mt-1 truncate text-meta text-text-mute"
+              title="Товарные группы подтверждены вручную — при конверсии лида или в карточке компании">
+              Подтверждено вручную
+            </p>
+          ) : (
+            <p className="mt-1 truncate text-meta text-text-mute"
+              title="Справочник от 2026-08 · сопоставление по основному ОКВЭД; дополнительные коды ЕГРЮЛ не учитываются">
+              Справочник 2026-08 · по основному ОКВЭД
+            </p>
+          )}
         </Widget>
       )}
     </div>

@@ -25,6 +25,19 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
+// ═══ S-LEAD-CARRY-1 (123, на гейте): companies.chz_groups ═══
+// ВРЕМЕННЫЙ СТАБ. Снять целиком после apply 123 + регенерации типов: колонка
+// приедет из автогенерации, а этот блок обязан уйти — оставленный стаб переживает
+// миграцию молча и продолжает врать про схему.
+//
+// `type`, а НЕ `interface`: postgrest требует от таблицы индексную сигнатуру,
+// interface её не получает, и `.update()` схлопывается в `never`.
+type CompaniesChzStub = {
+  Row: { chz_groups: string[] | null };
+  Insert: { chz_groups?: string[] | null };
+  Update: { chz_groups?: string[] | null };
+};
+
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -33,7 +46,10 @@ export type Database = {
       [K in keyof GenDatabase['public']['Tables']]: Omit<
         GenDatabase['public']['Tables'][K],
         'Insert'
-      > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> };
+      > & { Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']> }
+        // 123 на гейте: `unknown` в пересечении — единица (`T & unknown` = `T`),
+        // поэтому остальные таблицы проходят нетронутыми.
+        & (K extends 'companies' ? CompaniesChzStub : unknown);
     };
   };
 };

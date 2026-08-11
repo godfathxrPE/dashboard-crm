@@ -45,6 +45,19 @@ export interface Company {
    * Человеческая отрасль живёт в `industry`; здесь всегда код.
    */
   okved?: string | null;
+  /**
+   * S-LEAD-CARRY-1 (123, на гейте): ПОДТВЕРЖДЁННЫЕ товарные группы «Честного Знака».
+   * Опционален по той же причине, что колонки 102/103 выше — до применения 123
+   * колонки нет в ответе `select('*')`.
+   *
+   * Не путать с `matchChzGroups(okved)`: та ВЫВОДИТ гипотезу из кода реестра, эта
+   * колонка хранит то, что подтвердил человек (приезжает с лида при конверсии либо
+   * правится в CompanyModal). Кто из двух побеждает при рендере — решает
+   * `resolveChzProfile` (`src/lib/domain/chz-profile.ts`).
+   *
+   * NULL = не выяснено; `[]` = выяснено, что групп нет.
+   */
+  chz_groups?: string[] | null;
   // Aggregated (computed client-side or via view)
   contacts_count?: number;
   projects_count?: number;
@@ -69,6 +82,11 @@ export interface CompanyInsert {
   inn_verified_at?: string | null;
   // S-OKVED-1 (103)
   okved?: string | null;
+  // S-LEAD-CARRY-1 (123): подтверждённый маркировочный профиль.
+  // ⚠️ Список полей здесь — не документация, а ФИЛЬТР: `updateCompany` гоняет
+  // `...updates`, но собирается payload из этого интерфейса, и поле, которого тут
+  // нет, до БД не доедет молча.
+  chz_groups?: string[] | null;
 }
 
 export interface CompanyUpdate extends Partial<CompanyInsert> {
