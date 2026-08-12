@@ -7,6 +7,7 @@ import { useUpdateCompany } from '@/lib/hooks/use-companies';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
 import { chzStatusLabel, type ChzGroup } from '@/lib/data/chz-groups';
+import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { ChzBadge } from '@/components/shared/ChzBadge';
 import { formatDateHuman } from '@/lib/utils/dates';
 import { PhoneList } from '@/components/shared/PhoneList';
@@ -27,9 +28,13 @@ import type { Company } from '@/lib/hooks/use-companies';
 interface CompanySidebarProps {
   company: Company;
   chzGroups: ChzGroup[];
+  /** S-LEAD-CARRY-1: `declared` — подтверждено человеком, `derived` — гипотеза по ОКВЭД. */
+  chzSource: ChzProfile['source'];
+  /** Имена из `companies.chz_groups`, которых нет в справочнике-снапшоте. */
+  chzUnknown: string[];
 }
 
-export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
+export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: CompanySidebarProps) {
   const lookup = useCompanyLookup();
   const updateCompany = useUpdateCompany();
 
@@ -162,18 +167,34 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
         </SideCard>
       )}
 
-      {/* ─── Маркировка «Честный Знак» (S-COMPANY-AI-1, F2) ───
-          ⚠️ Условие `> 1`, а не `> 0`, и это не опечатка. `matchChzGroups` матчит
-          ОДИН основной ОКВЭД по префиксам, а префиксы в справочнике не пересекаются
-          (проверено: 34 группы, ноль пересечений) — значит функция возвращает 0 или 1
-          группу, никогда больше. При одной группе эта карточка дословно повторяла
-          highlight-виджет: та же строка, тот же бейдж, тот же note.
-          Список остаётся кодом на случай, когда справочник обзаведётся пересекающимися
-          префиксами: тогда карточка появится сама и будет означать ровно то, чего
-          виджету не хватает, — «групп несколько, вот все». Дисклеймер источника уехал
-          к виджету: он про то, как посчитан сигнал. */}
-      {chzGroups.length > 1 && (
-        <SideCard icon={ScanBarcode} title="Маркировка «Честный Знак»">
+      {/* ─── Маркировка «Честный Знак» (S-COMPANY-AI-1, F2 · S-LEAD-CARRY-1) ───
+          ⚠️ Условие `> 1`, а не `> 0`, и это не опечатка — но обоснование у него
+          с S-LEAD-CARRY-1 ДРУГОЕ, и старое было бы прямым враньём.
+
+          Раньше единица объяснялась свойством `matchChzGroups`: она матчит один
+          основной ОКВЭД по непересекающимся префиксам и физически не возвращает
+          больше одной группы. С появлением `companies.chz_groups` (123) это
+          перестало быть правдой — подтверждённый профиль набирает человек в пикере
+          и выбирает сколько угодно групп.
+
+          Правило теперь про РАЗДЕЛЕНИЕ ТРУДА с highlight-виджетом, а не про
+          справочник: виджет показывает ровно одну группу (`chzGroups[0]`), и при
+          одной группе эта карточка дословно его повторяла бы — та же строка, тот же
+          бейдж, тот же note. Карточка появляется, когда есть что добавить сверх
+          виджета: групп больше одной ЛИБО среди подтверждённых имён есть сироты —
+          их виджет не показывает вовсе, и без карточки они исчезли бы с экрана.
+
+          Дисклеймер источника живёт у виджета: он про то, как посчитан сигнал. */}
+      {(chzGroups.length > 1 || chzUnknown.length > 0) && (
+        <SideCard
+          icon={ScanBarcode}
+          title="Маркировка «Честный Знак»"
+          badge={chzSource === 'declared' && (
+            <span data-tag className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">
+              подтверждено
+            </span>
+          )}
+        >
           <div className="space-y-2">
             {chzGroups.map((g) => (
               <div key={g.group}>
@@ -185,6 +206,25 @@ export function CompanySidebar({ company, chzGroups }: CompanySidebarProps) {
               </div>
             ))}
           </div>
+
+          {/* Сироты: имена из БД, которых нет в справочнике-снапшоте (группу
+              переименовали после 2026-08). Нейтральный тег, а НЕ `ChzBadge`:
+              статуса и даты обязательности у них нет, и зелёный/жёлтый бейдж
+              соврал бы про обязательность. Молча проглотить их тоже нельзя —
+              это данные, которые ввёл человек. */}
+          {chzUnknown.length > 0 && (
+            <div className="mt-3 border-t border-border/60 pt-2">
+              <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике 2026-08</p>
+              <div className="flex flex-wrap gap-1">
+                {chzUnknown.map((name) => (
+                  <span key={name} data-tag
+                    className="rounded bg-surface2 px-1.5 py-0.5 text-xs text-text-mute">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </SideCard>
       )}
 

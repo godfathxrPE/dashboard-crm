@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useCompany, useDeleteCompany } from '@/lib/hooks/use-companies';
 import { innStatusLabel, isRiskyInnStatus } from '@/lib/utils/inn';
-import { matchChzGroups } from '@/lib/data/chz-groups';
+import { resolveChzProfile } from '@/lib/domain/chz-profile';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
@@ -141,9 +141,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const { deals: linkedDeals, deliveries: linkedDeliveries } = splitCompanyProjects(linkedProjects);
   const counts = countCompany360({ deals: linkedDeals, deliveries: linkedDeliveries }, linkedContacts.length);
 
-  // Маркировочный профиль «Честного Знака» — считается КОДОМ из ОКВЭД
-  // (справочник-снапшот), без AI и без запросов.
-  const chzGroups = matchChzGroups(company.okved);
+  // Маркировочный профиль «Честного Знака» — без AI и без запросов.
+  // S-LEAD-CARRY-1: источников теперь два, и они не равны. Подтверждённое человеком
+  // (`companies.chz_groups`, приезжает с лида при конверсии) побеждает гипотезу,
+  // выведенную КОДОМ из ОКВЭД. Кто победил — говорит `chz.source`, и подпись под
+  // профилем обязана это отражать: приписывать человеческий ввод реестру нечестно.
+  const chz = resolveChzProfile(company.chz_groups, company.okved);
 
   const statusLabel = innStatusLabel(company.inn_status);
   const statusRisky = isRiskyInnStatus(company.inn_status);
@@ -239,7 +242,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
         deals={linkedDeals}
         deliveries={linkedDeliveries}
         stages={allStages}
-        chzGroups={chzGroups}
+        chzGroups={chz.groups}
+        chzSource={chz.source}
       />
 
       {/* ═══ Основной поток + справочный сайдбар ═══ */}
@@ -299,7 +303,12 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           <CompanyAiDigest companyId={companyId} />
         </div>
 
-        <CompanySidebar company={company} chzGroups={chzGroups} />
+        <CompanySidebar
+          company={company}
+          chzGroups={chz.groups}
+          chzSource={chz.source}
+          chzUnknown={chz.unknown}
+        />
       </div>
 
       <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} editCompany={company} />

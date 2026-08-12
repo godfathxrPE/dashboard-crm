@@ -45,6 +45,20 @@ export interface Company {
    * Человеческая отрасль живёт в `industry`; здесь всегда код.
    */
   okved?: string | null;
+  /**
+   * S-LEAD-CARRY-1 (123, applied 2026-08-12): ПОДТВЕРЖДЁННЫЕ товарные группы
+   * «Честного Знака». Колонка в схеме есть и приезжает в `select('*')`;
+   * опционален не поэтому, а потому что ЭТОТ интерфейс рукописный и не
+   * автогенерируется — его контракт держит `companyFormSchema`, а не схема БД.
+   *
+   * Не путать с `matchChzGroups(okved)`: та ВЫВОДИТ гипотезу из кода реестра, эта
+   * колонка хранит то, что подтвердил человек (приезжает с лида при конверсии либо
+   * правится в CompanyModal). Кто из двух побеждает при рендере — решает
+   * `resolveChzProfile` (`src/lib/domain/chz-profile.ts`).
+   *
+   * NULL = не выяснено; `[]` = выяснено, что групп нет.
+   */
+  chz_groups?: string[] | null;
   // Aggregated (computed client-side or via view)
   contacts_count?: number;
   projects_count?: number;
@@ -69,6 +83,13 @@ export interface CompanyInsert {
   inn_verified_at?: string | null;
   // S-OKVED-1 (103)
   okved?: string | null;
+  // S-LEAD-CARRY-1 (123, applied 2026-08-12): подтверждённый маркировочный профиль.
+  // Поле нужно для ТИПИЗАЦИИ, а не как фильтр: payload собирается в
+  // `CompanyModal.onSubmit` как `{ ...values }` из Zod-схемы и уходит в
+  // `.insert(... as never)` / `.update(... as never)` — каст снимает проверку, и
+  // ключ доехал бы до БД и без записи здесь. Контракт поля держит
+  // `companyFormSchema`, не этот интерфейс.
+  chz_groups?: string[] | null;
 }
 
 export interface CompanyUpdate extends Partial<CompanyInsert> {
