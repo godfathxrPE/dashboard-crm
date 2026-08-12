@@ -121,9 +121,16 @@ BEGIN
   v_lead_title := v_lead.title;
 
   -- 1. Компания
+  --
+  -- Гейт S-LEAD-CARRY-1: org-предикат добавлен вместе с 123-A. До 123 эти два
+  -- поиска проверяли только владение, и цена была ограничена кривой ссылкой в
+  -- projects.company_id; с 123-A по найденной компании идёт ЗАПИСЬ профиля.
+  -- `v_lead.org_id`, не `current_org_id()`: в service-контексте helper = NULL и
+  -- предикат стал бы немым (урок 024).
   IF p_company_id IS NOT NULL THEN
     SELECT id INTO v_company_id FROM companies
       WHERE id = p_company_id
+        AND org_id = v_lead.org_id
         AND (owner_id = v_user_id OR created_by = v_user_id);
     IF v_company_id IS NULL THEN
       RAISE EXCEPTION 'Company not found or not owned by lead owner';
@@ -160,6 +167,7 @@ BEGIN
   IF p_contact_id IS NOT NULL THEN
     SELECT id INTO v_contact_id FROM contacts
       WHERE id = p_contact_id
+        AND org_id = v_lead.org_id
         AND (owner_id = v_user_id OR created_by = v_user_id);
     IF v_contact_id IS NULL THEN
       RAISE EXCEPTION 'Contact not found or not owned by lead owner';

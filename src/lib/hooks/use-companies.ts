@@ -83,9 +83,11 @@ export interface CompanyInsert {
   // S-OKVED-1 (103)
   okved?: string | null;
   // S-LEAD-CARRY-1 (123): подтверждённый маркировочный профиль.
-  // ⚠️ Список полей здесь — не документация, а ФИЛЬТР: `updateCompany` гоняет
-  // `...updates`, но собирается payload из этого интерфейса, и поле, которого тут
-  // нет, до БД не доедет молча.
+  // Поле нужно для ТИПИЗАЦИИ, а не как фильтр: payload собирается в
+  // `CompanyModal.onSubmit` как `{ ...values }` из Zod-схемы и уходит в
+  // `.insert(... as never)` / `.update(... as never)` — каст снимает проверку, и
+  // ключ доехал бы до БД и без записи здесь. Контракт поля держит
+  // `companyFormSchema`, не этот интерфейс.
   chz_groups?: string[] | null;
 }
 
