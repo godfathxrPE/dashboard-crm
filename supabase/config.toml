@@ -1,4 +1,31 @@
 # Supabase config — Sprint 28
+#
+# ── ВЫБОР LLM-ПРОВАЙДЕРА (переезд на OpenRouter) ───────────────────────────────
+# Все обращения к моделям идут через `functions/_shared/llm.ts`. Провайдер выбирается
+# секретами, без правки кода и без редеплоя:
+#
+#   LLM_PROVIDER          = anthropic | openrouter   (глобальный, дефолт anthropic)
+#   AI_RUN_PROVIDER       — переопределяет глобальный для конкретной функции;
+#   AI_SUMMARY_PROVIDER     то же для ai-summarize;
+#   AI_CAPTURE_PROVIDER     то же для ai-capture;
+#   TRANSCRIBE_PROVIDER     то же для вычитки транскрипта.
+#
+#   ANTHROPIC_API_KEY     — нужен, пока хоть одна функция на anthropic, И ВСЕГДА
+#                           для пресетов ai-run с веб-поиском (company_brief):
+#                           серверный web search на OpenRouter не переехал.
+#   OPENROUTER_API_KEY    — нужен, как только LLM_PROVIDER=openrouter где-либо.
+#   OPENROUTER_APP_URL / OPENROUTER_APP_TITLE — необязательные, подписывают трафик
+#                           в консоли OpenRouter (удобно делить расходы по функциям).
+#   OPENROUTER_DATA_COLLECTION = deny (дефолт) | allow — 'deny' исключает провайдеров,
+#                           которые логируют промпты; в CRM ходят ПДн, менять осознанно.
+#   OPENROUTER_PROVIDER_ORDER — список провайдеров через запятую, если нужен конкретный.
+#
+# Слаги моделей задаются теми же секретами, что и раньше (AI_RUN_MODEL_SONNET,
+# AI_RUN_MODEL_HAIKU, AI_SUMMARY_MODEL, AI_CAPTURE_MODEL, TRANSCRIBE_CLEANUP_MODEL).
+# Для OpenRouter слаг обязан быть с вендором: `deepseek/deepseek-v4-flash`.
+# Слаг без вендора адаптер трактует как Anthropic-модель и допишет `anthropic/`.
+# ───────────────────────────────────────────────────────────────────────────────
+#
 # Edge Function ai-summarize работает под JWT вызывающего юзера.
 # verify_jwt = true: шлюз отклоняет запросы без валидного JWT ещё до функции
 # (defense-in-depth); внутри функция дополнительно требует реального юзера
@@ -8,7 +35,7 @@
 verify_jwt = true
 
 # Sprint AI-1: generic AI-прогон по транскрипту (ai-run). Тот же контур, что ai-summarize:
-# JWT вызывающего, RLS решает доступ, ключ Anthropic из secrets. Асинхронное исполнение
+# JWT вызывающего, RLS решает доступ, ключ провайдера из secrets. Асинхронное исполнение
 # (EdgeRuntime.waitUntil) — статус прогона живёт в таблице ai_runs.
 [functions.ai-run]
 verify_jwt = true
@@ -51,8 +78,9 @@ verify_jwt = true
 # пользователь обычным INSERT из модалки, под своими RLS-политиками. service_role
 # поэтому не запрашивается: обойти RLS функции нечем.
 #
-# Секреты: ANTHROPIC_API_KEY (обязателен), AI_CAPTURE_MODEL (необязателен —
-# переопределяет модель без правки кода).
+# Секреты: ключ провайдера по AI_CAPTURE_PROVIDER / LLM_PROVIDER (ANTHROPIC_API_KEY
+# либо OPENROUTER_API_KEY), AI_CAPTURE_MODEL (необязателен — переопределяет модель
+# без правки кода; для OpenRouter слаг с вендором).
 [functions.ai-capture]
 verify_jwt = true
 
@@ -66,9 +94,10 @@ verify_jwt = true
 #
 # Аудио нигде не сохраняется: чанк живёт в памяти изолята на время запроса.
 #
-# Секреты: GROQ_API_KEY (обязателен для распознавания), ANTHROPIC_API_KEY
-# (обязателен для вычитки, уже заведён), TRANSCRIBE_CLEANUP_MODEL (необязателен —
-# переопределяет модель вычитки без правки кода, дефолт claude-sonnet-5).
+# Секреты: GROQ_API_KEY (обязателен для распознавания — ASR остался на Groq Whisper
+# и переезда не касается), ключ LLM-провайдера для вычитки по TRANSCRIBE_PROVIDER /
+# LLM_PROVIDER, TRANSCRIBE_CLEANUP_MODEL (необязателен — переопределяет модель
+# вычитки без правки кода, дефолт claude-sonnet-5).
 [functions.transcribe]
 verify_jwt = true
 

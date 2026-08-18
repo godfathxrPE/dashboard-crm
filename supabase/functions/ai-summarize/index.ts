@@ -12,10 +12,14 @@
 //     Вход обрезается до MAX_INPUT_CHARS.
 //  2. Доступ — никакой собственной проверки прав: всё через клиент с JWT, RLS решает.
 //     Не нашлось (RLS) → 404, не различаем «нет» и «чужое».
-//  3. Ключ — только Deno.env.get('ANTHROPIC_API_KEY'). В логах/ответах не светится.
+//  3. Ключ — только из secrets, через `_shared/llm.ts`. В логах/ответах не светится.
 //  4. Вход — строго { entity_type: 'call'|'meeting', entity_id: uuid }, иначе 400.
+//
+// Провайдер модели выбирается в `_shared/llm.ts` (LLM_PROVIDER / AI_SUMMARY_PROVIDER),
+// формат запроса и разбора здесь не меняется: адаптер отдаёт аргументы инструмента.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { callLlmTool, LlmError } from '../_shared/llm.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,12 +105,7 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Требуется авторизация' }, 401);
 
-  // Security №3 — ключ только из secrets.
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY is not configured');
-    return json({ error: 'AI-функция временно недоступна' }, 500);
-  }
+  // Security №3 — ключ только из secrets; достаёт и проверяет его адаптер.
   const model = Deno.env.get('AI_SUMMARY_MODEL') ?? DEFAULT_MODEL;
 
   // Security №2 — клиент под JWT юзера, RLS решает доступ. Сервисный ключ НЕ используется.
@@ -202,53 +201,41 @@ Deno.serve(async (req: Request) => {
   }
   const inputChars = userTurn.length;
 
-  // Вызов Claude API.
-  let claudeData: {
-    content?: Array<{ type: string; name?: string; input?: Record<string, unknown> }>;
-  };
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userTurn }],
-        tools: [SUBMIT_SUMMARY_TOOL],
-        tool_choice: { type: 'tool', name: 'submit_summary' },
-      }),
-    });
-    if (!resp.ok) {
-      const detail = await resp.text();
-      console.error('Claude API error:', resp.status, detail);
-      return json({ error: 'Не удалось сгенерировать резюме' }, 502);
-    }
-    claudeData = await resp.json();
-  } catch (err) {
-    console.error('Claude API fetch failed:', err);
-    return json({ error: 'Не удалось сгенерировать резюме' }, 502);
-  }
-
-  const toolUse = claudeData.content?.find((b) => b.type === 'tool_use' && b.name === 'submit_summary');
-  if (!toolUse?.input) {
-    console.error('No tool_use in Claude response');
-    return json({ error: 'Не удалось сгенерировать резюме' }, 502);
-  }
-  const out = toolUse.input as {
+  // Вызов модели через адаптер. Провайдер (Anthropic / OpenRouter) и итоговый слаг
+  // решаются в `_shared/llm.ts`; сюда возвращаются аргументы инструмента — ровно то,
+  // что раньше лежало в content[].tool_use.input.
+  let out: {
     summary?: string; key_points?: string[]; risks?: string[]; suggested_next_step?: string;
   };
+  let usedModel = model;
+  try {
+    const result = await callLlmTool({
+      model,
+      maxTokens: 1024,
+      system: SYSTEM_PROMPT,
+      userTurn,
+      tool: SUBMIT_SUMMARY_TOOL,
+      providerEnvKey: 'AI_SUMMARY_PROVIDER',
+    });
+    usedModel = result.model;
+    out = result.input as typeof out;
+  } catch (err) {
+    // Нет ключа — это конфигурация, а не сбой генерации: код 500, как было раньше.
+    if (err instanceof LlmError && err.status === 500) {
+      return json({ error: 'AI-функция временно недоступна' }, 500);
+    }
+    console.error('LLM call failed:', err);
+    return json({ error: 'Не удалось сгенерировать резюме' }, 502);
+  }
 
   const aiSummary = {
     summary: out.summary ?? '',
     key_points: Array.isArray(out.key_points) ? out.key_points : [],
     risks: Array.isArray(out.risks) ? out.risks : [],
     suggested_next_step: out.suggested_next_step ?? '',
-    meta: { model, generated_by: user.id, input_chars: inputChars },
+    // model — фактический слаг, ушедший в апстрим (у OpenRouter он с вендором:
+    // `deepseek/deepseek-v4-flash`). Журнал должен показывать, что реально считало.
+    meta: { model: usedModel, generated_by: user.id, input_chars: inputChars },
   };
 
   // Запись результата под RLS. Если политика UPDATE не пускает — 0 строк → 403.
