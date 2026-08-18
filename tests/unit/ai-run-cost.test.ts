@@ -34,7 +34,7 @@ const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'),
 
 describe('прайс по слагу, а не по роли пресета', () => {
   it('известный слаг даёт цену, НЕИЗВЕСТНЫЙ — null, а не ноль и не бросок', () => {
-    expect(priceForSlug('claude-sonnet-5')).toEqual({ in: 3, out: 15 });
+    expect(priceForSlug('claude-sonnet-5')).toEqual({ in: 2, out: 10 });
     expect(priceForSlug('deepseek/deepseek-v4-flash')).toBeNull();
     expect(priceForSlug('')).toBeNull();
     expect(priceForSlug(null)).toBeNull();
@@ -73,9 +73,9 @@ describe('прайс по слагу, а не по роли пресета', () 
 
 describe('факт по завершённому прогону', () => {
   it('токены считаются по прайсу слага', () => {
-    // (10 000×$3 + 1 000×$15)/1M = $0.045 → ×85 = 3.8 ₽
-    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5')).toBe(3.8);
-    // Тот же прогон на haiku втрое дешевле — роль пресета тут ни при чём.
+    // (10 000×$2 + 1 000×$10)/1M = $0.03 → ×85 = 2.55 → 2.6 ₽
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5')).toBe(2.6);
+    // Тот же прогон на haiku вдвое дешевле — роль пресета тут ни при чём.
     expect(actualRunCostRub(10_000, 1_000, 'claude-haiku-4-5')).toBe(1.3);
   });
 
@@ -88,10 +88,10 @@ describe('факт по завершённому прогону', () => {
 
   it('веб-поиск прибавляется по $10 за 1000 — и ТОЛЬКО у anthropic-слага', () => {
     const withoutSearches = actualRunCostRub(10_000, 1_000, 'claude-sonnet-5')!;
-    // $0.045 + 5×$0.01 = $0.095 → 8.1 ₽
-    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 5)).toBe(8.1);
+    // $0.03 + 5×$0.01 = $0.08 → 6.8 ₽
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 5)).toBe(6.8);
     expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 5)!).toBeGreaterThan(withoutSearches);
-    expect(actualRunCostRub(10_000, 1_000, 'anthropic/claude-sonnet-5', 5)).toBe(8.1);
+    expect(actualRunCostRub(10_000, 1_000, 'anthropic/claude-sonnet-5', 5)).toBe(6.8);
   });
 
   it('searches = null не считается ни нулём поисков, ни пятью — просто не влияет', () => {
@@ -106,8 +106,12 @@ describe('факт по завершённому прогону', () => {
     expect(isAnthropicSlug(null)).toBe(false);
   });
 
-  it('живой прогон 2026-08-03 (84 125 / 5 503 токена, 10 поисков) на sonnet — ~37 ₽', () => {
-    expect(actualRunCostRub(84_125, 5_503, 'claude-sonnet-5', 10)).toBe(37);
+  it('живой прогон 2026-08-03 (84 125 / 5 503 токена, 10 поисков) на sonnet — ~27.5 ₽', () => {
+    // (84 125×$2 + 5 503×$10)/1M = $0.2233 + 10×$0.01 = $0.3233 → ×85 = 27.5 ₽.
+    // Тот же прогон «стоил» 43.5 ₽ при курсе 100, 37 ₽ при прайсе sonnet $3/$15 и
+    // 27.5 ₽ сейчас — три числа за один прогон: цена и курс обязаны быть снапшотами
+    // с датой, иначе «факт» дрейфует молча.
+    expect(actualRunCostRub(84_125, 5_503, 'claude-sonnet-5', 10)).toBe(27.5);
   });
 });
 
