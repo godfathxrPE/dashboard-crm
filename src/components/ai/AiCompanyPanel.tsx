@@ -9,8 +9,8 @@ import { useCompany, useUpdateCompany } from '@/lib/hooks/use-companies';
 import {
   presetsForEntity,
   presetByKey,
-  estimateRunCostRub,
-  estimateWebRunCostRub,
+  runVolumeLabel,
+  RUN_VOLUME_HINT,
   type PresetMeta,
 } from '@/lib/constants/ai-presets';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
@@ -26,18 +26,16 @@ interface AiCompanyPanelProps {
 const STALE_MIN = 10;
 
 /**
- * S-COMPANY-AI-1a. Цена на кнопке.
+ * S-COMPANY-AI-1a → S-LLM-OPENROUTER-1. На кнопке ОБЪЁМ, а не цена.
  *
  * У пресета с веб-поиском вход задаёт не карточка компании, а втянутые в контекст
- * страницы — оценка по charCount занижала бриф в десять раз (3.5 ₽ при факте
- * в разы больше). Для таких пресетов показываем ДИАПАЗОН из замеров живых прогонов;
- * для остальных — прежнюю формулу по символам (4 000 — грубая верхняя оценка
- * карточки: точного размера входа на клиенте нет, его собирает edge).
+ * страницы — оценка по charCount занижала бриф в десять раз, поэтому там диапазон
+ * из замеров живых прогонов. Рубли ушли отсюда целиком: слаг модели и провайдер
+ * живут в секретах edge-функции, и до запуска клиент знать их не может.
+ * 4 000 симв. — грубая верхняя оценка карточки (точного входа на клиенте нет).
  */
-function costLabel(preset: PresetMeta): string {
-  if (!preset.webSearch) return `≈ ${estimateRunCostRub(4_000, preset.model)} ₽`;
-  const { min, max } = estimateWebRunCostRub(preset.model);
-  return `≈ ${min}–${max} ₽`;
+function volumeLabel(preset: PresetMeta): string {
+  return runVolumeLabel(preset, 4_000);
 }
 
 function StatusChip({ status }: { status: AiRunRow['status'] }) {
@@ -110,7 +108,7 @@ export function AiCompanyPanel({ companyId }: AiCompanyPanelProps) {
           >
             {start.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             {preset.title}
-            <span className="text-text-mute">{costLabel(preset)}</span>
+            <span className="text-text-mute" title={RUN_VOLUME_HINT}>{volumeLabel(preset)}</span>
           </button>
         ))}
       </div>

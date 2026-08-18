@@ -7,7 +7,12 @@ import {
   useStartRun,
   useRunRating,
 } from '@/lib/hooks/use-ai-run';
-import { presetsForEntity, presetByKey, estimateRunCostRub } from '@/lib/constants/ai-presets';
+import {
+  presetsForEntity,
+  presetByKey,
+  runVolumeLabel,
+  RUN_VOLUME_HINT,
+} from '@/lib/constants/ai-presets';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
 import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
@@ -88,8 +93,11 @@ export function AiDealPanel({ projectId }: AiDealPanelProps) {
             {preset.title}
             {/* Вход собирает edge из полей сделки — точного размера здесь нет.
                 8 000 симв. — грубая верхняя оценка собранного контекста, чтобы
-                порядок цены был виден до клика, а не после. */}
-            <span className="text-text-mute">≈ {estimateRunCostRub(8_000, preset.model)} ₽</span>
+                порядок ОБЪЁМА был виден до клика. Рублей тут нет намеренно:
+                модель и провайдер задаются секретами (S-LLM-OPENROUTER-1). */}
+            <span className="text-text-mute" title={RUN_VOLUME_HINT}>
+              {runVolumeLabel(preset, 8_000)}
+            </span>
           </button>
         ))}
       </div>

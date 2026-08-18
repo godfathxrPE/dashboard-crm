@@ -1,11 +1,24 @@
-// S-R3-VOICE-1: оценка стоимости расшифровки — по образцу `estimateRunCostRub`
-// из `lib/constants/ai-presets.ts` (та же таблица цен, тот же курс).
+// S-R3-VOICE-1 → S-LLM-OPENROUTER-1: оценка прогона расшифровки.
 //
 // Считается ОТ ДЛИТЕЛЬНОСТИ аудио, а не от размера файла: байты зависят от битрейта
 // и о деньгах не говорят ничего. Длительность известна до запуска (`probeDuration`
 // или секундомер записи); неизвестна — оценки не показываем вовсе.
+//
+// ⚠️ ДВЕ ПОЛОВИНЫ ПРОГОНА ОЦЕНИВАЮТСЯ ПО-РАЗНОМУ, и это не непоследовательность:
+//
+//   • РАСПОЗНАВАНИЕ (Groq) — в рублях. Модель выбирает сам пользователь тумблером
+//     «быстро/точно», тариф Groq привязан к часу аудио, и на OpenRouter этот путь
+//     НЕ переезжал: ASR ходит в api.groq.com напрямую (`GROQ_URL` в edge-функции).
+//     Все три множителя клиенту известны — значит, число обосновано.
+//
+//   • ВЫЧИТКА (Claude/LLM) — в токенах, без рублей. Модель задаёт секрет
+//     `TRANSCRIBE_CLEANUP_MODEL`, провайдера — `TRANSCRIBE_PROVIDER`; клиенту не
+//     видно ни того, ни другого. Прежняя версия считала вычитку по прайсу sonnet
+//     и приписывала: «на haiku выйдет вчетверо меньше». Приписка честная, число —
+//     нет: после переезда там может стоять модель на порядок дешевле, а цифра
+//     выглядела бы так же достоверно. Фактический расход виден после прогона.
 
-import { PRICE_PER_MTOK, USD_RUB } from '@/lib/constants/ai-presets';
+import { CHARS_PER_TOKEN, USD_RUB, formatTokens } from '@/lib/constants/ai-presets';
 
 /**
  * Прайс Groq на аудио, $ за час (сверено 2026-08). Цены провайдеров меняются молча —
@@ -23,54 +36,44 @@ export type WhisperModel = keyof typeof GROQ_USD_PER_HOUR;
 const SPEECH_CHARS_PER_SEC = 14;
 
 /**
- * Выход вычитки ≈ вход: Claude возвращает ТОТ ЖЕ текст, только с пунктуацией и
- * метками говорящих. Именно этим оценка вычитки отличается от `estimateRunCostRub`,
- * где выход фиксирован ~2К токенов структурированного ответа: там модель пишет
- * сводку, здесь — переписывает всё целиком, и выходные токены (в 5 раз дороже
- * входных у sonnet) дают основную часть счёта.
+ * Выход вычитки ≈ вход: модель возвращает ТОТ ЖЕ текст, только с пунктуацией и
+ * метками говорящих. Именно этим вычитка отличается от пресетов ai-run, где выход
+ * фиксирован ~2К токенов структурированного ответа: там пишется сводка, здесь —
+ * переписывается всё целиком, и выходные токены дают основную часть счёта.
  */
 const CLEANUP_OUTPUT_RATIO = 1.15;
 
-/** Кириллица в токенизаторе Claude — примерно 2.5 символа на токен (константа проекта). */
-const CHARS_PER_TOKEN = 2.5;
-
-export type TranscribeCost = {
-  /** Распознавание в Groq, ₽ */
-  groq: number;
-  /** Вычитка в Claude, ₽. Ноль, если вычитка выключена. */
-  cleanup: number;
-  /** Сумма, ₽ */
-  total: number;
+export type TranscribeEstimate = {
+  /** Распознавание в Groq, ₽. */
+  groqRub: number;
+  /** Объём вычитки в токенах. null — вычитка выключена тумблером. */
+  cleanup: { inTok: number; outTok: number } | null;
 };
 
 function rub(usd: number): number {
   return Math.round(usd * USD_RUB * 10) / 10;
 }
 
-/**
- * Оценка прогона расшифровки.
- *
- * Модель вычитки берётся sonnet: дефолт edge-функции (`CLEANUP_MODEL`). Реальную
- * модель задаёт секрет `TRANSCRIBE_CLEANUP_MODEL`, клиенту он не виден — на haiku
- * счёт выйдет примерно вчетверо меньше показанного.
- */
 export function estimateTranscribeCost(
   durationSec: number,
   opts: { model: WhisperModel; cleanup: boolean },
-): TranscribeCost {
-  const hours = Math.max(0, durationSec) / 3600;
-  const groq = rub(hours * GROQ_USD_PER_HOUR[opts.model]);
+): TranscribeEstimate {
+  const sec = Math.max(0, durationSec);
+  const groqRub = rub((sec / 3600) * GROQ_USD_PER_HOUR[opts.model]);
 
-  let cleanup = 0;
-  if (opts.cleanup) {
-    const inTok = (Math.max(0, durationSec) * SPEECH_CHARS_PER_SEC) / CHARS_PER_TOKEN;
-    const outTok = inTok * CLEANUP_OUTPUT_RATIO;
-    const usd =
-      (inTok * PRICE_PER_MTOK.sonnet.in + outTok * PRICE_PER_MTOK.sonnet.out) / 1_000_000;
-    cleanup = rub(usd);
+  if (!opts.cleanup) return { groqRub, cleanup: null };
+
+  const inTok = Math.round((sec * SPEECH_CHARS_PER_SEC) / CHARS_PER_TOKEN);
+  return { groqRub, cleanup: { inTok, outTok: Math.round(inTok * CLEANUP_OUTPUT_RATIO) } };
+}
+
+/** Подпись оценки рядом с кнопкой: рубли Groq + объём вычитки. */
+export function formatTranscribeEstimate(est: TranscribeEstimate): string {
+  const parts = [`≈ ${est.groqRub} ₽ распознавание`];
+  if (est.cleanup) {
+    parts.push(`${formatTokens(est.cleanup.inTok + est.cleanup.outTok)} токенов вычитки`);
   }
-
-  return { groq, cleanup, total: Math.round((groq + cleanup) * 10) / 10 };
+  return parts.join(' · ');
 }
 
 /** «1:23:45» / «7:12» — длительность для подписи рядом с оценкой. */

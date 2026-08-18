@@ -16,7 +16,8 @@ import {
 import {
   presetsForEntity,
   presetByKey,
-  estimateRunCostRub,
+  runVolumeLabel,
+  RUN_VOLUME_HINT,
   PROGRESSION_PRESET_KEY,
 } from '@/lib/constants/ai-presets';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
@@ -289,8 +290,13 @@ export function AiRunPanel({
             >
               {start.isPending ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
               {preset.title}
+              {/* Объём, а не рубли: слаг модели и провайдер живут в секретах
+                  edge-функции, и рублёвый прогноз на клиенте необоснован
+                  в принципе (S-LLM-OPENROUTER-1). Факт — в карточке прогона. */}
               {hasText && (
-                <span className="text-text-mute">≈ {estimateRunCostRub(text.length, preset.model)} ₽</span>
+                <span className="text-text-mute" title={RUN_VOLUME_HINT}>
+                  {runVolumeLabel(preset, text.length)}
+                </span>
               )}
             </button>
           );
