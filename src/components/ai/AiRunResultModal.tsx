@@ -1,5 +1,6 @@
 'use client';
 
+import { runErrorText } from '@/lib/domain/ai-run-error';
 import { useState } from 'react';
 import { X, Sparkles, Copy, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { presetTitle, PROGRESSION_PRESET_KEY } from '@/lib/constants/ai-presets';
@@ -72,7 +73,7 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
         {run.status === 'error' && (
           <div className="flex items-start gap-1.5 rounded-lg border border-red bg-red-l p-2.5 text-xs text-red">
             <AlertCircle size={13} className="mt-0.5 shrink-0" />
-            <span>{run.error ?? 'Прогон завершился ошибкой без текста причины'}</span>
+            <span>{runErrorText(run.error, 'Прогон завершился ошибкой без текста причины')}</span>
           </div>
         )}
 

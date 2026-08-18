@@ -174,20 +174,26 @@ describe('флаг webSearch синхронен с edge', () => {
   });
 });
 
-describe('ретрай формы у пресета с поиском продолжает диалог', () => {
-  it('вторая попытка идёт с priorMessages первой, а не с нуля', () => {
-    expect(EDGE).toContain('callClaudeWithSearch(apiKey, preset, SHAPE_RETRY_HINT, firstSearch.messages)');
+describe('ретрай формы у пресета с поиском', () => {
+  // S-LLM-SEARCH-1: механика ретрая уехала в адаптер вместе с поиском. ai-run теперь
+  // только передаёт диалог и подсказку — что с ними делать, решает провайдерская ветка.
+  const ADAPTER = readFileSync(path.join(ROOT, 'supabase/functions/_shared/llm.ts'), 'utf8');
+
+  it('ai-run отдаёт адаптеру диалог первой попытки и подсказку', () => {
+    expect(EDGE).toContain('priorMessages: firstSearch.messages');
+    expect(EDGE).toContain('retryHint: SHAPE_RETRY_HINT');
   });
 
-  it('старые пресеты ретраятся прежним путём — полным повтором userTurn с подсказкой', () => {
-    // ⚠️ Сигнатура сузилась на S-LLM-OPENROUTER-1: ключ и провайдера разрешает
-    // адаптер, поэтому `apiKey` из аргументов `callClaude` ушёл. Зеркало обязано
-    // следовать за кодом — иначе тест охраняет прошлое.
-    expect(EDGE).toContain('await callClaude(preset, `${userTurn}\\n\\n${SHAPE_RETRY_HINT}`)');
+  it('Anthropic: вторая попытка ПРОДОЛЖАЕТ диалог, а не ищет заново', () => {
+    expect(ADAPTER).toContain('retryTurn(opts.priorMessages, opts.retryHint)');
   });
 
   it('продолжение диалога закрывает tool_use прошлой попытки tool_result (иначе 400)', () => {
-    expect(EDGE).toContain("type: 'tool_result'");
+    expect(ADAPTER).toContain("type: 'tool_result'");
+  });
+
+  it('старые пресеты ретраятся прежним путём — полным повтором userTurn с подсказкой', () => {
+    expect(EDGE).toContain('await callClaude(preset, `${userTurn}\\n\\n${SHAPE_RETRY_HINT}`)');
   });
 
   it('причина ретрая и число поисков доезжают до meta прогона', () => {

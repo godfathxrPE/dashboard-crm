@@ -1,6 +1,6 @@
 'use client';
 
-import { actualRunCostRub, formatTokens } from '@/lib/constants/ai-presets';
+import { actualRunCostRub, formatTokens, presetByKey } from '@/lib/constants/ai-presets';
 import type { AiRunRow, CompanyBriefResult } from '@/types/database';
 
 /**
@@ -36,9 +36,19 @@ export function RunCostMeta({ run }: { run: AiRunRow }) {
     const searches = run.preset_key === 'company_brief'
       ? (run.result as CompanyBriefResult | null)?.meta?.searches ?? null
       : null;
+
+    // S-LLM-SEARCH-1. У пресета с поиском НЕИЗВЕСТНОЕ число поисков делает неизвестной
+    // и цену: поиск тарифицируется отдельно от токенов, и «токены без поиска» — это
+    // занижение, подписанное словом «факт». Так выглядит прогон через OpenRouter:
+    // плагин числа запросов не сообщает вовсе, а стоит ~$0.007 за поиск.
+    const searchPreset = presetByKey(run.preset_key)?.webSearch === true;
+    const searchCostKnown = !searchPreset || searches != null;
+
     // ⚠️ Считаем по ФАКТИЧЕСКОМУ слагу из строки прогона, а не по роли пресета:
     // роль после S-LLM-OPENROUTER-1 о цене не говорит ничего.
-    const rub = actualRunCostRub(run.input_tokens, run.output_tokens, run.model, searches);
+    const rub = searchCostKnown
+      ? actualRunCostRub(run.input_tokens, run.output_tokens, run.model, searches)
+      : null;
     if (rub != null) parts.push(`≈ ${rub} ₽`);
   }
 

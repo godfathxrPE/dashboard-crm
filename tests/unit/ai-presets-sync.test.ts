@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { AI_PRESETS, type AiEntityType } from '@/lib/constants/ai-presets';
 
@@ -115,10 +115,34 @@ describe('веб-поиск изолирован в отдельном пути'
     expect(bodyOf('callClaude')).not.toContain('web_search');
   });
 
-  it('callClaudeWithSearch не форсирует tool_choice (форс несовместим с поиском)', () => {
-    const body = bodyOf('callClaudeWithSearch');
+  // S-LLM-SEARCH-1, проверяемый инвариант спринта: провайдера выбирает ТОЛЬКО адаптер.
+  // Прямой вызов Anthropic из функции означал бы, что переключение LLM_PROVIDER её
+  // не касается — ровно та поломка, из-за которой бриф падал на пустом балансе.
+  it('ни одна edge-функция не ходит в api.anthropic.com напрямую', () => {
+    const dir = path.join(ROOT, 'supabase/functions');
+    const offenders = readdirSync(dir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name !== '_shared')
+      .map((d) => path.join(dir, d.name, 'index.ts'))
+      .filter((f) => existsSync(f))
+      .filter((f) => /fetch\(\s*['\`"]https:\/\/api\.anthropic\.com/.test(readFileSync(f, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+
+  // S-LLM-SEARCH-1: путь поиска уехал в адаптер целиком. Инвариант не исчез —
+  // сменил файл, поэтому проверка смотрит туда же, куда смотрит код.
+  it('Anthropic-ветка поиска не форсирует tool_choice (форс несовместим с поиском)', () => {
+    const start = ADAPTER.indexOf('export async function callLlmSearch(');
+    expect(start, 'callLlmSearch не найдена в адаптере').toBeGreaterThan(-1);
+    const body = ADAPTER.slice(start);
     expect(body).toContain("tool_choice: { type: 'auto' }");
-    expect(body).not.toContain("type: 'tool'");
+    expect(body).not.toContain("tool_choice: { type: 'tool'");
+  });
+
+  it('OpenRouter ищет плагином, а не инструментом-поиском', () => {
+    // У OpenRouter плагин отрабатывает ДО генерации, поэтому там обычный форс
+    // инструмента и никакого web_search_20250305.
+    expect(ADAPTER).toContain("{ id: 'web' }");
+    expect(ADAPTER).toContain('plugins');
   });
 
   it('webSearch включён ровно у пресетов, которым он положен', () => {

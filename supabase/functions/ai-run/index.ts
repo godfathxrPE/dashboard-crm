@@ -29,16 +29,19 @@
 //    `ai_runs_transcript_required` (104). Добавляешь пресет — правь оба.
 //
 // S-COMPANY-AI-1 (104): пресет `company_brief` — единственный, кто ходит в веб.
-// Он идёт ОТДЕЛЬНЫМ путём `callClaudeWithSearch` (tool_choice: auto), потому что
-// форс tool_choice несовместим с поиском: модель обязана вызвать submit немедленно
-// и искать не успевает. `callClaude` не тронут — все остальные пресеты идут им.
+// Он идёт ОТДЕЛЬНЫМ путём `callLlmSearch`; у Anthropic там `tool_choice: auto`, потому
+// что форс несовместим с серверным поиском. `callClaude` не тронут — остальные пресеты
+// идут им.
 //
-// ⚠️ ПЕРЕЕЗД НА OPENROUTER: на адаптер `_shared/llm.ts` переведён ТОЛЬКО `callClaude`.
-// `callClaudeWithSearch` остаётся на прямом Anthropic и требует ANTHROPIC_API_KEY
-// независимо от LLM_PROVIDER: серверный web search — инструмент Anthropic со своим
-// протоколом (`pause_turn`, `server_tool_use`, теги `<cite>`, которые снимает
-// shape.ts). У OpenRouter это другой инструмент с другим форматом цитат —
-// переносить его надо отдельной задачей, вместе с переписыванием stripCiteTags.
+// S-LLM-SEARCH-1: поиск тоже уехал в адаптер (`callLlmSearch`). Прямых обращений к
+// api.anthropic.com в этом файле НЕТ — провайдера, ключ и протокол поиска целиком
+// решает `_shared/llm.ts`. Разница провайдеров (серверный инструмент с `pause_turn`
+// у Anthropic против плагина до генерации у OpenRouter) спрятана там же и наружу
+// не течёт: сюда обе ветки отдают один и тот же `{ input, usage, model, searches }`.
+//
+// `stripCiteTags` остаётся: теги `<cite>` — мусор Anthropic'овского web search внутри
+// значений, у OpenRouter их не будет и регэксп просто ничего не найдёт. Источники же
+// обе ветки отдают ОДИНАКОВО — полем `sources` схемы инструмента, а не разбором текста.
 //
 // Отличие от ai-summarize — АСИНХРОННОСТЬ: INSERT ai_runs (pending) → сразу вернуть { run_id },
 // а Claude API дёргается в EdgeRuntime.waitUntil. Статус живёт в строке ai_runs (Realtime на клиент).
@@ -55,7 +58,13 @@ import {
 // S-COMPANY-AI-1: маркировочный профиль по ОКВЭД. Копия src/lib/data/chz-groups.ts —
 // зеркало, править синхронно (страж — tests/unit/chz-groups.test.ts).
 import { matchChzGroups, chzStatusLabel } from './chz-groups.ts';
-import { callLlmTool, resolveApiKey, resolveProvider } from '../_shared/llm.ts';
+import {
+  callLlmSearch,
+  callLlmTool,
+  LlmError,
+  resolveApiKey,
+  resolveProvider,
+} from '../_shared/llm.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 
@@ -129,7 +138,7 @@ type Preset = {
   /** К каким сущностям пресет применим. Зеркало entityTypes в ai-presets.ts. */
   entityTypes: EntityType[];
   /**
-   * S-COMPANY-AI-1: прогон идёт через `callClaudeWithSearch` (серверный web search
+   * S-COMPANY-AI-1: прогон идёт через `callLlmSearch` (веб-поиск провайдера
    * Anthropic, tool_choice: auto) вместо `callClaude` (форс tool_choice). Форс и
    * поиск несовместимы: форс заставляет вызвать submit немедленно, до единого поиска.
    */
@@ -892,20 +901,7 @@ async function stampProposal(
 type ClaudeUsage = { input_tokens?: number; output_tokens?: number };
 type ClaudeAttempt = { input: Record<string, unknown>; usage: ClaudeUsage };
 
-/** Сообщение диалога с моделью. `content` — строка или массив блоков, разбирать его
- *  здесь незачем: он едет обратно в API как есть. */
-type SearchMessage = { role: 'user' | 'assistant'; content: unknown };
 
-/**
- * S-COMPANY-AI-1a. Результат попытки С ПОИСКОМ: сверх ClaudeAttempt несёт накопленный
- * диалог (чтобы ретрай продолжил его, а не искал заново) и фактическое число веб-запросов.
- * `callClaude` остаётся на голом ClaudeAttempt — старый путь не меняется.
- */
-type SearchAttempt = ClaudeAttempt & {
-  messages: SearchMessage[];
-  /** null — API не отдал server_tool_use ни разу; 0 значил бы «искали ноль раз». */
-  searches: number | null;
-};
 
 /** Сумма токенов по всем попыткам. null, если API не отдал ни одного значения —
  *  ноль тут врал бы («прогон был бесплатным»), а null честно говорит «неизвестно». */
@@ -939,162 +935,6 @@ async function callClaude(
   return { input, usage };
 }
 
-/**
- * S-COMPANY-AI-1: вызов модели С ВЕБ-ПОИСКОМ, для пресетов с `webSearch: true`.
- *
- * Почему отдельная функция, а не флаг внутри callClaude: там форсирован
- * `tool_choice: {type:'tool'}`, и с поиском это несовместимо — форс заставляет
- * вызвать submit немедленно, до единого запроса в веб. Здесь `tool_choice: auto`
- * плюс явное требование в user-turn закончить вызовом инструмента. callClaude при
- * этом не меняется ни на байт: старые пресеты идут прежним путём (обратная
- * совместимость — их поведение проверено смоуками 085 и fix-S-R2-AI-SHAPE).
- *
- * Web search — СЕРВЕРНЫЙ инструмент Anthropic: поиск выполняется на их стороне
- * внутри одного запроса, клиентского цикла «выполни tool → верни результат» не
- * нужно. Единственное, что нужно обработать, — `stop_reason: 'pause_turn'`:
- * серверный цикл упирается в свой лимит итераций и просит продолжить, повторив
- * запрос с уже полученным ответом ассистента. Без этой ветки длинный поиск молча
- * заканчивался бы «модель не вернула результат».
- *
- * Версия API инструмента: `web_search_20250305` — базовый вариант, работающий на
- * любой модели. Есть более новый `web_search_20260209` (динамическая фильтрация
- * результатов), но он требует модель не ниже Sonnet 4.6 / Opus 4.6, а модель здесь
- * подменяется переменной окружения AI_RUN_MODEL_SONNET без редеплоя — на старой
- * модели новый тип даст 400 на весь прогон. Меняем осознанно и вместе с пином модели.
- */
-const WEB_SEARCH_TOOL = {
-  type: 'web_search_20250305',
-  name: 'web_search',
-  max_uses: 5, // потолок стоимости прогона; 5 поисков хватает на бриф по компании
-};
-/** Сколько раз продолжаем серверный цикл после `pause_turn`. */
-const MAX_SEARCH_CONTINUATIONS = 2;
-
-type ContentBlock = { type: string; id?: string; name?: string; input?: Record<string, unknown> };
-
-/**
- * S-COMPANY-AI-1a. Пользовательский ход, которым продолжается диалог на ретрае формы.
- *
- * Просто дописать `{role:'user', content: hint}` нельзя: последний ход ассистента
- * заканчивается блоком `tool_use` (моделью вызван submit-инструмент), а API требует,
- * чтобы СЛЕДУЮЩЕЕ сообщение начиналось с `tool_result` на каждый такой блок — иначе
- * 400 на весь запрос. Блоки веб-поиска (`server_tool_use`) сюда не относятся: их
- * результат сервер кладёт в тот же ход ассистента сам.
- */
-function retryTurn(prior: SearchMessage[], hint: string): SearchMessage {
-  const last = prior[prior.length - 1];
-  const blocks = Array.isArray(last?.content) ? last.content as ContentBlock[] : [];
-  const content: unknown[] = blocks
-    .filter((b) => b.type === 'tool_use' && typeof b.id === 'string')
-    .map((b) => ({
-      type: 'tool_result',
-      tool_use_id: b.id,
-      content: 'Результат не принят: не соответствует схеме инструмента.',
-    }));
-  content.push({ type: 'text', text: hint });
-  return { role: 'user', content };
-}
-
-/**
- * S-COMPANY-AI-1a. `priorMessages` — диалог первой попытки. Передан — вторая попытка
- * ПРОДОЛЖАЕТ его: модель уже нашла источники, её просят переупаковать результат, а не
- * искать заново. Без этого ретрай был полным повторным прогоном — новые веб-запросы,
- * оплаченный заново контекст, удвоенное ожидание (85 с на живых прогонах 2026-08-03).
- */
-async function callClaudeWithSearch(
-  apiKey: string,
-  preset: Preset,
-  userTurn: string,
-  priorMessages?: SearchMessage[],
-): Promise<SearchAttempt> {
-  const messages: SearchMessage[] = priorMessages
-    ? [...priorMessages, retryTurn(priorMessages, userTurn)]
-    : [
-      {
-        role: 'user',
-        content:
-          `${userTurn}\n\nСначала выполни поиск в вебе по тому, что нужно найти, ` +
-          `затем ОБЯЗАТЕЛЬНО заверши ответ вызовом инструмента ${preset.tool.name}. ` +
-          `Ответ без вызова инструмента не будет принят.`,
-      },
-    ];
-
-  // Токены суммируем по всем продолжениям: прогон оплачен целиком, и журнал
-  // обязан показывать полную стоимость, а не последнюю итерацию.
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let sawUsage = false;
-  // Веб-запросы: 4-я задача спринта. Раньше число уходило в console.log и терялось
-  // вместе с логом через 24 часа — а именно оно различает «сигналов ЧЗ нет» и
-  // «модель истратила лимит поисков на общий профиль и до маркировки не дошла».
-  let searches: number | null = null;
-
-  for (let i = 0; i <= MAX_SEARCH_CONTINUATIONS; i++) {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: preset.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system: preset.system,
-        messages,
-        tools: [WEB_SEARCH_TOOL, preset.tool],
-        tool_choice: { type: 'auto' },
-      }),
-    });
-
-    if (!resp.ok) {
-      const detail = await resp.text();
-      throw new Error(`Claude API ${resp.status}: ${detail.slice(0, 300)}`);
-    }
-
-    const data = await resp.json() as {
-      content?: ContentBlock[];
-      usage?: ClaudeUsage & { server_tool_use?: { web_search_requests?: number } };
-      stop_reason?: string;
-    };
-
-    if (typeof data.usage?.input_tokens === 'number') {
-      inputTokens += data.usage.input_tokens;
-      sawUsage = true;
-    }
-    if (typeof data.usage?.output_tokens === 'number') {
-      outputTokens += data.usage.output_tokens;
-      sawUsage = true;
-    }
-    const used = data.usage?.server_tool_use?.web_search_requests;
-    if (typeof used === 'number') {
-      searches = (searches ?? 0) + used;
-      console.log('ai-run web search:', JSON.stringify({ preset: preset.key, searches: used }));
-    }
-
-    const toolUse = data.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
-    if (toolUse?.input) {
-      return {
-        input: toolUse.input,
-        usage: sawUsage ? { input_tokens: inputTokens, output_tokens: outputTokens } : {},
-        // Диалог отдаём вместе с последним ходом ассистента: ретрай продолжит именно его.
-        messages: [...messages, { role: 'assistant', content: data.content ?? [] }],
-        searches,
-      };
-    }
-
-    // Серверный цикл поиска упёрся в лимит итераций — продолжаем, повторив запрос
-    // с ответом ассистента. Отдельного user-сообщения слать НЕ нужно: сервер видит
-    // хвостовой server_tool_use и возобновляет работу сам.
-    if (data.stop_reason === 'pause_turn' && data.content) {
-      messages.push({ role: 'assistant', content: data.content });
-      continue;
-    }
-    break;
-  }
-
-  throw new Error('Модель не вернула структурированный результат');
-}
 
 /**
  * S-COMPANY-AI-1c. Снятие тегов цитирования — ТОЛЬКО у пресетов с веб-поиском:
@@ -1110,14 +950,31 @@ function cleanAttempt(preset: Preset, attempt: ClaudeAttempt): ClaudeAttempt {
   return { ...attempt, input: stripCiteTags(attempt.input) };
 }
 
+/**
+ * S-LLM-SEARCH-1. Текст ошибки прогона + МАШИНОЧИТАЕМЫЙ класс в одном поле.
+ *
+ * Формат `kind|текст`. Почему так, а не колонка под класс: миграция ради ярлыка не
+ * нужна — `ai_runs.error` уже text и уже читается клиентом. Старые строки без
+ * префикса разбираются как «класс неизвестен» и ведут себя как раньше (кнопка
+ * повтора на месте), то есть правка обратно совместима без бэкфилла.
+ *
+ * Класс нужен ровно для одного решения на клиенте: показывать ли «Повторить».
+ * При `access` повтор не поможет — сегодня это стоило трёх одинаковых нажатий
+ * подряд на `credit balance is too low`.
+ */
+function runError(kind: 'access' | 'upstream' | 'shape' | 'network'): string {
+  const text: Record<string, string> = {
+    access: 'Сервис ИИ недоступен: нет доступа к провайдеру. Проверьте ключ и баланс.',
+    upstream: 'Не удалось выполнить анализ. Попробуйте повторить.',
+    network: 'Не удалось выполнить анализ. Попробуйте повторить.',
+    shape: 'Модель вернула ответ в неверном формате. Попробуйте повторить.',
+  };
+  return `${kind}|${text[kind]}`;
+}
+
 /** Фоновый прогон: running → LLM → done/error. Никогда не бросает наружу. */
 async function processRun(
   supabase: SupabaseClient,
-  /**
-   * Ключ Anthropic. Нужен ТОЛЬКО пресетам с веб-поиском (`callClaudeWithSearch`) —
-   * остальные берут ключ своего провайдера внутри адаптера.
-   */
-  apiKey: string,
   preset: Preset,
   runId: string,
   transcriptContent: string | null,
@@ -1161,7 +1018,14 @@ async function processRun(
     //
     // ── Попытка 1 ──
     const firstSearch = preset.webSearch
-      ? await callClaudeWithSearch(apiKey, preset, userTurn)
+      ? await callLlmSearch({
+        model: preset.model,
+        maxTokens: MAX_OUTPUT_TOKENS,
+        system: preset.system,
+        userTurn,
+        tool: preset.tool,
+        providerEnvKey: 'AI_RUN_PROVIDER',
+      })
       : null;
     const first: ClaudeAttempt = cleanAttempt(
       preset,
@@ -1195,8 +1059,19 @@ async function processRun(
       // Пресеты с поиском: вторая попытка ПРОДОЛЖАЕТ диалог первой (искать заново не
       // нужно — источники уже в истории). Остальные шесть пресетов идут ровно как
       // прежде, полным повторным вызовом с подсказкой в user-turn.
+      // Продолжение диалога против повторного вызова решает адаптер: у Anthropic
+      // источники уже в истории, у OpenRouter плагин всё равно ищет заново.
       const secondSearch = firstSearch
-        ? await callClaudeWithSearch(apiKey, preset, SHAPE_RETRY_HINT, firstSearch.messages)
+        ? await callLlmSearch({
+          model: preset.model,
+          maxTokens: MAX_OUTPUT_TOKENS,
+          system: preset.system,
+          userTurn,
+          tool: preset.tool,
+          providerEnvKey: 'AI_RUN_PROVIDER',
+          priorMessages: firstSearch.messages,
+          retryHint: SHAPE_RETRY_HINT,
+        })
         : null;
       const second: ClaudeAttempt = cleanAttempt(
         preset,
@@ -1228,7 +1103,7 @@ async function processRun(
       );
       await supabase.from('ai_runs').update({
         status: 'error',
-        error: 'Модель вернула ответ в неверном формате. Попробуйте повторить.',
+        error: runError('shape'),
         input_tokens: sumUsage(usages, 'input_tokens'),
         output_tokens: sumUsage(usages, 'output_tokens'),
         duration_ms: Date.now() - started,
@@ -1283,7 +1158,7 @@ async function processRun(
     console.error('ai-run process error:', err instanceof Error ? err.message : String(err));
     await supabase.from('ai_runs').update({
       status: 'error',
-      error: 'Не удалось выполнить анализ. Попробуйте повторить.',
+      error: runError(err instanceof LlmError ? err.kind : 'upstream'),
       duration_ms: Date.now() - started,
       finished_at: new Date().toISOString(),
     }).eq('id', runId);
@@ -1357,21 +1232,15 @@ Deno.serve(async (req: Request) => {
   // Security №3 — ключи только из secrets. Проверяем ДО INSERT прогона: иначе строка
   // ai_runs зависла бы в pending и пользователь ждал бы результата, которого не будет.
   //
-  // Пресеты с веб-поиском ходят прямым Anthropic (см. шапку) — им нужен именно
-  // ANTHROPIC_API_KEY, независимо от LLM_PROVIDER. Остальным ключ разрешает адаптер
-  // по выбранному провайдеру.
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
-  if (preset.webSearch && !apiKey) {
-    console.error('ANTHROPIC_API_KEY is not configured (web search preset)');
+  // S-LLM-SEARCH-1: гард стал ОДНИМ на все пресеты. Прежде у пресета с веб-поиском
+  // отдельно требовался ANTHROPIC_API_KEY — теперь поиск ходит через адаптер, и какой
+  // ключ нужен, знает только он (провайдер задаётся секретом). Отдельная проверка здесь
+  // требовала бы ключ Anthropic там, где прогон уйдёт в OpenRouter.
+  try {
+    resolveApiKey(resolveProvider('AI_RUN_PROVIDER'));
+  } catch {
+    // resolveApiKey уже написал в лог, какого именно секрета не хватает.
     return json({ error: 'AI-функция временно недоступна' }, 500);
-  }
-  if (!preset.webSearch) {
-    try {
-      resolveApiKey(resolveProvider('AI_RUN_PROVIDER'));
-    } catch {
-      // resolveApiKey уже написал в лог, какого именно секрета не хватает.
-      return json({ error: 'AI-функция временно недоступна' }, 500);
-    }
   }
 
   // Security №2 — клиент под JWT юзера, RLS решает доступ.
@@ -1513,7 +1382,7 @@ Deno.serve(async (req: Request) => {
 
   // Фоновое исполнение — ответ юзеру < 1 сек.
   EdgeRuntime.waitUntil(
-    processRun(supabase, apiKey, preset, runId, transcriptContent, entityType, entityId),
+    processRun(supabase, preset, runId, transcriptContent, entityType, entityId),
   );
 
   return json({ run_id: runId });

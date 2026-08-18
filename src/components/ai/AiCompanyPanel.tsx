@@ -13,6 +13,7 @@ import {
   RUN_VOLUME_HINT,
   type PresetMeta,
 } from '@/lib/constants/ai-presets';
+import { parseRunError, isRunErrorRetryable, runErrorText } from '@/lib/domain/ai-run-error';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
 import { safeHref } from '@/lib/utils/safe-href';
 import type { AiRunRow, CompanyBriefResult } from '@/types/database';
@@ -147,17 +148,21 @@ export function AiCompanyPanel({ companyId }: AiCompanyPanelProps) {
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className={`text-xs ${run.status === 'error' ? 'text-text-mute' : 'text-yellow'}`}>
                       {run.status === 'error'
-                        ? run.error ?? 'Ошибка выполнения'
+                        ? runErrorText(run.error)
                         : 'Прогон завис — можно повторить'}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => start.mutate({ preset_key: run.preset_key })}
-                      disabled={start.isPending}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
-                    >
-                      <RotateCw size={12} /> Повторить
-                    </button>
+                    {/* S-LLM-SEARCH-1: при `access` повтор не поможет — кнопки нет.
+                        Зависший прогон (isStale) повторяем всегда: там класса нет. */}
+                    {(run.status !== 'error' || isRunErrorRetryable(parseRunError(run.error).kind)) && (
+                      <button
+                        type="button"
+                        onClick={() => start.mutate({ preset_key: run.preset_key })}
+                        disabled={start.isPending}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
+                      >
+                        <RotateCw size={12} /> Повторить
+                      </button>
+                    )}
                   </div>
                 )}
 

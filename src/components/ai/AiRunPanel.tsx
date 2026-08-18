@@ -20,6 +20,7 @@ import {
   RUN_VOLUME_HINT,
   PROGRESSION_PRESET_KEY,
 } from '@/lib/constants/ai-presets';
+import { parseRunError, isRunErrorRetryable, runErrorText } from '@/lib/domain/ai-run-error';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
 import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
@@ -337,15 +338,19 @@ export function AiRunPanel({
 
                 {run.status === 'error' && (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-xs text-text-mute">{run.error ?? 'Ошибка выполнения'}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRun(run.preset_key)}
-                      disabled={!preset || !canRun(preset) || start.isPending}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
-                    >
-                      <RotateCw size={12} /> Повторить
-                    </button>
+                    <span className="text-xs text-text-mute">{runErrorText(run.error)}</span>
+                    {/* S-LLM-SEARCH-1: у класса `access` кнопки нет — повтор не поможет,
+                        а её наличие читается как «попробуй ещё раз», и пробуют. */}
+                    {isRunErrorRetryable(parseRunError(run.error).kind) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRun(run.preset_key)}
+                        disabled={!preset || !canRun(preset) || start.isPending}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
+                      >
+                        <RotateCw size={12} /> Повторить
+                      </button>
+                    )}
                   </div>
                 )}
 
