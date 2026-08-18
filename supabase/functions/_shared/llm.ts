@@ -20,6 +20,10 @@
 //      провайдеров, которые логируют промпты для обучения. В CRM ходят ПДн и
 //      коммерческие условия клиентов, это не тот случай, где экономят на политике.
 
+import { classifyLlmError, type LlmErrorKind } from './llm-error.ts';
+export { classifyLlmError };
+export type { LlmErrorKind };
+
 export type LlmProvider = 'anthropic' | 'openrouter';
 
 /** Инструмент в формате Anthropic — исторический формат проекта, конвертируется внутри. */
@@ -47,20 +51,27 @@ export type LlmTextResult = {
   model: string;
 };
 
+
 /**
  * Ошибка вызова LLM. `status` — HTTP апстрима, чтобы вызывающий сохранил своё
  * отображение кодов (429 апстрима → 429 клиенту в transcribe). Значения вне HTTP:
  *   0   — сеть/таймаут (fetch бросил),
  *   422 — апстрим ответил 200, но структурированного результата в ответе нет.
+ *
+ * `kind` — то же самое, но в терминах «что делать пользователю» (см. выше).
  */
 export class LlmError extends Error {
+  readonly kind: LlmErrorKind;
+
   constructor(
     readonly status: number,
     message: string,
     readonly provider: LlmProvider,
+    kind?: LlmErrorKind,
   ) {
     super(message);
     this.name = 'LlmError';
+    this.kind = kind ?? classifyLlmError(status);
   }
 }
 
@@ -167,7 +178,9 @@ async function post(
   if (!resp.ok) {
     const detail = await resp.text();
     console.error(`${provider} API error:`, resp.status, detail.slice(0, 500));
-    throw new LlmError(resp.status, `LLM API ${resp.status}`, provider);
+    // Тело нужно ТОЛЬКО для классификации (400 про баланс ≠ 400 про кривой запрос)
+    // и наружу не уходит: в нём детали ключа, тарифа и внутренних лимитов провайдера.
+    throw new LlmError(resp.status, `LLM API ${resp.status}`, provider, classifyLlmError(resp.status, detail));
   }
 
   return await resp.json();
@@ -223,6 +236,81 @@ function stripFence(raw: string): string {
 }
 
 /**
+ * OpenRouter-ветка вызова с форсированным инструментом. Вынесена из `callLlmTool`,
+ * чтобы её переиспользовал `callLlmSearch`: у OpenRouter поиск — это ТО ЖЕ САМОЕ
+ * тело запроса плюс поле `plugins`, а не отдельный протокол (см. шапку `callLlmSearch`).
+ *
+ * `plugins` не передан — обычный вызов без веба, байт в байт как было.
+ */
+async function openRouterTool(
+  opts: BaseOpts & { tool: LlmTool },
+  model: string,
+  apiKey: string,
+  timeoutMs: number,
+  provider: LlmProvider,
+  plugins?: Record<string, unknown>[],
+): Promise<{ input: Record<string, unknown>; usage: LlmUsage }> {
+  const data = await post(OPENROUTER_URL, openRouterHeaders(apiKey), {
+    model,
+    max_tokens: opts.maxTokens,
+    // У OpenAI-формата нет отдельного поля system — это первое сообщение диалога.
+    messages: [
+      { role: 'system', content: opts.system },
+      { role: 'user', content: opts.userTurn },
+    ],
+    tools: [{
+      type: 'function',
+      function: {
+        name: opts.tool.name,
+        description: opts.tool.description,
+        // input_schema (Anthropic) и parameters (OpenAI) — один и тот же JSON Schema.
+        parameters: opts.tool.input_schema,
+      },
+    }],
+    tool_choice: { type: 'function', function: { name: opts.tool.name } },
+    provider: openRouterProviderPrefs(),
+    ...(plugins ? { plugins } : {}),
+  }, provider, timeoutMs) as OpenRouterResponse;
+
+  // OpenRouter умеет отвечать 200 с телом-ошибкой (сбой провайдера уже после
+  // маршрутизации). Без этой проверки такой ответ выглядел бы как «модель промолчала».
+  if (data.error) {
+    console.error('openrouter body error:', JSON.stringify(data.error).slice(0, 500));
+    throw new LlmError(data.error.code ?? 502, 'LLM upstream error', provider);
+  }
+
+  const call = data.choices?.[0]?.message?.tool_calls?.find(
+    (c) => c.function?.name === opts.tool.name,
+  ) ?? data.choices?.[0]?.message?.tool_calls?.[0];
+  const rawArgs = call?.function?.arguments;
+  if (typeof rawArgs !== 'string' || !rawArgs.trim()) {
+    console.error('No tool_calls in openrouter response, finish_reason:', data.choices?.[0]?.finish_reason);
+    throw new LlmError(422, 'Модель не вернула структурированный результат', provider);
+  }
+
+  let input: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(stripFence(rawArgs));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('arguments is not an object');
+    }
+    input = parsed as Record<string, unknown>;
+  } catch (err) {
+    // Частая причина — обрыв по max_tokens посреди JSON. Логируем хвост, чтобы
+    // отличить обрыв от галлюцинации формата, но наружу деталей не отдаём.
+    console.error('tool arguments parse failed:', err, 'tail:', rawArgs.slice(-200));
+    throw new LlmError(422, 'Модель вернула невалидный JSON инструмента', provider);
+  }
+  return {
+    input,
+    usage: {
+      input_tokens: data.usage?.prompt_tokens,
+      output_tokens: data.usage?.completion_tokens,
+    },
+  };
+}
+
+/**
  * Вызов модели с ФОРСИРОВАННЫМ инструментом — «tool use trick» для структурированного
  * вывода. Ровно тот путь, которым до миграции ходили ai-run (callClaude), ai-summarize
  * и ai-capture: один инструмент, tool_choice форсирован, ответ = аргументы инструмента.
@@ -261,65 +349,7 @@ export async function callLlmTool(
     return { input: toolUse.input, usage: data.usage ?? {}, model };
   }
 
-  const data = await post(OPENROUTER_URL, openRouterHeaders(apiKey), {
-    model,
-    max_tokens: opts.maxTokens,
-    // У OpenAI-формата нет отдельного поля system — это первое сообщение диалога.
-    messages: [
-      { role: 'system', content: opts.system },
-      { role: 'user', content: opts.userTurn },
-    ],
-    tools: [{
-      type: 'function',
-      function: {
-        name: opts.tool.name,
-        description: opts.tool.description,
-        // input_schema (Anthropic) и parameters (OpenAI) — один и тот же JSON Schema.
-        parameters: opts.tool.input_schema,
-      },
-    }],
-    tool_choice: { type: 'function', function: { name: opts.tool.name } },
-    provider: openRouterProviderPrefs(),
-  }, provider, timeoutMs) as OpenRouterResponse;
-
-  // OpenRouter умеет отвечать 200 с телом-ошибкой (сбой провайдера уже после
-  // маршрутизации). Без этой проверки такой ответ выглядел бы как «модель промолчала».
-  if (data.error) {
-    console.error('openrouter body error:', JSON.stringify(data.error).slice(0, 500));
-    throw new LlmError(data.error.code ?? 502, 'LLM upstream error', provider);
-  }
-
-  const call = data.choices?.[0]?.message?.tool_calls?.find(
-    (c) => c.function?.name === opts.tool.name,
-  ) ?? data.choices?.[0]?.message?.tool_calls?.[0];
-  const rawArgs = call?.function?.arguments;
-  if (typeof rawArgs !== 'string' || !rawArgs.trim()) {
-    console.error('No tool_calls in openrouter response, finish_reason:', data.choices?.[0]?.finish_reason);
-    throw new LlmError(422, 'Модель не вернула структурированный результат', provider);
-  }
-
-  let input: Record<string, unknown>;
-  try {
-    const parsed: unknown = JSON.parse(stripFence(rawArgs));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('arguments is not an object');
-    }
-    input = parsed as Record<string, unknown>;
-  } catch (err) {
-    // Частая причина — обрыв по max_tokens посреди JSON. Логируем хвост, чтобы
-    // отличить обрыв от галлюцинации формата, но наружу деталей не отдаём.
-    console.error('tool arguments parse failed:', err, 'tail:', rawArgs.slice(-200));
-    throw new LlmError(422, 'Модель вернула невалидный JSON инструмента', provider);
-  }
-
-  return {
-    input,
-    usage: {
-      input_tokens: data.usage?.prompt_tokens,
-      output_tokens: data.usage?.completion_tokens,
-    },
-    model,
-  };
+  return { ...await openRouterTool(opts, model, apiKey, timeoutMs, provider), model };
 }
 
 /**
@@ -383,4 +413,226 @@ export async function callLlmText(opts: BaseOpts): Promise<LlmTextResult> {
     },
     model,
   };
+}
+
+
+// ═══════════════════════════════════════════════════════
+// S-LLM-SEARCH-1: вызов С ВЕБ-ПОИСКОМ
+//
+// ⚠️ ДВЕ ВЕТКИ УСТРОЕНЫ ПРИНЦИПИАЛЬНО ПО-РАЗНОМУ, и это не разнобой, а разница
+// самих провайдеров:
+//
+//   • ANTHROPIC — поиск это СЕРВЕРНЫЙ ИНСТРУМЕНТ ВНУТРИ ДИАЛОГА. Отсюда
+//     `tool_choice: auto` (форс несовместим с поиском: модель обязана вызвать
+//     submit немедленно и искать не успевает), `server_tool_use` в ответе,
+//     `stop_reason: 'pause_turn'` и цикл продолжений. Ветка перенесена из
+//     `ai-run/callClaudeWithSearch` МЕХАНИЧЕСКИ: она рабочая, проверена смоками
+//     085 и fix-S-R2-AI-SHAPE, и единственная причина её трогать — переезд в
+//     общий модуль. Единственное содержательное изменение — транспорт `post()`
+//     вместо своего `fetch`: оттуда бесплатно приходят таймаут, классы ошибок
+//     и запрет отдавать тело апстрима наружу.
+//
+//   • OPENROUTER — поиск это ПЛАГИН, отрабатывающий ДО генерации: результаты
+//     подмешиваются в контекст текстом, и модель просто отвечает по ним. Значит
+//     `pause_turn` не существует, цикл продолжений не нужен, а структурированный
+//     вывод берётся ОБЫЧНЫМ ФОРСОМ инструмента. То есть это `callLlmTool` плюс
+//     поле `plugins` — ровно поэтому OpenRouter-тело вынесено в `openRouterTool`.
+// ═══════════════════════════════════════════════════════
+
+/** Сообщение диалога. `content` — строка или массив блоков; разбирать его здесь
+ *  незачем: оно едет обратно в API как есть. */
+export type LlmSearchMessage = { role: 'user' | 'assistant'; content: unknown };
+
+export type LlmSearchResult = {
+  input: Record<string, unknown>;
+  usage: LlmUsage;
+  model: string;
+  /**
+   * Сколько веб-запросов РЕАЛЬНО выполнено. `null` — провайдер не сказал.
+   *
+   * ⚠️ null здесь значит «неизвестно», а не «ноль», и подставлять единицу нельзя:
+   * стоимость с придуманным числом поисков — то же правдоподобное враньё, которое
+   * чинил S-LLM-OPENROUTER-1. OpenRouter числа поисков не отдаёт вовсе (сверено с
+   * документацией плагина 2026-08-18: в ответе только `annotations`, никаких
+   * usage-полей про поиск) — оттуда всегда null.
+   */
+  searches: number | null;
+  /** Диалог попытки — только у Anthropic; ретрай продолжит его вместо нового поиска. */
+  messages: LlmSearchMessage[];
+};
+
+/**
+ * Версия API инструмента: `web_search_20250305` — базовый вариант, работающий на
+ * любой модели. Есть более новый `web_search_20260209` (динамическая фильтрация),
+ * но он требует модель не ниже Sonnet 4.6 / Opus 4.6, а модель здесь подменяется
+ * секретом без редеплоя — на старой модели новый тип даст 400 на весь прогон.
+ * Меняем осознанно и вместе с пином модели.
+ */
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_20250305',
+  name: 'web_search',
+  max_uses: 5, // потолок стоимости прогона; 5 поисков хватает на бриф по компании
+};
+
+/** Сколько раз продолжаем серверный цикл Anthropic после `pause_turn`. */
+const MAX_SEARCH_CONTINUATIONS = 2;
+
+type SearchBlock = { type: string; id?: string; name?: string; input?: Record<string, unknown> };
+
+/**
+ * Пользовательский ход, которым продолжается диалог на ретрае формы (Anthropic).
+ *
+ * Просто дописать `{role:'user', content: hint}` нельзя: последний ход ассистента
+ * заканчивается блоком `tool_use`, а API требует, чтобы СЛЕДУЮЩЕЕ сообщение
+ * начиналось с `tool_result` на каждый такой блок — иначе 400 на весь запрос.
+ * Блоки веб-поиска (`server_tool_use`) сюда не относятся: их результат сервер
+ * кладёт в тот же ход ассистента сам.
+ */
+function retryTurn(prior: LlmSearchMessage[], hint: string): LlmSearchMessage {
+  const last = prior[prior.length - 1];
+  const blocks = Array.isArray(last?.content) ? last.content as SearchBlock[] : [];
+  const content: unknown[] = blocks
+    .filter((b) => b.type === 'tool_use' && typeof b.id === 'string')
+    .map((b) => ({
+      type: 'tool_result',
+      tool_use_id: b.id,
+      content: 'Результат не принят: не соответствует схеме инструмента.',
+    }));
+  content.push({ type: 'text', text: hint });
+  return { role: 'user', content };
+}
+
+/**
+ * Плагин веба OpenRouter.
+ *
+ * ⚠️ `max_uses: 5` у Anthropic и `max_results` у OpenRouter — РАЗНЫЕ ВЕЛИЧИНЫ:
+ * первое ограничивает число ПОИСКОВ, второе — число РЕЗУЛЬТАТОВ на поиск. Приравнять
+ * их одной константой значит считать потолок стоимости неверно, поэтому у них разные
+ * секреты и разные дефолты.
+ *
+ * `engine` НЕ форсируем: дефолт OpenRouter берёт `native` там, где провайдер умеет
+ * искать сам (дешевле, тариф провайдера), и падает на Exa только иначе. Форс `exa`
+ * платил бы $0.007 всегда. Секрет `OPENROUTER_SEARCH_ENGINE` — на случай, если
+ * понадобится пин.
+ */
+function webPlugin(): Record<string, unknown> {
+  const plugin: Record<string, unknown> = { id: 'web' };
+  const raw = Deno.env.get('OPENROUTER_SEARCH_MAX_RESULTS');
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  plugin.max_results = Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+  const engine = Deno.env.get('OPENROUTER_SEARCH_ENGINE');
+  if (engine) plugin.engine = engine.trim();
+  return plugin;
+}
+
+/**
+ * `priorMessages` — диалог первой попытки. Передан вместе с `retryHint` — это РЕТРАЙ ФОРМЫ.
+ *
+ *   • Anthropic: вторая попытка ПРОДОЛЖАЕТ диалог — модель уже нашла источники, её просят
+ *     переупаковать результат, а не искать заново. Без этого ретрай был полным повторным
+ *     прогоном: новые веб-запросы, оплаченный заново контекст, удвоенное ожидание
+ *     (85 с на живых прогонах 2026-08-03).
+ *
+ *   • OpenRouter: `priorMessages` ИГНОРИРУЮТСЯ намеренно. Плагин отрабатывает до генерации
+ *     на КАЖДОМ запросе, то есть продолжение диалога всё равно оплатило бы новый поиск —
+ *     экономия, ради которой заводился `priorMessages`, там недостижима в принципе. Поэтому
+ *     ретрай идёт полным повторным вызовом с подсказкой в user-turn, ровно как у остальных
+ *     шести пресетов. Цена — один лишний поиск (~$0.007), и это дешевле, чем городить
+ *     историю tool_calls в OpenAI-формате ради экономии, которой нет.
+ */
+export async function callLlmSearch(
+  opts: BaseOpts & {
+    tool: LlmTool;
+    priorMessages?: LlmSearchMessage[];
+    retryHint?: string;
+  },
+): Promise<LlmSearchResult> {
+  const provider = resolveProvider(opts.providerEnvKey);
+  const apiKey = resolveApiKey(provider);
+  const model = resolveModel(opts.model, provider);
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  if (provider === 'openrouter') {
+    const userTurn = opts.retryHint ? `${opts.userTurn}\n\n${opts.retryHint}` : opts.userTurn;
+    const res = await openRouterTool(
+      { ...opts, userTurn },
+      model,
+      apiKey,
+      timeoutMs,
+      provider,
+      [webPlugin()],
+    );
+    // searches: провайдер числа поисков не сообщает. Считать по длине annotations
+    // нельзя — это число НАЙДЕННЫХ ССЫЛОК, а не выполненных запросов.
+    return { ...res, model, searches: null, messages: [] };
+  }
+
+  const messages: LlmSearchMessage[] = opts.priorMessages && opts.retryHint
+    ? [...opts.priorMessages, retryTurn(opts.priorMessages, opts.retryHint)]
+    : [
+      {
+        role: 'user',
+        content:
+          `${opts.userTurn}\n\nСначала выполни поиск в вебе по тому, что нужно найти, ` +
+          `затем ОБЯЗАТЕЛЬНО заверши ответ вызовом инструмента ${opts.tool.name}. ` +
+          `Ответ без вызова инструмента не будет принят.`,
+      },
+    ];
+
+  // Токены суммируем по всем продолжениям: прогон оплачен целиком, и журнал
+  // обязан показывать полную стоимость, а не последнюю итерацию.
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let sawUsage = false;
+  let searches: number | null = null;
+
+  for (let i = 0; i <= MAX_SEARCH_CONTINUATIONS; i++) {
+    const data = await post(ANTHROPIC_URL, {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    }, {
+      model,
+      max_tokens: opts.maxTokens,
+      system: opts.system,
+      messages,
+      tools: [WEB_SEARCH_TOOL, opts.tool],
+      tool_choice: { type: 'auto' },
+    }, provider, timeoutMs) as AnthropicResponse & {
+      usage?: LlmUsage & { server_tool_use?: { web_search_requests?: number } };
+    };
+
+    if (typeof data.usage?.input_tokens === 'number') {
+      inputTokens += data.usage.input_tokens;
+      sawUsage = true;
+    }
+    if (typeof data.usage?.output_tokens === 'number') {
+      outputTokens += data.usage.output_tokens;
+      sawUsage = true;
+    }
+    const used = data.usage?.server_tool_use?.web_search_requests;
+    if (typeof used === 'number') searches = (searches ?? 0) + used;
+
+    const toolUse = data.content?.find((b) => b.type === 'tool_use' && b.name === opts.tool.name);
+    if (toolUse?.input) {
+      return {
+        input: toolUse.input,
+        usage: sawUsage ? { input_tokens: inputTokens, output_tokens: outputTokens } : {},
+        model,
+        searches,
+        // Диалог отдаём вместе с последним ходом ассистента: ретрай продолжит именно его.
+        messages: [...messages, { role: 'assistant', content: data.content ?? [] }],
+      };
+    }
+
+    // Серверный цикл поиска упёрся в лимит итераций — продолжаем, повторив запрос
+    // с ответом ассистента. Отдельного user-сообщения слать НЕ нужно: сервер видит
+    // хвостовой server_tool_use и возобновляет работу сам.
+    if (data.stop_reason === 'pause_turn' && data.content) {
+      messages.push({ role: 'assistant', content: data.content });
+      continue;
+    }
+    break;
+  }
+
+  throw new LlmError(422, 'Модель не вернула структурированный результат', provider);
 }
