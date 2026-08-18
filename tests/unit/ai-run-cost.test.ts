@@ -3,95 +3,145 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   AI_PRESETS,
-  estimateRunCostRub,
-  estimateWebRunCostRub,
+  presetByKey,
+  PRICE_BY_SLUG,
+  priceForSlug,
+  isAnthropicSlug,
   actualRunCostRub,
+  estimateInputTokens,
+  formatTokens,
+  runVolumeLabel,
+  type PresetMeta,
 } from '@/lib/constants/ai-presets';
 
 // ═══════════════════════════════════════════════════════
-// S-COMPANY-AI-1a — экономика прогона.
+// S-LLM-OPENROUTER-1 — экономика прогона после переезда на OpenRouter.
 //
-// Кнопка обещала «≈ 3.5 ₽» при факте в разы больше: estimateRunCostRub считает вход
-// как карточку компании, а у пресета с веб-поиском вход задают втянутые в контекст
-// страницы плюс отдельный тариф на сами запросы. Тест держит три вещи: занижения
-// больше нет, факт считается по токенам прогона, и флаг webSearch не разъехался
-// между клиентским реестром и edge.
+// До спринта прайс ключевался РОЛЬЮ пресета (`sonnet`/`haiku`), и это работало
+// ровно потому, что роль однозначно определяла модель. Теперь слаг приходит из
+// секрета, провайдер — из `LLM_PROVIDER`, и роль о цене не говорит ничего.
 //
-// S-COST-TRUTH-1 — калибровка по 12 прогонам в проде (2026-08-09) при курсе 85 ₽/$.
-// Числа ниже — арифметика, а не «красивые»: диапазон обязан НАКРЫВАТЬ крайние
-// замеры, иначе прогноз противоречит факту, который сам же обещает бракетить.
-// ⚠️ Тест намеренно завязан на снапшот курса `USD_RUB`: курс меняется — числа
-// пересчитываются вместе с ним и вместе с датой в комментарии у константы.
+// Тест держит новый контракт: цена считается по СЛАГУ, неизвестный слаг даёт
+// `null` (а не ноль и не бросок), надбавка за веб-поиск живёт только у Anthropic,
+// а прогноз до запуска рублей не показывает вовсе.
+//
+// ⚠️ Числа завязаны на снапшоты `USD_RUB` и `PRICE_BY_SLUG`: меняется снапшот —
+// пересчитываются вместе с датой в комментарии у константы.
 // ═══════════════════════════════════════════════════════
-
-/** Крайние замеры `ai_runs` (status='done', preset_key='company_brief'), 12 прогонов. */
-const FACT_MIN = { inTok: 45_219, outTok: 1_928 };
-const FACT_MAX = { inTok: 124_755, outTok: 5_610 };
 
 const ROOT = path.resolve(__dirname, '../..');
 const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'), 'utf8');
 
-describe('оценка прогона с веб-поиском', () => {
-  it('диапазон, а не число: верх заметно выше низа, обе границы — целые рубли', () => {
-    const { min, max } = estimateWebRunCostRub('sonnet');
-    expect(min).toBeGreaterThan(0);
-    expect(max).toBeGreaterThan(min);
-    expect(Number.isInteger(min)).toBe(true);
-    expect(Number.isInteger(max)).toBe(true);
+describe('прайс по слагу, а не по роли пресета', () => {
+  it('известный слаг даёт цену, НЕИЗВЕСТНЫЙ — null, а не ноль и не бросок', () => {
+    expect(priceForSlug('claude-sonnet-5')).toEqual({ in: 3, out: 15 });
+    expect(priceForSlug('deepseek/deepseek-v4-flash')).toBeNull();
+    expect(priceForSlug('')).toBeNull();
+    expect(priceForSlug(null)).toBeNull();
+    expect(priceForSlug(undefined)).toBeNull();
+    expect(() => priceForSlug('что-то новое')).not.toThrow();
   });
 
-  it('перестала занижать: оценка брифа кратно выше прежней формулы по символам', () => {
-    const byChars = estimateRunCostRub(4_000, 'sonnet'); // как считалось до спринта
-    const { min } = estimateWebRunCostRub('sonnet');
-    expect(min).toBeGreaterThan(byChars * 5);
+  it('вендорный префикс нормализуется: anthropic/X и X — одна строка таблицы', () => {
+    expect(priceForSlug('anthropic/claude-haiku-4-5')).toEqual(priceForSlug('claude-haiku-4-5'));
+    expect(priceForSlug('  ANTHROPIC/Claude-Haiku-4-5  ')).toEqual(priceForSlug('claude-haiku-4-5'));
+    expect(actualRunCostRub(10_000, 1_000, 'anthropic/claude-sonnet-5'))
+      .toBe(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5'));
   });
 
-  it('считается по границам замера: 45–125К вход, 2–5.6К выход, 5 поисков', () => {
-    // S-COST-TRUTH-1. Низ: (45 000×$3 + 2 000×$15)/1M = $0.165 + 5 поисков по $0.01
-    //   = $0.215 → 18.3 ₽ → 18. Верх: (125 000×$3 + 5 600×$15)/1M = $0.459 + $0.05
-    //   = $0.509 → 43.3 ₽ → 44 (округление НАРУЖУ, см. ниже).
-    expect(estimateWebRunCostRub('sonnet')).toEqual({ min: 18, max: 44 });
+  it('срезается ТОЛЬКО anthropic/ — чужой вендор не получает прайс Anthropic', () => {
+    // `bedrock/claude-opus-5` тарифицируется иначе; подставить сюда цену Anthropic
+    // значило бы вернуть ровно тот дефект, который спринт и чинит.
+    expect(priceForSlug('bedrock/claude-opus-5')).toBeNull();
+    expect(priceForSlug('openrouter/claude-opus-5')).toBeNull();
   });
 
-  it('ДИАПАЗОН НАКРЫВАЕТ ФАКТ: оба крайних прогона попадают внутрь оценки', () => {
-    // Смысл оценки — бракетить факт. Вылезает факт за прогноз — прогноз бесполезен,
-    // и именно поэтому границы округляются наружу: на курсе 85 верхний замер стоил
-    // 43.2 ₽, а `Math.round` дал бы max = 43, то есть оценку, которую живой прогон
-    // уже опроверг.
-    const { min, max } = estimateWebRunCostRub('sonnet');
-    const lo = actualRunCostRub(FACT_MIN.inTok, FACT_MIN.outTok, 'sonnet', 5);
-    const hi = actualRunCostRub(FACT_MAX.inTok, FACT_MAX.outTok, 'sonnet', 5);
+  it('haiku стоит 1/5, а не 0.8/4 — прежняя таблица занижала на четверть', () => {
+    expect(PRICE_BY_SLUG['claude-haiku-4-5']).toEqual({ in: 1, out: 5 });
+    // Дефолт ai-run — датированный слаг; он обязан быть в таблице отдельной строкой.
+    expect(priceForSlug('claude-haiku-4-5-20251001')).toEqual({ in: 1, out: 5 });
+  });
 
-    expect(lo).toBe(18.2);
-    expect(hi).toBe(43.2);
-    expect(lo).toBeGreaterThanOrEqual(min);
-    expect(hi).toBeLessThanOrEqual(max);
+  it('дефолтные слаги edge-функции таблице известны — иначе цена не покажется никому', () => {
+    const defaults = [...EDGE.matchAll(/'(claude-[a-z0-9-]+)'/g)].map((m) => m[1]);
+    expect(defaults.length).toBeGreaterThan(0);
+    for (const slug of defaults) {
+      expect(priceForSlug(slug), `слаг ${slug} отсутствует в PRICE_BY_SLUG`).not.toBeNull();
+    }
   });
 });
 
 describe('факт по завершённому прогону', () => {
-  it('токены считаются по прайсу модели', () => {
-    // (10 000×$3 + 1 000×$15)/1M = $0.045 → ×85 = 3.8 ₽ (было 4.5 при курсе 100)
-    expect(actualRunCostRub(10_000, 1_000, 'sonnet')).toBe(3.8);
+  it('токены считаются по прайсу слага', () => {
+    // (10 000×$3 + 1 000×$15)/1M = $0.045 → ×85 = 3.8 ₽
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5')).toBe(3.8);
+    // Тот же прогон на haiku втрое дешевле — роль пресета тут ни при чём.
+    expect(actualRunCostRub(10_000, 1_000, 'claude-haiku-4-5')).toBe(1.3);
   });
 
-  it('веб-запросы прибавляются по $10 за 1000', () => {
-    const withoutSearches = actualRunCostRub(10_000, 1_000, 'sonnet');
-    // $0.045 + 5×$0.01 = $0.095 → 8.1 ₽. Сравнение не «плюс N ₽»: обе цены
-    // округляются до десятых по отдельности, и разность целой не обязана быть.
-    expect(actualRunCostRub(10_000, 1_000, 'sonnet', 5)).toBe(8.1);
-    expect(actualRunCostRub(10_000, 1_000, 'sonnet', 5)).toBeGreaterThan(withoutSearches);
+  it('неизвестный слаг ⇒ null: строка про рубли не рисуется вовсе', () => {
+    expect(actualRunCostRub(10_000, 1_000, 'deepseek/deepseek-v4-flash')).toBeNull();
+    expect(actualRunCostRub(10_000, 1_000, null)).toBeNull();
+    // Ноль был бы враньём: «прогон стоил 0 ₽» читается как факт, а не как «не знаю».
+    expect(actualRunCostRub(10_000, 1_000, 'нечто')).not.toBe(0);
   });
 
-  it('searches = null не считается нулём поисков и не считается пятью — просто не влияет', () => {
-    expect(actualRunCostRub(10_000, 1_000, 'sonnet', null))
-      .toBe(actualRunCostRub(10_000, 1_000, 'sonnet', 0));
+  it('веб-поиск прибавляется по $10 за 1000 — и ТОЛЬКО у anthropic-слага', () => {
+    const withoutSearches = actualRunCostRub(10_000, 1_000, 'claude-sonnet-5')!;
+    // $0.045 + 5×$0.01 = $0.095 → 8.1 ₽
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 5)).toBe(8.1);
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 5)!).toBeGreaterThan(withoutSearches);
+    expect(actualRunCostRub(10_000, 1_000, 'anthropic/claude-sonnet-5', 5)).toBe(8.1);
   });
 
-  it('живой прогон 2026-08-03 (84 125 / 5 503 токена, 10 поисков) стоил ~37 ₽, а не 3.5', () => {
-    // 43.5 ₽ этот же прогон «стоил» до S-COST-TRUTH-1 — курс 100 завышал ФАКТ
-    // на четверть ровно так же, как прогноз.
-    expect(actualRunCostRub(84_125, 5_503, 'sonnet', 10)).toBe(37);
+  it('searches = null не считается ни нулём поисков, ни пятью — просто не влияет', () => {
+    expect(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', null))
+      .toBe(actualRunCostRub(10_000, 1_000, 'claude-sonnet-5', 0));
+  });
+
+  it('isAnthropicSlug различает вендора: веб-поиск на OpenRouter не переезжал', () => {
+    expect(isAnthropicSlug('claude-opus-5')).toBe(true);
+    expect(isAnthropicSlug('anthropic/claude-opus-5')).toBe(true);
+    expect(isAnthropicSlug('deepseek/deepseek-v4-flash')).toBe(false);
+    expect(isAnthropicSlug(null)).toBe(false);
+  });
+
+  it('живой прогон 2026-08-03 (84 125 / 5 503 токена, 10 поисков) на sonnet — ~37 ₽', () => {
+    expect(actualRunCostRub(84_125, 5_503, 'claude-sonnet-5', 10)).toBe(37);
+  });
+});
+
+describe('прогноз до запуска: объём вместо рублей', () => {
+  const webPreset = presetByKey('company_brief') as PresetMeta;
+  const plainPreset = presetByKey('meeting_protocol') as PresetMeta;
+
+  it('подпись пресета не содержит рублей — клиент не знает модель и провайдер', () => {
+    expect(runVolumeLabel(plainPreset, 8_000)).not.toContain('₽');
+    expect(runVolumeLabel(webPreset, 4_000)).not.toContain('₽');
+  });
+
+  it('обычный пресет: вход считается по символам', () => {
+    // 8 000 симв. / 2.5 = 3 200 токенов
+    expect(estimateInputTokens(8_000)).toBe(3_200);
+    expect(runVolumeLabel(plainPreset, 8_000)).toBe('≈ 3К токенов входа');
+  });
+
+  it('пресет с веб-поиском: ДИАПАЗОН замеров, а не оценка по символам', () => {
+    // Вход брифа задают втянутые страницы, а не карточка компании.
+    expect(runVolumeLabel(webPreset, 4_000)).toBe('≈ 45К–125К токенов входа');
+    expect(runVolumeLabel(webPreset, 4_000)).not.toEqual(runVolumeLabel(plainPreset, 4_000));
+  });
+
+  it('formatTokens: тысячи с «К», мелочь как есть, отрицательное не пролезает', () => {
+    expect(formatTokens(34_000)).toBe('34К');
+    expect(formatTokens(850)).toBe('850');
+    expect(formatTokens(0)).toBe('0');
+    expect(formatTokens(-5)).toBe('0');
+  });
+
+  it('estimateInputTokens устойчив к нулю и мусору', () => {
+    expect(estimateInputTokens(0)).toBe(0);
+    expect(estimateInputTokens(-100)).toBe(0);
   });
 });
 
@@ -126,7 +176,10 @@ describe('ретрай формы у пресета с поиском продо
   });
 
   it('старые пресеты ретраятся прежним путём — полным повтором userTurn с подсказкой', () => {
-    expect(EDGE).toContain('await callClaude(apiKey, preset, `${userTurn}\\n\\n${SHAPE_RETRY_HINT}`)');
+    // ⚠️ Сигнатура сузилась на S-LLM-OPENROUTER-1: ключ и провайдера разрешает
+    // адаптер, поэтому `apiKey` из аргументов `callClaude` ушёл. Зеркало обязано
+    // следовать за кодом — иначе тест охраняет прошлое.
+    expect(EDGE).toContain('await callClaude(preset, `${userTurn}\\n\\n${SHAPE_RETRY_HINT}`)');
   });
 
   it('продолжение диалога закрывает tool_use прошлой попытки tool_result (иначе 400)', () => {

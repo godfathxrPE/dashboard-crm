@@ -7,7 +7,8 @@
 //     на клиенте только как текст. Вход обрезается до preset.maxInputChars.
 //  2. Доступ — клиент под JWT вызывающего, RLS решает. Сервисный ключ НЕ используется.
 //     Транскрипт не нашёлся (нет / чужое) → 404.
-//  3. Ключ — только Deno.env.get('ANTHROPIC_API_KEY').
+//  3. Ключ — только из secrets, через `_shared/llm.ts` (ANTHROPIC_API_KEY либо
+//     OPENROUTER_API_KEY по значению LLM_PROVIDER / AI_RUN_PROVIDER).
 //  4. Вход — ОДИН из двух взаимоисключающих вариантов, иначе 400:
 //       { preset_key, transcript_id }              — сущность берётся из транскрипта;
 //       { preset_key, entity_type, entity_id }     — прогон по полям сущности (085).
@@ -32,6 +33,13 @@
 // форс tool_choice несовместим с поиском: модель обязана вызвать submit немедленно
 // и искать не успевает. `callClaude` не тронут — все остальные пресеты идут им.
 //
+// ⚠️ ПЕРЕЕЗД НА OPENROUTER: на адаптер `_shared/llm.ts` переведён ТОЛЬКО `callClaude`.
+// `callClaudeWithSearch` остаётся на прямом Anthropic и требует ANTHROPIC_API_KEY
+// независимо от LLM_PROVIDER: серверный web search — инструмент Anthropic со своим
+// протоколом (`pause_turn`, `server_tool_use`, теги `<cite>`, которые снимает
+// shape.ts). У OpenRouter это другой инструмент с другим форматом цитат —
+// переносить его надо отдельной задачей, вместе с переписыванием stripCiteTags.
+//
 // Отличие от ai-summarize — АСИНХРОННОСТЬ: INSERT ai_runs (pending) → сразу вернуть { run_id },
 // а Claude API дёргается в EdgeRuntime.waitUntil. Статус живёт в строке ai_runs (Realtime на клиент).
 // Прогон никогда не виснет в running: любая ошибка фонового шага → status='error'.
@@ -47,6 +55,7 @@ import {
 // S-COMPANY-AI-1: маркировочный профиль по ОКВЭД. Копия src/lib/data/chz-groups.ts —
 // зеркало, править синхронно (страж — tests/unit/chz-groups.test.ts).
 import { matchChzGroups, chzStatusLabel } from './chz-groups.ts';
+import { callLlmTool, resolveApiKey, resolveProvider } from '../_shared/llm.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 
@@ -911,40 +920,23 @@ function sumUsage(usages: ClaudeUsage[], key: keyof ClaudeUsage): number | null 
  * единственная переменная часть — userTurn.
  */
 async function callClaude(
-  apiKey: string,
   preset: Preset,
   userTurn: string,
 ): Promise<ClaudeAttempt> {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: preset.model,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      system: preset.system,
-      messages: [{ role: 'user', content: userTurn }],
-      tools: [preset.tool],
-      tool_choice: { type: 'tool', name: preset.tool.name },
-    }),
+  // Провайдер, ключ и слаг модели разрешает адаптер. Тело запроса не изменилось
+  // ни на байт по смыслу: тот же system, тот же единственный инструмент, тот же форс.
+  // Ошибки адаптера (LlmError) поднимаются наверх как раньше — processRun ловит их
+  // и переводит прогон в status='error' с текстом в meta.
+  const { input, usage } = await callLlmTool({
+    model: preset.model,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    system: preset.system,
+    userTurn,
+    tool: preset.tool,
+    providerEnvKey: 'AI_RUN_PROVIDER',
   });
 
-  if (!resp.ok) {
-    const detail = await resp.text();
-    throw new Error(`Claude API ${resp.status}: ${detail.slice(0, 300)}`);
-  }
-
-  const claudeData = await resp.json() as {
-    content?: Array<{ type: string; name?: string; input?: Record<string, unknown> }>;
-    usage?: ClaudeUsage;
-  };
-  const toolUse = claudeData.content?.find((b) => b.type === 'tool_use' && b.name === preset.tool.name);
-  if (!toolUse?.input) throw new Error('Модель не вернула структурированный результат');
-
-  return { input: toolUse.input, usage: claudeData.usage ?? {} };
+  return { input, usage };
 }
 
 /**
@@ -1118,9 +1110,13 @@ function cleanAttempt(preset: Preset, attempt: ClaudeAttempt): ClaudeAttempt {
   return { ...attempt, input: stripCiteTags(attempt.input) };
 }
 
-/** Фоновый прогон: running → Claude API → done/error. Никогда не бросает наружу. */
+/** Фоновый прогон: running → LLM → done/error. Никогда не бросает наружу. */
 async function processRun(
   supabase: SupabaseClient,
+  /**
+   * Ключ Anthropic. Нужен ТОЛЬКО пресетам с веб-поиском (`callClaudeWithSearch`) —
+   * остальные берут ключ своего провайдера внутри адаптера.
+   */
   apiKey: string,
   preset: Preset,
   runId: string,
@@ -1169,7 +1165,7 @@ async function processRun(
       : null;
     const first: ClaudeAttempt = cleanAttempt(
       preset,
-      firstSearch ?? await callClaude(apiKey, preset, userTurn),
+      firstSearch ?? await callClaude(preset, userTurn),
     );
     const schema = preset.tool.input_schema;
     let chosen = first;
@@ -1204,7 +1200,7 @@ async function processRun(
         : null;
       const second: ClaudeAttempt = cleanAttempt(
         preset,
-        secondSearch ?? await callClaude(apiKey, preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`),
+        secondSearch ?? await callClaude(preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`),
       );
       usages.push(second.usage);
       if (typeof secondSearch?.searches === 'number') {
@@ -1358,11 +1354,24 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Требуется авторизация' }, 401);
 
-  // Security №3 — ключ только из secrets.
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    console.error('ANTHROPIC_API_KEY is not configured');
+  // Security №3 — ключи только из secrets. Проверяем ДО INSERT прогона: иначе строка
+  // ai_runs зависла бы в pending и пользователь ждал бы результата, которого не будет.
+  //
+  // Пресеты с веб-поиском ходят прямым Anthropic (см. шапку) — им нужен именно
+  // ANTHROPIC_API_KEY, независимо от LLM_PROVIDER. Остальным ключ разрешает адаптер
+  // по выбранному провайдеру.
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+  if (preset.webSearch && !apiKey) {
+    console.error('ANTHROPIC_API_KEY is not configured (web search preset)');
     return json({ error: 'AI-функция временно недоступна' }, 500);
+  }
+  if (!preset.webSearch) {
+    try {
+      resolveApiKey(resolveProvider('AI_RUN_PROVIDER'));
+    } catch {
+      // resolveApiKey уже написал в лог, какого именно секрета не хватает.
+      return json({ error: 'AI-функция временно недоступна' }, 500);
+    }
   }
 
   // Security №2 — клиент под JWT юзера, RLS решает доступ.

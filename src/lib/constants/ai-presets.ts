@@ -168,10 +168,81 @@ export function presetTitle(key: string): string {
   return presetByKey(key)?.title ?? key;
 }
 
-// Грубая оценка стоимости для UI («≈ N ₽ за прогон»). Цены — ESTIMATED, вынести в один источник.
-// S-R3-VOICE-1: экспортируются, чтобы оценка вычитки транскрипта
-// (`src/lib/transcribe/cost.ts`) считалась по ТОЙ ЖЕ таблице цен, а не по своей копии.
-export const PRICE_PER_MTOK = { sonnet: { in: 3, out: 15 }, haiku: { in: 0.8, out: 4 } }; // $ / 1M токенов
+// ═══════════════════════════════════════════════════════
+// Экономика прогона (S-LLM-OPENROUTER-1: правка после переезда на OpenRouter)
+//
+// ⚠️ ДО спринта прайс ключевался РОЛЬЮ пресета (`sonnet` / `haiku`), и это
+// работало ровно потому, что роль однозначно задавала модель. После переезда
+// слаг задаётся секретом (`AI_RUN_MODEL_SONNET` и соседи), а провайдер —
+// `LLM_PROVIDER`; роль перестала говорить о цене хоть что-нибудь. Поэтому:
+//
+//   • ФАКТ (карточка прогона) считается по СЛАГУ из `ai_runs.model` —
+//     слаг самодостаточен, провайдера знать не нужно;
+//   • ПРОГНОЗ (кнопки пресетов) денег больше не показывает вовсе — клиенту
+//     не известно, какая модель отработает, и угадывать он не должен.
+//     Вместо рублей — объём входа в токенах.
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Прайс по СЛАГУ модели, $ за 1M токенов.
+ *
+ * ⚠️ Неизвестный слаг — НЕ повод угадать: `priceForSlug` вернёт null, и цена не
+ * покажется вовсе. Число, взятое от похожей модели, врёт правдоподобно, а это
+ * худший вид вранья в строке про деньги.
+ *
+ * Цены — СНАПШОТ С ДАТОЙ (как `USD_RUB`), сверено 2026-08-18 по справочнику
+ * моделей Anthropic. Это ПРАЙС-ЛИСТ ANTHROPIC: через OpenRouter те же слаги
+ * идут примерно по нему же, но провайдерская наценка сюда не заложена.
+ * Модели не-Anthropic в таблицу не внесены намеренно — их цен на руках нет,
+ * а выдумывать их значит вернуть ровно тот дефект, который спринт и чинит.
+ *
+ * ⚠️ У `claude-sonnet-5` до 2026-08-31 действует вводная цена $2/$10. Здесь
+ * СПИСОЧНАЯ $3/$15: она не занижает счёт сейчас и не устареет молча после
+ * окончания акции. Занижение опаснее завышения — оно выглядит достоверно.
+ */
+export const PRICE_BY_SLUG: Record<string, { in: number; out: number }> = {
+  'claude-opus-5': { in: 5, out: 25 },
+  'claude-opus-4-8': { in: 5, out: 25 },
+  'claude-opus-4-7': { in: 5, out: 25 },
+  'claude-opus-4-6': { in: 5, out: 25 },
+  'claude-sonnet-5': { in: 3, out: 15 },
+  'claude-sonnet-4-6': { in: 3, out: 15 },
+  // ⚠️ Прежняя таблица держала haiku как 0.8/4 — занижение на четверть.
+  'claude-haiku-4-5': { in: 1, out: 5 },
+  'claude-haiku-4-5-20251001': { in: 1, out: 5 },
+  'claude-fable-5': { in: 10, out: 50 },
+};
+
+/** Вендорный префикс OpenRouter у моделей Anthropic. */
+const ANTHROPIC_VENDOR = 'anthropic/';
+
+/**
+ * `anthropic/claude-haiku-4-5` и `claude-haiku-4-5` — одна строка таблицы:
+ * адаптер дописывает вендор при `LLM_PROVIDER=openrouter` и срезает его при
+ * прямом Anthropic, а в `ai_runs.model` попадает значение секрета КАК ЕСТЬ.
+ *
+ * Срезается ТОЛЬКО `anthropic/`. Срезать любой префикс до `/` нельзя: тогда
+ * выдуманный `bedrock/claude-opus-5` получил бы цену Anthropic, хотя тариф там
+ * другой — это снова угадывание, от которого спринт и уходит.
+ */
+function normalizeSlug(slug: string): string {
+  const s = slug.trim().toLowerCase();
+  return s.startsWith(ANTHROPIC_VENDOR) ? s.slice(ANTHROPIC_VENDOR.length) : s;
+}
+
+/** null — слаг неизвестен, цену показывать нельзя. */
+export function priceForSlug(slug: string | null | undefined): { in: number; out: number } | null {
+  if (!slug) return null;
+  return PRICE_BY_SLUG[normalizeSlug(slug)] ?? null;
+}
+
+/** Слаг относится к Anthropic — только у них тарифицируется веб-поиск. */
+export function isAnthropicSlug(slug: string | null | undefined): boolean {
+  if (!slug) return false;
+  const s = slug.trim().toLowerCase();
+  return s.startsWith(ANTHROPIC_VENDOR) || s.startsWith('claude-');
+}
+
 /**
  * S-COST-TRUTH-1. Курс — СНАПШОТ С ДАТОЙ, а не вечная константа: значение без даты
  * через полгода врёт молча, и заметить это невозможно — цена выглядит правдоподобно
@@ -182,13 +253,20 @@ export const PRICE_PER_MTOK = { sonnet: { in: 3, out: 15 }, haiku: { in: 0.8, ou
  * константе, то есть «фактическая цена прогона» в карточке тоже была неверной.
  */
 export const USD_RUB = 85;
+
 /**
  * S-COMPANY-AI-1a. Веб-поиск Anthropic тарифицируется ОТДЕЛЬНО от токенов:
- * $10 за 1000 запросов (сверено 2026-08). Пять поисков брифа — это $0.05, то есть
- * 5 ₽ сверх токенов; на фоне «≈ 3.5 ₽», которые показывала кнопка, это уже больше
- * всей прежней оценки.
+ * $10 за 1000 запросов (сверено 2026-08-18). Пять поисков брифа — это $0.05,
+ * то есть ~4 ₽ сверх токенов.
+ *
+ * ⚠️ Тариф ANTHROPIC'ОВСКИЙ. Веб-поиск на OpenRouter не переехал (`callClaudeWithSearch`
+ * ходит в api.anthropic.com напрямую), поэтому надбавка считается только у
+ * anthropic-слага — см. `actualRunCostRub`.
  */
 const WEB_SEARCH_USD_PER_REQUEST = 10 / 1_000;
+
+/** Кириллица в токенизаторе Claude — примерно 2.5 символа на токен (константа проекта). */
+export const CHARS_PER_TOKEN = 2.5;
 
 /**
  * Эмпирика прогонов брифа. **Перезамер 2026-08-09 по 12 прогонам в проде**
@@ -197,14 +275,9 @@ const WEB_SEARCH_USD_PER_REQUEST = 10 / 1_000;
  *   output  1 928 …   5 610 (среднее  3 895)
  *   searches 4 или 5 (у двух старых прогонов meta.searches нет вовсе)
  *
- * ⚠️ Диапазон теперь описывает РАЗБРОС ВХОДА, а не «попытка против ретрая».
- * До S-COMPANY-AI-1c источником неопределённости был ретрай; после — он почти
- * не случается (0 из 3 на промпте v3), зато вход гуляет втрое: сколько страниц
- * веб-поиск втянет в контекст, заранее не знает никто. Одна константа `inTok`
- * на оба конца диапазона отвечала не на тот вопрос.
- *
- * Эти числа — не формула, а замер. Меняется поведение прогона — перезамерить
- * запросом к `ai_runs`, а не подгонкой под ожидание.
+ * ⚠️ Диапазон описывает РАЗБРОС ВХОДА: сколько страниц веб-поиск втянет в
+ * контекст, заранее не знает никто. Это ЗАМЕР, а не формула — меняется поведение
+ * прогона, перезамерить запросом к `ai_runs`, а не подгонять под ожидание.
  */
 const WEB_RUN = {
   minInTok: 45_000, maxInTok: 125_000,
@@ -216,38 +289,14 @@ function rub(usd: number): number {
   return Math.round(usd * USD_RUB * 10) / 10;
 }
 
-function tokensUsd(inTok: number, outTok: number, model: 'sonnet' | 'haiku'): number {
-  return (inTok * PRICE_PER_MTOK[model].in + outTok * PRICE_PER_MTOK[model].out) / 1_000_000;
-}
-
-export function estimateRunCostRub(charCount: number, model: 'sonnet' | 'haiku'): number {
-  // chars/4 — эвристика для английского; кириллица токенизируется плотнее (~2.5 символа/токен).
-  const inTok = charCount / 2.5;
-  const outTok = 2_000; // ~2К выход на структурированный ответ
-  return rub(tokensUsd(inTok, outTok, model));
-}
-
 /**
- * Оценка для пресета с веб-поиском — ДИАПАЗОН, а не число: разброс входа больше,
- * чем точность любой отдельной оценки. Считать такой прогон по charCount нельзя
- * вовсе — вход задаёт не карточка компании, а веб.
+ * ФАКТ по завершённому прогону — из `ai_runs.input_tokens` / `output_tokens`,
+ * `ai_runs.model` и (для пресетов с поиском) `result.meta.searches`.
  *
- * Границы — крайние замеры `WEB_RUN`, то есть диапазон обязан НАКРЫВАТЬ факт:
- * прогноз, из которого факт вылезает, бесполезен. Поэтому округление наружу
- * (`floor` низу, `ceil` верху), а не `round` к ближайшему: на курсе 85 верхний
- * замер давал 43.2 ₽ при `Math.round` → 43 ₽, и оценка противоречила бы факту,
- * который сама же обязана бракетить. Десятые здесь врали бы о точности замера.
- */
-export function estimateWebRunCostRub(model: 'sonnet' | 'haiku'): { min: number; max: number } {
-  const searchUsd = WEB_RUN.searches * WEB_SEARCH_USD_PER_REQUEST;
-  const lo = tokensUsd(WEB_RUN.minInTok, WEB_RUN.minOutTok, model) + searchUsd;
-  const hi = tokensUsd(WEB_RUN.maxInTok, WEB_RUN.maxOutTok, model) + searchUsd;
-  return { min: Math.floor(rub(lo)), max: Math.ceil(rub(hi)) };
-}
-
-/**
- * Факт по завершённому прогону — из `ai_runs.input_tokens` / `output_tokens` и
- * (для пресетов с поиском) `result.meta.searches`. Прогноз всегда врёт, факт — нет.
+ * ⚠️ Возвращает `number | null`. `null` = слаг модели неизвестен таблице цен;
+ * вызывающий обязан НЕ рисовать строку про рубли (см. `RunCostMeta`). Пустое
+ * место честнее неверного числа: токены и слаг в строке уже есть, по ним расход
+ * считается вручную за минуту.
  *
  * `searches` не передан или null — веб-запросы в цену не входят: null значит
  * «неизвестно», а не «ноль», и додумывать пять поисков за модель мы не станем.
@@ -255,8 +304,52 @@ export function estimateWebRunCostRub(model: 'sonnet' | 'haiku'): { min: number;
 export function actualRunCostRub(
   inputTokens: number,
   outputTokens: number,
-  model: 'sonnet' | 'haiku',
+  modelSlug: string | null | undefined,
   searches: number | null = null,
-): number {
-  return rub(tokensUsd(inputTokens, outputTokens, model) + (searches ?? 0) * WEB_SEARCH_USD_PER_REQUEST);
+): number | null {
+  const price = priceForSlug(modelSlug);
+  if (!price) return null;
+  const tokensUsd = (inputTokens * price.in + outputTokens * price.out) / 1_000_000;
+  const searchUsd = isAnthropicSlug(modelSlug) ? (searches ?? 0) * WEB_SEARCH_USD_PER_REQUEST : 0;
+  return rub(tokensUsd + searchUsd);
 }
+
+// ═══════════════════════════════════════════════════════
+// ПРОГНОЗ до запуска — объём, а не деньги
+//
+// Клиент не знает, какая модель отработает: слаг и провайдер живут в секретах
+// edge-функции, а класть их копию в NEXT_PUBLIC_* нельзя — это два источника
+// одной правды, которые молча разойдутся на первом же переключении секрета.
+// Поэтому рублёвый прогноз после переезда необоснован В ПРИНЦИПЕ, а не временно
+// неточен. Объём входа пользователь соотносит с «дорого/дёшево» сам.
+// ═══════════════════════════════════════════════════════
+
+/** Оценка входа в токенах по длине текста. */
+export function estimateInputTokens(charCount: number): number {
+  return Math.max(0, Math.round(charCount / CHARS_PER_TOKEN));
+}
+
+/** «34К» / «850». Тысячи — с русской «К», как в остальном UI. */
+export function formatTokens(tokens: number): string {
+  const t = Math.max(0, Math.round(tokens));
+  return t >= 1_000 ? `${Math.round(t / 1_000)}К` : String(t);
+}
+
+/**
+ * Подпись объёма на кнопке пресета. Одна формула на все три панели — иначе
+ * они разойдутся ровно так же, как разошлись бы копии прайса.
+ *
+ * У пресета с веб-поиском вход задаёт не карточка сущности, а втянутые в
+ * контекст страницы, поэтому там диапазон замеров, а не оценка по символам.
+ */
+export function runVolumeLabel(preset: PresetMeta, charCount: number): string {
+  if (preset.webSearch) {
+    return `≈ ${formatTokens(WEB_RUN.minInTok)}–${formatTokens(WEB_RUN.maxInTok)} токенов входа`;
+  }
+  return `≈ ${formatTokens(estimateInputTokens(charCount))} токенов входа`;
+}
+
+/** Пояснение под подписью объёма — почему тут нет рублей. */
+export const RUN_VOLUME_HINT =
+  'Стоимость зависит от модели и провайдера — они задаются секретами функции. ' +
+  'Фактический расход виден в карточке прогона после выполнения.';

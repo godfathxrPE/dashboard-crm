@@ -1,6 +1,6 @@
 'use client';
 
-import { presetByKey, actualRunCostRub } from '@/lib/constants/ai-presets';
+import { actualRunCostRub, formatTokens } from '@/lib/constants/ai-presets';
 import type { AiRunRow, CompanyBriefResult } from '@/types/database';
 
 /**
@@ -14,7 +14,10 @@ import type { AiRunRow, CompanyBriefResult } from '@/types/database';
  *   • токенов нет (API не отдал usage) → строка стоимости не рендерится вовсе,
  *     остаётся только время;
  *   • `duration_ms` нет → нет и куска со временем;
- *   • `meta.searches` нет → веб-запросы в цену не входят (см. actualRunCostRub).
+ *   • `meta.searches` нет → веб-запросы в цену не входят (см. actualRunCostRub);
+ *   • S-LLM-OPENROUTER-1: `ai_runs.model` не знаком таблице цен → строки с
+ *     рублями нет вовсе, а токены и слаг остаются. Пустое место честнее
+ *     неверного числа: после переезда роль пресета цену не определяет.
  *
  * Показывается у ЛЮБОГО пресета, где есть чем считать, а не только у брифа: старым
  * шести это тоже полезно и ничего не ломает.
@@ -22,17 +25,21 @@ import type { AiRunRow, CompanyBriefResult } from '@/types/database';
 export function RunCostMeta({ run }: { run: AiRunRow }) {
   if (run.status !== 'done') return null;
 
-  const preset = presetByKey(run.preset_key);
   const parts: string[] = [];
 
   if (typeof run.duration_ms === 'number') parts.push(formatDuration(run.duration_ms));
 
-  if (preset && typeof run.input_tokens === 'number' && typeof run.output_tokens === 'number') {
+  if (typeof run.input_tokens === 'number' && typeof run.output_tokens === 'number') {
+    parts.push(`${formatTokens(run.input_tokens + run.output_tokens)} токенов`);
+
     // Веб-запросы известны только у брифа — у остальных пресетов их нет по определению.
     const searches = run.preset_key === 'company_brief'
       ? (run.result as CompanyBriefResult | null)?.meta?.searches ?? null
       : null;
-    parts.push(`≈ ${actualRunCostRub(run.input_tokens, run.output_tokens, preset.model, searches)} ₽`);
+    // ⚠️ Считаем по ФАКТИЧЕСКОМУ слагу из строки прогона, а не по роли пресета:
+    // роль после S-LLM-OPENROUTER-1 о цене не говорит ничего.
+    const rub = actualRunCostRub(run.input_tokens, run.output_tokens, run.model, searches);
+    if (rub != null) parts.push(`≈ ${rub} ₽`);
   }
 
   if (parts.length === 0) return null;

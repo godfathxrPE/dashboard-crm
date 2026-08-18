@@ -29,6 +29,8 @@ const MIGRATION = readFileSync(
   .filter((l) => !l.trimStart().startsWith('--'))
   .join('\n');
 const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'), 'utf8');
+// Общая точка вызова LLM (S-LLM-OPENROUTER-1): тело запроса к провайдеру живёт здесь.
+const ADAPTER = readFileSync(path.join(ROOT, 'supabase/functions/_shared/llm.ts'), 'utf8');
 
 /** Ключи из `preset_key in ('a','b',…)` конкретного CHECK'а. */
 function presetsInCheck(sql: string): string[] {
@@ -78,8 +80,17 @@ describe('edge ↔ клиентский реестр', () => {
     expect(guarded).toBe(AI_PRESETS.length);
   });
 
-  it('tool_choice форсирован (модель обязана ответить вызовом инструмента)', () => {
-    expect(EDGE).toContain("tool_choice: { type: 'tool', name: preset.tool.name }");
+  // S-LLM-OPENROUTER-1: форс переехал из ai-run в общий адаптер `_shared/llm.ts`
+  // вместе с самим вызовом. Инвариант не исчез — сменился его адрес, поэтому тест
+  // смотрит туда же, куда смотрит код, а не удалён «за неактуальностью».
+  it('tool_choice форсирован в адаптере, на обоих провайдерах', () => {
+    expect(ADAPTER).toContain("tool_choice: { type: 'tool', name: opts.tool.name }");
+    expect(ADAPTER).toContain("tool_choice: { type: 'function', function: { name: opts.tool.name } }");
+  });
+
+  it('ai-run зовёт адаптер, а не собирает запрос к провайдеру сам', () => {
+    expect(EDGE).toContain("from '../_shared/llm.ts'");
+    expect(EDGE).not.toContain("tool_choice: { type: 'tool', name: preset.tool.name }");
   });
 });
 

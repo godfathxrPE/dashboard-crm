@@ -15,7 +15,12 @@ import {
 } from 'lucide-react';
 import { useTranscribe } from '@/lib/hooks/use-transcribe';
 import { probeDuration } from '@/lib/transcribe/audio';
-import { estimateTranscribeCost, formatDuration, type WhisperModel } from '@/lib/transcribe/cost';
+import {
+  estimateTranscribeCost,
+  formatTranscribeEstimate,
+  formatDuration,
+  type WhisperModel,
+} from '@/lib/transcribe/cost';
 
 /**
  * S-R3-VOICE-1: вкладка «Аудио» в зоне транскрипта — файл, drag&drop или запись
@@ -330,12 +335,19 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
           {busy ? <Loader2 size={13} className="animate-spin" /> : <FileAudio size={13} />}
           Расшифровать
         </button>
+        {/* Рубли только у распознавания: его модель выбирает пользователь, и Groq
+            на OpenRouter не переезжал. Вычитка — в токенах: её модель и провайдер
+            задаются секретами edge-функции (S-LLM-OPENROUTER-1). */}
         {cost && (
           <span
             className="text-meta text-text-mute"
-            title={`Распознавание Groq ≈ ${cost.groq} ₽${cleanup ? ` · вычитка Claude ≈ ${cost.cleanup} ₽` : ''}`}
+            title={
+              cost.cleanup
+                ? 'Стоимость вычитки зависит от модели и провайдера — они задаются секретами функции.'
+                : 'Вычитка выключена — считается только распознавание.'
+            }
           >
-            ≈ {cost.total} ₽
+            {formatTranscribeEstimate(cost)}
           </span>
         )}
         {staged && staged.durationSec == null && (
