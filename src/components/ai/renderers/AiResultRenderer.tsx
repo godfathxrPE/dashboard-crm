@@ -26,9 +26,17 @@ import { CompanyBriefRenderer } from './CompanyBriefRenderer';
 export function AiResultRenderer({
   run,
   onCreateTask,
+  okved,
 }: {
   run: AiRunRow;
   onCreateTask?: (item: ActionItem) => void;
+  /**
+   * S-DEBT-1. ОКВЭД карточки компании — для вычисленной строки маркировки в брифе.
+   * Необязателен: хост, у которого карточки нет (модалка прогона из ленты), просто
+   * не передаёт его, и вычисленной строки не будет. Диспетчер данных не читает —
+   * пробрасывает то, что дал хост.
+   */
+  okved?: string | null;
 }) {
   if (run.status !== 'done' || !run.result) return null;
 
@@ -46,7 +54,7 @@ export function AiResultRenderer({
       return <DealSummaryRenderer result={run.result as DealSummaryResult} />;
     // 104: бриф по компании из открытых источников
     case 'company_brief':
-      return <CompanyBriefRenderer result={run.result as CompanyBriefResult} />;
+      return <CompanyBriefRenderer result={run.result as CompanyBriefResult} okved={okved} />;
     default:
       return null;
   }

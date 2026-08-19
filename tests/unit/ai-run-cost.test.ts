@@ -35,7 +35,8 @@ const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'),
 describe('прайс по слагу, а не по роли пресета', () => {
   it('известный слаг даёт цену, НЕИЗВЕСТНЫЙ — null, а не ноль и не бросок', () => {
     expect(priceForSlug('claude-sonnet-5')).toEqual({ in: 2, out: 10 });
-    expect(priceForSlug('deepseek/deepseek-v4-flash')).toBeNull();
+    // S-DEBT-1: deepseek и grok в таблицу внесены, «неизвестное» теперь вот такое.
+    expect(priceForSlug('mistralai/mistral-large')).toBeNull();
     expect(priceForSlug('')).toBeNull();
     expect(priceForSlug(null)).toBeNull();
     expect(priceForSlug(undefined)).toBeNull();
@@ -80,7 +81,7 @@ describe('факт по завершённому прогону', () => {
   });
 
   it('неизвестный слаг ⇒ null: строка про рубли не рисуется вовсе', () => {
-    expect(actualRunCostRub(10_000, 1_000, 'deepseek/deepseek-v4-flash')).toBeNull();
+    expect(actualRunCostRub(10_000, 1_000, 'mistralai/mistral-large')).toBeNull();
     expect(actualRunCostRub(10_000, 1_000, null)).toBeNull();
     // Ноль был бы враньём: «прогон стоил 0 ₽» читается как факт, а не как «не знаю».
     expect(actualRunCostRub(10_000, 1_000, 'нечто')).not.toBe(0);

@@ -1,7 +1,8 @@
 'use client';
 
-import { ExternalLink } from 'lucide-react';
+import { Calculator, ExternalLink, Search } from 'lucide-react';
 import type { CompanyBriefResult } from '@/types/database';
+import { matchChzGroups, chzStatusLabel } from '@/lib/data/chz-groups';
 import { safeHref } from '@/lib/utils/safe-href';
 
 /**
@@ -16,8 +17,39 @@ import { safeHref } from '@/lib/utils/safe-href';
  *
  * Предложение подставить найденный сайт живёт НЕ здесь, а в AiCompanyPanel: писать
  * в компанию может только тот, кто знает компанию, и делает это по явному клику.
+ *
+ * S-DEBT-1 — секция «Маркировка» говорит ДВЕ разные вещи РАЗНЫМИ подписями:
+ *
+ *   • ВЫЧИСЛЕНО — товарные группы из `matchChzGroups(okved)`. Справочник, ноль AI,
+ *     ноль поиска: у строки нет и не может быть источника, поэтому вместо ссылки
+ *     она несёт «по ОКВЭД …, справочник CRM» и иконку счётов. В схему инструмента
+ *     это НЕ уезжает и модели фактом не показывается (в промпт ОКВЭД идёт как
+ *     направление поиска — `<data kind="chz_profile">` в ai-run).
+ *   • НАЙДЕНО — `chz_signals` модели, каждый со ссылкой на источник.
+ *
+ * ⚠️ Смешивать их одним видом нельзя: через месяц никто не вспомнит, что из этого
+ * проверено источником, а «обязана маркировать» и «замечена в ГИС МТ» — разговоры
+ * с клиентом разной силы.
+ *
+ * `okved` — ПРОП, а не запрос: рендерер презентационный, хук данных внутри него
+ * ломает чужие тесты («No QueryClient set»). Даёт его тот хост, у которого карточка
+ * компании уже на руках (`AiCompanyPanel`); в модалке прогона из ленты карточки нет,
+ * и вычисленной строки там не будет — молчание честнее, чем группа, выведенная из
+ * неизвестно чего.
  */
-export function CompanyBriefRenderer({ result }: { result: CompanyBriefResult }) {
+export function CompanyBriefRenderer({
+  result,
+  okved,
+}: {
+  result: CompanyBriefResult;
+  okved?: string | null;
+}) {
+  const derived = matchChzGroups(okved);
+  const signals = result.chz_signals;
+  // Массив есть и он пуст — поиск состоялся и ничего не дал (это факт, его и пишем).
+  // Поля нет вовсе (старый прогон) — сказать нечего, молчим.
+  const searched = Array.isArray(signals);
+
   return (
     <div className="space-y-3 text-sm">
       {result.summary && (
@@ -38,16 +70,47 @@ export function CompanyBriefRenderer({ result }: { result: CompanyBriefResult })
         </div>
       )}
 
-      {result.chz_signals && result.chz_signals.length > 0 && (
+      {(derived.length > 0 || searched) && (
         <div>
-          <p className="mb-1 text-xs font-medium text-text-dim">Признаки работы с маркировкой</p>
+          <p className="mb-1 text-xs font-medium text-text-dim">Маркировка</p>
           <ul className="space-y-1">
-            {result.chz_signals.map((s, i) => (
-              <li key={i} className="text-text-main">
-                <span className="whitespace-pre-wrap">{s.claim}</span>{' '}
-                <SourceLink url={s.source_url} label="источник" />
+            {/* ВЫЧИСЛЕНО справочником: без ссылки, но с явным «откуда». */}
+            {derived.map((g) => (
+              <li key={g.group} className="flex items-start gap-1.5 text-text-main">
+                <Calculator
+                  size={12}
+                  className="mt-0.5 shrink-0 text-text-mute"
+                  aria-hidden="true"
+                />
+                <span>
+                  {g.group} — {chzStatusLabel(g)}
+                  <span className="text-xs text-text-mute">
+                    {' '}· по ОКВЭД {okved}, справочник CRM
+                  </span>
+                </span>
               </li>
             ))}
+
+            {/* НАЙДЕНО поиском: каждое утверждение со ссылкой. */}
+            {signals?.map((s, i) => (
+              <li key={`signal-${i}`} className="flex items-start gap-1.5 text-text-main">
+                <Search size={12} className="mt-0.5 shrink-0 text-text-mute" aria-hidden="true" />
+                <span>
+                  <span className="whitespace-pre-wrap">{s.claim}</span>{' '}
+                  <SourceLink url={s.source_url} label="источник" />
+                </span>
+              </li>
+            ))}
+
+            {/* Пустой поиск — СТРОКА, а не тишина: «не проверяли» и «проверили, следов
+                нет» читаются одинаково только пока строки нет. Второе — зацепка:
+                либо делают внутри, либо не делают вовсе. */}
+            {signals && signals.length === 0 && (
+              <li className="flex items-start gap-1.5 text-text-dim">
+                <Search size={12} className="mt-0.5 shrink-0 text-text-mute" aria-hidden="true" />
+                <span>Следов работы с ГИС МТ в открытых источниках не найдено</span>
+              </li>
+            )}
           </ul>
         </div>
       )}

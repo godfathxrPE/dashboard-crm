@@ -50,11 +50,27 @@ describe('RunCostMeta — рубли только при известном сл
   });
 
   it('НЕИЗВЕСТНАЯ модель: рублей нет, время и токены остались', () => {
-    render(<RunCostMeta run={run({ model: 'deepseek/deepseek-v4-flash' })} />);
+    // S-DEBT-1: deepseek и grok теперь в прайсе — «неизвестной» взята модель,
+    // которой у нас нет ни в дефолтах, ни в секретах.
+    render(<RunCostMeta run={run({ model: 'mistralai/mistral-large' })} />);
     const text = screen.getByText(/42 с/).textContent ?? '';
     expect(text).toContain('42 с');
     expect(text).toContain('11К токенов');
     expect(text).not.toContain('₽');
+  });
+
+  it('копеечный прогон: «меньше 0,1 ₽» вместо «≈ 0 ₽»', () => {
+    // S-DEBT-1. DeepSeek: (2 169×$0.083 + 800×$0.165)/1M × 85 ≈ 0.03 ₽ → в
+    // десятых рубля это 0. «≈ 0 ₽» рядом со статусом «Готово» читается как
+    // «бесплатно» — это факт, которого не было.
+    render(<RunCostMeta run={run({
+      model: 'deepseek/deepseek-v4-flash',
+      input_tokens: 2_169,
+      output_tokens: 800,
+    })} />);
+    const text = screen.getByText(/42 с/).textContent ?? '';
+    expect(text).toContain('меньше 0,1 ₽');
+    expect(text).not.toContain('≈ 0 ₽');
   });
 
   it('model = null (старые строки до 085): рублей нет, компонент не падает', () => {
