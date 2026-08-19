@@ -344,21 +344,26 @@ describe('website обязан опираться на черновик', () => 
   });
 });
 
-describe('цена: неизвестный слаг — пусто, а не ноль', () => {
-  it('actualRunCostRub для слагов новых проходов возвращает null', () => {
-    // PRICE_BY_SLUG пополняется отдельным заходом. До тех пор карточка обязана
-    // НЕ рисовать строку про рубли, а не показывать «0 ₽» за прогон за $0.06.
-    expect(actualRunCostRub(25_442, 1_200, 'x-ai/grok-4.3')).toBeNull();
-    expect(actualRunCostRub(2_169, 800, 'deepseek/deepseek-v4-flash')).toBeNull();
-    expect(priceForSlug('x-ai/grok-4.3')).toBeNull();
+describe('цена слагов двухпроходного брифа', () => {
+  // ⚠️ ДОЛГ ЗАКРЫТ В S-DEBT-1: до него обоих слагов в PRICE_BY_SLUG не было, и
+  // тест фиксировал `null` как ФАКТ, чтобы находка не потерялась. Теперь цены
+  // внесены по каталогу OpenRouter (снапшот 19.08), и ждать их больше нечего.
+  // Подробности решения (в том числе про точку против дефиса) — в
+  // `tests/unit/ai-slug-price.test.ts`.
+  it('оба прохода теперь считаются в рублях', () => {
+    expect(priceForSlug('x-ai/grok-4.3')).toEqual({ in: 1.25, out: 2.5 });
+    expect(priceForSlug('deepseek/deepseek-v4-flash')).toEqual({ in: 0.083, out: 0.165 });
+    // (25 442×$1.25 + 1 200×$2.50)/1M = $0.0348 → ×85 ≈ 3 ₽
+    expect(actualRunCostRub(25_442, 1_200, 'x-ai/grok-4.3')).toBe(3);
+    // Проход упаковки на deepseek стоит ~0.03 ₽ и в десятых рубля даёт 0 —
+    // карточка в этом случае печатает «меньше 0,1 ₽», а не «≈ 0 ₽»
+    // (`RunCostMeta`, S-DEBT-1): ноль читается как «бесплатно».
+    expect(actualRunCostRub(2_169, 800, 'deepseek/deepseek-v4-flash')).toBe(0);
   });
 
-  it('точка против дефиса в слагах Anthropic — долг, а не фикс этого спринта', () => {
-    // В каталоге OpenRouter слаг `anthropic/claude-haiku-4.5`, в PRICE_BY_SLUG —
-    // `claude-haiku-4-5`. normalizeSlug точку не нормализует ⇒ цена молча null.
-    // Тест фиксирует ФАКТ, чтобы находка не потерялась (см. отчёт спринта).
+  it('каталожная форма слага Anthropic (с точкой) больше не гасит цену', () => {
     expect(priceForSlug('anthropic/claude-haiku-4-5')).not.toBeNull();
-    expect(priceForSlug('anthropic/claude-haiku-4.5')).toBeNull();
+    expect(priceForSlug('anthropic/claude-haiku-4.5')).toEqual(priceForSlug('claude-haiku-4-5'));
   });
 });
 

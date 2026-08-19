@@ -49,7 +49,15 @@ export function RunCostMeta({ run }: { run: AiRunRow }) {
     const rub = searchCostKnown
       ? actualRunCostRub(run.input_tokens, run.output_tokens, run.model, searches)
       : null;
-    if (rub != null) parts.push(`≈ ${rub} ₽`);
+    if (rub != null) {
+      // S-DEBT-1. На дешёвой модели прогон стоит сотые доли рубля, а `rub()`
+      // округляет до десятых — карточка печатала «≈ 0 ₽», то есть «бесплатно»,
+      // подписанное словом «факт». Это ровно тот класс вранья, от которого ушёл
+      // весь эпик, только с другой стороны шкалы. Ноль остаётся ровно там, где
+      // считать нечего: прогон без токенов.
+      const tokens = run.input_tokens + run.output_tokens;
+      parts.push(rub === 0 && tokens > 0 ? 'меньше 0,1 ₽' : `≈ ${rub} ₽`);
+    }
   }
 
   if (parts.length === 0) return null;

@@ -17,6 +17,9 @@
 
 export {
   hasValidInnChecksum,
+  hasValidOgrnChecksum,
+  scrubRequisites,
+  scrubRequisitesDeep,
   extractInn,
   phoneKey,
   extractEmail,

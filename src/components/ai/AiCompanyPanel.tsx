@@ -169,8 +169,15 @@ export function AiCompanyPanel({ companyId }: AiCompanyPanelProps) {
                 {run.status === 'done' && (
                   <>
                     <div className="mt-2">
-                      {/* onCreateTask не нужен: у брифа нет action items. */}
-                      <AiResultRenderer run={run} onCreateTask={() => {}} />
+                      {/* onCreateTask не нужен: у брифа нет action items.
+                          `okved` — из карточки компании, она здесь уже загружена
+                          (S-DEBT-1): по нему бриф рисует ВЫЧИСЛЕННУЮ строку
+                          маркировки рядом с НАЙДЕННЫМИ признаками. */}
+                      <AiResultRenderer
+                        run={run}
+                        onCreateTask={() => {}}
+                        okved={company?.okved ?? null}
+                      />
                     </div>
 
                     <WebsiteSuggestion
