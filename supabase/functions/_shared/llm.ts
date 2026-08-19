@@ -659,22 +659,15 @@ function sumLlmUsage(a: LlmUsage | undefined, b: LlmUsage | undefined): LlmUsage
 }
 
 /**
- * Переопределение хвоста системного промпта для ПЕРВОГО прохода.
+ * S-BRIEF-2PASS / F-01. Маркер имитации вызова инструмента в черновике.
  *
- * Системный промпт пресета заканчивается словами «Отвечай ТОЛЬКО через вызов
- * инструмента» — для прохода без инструментов это указание вникуда: адресовать
- * вызов некуда, и модель либо молчит, либо ИМИТИРУЕТ вызов текстом.
- *
- * Хвост именно ДОПИСЫВАЕТСЯ, а не вырезается регэкспом из промпта пресета:
- * вырезание молча перестанет работать при первой же правке формулировки в
- * `ai-run/index.ts`, и сломается это не тестом, а качеством брифа в проде.
+ * Пояс на случай, если модель всё-таки попробует «вызвать инструмент» текстом: даже без
+ * ложного контракта в промпте такое встречается. Проверять `SHAPE_MARKERS` целиком
+ * НЕЛЬЗЯ — маркер `</` там намеренно широкий и безопасен лишь потому, что даёт МЯГКУЮ
+ * претензию; на черновике из свободного текста с цитатами он сработал бы ложно и уронил
+ * рабочий прогон. Здесь претензия жёсткая, поэтому маркер ровно один и узкий.
  */
-const SEARCH_PASS_OVERRIDE =
-  'ВАЖНО, это переопределяет указания выше о формате ответа: в ЭТОМ запросе ' +
-  'инструментов нет, вызывать нечего. Выполни веб-поиск и изложи найденное ' +
-  'СПЛОШНЫМ ТЕКСТОМ — это черновик исследования, а не готовая структура. ' +
-  'По каждому пункту ставь рядом URL страницы, откуда взят факт. Ничего не ' +
-  'выдумывай: не нашёл — так и напиши.';
+const TOOL_CALL_IMITATION = '<parameter name=';
 
 /** Черновик в user-ход второго прохода. Он собран из веба — значит НЕДОВЕРЕННЫЕ
  *  данные, и подаётся тем же тегом <data>, что транскрипт и карточка компании:
@@ -697,7 +690,9 @@ function draftBlock(draft: string): string {
  * от `sources`, это не самоотчёт модели, а поле ответа провайдера.
  */
 async function openRouterSearchPass(
-  system: string,
+  /** ГОТОВЫЙ системный промпт прохода поиска (`preset.systemSearch`). Собирает его
+   *  ai-run, где живёт реестр пресетов; адаптер промпты не сочиняет и не правит. */
+  systemSearch: string,
   userTurn: string,
   model: string,
   apiKey: string,
@@ -708,7 +703,7 @@ async function openRouterSearchPass(
     model,
     max_tokens: SEARCH_PASS_MAX_TOKENS,
     messages: [
-      { role: 'system', content: `${system}\n\n${SEARCH_PASS_OVERRIDE}` },
+      { role: 'system', content: systemSearch },
       { role: 'user', content: userTurn },
     ],
     provider: openRouterProviderPrefs(),
@@ -739,6 +734,14 @@ async function openRouterSearchPass(
   if (!text) {
     console.error('empty search draft, finish_reason:', choice?.finish_reason);
     throw new LlmError(422, 'Первый проход не вернул черновик', provider);
+  }
+
+  // Псевдоразметка вызова инструмента НЕПУСТА — без этой проверки такой черновик
+  // прошёл бы как валидный, упаковщик добросовестно разложил бы мусор по схеме, и
+  // прогон встал бы в `done`. Класс 422 → `shape` ⇒ ретрай осмыслен и кнопка на месте.
+  if (text.includes(TOOL_CALL_IMITATION)) {
+    console.error('search draft imitates a tool call, head:', text.slice(0, 300));
+    throw new LlmError(422, 'Первый проход вернул имитацию вызова инструмента', provider);
   }
 
   return {
@@ -775,6 +778,12 @@ export async function callLlmSearch(
   opts: BaseOpts & {
     tool: LlmTool;
     priorMessages?: LlmSearchMessage[];
+    /**
+     * Системный промпт ПРОХОДА ПОИСКА. Обязателен на OpenRouter-ветке; его отсутствие
+     * — баг конфигурации пресета, а не повод молча взять `system` (там контракт
+     * инструмента, которого в проходе поиска нет).
+     */
+    systemSearch?: string;
     /** Черновик прохода 1 предыдущей попытки (OpenRouter). Передан вместе с
      *  `retryHint` — проход 1 пропускается и заново НЕ оплачивается. */
     priorDraft?: string | null;
@@ -796,10 +805,17 @@ export async function callLlmSearch(
 
     // Проход 1 — поиск. Пропускается на ретрае формы: черновик уже есть.
     const reused = opts.retryHint ? (opts.priorDraft ?? '').trim() : '';
+    // Отсутствие промпта поиска — ГРОМКАЯ ошибка. Тихий фолбэк на `opts.system`
+    // подал бы в проход без инструментов контракт «отвечай вызовом инструмента» —
+    // ровно ту болезнь, которую фикс F-01 и лечит.
+    if (!reused && !opts.systemSearch?.trim()) {
+      console.error('systemSearch is not configured for a webSearch preset');
+      throw new LlmError(500, 'Пресет с веб-поиском без системного промпта поиска', provider);
+    }
     const pass1 = reused
       ? null
       : await openRouterSearchPass(
-        opts.system,
+        opts.systemSearch as string,
         opts.userTurn,
         searchModel,
         apiKey,

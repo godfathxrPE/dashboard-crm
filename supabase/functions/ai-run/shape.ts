@@ -396,6 +396,31 @@ export function hostOf(raw: unknown): string | null {
  * На `sources` ту же проверку НЕ вешаем: там 8–10 элементов, и это отдельный
  * разговор про доказательность, а не про одно опасное поле.
  */
+/**
+ * Встречается ли хост в тексте ОТДЕЛЬНЫМ именем, а не куском чужого.
+ *
+ * Голая подстрока врёт: `itera.ru` находится внутри `ao-itera.ru`, и сайт постороннего
+ * юрлица прошёл бы проверку — ровно тот отказ, который функция и должна ловить.
+ *
+ * Границей считается начало строки либо символ, недопустимый ВНУТРИ имени хоста:
+ * `/`, пробел, `@`, кавычки, скобки, запятая. Точка и дефис границей НЕ считаются —
+ * `ao-itera.ru` устроен именно так, и разрешить их значит вернуть исходную дыру.
+ * Справа граница не нужна: `logikamoloka.ru` внутри `logikamoloka.ru.example.com`
+ * слева уже отсечён не будет, а вот `logikamoloka.ru/about` — законное совпадение.
+ */
+function mentionsHost(text: string, host: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(host, from);
+    if (at === -1) return false;
+    const before = at === 0 ? '' : text[at - 1];
+    // Пусто = начало строки. Иначе символ обязан быть недопустимым в имени хоста:
+    // всё, что не буква/цифра/точка/дефис/подчёркивание.
+    if (before === '' || !/[a-z0-9._-]/i.test(before)) return true;
+    from = at + 1;
+  }
+}
+
 export function groundWebsite(
   input: Record<string, unknown>,
   draft: string | null | undefined,
@@ -407,7 +432,7 @@ export function groundWebsite(
   if (raw === undefined || raw === null || raw === '') return { input, claims: [] };
 
   const host = hostOf(raw);
-  if (host !== null && text.includes(host)) return { input, claims: [] };
+  if (host !== null && mentionsHost(text, host)) return { input, claims: [] };
 
   return {
     input: { ...input, website: null },
