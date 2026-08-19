@@ -62,17 +62,63 @@ export type LlmTextResult = {
  */
 export class LlmError extends Error {
   readonly kind: LlmErrorKind;
+  /**
+   * Отвал ПО ВРЕМЕНИ, а не по ответу апстрима.
+   *
+   * S-BRIEF-BUDGET. Класс остаётся `upstream` (повтор осмыслен — поиск может пройти
+   * быстрее), но текст пользователю обязан быть свой: «не удалось выполнить анализ»
+   * после 51 секунды ожидания не объясняет ничего. Ровно та же механика, что у
+   * `EMPTY_SOURCES_TEXT`: класс и текст расходятся намеренно.
+   */
+  timedOut: boolean;
+  /**
+   * Что УЖЕ ОПЛАЧЕНО к моменту отказа — расход завершившихся проходов.
+   *
+   * `undefined` — «неизвестно», и это не то же самое, что ноль: отказ на первом же
+   * проходе расхода не знает вовсе, а отказ на втором знает расход первого. Прогон
+   * 19.08 11:41 был самым дорогим сценарием и единственным без следа в журнале:
+   * поиск на ~27 тысяч токенов оплачен, в строке `ai_runs` пусто.
+   */
+  spentUsage?: LlmUsage;
+  /** Слаг модели, которая ФАКТИЧЕСКИ отработала к моменту отказа. */
+  spentModel?: string;
 
   constructor(
     readonly status: number,
     message: string,
     readonly provider: LlmProvider,
     kind?: LlmErrorKind,
+    extras: { timedOut?: boolean; usage?: LlmUsage; model?: string } = {},
   ) {
     super(message);
     this.name = 'LlmError';
     this.kind = kind ?? classifyLlmError(status);
+    this.timedOut = extras.timedOut ?? false;
+    this.spentUsage = extras.usage;
+    this.spentModel = extras.model;
   }
+
+  /**
+   * Пометить ошибку тем, что было оплачено ДО неё. Зовётся снаружи, потому что
+   * бросает ошибку вложенный вызов (`post` внутри `openRouterTool`), а знает про
+   * расход предыдущего прохода только `callLlmSearch`.
+   */
+  markSpent(usage: LlmUsage | undefined, model: string | undefined): this {
+    if (usage) this.spentUsage = usage;
+    if (model) this.spentModel = model;
+    return this;
+  }
+}
+
+/**
+ * Отвал по таймауту среди прочих сбоев fetch.
+ *
+ * `AbortSignal.timeout` роняет запрос `TimeoutError`, ручной abort — `AbortError`.
+ * Оба значат «время вышло», и оба обязаны приезжать пользователю своим текстом,
+ * а не общим «Не удалось выполнить анализ».
+ */
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
 }
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -177,19 +223,42 @@ async function post(
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
+    if (isTimeoutError(err)) {
+      console.error(`${provider} call timed out after ${timeoutMs} ms`);
+      throw new LlmError(0, 'LLM call timed out', provider, 'upstream', { timedOut: true });
+    }
     console.error(`${provider} fetch failed:`, err);
     throw new LlmError(0, 'LLM upstream unreachable', provider);
   }
 
-  if (!resp.ok) {
-    const detail = await resp.text();
-    console.error(`${provider} API error:`, resp.status, detail.slice(0, 500));
-    // Тело нужно ТОЛЬКО для классификации (400 про баланс ≠ 400 про кривой запрос)
-    // и наружу не уходит: в нём детали ключа, тарифа и внутренних лимитов провайдера.
-    throw new LlmError(resp.status, `LLM API ${resp.status}`, provider, classifyLlmError(resp.status, detail));
+  // ⚠️ Чтение ТЕЛА тоже под сигналом таймаута, и раньше оно было вне try: прогон
+  // 19.08 11:42 упал именно здесь — `resp.json()` бросил голый `DOMException:
+  // Signal timed out.`, тот прошёл мимо классификации (`err instanceof LlmError`
+  // ложно) и приехал в журнал как безымянный `upstream`. Отвал по времени обязан
+  // называться отвалом по времени на ЛЮБОЙ из двух стадий запроса.
+  try {
+    if (!resp.ok) {
+      const detail = await resp.text();
+      console.error(`${provider} API error:`, resp.status, detail.slice(0, 500));
+      // Тело нужно ТОЛЬКО для классификации (400 про баланс ≠ 400 про кривой запрос)
+      // и наружу не уходит: в нём детали ключа, тарифа и внутренних лимитов провайдера.
+      throw new LlmError(
+        resp.status,
+        `LLM API ${resp.status}`,
+        provider,
+        classifyLlmError(resp.status, detail),
+      );
+    }
+    return await resp.json();
+  } catch (err) {
+    if (err instanceof LlmError) throw err;
+    if (isTimeoutError(err)) {
+      console.error(`${provider} response read timed out after ${timeoutMs} ms`);
+      throw new LlmError(0, 'LLM call timed out', provider, 'upstream', { timedOut: true });
+    }
+    console.error(`${provider} response read failed:`, err);
+    throw new LlmError(0, 'LLM upstream unreadable', provider);
   }
-
-  return await resp.json();
 }
 
 /**
@@ -514,6 +583,10 @@ export type LlmSearchResult = {
    *   • `groundWebsite` в shape.ts сверяет с ним хост из `website`: до появления
    *     черновика опоры не было вовсе, и прод дважды подставил чужой сайт.
    * `null` — ветка Anthropic: там черновика как отдельного шага не существует.
+   *
+   * Наружу уходит черновик ПОСЛЕ потолка `DRAFT_MAX_CHARS` — ровно тот текст, который
+   * видел упаковщик. Отдавать полный, а сверять `website` по нему значило бы
+   * обосновывать поле куском, которого в проходе 2 не было.
    */
   draft: string | null;
   /** Диалог попытки — только у Anthropic; ретрай продолжит его вместо нового поиска. */
@@ -630,15 +703,64 @@ function resolveStructModel(): string {
 const SEARCH_PASS_MAX_TOKENS = 8192;
 
 /**
- * Таймауты проходов. Оба живут в ОДНОМ бюджете шлюза Supabase (~90 с, после чего
- * приходит 502 без нашего тела — S-FIX-VOICE-1), поэтому важна сумма, а не каждый
- * по отдельности. Замер: 19,5 с поиск + 22 с упаковка ≈ 42 с; 55 + 25 = 80 с даёт
- * запас на медленный прогон и всё ещё умещается под шлюз.
+ * БЮДЖЕТ ВРЕМЕНИ на весь двухпроходный прогон, а не два независимых потолка.
+ *
+ * Прежняя редакция держала статические 55 + 25 с, и второе число (25 000) было взято
+ * от ОДНОГО замера в 22 с — запас 14% на провайдере, который уже показал 22 секунды
+ * на тысяче выходных токенов. Первый же живой прогон (19.08 11:41) в него не влез,
+ * причём по причине, обратной ожидаемой: **чем лучше ищет проход 1, тем вернее
+ * промахивается статический потолок прохода 2**. Сорок один источник вместо шести
+ * дал черновик втрое толще пробного, упаковщик получил больше входа — и не уложился
+ * в срок, рассчитанный по тонкому черновику. Поднять 25 000 до 40 000 значило бы
+ * переставить ту же грабку на шаг дальше.
+ *
+ * Ограничение реальное и ровно одно: шлюз Supabase рвёт синхронный вызов примерно
+ * на 90 с и отдаёт 502 БЕЗ нашего тела (S-FIX-VOICE-1). Значит у прогона есть общий
+ * бюджет, и проход 2 получает ОСТАТОК после фактического времени прохода 1: быстрый
+ * поиск отдаёт упаковщику много, медленный — мало, сумма за бюджет не выходит ни в
+ * каком случае. Статические числа этого не умеют в принципе.
+ *
+ * 8 с отложено на запись результата в БД и накладные: падение ПОСЛЕ успешной работы
+ * обиднее всего — оплачено уже всё.
  *
  * Общий DEFAULT_TIMEOUT_MS (75 с) здесь не годится: он один на вызов, а вызовов два.
  */
-const SEARCH_PASS_TIMEOUT_MS = 55_000;
-const STRUCT_PASS_TIMEOUT_MS = 25_000;
+const BRIEF_BUDGET_MS = 82_000;
+/** Меньше этого упаковщику давать бессмысленно: вызов уйдёт заведомо в стену. */
+const STRUCT_MIN_MS = 18_000;
+/**
+ * Потолок прохода 1 — прежние 55 с, но не больше того, что оставляет упаковщику
+ * его минимум. Сегодня ограничение не связывает (82 − 18 = 64 > 55); зажим стоит
+ * затем, чтобы правка бюджета в одну строку не съела проход 2 молча.
+ */
+const SEARCH_PASS_TIMEOUT_MS = Math.min(55_000, BRIEF_BUDGET_MS - STRUCT_MIN_MS);
+
+/**
+ * Потолок ЧЕРНОВИКА, подаваемого в проход 2. Страховка на случай, когда поиск
+ * найдёт не 41 источник, а 150.
+ *
+ * 24 000 знаков — это ровно тот объём, который проход 1 физически может выдать:
+ * `SEARCH_PASS_MAX_TOKENS` = 8192, а на кириллице токен идёт примерно за три знака.
+ * То есть на нормальном прогоне потолок не срабатывает НИКОГДА и обрезкой смысла не
+ * грозит; он ловит аномалию — чужой черновик на ретрае, провайдера, проигнорившего
+ * `max_tokens`. Потолок — именно страховка, а не средство влезть в бюджет: время
+ * держит остаток (`BRIEF_BUDGET_MS`), а не длина входа.
+ *
+ * Обрезка ОБЯЗАНА попадать в лог: молчаливое усечение читается как «упаковали всё»,
+ * хотя упаковали не всё, — строка в логе единственное, что отличает потолок от
+ * потери данных.
+ */
+const DRAFT_MAX_CHARS = 24_000;
+
+function capDraft(draft: string): string {
+  if (draft.length <= DRAFT_MAX_CHARS) return draft;
+  console.warn('draft truncated:', JSON.stringify({
+    from: draft.length,
+    to: DRAFT_MAX_CHARS,
+    dropped: draft.length - DRAFT_MAX_CHARS,
+  }));
+  return draft.slice(0, DRAFT_MAX_CHARS);
+}
 
 /**
  * Сумма расхода по проходам. `undefined` слагаемое пропускается, но НЕ обнуляет
@@ -812,6 +934,10 @@ export async function callLlmSearch(
       console.error('systemSearch is not configured for a webSearch preset');
       throw new LlmError(500, 'Пресет с веб-поиском без системного промпта поиска', provider);
     }
+    // Время прохода 1 ЗАМЕРЯЕТСЯ, а не оценивается: остаток бюджета считается по
+    // факту. Пропущенный проход (ретрай формы) стоит нуля — упаковщику достаётся
+    // весь бюджет, и это верно: поиска в этом вызове не было.
+    const searchStarted = Date.now();
     const pass1 = reused
       ? null
       : await openRouterSearchPass(
@@ -821,21 +947,46 @@ export async function callLlmSearch(
         apiKey,
         provider,
       );
-    const draft = pass1 ? pass1.text : reused;
+    const searchMs = pass1 ? Date.now() - searchStarted : 0;
+    const draft = capDraft(pass1 ? pass1.text : reused);
+
+    // Остаток бюджета. Не хватает даже минимума — честный отказ ЗДЕСЬ: потратить
+    // ещё 18 секунд и получить тот же таймаут дороже во всех смыслах, а расход
+    // прохода 1 уедет в журнал вместе с ошибкой (`usage`/`model` ниже).
+    const structTimeoutMs = BRIEF_BUDGET_MS - searchMs;
+    if (structTimeoutMs < STRUCT_MIN_MS) {
+      console.error('brief budget spent by search pass:', JSON.stringify({
+        search_ms: searchMs,
+        budget_ms: BRIEF_BUDGET_MS,
+        left_ms: structTimeoutMs,
+        struct_min_ms: STRUCT_MIN_MS,
+      }));
+      throw new LlmError(0, 'Search pass left no budget for the struct pass', provider, 'upstream', {
+        timedOut: true,
+        usage: pass1?.usage,
+        model: searchModel,
+      });
+    }
 
     // Проход 2 — структура. Плагинов нет, форс инструмента есть, модель дешёвая.
     const userTurn = [opts.userTurn, draftBlock(draft), opts.retryHint]
       .filter((part): part is string => Boolean(part))
       .join('\n\n');
+    // Отказ упаковщика — тот самый случай, когда расход УЖЕ есть: проход 1
+    // оплачен целиком. Без пометки строка `ai_runs` осталась бы пустой по токенам
+    // и со слагом пресета вместо фактического (`claude-sonnet-5` при живом Grok).
     const pass2 = await openRouterTool(
       { ...opts, userTurn },
       structModel,
       apiKey,
-      STRUCT_PASS_TIMEOUT_MS,
+      structTimeoutMs,
       provider,
       undefined,
       'struct',
-    );
+    ).catch((err: unknown) => {
+      if (err instanceof LlmError) throw err.markSpent(pass1?.usage, searchModel);
+      throw err;
+    });
 
     // Оплачены ОБА прохода — наружу уходит сумма. Раздельные числа остаются в логе:
     // в `ai_runs` колонка одна, и занижение расхода тут — тот же класс вранья,
@@ -849,6 +1000,8 @@ export async function callLlmSearch(
       struct_usage: pass2.usage,
       annotations: pass1?.annotations ?? null,
       draft_chars: draft.length,
+      search_ms: searchMs,
+      struct_timeout_ms: structTimeoutMs,
     }));
 
     return {
