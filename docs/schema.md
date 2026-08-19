@@ -533,9 +533,11 @@
 > владельца. Стаб `CompaniesChzStub` и поле `chz_groups?` в рукописном `Company`
 > пока на месте; **стаб снять вместе с регеном, поле в рукописном `Company` оставить**
 > (этот интерфейс не автогенерируется). Мерж — только после регена.
-> **124 (S-TG-TASK-1) — НАПИСАНА, НЕ ПРИМЕНЕНА** (`124_telegram_capture_task.sql`,
-> номер сверен запросом к `schema_migrations` 2026-08-19 — последняя применённая
-> `20260812060950 lead_convert_carryover`). Третий интент быстрого ввода из Telegram —
+> **124 (S-TG-TASK-1) — applied `20260819175811 telegram_capture_task`** (гейт Cowork,
+> 2026-08-19; файл `124_telegram_capture_task.sql`). Advisors после apply — ноль новых
+> находок относительно baseline того же дня (4 INFO `rls_enabled_no_policy` на
+> `telegram_*` + прежний набор WARN 0029; `tg_apply_capture` в 0029 не появилась —
+> `create or replace` сохранил ACL `postgres, service_role`, `authenticated` не добавлен). Третий интент быстрого ввода из Telegram —
 > **задача**. Две вещи в одном файле:
 > **(1)** `telegram_capture_drafts_kind_check` расширяется на `'task'` (пересоздаётся
 > через `drop constraint if exists` + `add constraint`). `duplicate_kind` НЕ трогается:
@@ -1542,7 +1544,7 @@ Telegram ретраит апдейт, если ответ не пришёл за
 кнопку», а не поломку.
 
 **`telegram_capture_drafts`** _(110, S-TG-3 — applied `20260808174157`; +124 `kind='task'` —
-**НЕ ПРИМЕНЕНА**)_ — черновик разбора между
+applied `20260819175811`)_ — черновик разбора между
 «бот разобрал текст» и «человек нажал Создать». Существует потому, что `callback_data`
 ограничена **64 байтами** и разобранные поля в неё не положить: в кнопку уезжает `id`
 черновика.
@@ -1647,7 +1649,7 @@ _(**обе** ветки `{contact, company}`, иначе на `unclear` втор
   cron `tg-cleanup` `20 6 * * *`. См. `telegram_updates` выше. **110:** третья ветка —
   черновики быстрого ввода, горизонт **сутки**.
 - `tg_apply_capture(p_actor_id, p_draft_id, p_kind default null)` → jsonb _(DEFINER, только
-  `service_role`; 110, **+124 ветка `task` — НЕ ПРИМЕНЕНА**)_ — применение черновика: создаёт
+  `service_role`; 110, **+124 ветка `task` — applied `20260819175811`**)_ — применение черновика: создаёт
   контакт, компанию или задачу **под правами актора**. Порядок гардов, все NULL-safe:
   аргументы (22023) → `p_kind` из `{contact,company,task}` или NULL (22023) → `select … for
   update` черновика → `profile_id = актор` (42501) → членство в org черновика (42501) →
