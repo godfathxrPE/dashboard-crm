@@ -31,7 +31,7 @@ export type ShapeClaim = {
    * своими словами, а не общим «неверный формат» (см. `checkSearchYield`).
    * Обычные типовые и маркерные претензии метки не несут.
    */
-  code?: 'empty_sources';
+  code?: 'empty_sources' | 'empty_search' | 'ungrounded_website';
 };
 
 /**
@@ -294,4 +294,127 @@ export const EMPTY_SOURCES_RETRY_HINT =
 /** Есть ли среди претензий та, что объясняется пользователю своим текстом. */
 export function hasEmptySources(claims: ShapeClaim[]): boolean {
   return claims.some((c) => c.code === 'empty_sources');
+}
+
+// ═══════════════════════════════════════════════════════
+// S-BRIEF-2PASS — свидетельство поиска берётся у ПРОВАЙДЕРА, а не у модели.
+//
+// `checkSearchYield` выше проверяет `sources` — САМООТЧЁТ модели. Прод-прогон 19.08
+// его прошёл: две ссылки, одна из которых сайт посторонней компании. Проверка
+// осталась (она ловит свой случай), но одной её мало.
+//
+// `annotations` — поле ОТВЕТА OpenRouter: сколько ссылок веб-плагин втянул в
+// контекст. Модель на него не влияет и соврать им не может. Ноль означает, что
+// поиск не отработал вовсе — ровно ячейка B замера (форс инструмента подавил
+// нативный поиск, 0 ссылок за 4,8 с) и прод 06:05 19.08.
+//
+// Две проверки — два РАЗНЫХ отказа, и объединять их нельзя:
+//   • ноль annotations   → поиска не было           → виноват проход 1;
+//   • ноль sources при непустых annotations → поиск был, модель не процитировала
+//     → виноват проход 2, и переигрывать поиск незачем.
+// ═══════════════════════════════════════════════════════
+
+/** Текст пользователю, когда веб-поиск не отработал совсем. */
+export const EMPTY_SEARCH_TEXT =
+  'Веб-поиск не отработал — собирать бриф не из чего. Попробуйте повторить.';
+
+/**
+ * Ноль ссылок у первого прохода — жёсткая претензия.
+ *
+ * `null` — «неприменимо», а не ноль: ветка Anthropic числа ссылок не отдаёт вовсе,
+ * а на ретрае формы проход 1 не выполняется. Обе ситуации обязаны молчать, иначе
+ * рабочий прогон уйдёт в отказ на ровном месте.
+ */
+export function checkSearchAnnotations(annotations: number | null | undefined): ShapeClaim[] {
+  if (typeof annotations !== 'number') return [];
+  if (annotations > 0) return [];
+  return [{
+    kind: 'hard',
+    code: 'empty_search',
+    message: 'annotations: веб-поиск не втянул ни одной ссылки',
+  }];
+}
+
+/**
+ * Подсказка ко второй попытке при нулевом поиске. Адресована ПЕРВОМУ проходу:
+ * повторяются оба, и просить «перечисли sources» бессмысленно — перечислять нечего.
+ */
+export const EMPTY_SEARCH_RETRY_HINT =
+  'Предыдущая попытка не нашла в вебе ничего. Выполни веб-поиск заново и опиши ' +
+  'найденное с указанием URL каждой страницы.';
+
+/** Есть ли среди претензий «поиск не отработал» — она одна требует ПОВТОРА ПОИСКА. */
+export function hasEmptySearch(claims: ShapeClaim[]): boolean {
+  return claims.some((c) => c.code === 'empty_search');
+}
+
+// ═══════════════════════════════════════════════════════
+// S-BRIEF-2PASS — `website` только с опорой на черновик.
+//
+// Прод дважды подставил `https://alev.ru/` — это «Алев», Ульяновск, посторонняя
+// компания. Не галлюцинация: URL реально был в выдаче exa, и модель приняла его за
+// сайт «Эйч энд Эн». Ошибка в отсутствии привязки URL к юрлицу, а поле это одним
+// кликом «Подставить» пишется в карточку компании (AiCompanyPanel).
+//
+// Теперь опора есть — черновик первого прохода. Проверка ДЕТЕРМИНИРОВАННАЯ: хост
+// обязан встречаться в тексте черновика.
+//
+// Претензия МЯГКАЯ, поле гасится в null: бриф без сайта полезен, бриф с чужим
+// сайтом опасен, а ронять весь прогон из-за одного поля — хуже, чем сегодня.
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Хост из URL в сравнимом виде: нижний регистр, без `www.`, без порта.
+ *
+ * Схему дописываем, если её нет: `logikamoloka.ru` — валидный ответ по смыслу,
+ * хотя схема и требуется схемой инструмента. `new URL` без схемы бросает.
+ * Не разобралось — `null`, и вызывающий трактует это как «опоры нет».
+ */
+export function hostOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed === '') return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const host = new URL(withScheme).hostname.toLowerCase();
+    return host.startsWith('www.') ? host.slice(4) : host;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Гасит `website`, если его хост не встречается в черновике.
+ *
+ * `draft` пуст или отсутствует (ветка Anthropic, где отдельного черновика нет) —
+ * НИЧЕГО не делаем: опоры нет, и гасить поле было бы наказанием за чужую схему.
+ *
+ * Сравниваются ХОСТЫ, а не строки: `https://logikamoloka.ru/` в ответе и
+ * `logikamoloka.ru` в черновике — одно и то же. `www.` отброшен с обеих сторон,
+ * поэтому голый хост находится и внутри `https://www.logikamoloka.ru/about`.
+ *
+ * На `sources` ту же проверку НЕ вешаем: там 8–10 элементов, и это отдельный
+ * разговор про доказательность, а не про одно опасное поле.
+ */
+export function groundWebsite(
+  input: Record<string, unknown>,
+  draft: string | null | undefined,
+): { input: Record<string, unknown>; claims: ShapeClaim[] } {
+  const text = typeof draft === 'string' ? draft.toLowerCase() : '';
+  if (text === '') return { input, claims: [] };
+
+  const raw = input.website;
+  if (raw === undefined || raw === null || raw === '') return { input, claims: [] };
+
+  const host = hostOf(raw);
+  if (host !== null && text.includes(host)) return { input, claims: [] };
+
+  return {
+    input: { ...input, website: null },
+    claims: [{
+      kind: 'soft',
+      code: 'ungrounded_website',
+      message: `website: ${host ?? String(raw)} не встречается в найденных источниках — поле очищено`,
+    }],
+  };
 }

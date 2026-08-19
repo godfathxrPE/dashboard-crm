@@ -50,11 +50,16 @@
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
   checkResultShape,
+  checkSearchAnnotations,
   checkSearchYield,
+  groundWebsite,
+  hasEmptySearch,
   hasEmptySources,
   hardClaims,
   softClaims,
   stripCiteTags,
+  EMPTY_SEARCH_TEXT,
+  EMPTY_SEARCH_RETRY_HINT,
   EMPTY_SOURCES_TEXT,
   EMPTY_SOURCES_RETRY_HINT,
   SHAPE_RETRY_HINT,
@@ -904,7 +909,16 @@ async function stampProposal(
 }
 
 type ClaudeUsage = { input_tokens?: number; output_tokens?: number };
-type ClaudeAttempt = { input: Record<string, unknown>; usage: ClaudeUsage };
+/**
+ * `model` — слаг, который ФАКТИЧЕСКИ ушёл в апстрим (его отдаёт адаптер).
+ *
+ * S-BRIEF-2PASS. До этого спринта его можно было не носить: `ai_runs.model`
+ * заполняется на INSERT значением `preset.model`, и оно совпадало с истиной.
+ * После разделения брифа на проходы ищет `x-ai/grok-4.3`, а в журнале стояло бы
+ * `claude-sonnet-5` — и `actualRunCostRub` посчитал бы РУБЛИ по тарифу Anthropic
+ * за прогон, которого не было. Тот же класс вранья, что чинили в S-LLM-OPENROUTER-1.
+ */
+type ClaudeAttempt = { input: Record<string, unknown>; usage: ClaudeUsage; model: string };
 
 
 
@@ -928,7 +942,7 @@ async function callClaude(
   // ни на байт по смыслу: тот же system, тот же единственный инструмент, тот же форс.
   // Ошибки адаптера (LlmError) поднимаются наверх как раньше — processRun ловит их
   // и переводит прогон в status='error' с текстом в meta.
-  const { input, usage } = await callLlmTool({
+  const { input, usage, model } = await callLlmTool({
     model: preset.model,
     maxTokens: MAX_OUTPUT_TOKENS,
     system: preset.system,
@@ -937,7 +951,7 @@ async function callClaude(
     providerEnvKey: 'AI_RUN_PROVIDER',
   });
 
-  return { input, usage };
+  return { input, usage, model };
 }
 
 
@@ -1043,12 +1057,36 @@ async function processRun(
     // S-LLM-SEARCH-2. У пресета с веб-поиском пустой `sources` — ПРОВАЛ, а не результат:
     // веб там единственный источник данных, и ноль ссылок значит «искать не получилось».
     // Претензия жёсткая, поэтому попадает в общий контур — сначала ретрай, потом отказ.
-    const shapeOf = (input: Record<string, unknown>): ShapeClaim[] => [
-      ...checkResultShape(schema, input),
-      ...(preset.webSearch ? checkSearchYield(input) : []),
-    ];
-    let chosen = first;
-    let claims = shapeOf(first.input);
+    //
+    // S-BRIEF-2PASS. Рядом встала вторая проверка — по `annotations` ПЕРВОГО ПРОХОДА.
+    // Она про другое: `sources` — самоотчёт модели, `annotations` — поле ответа
+    // провайдера. Проверки не объединены намеренно: у них разный виноватый проход
+    // и, как следствие, разный ретрай (см. ниже).
+    //
+    // `groundWebsite` идёт ЗДЕСЬ же, а не в `cleanAttempt`: чистка тегов цитирования
+    // не зависит от прогона, а привязка сайта — зависит от черновика этой попытки.
+    const shapeOf = (
+      attempt: ClaudeAttempt,
+      annotations: number | null,
+      draft: string | null,
+    ): { input: Record<string, unknown>; claims: ShapeClaim[] } => {
+      const grounded = preset.webSearch
+        ? groundWebsite(attempt.input, draft)
+        : { input: attempt.input, claims: [] as ShapeClaim[] };
+      return {
+        input: grounded.input,
+        claims: [
+          ...checkResultShape(schema, grounded.input),
+          ...(preset.webSearch ? checkSearchYield(grounded.input) : []),
+          ...(preset.webSearch ? checkSearchAnnotations(annotations) : []),
+          ...grounded.claims,
+        ],
+      };
+    };
+
+    const firstShape = shapeOf(first, firstSearch?.annotations ?? null, firstSearch?.draft ?? null);
+    let chosen: ClaudeAttempt = { ...first, input: firstShape.input };
+    let claims = firstShape.claims;
     let retried = false;
     let retryReason: string[] = [];
     let searches = firstSearch?.searches ?? null;
@@ -1068,20 +1106,31 @@ async function processRun(
       retryReason = claims.map((c) => `${c.kind}:${c.message}`);
       // Подсказка обязана соответствовать претензии: «ответ не по схеме» на пустом
       // поиске отправило бы модель чинить формат, который в порядке.
+      const searchFailed = hasEmptySearch(claims);
+      const shapeBroken = claims.some(
+        (c) => c.code !== 'empty_sources' && c.code !== 'empty_search',
+      );
       const retryHint = [
-        claims.some((c) => c.code !== 'empty_sources') ? SHAPE_RETRY_HINT : null,
+        shapeBroken ? SHAPE_RETRY_HINT : null,
         hasEmptySources(claims) ? EMPTY_SOURCES_RETRY_HINT : null,
+        searchFailed ? EMPTY_SEARCH_RETRY_HINT : null,
       ].filter((h): h is string => h !== null).join('\n');
       console.warn(
         'ai-run shape retry:',
-        JSON.stringify({ runId, preset: preset.key, firstClaims: retryReason }),
+        JSON.stringify({ runId, preset: preset.key, firstClaims: retryReason, searchFailed }),
       );
 
-      // Пресеты с поиском: вторая попытка ПРОДОЛЖАЕТ диалог первой (искать заново не
-      // нужно — источники уже в истории). Остальные шесть пресетов идут ровно как
-      // прежде, полным повторным вызовом с подсказкой в user-turn.
-      // Продолжение диалога против повторного вызова решает адаптер: у Anthropic
-      // источники уже в истории, у OpenRouter плагин всё равно ищет заново.
+      // S-BRIEF-2PASS. Кого переигрываем.
+      //
+      //   • Anthropic (`priorMessages`): продолжаем диалог первой попытки — источники
+      //     уже в истории, модель просят переупаковать результат.
+      //   • OpenRouter (`priorDraft`): переигрываем ТОЛЬКО проход 2 — черновик уже
+      //     оплачен и годен. Экономия ~$0.027 и ~20 с на прогон.
+      //   • Исключение — «поиск не отработал»: там виноват как раз проход 1, и
+      //     переупаковка того же пустого места ничего не даст. Черновик НЕ передаём,
+      //     адаптер сходит за поиском заново. Разведено одним условием, а не
+      //     отдельной веткой: ошибиться в двух местах легче, чем в одном.
+      const reusableDraft = searchFailed ? null : (firstSearch?.draft ?? null);
       const secondSearch = firstSearch
         ? await callLlmSearch({
           model: preset.model,
@@ -1091,6 +1140,7 @@ async function processRun(
           tool: preset.tool,
           providerEnvKey: 'AI_RUN_PROVIDER',
           priorMessages: firstSearch.messages,
+          priorDraft: reusableDraft,
           retryHint,
         })
         : null;
@@ -1102,7 +1152,11 @@ async function processRun(
       if (typeof secondSearch?.searches === 'number') {
         searches = (searches ?? 0) + secondSearch.searches;
       }
-      const secondClaims = shapeOf(second.input);
+      // Черновик второй попытки: свой, если поиск переигрывался, иначе прежний —
+      // именно он и был подан на упаковку, значит по нему и сверяется `website`.
+      const secondDraft = secondSearch?.draft ?? reusableDraft;
+      const secondShape = shapeOf(second, secondSearch?.annotations ?? null, secondDraft);
+      const secondClaims = secondShape.claims;
 
       // Берём попытку БЕЗ жёстких претензий, при прочих равных — вторую (свежее).
       // Отход от блок-схемы фикса, и намеренный: у неё случай «первая была
@@ -1110,7 +1164,7 @@ async function processRun(
       // читаемый ответ и делаем ХУЖЕ, чем до правки. Ровно то, что фикс запрещает
       // делать из-за мягкой претензии.
       if (hardClaims(secondClaims).length === 0 || hardClaims(claims).length > 0) {
-        chosen = second;
+        chosen = { ...second, input: secondShape.input };
         claims = secondClaims;
       }
     }
@@ -1131,9 +1185,18 @@ async function processRun(
           result_head: JSON.stringify(chosen.input).slice(0, 300),
         }),
       );
+      // Текст обязан соответствовать претензии: «неверный формат» на несработавшем
+      // поиске соврал бы дважды — формат-то как раз верный. Порядок проверок — от
+      // самой ранней причины: не отработал поиск → нечего цитировать → нечего чинить.
+      const errorText = hasEmptySearch(claims)
+        ? EMPTY_SEARCH_TEXT
+        : hasEmptySources(claims)
+        ? EMPTY_SOURCES_TEXT
+        : undefined;
       await supabase.from('ai_runs').update({
         status: 'error',
-        error: runError('shape', hasEmptySources(claims) ? EMPTY_SOURCES_TEXT : undefined),
+        error: runError('shape', errorText),
+        model: chosen.model,
         input_tokens: sumUsage(usages, 'input_tokens'),
         output_tokens: sumUsage(usages, 'output_tokens'),
         duration_ms: Date.now() - started,
@@ -1177,6 +1240,12 @@ async function processRun(
     await supabase.from('ai_runs').update({
       status: 'done',
       result,
+      // S-BRIEF-2PASS. Слаг ПЕРЕЗАПИСЫВАЕТСЯ фактическим: на INSERT в строку легло
+      // `preset.model` (`claude-sonnet-5`), а бриф теперь ищет `x-ai/grok-4.3`.
+      // Без этой строки карточка прогона показала бы рубли по тарифу Anthropic за
+      // прогон, которого не было. Для остальных шести пресетов значение то же, что
+      // и раньше (адаптер возвращает разрешённый слаг того же секрета).
+      model: chosen.model,
       // Оплачены обе попытки — журнал обязан показывать обе, иначе метрика
       // стоимости прогона занизит расход.
       input_tokens: sumUsage(usages, 'input_tokens'),

@@ -126,7 +126,23 @@ describe('edge пишет ошибку в согласованном форма�
   it('S-LLM-SEARCH-2: текст можно переопределить, класс — нет', () => {
     // Пустой веб-поиск остаётся классом `shape` (кнопка «Повторить» на месте),
     // но объясняется своими словами: «неверный формат» про него соврало бы.
-    expect(EDGE).toContain("runError('shape', hasEmptySources(claims) ? EMPTY_SOURCES_TEXT : undefined)");
+    //
+    // S-BRIEF-2PASS: текстов стало три, и выбор уехал в `errorText` над вызовом —
+    // адрес сменился, инвариант нет. Проверяем ОБА конца: и что класс всё ещё
+    // `shape`, и что оба специальных текста участвуют в выборе.
+    expect(EDGE).toContain("runError('shape', errorText)");
+    expect(EDGE).toContain('hasEmptySearch(claims)');
+    expect(EDGE).toContain('EMPTY_SEARCH_TEXT');
+    expect(EDGE).toContain('EMPTY_SOURCES_TEXT');
+  });
+
+  it('S-BRIEF-2PASS: отказ поиска объясняется своим текстом, а не «неверным форматом»', () => {
+    // Три причины отказа — три текста, и порядок от самой ранней: не отработал
+    // поиск → нечего цитировать → нечего чинить.
+    const start = EDGE.indexOf('const errorText =');
+    expect(start, 'выбор текста отказа не найден в edge').toBeGreaterThan(-1);
+    const block = EDGE.slice(start, EDGE.indexOf(';', start));
+    expect(block.indexOf('EMPTY_SEARCH_TEXT')).toBeLessThan(block.indexOf('EMPTY_SOURCES_TEXT'));
   });
 
   it('классы edge и клиента — один список', () => {
