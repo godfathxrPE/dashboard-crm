@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+  createInFlightRuns,
+  flushInFlightRuns,
+} from '../../supabase/functions/ai-run/in-flight';
 
 // ═══════════════════════════════════════════════════════
 // S-BRIEF-BUDGET — общий бюджет времени вместо двух статических потолков.
@@ -13,9 +17,14 @@ import path from 'node:path';
 // упаковщика, дольше упаковка. Поднять 25 000 до 40 000 значило бы переставить ту
 // же грабку на шаг дальше.
 //
-// Ограничение реальное одно — шлюз Supabase (~90 с). Отсюда общий бюджет 82 000 мс
-// и остаток как срок прохода 2. Эти тесты держат арифметику остатка, отказ при
-// нехватке, запись расхода на пути `catch` и потолок черновика с логом.
+// S-BRIEF-BUDGET-2. Числа пересчитаны по РЕАЛЬНОМУ лимиту: шлюз Supabase (~90 с) к
+// `processRun` не относится вовсе — он живёт в `EdgeRuntime.waitUntil`, а `ai-run`
+// отвечает `{ run_id }` сразу. Потолок — wall clock ВОРКЕРА (150 с на Free), отсюда
+// бюджет 100 с. Отказ «остатка не хватает» заменён ПОЛОМ в 25 с: превысить оценочный
+// бюджет не смертельно, отказать — смертельно точно.
+//
+// Эти тесты держат арифметику остатка, пол, запись расхода на пути `catch`, потолок
+// черновика с логом и реестр прогонов в работе.
 // ═══════════════════════════════════════════════════════
 
 // ── Стенд для Deno-модуля _shared/llm.ts ─────────────────────────────────────
@@ -130,12 +139,12 @@ afterEach(() => {
 });
 
 describe('срок прохода 2 — ОСТАТОК бюджета, а не константа', () => {
-  it('проход 1 занял 27 с ⇒ упаковщику достаётся 55 с, а не прежние 25', async () => {
+  it('проход 1 занял 27 с ⇒ упаковщику достаётся 73 с, а не статичные 25', async () => {
     stand({ searchMs: 27_000 });
     await callLlmSearch(OPTS);
 
     expect(timeouts).toHaveLength(2);
-    expect(timeouts[1]).toBe(82_000 - 27_000);
+    expect(timeouts[1]).toBe(100_000 - 27_000);
     // Ради этого числа спринт и затевался: 25 000 уронили бы ровно этот прогон.
     expect(timeouts[1]).toBeGreaterThan(25_000);
   });
@@ -148,22 +157,25 @@ describe('срок прохода 2 — ОСТАТОК бюджета, а не �
     bodies.length = 0;
     timeouts.length = 0;
     clock = 1_700_000_000_000;
-    stand({ searchMs: 50_000 });
+    stand({ searchMs: 45_000 });
     await callLlmSearch(OPTS);
     const slow = timeouts[1];
 
-    expect(fast).toBe(72_000);
-    expect(slow).toBe(32_000);
+    expect(fast).toBe(90_000);
+    expect(slow).toBe(55_000);
     // Сумма не выходит за бюджет ни в каком случае — это и есть смысл правки.
-    expect(10_000 + fast).toBe(82_000);
-    expect(50_000 + slow).toBe(82_000);
+    expect(10_000 + fast).toBe(100_000);
+    expect(45_000 + slow).toBe(100_000);
   });
 
-  it('проход 1 держит свои 55 с — но не больше, чем оставляет минимум упаковщика', async () => {
+  it('проход 1 упёрся в свой потолок ⇒ упаковщику ровно столько же', async () => {
+    // Худший случай: 50 + 50 = 100 с при wall clock воркера 150 с.
+    stand({ searchMs: 50_000 });
     await callLlmSearch(OPTS);
 
-    expect(timeouts[0]).toBe(55_000);
-    expect(timeouts[0]).toBeLessThanOrEqual(82_000 - 18_000);
+    expect(timeouts[0]).toBe(50_000);
+    expect(timeouts[1]).toBe(50_000);
+    expect(timeouts[0] + timeouts[1]).toBeLessThanOrEqual(100_000);
   });
 
   it('ретрай формы: поиска не было ⇒ упаковщику весь бюджет', async () => {
@@ -171,39 +183,59 @@ describe('срок прохода 2 — ОСТАТОК бюджета, а не �
     await callLlmSearch({ ...OPTS, priorDraft: DRAFT, retryHint: 'не по схеме' });
 
     expect(bodies).toHaveLength(1);
-    expect(timeouts).toEqual([82_000]);
+    expect(timeouts).toEqual([100_000]);
   });
 });
 
-describe('остатка меньше минимума ⇒ проход 2 НЕ зовём', () => {
-  it('поиск занял 70 с ⇒ ровно один вызов и честный отказ', async () => {
-    stand({ searchMs: 70_000 });
-
-    const err = await callLlmSearch(OPTS).catch((e: unknown) => e);
-
-    // Счётчик вызовов — суть проверки: потратить ещё 18 секунд ради того же
-    // таймаута дороже, чем отказать сразу.
-    expect(bodies).toHaveLength(1);
-    expect(timeouts).toHaveLength(1);
-    expect(err).toBeInstanceOf(LlmError);
-    expect((err as InstanceType<typeof LlmError>).timedOut).toBe(true);
-    // Класс прежний: повтор осмыслен, поиск может пройти быстрее.
-    expect((err as InstanceType<typeof LlmError>).kind).toBe('upstream');
-  });
-
-  it('граница: 64 с оставляют ровно минимум и проход 2 идёт', async () => {
-    stand({ searchMs: 64_000 });
-    await callLlmSearch(OPTS);
+describe('остаток меньше пола ⇒ проход 2 всё равно ЗОВЁМ', () => {
+  it('гипотетические 90 с поиска ⇒ упаковщику пол 25 с, вызов состоялся', async () => {
+    // Прежняя редакция здесь ОТКАЗЫВАЛА до вызова — придуманная стена: бюджет
+    // оценочный, а потеря оплаченного черновика гарантированная.
+    stand({ searchMs: 90_000 });
+    const res = await callLlmSearch(OPTS);
 
     expect(bodies).toHaveLength(2);
-    expect(timeouts[1]).toBe(18_000);
+    expect(timeouts[1]).toBe(25_000);
+    expect(res.usage.input_tokens).toBe(25_442 + 2_169);
   });
 
-  it('отказ по бюджету несёт расход прохода 1 и слаг поисковика', async () => {
-    stand({ searchMs: 70_000 });
+  it('перерасход бюджета попадает в лог — это не норма, хоть и не ошибка', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stand({ searchMs: 90_000 });
+    await callLlmSearch(OPTS);
+
+    const line = warn.mock.calls.find((c) => String(c[0]).includes('overran the budget'));
+    expect(line, 'перерасход обязан быть в логе').toBeDefined();
+    expect(JSON.parse(String(line![1])).search_ms).toBe(90_000);
+  });
+
+  it('граница: 75 с оставляют ровно пол, пол не «дотягивает» остаток вверх', async () => {
+    stand({ searchMs: 75_000 });
+    await callLlmSearch(OPTS);
+
+    expect(timeouts[1]).toBe(25_000);
+  });
+
+  it('настоящий таймаут прохода 2 никуда не делся', async () => {
+    // Ветку `timedOut` снял бы только предварительный отказ; сам отвал по времени
+    // по-прежнему приезжает своим текстом.
+    globalThis.fetch = vi.fn((_url: unknown, init?: { body?: string }) => {
+      const body = JSON.parse(init?.body ?? '{}') as Body;
+      bodies.push(body);
+      if (body.tools) {
+        const err = new Error('Signal timed out.');
+        err.name = 'TimeoutError';
+        return Promise.reject(err);
+      }
+      clock += 20_000;
+      return Promise.resolve(reply(SEARCH_REPLY));
+    }) as unknown as typeof fetch;
 
     const err = await callLlmSearch(OPTS).catch((e: unknown) => e) as InstanceType<typeof LlmError>;
 
+    expect(err.timedOut).toBe(true);
+    expect(err.kind).toBe('upstream');
+    // И расход прохода 1 при этом не потерян.
     expect(err.spentUsage).toEqual({ input_tokens: 25_442, output_tokens: 1_200 });
     expect(err.spentModel).toBe('x-ai/grok-4.3');
   });
@@ -386,5 +418,120 @@ describe('processRun: отказ оставляет след расхода', ()
     );
     expect(head).toContain('const usages: ClaudeUsage[] = [];');
     expect(head).toContain('let actualModel: string | null = null;');
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-BRIEF-BUDGET-2 — ПРОГОНЫ-ЗОМБИ при выключении воркера.
+//
+// `processRun` живёт в `EdgeRuntime.waitUntil`. Воркер снимают по wall clock (150 с на
+// Free) БЕЗ исключения — `catch` не выполняется, строка `ai_runs` остаётся в `running`
+// навсегда, в карточке крутится спиннер до перезагрузки страницы. Реклейм на входе
+// (`STALE_RUN_MINUTES`) чинил это только следующему пришедшему и не раньше 10 минут.
+// ═══════════════════════════════════════════════════════
+
+describe('реестр прогонов в работе', () => {
+  type Call = { client: string; ids: string[] };
+
+  it('один прогон в работе ⇒ ровно одна пометка', () => {
+    const runs = createInFlightRuns<string>();
+    runs.set('run-1', 'client-a');
+    const calls: Call[] = [];
+
+    const res = flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+
+    expect(calls).toEqual([{ client: 'client-a', ids: ['run-1'] }]);
+    expect(res).toEqual({ clients: 1, runs: 1 });
+  });
+
+  it('прогон снят из набора ⇒ пометка не идёт вовсе', () => {
+    // Ровно то, ради чего `finally` в processRun: завершённый прогон не должен
+    // получить ложную ошибку при следующем выключении воркера.
+    const runs = createInFlightRuns<string>();
+    runs.set('run-1', 'client-a');
+    runs.delete('run-1');
+    const calls: Call[] = [];
+
+    const res = flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+
+    expect(calls).toEqual([]);
+    expect(res).toEqual({ clients: 0, runs: 0 });
+  });
+
+  it('несколько прогонов одного пользователя — ОДИН запрос со списком id', () => {
+    // На beforeunload времени мало: лишние round-trip'ы туда не помещаются.
+    const runs = createInFlightRuns<string>();
+    runs.set('run-1', 'client-a');
+    runs.set('run-2', 'client-a');
+    runs.set('run-3', 'client-a');
+    const calls: Call[] = [];
+
+    flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].ids).toEqual(['run-1', 'run-2', 'run-3']);
+  });
+
+  it('разные пользователи — разные клиенты: под чужим JWT строку не написать', () => {
+    const runs = createInFlightRuns<string>();
+    runs.set('run-1', 'client-a');
+    runs.set('run-2', 'client-b');
+    runs.set('run-3', 'client-a');
+    const calls: Call[] = [];
+
+    const res = flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+
+    expect(res).toEqual({ clients: 2, runs: 3 });
+    expect(calls).toEqual([
+      { client: 'client-a', ids: ['run-1', 'run-3'] },
+      { client: 'client-b', ids: ['run-2'] },
+    ]);
+  });
+
+  it('повторное событие вторую пометку НЕ шлёт — набор очищен', () => {
+    const runs = createInFlightRuns<string>();
+    runs.set('run-1', 'client-a');
+    const calls: Call[] = [];
+
+    flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+    flushInFlightRuns(runs, (client, ids) => calls.push({ client, ids }));
+
+    expect(calls).toHaveLength(1);
+    expect(runs.size).toBe(0);
+  });
+});
+
+describe('ai-run: слушатель выключения воркера', () => {
+  const LISTENER = EDGE_SRC.slice(
+    EDGE_SRC.indexOf("addEventListener('beforeunload'"),
+    EDGE_SRC.indexOf('Deno.serve(async (req: Request)'),
+  );
+
+  it('слушатель заведён и берёт причину из ev.detail', () => {
+    expect(LISTENER).toContain("addEventListener('beforeunload'");
+    expect(LISTENER).toContain('detail?.reason');
+  });
+
+  it('пишет класс upstream своим текстом — повтор осмыслен', () => {
+    expect(LISTENER).toContain("runError('upstream', SHUTDOWN_TEXT)");
+    const text = EDGE_SRC.slice(EDGE_SRC.indexOf('const SHUTDOWN_TEXT ='));
+    expect(text).toContain('Анализ не был завершён');
+  });
+
+  it('пометка условная: строку, которую успели дописать, не трогаем', () => {
+    expect(LISTENER).toContain("in('status', ['pending', 'running'])");
+  });
+
+  it('пустой набор ⇒ ни одного запроса', () => {
+    expect(LISTENER).toContain('IN_FLIGHT.size === 0');
+  });
+
+  it('processRun снимает прогон из набора в finally', () => {
+    const proc = EDGE_SRC.slice(
+      EDGE_SRC.indexOf('  IN_FLIGHT.set(runId, supabase);'),
+      EDGE_SRC.indexOf("addEventListener('beforeunload'"),
+    );
+    expect(proc).toContain('IN_FLIGHT.set(runId, supabase);');
+    expect(proc).toContain('} finally {\n    IN_FLIGHT.delete(runId);\n  }');
   });
 });
