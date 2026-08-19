@@ -48,6 +48,7 @@
 // Прогон никогда не виснет в running: любая ошибка фонового шага → status='error'.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { createInFlightRuns, flushInFlightRuns } from './in-flight.ts';
 import {
   checkResultShape,
   checkSearchAnnotations,
@@ -1066,6 +1067,16 @@ const TIMEOUT_TEXT =
   `Анализ занял слишком долго и был прерван. Попробуйте повторить.`;
 
 /**
+ * S-BRIEF-BUDGET-2. Текст прогона, оборванного ВЫКЛЮЧЕНИЕМ ВОРКЕРА.
+ *
+ * Класс тот же `upstream`: повтор осмыслен, следующий прогон достанется свежему
+ * воркеру. Отличать этот случай от таймаута отдельным текстом важно для разбора
+ * постфактум — «не был завершён» и «занял слишком долго» это разные диагнозы.
+ */
+const SHUTDOWN_TEXT =
+  `Анализ не был завершён: обработка остановлена. Попробуйте повторить.`;
+
+/**
  * S-LLM-SEARCH-1. Текст ошибки прогона + МАШИНОЧИТАЕМЫЙ класс в одном поле.
  *
  * Формат `kind|текст`. Почему так, а не колонка под класс: миграция ради ярлыка не
@@ -1107,6 +1118,9 @@ async function processRun(
   // `claude-sonnet-5` при фактическом `x-ai/grok-4.3`.
   const usages: ClaudeUsage[] = [];
   let actualModel: string | null = null;
+  // Прогон в работе — до `finally`. Без снятия завершённый прогон получил бы ложную
+  // ошибку при следующем выключении воркера.
+  IN_FLIGHT.set(runId, supabase);
   try {
     await supabase.from('ai_runs').update({ status: 'running' }).eq('id', runId);
 
@@ -1391,8 +1405,56 @@ async function processRun(
       duration_ms: Date.now() - started,
       finished_at: new Date().toISOString(),
     }).eq('id', runId);
+  } finally {
+    IN_FLIGHT.delete(runId);
   }
 }
+
+/**
+ * S-BRIEF-BUDGET-2 — ПРОГОНЫ-ЗОМБИ ПРИ ВЫКЛЮЧЕНИИ ВОРКЕРА.
+ *
+ * `processRun` работает в `EdgeRuntime.waitUntil`, и воркер могут снять по wall clock
+ * (150 с на Free) прямо посреди прогона. Исключения при этом НЕТ — `catch` не
+ * выполняется, строка остаётся в `running` навсегда, а в карточке крутится спиннер до
+ * перезагрузки страницы. Реклейм на входе (`STALE_RUN_MINUTES`) чинил это только для
+ * того, кто придёт следующим, и не раньше чем через 10 минут.
+ *
+ * `beforeunload` — единственный хук, который даёт платформа. Времени в нём мало:
+ * успеть должен ОДИН запрос на клиента, без ретраев и без предварительных чтений.
+ * Логика набора и группировки — в `./in-flight.ts` (index.ts из тестов не
+ * импортируется: `Deno.serve` на верхнем уровне).
+ */
+const IN_FLIGHT = createInFlightRuns<SupabaseClient>();
+
+addEventListener('beforeunload', (ev: Event) => {
+  const reason = (ev as Event & { detail?: { reason?: string } }).detail?.reason ?? null;
+  if (IN_FLIGHT.size === 0) {
+    console.log('ai-run worker shutdown, no runs in flight:', JSON.stringify({ reason }));
+    return;
+  }
+  const pending = [...IN_FLIGHT.keys()];
+  const flushed = flushInFlightRuns(IN_FLIGHT, (client, ids) => {
+    // Ровно один запрос на клиента. `.in('status', …)` — не лишнее условие, а тот же
+    // compare-and-swap, что в реклейме: строку, которую кто-то успел дописать, не трогаем.
+    client
+      .from('ai_runs')
+      .update({
+        status: 'error',
+        error: runError('upstream', SHUTDOWN_TEXT),
+        finished_at: new Date().toISOString(),
+      })
+      .in('id', ids)
+      .in('status', ['pending', 'running'])
+      .then(({ error }) => {
+        if (error) console.error('ai-run shutdown mark failed:', error.message);
+      });
+  });
+  console.error('ai-run worker shutdown with runs in flight:', JSON.stringify({
+    reason,
+    runs: pending,
+    requests: flushed.clients,
+  }));
+});
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
