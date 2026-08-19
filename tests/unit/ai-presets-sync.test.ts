@@ -139,10 +139,23 @@ describe('веб-поиск изолирован в отдельном пути'
   });
 
   it('OpenRouter ищет плагином, а не инструментом-поиском', () => {
-    // У OpenRouter плагин отрабатывает ДО генерации, поэтому там обычный форс
-    // инструмента и никакого web_search_20250305.
-    expect(ADAPTER).toContain("{ id: 'web' }");
+    // У OpenRouter поиск — плагин `web`, никакого web_search_20250305.
+    // S-BRIEF-2PASS: плагин собирается с движком (`{ id: 'web', engine }`), а не
+    // литералом `{ id: 'web' }` — форма проверяется тестами brief-2pass, здесь
+    // держим только сам факт «поиск через plugins».
+    expect(ADAPTER).toContain("id: 'web'");
     expect(ADAPTER).toContain('plugins');
+  });
+
+  it('S-BRIEF-2PASS: у OpenRouter два прохода, и они не перепутаны', () => {
+    // Проход 1 ищет (plugins, без инструментов), проход 2 упаковывает (форс, без
+    // plugins). Слаги — из отдельных секретов, с дефолтами из замера.
+    expect(ADAPTER).toContain('OPENROUTER_SEARCH_MODEL');
+    expect(ADAPTER).toContain('OPENROUTER_STRUCT_MODEL');
+    expect(ADAPTER).toContain("'x-ai/grok-4.3'");
+    expect(ADAPTER).toContain("'deepseek/deepseek-v4-flash'");
+    // Дефолт движка сменился с exa на native ВМЕСТЕ со снятием форса.
+    expect(ADAPTER).toContain("|| 'native'");
   });
 
   it('webSearch включён ровно у пресетов, которым он положен', () => {

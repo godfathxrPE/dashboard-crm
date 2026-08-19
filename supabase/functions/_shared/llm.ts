@@ -255,6 +255,8 @@ async function openRouterTool(
   timeoutMs: number,
   provider: LlmProvider,
   plugins?: Record<string, unknown>[],
+  /** Метка прохода в логе. У брифа строк теперь две — без метки они неразличимы. */
+  pass = 'tool',
 ): Promise<{ input: Record<string, unknown>; usage: LlmUsage }> {
   const data = await post(OPENROUTER_URL, openRouterHeaders(apiKey), {
     model,
@@ -294,6 +296,7 @@ async function openRouterTool(
   // обслуживший провайдер, слаг его глазами, число цитат плагина, причина остановки.
   // `annotations` — число НАЙДЕННЫХ ССЫЛОК, а не выполненных поисков (см. `searches`).
   console.log('openrouter response:', JSON.stringify({
+    pass,
     provider: data.provider ?? null,
     model: data.model ?? null,
     annotations: message?.annotations?.length ?? 0,
@@ -492,6 +495,27 @@ export type LlmSearchResult = {
    * usage-полей про поиск) — оттуда всегда null.
    */
   searches: number | null;
+  /**
+   * S-BRIEF-2PASS. Сколько ссылок веб-поиск втянул в контекст ПЕРВОГО прохода.
+   *
+   * `null` — проверять нечего: либо ветка Anthropic (там поиск серверный и число
+   * ссылок в ответе не приходит), либо проход 1 на этом вызове не выполнялся
+   * (ретрай формы переигрывает только проход 2 — черновик уже оплачен).
+   * Ноль — это ОТКАЗ ПОИСКА, и вызывающий обязан отличать его от `null`:
+   * ровно так выглядела ячейка B пробы и прод 06:05 19.08.
+   */
+  annotations: number | null;
+  /**
+   * Черновик первого прохода — сырой текст исследования по вебу.
+   *
+   * Наружу он нужен по двум причинам, обе внешние по отношению к адаптеру:
+   *   • ретрай формы переигрывает ТОЛЬКО проход 2 и подаёт этот же черновик
+   *     обратно (`priorDraft`) — второй поиск не оплачивается;
+   *   • `groundWebsite` в shape.ts сверяет с ним хост из `website`: до появления
+   *     черновика опоры не было вовсе, и прод дважды подставил чужой сайт.
+   * `null` — ветка Anthropic: там черновика как отдельного шага не существует.
+   */
+  draft: string | null;
   /** Диалог попытки — только у Anthropic; ретрай продолжит его вместо нового поиска. */
   messages: LlmSearchMessage[];
 };
@@ -540,53 +564,229 @@ function retryTurn(prior: LlmSearchMessage[], hint: string): LlmSearchMessage {
 /**
  * Плагин веба OpenRouter.
  *
- * ⚠️ `max_uses: 5` у Anthropic и `max_results` у OpenRouter — РАЗНЫЕ ВЕЛИЧИНЫ:
- * первое ограничивает число ПОИСКОВ, второе — число РЕЗУЛЬТАТОВ на поиск. Приравнять
- * их одной константой значит считать потолок стоимости неверно, поэтому у них разные
- * секреты и разные дефолты.
+ * ⚠️ Дефолт движка — `native`, и это ОДНО изменение вместе со снятием форса
+ * инструмента с первого прохода (S-BRIEF-2PASS), а не два независимых.
  *
- * ⚠️ `OPENROUTER_SEARCH_ENGINE=exa` в проде ОБЯЗАТЕЛЕН, хотя параметр и необязательный.
- * Дефолт OpenRouter для anthropic-слагов — `native`, то есть серверный веб-поиск внутри
- * генерации. Мы форсируем `tool_choice` ради структурированного вывода, а форс не
- * оставляет модели хода на поиск: она сразу вызывает инструмент. Результат — бриф со
- * статусом «Готово», нулём источников и сочинённым текстом (прогоны 18–19.08: вход
- * 4.8–10К токенов против 77–80К, 7–12 с против 42–49 с, sources = 0).
- * Снятие пина = возврат этого отказа. Проверено на проде 19.08: exa → 5 источников.
+ * Прежняя редакция этого комментария требовала пинить `exa` — и была верна ровно
+ * для ОДНОПРОХОДНОЙ схемы, где один вызов обязан был и искать, и вернуть структуру.
+ * Форс `tool_choice` не оставляет модели хода на нативный поиск (она вызывает
+ * инструмент немедленно), поэтому `native` там давал ноль источников, а `exa` —
+ * работал, потому что ищет ДО генерации.
+ *
+ * После разделения на проходы форса в первом проходе нет, и движки меняются местами
+ * по глубине. Замер P-BRIEF-MODELS, одна компания, каркас без поиска = 4 812 токенов:
+ *   • `exa`,    max_results 10, форс   →  8 069 вход, 10 ссылок  — сниппеты, ~400 ток/источник;
+ *   • `native`, grok-4.3,      форс   →  3 330 вход,  0 ссылок  — отказ поиска;
+ *   • `native`, grok-4.3,      без форса → 25 442 вход, 6 ссылок — страницы целиком.
+ * Сниппетов не хватало на привязку сайта к юрлицу: прод два дня подставлял
+ * `https://alev.ru/` (посторонняя компания), нативный проход нашёл настоящий.
+ *
+ * ⚠️ Комбинация «native + форс» — единственная нерабочая. Меняешь одно — перечитай
+ * `callLlmSearch`: снятие форса и смена движка держатся друг за друга.
+ *
+ * `max_results` шлём ТОЛЬКО для exa: у нативного движка глубину задаёт сама модель,
+ * и параметр там означал бы не то же самое (`max_uses` Anthropic ограничивает число
+ * ПОИСКОВ, `max_results` exa — число РЕЗУЛЬТАТОВ на поиск; разные величины).
  */
 function webPlugin(): Record<string, unknown> {
-  const plugin: Record<string, unknown> = { id: 'web' };
-  const raw = Deno.env.get('OPENROUTER_SEARCH_MAX_RESULTS');
-  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
-  plugin.max_results = Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
-  const engine = Deno.env.get('OPENROUTER_SEARCH_ENGINE');
-  if (engine) plugin.engine = engine.trim();
+  const engine = (Deno.env.get('OPENROUTER_SEARCH_ENGINE') ?? '').trim() || 'native';
+  const plugin: Record<string, unknown> = { id: 'web', engine };
+  if (engine === 'exa') {
+    const raw = Deno.env.get('OPENROUTER_SEARCH_MAX_RESULTS');
+    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+    plugin.max_results = Number.isFinite(parsed) && parsed > 0 ? parsed : 5;
+  }
   return plugin;
 }
 
 /**
- * `priorMessages` — диалог первой попытки. Передан вместе с `retryHint` — это РЕТРАЙ ФОРМЫ.
+ * Модель ПЕРВОГО прохода — та, что ищет. Она и определяет качество брифа, поэтому
+ * именно её слаг уезжает наружу в `LlmSearchResult.model` и в журнал прогона.
+ * Дефолт из замера: grok-4.3 дал 25 442 токена входа за 19,5 с и $0.062.
+ */
+function resolveSearchModel(): string {
+  return (Deno.env.get('OPENROUTER_SEARCH_MODEL') ?? '').trim() || 'x-ai/grok-4.3';
+}
+
+/**
+ * Модель ВТОРОГО прохода — та, что укладывает готовый черновик в схему инструмента.
+ * Веба здесь нет, рассуждать не о чем, поэтому дешёвая: замер E уложил черновик за
+ * $0.0004 и сайт из него не потерял.
  *
- *   • Anthropic: вторая попытка ПРОДОЛЖАЕТ диалог — модель уже нашла источники, её просят
- *     переупаковать результат, а не искать заново. Без этого ретрай был полным повторным
- *     прогоном: новые веб-запросы, оплаченный заново контекст, удвоенное ожидание
- *     (85 с на живых прогонах 2026-08-03).
+ * ⚠️ Дефолт годится ДЛЯ БРИФА и только: на тесте `capture` тот же DeepSeek склеивал
+ * фамилию с отчеством. Перевод остальных пресетов — отдельный заход с прогоном A–C
+ * `scripts/llm-probe.py`.
+ */
+function resolveStructModel(): string {
+  return (Deno.env.get('OPENROUTER_STRUCT_MODEL') ?? '').trim() || 'deepseek/deepseek-v4-flash';
+}
+
+/**
+ * Потолок вывода ПЕРВОГО прохода. 8192, а не общий MAX_OUTPUT_TOKENS = 4096:
+ * на замере черновик Sonnet обрывался по `finish_reason: 'length'` ровно на 4096.
+ * У Grok запас есть, но потолок не должен резать смысл — второй проход укладывает
+ * то, что видит, и обрезанный хвост черновика теряется молча.
+ */
+const SEARCH_PASS_MAX_TOKENS = 8192;
+
+/**
+ * Таймауты проходов. Оба живут в ОДНОМ бюджете шлюза Supabase (~90 с, после чего
+ * приходит 502 без нашего тела — S-FIX-VOICE-1), поэтому важна сумма, а не каждый
+ * по отдельности. Замер: 19,5 с поиск + 22 с упаковка ≈ 42 с; 55 + 25 = 80 с даёт
+ * запас на медленный прогон и всё ещё умещается под шлюз.
  *
- *   • OpenRouter: `priorMessages` ИГНОРИРУЮТСЯ намеренно. Мы пиним `engine: exa`
- *     (см. `webPlugin`), а exa отрабатывает ДО генерации и подмешивает результаты
- *     в контекст на каждом запросе — продолжение диалога всё равно оплатило бы новый
- *     поиск, и экономия, ради которой заводился `priorMessages`, там недостижима.
- *     Поэтому ретрай идёт полным повторным вызовом с подсказкой в user-turn, ровно как
- *     у остальных шести пресетов. Цена — один лишний поиск (~$0.007), дешевле, чем
- *     городить историю tool_calls в OpenAI-формате ради экономии, которой нет.
+ * Общий DEFAULT_TIMEOUT_MS (75 с) здесь не годится: он один на вызов, а вызовов два.
+ */
+const SEARCH_PASS_TIMEOUT_MS = 55_000;
+const STRUCT_PASS_TIMEOUT_MS = 25_000;
+
+/**
+ * Сумма расхода по проходам. `undefined` слагаемое пропускается, но НЕ обнуляет
+ * результат; если обоих чисел нет вовсе — поле не появляется, и `sumUsage` в
+ * ai-run честно запишет `null` («неизвестно»), а не ноль («было бесплатно»).
+ */
+function sumLlmUsage(a: LlmUsage | undefined, b: LlmUsage | undefined): LlmUsage {
+  const add = (key: keyof LlmUsage): number | undefined => {
+    const known = [a?.[key], b?.[key]].filter((v): v is number => typeof v === 'number');
+    return known.length > 0 ? known.reduce((x, y) => x + y, 0) : undefined;
+  };
+  const input = add('input_tokens');
+  const output = add('output_tokens');
+  return {
+    ...(input !== undefined ? { input_tokens: input } : {}),
+    ...(output !== undefined ? { output_tokens: output } : {}),
+  };
+}
+
+/**
+ * S-BRIEF-2PASS / F-01. Маркер имитации вызова инструмента в черновике.
  *
- *     ⚠️ Это рассуждение держится на `engine: exa`. При `native` поиск был бы серверным
- *     инструментом ВНУТРИ генерации (как у Anthropic) — и тогда `priorMessages` снова
- *     имели бы смысл. Меняешь движок — перечитай этот блок.
+ * Пояс на случай, если модель всё-таки попробует «вызвать инструмент» текстом: даже без
+ * ложного контракта в промпте такое встречается. Проверять `SHAPE_MARKERS` целиком
+ * НЕЛЬЗЯ — маркер `</` там намеренно широкий и безопасен лишь потому, что даёт МЯГКУЮ
+ * претензию; на черновике из свободного текста с цитатами он сработал бы ложно и уронил
+ * рабочий прогон. Здесь претензия жёсткая, поэтому маркер ровно один и узкий.
+ */
+const TOOL_CALL_IMITATION = '<parameter name=';
+
+/** Черновик в user-ход второго прохода. Он собран из веба — значит НЕДОВЕРЕННЫЕ
+ *  данные, и подаётся тем же тегом <data>, что транскрипт и карточка компании:
+ *  анти-инъекционная преамбула пресета уже говорит про содержимое <data> и про
+ *  найденные страницы, новых текстов для этого не нужно. */
+function draftBlock(draft: string): string {
+  return (
+    'Веб-поиска в этом запросе нет: опирайся ТОЛЬКО на черновик ниже, ' +
+    'новых фактов и ссылок не добавляй.\n\n' +
+    `<data kind="web_research">\n${draft}\n</data>`
+  );
+}
+
+/**
+ * ПРОХОД 1 — поиск. Ни `tools`, ни `tool_choice`: именно форс убивал нативный
+ * поиск (ячейка B замера — ноль ссылок за 4,8 с). На выходе текст и ЧИСЛО ССЫЛОК,
+ * втянутых плагином в контекст.
+ *
+ * `annotations` — самое честное свидетельство того, что поиск отработал: в отличие
+ * от `sources`, это не самоотчёт модели, а поле ответа провайдера.
+ */
+async function openRouterSearchPass(
+  /** ГОТОВЫЙ системный промпт прохода поиска (`preset.systemSearch`). Собирает его
+   *  ai-run, где живёт реестр пресетов; адаптер промпты не сочиняет и не правит. */
+  systemSearch: string,
+  userTurn: string,
+  model: string,
+  apiKey: string,
+  provider: LlmProvider,
+): Promise<{ text: string; annotations: number; usage: LlmUsage }> {
+  const plugins = [webPlugin()];
+  const data = await post(OPENROUTER_URL, openRouterHeaders(apiKey), {
+    model,
+    max_tokens: SEARCH_PASS_MAX_TOKENS,
+    messages: [
+      { role: 'system', content: systemSearch },
+      { role: 'user', content: userTurn },
+    ],
+    provider: openRouterProviderPrefs(),
+    plugins,
+  }, provider, SEARCH_PASS_TIMEOUT_MS) as OpenRouterResponse;
+
+  if (data.error) {
+    console.error('openrouter body error:', JSON.stringify(data.error).slice(0, 500));
+    throw new LlmError(data.error.code ?? 502, 'LLM upstream error', provider);
+  }
+
+  const choice = data.choices?.[0];
+  const message = choice?.message;
+  const annotations = message?.annotations?.length ?? 0;
+  console.log('openrouter response:', JSON.stringify({
+    pass: 'search',
+    provider: data.provider ?? null,
+    model: data.model ?? null,
+    annotations,
+    tool_calls: message?.tool_calls?.length ?? 0,
+    finish_reason: choice?.finish_reason ?? null,
+    plugins: plugins.map((p) => p.id).join(','),
+  }));
+
+  const text = (message?.content ?? '').trim();
+  // Пустой черновик — не «ноль источников», а сорванный проход: упаковывать нечего,
+  // и второй проход по пустому входу сочинил бы бриф из головы. Отказ здесь дешевле.
+  if (!text) {
+    console.error('empty search draft, finish_reason:', choice?.finish_reason);
+    throw new LlmError(422, 'Первый проход не вернул черновик', provider);
+  }
+
+  // Псевдоразметка вызова инструмента НЕПУСТА — без этой проверки такой черновик
+  // прошёл бы как валидный, упаковщик добросовестно разложил бы мусор по схеме, и
+  // прогон встал бы в `done`. Класс 422 → `shape` ⇒ ретрай осмыслен и кнопка на месте.
+  if (text.includes(TOOL_CALL_IMITATION)) {
+    console.error('search draft imitates a tool call, head:', text.slice(0, 300));
+    throw new LlmError(422, 'Первый проход вернул имитацию вызова инструмента', provider);
+  }
+
+  return {
+    text,
+    annotations,
+    usage: {
+      input_tokens: data.usage?.prompt_tokens,
+      output_tokens: data.usage?.completion_tokens,
+    },
+  };
+}
+
+/**
+ * S-BRIEF-2PASS. Ретрай формы: чем продолжается вторая попытка.
+ *
+ *   • Anthropic (`priorMessages`): вторая попытка ПРОДОЛЖАЕТ диалог — модель уже
+ *     нашла источники, её просят переупаковать результат, а не искать заново. Без
+ *     этого ретрай был полным повторным прогоном: новые веб-запросы, оплаченный
+ *     заново контекст, удвоенное ожидание (85 с на живых прогонах 2026-08-03).
+ *
+ *   • OpenRouter (`priorDraft`): вторая попытка переигрывает ТОЛЬКО ПРОХОД 2.
+ *     Черновик прохода 1 уже оплачен и годен — претензия по форме означает, что
+ *     ошибся упаковщик, а не поисковик. Экономия ~$0.027 и ~20 с на прогон.
+ *
+ *     ⚠️ Ровно одно исключение: претензия «ноль ссылок у прохода 1». Там виноват
+ *     как раз поисковик, переигрывать упаковку бессмысленно — вызывающий обязан
+ *     НЕ передавать `priorDraft`, и тогда оба прохода идут заново (см. ai-run).
+ *
+ *     До разделения на проходы `priorMessages` на OpenRouter игнорировались:
+ *     плагин exa искал заново на каждом запросе, и экономить было нечего. Теперь
+ *     поиск — отдельный вызов, и его результат переиспользуется буквально.
  */
 export async function callLlmSearch(
   opts: BaseOpts & {
     tool: LlmTool;
     priorMessages?: LlmSearchMessage[];
+    /**
+     * Системный промпт ПРОХОДА ПОИСКА. Обязателен на OpenRouter-ветке; его отсутствие
+     * — баг конфигурации пресета, а не повод молча взять `system` (там контракт
+     * инструмента, которого в проходе поиска нет).
+     */
+    systemSearch?: string;
+    /** Черновик прохода 1 предыдущей попытки (OpenRouter). Передан вместе с
+     *  `retryHint` — проход 1 пропускается и заново НЕ оплачивается. */
+    priorDraft?: string | null;
     retryHint?: string;
   },
 ): Promise<LlmSearchResult> {
@@ -595,19 +795,77 @@ export async function callLlmSearch(
   const model = resolveModel(opts.model, provider);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+  // ── OpenRouter: ДВА ПРОХОДА ────────────────────────────────────────────────
+  // Один вызов не может одновременно искать нативно и вернуть структуру: форс
+  // инструмента подавляет поиск (замер, ячейка B — 0 ссылок), а без форса нет
+  // гарантии структурированного ответа. Это физика провайдера, а не неудобство.
   if (provider === 'openrouter') {
-    const userTurn = opts.retryHint ? `${opts.userTurn}\n\n${opts.retryHint}` : opts.userTurn;
-    const res = await openRouterTool(
+    const searchModel = resolveModel(resolveSearchModel(), provider);
+    const structModel = resolveModel(resolveStructModel(), provider);
+
+    // Проход 1 — поиск. Пропускается на ретрае формы: черновик уже есть.
+    const reused = opts.retryHint ? (opts.priorDraft ?? '').trim() : '';
+    // Отсутствие промпта поиска — ГРОМКАЯ ошибка. Тихий фолбэк на `opts.system`
+    // подал бы в проход без инструментов контракт «отвечай вызовом инструмента» —
+    // ровно ту болезнь, которую фикс F-01 и лечит.
+    if (!reused && !opts.systemSearch?.trim()) {
+      console.error('systemSearch is not configured for a webSearch preset');
+      throw new LlmError(500, 'Пресет с веб-поиском без системного промпта поиска', provider);
+    }
+    const pass1 = reused
+      ? null
+      : await openRouterSearchPass(
+        opts.systemSearch as string,
+        opts.userTurn,
+        searchModel,
+        apiKey,
+        provider,
+      );
+    const draft = pass1 ? pass1.text : reused;
+
+    // Проход 2 — структура. Плагинов нет, форс инструмента есть, модель дешёвая.
+    const userTurn = [opts.userTurn, draftBlock(draft), opts.retryHint]
+      .filter((part): part is string => Boolean(part))
+      .join('\n\n');
+    const pass2 = await openRouterTool(
       { ...opts, userTurn },
-      model,
+      structModel,
       apiKey,
-      timeoutMs,
+      STRUCT_PASS_TIMEOUT_MS,
       provider,
-      [webPlugin()],
+      undefined,
+      'struct',
     );
-    // searches: провайдер числа поисков не сообщает. Считать по длине annotations
-    // нельзя — это число НАЙДЕННЫХ ССЫЛОК, а не выполненных запросов.
-    return { ...res, model, searches: null, messages: [] };
+
+    // Оплачены ОБА прохода — наружу уходит сумма. Раздельные числа остаются в логе:
+    // в `ai_runs` колонка одна, и занижение расхода тут — тот же класс вранья,
+    // который чинился в S-COST-TRUTH-1 и S-LLM-OPENROUTER-1.
+    const usage = sumLlmUsage(pass1?.usage, pass2.usage);
+    console.log('openrouter two-pass:', JSON.stringify({
+      search_model: searchModel,
+      struct_model: structModel,
+      search_skipped: Boolean(reused),
+      search_usage: pass1?.usage ?? null,
+      struct_usage: pass2.usage,
+      annotations: pass1?.annotations ?? null,
+      draft_chars: draft.length,
+    }));
+
+    return {
+      input: pass2.input,
+      usage,
+      // Слаг ПЕРВОГО прохода: он определяет качество брифа, второй только
+      // переупаковывает. Компаундного слага `a+b` не вводим — он не найдётся
+      // в PRICE_BY_SLUG и молча погасит цену вместо честного «неизвестно».
+      model: searchModel,
+      // Провайдер числа поисков не сообщает. Длина `annotations` — это число
+      // НАЙДЕННЫХ ССЫЛОК, а не выполненных запросов; подставлять её сюда нельзя.
+      searches: null,
+      // null — проход 1 не выполнялся: проверять его выхлоп не на чем и не за что.
+      annotations: pass1 ? pass1.annotations : null,
+      draft,
+      messages: [],
+    };
   }
 
   const messages: LlmSearchMessage[] = opts.priorMessages && opts.retryHint
@@ -662,6 +920,10 @@ export async function callLlmSearch(
         usage: sawUsage ? { input_tokens: inputTokens, output_tokens: outputTokens } : {},
         model,
         searches,
+        // Поиск у Anthropic серверный, отдельного черновика и списка ссылок в
+        // ответе нет — обе величины `null` («неприменимо»), а не ноль.
+        annotations: null,
+        draft: null,
         // Диалог отдаём вместе с последним ходом ассистента: ретрай продолжит именно его.
         messages: [...messages, { role: 'assistant', content: data.content ?? [] }],
       };

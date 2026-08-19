@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // S-BRIEF-2PASS: edge-функции импортируют друг друга по-Deno'вски, с расширением
+    // (`./llm-error.ts`). Без флага такой импорт — TS5097, и Deno-модуль нельзя
+    // покрыть тестом вовсе. Флаг разрешён при `noEmit` и ничего не эмитит сам.
+    "allowImportingTsExtensions": true,
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],

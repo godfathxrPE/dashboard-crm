@@ -187,8 +187,18 @@ describe('ретрай формы у пресета с поиском', () => {
   it('S-LLM-SEARCH-2: подсказка собирается ПО ПРЕТЕНЗИИ, а не одна на все случаи', () => {
     // Пустой поиск при верной схеме — не повод говорить модели «ответ не по схеме»:
     // вторая попытка уйдёт на починку формата, который в порядке.
-    expect(EDGE).toContain("claims.some((c) => c.code !== 'empty_sources') ? SHAPE_RETRY_HINT : null");
+    // S-BRIEF-2PASS: претензий стало три, и подсказка по-прежнему собирается из них,
+    // а не выбирается одна на все случаи.
+    expect(EDGE).toContain('shapeBroken ? SHAPE_RETRY_HINT : null');
     expect(EDGE).toContain('hasEmptySources(claims) ? EMPTY_SOURCES_RETRY_HINT : null');
+    expect(EDGE).toContain('searchFailed ? EMPTY_SEARCH_RETRY_HINT : null');
+  });
+
+  it('S-BRIEF-2PASS: ретрай переигрывает проход 1 ТОЛЬКО при отказе поиска', () => {
+    // Черновик прохода 1 переиспользуется — второй поиск не оплачивается. Гасится
+    // он ровно в одном случае: виноват сам поиск, и переупаковка пустоты не поможет.
+    expect(EDGE).toContain('const reusableDraft = searchFailed ? null : (firstSearch?.draft ?? null)');
+    expect(EDGE).toContain('priorDraft: reusableDraft');
   });
 
   it('Anthropic: вторая попытка ПРОДОЛЖАЕТ диалог, а не ищет заново', () => {
