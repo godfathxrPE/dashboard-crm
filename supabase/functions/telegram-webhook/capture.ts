@@ -24,6 +24,8 @@ import {
   type DedupContactRow,
 } from '../_shared/capture-helpers.ts';
 import { okvedToIndustry } from '../_shared/okved.ts';
+import { formatEnvNames, resolveGatewayAuth } from '../_shared/env.ts';
+import { describeInvokeError, formatInvokeFailure } from '../_shared/invoke-error.ts';
 import {
   buildAppliedKeyboard,
   buildAppliedText,
@@ -230,25 +232,77 @@ function mergeLookup(base: ReturnType<typeof companyFields>, r: LookupResult) {
 // ═══ Вызовы соседних edge-функций ═══
 //
 // ⚠️ `ai-capture` и `company-lookup` объявлены `verify_jwt = true`, и ослаблять это
-//    ЗАПРЕЩЕНО — обе открыты из браузера. Проверено прямым запросом к шлюзу
-//    (S-TG-3, разведка): шлюз требует ВАЛИДНЫЙ ПРОЕКТНЫЙ JWT, а не пользовательскую
-//    сессию. Ключ service_role — такой же подписанный проектом JWT, поэтому
-//    `functions.invoke` от service-клиента проходит, и обходной путь прямым
-//    `fetch` не понадобился.
+//    ЗАПРЕЩЕНО — обе открыты из браузера. Снятие проверки сделало бы их публичным
+//    endpoint'ом, жгущим токены любому, кто узнал URL.
 //
-// ⚠️ Обе функции в БД не пишут ни строки (см. их security-контуры) — то есть
-//    service-ключ здесь не расширяет их полномочий, а только открывает калитку.
+// ⚠️ Шлюз требует ВАЛИДНЫЙ ПРОЕКТНЫЙ JWT — не пользовательскую сессию, но и НЕ ЛЮБОЙ
+//    ключ. Запись S-TG-3 «ключ service_role — такой же подписанный проектом JWT,
+//    поэтому `functions.invoke` от service-клиента проходит» была верна ровно до
+//    18.08.2026: платформа перешла на ключи новой схемы и стала отдавать в
+//    `SUPABASE_SERVICE_ROLE_KEY` минченный `sb_secret_…`. Для данных он рабочий
+//    (журнал апдейтов и дедуп идут через него), но JWT не является — а `supabase-js`
+//    кладёт ключ клиента и в `apikey`, и в `Authorization`. Шлюз пытается разобрать
+//    `Authorization` как JWT и отвечает 401 ДО кода функции: в `function_logs` пусто,
+//    статус лежит в `function_edge_logs`, а в поле `request.sb.apikey.apikey.prefix`
+//    там видно `sb_secret_…`.
+//
+//    Поэтому JWT для шлюза берётся ОТДЕЛЬНО от ключа данных (`resolveGatewayAuth`) и
+//    ставится заголовком на сам вызов. Клиент при этом остаётся прежним.
+//
+// ⚠️ Обе функции в БД не пишут ни строки (см. их security-контуры) — то есть токен
+//    здесь не расширяет их полномочий, а только открывает калитку. Ровно поэтому
+//    годится и самый бедный из проектных JWT.
+
+const GATEWAY = resolveGatewayAuth((n) => Deno.env.get(n));
+
+// Одна строка при холодном старте — чем именно открывается калитка. Без неё выбор
+// источника виден только в отказе, а он к этому моменту уже стоил двух дней.
+if (GATEWAY.token) {
+  console.log(`telegram-webhook: JWT для шлюза взят из ${GATEWAY.source}`);
+} else {
+  // Не бросок: без JWT `/start`, кнопки и уведомления работают, отваливается только
+  // разбор текста. Ронять из-за этого весь бот значит менять один отказ на четыре.
+  console.error(
+    'telegram-webhook: JWT для шлюза не найден — ai-capture и company-lookup ответят 401. ' +
+      `Проверено: ${GATEWAY.checked.join(' | ')}. ` +
+      'Нужен секрет EDGE_INVOKE_JWT (легаси-JWT service_role, имя без префикса SUPABASE_).',
+  );
+}
 
 // deno-lint-ignore no-explicit-any
 type Supa = any;
 
 async function invokeJson(supabase: Supa, name: string, body: unknown): Promise<unknown | null> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { data, error } = await supabase.functions.invoke(name, {
+    body,
+    // Ключ клиента шлюз не примет, если он новой схемы; заголовок ставим адресно.
+    ...(GATEWAY.token ? { headers: { Authorization: `Bearer ${GATEWAY.token}` } } : {}),
+  });
   if (error) {
-    console.error(`telegram-webhook: ${name} упала:`, error.message ?? String(error));
+    // Раньше в лог уходил только `error.message` — у `FunctionsHttpError` это всегда
+    // одна и та же фраза без статуса и без тела. Именно поэтому 401 два дня читался
+    // как «ИИ не работает».
+    const failure = await describeInvokeError(error);
+    console.error(`telegram-webhook: ${formatInvokeFailure(name, failure)}`);
+    if (failure.status === 401) logGatewayDiagnosis(name);
     return null;
   }
   return data ?? null;
+}
+
+/**
+ * Разбор 401: имена и длины `SUPABASE_*` и то, чем мы авторизовались.
+ *
+ * ⚠️ ЗНАЧЕНИЙ НЕ ПЕЧАТАЕТ НИ ОДНОГО — только имя, вид и длину. Логи функций читаются
+ *    из дашборда, и ключ в них — это ключ в них.
+ */
+function logGatewayDiagnosis(name: string): void {
+  console.error(
+    `telegram-webhook: шлюз не принял вызов ${name}. ` +
+      `Окружение: ${formatEnvNames(Deno.env.toObject(), 'SUPABASE_')}. ` +
+      `Authorization взят из: ${GATEWAY.source ?? 'ниоткуда'}. ` +
+      `Кандидаты: ${GATEWAY.checked.join(' | ')}.`,
+  );
 }
 
 // ═══ Дедуп ═══

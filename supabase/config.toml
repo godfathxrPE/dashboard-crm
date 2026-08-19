@@ -84,6 +84,30 @@ verify_jwt = true
 [functions.ai-capture]
 verify_jwt = true
 
+# ⚠️ FIX tg-capture-401 (19.08.2026). verify_jwt = true у ai-capture и company-lookup
+#    остаётся, и снимать его ЗАПРЕЩЕНО: обе открыты из браузера, без проверки они —
+#    публичный endpoint, жгущий токены любому, кто узнал URL.
+#
+#    Но с 18.08 их зовёт не только браузер: `telegram-webhook` ходит в обе через
+#    `functions.invoke`. Платформа перешла на ключи новой схемы и стала отдавать в
+#    `SUPABASE_SERVICE_ROLE_KEY` минченный `sb_secret_…`; шлюзовая проверка
+#    `verify_jwt` понимает ТОЛЬКО JWT (легаси-HS256 и подписанные асимметричными
+#    ключами) и на `sb_secret_…` в заголовке Authorization отвечает 401 ДО кода
+#    функции. Захват из Telegram молча умер, а в function_logs при этом пусто —
+#    статус лежит в function_edge_logs.
+#
+#    `telegram-webhook` теперь берёт JWT для шлюза отдельно от ключа данных и ставит
+#    его заголовком Authorization на сам вызов. Кандидаты по порядку:
+#    SUPABASE_SERVICE_ROLE_KEY → EDGE_INVOKE_JWT → SUPABASE_ANON_KEY; годится любой,
+#    который РЕАЛЬНО JWT (шлюзу нужен валидный проектный токен, а не конкретная роль —
+#    обе функции за этим заголовком в БД не ходят).
+#
+#    Секрет заводится ТОЛЬКО если после деплоя в логе холодного старта стоит
+#    «JWT для шлюза не найден» (при удачном выборе там строка с именем источника):
+#      • EDGE_INVOKE_JWT — легаси-JWT service_role (Dashboard → API Keys → legacy).
+#        Имя БЕЗ префикса SUPABASE_: этот префикс зарезервирован платформой и секрет
+#        с ним не завести вовсе.
+
 # S-R3-VOICE-1: расшифровка аудио (transcribe) — Groq Whisper + вычитка Claude.
 #
 # verify_jwt = true — тот же контур, что у ai-capture/company-lookup. Собственной

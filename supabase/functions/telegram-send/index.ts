@@ -28,6 +28,12 @@
 //     клиенте его нет и быть не должно.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { requireEnv } from '../_shared/env.ts';
+
+// ⚠️ Обязательные переменные — при холодном старте, броском. Было `?? ''`: пустая
+//    строка вместо ключа отказывает не здесь, а тремя переходами дальше.
+const SUPABASE_URL = requireEnv('SUPABASE_URL', (n) => Deno.env.get(n));
+const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY', (n) => Deno.env.get(n));
 
 const TELEGRAM_API = 'https://api.telegram.org';
 
@@ -106,11 +112,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false } },
-  );
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false },
+  });
 
   // ЗАХВАТ, А НЕ ПРОСТО SELECT. Джоба минутная, а 25 сообщений при медленном
   // Telegram упираются в таймаут 10 с каждое — тик может не уложиться в минуту, и

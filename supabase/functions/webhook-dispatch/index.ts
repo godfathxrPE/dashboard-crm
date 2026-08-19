@@ -33,6 +33,12 @@
 // Первая строка логов после деплоя даёт фактический ответ на вопрос №1.
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { requireEnv } from '../_shared/env.ts';
+
+// ⚠️ Обязательные переменные — при холодном старте, броском. Было `?? ''`: пустая
+//    строка вместо ключа отказывает не здесь, а тремя переходами дальше.
+const SUPABASE_URL = requireEnv('SUPABASE_URL', (n) => Deno.env.get(n));
+const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY', (n) => Deno.env.get(n));
 import {
   BATCH_LIMIT,
   checkWebhookUrl,
@@ -450,11 +456,9 @@ Deno.serve(async (req: Request) => {
   //    данных, поэтому даже с валидным ключом ей нельзя продиктовать ни payload,
   //    ни URL получателя. Очередь она читает сама.
 
-  const db = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   let processed = 0;
   try {

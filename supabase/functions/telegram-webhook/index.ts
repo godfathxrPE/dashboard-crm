@@ -35,6 +35,14 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { handleCaptureCallback, handleCaptureText, type BotApi } from './capture.ts';
 import { parseCaptureCallbackData } from '../_shared/telegram-capture.ts';
+import { requireEnv } from '../_shared/env.ts';
+
+// ⚠️ ЧИТАЕМ ПРИ ХОЛОДНОМ СТАРТЕ И БРОСАЕМ. Было `Deno.env.get(...) ?? ''`: без
+//    переменной клиент уходил без ключа, а видно это становилось за три перехода —
+//    чужим 401. Бросок здесь роняет функцию с именем переменной в первой строке лога.
+//    Стрелка, а не сам `Deno.env.get`: оторванный метод теряет `this`.
+const SUPABASE_URL = requireEnv('SUPABASE_URL', (n) => Deno.env.get(n));
+const SUPABASE_SERVICE_KEY = requireEnv('SUPABASE_SERVICE_ROLE_KEY', (n) => Deno.env.get(n));
 
 const TELEGRAM_API = 'https://api.telegram.org';
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -293,11 +301,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const updateId = update.update_id;
   if (typeof updateId !== 'number') return ok();
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false } },
-  );
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false },
+  });
 
   // Идемпотентность. 23505 = такой update_id уже обработан, это повтор.
   const { error: dupErr } = await supabase
