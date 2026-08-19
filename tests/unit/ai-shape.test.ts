@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   checkResultShape,
+  checkSearchYield,
+  hasEmptySources,
   hardClaims,
   softClaims,
   stripCiteTags,
+  EMPTY_SOURCES_TEXT,
+  EMPTY_SOURCES_RETRY_HINT,
   SHAPE_MARKERS,
   type ShapeClaim,
 } from '../../supabase/functions/ai-run/shape';
@@ -393,5 +397,67 @@ describe('stripCiteTags', () => {
     };
     expect(markers(checkResultShape(NOTE_SCHEMA, dirty)).length).toBeGreaterThan(0);
     expect(markers(checkResultShape(NOTE_SCHEMA, stripCiteTags(dirty)))).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-LLM-SEARCH-2 — «Готово» с нулём источников не бывает.
+//
+// Боевой прогон 18–19.08 (первый через OpenRouter): `sources: []`, вход 4.8–10К
+// токенов против 77–80К на Anthropic, 7–12 с против 42–49 с. Результатов поиска
+// в контексте не было — модель написала «официального сайта не обнаружено», прогон
+// ушёл в `done`, и в карточке это выглядит как содержательный бриф: блок
+// «Источники» при пустом списке просто не рисуется.
+// ═══════════════════════════════════════════════════════
+
+describe('checkSearchYield — пустой веб-поиск', () => {
+  it('пустой список источников — ЖЁСТКАЯ претензия с меткой', () => {
+    const claims = checkSearchYield({ summary: 'Компания не найдена', sources: [] });
+    expect(claims).toHaveLength(1);
+    expect(claims[0].kind).toBe('hard');
+    expect(claims[0].code).toBe('empty_sources');
+    expect(hasEmptySources(claims)).toBe(true);
+  });
+
+  it('поля sources нет вовсе — та же претензия', () => {
+    // Пропуск ключа сам по себе даёт лишь МЯГКУЮ претензию по `required`, то есть
+    // прогон дошёл бы до `done`. Для пресета с поиском это тот же ноль источников.
+    expect(hasEmptySources(checkSearchYield({ summary: 'x' }))).toBe(true);
+    expect(hasEmptySources(checkSearchYield({ sources: null }))).toBe(true);
+  });
+
+  it('список из пустых строк — тоже ноль: кликнуть не по чему', () => {
+    expect(hasEmptySources(checkSearchYield({ sources: ['', '   '] }))).toBe(true);
+  });
+
+  it('хотя бы одна ссылка — претензии нет', () => {
+    expect(checkSearchYield({ sources: ['https://rusprofile.ru/id/1'] })).toEqual([]);
+    expect(checkSearchYield({ sources: ['', 'https://x.ru'] })).toEqual([]);
+  });
+
+  it('sources НЕ массивом молчит: об этом уже сказала типовая проверка', () => {
+    // Второй симптом того же прогона — `sources` строкой. Две претензии об одном
+    // факте только засоряют retry_reason, поэтому здесь тишина.
+    const schema = {
+      type: 'object',
+      required: ['sources'],
+      properties: { sources: { type: 'array' } },
+    };
+    const input = { sources: 'https://x.ru, https://y.ru' };
+    expect(checkSearchYield(input)).toEqual([]);
+    expect(hardClaims(checkResultShape(schema, input))).toHaveLength(1);
+  });
+
+  it('обычные претензии метки не несут — текст ошибки остаётся общим', () => {
+    const schema = { type: 'object', properties: { tasks: { type: 'array' } } };
+    expect(hasEmptySources(checkResultShape(schema, { tasks: 'строка' }))).toBe(false);
+  });
+
+  it('подсказка ретрая про поиск не говорит про схему', () => {
+    // Претензия «нет источников» при верной схеме: отправить модель чинить формат
+    // значит потратить вторую попытку впустую.
+    expect(EMPTY_SOURCES_RETRY_HINT).toMatch(/sources/);
+    expect(EMPTY_SOURCES_RETRY_HINT).not.toMatch(/схем/i);
+    expect(EMPTY_SOURCES_TEXT).toMatch(/источник/i);
   });
 });

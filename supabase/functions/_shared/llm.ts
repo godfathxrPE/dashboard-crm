@@ -134,11 +134,17 @@ type BaseOpts = {
 /** Тело ответа OpenRouter в части, которую мы читаем. Остальное игнорируем осознанно. */
 type OpenRouterResponse = {
   error?: { message?: string; code?: number };
+  /** Кто ФАКТИЧЕСКИ обслужил запрос после маршрутизации ('Anthropic', 'Google AI Studio', …). */
+  provider?: string;
+  /** Слаг модели глазами OpenRouter: может отличаться от запрошенного (алиас, авто-роутинг). */
+  model?: string;
   choices?: Array<{
     finish_reason?: string;
     message?: {
       content?: string | null;
       tool_calls?: Array<{ function?: { name?: string; arguments?: string } }>;
+      /** Цитаты веб-плагина. Нам нужна только ДЛИНА — «сколько ссылок приехало в контекст». */
+      annotations?: unknown[];
     };
   }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
@@ -279,12 +285,36 @@ async function openRouterTool(
     throw new LlmError(data.error.code ?? 502, 'LLM upstream error', provider);
   }
 
-  const call = data.choices?.[0]?.message?.tool_calls?.find(
+  const message = data.choices?.[0]?.message;
+
+  // S-LLM-SEARCH-2. Успешный ответ не логировался ВООБЩЕ — поэтому первый боевой
+  // регресс (бриф с нулём источников на входе в 8–16 раз меньше прежнего) нельзя было
+  // разобрать постфактум: мы не знали ни кто обслужил запрос, ни приехали ли цитаты.
+  // Строка одна, `log` а не `error` (это норма, а не сбой), без тел и без ключей:
+  // обслуживший провайдер, слаг его глазами, число цитат плагина, причина остановки.
+  // `annotations` — число НАЙДЕННЫХ ССЫЛОК, а не выполненных поисков (см. `searches`).
+  console.log('openrouter response:', JSON.stringify({
+    provider: data.provider ?? null,
+    model: data.model ?? null,
+    annotations: message?.annotations?.length ?? 0,
+    tool_calls: message?.tool_calls?.length ?? 0,
+    finish_reason: data.choices?.[0]?.finish_reason ?? null,
+    plugins: plugins ? plugins.map((p) => p.id).join(',') : null,
+  }));
+
+  const call = message?.tool_calls?.find(
     (c) => c.function?.name === opts.tool.name,
-  ) ?? data.choices?.[0]?.message?.tool_calls?.[0];
+  ) ?? message?.tool_calls?.[0];
   const rawArgs = call?.function?.arguments;
   if (typeof rawArgs !== 'string' || !rawArgs.trim()) {
-    console.error('No tool_calls in openrouter response, finish_reason:', data.choices?.[0]?.finish_reason);
+    // Голова content'а нужна, чтобы отличить «модель промолчала» от «модель ИМИТИРОВАЛА
+    // вызов инструмента текстом» (`<parameter name=` в ответе — ровно этот случай).
+    console.error(
+      'No tool_calls in openrouter response, finish_reason:',
+      data.choices?.[0]?.finish_reason,
+      'content head:',
+      (message?.content ?? '').slice(0, 300),
+    );
     throw new LlmError(422, 'Модель не вернула структурированный результат', provider);
   }
 
@@ -296,9 +326,14 @@ async function openRouterTool(
     }
     input = parsed as Record<string, unknown>;
   } catch (err) {
-    // Частая причина — обрыв по max_tokens посреди JSON. Логируем хвост, чтобы
-    // отличить обрыв от галлюцинации формата, но наружу деталей не отдаём.
-    console.error('tool arguments parse failed:', err, 'tail:', rawArgs.slice(-200));
+    // Частая причина — обрыв по max_tokens посреди JSON: его видно по ХВОСТУ.
+    // Голова (300 символов) отвечает на другой вопрос — «а что вообще пришло»:
+    // забор ```json, разметка tool-use, чужой формат. Наружу деталей не отдаём.
+    console.error(
+      'tool arguments parse failed:', err,
+      'head:', rawArgs.slice(0, 300),
+      'tail:', rawArgs.slice(-200),
+    );
     throw new LlmError(422, 'Модель вернула невалидный JSON инструмента', provider);
   }
   return {
