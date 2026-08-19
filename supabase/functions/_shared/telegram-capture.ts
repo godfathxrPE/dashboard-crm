@@ -168,15 +168,26 @@ export interface CaptureCardInput {
  */
 const APP_URL_RE = /^https:\/\/[A-Za-z0-9.-]+(:[0-9]{1,5})?(\/[A-Za-z0-9._~/-]*)?$/;
 
+/**
+ * Сущность, на которую бот умеет дать ссылку. `task` добавлена S-TG-TASK-1.
+ *
+ * ⚠️ У ЗАДАЧИ НЕТ СОБСТВЕННОЙ СТРАНИЦЫ. В приложении есть только `/tasks` (доска
+ *    и списки); маршрута `/tasks/<id>` не существует, и собирать его «по аналогии»
+ *    значит выдать ссылку на 404. Поэтому у задачи id в путь не подставляется.
+ */
+export type EntityLinkKind = 'contact' | 'company' | 'task';
+
 /** Ссылка на карточку сущности или null. Пути — зеркало `openExisting` в QuickCapture. */
 export function entityUrl(
   appUrl: string | null | undefined,
-  kind: 'contact' | 'company',
+  kind: EntityLinkKind,
   id: string,
 ): string | null {
   const base = (appUrl ?? '').trim();
   if (!base || !APP_URL_RE.test(base)) return null;
-  return base.replace(/\/+$/, '') + (kind === 'contact' ? '/contacts/' : '/companies/') + id;
+  const root = base.replace(/\/+$/, '');
+  if (kind === 'task') return `${root}/tasks`;
+  return root + (kind === 'contact' ? '/contacts/' : '/companies/') + id;
 }
 
 /** Непустая строка после trim или null. */
@@ -345,6 +356,200 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
   };
 }
 
+// ═══ Карточка задачи (S-TG-TASK-1) ═══
+
+/**
+ * Время срока, когда его не назвали.
+ *
+ * ⚠️ НЕ ПОЛНОЧЬ. «До пятницы» с дедлайном 00:00 просрочивается в четверг вечером —
+ *    то есть задача рождается просроченной ровно в том случае, который человек
+ *    считал нормальным.
+ */
+export const TASK_DEFAULT_HOUR = 18;
+
+export type DeadlineReason = 'ok' | 'empty' | 'past' | 'invalid';
+
+export interface TaskDeadline {
+  /** ISO UTC для колонки `timestamptz` или null. */
+  iso: string | null;
+  reason: DeadlineReason;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * Срок задачи из даты и времени, названных моделью.
+ *
+ * ⚠️ СМЕЩЕНИЕ — ЛИТЕРАЛЬНЫМ СУФФИКСОМ `+03:00`, а не арифметикой над UTC. Ровно
+ *    так это делает `mskEndOfDayIso` в `src/lib/utils/date-helpers.ts`, и по той же
+ *    причине: «минус три часа» руками — это off-by-one на границах суток, из-за
+ *    которого в проекте вообще появился `mskDateKey`.
+ *
+ * ⚠️ ДАТА В ПРОШЛОМ ⇒ СРОКА НЕТ. Модель, ошибившаяся с годом или неделей, не должна
+ *    молча создавать просроченную задачу: пустой срок с объяснением в карточке
+ *    человек заметит, просрочку на день назад — нет.
+ *
+ * `now` — параметр, а не `new Date()` внутри: домен обязан быть проверяемым.
+ */
+export function buildTaskDeadline(
+  dateKey: string | null | undefined,
+  time: string | null | undefined,
+  now: Date,
+): TaskDeadline {
+  const d = (dateKey ?? '').trim();
+  if (d === '') return { iso: null, reason: 'empty' };
+  if (!DATE_RE.test(d)) return { iso: null, reason: 'invalid' };
+
+  const t = (time ?? '').trim();
+  const hhmm = TIME_RE.test(t) ? t : `${String(TASK_DEFAULT_HOUR).padStart(2, '0')}:00`;
+
+  const at = new Date(`${d}T${hhmm}:00+03:00`);
+  if (isNaN(at.getTime())) return { iso: null, reason: 'invalid' };
+  // ⚠️ ФОРМАТ ПРОШЁЛ — ЭТО ЕЩЁ НЕ ДАТА. На «2026-02-31» строгий разбор ISO обязан
+  //    дать NaN, но движок молча уезжает на нестрогий парсер и выдаёт 3 марта.
+  //    Тест ловил это как `past` — то есть правдоподобным исходом, который скрыл
+  //    бы промах модели в календаре. Сверяем календарный день ПО МСК (та же ось,
+  //    что `mskDateKey`), а не по UTC: на 18:00 они ещё совпадают, на 23:30 —
+  //    уже нет.
+  const mskKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(at);
+  if (mskKey !== d) return { iso: null, reason: 'invalid' };
+  if (at.getTime() < now.getTime()) return { iso: null, reason: 'past' };
+  return { iso: at.toISOString(), reason: 'ok' };
+}
+
+/**
+ * Срок словами: «пятница, 22 августа, 18:00».
+ *
+ * ⚠️ С ДНЁМ НЕДЕЛИ, И ЭТО НЕ УКРАШЕНИЕ. «22.08» глазами не проверить, «пятница,
+ *    22 августа» — можно, и именно на дне недели ловится ошибка модели в неделе.
+ */
+export function formatTaskDeadline(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const at = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${at('weekday')}, ${at('day')} ${at('month')}, ${at('hour')}:${at('minute')}`;
+}
+
+/** Что случилось с упоминанием. Структурное зеркало `ResolveReason`. */
+export type TaskLinkReason = 'ok' | 'empty' | 'not_found' | 'ambiguous';
+
+export interface TaskCardLink {
+  reason: TaskLinkReason;
+  /** Имя найденной записи — показывается вместо подсказки при `ok`. */
+  label?: string | null;
+  /** Дословная подсказка модели — показывается в кавычках при отказе. */
+  hint?: string | null;
+}
+
+export interface TaskCardInput {
+  draftId: string;
+  text: string;
+  deadline: TaskDeadline;
+  /** Подсказка срока — нужна, чтобы объяснить отказ («срок в прошлом»). */
+  deadlineHint?: string | null;
+  priority?: 'normal' | 'important' | 'critical';
+  assignee?: TaskCardLink | null;
+  project?: TaskCardLink | null;
+  company?: TaskCardLink | null;
+}
+
+const LINK_LABEL: Record<'assignee' | 'project' | 'company', string> = {
+  assignee: 'Исполнитель',
+  project: 'Сделка',
+  company: 'Компания',
+};
+
+/** Что делать человеку, если привязка не состоялась. */
+const LINK_FIX: Record<'assignee' | 'project' | 'company', string> = {
+  assignee: 'назначьте в CRM',
+  project: 'привяжите в CRM',
+  company: 'привяжите в CRM',
+};
+
+/**
+ * Строка привязки.
+ *
+ * ⚠️ НЕ РАЗРЕШЁННОЕ ПОКАЗЫВАЕТСЯ, А НЕ ПРОПУСКАЕТСЯ. Молчаливый пропуск даёт не
+ *    поломку, а тихую деградацию: человек жмёт «Создать», считая, что исполнитель
+ *    проставлен, и узнаёт обратное через неделю. `empty` — другое дело: там
+ *    упоминания не было вовсе, и строке неоткуда взяться.
+ */
+function linkLine(kind: 'assignee' | 'project' | 'company', link: TaskCardLink | null | undefined): string | null {
+  if (!link || link.reason === 'empty') return null;
+  const head = LINK_LABEL[kind];
+  if (link.reason === 'ok') {
+    const label = clean(link.label);
+    return label ? `${head}: ${escapeTelegramHtml(label)}` : null;
+  }
+  const hint = escapeTelegramHtml(clean(link.hint) ?? '');
+  const why =
+    link.reason === 'ambiguous'
+      ? `несколько совпадений, ${LINK_FIX[kind]}`
+      : `не нашёл, ${LINK_FIX[kind]}`;
+  return `${head}: «${hint}» — ${why}`;
+}
+
+const PRIORITY_WORD: Record<'important' | 'critical', string> = {
+  important: 'важно',
+  critical: 'срочно',
+};
+
+/**
+ * Карточка подтверждения задачи.
+ *
+ * ⚠️ ВСЕ РЕЗОЛВЫ ВИДНЫ ДО НАЖАТИЯ «СОЗДАТЬ». `trg_notify_task_assigned`
+ *    срабатывает AFTER INSERT — ошибочное назначение немедленно уведомляет не того
+ *    человека, и отката у этого нет.
+ *
+ * ⚠️ НОВЫХ ПРЕФИКСОВ callback_data НЕ ВВОДИТСЯ. Черновик несёт `kind='task'`, а
+ *    `tg_apply_capture` берёт ветку из строки БД — работают те же `tgcap:` и
+ *    `tgcapx:`. Пятый префикс — это пятый шанс на пересечение при разборе.
+ */
+export function buildTaskCard(input: TaskCardInput): CaptureCard {
+  const { draftId, text, deadline, deadlineHint, priority, assignee, project, company } = input;
+
+  const deadlineLine =
+    deadline.reason === 'ok' && deadline.iso
+      ? `Срок: ${escapeTelegramHtml(formatTaskDeadline(deadline.iso))}`
+      : deadline.reason === 'past'
+        ? `Срок: «${escapeTelegramHtml(clean(deadlineHint) ?? '')}» — срок в прошлом, не проставлен`
+        : deadline.reason === 'invalid'
+          ? 'Срок: не разобрал дату, не проставлен'
+          : null;
+
+  const lines = [
+    deadlineLine,
+    priority === 'important' || priority === 'critical' ? `Приоритет: ${PRIORITY_WORD[priority]}` : null,
+    linkLine('assignee', assignee),
+    linkLine('project', project),
+    linkLine('company', company),
+  ].filter((l): l is string => l !== null);
+
+  const body = escapeTelegramHtml(clean(text) ?? 'Текст задачи не разобран');
+
+  return {
+    text: `<b>Задача</b>\n${body}` + (lines.length ? `\n\n${lines.join('\n')}` : ''),
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: BTN_CREATE, callback_data: CAPTURE_APPLY_PREFIX + draftId },
+          { text: BTN_CANCEL, callback_data: CAPTURE_CANCEL_PREFIX + draftId },
+        ],
+      ],
+    },
+  };
+}
+
 /** Исход применения черновика, который видит человек. Зеркало `status` из RPC. */
 export type AppliedOutcome = 'created' | 'duplicate_inn';
 
@@ -361,7 +566,7 @@ export type AppliedOutcome = 'created' | 'duplicate_inn';
  *    которые обязаны выглядеть одинаково (это одно и то же место в диалоге).
  */
 export function buildAppliedText(
-  kind: 'contact' | 'company',
+  kind: EntityLinkKind,
   label: string,
   outcome: AppliedOutcome = 'created',
 ): string {
@@ -370,7 +575,9 @@ export function buildAppliedText(
       ? 'Компания с этим ИНН уже заведена'
       : kind === 'contact'
         ? 'Контакт создан'
-        : 'Компания создана';
+        : kind === 'task'
+          ? 'Задача создана'
+          : 'Компания создана';
   const mark = outcome === 'duplicate_inn' ? '•' : '✓';
   return label ? `${mark} ${what}: ${label}` : `${mark} ${what}`;
 }
@@ -378,7 +585,7 @@ export function buildAppliedText(
 /** Клавиатура сообщения об успехе: одна ссылка, если она собралась. */
 export function buildAppliedKeyboard(
   appUrl: string | null | undefined,
-  kind: 'contact' | 'company',
+  kind: EntityLinkKind,
   id: string,
 ): TelegramInlineKeyboard {
   const url = entityUrl(appUrl, kind, id);

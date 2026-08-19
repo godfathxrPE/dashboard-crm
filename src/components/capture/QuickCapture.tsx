@@ -30,6 +30,19 @@ import { QuickCaptureButton } from '@/components/capture/QuickCaptureButton';
 
 type CaptureKind = 'contact' | 'company';
 
+/**
+ * Интент, который виджет умеет открыть сам. Всё прочее — спрашиваем у человека.
+ *
+ * ⚠️ ПРОВЕРКА ПОЛОЖИТЕЛЬНАЯ, А НЕ `!== 'unclear'` (S-TG-TASK-1). Функция
+ *    `ai-capture` деплоится ОТДЕЛЬНО от фронта и уже умеет интент `task`, а
+ *    ветки открытия `TaskModal` с прифиллом здесь пока нет. При проверке «всё,
+ *    что не unclear, — открываем» задача уехала бы в модалку компании: у неё
+ *    ветка `else`. Незнакомый интент обязан вести себя как `unclear`.
+ */
+function openableKind(intent: CaptureResult['intent']): CaptureKind | null {
+  return intent === 'contact' || intent === 'company' ? intent : null;
+}
+
 /** Непустая строка или null — форма ждёт null, а не ''. */
 function blank(value: string | undefined | null): string | null {
   const t = value?.trim();
@@ -181,12 +194,13 @@ export function QuickCapture() {
         setDuplicate(dup);
         return;
       }
-      if (result.intent === 'unclear') {
+      const kind = openableKind(result.intent);
+      if (!kind) {
         // Ветку выбирает человек — гадать за него нечестно.
         setPending(result);
         return;
       }
-      await openModalFor(result, result.intent);
+      await openModalFor(result, kind);
     } catch (err) {
       // Текст не теряем: он остаётся в textarea, рядом — «Повторить».
       setError(err instanceof Error ? err.message : 'Не удалось разобрать текст');
@@ -282,7 +296,7 @@ export function QuickCapture() {
                   onClick={() =>
                     void openModalFor(
                       pending,
-                      pending.intent === 'unclear' ? duplicate.kind : pending.intent,
+                      openableKind(pending.intent) ?? duplicate.kind,
                     )
                   }
                   className={`${chipClass} disabled:cursor-not-allowed disabled:opacity-50`}
@@ -294,7 +308,7 @@ export function QuickCapture() {
           )}
 
           {/* Непонятный текст — спрашиваем, а не угадываем. */}
-          {pending?.intent === 'unclear' && !duplicate && (
+          {pending && !openableKind(pending.intent) && !duplicate && (
             <div className="mt-2 rounded-lg border border-border px-3 py-2 text-xs">
               <p className="text-text-dim">Что создать из этого текста?</p>
               <div className="mt-1.5 flex items-center gap-2">

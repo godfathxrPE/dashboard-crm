@@ -30,10 +30,21 @@ import {
   buildAppliedKeyboard,
   buildAppliedText,
   buildCaptureCard,
+  buildTaskCard,
+  buildTaskDeadline,
   type CaptureCallback,
   type CaptureCardCompany,
   type CaptureCardContact,
+  type EntityLinkKind,
+  type TaskCardLink,
 } from '../_shared/telegram-capture.ts';
+import {
+  resolveAssignee,
+  resolveCompany,
+  resolveProject,
+  type ResolveDb,
+  type Resolved,
+} from '../_shared/capture-resolve.ts';
 
 /** Зеркало `CAPTURE_MAX_CHARS` (`src/lib/validators/capture.ts`) и лимита ai-capture. */
 const CAPTURE_MAX_CHARS = 2000;
@@ -69,6 +80,8 @@ const MSG_PARSE_FAILED = 'Не удалось разобрать текст. П�
 const MSG_UNAVAILABLE =
   'Разбор временно недоступен — это на нашей стороне. Сообщите администратору CRM.';
 const MSG_EMPTY = 'В тексте не нашлось ни контакта, ни компании.';
+/** Интент задачи, но формулировки нет — создавать «Без описания» бессмысленно. */
+const MSG_EMPTY_TASK = 'Не понял, какую задачу поставить. Напишите, что нужно сделать.';
 
 const CB_CREATED = 'Готово';
 const CB_CANCELLED = 'Отменено';
@@ -128,16 +141,27 @@ function branch(v: unknown): Record<string, unknown> | null {
 }
 
 interface CaptureParsed {
-  intent: 'contact' | 'company' | 'unclear';
+  intent: 'contact' | 'company' | 'task' | 'unclear';
   contact: Record<string, unknown> | null;
   company: Record<string, unknown> | null;
+  task: Record<string, unknown> | null;
 }
 
 function narrowCapture(raw: unknown): CaptureParsed | null {
   if (!isRecord(raw)) return null;
   const intent = raw.intent;
-  if (intent !== 'contact' && intent !== 'company' && intent !== 'unclear') return null;
-  return { intent, contact: branch(raw.contact), company: branch(raw.company) };
+  if (intent !== 'contact' && intent !== 'company' && intent !== 'task' && intent !== 'unclear') {
+    return null;
+  }
+  return {
+    intent,
+    contact: branch(raw.contact),
+    company: branch(raw.company),
+    // Ветка добавлена S-TG-TASK-1. Функция деплоится отдельно от бота: старая
+    // версия `ai-capture` ключа `task` не вернёт вовсе, и `branch` даст null —
+    // разбор контакта и компании при этом продолжает работать как работал.
+    task: branch(raw.task),
+  };
 }
 
 // ═══ Сборка полей ═══
@@ -406,6 +430,17 @@ export async function handleCaptureText(
     return;
   }
 
+  // ── S-TG-TASK-1: поручение, а не карточка ───────────────────────────
+  //
+  // ⚠️ ВЕТКА СТОИТ ДО РАБОТЫ С ИНН И ДЕДУПОМ, и это не оптимизация: ЕГРЮЛ и поиск
+  //    дубля — про компании. Задаче они ничего не дают, а лишний вызов
+  //    `company-lookup` на тексте «позвонить Иванову» — это чужой сетевой запрос
+  //    на каждое поручение.
+  if (parsed.intent === 'task') {
+    await handleTaskIntent(supabase, actor, say, parsed.task, rawText);
+    return;
+  }
+
   // ⚠️ ИНН НЕ ПАРСИТ МОДЕЛЬ. Чексумма ФНС на нашей стороне → ЕГРЮЛ. Реквизиты —
   //    факт реестра, а не догадка LLM (инвариант фичи).
   const inn = extractInn(rawText);
@@ -484,6 +519,112 @@ export async function handleCaptureText(
 
   // parse_mode HTML — можно: текст СВОЙ и экранирован (см. editMessage в index.ts).
   await say(card.text, { parseMode: 'HTML', replyMarkup: card.reply_markup });
+}
+
+/**
+ * Задача из свободного текста — S-TG-TASK-1.
+ *
+ * ⚠️ УПОМИНАНИЯ РЕЗОЛВИТ КОД, А НЕ МОДЕЛЬ. Из разбора приходят только цитаты
+ *    (`assignee_hint` и соседи); id находит `capture-resolve` по данным БД и
+ *    ТОЛЬКО при единственном совпадении. Два кандидата ⇒ поле пустое и причина в
+ *    карточке: «выбрать первое» здесь означает «привязать не к тому», а
+ *    ошибочный `assigned_to` уведомляет не того человека немедленно
+ *    (`trg_notify_task_assigned`, AFTER INSERT) — отката у этого нет.
+ *
+ * ⚠️ В ЧЕРНОВИК КЛАДУТСЯ УЖЕ РАЗРЕШЁННЫЕ uuid И ГОТОВЫЙ `deadline`. Переносить
+ *    резолв в момент нажатия «Создать» нельзя: тогда карточка обещала бы одно, а
+ *    RPC записала другое — данные между показом и нажатием успевают измениться.
+ */
+async function handleTaskIntent(
+  supabase: Supa,
+  actor: TelegramActor,
+  say: (text: string, opts?: { parseMode?: 'HTML'; replyMarkup?: unknown }) => Promise<void>,
+  task: Record<string, unknown> | null,
+  rawText: string,
+): Promise<void> {
+  const text = str(task?.text);
+  if (!text) {
+    await say(MSG_EMPTY_TASK);
+    return;
+  }
+
+  const db = supabase as ResolveDb;
+  // Три независимых запроса — параллельно: последовательно они втрое удлиняют
+  // молчание бота, а зависимости между ними нет.
+  const [assignee, project, company] = await Promise.all([
+    resolveAssignee(db, actor.org_id, str(task?.assignee_hint)),
+    resolveProject(db, actor.org_id, str(task?.project_hint)),
+    resolveCompany(db, actor.org_id, str(task?.company_hint)),
+  ]);
+
+  const deadlineHint = [str(task?.deadline_date), str(task?.deadline_time)]
+    .filter((p) => p !== '')
+    .join(' ');
+  const deadline = buildTaskDeadline(str(task?.deadline_date), str(task?.deadline_time), new Date());
+  const priority = normalizeTaskPriority(str(task?.priority));
+
+  const { data: draftRow, error: draftErr } = await supabase
+    .from('telegram_capture_drafts')
+    .insert({
+      org_id: actor.org_id,
+      profile_id: actor.profile_id,
+      kind: 'task',
+      payload: {
+        task: {
+          text,
+          priority,
+          deadline: deadline.iso,
+          assigned_to: assignee.id,
+          project_id: project.id,
+          company_id: company.id,
+        },
+      },
+      source_text: rawText,
+      // Дедупа задач нет и не будет: две одинаковые задачи — законная ситуация,
+      // в отличие от двух одинаковых компаний.
+      duplicate_id: null,
+      duplicate_kind: null,
+    })
+    .select('id')
+    .single();
+
+  const draftId = (draftRow as { id?: string } | null)?.id ?? null;
+  if (draftErr || !draftId) {
+    console.error('telegram-webhook: черновик задачи не записан:', draftErr?.message ?? 'нет id');
+    await say(MSG_UNAVAILABLE);
+    return;
+  }
+
+  const card = buildTaskCard({
+    draftId,
+    text,
+    deadline,
+    deadlineHint,
+    priority,
+    assignee: toCardLink(assignee),
+    project: toCardLink(project),
+    company: toCardLink(company),
+  });
+
+  // parse_mode HTML — можно: текст СВОЙ и экранирован (см. editMessage в index.ts).
+  await say(card.text, { parseMode: 'HTML', replyMarkup: card.reply_markup });
+}
+
+/** `Resolved` → строка карточки. Формы структурно совпадают, но не тождественны. */
+function toCardLink(r: Resolved): TaskCardLink {
+  return { reason: r.reason, label: r.label, hint: r.hint };
+}
+
+/**
+ * Приоритет, суженный до значений enum `task_priority`.
+ *
+ * ⚠️ ЗЕРКАЛО `normalizeTaskPriority` из `src/lib/validators/capture.ts`, а не
+ *    импорт: алиас `@/` Deno не резолвит. Незнакомое значение ⇒ `normal` —
+ *    терять поручение целиком из-за приоритета незачем.
+ */
+function normalizeTaskPriority(raw: string): 'normal' | 'important' | 'critical' {
+  const v = raw.trim().toLowerCase();
+  return v === 'important' || v === 'critical' ? v : 'normal';
 }
 
 /** Привязка по `from.id`. Org берётся ОТТУДА ЖЕ — второго источника у бота нет. */
@@ -576,7 +717,9 @@ export async function handleCaptureCallback(
   const result = (data ?? {}) as {
     status?: string;
     id?: string;
-    kind?: 'contact' | 'company';
+    // `task` добавлен S-TG-TASK-1: RPC возвращает ветку, которую применила, а
+    // берёт она её из строки черновика, а не из префикса нажатой кнопки.
+    kind?: EntityLinkKind;
     label?: string;
   };
 
