@@ -20,7 +20,8 @@
 | `TELEGRAM_WEBHOOK_SECRET` | Function Secrets **+ у Telegram** (`secret_token` в `setWebhook`) | `telegram-webhook` |
 | `TELEGRAM_SEND_KEY` | Function Secrets **+ Vault** (`telegram_send_key`) | `telegram-send` ← `telegram_send_tick()` |
 | — | Vault `telegram_send_url` | `telegram_send_tick()` |
-| `EDGE_INVOKE_JWT` | Function Secrets | `telegram-webhook` → шлюз `ai-capture` / `company-lookup` |
+| `EDGE_INVOKE_JWT` | Function Secrets | `telegram-webhook` → шлюз `ai-capture` / `company-lookup` / `transcribe` |
+| `GROQ_API_KEY` | Function Secrets | `transcribe` (ASR голосовых, S-TG-VOICE-1) |
 | `NEXT_PUBLIC_TELEGRAM_BOT` | `.env.local` + Vercel | UI (`TelegramSection`) |
 
 > ### ⚠️ Два секрета обязаны совпадать в двух местах каждый
@@ -200,6 +201,52 @@ curl -s "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 | Строка `error`, `last_error` начинается с `403` | пользователь заблокировал бота. Ретраев нет **намеренно** — повторять нечего |
 | Строка `error`, `last_error` = `400: can't parse entities` | баг экранирования в `telegram_notification_text()` / зеркале `telegram-message.ts` — это наша ошибка, не Telegram |
 | Уведомление есть в колокольчике, в Telegram нет | у получателя нет привязки (`telegram_accounts`) — триггер молча пропускает, это штатный путь |
+| На голосовое бот отвечает «Расшифровка временно недоступна» | `transcribe` не ответила. Смотреть **`function_edge_logs`** по `/transcribe`: **401** — та же история с ключом шлюза, что у `ai-capture` (нужен `EDGE_INVOKE_JWT`); **500** — не задан `GROQ_API_KEY`; **502** — Groq отклонил ключ или не смог распознать |
+| На голосовое бот отвечает «Ничего не разобрал» на явно непустой записи | распознанное состояло из субтитровых штампов (`stripHallucinations`) или сегменты отбракованы по метрикам. Это НЕ сбой: `whisper-large-v3` обучен на субтитрах и на тишине выдаёт «Продолжение следует…». Смотреть лог `transcribe` — там сырой ответ Groq |
+| Бот молчит на голосовое, в `telegram_updates` строка есть | ветка `voice` не задеплоена (в проде старая сборка `telegram-webhook`) — редеплой функции |
+
+---
+
+## 4.1. Голосовые (S-TG-VOICE-1)
+
+Голосовое приходит **обычным `message` с полем `voice`** — отдельного типа апдейта у
+него нет, и `allowed_updates` ради него менять не требуется. Проверять это надо
+фактом, а не рассуждением:
+
+```bash
+curl -s "https://api.telegram.org/bot$TG_TOKEN/getWebhookInfo" | jq
+```
+
+Смотреть **все поля**, а не `ok: true`: `allowed_updates`, `pending_update_count`,
+`last_error_message`, `last_error_date`. Если `allowed_updates` задан и в нём нет
+`message` — апдейты отбрасываются **на стороне Telegram**, без единого следа в логах
+edge (ровно этот сценарий стоил эпику самого дорогого инцидента с `callback_query`).
+
+⚠️ **Повторный `setWebhook` без `allowed_updates` СОХРАНЯЕТ прежний список**, а не
+открывает всё. Перерегистрировать — только с явным полным перечислением:
+
+```bash
+curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/setWebhook" \
+  -d "url=$WEBHOOK_URL" \
+  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET" \
+  -d 'allowed_updates=["message","callback_query"]'
+curl -s "https://api.telegram.org/bot$TG_TOKEN/getWebhookInfo" | jq   # прочитать обратно
+```
+
+**Что бот принимает и чего не принимает.** Обрабатывается только `voice`. `audio`
+(присланный музыкальный файл), `video_note` (кружок), `video`, `document`, картинки и
+стикеры получают нейтральный ответ «Пришлите голосовое сообщение или текст» — у них
+другой сценарий и другой размер, а часовой mp3 упёрся бы в лимит уже после
+скачивания, то есть после того, как мы заплатили за трафик.
+
+**Границы** (`supabase/functions/_shared/transcribe-limits.ts`, единственный источник):
+до **180 секунд** и до **20 МБ**, обе проверяются **до скачивания файла**. Первая —
+граница смысловая: быстрый ввод длиннее трёх минут это уже расшифровка встречи, для
+которой есть AI Hub. Расшифровка длиннее **2000 знаков** отбивается своим текстом:
+столько не принимает `ai-capture`.
+
+**Аудио нигде не сохраняется** — ни в Storage, ни в БД. Голосовое остаётся в Telegram,
+у нас живёт только текст в `source_text` черновика.
 
 ---
 

@@ -34,6 +34,8 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { handleCaptureCallback, handleCaptureText, type BotApi } from './capture.ts';
+import { handleVoiceMessage } from './voice.ts';
+import { VOICE_MSG, routeMessage, type RoutableMessage } from '../_shared/telegram-voice.ts';
 import { parseCaptureCallbackData } from '../_shared/telegram-capture.ts';
 import { requireEnv } from '../_shared/env.ts';
 
@@ -61,6 +63,28 @@ interface TelegramUpdate {
     text?: string;
     chat?: { id?: number };
     from?: { id?: number; username?: string };
+    /**
+     * S-TG-VOICE-1: голосовое сообщение.
+     *
+     * ⚠️ ОТДЕЛЬНОГО ТИПА АПДЕЙТА У ГОЛОСОВЫХ НЕТ — они приходят обычным `message`
+     *    с полем `voice`, поэтому `allowed_updates` менять не требуется. Проверять
+     *    это надо `getWebhookInfo`, а не рассуждением: `allowed_updates: ["message"]`
+     *    уже стоил эпику самого дорогого инцидента — `callback_query` отбрасывался
+     *    НА СТОРОНЕ TELEGRAM, без единого следа в логах edge.
+     */
+    voice?: {
+      file_id?: string;
+      duration?: number;
+      file_size?: number;
+      mime_type?: string;
+    };
+    caption?: string;
+    audio?: unknown;
+    video?: unknown;
+    video_note?: unknown;
+    document?: unknown;
+    sticker?: unknown;
+    photo?: unknown;
   };
   /** S-TG-2: нажатие inline-кнопки. */
   callback_query?: {
@@ -335,12 +359,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const chatId = update.message?.chat?.id;
   const fromId = update.message?.from?.id;
 
-  if (!text || typeof chatId !== 'number' || typeof fromId !== 'number') return ok();
+  if (typeof chatId !== 'number' || typeof fromId !== 'number') return ok();
+
+  // ── S-TG-VOICE-1: голосовое — второй вход в тот же быстрый ввод ─────
+  //
+  // ⚠️ ВЫШЕ ТЕКСТА, НО НИЖЕ КОМАНД. Перепутать ветки нельзя по построению: у
+  //    голосового апдейта поля `text` нет вовсе. Порядок зафиксирован ради
+  //    предсказуемости, а не ради разбора.
+  //
+  // ⚠️ ГОЛОС ЗАКАНЧИВАЕТСЯ НА СТРОКЕ ТЕКСТА. `handleVoiceMessage` расшифровывает и
+  //    зовёт ТУ ЖЕ `handleCaptureText`, что и текстовая ветка ниже. Второй разбор
+  //    «для голосовых» не заводится: две такие ветки разъедутся на первой правке.
+  const route = routeMessage(update.message as RoutableMessage | undefined);
+
+  if (route === 'voice' && update.message?.voice) {
+    await handleVoiceMessage(
+      supabase,
+      makeBotApi(botToken),
+      botToken,
+      chatId,
+      fromId,
+      update.message.voice,
+    );
+    return ok();
+  }
+
+  // Кружок, музыкальный файл, документ, картинка — вне скоупа. Отвечаем нейтрально:
+  // молчащий бот неотличим от сломанного, и человек пришлёт то же самое ещё раз.
+  if (route === 'unsupported_media') {
+    await reply(botToken, chatId, VOICE_MSG.unsupportedMedia);
+    return ok();
+  }
+
+  if (!text) return ok();
 
   // ── S-TG-3: свободный текст — быстрый ввод ──────────────────────────
   // ⚠️ ПОРЯДОК ВЕТОК ОБЯЗАТЕЛЕН: секрет → идемпотентность → callback_query →
-  //    команды → свободный текст. Текст разбирается ПОСЛЕДНИМ; поставь его выше —
-  //    и он проглотит `/start`, то есть сломает привязку, отправив токен в модель.
+  //    голосовое → команды → свободный текст. Текст разбирается ПОСЛЕДНИМ; поставь
+  //    его выше — и он проглотит `/start`, то есть сломает привязку, отправив токен
+  //    в модель.
   if (!text.startsWith('/')) {
     await handleCaptureText(supabase, makeBotApi(botToken), chatId, fromId, text);
     return ok();

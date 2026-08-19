@@ -46,8 +46,14 @@ import {
   type Resolved,
 } from '../_shared/capture-resolve.ts';
 
-/** Зеркало `CAPTURE_MAX_CHARS` (`src/lib/validators/capture.ts`) и лимита ai-capture. */
-const CAPTURE_MAX_CHARS = 2000;
+/**
+ * Зеркало `CAPTURE_MAX_CHARS` (`src/lib/validators/capture.ts`) и лимита ai-capture.
+ *
+ * Экспортируется с S-TG-VOICE-1: голосовая ветка обязана отбить слишком длинную
+ * расшифровку СВОИМ текстом — «пришлите только карточку контакта» человеку, который
+ * ничего не присылал, а говорил, читается как ответ не на его действие.
+ */
+export const CAPTURE_MAX_CHARS = 2000;
 
 /**
  * Потолок выборки для дедупа. На 2026-08-08 в проде 89 контактов и 268 компаний —
@@ -58,7 +64,7 @@ const CAPTURE_MAX_CHARS = 2000;
  */
 const DEDUP_FETCH_LIMIT = 2000;
 
-const MSG_NOT_LINKED =
+export const MSG_NOT_LINKED =
   'Профиль не привязан. Откройте Настройки → Telegram в CRM и подключите бота.';
 const MSG_TOO_LONG = `Слишком длинный текст — не больше ${CAPTURE_MAX_CHARS} символов. Пришлите только карточку контакта или реквизиты.`;
 const MSG_PARSING = 'Разбираю…';
@@ -294,9 +300,20 @@ if (GATEWAY.token) {
 }
 
 // deno-lint-ignore no-explicit-any
-type Supa = any;
+export type Supa = any;
 
-async function invokeJson(supabase: Supa, name: string, body: unknown): Promise<unknown | null> {
+/**
+ * Вызов соседней edge-функции через шлюз.
+ *
+ * ⚠️ ЭКСПОРТИРУЕТСЯ РАДИ `voice.ts`, а не «на всякий случай». Голосовая ветка зовёт
+ *    `transcribe` — ту же калитку, тот же заголовок, тот же разбор 401. Вторая копия
+ *    этой функции означала бы вторую диагностику отказа, которая при следующей смене
+ *    схемы ключей отстанет от первой.
+ *
+ * `body` принимает и JSON, и `FormData`: `supabase-js` во втором случае не ставит
+ * `content-type` сам, и boundary проставляет fetch — руками его выставлять НЕЛЬЗЯ.
+ */
+export async function invokeJson(supabase: Supa, name: string, body: unknown): Promise<unknown | null> {
   const { data, error } = await supabase.functions.invoke(name, {
     body,
     // Ключ клиента шлюз не примет, если он новой схемы; заголовок ставим адресно.
@@ -395,6 +412,17 @@ export async function handleCaptureText(
   chatId: number,
   fromId: number,
   rawText: string,
+  /**
+   * Уже отправленное сообщение прогресса, которое надо ПЕРЕИСПОЛЬЗОВАТЬ (S-TG-VOICE-1).
+   *
+   * Голосовая ветка к этому моменту уже написала «Расшифровываю…» и обязана
+   * превратить его же в «Разбираю…», а затем в карточку. Без этого параметра в чате
+   * оставалось бы висеть осиротевшее «Расшифровываю…», а карточка приходила бы
+   * отдельным сообщением ниже.
+   *
+   * ⚠️ Текстовая ветка передаёт `undefined` и работает БАЙТ-В-БАЙТ как раньше.
+   */
+  progressMessageId?: number | null,
 ): Promise<void> {
   const actor = await resolveActor(supabase, fromId);
   if (!actor) {
@@ -407,7 +435,15 @@ export async function handleCaptureText(
     return;
   }
 
-  const progressId = await bot.send(chatId, MSG_PARSING);
+  // Своё сообщение прогресса — только если его не передали. Переданное правим:
+  // человек уже видит «Расшифровываю…», и второе такое же сообщение ниже — мусор.
+  let progressId: number | null;
+  if (typeof progressMessageId === 'number') {
+    progressId = progressMessageId;
+    await bot.edit(chatId, progressId, MSG_PARSING);
+  } else {
+    progressId = await bot.send(chatId, MSG_PARSING);
+  }
   // Не отправилась заглушка — редактировать нечего; дальше отвечаем новым
   // сообщением. Терять разбор из-за сбоя одного sendMessage незачем.
   const say = async (text: string, opts?: { parseMode?: 'HTML'; replyMarkup?: unknown }) => {
@@ -627,8 +663,14 @@ function normalizeTaskPriority(raw: string): 'normal' | 'important' | 'critical'
   return v === 'important' || v === 'critical' ? v : 'normal';
 }
 
-/** Привязка по `from.id`. Org берётся ОТТУДА ЖЕ — второго источника у бота нет. */
-async function resolveActor(supabase: Supa, fromId: number): Promise<TelegramActor | null> {
+/**
+ * Привязка по `from.id`. Org берётся ОТТУДА ЖЕ — второго источника у бота нет.
+ *
+ * Экспортируется с S-TG-VOICE-1: голосовая ветка обязана проверить привязку ДО
+ * скачивания файла и вызова Groq. Иначе любой, кто нашёл бота, жжёт нам ASR, а
+ * отказ «Профиль не привязан» получает через десять секунд вместо мгновения.
+ */
+export async function resolveActor(supabase: Supa, fromId: number): Promise<TelegramActor | null> {
   const { data, error } = await supabase
     .from('telegram_accounts')
     .select('profile_id, org_id')

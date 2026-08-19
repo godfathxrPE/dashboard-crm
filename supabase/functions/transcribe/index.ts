@@ -39,6 +39,7 @@ import {
   buildCleanupMessage,
 } from './cleanup-prompt.ts';
 import { callLlmText, LlmError, type LlmTextResult } from '../_shared/llm.ts';
+import { MAX_AUDIO_BYTES } from '../_shared/transcribe-limits.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -98,8 +99,15 @@ function pickSegments(raw: unknown): OutSegment[] {
   return out;
 }
 
-/** Зеркало MAX_CHUNK_BYTES в src/lib/transcribe/audio.ts. Groq принимает до 25 МБ. */
-const MAX_CHUNK_BYTES = 20_000_000;
+/**
+ * Зеркало MAX_CHUNK_BYTES в src/lib/transcribe/audio.ts. Groq принимает до 25 МБ.
+ *
+ * ⚠️ С S-TG-VOICE-1 значение живёт в `_shared/transcribe-limits.ts`, а не литералом
+ *    здесь: у порога появился второй читатель — `telegram-webhook` отбивает слишком
+ *    большое голосовое ДО скачивания файла. Скопированное число разъехалось бы с
+ *    этим молча.
+ */
+const MAX_CHUNK_BYTES = MAX_AUDIO_BYTES;
 
 /** large-v3 — дефолт: turbo дистиллирован (4 слоя декодера вместо 32) и проседает на русском. */
 const WHISPER_MODELS = ['whisper-large-v3', 'whisper-large-v3-turbo'];
