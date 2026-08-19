@@ -181,7 +181,14 @@ describe('ретрай формы у пресета с поиском', () => {
 
   it('ai-run отдаёт адаптеру диалог первой попытки и подсказку', () => {
     expect(EDGE).toContain('priorMessages: firstSearch.messages');
-    expect(EDGE).toContain('retryHint: SHAPE_RETRY_HINT');
+    expect(EDGE).toContain('retryHint,');
+  });
+
+  it('S-LLM-SEARCH-2: подсказка собирается ПО ПРЕТЕНЗИИ, а не одна на все случаи', () => {
+    // Пустой поиск при верной схеме — не повод говорить модели «ответ не по схеме»:
+    // вторая попытка уйдёт на починку формата, который в порядке.
+    expect(EDGE).toContain("claims.some((c) => c.code !== 'empty_sources') ? SHAPE_RETRY_HINT : null");
+    expect(EDGE).toContain('hasEmptySources(claims) ? EMPTY_SOURCES_RETRY_HINT : null');
   });
 
   it('Anthropic: вторая попытка ПРОДОЛЖАЕТ диалог, а не ищет заново', () => {
@@ -193,7 +200,7 @@ describe('ретрай формы у пресета с поиском', () => {
   });
 
   it('старые пресеты ретраятся прежним путём — полным повтором userTurn с подсказкой', () => {
-    expect(EDGE).toContain('await callClaude(preset, `${userTurn}\\n\\n${SHAPE_RETRY_HINT}`)');
+    expect(EDGE).toContain('await callClaude(preset, `${userTurn}\\n\\n${retryHint}`)');
   });
 
   it('причина ретрая и число поисков доезжают до meta прогона', () => {

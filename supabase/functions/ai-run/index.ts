@@ -50,10 +50,15 @@
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import {
   checkResultShape,
+  checkSearchYield,
+  hasEmptySources,
   hardClaims,
   softClaims,
   stripCiteTags,
+  EMPTY_SOURCES_TEXT,
+  EMPTY_SOURCES_RETRY_HINT,
   SHAPE_RETRY_HINT,
+  type ShapeClaim,
 } from './shape.ts';
 // S-COMPANY-AI-1: маркировочный профиль по ОКВЭД. Копия src/lib/data/chz-groups.ts —
 // зеркало, править синхронно (страж — tests/unit/chz-groups.test.ts).
@@ -962,14 +967,17 @@ function cleanAttempt(preset: Preset, attempt: ClaudeAttempt): ClaudeAttempt {
  * При `access` повтор не поможет — сегодня это стоило трёх одинаковых нажатий
  * подряд на `credit balance is too low`.
  */
-function runError(kind: 'access' | 'upstream' | 'shape' | 'network'): string {
-  const text: Record<string, string> = {
+function runError(kind: 'access' | 'upstream' | 'shape' | 'network', text?: string): string {
+  const defaults: Record<string, string> = {
     access: 'Сервис ИИ недоступен: нет доступа к провайдеру. Проверьте ключ и баланс.',
     upstream: 'Не удалось выполнить анализ. Попробуйте повторить.',
     network: 'Не удалось выполнить анализ. Попробуйте повторить.',
     shape: 'Модель вернула ответ в неверном формате. Попробуйте повторить.',
   };
-  return `${kind}|${text[kind]}`;
+  // S-LLM-SEARCH-2: класс и текст разъехались намеренно. Пустой веб-поиск — это тот же
+  // класс `shape` (кнопка «Повторить» обязана остаться), но «неверный формат» про него
+  // соврало бы: формат как раз верный, пустой результат.
+  return `${kind}|${text ?? defaults[kind]}`;
 }
 
 /** Фоновый прогон: running → LLM → done/error. Никогда не бросает наружу. */
@@ -1032,8 +1040,15 @@ async function processRun(
       firstSearch ?? await callClaude(preset, userTurn),
     );
     const schema = preset.tool.input_schema;
+    // S-LLM-SEARCH-2. У пресета с веб-поиском пустой `sources` — ПРОВАЛ, а не результат:
+    // веб там единственный источник данных, и ноль ссылок значит «искать не получилось».
+    // Претензия жёсткая, поэтому попадает в общий контур — сначала ретрай, потом отказ.
+    const shapeOf = (input: Record<string, unknown>): ShapeClaim[] => [
+      ...checkResultShape(schema, input),
+      ...(preset.webSearch ? checkSearchYield(input) : []),
+    ];
     let chosen = first;
-    let claims = checkResultShape(schema, first.input);
+    let claims = shapeOf(first.input);
     let retried = false;
     let retryReason: string[] = [];
     let searches = firstSearch?.searches ?? null;
@@ -1051,6 +1066,12 @@ async function processRun(
       // shape_warning). Лог edge живёт 24 часа и не связан со строкой прогона — поэтому
       // причина дублируется в meta, где переживёт прогон и посчитается одним SQL.
       retryReason = claims.map((c) => `${c.kind}:${c.message}`);
+      // Подсказка обязана соответствовать претензии: «ответ не по схеме» на пустом
+      // поиске отправило бы модель чинить формат, который в порядке.
+      const retryHint = [
+        claims.some((c) => c.code !== 'empty_sources') ? SHAPE_RETRY_HINT : null,
+        hasEmptySources(claims) ? EMPTY_SOURCES_RETRY_HINT : null,
+      ].filter((h): h is string => h !== null).join('\n');
       console.warn(
         'ai-run shape retry:',
         JSON.stringify({ runId, preset: preset.key, firstClaims: retryReason }),
@@ -1070,18 +1091,18 @@ async function processRun(
           tool: preset.tool,
           providerEnvKey: 'AI_RUN_PROVIDER',
           priorMessages: firstSearch.messages,
-          retryHint: SHAPE_RETRY_HINT,
+          retryHint,
         })
         : null;
       const second: ClaudeAttempt = cleanAttempt(
         preset,
-        secondSearch ?? await callClaude(preset, `${userTurn}\n\n${SHAPE_RETRY_HINT}`),
+        secondSearch ?? await callClaude(preset, `${userTurn}\n\n${retryHint}`),
       );
       usages.push(second.usage);
       if (typeof secondSearch?.searches === 'number') {
         searches = (searches ?? 0) + secondSearch.searches;
       }
-      const secondClaims = checkResultShape(schema, second.input);
+      const secondClaims = shapeOf(second.input);
 
       // Берём попытку БЕЗ жёстких претензий, при прочих равных — вторую (свежее).
       // Отход от блок-схемы фикса, и намеренный: у неё случай «первая была
@@ -1097,13 +1118,22 @@ async function processRun(
     // Жёсткие претензии пережили ретрай — клиент этот ответ всё равно не разберёт.
     // Пишем error и НЕ пишем result: сегодня мусор доезжает до БД, после правки — нет.
     if (hardClaims(claims).length > 0) {
+      // S-LLM-SEARCH-2. К претензиям добавлена ГОЛОВА фактического результата: «пришёл
+      // string» не говорит, ЧТО именно пришло, а без этого отказ не разобрать постфактум
+      // (лог edge живёт 24 часа, результат отвергнутой попытки в БД не пишется вовсе).
+      // 300 символов: в брифе по юрлицу персональных данных нет, но длину режем.
       console.error(
         'ai-run shape rejected:',
-        JSON.stringify({ runId, preset: preset.key, claims: claims.map((c) => c.message) }),
+        JSON.stringify({
+          runId,
+          preset: preset.key,
+          claims: claims.map((c) => c.message),
+          result_head: JSON.stringify(chosen.input).slice(0, 300),
+        }),
       );
       await supabase.from('ai_runs').update({
         status: 'error',
-        error: runError('shape'),
+        error: runError('shape', hasEmptySources(claims) ? EMPTY_SOURCES_TEXT : undefined),
         input_tokens: sumUsage(usages, 'input_tokens'),
         output_tokens: sumUsage(usages, 'output_tokens'),
         duration_ms: Date.now() - started,

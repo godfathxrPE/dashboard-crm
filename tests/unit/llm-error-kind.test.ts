@@ -118,7 +118,15 @@ describe('edge пишет ошибку в согласованном форма�
   const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'), 'utf8');
 
   it('runError клеит префикс, а не пишет голый текст', () => {
-    expect(EDGE).toContain('return `${kind}|${text[kind]}`;');
+    // Проверяем СКЛЕЙКУ, а не выражение справа: с S-LLM-SEARCH-2 у `shape` появился
+    // второй текст (пустой поиск), и жёсткий адрес ломался бы на каждой такой правке.
+    expect(EDGE).toMatch(/return `\$\{kind\}\|\$\{[^`]+\}`;/);
+  });
+
+  it('S-LLM-SEARCH-2: текст можно переопределить, класс — нет', () => {
+    // Пустой веб-поиск остаётся классом `shape` (кнопка «Повторить» на месте),
+    // но объясняется своими словами: «неверный формат» про него соврало бы.
+    expect(EDGE).toContain("runError('shape', hasEmptySources(claims) ? EMPTY_SOURCES_TEXT : undefined)");
   });
 
   it('классы edge и клиента — один список', () => {
