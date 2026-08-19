@@ -1054,6 +1054,18 @@ function cleanAttempt(preset: Preset, attempt: ClaudeAttempt): ClaudeAttempt {
 }
 
 /**
+ * S-BRIEF-BUDGET. Текст отвала ПО ВРЕМЕНИ.
+ *
+ * Класс остаётся `upstream` — кнопка «Повторить» обязана быть на месте: поиск в
+ * следующий раз может пройти быстрее, и это единственное осмысленное действие.
+ * А вот общий текст `upstream` («Не удалось выполнить анализ») после 51 секунды
+ * ожидания не объясняет ничего. Механика та же, что у `EMPTY_SOURCES_TEXT`:
+ * класс и текст расходятся намеренно.
+ */
+const TIMEOUT_TEXT =
+  `Анализ занял слишком долго и был прерван. Попробуйте повторить.`;
+
+/**
  * S-LLM-SEARCH-1. Текст ошибки прогона + МАШИНОЧИТАЕМЫЙ класс в одном поле.
  *
  * Формат `kind|текст`. Почему так, а не колонка под класс: миграция ради ярлыка не
@@ -1088,6 +1100,13 @@ async function processRun(
   entityId: string,
 ): Promise<void> {
   const started = Date.now();
+  // S-BRIEF-BUDGET. Расход и фактический слаг живут ВНЕ try: до этой правки путь
+  // `catch` писал только status/error/duration, и самый дорогой сценарий оказался
+  // единственным без следа в журнале — прогон 19.08 11:41 оплатил сорок с лишним
+  // поисков (~27 тысяч токенов) и оставил в строке пустые токены и слаг
+  // `claude-sonnet-5` при фактическом `x-ai/grok-4.3`.
+  const usages: ClaudeUsage[] = [];
+  let actualModel: string | null = null;
   try {
     await supabase.from('ai_runs').update({ status: 'running' }).eq('id', runId);
 
@@ -1175,7 +1194,8 @@ async function processRun(
     let retried = false;
     let retryReason: string[] = [];
     let searches = firstSearch?.searches ?? null;
-    const usages: ClaudeUsage[] = [first.usage];
+    usages.push(first.usage);
+    actualModel = first.model;
 
     // ── Попытка 2: ровно одна ──
     // При ~25% независимых отказов один ретрай даёт ~6% брака, второй — ~1.5%.
@@ -1235,6 +1255,7 @@ async function processRun(
         secondSearch ?? await callClaude(preset, `${userTurn}\n\n${retryHint}`),
       );
       usages.push(second.usage);
+      actualModel = second.model;
       if (typeof secondSearch?.searches === 'number') {
         searches = (searches ?? 0) + secondSearch.searches;
       }
@@ -1340,10 +1361,33 @@ async function processRun(
       finished_at: new Date().toISOString(),
     }).eq('id', runId);
   } catch (err) {
+    const llm = err instanceof LlmError ? err : null;
     console.error('ai-run process error:', err instanceof Error ? err.message : String(err));
+    // Расход завершившихся проходов: попытки, дошедшие до конца (`usages`), плюс то,
+    // что адаптер успел оплатить внутри упавшей (`spentUsage` — проход поиска при
+    // отказе упаковщика). Ничего не известно ⇒ `sumUsage` отдаёт null, и поля
+    // остаются пустыми: ноль сказал бы «прогон был бесплатным», а он не был.
+    const spent = llm?.spentUsage ? [...usages, llm.spentUsage] : usages;
+    const inputTokens = sumUsage(spent, 'input_tokens');
+    const outputTokens = sumUsage(spent, 'output_tokens');
+    // Слаг — ФАКТИЧЕСКИЙ. Неизвестен (упали до первого ответа) ⇒ колонку не трогаем
+    // вовсе: там значение с INSERT, и переписывать его нечем.
+    const model = llm?.spentModel ?? actualModel;
+    console.error('ai-run run failed:', JSON.stringify({
+      runId,
+      preset: preset.key,
+      kind: llm?.kind ?? null,
+      timed_out: llm?.timedOut ?? false,
+      model,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+    }));
     await supabase.from('ai_runs').update({
       status: 'error',
-      error: runError(err instanceof LlmError ? err.kind : 'upstream'),
+      error: runError(llm?.kind ?? 'upstream', llm?.timedOut ? TIMEOUT_TEXT : undefined),
+      ...(model ? { model } : {}),
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
       duration_ms: Date.now() - started,
       finished_at: new Date().toISOString(),
     }).eq('id', runId);
