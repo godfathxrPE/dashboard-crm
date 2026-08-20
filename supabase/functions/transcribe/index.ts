@@ -113,6 +113,14 @@ const MAX_CHUNK_BYTES = MAX_AUDIO_BYTES;
 const WHISPER_MODELS = ['whisper-large-v3', 'whisper-large-v3-turbo'];
 
 const MAX_CLEANUP_CHARS = BLOCK_CHARS * 2;
+/**
+ * Сколько знаков терминов мы СОГЛАСНЫ ПРИНЯТЬ.
+ *
+ * ⚠️ ВТОРАЯ ГРАНИЦА, А НЕ ДУБЛЬ `TERMS_CHAR_BUDGET` (200) ИЗ `glossary.ts`. Разные
+ *    смыслы: здесь — потолок входного поля, там — сколько влезет в prompt рядом с
+ *    глоссарием. Принять больше, чем поместится, — законно; принять и молча
+ *    выбросить, не сказав, было долгом до S-TG-VOICE-TERMS.
+ */
 const MAX_TERMS_CHARS = 300;
 const MAX_CONTEXT_CHARS = 500;
 const MAX_TAIL_CHARS = 1500;

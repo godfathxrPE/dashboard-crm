@@ -441,7 +441,7 @@ export function formatTaskDeadline(iso: string): string {
 }
 
 /** Что случилось с упоминанием. Структурное зеркало `ResolveReason`. */
-export type TaskLinkReason = 'ok' | 'empty' | 'not_found' | 'ambiguous';
+export type TaskLinkReason = 'ok' | 'empty' | 'not_found' | 'ambiguous' | 'error';
 
 export interface TaskCardLink {
   reason: TaskLinkReason;
@@ -492,10 +492,15 @@ function linkLine(kind: 'assignee' | 'project' | 'company', link: TaskCardLink |
     return label ? `${head}: ${escapeTelegramHtml(label)}` : null;
   }
   const hint = escapeTelegramHtml(clean(link.hint) ?? '');
+  // ⚠️ `error` НЕ СКЛЕИВАЕТСЯ С `not_found`. «Не нашёл» — утверждение о справочнике,
+  //    и человек, услышав его, начинает править своё сообщение. Если справочник не
+  //    прочитался, он ни при чём, и текст обязан это говорить.
   const why =
     link.reason === 'ambiguous'
       ? `несколько совпадений, ${LINK_FIX[kind]}`
-      : `не нашёл, ${LINK_FIX[kind]}`;
+      : link.reason === 'error'
+        ? `не удалось проверить справочник, ${LINK_FIX[kind]}`
+        : `не нашёл, ${LINK_FIX[kind]}`;
   return `${head}: «${hint}» — ${why}`;
 }
 

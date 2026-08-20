@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+  resolveProject,
+  resolveAssignee,
   pickSingleMatch,
   hintMatchesName,
   significantHintTokens,
@@ -7,6 +9,8 @@ import {
   stripCaseEnding,
   RESOLVE_FETCH_LIMIT,
   type ResolveCandidate,
+  type ResolveDb,
+  type ResolveBuilder,
 } from '../../supabase/functions/_shared/capture-resolve';
 
 // ═══════════════════════════════════════════════════════
@@ -222,5 +226,63 @@ describe('падеж названия снимается окончанием', 
   // основы 4, и мы её не берём — цена снижения порога выше выигрыша.
   it('слово короче порога основы в косвенном падеже НЕ резолвится', () => {
     expect(hintMatchesName('Хорошему вкусу', 'Хороший вкус', 'entity')).toBe(false);
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════
+// S-TG-VOICE-TERMS — сбой выборки это НЕ «не нашёл» (долг гейта S-TG-TASK-1).
+//
+// ⚠️ ДВА ИСХОДА ПОД ОДНИМ ТЕКСТОМ — ЭТО ДЕФЕКТ, А НЕ УПРОЩЕНИЕ. «Не нашёл,
+//    назначьте в CRM» — утверждение о справочнике: услышав его, человек идёт
+//    править своё сообщение. Если справочник вообще не прочитался, он ни при чём,
+//    и предложение исправить свою речь — ложный совет. Ровно тот же класс, что
+//    отказ Groq по формату файла под текстом «не смог распознать»: диагностика
+//    уходит не туда, потому что исходы склеены.
+//
+// ⚠️ БРОСОК ЗДЕСЬ ПО-ПРЕЖНЕМУ ЗАПРЕЩЁН: потерять из-за упавшего `select` весь
+//    разбор хуже, чем показать причину строкой в карточке.
+// ═══════════════════════════════════════════════════════
+
+/** Билдер, который на любой цепочке отдаёт заданный ответ PostgREST. */
+function stubDb(result: { data: unknown; error: { message: string } | null }): ResolveDb {
+  const builder: ResolveBuilder = {
+    select: () => builder,
+    eq: () => builder,
+    neq: () => builder,
+    ilike: () => builder,
+    limit: () => builder,
+    then: (onfulfilled) => Promise.resolve(result).then(onfulfilled),
+  } as ResolveBuilder;
+  return { from: () => builder };
+}
+
+describe('сбой выборки → reason «error», а не «not_found»', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('упавший select по сделкам не выдаётся за отсутствие сделки', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await resolveProject(stubDb({ data: null, error: { message: 'boom' } }), 'org-1', 'Мукомол');
+    expect(r.reason).toBe('error');
+    expect(r.id).toBeNull();
+    // Подсказка обязана дожить до карточки: без неё строка «не удалось проверить»
+    // не скажет, ЧТО именно не проверилось.
+    expect(r.hint).toBe('Мукомол');
+  });
+
+  it('упавший select по исполнителям — тоже «error»', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await resolveAssignee(stubDb({ data: null, error: { message: 'boom' } }), 'org-1', 'Молявину');
+    expect(r.reason).toBe('error');
+  });
+
+  it('пустая выборка БЕЗ ошибки остаётся «not_found» — эту ветку правка не трогает', async () => {
+    const r = await resolveProject(stubDb({ data: [], error: null }), 'org-1', 'Мукомол');
+    expect(r.reason).toBe('not_found');
+  });
+
+  it('пустая подсказка проверяется ДО запроса и остаётся «empty»', async () => {
+    const r = await resolveProject(stubDb({ data: null, error: { message: 'boom' } }), 'org-1', '   ');
+    expect(r.reason).toBe('empty');
   });
 });

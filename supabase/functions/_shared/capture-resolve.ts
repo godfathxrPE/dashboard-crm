@@ -22,7 +22,16 @@ import { normalizeNameTokens } from './capture-helpers.ts';
  * пропуск даёт тихую деградацию — человек жмёт «Создать», считая, что исполнитель
  * проставлен.
  */
-export type ResolveReason = 'ok' | 'empty' | 'not_found' | 'ambiguous';
+export type ResolveReason = 'ok' | 'empty' | 'not_found' | 'ambiguous' | 'error';
+
+/**
+ * ⚠️ `'error'` ЗАВЕДЁН ОТДЕЛЬНО ОТ `'not_found'` — S-TG-VOICE-TERMS, долг гейта
+ *    S-TG-TASK-1. До правки упавший `select` возвращал `not_found`, и карточка
+ *    говорила «не нашёл, назначьте в CRM» там, где справочник вообще не читался.
+ *    Формулировка предлагала человеку исправить СВОЮ речь за сбой НА НАШЕЙ стороне —
+ *    тот же класс склейки, что «Groq не смог распознать» на отказ по формату файла:
+ *    диагностика уходит не туда, потому что два разных исхода носят один текст.
+ */
 
 export interface Resolved {
   id: string | null;
@@ -269,8 +278,6 @@ function contains(needle: string): string {
 
 /**
  * Общий ход всех трёх резолверов: пустая подсказка → грубый отбор → точный матч.
- * Сбой запроса — `not_found`, а не бросок: потерять из-за него весь разбор хуже,
- * чем показать «не нашёл» строкой в карточке.
  */
 async function resolveVia(
   hint: string,
@@ -282,7 +289,9 @@ async function resolveVia(
   if (needle === null) return { id: null, reason: 'empty', hint: raw, label: null };
 
   const rows = await fetchCandidates(needle);
-  if (rows === null) return { id: null, reason: 'not_found', hint: raw, label: null };
+  // Сбой запроса — не «не нашли». Бросок здесь по-прежнему запрещён: потерять из-за
+  // него весь разбор хуже, чем показать строкой, что справочник не прочитался.
+  if (rows === null) return { id: null, reason: 'error', hint: raw, label: null };
 
   return pickSingleMatch(raw, rows, mode, rows.length >= RESOLVE_FETCH_LIMIT);
 }

@@ -28,6 +28,13 @@ import {
   voiceLimitMessage,
   type VoiceMeta,
 } from '../_shared/telegram-voice.ts';
+import { buildVoiceTerms } from '../_shared/voice-terms.ts';
+// ⚠️ ИМПОРТ ЧЕРЕЗ ГРАНИЦУ ФУНКЦИИ — ОСОЗНАННО. Бюджет подсказки принадлежит
+//    `buildPrompt`, и переписать сюда число 200 значит завести ровно тот долг,
+//    который этот спринт закрывает (принимали 300, доезжало 200, разницу молча
+//    выбрасывали). `glossary.ts` — чистый модуль без `Deno.serve`, импортируется
+//    безопасно. Цена: правка бюджета требует редеплоя ОБЕИХ функций.
+import { TERMS_CHAR_BUDGET } from '../transcribe/glossary.ts';
 
 const TELEGRAM_API = 'https://api.telegram.org';
 /** Скачивание файла — не Bot API-метод: таймаут свой, аудио тяжелее JSON. */
@@ -92,6 +99,73 @@ async function downloadVoice(botToken: string, fileId: string): Promise<ArrayBuf
   }
 }
 
+/** Сколько строк тянем из БД. Потолок ВЫБОРКИ, не бюджета — бюджет режет `buildVoiceTerms`. */
+const DEALS_FETCH_LIMIT = 40;
+const PEOPLE_FETCH_LIMIT = 30;
+
+function textField(row: unknown, key: string): string {
+  if (typeof row !== 'object' || row === null) return '';
+  const value = (row as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : '';
+}
+
+/**
+ * Имена клиентов и коллег для подсказки Whisper.
+ *
+ * ⚠️ СПИСОК СОБИРАЕТСЯ ИЗ БД, А НЕ ИЗ ГОЛОВЫ. Зашитые названия — это враньё с
+ *    отложенным сроком: завтра появится новый клиент, и подсказка будет учить
+ *    Whisper вчерашнему справочнику.
+ *
+ * ⚠️ СБОЙ ВЫБОРКИ НЕ ОТМЕНЯЕТ РАСШИФРОВКУ. Нет имён — идём без них, ровно как до
+ *    этого спринта. Голосовое, потерянное из-за упавшего `select`, — цена,
+ *    несопоставимая с пользой от подсказки.
+ *
+ * ⚠️ `limit` ЗДЕСЬ — ЗАЩИТА ОТ РАЗРАСТАНИЯ ВЫБОРКИ, А НЕ ОТ БЮДЖЕТА. Сорок сделок
+ *    в 200 знаков не влезут никогда, и это нормально: порядок `updated_at desc`
+ *    означает, что попадут самые свежие — те, о которых сейчас и говорят.
+ */
+async function loadVoiceTerms(supabase: Supa, orgId: string): Promise<string> {
+  try {
+    const [dealsRes, peopleRes] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('name')
+        .eq('org_id', orgId)
+        .eq('type', 'client')
+        .order('updated_at', { ascending: false })
+        .limit(DEALS_FETCH_LIMIT),
+      supabase
+        .from('memberships')
+        .select('profiles!inner(full_name)')
+        .eq('org_id', orgId)
+        .limit(PEOPLE_FETCH_LIMIT),
+    ]);
+
+    if (dealsRes?.error) console.error('telegram-webhook: сделки для terms не выбрались:', dealsRes.error.message);
+    if (peopleRes?.error) console.error('telegram-webhook: коллеги для terms не выбрались:', peopleRes.error.message);
+
+    const deals: string[] = Array.isArray(dealsRes?.data)
+      ? dealsRes.data.map((row: unknown) => textField(row, 'name')).filter((n: string) => n !== '')
+      : [];
+
+    const people: string[] = Array.isArray(peopleRes?.data)
+      ? peopleRes.data
+          .map((row: unknown) => {
+            // PostgREST отдаёт embedded many-to-one объектом, но на некоторых
+            // версиях — массивом из одного элемента. Оба вида читаем, гадать незачем.
+            const raw = typeof row === 'object' && row !== null ? (row as Record<string, unknown>).profiles : null;
+            return textField(Array.isArray(raw) ? raw[0] : raw, 'full_name');
+          })
+          .filter((n: string) => n !== '')
+      : [];
+
+    return buildVoiceTerms({ deals, people }, TERMS_CHAR_BUDGET);
+  } catch (e) {
+    console.error('telegram-webhook: сбор terms не прошёл:', e instanceof Error ? e.message : String(e));
+    return '';
+  }
+}
+
 /**
  * Голосовое сообщение целиком: лимиты → скачивание → расшифровка → общий путь.
  *
@@ -142,6 +216,12 @@ export async function handleVoiceMessage(
     else await bot.send(chatId, text);
   };
 
+  // ⚠️ ЗАПРОСЫ УХОДЯТ ДО `await` НА СКАЧИВАНИИ, А НЕ ПОСЛЕ. Пока Telegram отдаёт
+  //    `file_path` и гонит нам байты, БД отвечает параллельно — ожидание бота не
+  //    удлиняется ни на миллисекунду. Последовательный вызов добавил бы два
+  //    круговых к каждому голосовому просто так.
+  const termsPromise = loadVoiceTerms(supabase, actor.org_id);
+
   const bytes = await downloadVoice(botToken, fileId);
   if (bytes === null) {
     await say(VOICE_MSG.unavailable);
@@ -156,6 +236,10 @@ export async function handleVoiceMessage(
   // `language` задаём явно: без него Whisper определяет язык сам и на коротких
   // репликах ошибается — двухсекундное «Позвонить Иванову» уезжало в английский.
   form.append('language', 'ru');
+  // Имена собственные — первыми в prompt, до доменного глоссария: `buildPrompt`
+  // расставляет приоритет сам. Пусто — поля не шлём вовсе.
+  const terms = await termsPromise;
+  if (terms) form.append('terms', terms);
 
   // ⚠️ Content-Type руками НЕ выставляется: boundary проставляет fetch. Свой
   //    заголовок сломал бы разбор multipart на стороне `transcribe`.
