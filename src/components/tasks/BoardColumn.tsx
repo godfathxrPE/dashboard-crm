@@ -22,6 +22,17 @@ const WELL: Partial<Record<DateBucket, string>> = {
   today: 'var(--info-l)',
 };
 
+/**
+ * Хром заливки колонки — для рамки и пунктира пустой зоны (Minimal v2).
+ * Тинт без границы на сером canvas читается как пятно, а не как контейнер;
+ * рамка берётся из ТОГО ЖЕ токена, что и заливка, — расходиться им нечем.
+ * Нейтральные колонки (заливка `--surface2`) хрома не имеют → `--border`.
+ */
+const WELL_EDGE: Partial<Record<DateBucket, string>> = {
+  overdue: 'var(--danger)',
+  today: 'var(--info)',
+};
+
 /** Кап рендера на колонку. Виртуализации в проекте нет и не заводим: 373 задачи
  *  «Без даты» закрываются капом + кнопкой, которая называет остаток числом.
  *  Молчаливого усечения быть не должно. */
@@ -77,6 +88,11 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit, focusedId }: 
   const visible = tasks.slice(0, Math.max(shown, focusRow + 1));
   const rest = tasks.length - visible.length;
 
+  // Рамка колонки и пунктир пустой зоны — один хром, разная плотность.
+  const edge = WELL_EDGE[bucket];
+  const edgeSoft = edge ? `color-mix(in srgb, ${edge} 18%, transparent)` : 'var(--border)';
+  const edgeDash = edge ? `color-mix(in srgb, ${edge} 45%, transparent)` : 'var(--border2)';
+
   return (
     <section
       ref={setNodeRef}
@@ -89,6 +105,8 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit, focusedId }: 
         borderRadius: 'var(--radius-l)',
         // «Без даты» — зона разбора: пунктирная рамка без заливки.
         background: isBacklog ? 'transparent' : (WELL[bucket] ?? 'var(--surface2)'),
+        // Рамка — только у залитых колонок; у «Без даты» пунктир уже в классах.
+        border: isBacklog ? undefined : `1px solid ${edgeSoft}`,
       }}
     >
       {/* Шапка */}
@@ -133,8 +151,9 @@ export function BoardColumn({ bucket, tasks, now, onEdit, canEdit, focusedId }: 
         {tasks.length === 0 && (
           <div
             data-kanban-empty
-            className="flex h-20 items-center justify-center rounded border border-dashed border-border2
+            className="flex h-20 items-center justify-center rounded border-dashed
                        px-3 text-center text-xs text-text-mute"
+            style={{ borderWidth: '1.5px', borderStyle: 'dashed', borderColor: edgeDash }}
           >
             {/* Недроппабельные («Просрочено», схлопнутая «Эта неделя») зовут в
                 несуществующее действие — им текста не даём, просто пусто. */}

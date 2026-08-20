@@ -219,13 +219,16 @@ function PhaseColumn({
       ref={setNodeRef}
       className={`
         relative flex min-h-[200px] flex-1 flex-col transition-colors overflow-hidden
-        ${!isLast ? 'border-r border-border/50' : ''}
         ${isOver ? 'bg-accent-l/20' : ''}
       `}
       style={{
         background: isOver
           ? undefined
           : `linear-gradient(180deg, color-mix(in srgb, ${tintColor} 8%, transparent) 0%, transparent 100%)`,
+        // Minimal v2: колонки сплавлены в одну сетку с общей рамкой снаружи —
+        // «рамкой колонки» здесь работает разделитель, и он берёт хром колонки
+        // вместо нейтрального --border. Заливка остаётся нейтральной (F-14).
+        borderRight: isLast ? undefined : `1px solid color-mix(in srgb, ${headerColor} 18%, transparent)`,
       }}
     >
       {/* Washi: kanji watermark */}
@@ -278,7 +281,15 @@ function PhaseColumn({
         </SortableContext>
 
         {projects.length === 0 && (
-          <div data-kanban-empty className="flex h-20 items-center justify-center">
+          <div
+            data-kanban-empty
+            className="flex h-20 items-center justify-center rounded"
+            style={{
+              borderWidth: '1.5px',
+              borderStyle: 'dashed',
+              borderColor: `color-mix(in srgb, ${headerColor} 45%, transparent)`,
+            }}
+          >
             <span className="text-xs text-text-mute">Перетащи сделку сюда</span>
           </div>
         )}

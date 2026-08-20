@@ -135,12 +135,14 @@ function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }:
     <div
       ref={setNodeRef}
       className={`flex min-h-[200px] flex-1 flex-col transition-colors ${
-        !isLast ? 'border-r border-border/50' : ''
-      } ${isOver ? 'bg-accent-l/20' : ''}`}
+        isOver ? 'bg-accent-l/20' : ''
+      }`}
       style={{
         background: isOver
           ? undefined
           : `linear-gradient(180deg, color-mix(in srgb, ${color} 8%, transparent) 0%, transparent 100%)`,
+        // Minimal v2: разделитель = рамка колонки, хром берётся из её же заливки.
+        borderRight: isLast ? undefined : `1px solid color-mix(in srgb, ${color} 18%, transparent)`,
       }}
     >
       <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
@@ -157,7 +159,15 @@ function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }:
           <DeliveryCard key={p.id} project={p} stageName={stageNameOf(p)} health={healthOf(p)} onOpen={onOpen} />
         ))}
         {projects.length === 0 && (
-          <div data-kanban-empty className="flex h-20 items-center justify-center">
+          <div
+            data-kanban-empty
+            className="flex h-20 items-center justify-center rounded"
+            style={{
+              borderWidth: '1.5px',
+              borderStyle: 'dashed',
+              borderColor: `color-mix(in srgb, ${color} 45%, transparent)`,
+            }}
+          >
             <span className="text-xs text-text-mute">Перетащи проект сюда</span>
           </div>
         )}

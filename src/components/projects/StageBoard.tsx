@@ -203,10 +203,19 @@ function StageColumn({
       className={`
         flex shrink-0 flex-col rounded-xl snap-start transition-all duration-150
         ${isEmpty
-          ? 'w-32 border border-dashed border-border/50 bg-bg/50'
-          : 'w-56 bg-bg shadow-card'}
+          ? 'w-32 border border-dashed bg-bg/50'
+          : 'w-56 border bg-bg shadow-card'}
         ${isOver ? 'border-accent/50 bg-accent-l/20 shadow-card-hover' : ''}
       `}
+      // Minimal v2: колонка — отдельная карточка, но границы у неё не было.
+      // Рамка берёт хром стадии (тот же токен, что у точки-маркера и шапки).
+      style={
+        isOver
+          ? undefined
+          : {
+              borderColor: `color-mix(in srgb, ${dotColor} ${isEmpty ? 30 : 22}%, transparent)`,
+            }
+      }
     >
       {/* Header */}
       <div className={`border-b border-border/50 px-2.5 py-2 rounded-t-xl ${bgClass}`}>

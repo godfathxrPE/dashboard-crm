@@ -386,15 +386,19 @@ function ConvertedLeads() {
 // Droppable column (Kanban DnD)
 // ═══════════════════════════════════════════════════════
 
-function DroppableColumn({ status, children }: { status: LeadStatus; children: ReactNode }) {
+function DroppableColumn({ status, color, children }: { status: LeadStatus; color: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'flex min-h-[96px] flex-1 flex-col gap-2 rounded-lg transition-colors',
+        'flex min-h-[96px] flex-1 flex-col gap-2 rounded-lg p-2 transition-colors',
         isOver && 'bg-accent-l/30',
       )}
+      // Minimal v2: у колонки не было ни заливки, ни рамки — на сером canvas она
+      // не читалась как контейнер. Рамка берёт хром колонки (тот же `col.color`,
+      // что у точки-маркера в шапке).
+      style={{ border: `1px solid color-mix(in srgb, ${color} 18%, transparent)` }}
     >
       {children}
     </div>
@@ -703,7 +707,7 @@ export function LeadsView() {
                 </div>
 
                 {/* Cards */}
-                <DroppableColumn status={col.status}>
+                <DroppableColumn status={col.status} color={col.color}>
                   {items.map((lead) => (
                     <LeadCard
                       key={lead.id}
@@ -715,7 +719,15 @@ export function LeadsView() {
                     />
                   ))}
                   {items.length === 0 && (
-                    <div data-kanban-empty className="flex h-20 items-center justify-center rounded-lg border border-dashed border-border/50">
+                    <div
+                      data-kanban-empty
+                      className="flex h-20 items-center justify-center rounded-lg"
+                      style={{
+                        borderWidth: '1.5px',
+                        borderStyle: 'dashed',
+                        borderColor: `color-mix(in srgb, ${col.color} 45%, transparent)`,
+                      }}
+                    >
                       <span className="text-xs text-text-mute">Перетащи лид сюда</span>
                     </div>
                   )}
