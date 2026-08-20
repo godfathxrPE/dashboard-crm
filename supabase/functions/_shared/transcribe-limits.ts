@@ -29,3 +29,44 @@ export const MAX_AUDIO_BYTES = 20_000_000;
  *    часового разговора.
  */
 export const MAX_VOICE_SECONDS = 180;
+
+// ═══ Формат файла: чем Groq валидирует запрос ═══
+
+/**
+ * Расширения, которые принимает Groq на `/audio/transcriptions`.
+ *
+ * ⚠️ ЭТО НЕ СПИСОК ПОДДЕРЖИВАЕМЫХ КОДЕКОВ, А СПИСОК ИМЁН. Groq валидирует запрос по
+ *    РАСШИРЕНИЮ в `filename` части multipart, а не по содержимому и не по MIME.
+ *
+ * Проверено боем 2026-08-19: один и тот же файл Ogg/Opus, отправленный как
+ * `probe.oga` → **400** («Groq не смог распознать фрагмент» на нашей стороне, 502
+ * наружу), как `probe.ogg` → **200** с текстом. Байты идентичны.
+ */
+export const GROQ_AUDIO_EXTENSIONS = new Set([
+  'flac', 'mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'ogg', 'wav', 'webm',
+]);
+
+/**
+ * Синонимы имени для того же контейнера.
+ *
+ * `.oga` — штатное расширение Ogg-audio (именно его ставит Telegram голосовым), `.opus`
+ * — то же самое с указанием кодека. Контейнер один, список Groq знает только `ogg`.
+ * Подмена честная: мы не выдаём один формат за другой, а называем его именем, которое
+ * провайдер понимает.
+ */
+const GROQ_EXTENSION_ALIASES: Record<string, string> = { oga: 'ogg', opus: 'ogg' };
+
+/**
+ * Имя файла, пригодное для Groq.
+ *
+ * Неизвестное расширение НЕ подменяется: соврать про формат хуже, чем получить от
+ * провайдера честный отказ. Меняем только там, где точно знаем, что контейнер тот же.
+ */
+export function groqAudioFilename(name: string): string {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return name;
+  const ext = name.slice(dot + 1).toLowerCase();
+  if (GROQ_AUDIO_EXTENSIONS.has(ext)) return name;
+  const alias = GROQ_EXTENSION_ALIASES[ext];
+  return alias ? `${name.slice(0, dot)}.${alias}` : name;
+}

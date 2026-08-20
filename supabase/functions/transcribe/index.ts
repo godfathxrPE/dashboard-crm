@@ -39,7 +39,7 @@ import {
   buildCleanupMessage,
 } from './cleanup-prompt.ts';
 import { callLlmText, LlmError, type LlmTextResult } from '../_shared/llm.ts';
-import { MAX_AUDIO_BYTES } from '../_shared/transcribe-limits.ts';
+import { MAX_AUDIO_BYTES, groqAudioFilename } from '../_shared/transcribe-limits.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -183,7 +183,10 @@ async function handleTranscribe(req: Request): Promise<Response> {
   const previousTail = str(form.get('previousTail'), 600);
 
   const groqForm = new FormData();
-  const filename = file instanceof File ? file.name : 'chunk.wav';
+  // ⚠️ ИМЯ НОРМАЛИЗУЕТСЯ: Groq валидирует запрос по РАСШИРЕНИЮ, а не по содержимому.
+  //    Telegram шлёт голосовые как `.oga` — легитимное имя для Ogg-audio, которого нет
+  //    в списке Groq. Тот же файл под `.ogg` распознаётся, под `.oga` даёт 400.
+  const filename = groqAudioFilename(file instanceof File ? file.name : 'chunk.wav');
   groqForm.append('file', file, filename);
   groqForm.append('model', model);
   // S-FIX-VOICE-2: verbose_json вместо json — Whisper выставляет собственной выдаче
@@ -241,6 +244,12 @@ async function handleTranscribe(req: Request): Promise<Response> {
     }
     if (resp.status === 429) {
       return json({ error: 'Лимит Groq исчерпан — подождите минуту и повторите' }, 429);
+    }
+    // 400/415 — провайдер ОТВЕРГ запрос, а не «не смог распознать». Разные причины
+    // под одной строкой уже стоили этому проекту вечера диагностики: отказ по формату
+    // выглядел как отказ модели, и искать шли не там.
+    if (resp.status === 400 || resp.status === 415) {
+      return json({ error: 'Groq не принял фрагмент — формат или параметры запроса' }, 502);
     }
     return json({ error: 'Groq не смог распознать фрагмент' }, 502);
   }
