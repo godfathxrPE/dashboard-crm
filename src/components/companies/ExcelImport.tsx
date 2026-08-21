@@ -50,7 +50,7 @@ const FIELD_OPTIONS: { value: FieldKey; label: string }[] = [
   { value: 'skip', label: '— Пропустить —' },
 ];
 
-function applyMapping(row: any[], mapping: Record<number, FieldKey>): ParsedRow {
+function applyMapping(row: unknown[], mapping: Record<number, FieldKey>): ParsedRow {
   const m: Record<string, string> = {};
   for (const [colIdx, field] of Object.entries(mapping)) {
     if (field !== 'skip') {
@@ -78,7 +78,7 @@ export function ExcelImportButton() {
   const queryClient = useQueryClient();
 
   // Raw data from Excel
-  const [rawRows, setRawRows] = useState<any[][] | null>(null);
+  const [rawRows, setRawRows] = useState<unknown[][] | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<Record<number, FieldKey>>({});
 
@@ -107,10 +107,10 @@ export function ExcelImportButton() {
     const XLSX = await import('xlsx');
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
 
-    const headerRow = (rows[0] ?? []).map((h: any) => String(h));
-    const dataRows = rows.slice(1).filter((row: any[]) => row.some((cell: any) => String(cell).trim()));
+    const headerRow = (rows[0] ?? []).map((h: unknown) => String(h));
+    const dataRows = rows.slice(1).filter((row: unknown[]) => row.some((cell: unknown) => String(cell).trim()));
 
     // Auto-detect mapping
     const autoMap: Record<number, FieldKey> = {};

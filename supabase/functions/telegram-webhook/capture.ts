@@ -300,7 +300,7 @@ if (GATEWAY.token) {
 }
 
 // deno-lint-ignore no-explicit-any
-export type Supa = any;
+export type Supa = any; // eslint-disable-line @typescript-eslint/no-explicit-any -- тип клиента supabase-js в Deno-бандле недоступен, tsconfig сюда не заходит; директив две, потому что линтера два
 
 /**
  * Вызов соседней edge-функции через шлюз.

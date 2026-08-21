@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { FolderKanban, CheckSquare, Phone, CalendarDays, TrendingUp, Users } from 'lucide-react';
+import { FolderKanban, CheckSquare, Phone, CalendarDays, Users } from 'lucide-react';
 import { useProjects } from '@/lib/hooks/use-projects';
 import { useTasks } from '@/lib/hooks/use-tasks';
 import { useCalls } from '@/lib/hooks/use-calls';

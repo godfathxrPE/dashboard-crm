@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, type UseFormRegister } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { callFormSchema, callStatuses, CALL_STATUS_CONFIG, type CallFormValues } from '@/lib/validators/call';
 import { useCreateCall, useUpdateCall, type Call } from '@/lib/hooks/use-calls';
@@ -15,7 +15,7 @@ import { Modal } from '@/components/shared/Modal';
 import { contactBelongsToCompany, contactsForCompany, deriveFromContact } from '@/lib/forms/derive-links';
 import { localDateKey, localDateTimeKey, datetimeLocalToIso, isoToDatetimeLocal } from '@/lib/utils/date-helpers';
 
-function DetailsSection({ register }: { register: any }) {
+function DetailsSection({ register }: { register: UseFormRegister<CallFormValues> }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <>

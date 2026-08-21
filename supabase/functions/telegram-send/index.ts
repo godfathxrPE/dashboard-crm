@@ -160,7 +160,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 });
 
 // deno-lint-ignore no-explicit-any
-async function sendOne(supabase: any, botToken: string, row: OutboxRow): Promise<void> {
+async function sendOne(supabase: any, botToken: string, row: OutboxRow): Promise<void> { // eslint-disable-line @typescript-eslint/no-explicit-any -- тип клиента supabase-js в Deno-бандле недоступен, tsconfig сюда не заходит; директив две, потому что линтера два
   // Уже увеличен захватом (claim_telegram_outbox) — второй раз не растим.
   const attempts = row.attempts;
 

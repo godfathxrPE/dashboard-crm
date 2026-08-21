@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Clock } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { useOrgTimeline } from '@/lib/hooks/use-entity-timeline';
@@ -95,7 +96,7 @@ export function RecentActivityList() {
         <div className="flex flex-col items-center py-6 text-center">
           <Clock size={20} className="mb-2 text-text-mute" />
           <p className="text-xs text-text-dim">Нет активности</p>
-          <a href="/deals" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</a>
+          <Link href="/deals" className="mt-2 text-xs text-accent hover:underline">Создать сделку →</Link>
         </div>
       ) : (
         <div data-timeline-scroll="compact" className="max-h-[480px] space-y-1 overflow-y-auto scroll-smooth thin-scrollbar">

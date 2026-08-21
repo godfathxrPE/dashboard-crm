@@ -48,7 +48,25 @@ const noBrowserDialogs = {
   ],
 };
 
+// S-CI-2: `next lint` отбрасывал артефакты сборки сам, плоский конфиг — нет. Прямой
+// вызов `eslint .` без этого списка проверяет `.next/` и даёт 190 ошибок в
+// сгенерированном коде (`no-explicit-any`, `ban-ts-comment`, `no-empty-object-type`),
+// то есть красный CI на файлах, которых нет в git. Игнор-блок обязан быть отдельным
+// объектом без других ключей — иначе он действует только на свою секцию конфига.
+const buildArtifacts = {
+  ignores: [
+    '.next/**',
+    'next-env.d.ts',   // генерится Next при каждом билде, содержит triple-slash-reference
+    'out/**',
+    'build/**',
+    'coverage/**',
+    'playwright-report/**',
+    'test-results/**',
+  ],
+};
+
 const eslintConfig = [
+  buildArtifacts,
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   { rules: noBrowserDialogs },
 ];

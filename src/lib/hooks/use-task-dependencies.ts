@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import type { DepType, TaskDependency } from '@/types/database';
+import type { DepType } from '@/types/database';
 
 /**
  * S-DEPS-1: рёбра DAG между задачами проекта (Gantt-зависимости, FS v1).

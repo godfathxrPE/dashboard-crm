@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Settings, Palette, Upload, ExternalLink, Pencil } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
@@ -156,10 +157,10 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
           <p className="mb-3 text-xs text-text-mute">
             Импортируй данные из старого Dashboard (localStorage) в Supabase.
           </p>
-          <a href="/settings/migration"
+          <Link href="/settings/migration"
             className="flex items-center gap-1 text-xs font-medium text-accent hover:underline">
             Открыть инструмент миграции <ExternalLink size={10} />
-          </a>
+          </Link>
         </div>
 
         {/* Hotkeys reference */}
