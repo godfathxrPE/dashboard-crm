@@ -15,19 +15,32 @@ import { AI_PRESETS, type AiEntityType } from '@/lib/constants/ai-presets';
 
 const ROOT = path.resolve(__dirname, '../..');
 // ⚠️ Читаем АКТУАЛЬНУЮ редакцию обоих CHECK'ов, а не первую. 085 их завела, 104
-// (S-COMPANY-AI-1) переписала под company/company_brief — сверяться с 085 значит
-// сверяться с историей. Следующая миграция, трогающая эти constraint'ы, обязана
-// заменить путь здесь; иначе тест начнёт охранять прошлое.
+// (S-COMPANY-AI-1) переписала под company/company_brief, 127 (S-AI-OBS-1) — под
+// capture; сверяться с 104 значит сверяться с историей. Следующая миграция,
+// трогающая эти constraint'ы, обязана заменить путь здесь; иначе тест начнёт
+// охранять прошлое.
 //
 // Строки-комментарии выкидываем: в шапке миграции описан ОТКАТ, и он содержит те же
 // имена constraint'ов со старыми списками — регексп по сырому файлу нашёл бы их.
 const MIGRATION = readFileSync(
-  path.join(ROOT, 'supabase/migrations/104_ai_runs_company.sql'),
+  path.join(ROOT, 'supabase/migrations/127_ai_runs_capture.sql'),
   'utf8',
 )
   .split('\n')
   .filter((l) => !l.trimStart().startsWith('--'))
   .join('\n');
+
+/**
+ * Ключи, которые есть в БД и намеренно ОТСУТСТВУЮТ в клиентском реестре.
+ *
+ * `capture` (S-AI-OBS-1) — разбор быстрого ввода. Это прогон модели и место в
+ * журнале ему полагается, но кнопки у него нет и быть не может: он запускается
+ * потоком ввода, а не нажатием. В `AI_PRESETS` он попал бы кнопкой на карточке
+ * сущности, а в реестре edge `ai-run` — пресетом, которого та функция не знает,
+ * и оба зеркальных теста ниже сломались бы правильно.
+ */
+const NON_UI_PRESETS = ['capture'];
+const NON_UI_ENTITY_TYPES = ['capture'];
 const EDGE = readFileSync(path.join(ROOT, 'supabase/functions/ai-run/index.ts'), 'utf8');
 // Общая точка вызова LLM (S-LLM-OPENROUTER-1): тело запроса к провайдеру живёт здесь.
 const ADAPTER = readFileSync(path.join(ROOT, 'supabase/functions/_shared/llm.ts'), 'utf8');
@@ -35,28 +48,34 @@ const ADAPTER = readFileSync(path.join(ROOT, 'supabase/functions/_shared/llm.ts'
 /** Ключи из `preset_key in ('a','b',…)` конкретного CHECK'а. */
 function presetsInCheck(sql: string): string[] {
   const body = /constraint ai_runs_transcript_required[\s\S]*?preset_key in \(([^)]*)\)/i.exec(sql);
-  if (!body) throw new Error('CHECK ai_runs_transcript_required не найден в 104');
+  if (!body) throw new Error('CHECK ai_runs_transcript_required не найден в 127');
   return [...body[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
 }
 
 /** Типы из `entity_type in ('a','b',…)` (берём определение constraint'а, не откат). */
 function entityTypesInCheck(sql: string): string[] {
-  const body = /add constraint ai_runs_entity_type_check[\s\S]*?entity_type in \(([^)]*)\)/i.exec(sql);
-  if (!body) throw new Error('CHECK ai_runs_entity_type_check не найден в 104');
+  const body = /add\s+constraint ai_runs_entity_type_check[\s\S]*?entity_type in \(([^)]*)\)/i.exec(sql);
+  if (!body) throw new Error('CHECK ai_runs_entity_type_check не найден в 127');
   return [...body[1].matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
 }
 
-describe('104 ↔ реестр пресетов', () => {
-  it('CHECK ai_runs_transcript_required перечисляет ровно пресеты с needsTranscript: false', () => {
-    const fromClient = AI_PRESETS.filter((p) => !p.needsTranscript).map((p) => p.key).sort();
-    expect(presetsInCheck(MIGRATION)).toEqual(fromClient);
+describe('127 ↔ реестр пресетов', () => {
+  it('CHECK ai_runs_transcript_required — это пресеты с needsTranscript: false плюс внекнопочные', () => {
+    const fromClient = AI_PRESETS.filter((p) => !p.needsTranscript).map((p) => p.key);
+    expect(presetsInCheck(MIGRATION)).toEqual([...fromClient, ...NON_UI_PRESETS].sort());
   });
 
-  it('CHECK ai_runs_entity_type_check покрывает все типы сущностей реестра', () => {
-    const fromClient = [
-      ...new Set(AI_PRESETS.flatMap((p) => p.entityTypes as AiEntityType[])),
-    ].sort();
-    expect(entityTypesInCheck(MIGRATION)).toEqual(fromClient);
+  it('CHECK ai_runs_entity_type_check покрывает типы реестра плюс внекнопочные', () => {
+    const fromClient = [...new Set(AI_PRESETS.flatMap((p) => p.entityTypes as AiEntityType[]))];
+    expect(entityTypesInCheck(MIGRATION)).toEqual([...fromClient, ...NON_UI_ENTITY_TYPES].sort());
+  });
+
+  // ⚠️ Обратная сторона послабления выше: список исключений обязан оставаться
+  //    списком ИСКЛЮЧЕНИЙ. Попади сюда обычный пресет — оба теста стали бы
+  //    пропускать его отсутствие в реестре, то есть ровно перестали бы работать.
+  it('внекнопочные ключи не пересекаются с клиентским реестром', () => {
+    const keys = AI_PRESETS.map((p) => p.key as string);
+    expect(NON_UI_PRESETS.filter((k) => keys.includes(k))).toEqual([]);
   });
 });
 

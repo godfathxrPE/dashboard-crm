@@ -609,6 +609,10 @@
 > таблицу — предохранитель, не пагинация (самая крупная `activity_log` — 1357 строк).
 > ⚠️ **Новых колонок, таблиц и политик нет ⇒ реген типов даст только новую функцию.**
 > Следующая свободная после применения — **127**.
+>
+> **127 — S-AI-OBS-1 `ai_runs_capture` (написана, НЕ применена).** Сверено запросом
+> к ledger: последняя применённая — `20260821211823 org_export` (126) ⇒ 127.
+> Следующая свободная после применения — **128**.
 > Следующая свободная — **126** (последняя применённая — 125, `20260821104527`). ⚠️ Номер брать запросом к
 > `supabase_migrations.schema_migrations`, а не отсюда: этот абзац устаревает;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
@@ -1305,7 +1309,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 
 ---
 
-### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**; **104 — entity_type='company', пресет `company_brief`, перезапись RLS**; **106 — source='audio', S-R3-VOICE-1**)_ — AI Hub
+### transcripts / ai_runs _(030, applied, S-AI-1; +пресет `deal_progression` R2-P0-C — миграции НЕТ; **085 — nullable transcript_id, entity_type='project', перезапись RLS**; **104 — entity_type='company', пресет `company_brief`, перезапись RLS**; **106 — source='audio', S-R3-VOICE-1**; **127 — entity_type='capture', пресет `capture`, nullable пара entity_*, перезапись RLS — S-AI-OBS-1, НА ГЕЙТЕ**)_ — AI Hub
 
 Транскрипт как самостоятельная сущность (1 транскрипт → N прогонов пресетов; нужен и
 звонкам, и встречам) + журнал AI-прогонов. Обе — **обычные tenant-таблицы**: `org_id`
@@ -1334,10 +1338,11 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 |---------|-----|---------|
 | id | uuid PK | default gen_random_uuid() |
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
-| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_\|**`meeting_prep`**\|**`deal_summary`** _(085)_\|**`company_brief`** _(104)_; реестр в коде edge, **CHECK'а на сам ключ нет** — но с 085 ключ участвует в `ai_runs_transcript_required`, поэтому пресет без транскрипта DDL уже требует) |
-| entity_type | text | NOT NULL CHECK `call`\|`meeting`\|**`project`** _(085 — сущность read-only пресетов по сделке)_\|**`company`** _(104 — сущность брифа `company_brief`)_ |
-| entity_id | uuid | NOT NULL |
-| transcript_id | uuid | **NULL допустим (085)** → transcripts ON DELETE CASCADE. CHECK `ai_runs_transcript_required` **(редакция 104)**: `transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep','deal_summary','company_brief')` — транскрипт обязателен там, где пресет без него бессмыслен (`meeting_protocol`, `spin_review`), и это дефолт для любого будущего ключа |
+| preset_key | text | NOT NULL (`meeting_protocol`\|`analytic_note`\|`spin_review`\|**`deal_progression`** _(R2-P0-C)_\|**`meeting_prep`**\|**`deal_summary`** _(085)_\|**`company_brief`** _(104)_\|**`capture`** _(127 — разбор быстрого ввода; **кнопки у него нет и в `AI_PRESETS` его нет**: запускается потоком ввода, а не нажатием)_; реестр в коде edge, **CHECK'а на сам ключ нет** — но с 085 ключ участвует в `ai_runs_transcript_required`, поэтому пресет без транскрипта DDL уже требует) |
+| entity_type | text | **NULL допустим (127)** CHECK `call`\|`meeting`\|**`project`** _(085 — сущность read-only пресетов по сделке)_\|**`company`** _(104 — сущность брифа `company_brief`)_\|**`capture`** _(127 — разбора быстрого ввода: сущности на момент прогона ещё нет)_ |
+| entity_id | uuid | **NULL допустим (127)** — только при `entity_type='capture'` |
+| — | — | **CHECK `ai_runs_entity_pair_or_capture` (127)**: у `capture` обе координаты пустые, у остальных — обе заполнены. Снятие `NOT NULL` сделано ради одного вида строк, и этот CHECK не даёт ему расползтись на сущностные прогоны |
+| transcript_id | uuid | **NULL допустим (085)** → transcripts ON DELETE CASCADE. CHECK `ai_runs_transcript_required` **(редакция 127)**: `transcript_id IS NOT NULL OR preset_key IN ('deal_progression','analytic_note','meeting_prep','deal_summary','company_brief','capture')` — транскрипт обязателен там, где пресет без него бессмыслен (`meeting_protocol`, `spin_review`), и это дефолт для любого будущего ключа |
 | status | text | NOT NULL DEFAULT `pending` CHECK `pending`\|`running`\|`done`\|`error` |
 | result | jsonb | structured output пресета (рендерится ТОЛЬКО как текст) |
 | error | text | нейтральный текст при status=error |
@@ -1379,6 +1384,16 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
   ⚠️ Без этой правки снятие `NOT NULL` было бы бесполезно: политика 030 требовала
   EXISTS по `transcripts`, то есть INSERT с `transcript_id = NULL` отбивался бы
   RLS (42501) при формально «разрешающей» схеме.
+  **С 127 у ветки `transcript_id IS NULL` пятое слагаемое — `entity_type = 'capture'
+  AND entity_id IS NULL`**, и EXISTS у него нет: проверять нечего, сущности на момент
+  разбора не существует. Границу организации держат первые два конъюнкта политики
+  (`org_id = current_org_id()`, `created_by = auth.uid()`) — записать прогон в чужую
+  org ими и закрыто.
+- **`ai_runs_select` тоже получила ветку `capture` (127)**, и это главная правка
+  спринта. Без неё запись из сервисной роли (бот) прошла бы мимо RLS и легла бы в
+  таблицу НЕВИДИМОЙ: политика перечисляет сущностные ветки, и `'capture'` не совпадает
+  ни с одной. Смок гейта под `postgres` при этом прошёл бы. Видимость org-wide, как у
+  остальных веток: статистика по AI — статистика организации, а не журнал автора.
 
 **Realtime**: `ai_runs` в publication `supabase_realtime` — строка pending→running→done
 переезжает на клиент без поллинга (в хуке — страховка-refetch при активном прогоне на
@@ -1386,6 +1401,54 @@ wall-clock, `catch` не выполнился) реклеймится в edge п
 
 **Edge `ai-run`** (см. «Edge Functions») — generic исполнитель прогонов, async
 (`EdgeRuntime.waitUntil`).
+
+**127 (S-AI-OBS-1) — НА ГЕЙТЕ**: `ai_runs` перестаёт быть слепым на `ai-capture`.
+Разбор быстрого ввода — такой же прогон модели, как пресет, и за 19–21.08 их прошло
+больше, чем всех пресетов вместе, но в журнал не попал ни один. Вывод «из семи
+пресетов живёт один, AI повёрнут наружу» построен на этом логе и **неверен по
+источнику**.
+
+Записи мешали **шесть** механизмов, а не два: `entity_id`/`entity_type` NOT NULL,
+CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **обе
+политики**, `ai_runs_insert` и `ai_runs_select`, где перебор четырёх сущностей идёт
+по `entity_id`. ⚠️ **Политика `ai_runs_select` — главный из шести и самый незаметный**:
+без её правки строка, записанная ботом под service_role, лежала бы в таблице
+НЕВИДИМОЙ для приложения и для владельца организации, а контрольный запрос гейта под
+`postgres` показал бы «строки есть». Обе политики переписаны целиком, тем же способом,
+что 104. Изменение аддитивное: все 34 существующие строки проходят новые CHECK'и без
+бэкфилла (сверено запросом — строк с пустой парой `entity_type`/`entity_id` нет).
+
+**Пишет журнал ВЫЗЫВАЮЩИЙ, а не `ai-capture`** — и это не вкусовое решение.
+`org_id` и `created_by` у `ai_runs` NOT NULL с FK, а функция разбора не знает ни того,
+ни другого: в JWT их нет, а её security-контур №1 запрещает ей ходить в БД вовсе
+(сервисной роли она не запрашивает, поэтому обойти RLS ей нечем). Принять их телом
+запроса значило бы разрешить браузеру писать прогоны в чужую организацию. Поэтому:
+бот (`telegram-webhook/capture.ts`) пишет сервисным клиентом с явными `org_id` и
+`created_by` из привязки `telegram_accounts`, веб (`use-quick-capture.ts`) — под
+сессией, не передавая ни того, ни другого (`trg_set_org_id` + DEFAULT `auth.uid()`,
+оба проверяет `ai_runs_insert`). Из `ai-capture` уезжает только телеметрия — новое
+поле `run` ответа (`model`, токены, `duration_ms`); `model` там **слаг из секрета**,
+а не ответ адаптера (S-LLM-OPENROUTER-1).
+
+**Одна вставка постфактум, статус сразу `done`/`error`** — не `pending`→UPDATE, как у
+`ai-run`: capture синхронный, результат к моменту записи уже есть. Побочно и важнее:
+терминальная строка не попадает под частичный `ux_ai_runs_active_entity`
+(`WHERE status IN ('pending','running')`), так что параллельные разборы не столкнутся
+даже теоретически.
+
+**Источник (`telegram`/`web`) лежит в `result->>'source'`**, а не в новой колонке:
+колонки `meta` у `ai_runs` нет, и заводить её ради одного поля дороже, чем ключ в уже
+существующем jsonb. Рядом — `kind` (что разобрали). `draft_id` НЕ кладётся: черновик
+появляется позже, а ветка задачи и все три ветки отказа до него не доходят вовсе.
+
+⚠️ **Реген типов**: стаб `AiRunsCaptureStub` в `src/types/database.ts` снимается
+регенерацией после apply. Он сделан **через `Omit`, а не пересечением**, как стаб 123
+(`companies.chz_groups`): тот добавлял колонку, которой в автогенерации не было, а эти
+две там есть — и пересечение СУЖАЕТ (`string & (string | null)` = `string`), то есть
+стаб-пересечение не изменил бы ничего и молча.
+
+⚠️ **Бэкфилла прошлых capture-разборов нет и быть не может**: данных о них нет нигде,
+кроме 14 черновиков в `telegram_capture_drafts` — без токенов, модели и длительности.
 
 **104 (S-COMPANY-AI-1)**: пресет `company_brief` — единственный, кто ходит в веб
 (серверный tool `web_search_20250305` Anthropic, `max_uses: 5`). Он идёт отдельным
