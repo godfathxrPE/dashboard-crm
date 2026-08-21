@@ -3,6 +3,13 @@
 ## Unreleased
 
 
+### Прочее
+- не тащить merge-коммиты в changelog
+- git-cliff + CHANGELOG, .mailmap, актуальный README, схема тегов (S-REL-1)
+
+## v2026.08.1 — 21.08.2026
+
+
 ### Документация
 - точная причина игнор-блока — локальный паритет, не красный CI
 - 125 применена гейтом — 20260821104527 contact_company_capture
@@ -237,7 +244,6 @@
 
 
 ### Прочее
-- git-cliff + CHANGELOG, .mailmap, актуальный README, схема тегов (S-REL-1)
 - GitHub Actions — lint + tsc + vitest на push/PR (S-CI-1)
 - убрать конфиг и упоминания Netlify — деплой на Vercel
 - Merge main into feat/llm-openrouter — карточка лида (S-LEAD-CARD-VISUAL-1)
