@@ -1,0 +1,727 @@
+# Changelog — dashboard-crm
+
+## Unreleased
+
+
+### Документация
+- точная причина игнор-блока — локальный паритет, не красный CI
+- 125 применена гейтом — 20260821104527 contact_company_capture
+- crm-architect — Minimal v2, примитив .sheet, запрет альфы на -l-токенах
+- разбор Minimal v2 и спринты v2.1–v2.4
+- миграция 124 applied + уроки гейта S-TG-TASK-1
+- промпты гейта — диагностика пустого поиска и мерж S-LLM-SEARCH-2
+- верный диагноз пустого поиска — форс tool_choice против native-движка
+- промпты гейта — цена Sonnet 5, мержи карточки лида и веб-поиска
+- промпт memory-спринта S-LEAD-CARRY-1
+- ledger 123, уроки S-LEAD-CARRY-1
+- SKILL.md — актуальный ledger (122), 116 отменена
+- промпты спринтов — эпик кокпита, лиды, tails, доска задач, макеты канбана
+- уроки гейта S-TASKS-FIX-2
+- уроки гейта S-FIX-BATCH-1
+- S-UI-SEMANTIC-1 — токен внутри .t-* читают все семь тем
+- 115 applied 20260809092051 + реген типов
+- 114 applied 20260809083732 + реген типов
+- 113 applied 20260808222500 + реген типов
+- 112 applied 20260808204308 + реген типов
+- 111 applied 20260808191356
+- 110 applied 20260808174157
+- allowed_updates в диагностике; состояние вне репозитория как класс дефекта
+- 108 applied 20260808152233; типы после apply
+- статус миграции переводит гейт, не спринт-PR (104/107/098)
+- 098 (S-VIS-A) — applied, заголовок раздела противоречил шапке файла
+- актуализировать после 1fa2ee3 — шесть точек, память раскатана
+- новый раздел = шесть точек правки + handoff 2026-08-08 и блокер Groq
+- handoff 2026-08-08 (голос в CRM) + блокер Groq credits в бэклоге
+- 106 применена, edge transcribe задеплоена гейтом
+- уроки оси достоверности — полнота, вычисляемые поля сегментов, type='client', порог в сиде
+- 105 применена гейтом, идемпотентность проверена
+- roadmap архитектуры ценности 2026-08-05 + спринт-файлы
+- индекс архива
+- спринт S-R2-CO360-1 и HTML-мокап Company 360 (7 тем)
+- 103 применена, company-lookup v2 задеплоена; реген типов, стаб снят
+- 101 применена гейтом, версия 20260803113756 + смоки политики
+- 100 применена гейтом, версия 20260803103435 + смок триггера
+- 096 применена, версия и результаты смоков
+- 094 chat_hub применена, 095 ожидает деплоя
+- верная версия миграции 093
+- 091 применена 20260731065104
+- 090 применена 20260731055734
+- хостинг — Vercel, netlify.toml помечен реликтом
+- 086 и 087 применены — версии из schema_migrations
+- исправлена метрика MAINTAIN — unnest вместо like по склеенному relacl
+- fix-файл снятия стабов после регена 076/077
+- ревью Грока, правки спринтов R2 по живой БД, спринт по грантам
+- спринты R2-P0 + предварительный синк схемы
+- карта технологического стека проекта
+- правило 8 — однопроходность computeCascade
+- +project_videos (066) +project_messages (067)
+- убрать упоминание удалённого тест-инвайта из смок-заметки 061
+- 059 membership_role_guard APPLIED (Cowork 2026-07-18)
+- S-QUOTE-1 — секция quotes (053)
+- дельта 051 task_overdue (pg_cron + run_overdue_automations)
+- дельта 047–050 (legacy-stage DROP, task_dependencies, created_by default, workflow engine)
+- дельты 042–045 (activity_log links, won_reason, spawn owner, notify_deal_won)
+- спайк Gantt lib-vs-custom + handoff/review VIEW-1 (A→E)
+- handoff+review S-GANTT-DATES/V0
+- пакет Grok gap-анализа (15 CRM) + аудиты review/
+- рабочие доки — ревью Grok gap v2, roadmap/спринты, handoffs, аудиты
+- README migrations/ (правило baseline+archive) — довесок к B1 (AUDIT B1)
+- 039 → Applied (гейт Cowork: смоуки + advisors зелёные)
+- 038 Pending→Applied — гейт Cowork 2026-07-12 (смоуки 1-9 + advisors зелёные)
+- schema.md — PCT-1 applied (031–034)
+- рабочие заметки (_analysis)
+- 028/029 applied, уточнение скоупа S29.1
+- schema.md — 025/026 applied, фаза 1 multi-user закрыта
+
+
+### Исправления
+- типы cookie-адаптеров и payload вместо any, Link вместо <a>, eslint вместо next lint (S-CI-2)
+- поиск по компаниям при привязке из карточки
+- Fuji — bg-accent-l2 в тот же красный, что и -l
+- тинты состояний — модификатор на -l-токенах давал альфу 1.5–5%
+- альфа-модификаторы цветов не работали — 309 классов вхолостую
+- имена клиентов и коллег в подсказке Whisper (S-TG-VOICE-TERMS)
+- Groq валидирует аудио по расширению; термины домена в глоссарий (гейт S-TG-VOICE-1)
+- промпт — примеры в *_hint и явное разрешение дублировать цитату
+- резолвер упоминаний — стоп-слова, падежи, основа в грубом отборе
+- 401 на вызове ai-capture из бота, обязательные секреты вместо пустой строки
+- бюджет по wall clock воркера, пол вместо отказа, зомби-прогоны
+- бюджет времени на два прохода, расход пишется и при отказе
+- системный промпт прохода поиска без контракта инструмента
+- наблюдаемость ответов OpenRouter, пустой поиск — ошибка, а не результат (S-LLM-SEARCH-2)
+- Claude Sonnet 5 — $2/$10, вводная цена стала стандартной
+- цена по слагу модели, прогноз без рублей
+- подсказка пустого состояния — гейт держит конверсию, не квалификацию
+- org-гард в блоках поиска convert_lead + честный комментарий CompanyInsert
+- правки гейта — счётчик дней скрыт у терминала, вероятность текущей стадии в meta
+- убран дубль CTA «Конвертировать» — действие воронки живёт только в кокпите (гейт S-PIPELINE-COCKPIT-1)
+- часы при дропе, дата в «Позже», ложная просрочка у выполненных
+- месяц — карточка с фоном, полоса фокуса внутри, единый периметр
+- линия сетки — свой токен --cal-line, иначе тонет на выходных
+- равные колонки месяца — minmax(0, 1fr) вместо 1fr
+- метка «сейчас» больше не наезжает на подпись часа
+- номинал чипа из фактической ширины дорожки, цвет вида — иконке
+- контраст выбранной даты и «сегодня» во всех темах, токен --on-accent
+- семантические токены состояния во всех семи темах
+- вернуть this в вызов supabase.rpc — лента была пуста молча
+- дубль по ИНН — честный исход вместо падения вставки (S-TG-3-INN-DUP)
+- prioritySuffix через switch — ключи прототипа; 109 applied
+- reminded_at в оптимистическом литерале задачи; runbook зовёт CLI через npx
+- при флипе якорь по нижнему краю — короткий список не повисает над полем (правка гейта)
+- порталённые дропдауны не вылезают за нижний край окна (флип вверх + расчёт высоты)
+- строка "null" от модели в пустой ветке → null (правка гейта)
+- фамилия null не течёт в label дубля (правка гейта)
+- вернуть раздел «Гейт Cowork» в источник — при переносе взяли локальную копию, где его не было
+- слэш-команда отправляет сообщение — провенанс и защита от дублей
+- 099 применена, снят избыточный индекс; верная версия 098
+- 098 +activity_log, применена — правка гейта
+- бейджи и виджеты — явная семантика «мои» после расширения RLS
+- инициалы аватара не берутся из пунктуации
+- chat_files_delete проверяет owner; 097 применена
+- is_conversation_member отдаёт boolean, а не NULL при пустой роли
+- ContentHeader не перекрывает peek-панель
+- UPDATE-политика contact_company (093)
+- карта стейкхолдеров — роль бейджем вместо селекта
+- ФИО как в инфо-гриде, одинаковая ширина селекта роли
+- карта стейкхолдеров — колонки вместо flex, ФИО как в инфо-гриде
+- заголовок секции внедрений называет состав списка
+- пайплайн только по сделкам, internal не «внедрение», DealHealthDot
+- pg_net в схему extensions + реген типов (088)
+- проверка формы ответа модели + один ретрай (по итогам инъекционного смоука)
+- FK на pipeline_stages снят на гейте — аудит не зависит от словаря
+- перемычка не-FS уходит в межрядный зазор
+- роутинг стрелок SS/SF мимо баров, цена капа LF в контракте
+- кнопка удаления по роли org, мелкие правки хуков
+- ось учитывает спаны выбранного слепка, призрак не падает в колонку 1
+- гард RPC по видимости проекта, silentError, комментарии 074
+- формулировка сигнала сдвига + guard крит-пути без рёбер
+- 073 — spawn_delivery_project без несуществующей колонки projects.stage
+- парс дат «{день недели} ДД.ММ.ГГ» (двузначный год) — план строит Гант
+- полиш — единая сортировка просрочки, empty-states, поиск в Списке
+- «Мои» подхватывает неназначенные задачи, созданные мной
+- кап >90д на бейдже карточки сделки — единообразие с overview (S-UI-POLISH-1, F-16)
+- hit-area ≥24px для крестика SavedViewChips (S-UI-POLISH-1, F-15)
+- KPI tabular-nums + пилюля >90д + нейтральный тинт колонок + truncate тегов (S-UI-POLISH-1, F-13/F-16/F-14)
+- чипы без ложного 0 при загрузке + QueueRow secondary hover|focus (S-UI-POLISH-1, F-06/F-12)
+- minimal — disabled solid-кнопки тихие (surface3), ремап bg-accent !important их не перекрашивает
+- nav icons — семантика по референсу (Zap/DollarSign/Folder), size 20→16
+- minimal — чёрный primary и нейтральный активный нав (соответствие референсу)
+- истреблён микротекст ≤10px (px+rem) + выбросы шкалы + table tabular-nums (S-TYPO-SCALE, аудит F-01/F-10/F-02-частично)
+- нейтральные win/loss-кнопки + KPI без зелени + телефон в строку (S-UI-QUICKWINS, аудит F-05/F-07/F-11)
+- null → undefined/'' под строгие regen-типы RPC (spawn/onboarding)
+- натуральная сортировка бакета «Без дат» по номеру этапа
+- S-DEPS-1 — устранить infinite-loop измерения стрелок (dedupe setEdges + стабильные deps)
+- убрать явный select projects.stage + мигрировать читателей (B1.5, перед DROP)
+- тултип через fixed-позиционирование (не клиппится overflow)
+- мост Json→PhoneEntry[] в use-companies/use-contacts после регена типов
+- подтягивать панель шаблона в вид при открытии из Deal Hub (S-DEAL-HUB-1 UX)
+- убраны декор-скобки 「」 во всех темах (реликт scandi, артефакты после AUDIT C)
+- icon-nav для всех тем кроме aura — иконки/NavBadge/лого-акцент/живые nav-CSS washi+fuji возвращены в единый TextNavSidebar (C7, регресс C6)
+- washi jpLabel+scramble и Torii-брендинг тёмных перенесены в единый TextNavSidebar (AUDIT C6 follow-up)
+- убраны осиротевшие .t-<theme> header правила — тёмный бар за заголовком страницы после снятия верхнего Header (AUDIT C6)
+- гейт-фикс 040 — явный REVOKE anon/authenticated у apply_pending_invites (default privileges раздают EXECUTE новым функциям)
+- org-гард ai_hub INSERT, notif WITH CHECK, confirmed-email для инвайтов, FK ON DELETE (040, pending) (AUDIT B2)
+- дебаунс рассылки инвалидаций — bulk-операции не штормят рефетчами (AUDIT A2.2 follow-up)
+- realtime refcount-менеджер, ExcelImport error-handling, kanban bulk-мутация, UTC/EditableCell/инвалидации (AUDIT A2)
+- reset() формы только при открытии/смене editProject, не при рефетче pipelines/allStages
+- тёмные темы — непрозрачный фон модалок/палитры + border-input поверх dark safety-net (P2.1/P2.2)
+- border-input перебивает dark safety-net во frost/aurora/tidal — граница инпутов была 1.5:1 (P2.1 §1.4.11)
+- все form-контролы (input/textarea/select/combobox) на border-input — видимая граница во всех темах (P2)
+- FOUC-гард inline-скриптом в body, HealthDot глиф-форма против CVD (P1 §2.2/2.6)
+- badge *-text тёмных тем, washi/fuji sidebar, text-mute, paper/sand yellow, sand accent (P1 §2.4/2.5/2.7/2.8, T1/T2)
+- kanban-заголовки и лейблы фаз на семантических *-text токенах (P1 §2.1, T3)
+- P0 визуального аудита — шрифты тем через --font-app, yellow-text в тёмных темах, тёмный текст на solid-кнопках, StackedPipeline без opacity на тексте
+- явный @netlify/plugin-nextjs в netlify.toml — без него .next публиковался статикой (404 на всех роутах)
+- direction-aware выбор шаблона внедрения и лейблы kind — у ERP нет экспериментов
+- won-сделки раскрываемым списком в воронке + подсветка spawn CTA и выбора шаблона
+- добор internal-утечки в deal-метрики (use-alerts живой vs мёртвый SmartAlerts, виджеты, weekly); связи/дедлайны на status с сохранением internal
+- internal-проекты вне deal-метрик (status/type вместо legacy stage), deal-health скрыт на internal
+- inline checkbox SVG → base64 (cssnano падал на минификации CSS)
+- гейт — страховка stage 1.1b, security-fix delete_project_column (NULL-org), advisor-гигиена
+- автоподстановка компании+проекта из контакта при ОТКРЫТИИ модалки события (не только ручной выбор); +автоподстановка проекта
+- живое обновление AI-прогона — активный поллинг 60с→3с (Realtime не доезжает из-за EXISTS в RLS)
+- скролл в CallModal/MeetingModal — max-h-[85vh] + overflow-y-auto (контент с AI-резюме выше вьюпорта)
+- member-гард check_stage_requirements только для auth-контекста; schema.md: 027 applied, фикс колонок project_files, known issue IIoT legacy stage
+- convert_lead — owner_id/created_by вместо несуществующих user_id колонок; schema.md: 024 applied, known issue FK converted_*
+- графики (feDropShadow/анимация/isAnimationActive), контраст pipeline, типошкала заголовков, регистр таблиц, empty-states
+- a11y/theme токены + рефактор ExcelImport
+- локальная дата вместо UTC (off-by-one), tsc MeetingModal, бары аналитики, хардкод цветов календаря
+- show DealProgressBar only for ERP, StackedPipeline only for IIoT
+- resolve ERP card styling from pipeline_stages
+- import preview now uses createPortal for proper modal
+- import preview now renders as proper modal
+- Sprint 21.5 — restore Contact 360° Hub
+- Sprint 21 — company persistence + clickable badges
+- restore drawer on /tasks, remove inline task-page widgets
+- Sprint 21 — tasks border + dashboard fonts + hide drawer on tasks
+- add КАЛЕНДАРЬ watermark + move drawer toggle away from logout button
+- remove duplicate section titles — keep only Watermark
+- smooth watermark animation + chart palette
+- prevent infinite loop in EventReminder
+- modal overlay z-index 200 to cover ScandiContentHeader (z-100)
+- Sprint 18 hotfix — quick actions + call time + z-index
+- legend background/backgroundImage conflict + ResponsiveContainer warning
+- revert CTA to outline+scaleX wipe, keep Inter+elevation
+- white text on ALL bg-accent buttons — isolation + negative z-index
+- watermark delay 2s→1s, hide search icon for scandi
+- scandi hotkeys modal — target sibling fixed element
+- scandi modals — solid bg + black border on all dialogs
+- CallTracker CTAButton, pipeline watermark, stronger backdrop
+- replace Recharts Pie with custom SVG donut for reliable fill transitions
+- add key on Pie to force full remount on hover toggle
+- rewrite Charts.tsx — direct lane key lookup, no animation
+- disable Recharts Pie animation for instant fill updates
+- theme dropdown z-index above sticky sidebar widgets
+- sprint 12.5 — unconditional hover handlers on all charts
+- sprint 12.4 — CTAButton with React state hover, donut key fix
+- sprint 12.3B — vivid donut colors, pipeline chart width
+- sprint 12.3A — CTA white text, modal backdrop, tasks watermark
+- visual polish sprint 12.2
+- visual polish sprint 12.1
+- sanitize upload filename — use UUID to avoid Cyrillic path issues
+- use signed URL for private bucket download
+- focus glow widget, modal blur scope, meeting modal cleanup
+- waves behind content, bleed not affecting layout
+- short KPI labels, thin bracket markers, pipeline kanji watermarks
+- outline buttons, kanji watermarks, sidebar bracket markers, icon cleanup
+- keyboard nav registers even when table is initially empty
+- stabilize keyboard navigation hook
+- bulk actions bar fixed to viewport bottom
+- register green/red/blue/yellow colors in Tailwind config
+- boost muted text readability across all data tables
+- donut chart stroke, sidebar active highlight on dark themes
+- force all borders to theme variables on dark themes, tailwind defaults
+- remove hardcoded borders, establish 3-level text hierarchy for dark themes
+- dark theme glass cards, phase column colors, theme dropdown z-index
+- resolve all TypeScript errors, remove ignoreBuildErrors flag
+
+
+### Прочее
+- Merge pull request #4 from godfathxrPE/fix/lint-1
+- Merge pull request #3 from godfathxrPE/chore/ci-1
+- GitHub Actions — lint + tsc + vitest на push/PR (S-CI-1)
+- убрать конфиг и упоминания Netlify — деплой на Vercel
+- Merge branch 'feat/debts-1'
+- Merge branch 'fix/brief-budget-2' — бюджет по реальному лимиту, зомби-прогоны
+- Merge branch 'fix/brief-budget' — бюджет времени двухпроходного брифа
+- Merge branch 'feat/brief-2pass' — бриф в два прохода: Grok ищет нативно, DeepSeek структурирует (S-BRIEF-2PASS)
+- Merge branch 'fix/brief-search-observability' — наблюдаемость ответов OpenRouter, пустой поиск как ошибка (S-LLM-SEARCH-2)
+- Merge branch 'feat/llm-search' — веб-поиск брифа через OpenRouter, классы ошибок доступа (S-LLM-SEARCH-1)
+- Merge branch 'feat/llm-openrouter' — адаптер провайдера, переезд на OpenRouter, цена по фактическому слагу (S-LLM-OPENROUTER-1)
+- Merge main into feat/llm-openrouter — карточка лида (S-LEAD-CARD-VISUAL-1)
+- Merge branch 'feat/lead-card-visual' — карточка лида по согласованному макету: квалификация в две зоны, гейт конверсии, сигналы-исключения (S-LEAD-CARD-VISUAL-1)
+- Merge branch 'feat/lead-convert-carryover' — конверсия переносит квалификацию: роль в карту стейкхолдеров, бюджет в заметку, ЧЗ-профиль в компанию (S-LEAD-CARRY-1, миграция 123)
+- реген после apply 123, стаб CompaniesChzStub снят
+- Merge branch 'fix/tails-1' — 116 отменена, живые подписки contacts/companies/activity_log, off-by-one просрочки сделки (миграция 122)
+- Гейт TAILS-1: apply 122, статус миграции и замеры нагрузки activity_log
+- Sprint TAILS-1: 116 отменена, живые подписки contacts/companies/activity_log, off-by-one просрочки сделки
+- Merge branch 'feat/lead-work' — здоровье лида по шагу, realtime, аналитика воронки (S-LEAD-HUB-2b, миграция 121)
+- Гейт LEAD-HUB-2b: apply 121, статус миграции, урок о денежных единицах в память
+- Sprint LEAD-HUB-2b: здоровье лида по шагу, realtime, аналитика воронки
+- Merge branch 'feat/lead-hub' — карточка лида /leads/[id] и лид в серверной ленте активности (S-LEAD-HUB-2a, миграция 120)
+- Гейт LEAD-HUB-2a: apply 120, статус миграции и протокол в памяти схемы
+- Sprint LEAD-HUB-2a: карточка лида /leads/[id], лид в серверной ленте активности
+- Merge branch 'feat/lead-core' — лид как рабочая сущность: ownership, поля работы, связи с активностями, конверсия с историей (S-LEAD-CORE-1, миграции 117-119)
+- Гейт LEAD-CORE-1: apply 117-119, реген типов, снятие временных кастов, lead_id в optimistic задачи
+- Sprint LEAD-CORE-1: лид как рабочая сущность — ownership, поля работы, связи с активностями, конверсия с историей
+- Merge branch 'feat/tasks-board-polish' — доработка доски по итогам гейта (S-TASKS-BOARD-2)
+- доска задач — архитектура, грабли, правило семантического цвета
+- Merge branch 'feat/tasks-board-view' — доска по срокам в разделе Задачи (S-TASKS-BOARD-1)
+- Merge branch 'feat/tasks-fix-2' — поиск компании в задаче, удаление выполненных (S-TASKS-FIX-2)
+- поиск компании в задаче, удаление выполненных
+- Merge branch 'feat/fix-batch-1' — контакты компании, непрозрачные поповеры, строки плана вне списка (S-FIX-BATCH-1)
+- контакты компании, непрозрачные поповеры, строки плана вне списка задач
+- Merge branch 'feat/month-grid-lines' — hairline-сетка месяца и общий ховер дня (S-CAL-MONTH-2)
+- hairline-сетка месяца и общий ховер дня
+- Merge branch 'feat/month-chips' — месяц с чипами, фокус-полосой и peek-днём (S-CAL-MONTH-1)
+- месяц с чипами, фокус-полосой дедлайнов и peek-днём
+- Merge branch 'feat/week-lanes' — неделя как горизонтальная лента (S-CAL-LANES-1)
+- неделя как горизонтальная лента (вариант C)
+- Merge branch 'fix/semantic-state-tokens' — семантические токены состояния во всех семи темах (S-UI-SEMANTIC-1)
+- цена прогона по факту, task_id в событиях журнала
+- org-лента, «Последние действия» показывают все виды (миграция 115)
+- фильтр по видам переехал на сервер (миграция 114)
+- keyset-курсор и прокрутка «раньше» (миграция 113)
+- лента сущности собирается на сервере (entity_timeline, миграция 112)
+- Merge branch 'fix/telegram-inn-duplicate' — дубль по ИНН как штатный исход (S-TG-3-INN-DUP)
+- Merge branch 'feat/telegram-capture' — быстрый ввод компании и контакта из бота (S-TG-3)
+- Merge branch 'fix/telegram-priority' — приоритет в заголовке напоминания (S-TG-PRIORITY)
+- Merge branch 'feat/telegram-reminders' — напоминания и кнопка «Выполнено» (S-TG-2)
+- реген типов, runbook подключения, уроки про общий секрет (S-TG-1-CLOSE)
+- Merge branch 'feat/telegram-core' — Telegram: привязка и доставка уведомлений (S-TG-1)
+- убрать tg-probe — ШАГ 0 закрыт до спринта (GO, torii_crm_bot, id 8569873194)
+- Merge branch 'fix/whisper-quality' — галлюцинации ловим метриками сегментов
+- verbose_json и фильтр по метрикам сегментов вместо списка штампов, домен как признак, строже первый фрагмент
+- Merge branch 'feat/transcripts-hub' — раздел Транскрипты и сводный AI-блок компании
+- раздел Транскрипты с поиском и выгрузкой, сводный AI-блок на компании
+- Merge branch 'feat/ai-visibility' — транскрипт не теряется, AI видно в ленте
+- транскрипт сохраняется без пресета, бейдж расшифровки в списках, AI-события ленты кликабельны, брифы компании в ленте
+- вычитка блоками по 1800 (502 на 5000), сырой текст не теряется при сбое, фильтр галлюцинаций Whisper, тихие фрагменты не отправляются
+- Merge branch 'feat/voice-transcribe' — расшифровка аудио в CRM
+- транскрибация аудио в CRM — edge transcribe (Groq + Claude), нарезка по тишине в браузере, source='audio'
+- Merge branch 'fix/anchored-dropdown-viewport' — дропдауны не обрезаются краем окна (S-DROPDOWN-VIEWPORT)
+- Merge branch 'feat/quick-capture' — AI-виджет быстрого ввода (S-QUICK-CAPTURE-1)
+- Merge branch 'feat/data-trust' — полнота записи как настраиваемое свойство
+- полнота сделки как настраиваемое свойство — домен, правила в org settings, цена пустоты в UI, предикат сегмента
+- Merge branch 'chore/handoffs-archive' — архив хендоффов
+- хендоффы 40+ спринтов в _analysis/handoffs/, дубли убраны, имена в kebab-case
+- Merge branch 'chore/skill-in-git' — память проекта под git
+- скилл crm-architect под git — источник в репо, односторонняя раскатка, проверка расхождения
+- Merge branch 'fix/ui-clarity' — честные числа и состояния
+- подписаны три метрики сделки, пустой next_step как пустое состояние, честный фильтр ленты, data-drawer, тесты агрегации Company 360
+- Merge branch 'fix/co360-followups' — хвосты Company 360
+- инвалидация кешей виджетов компании, тема-правила навигации только на aside[data-app-nav], виджет внедрения не выдаёт internal за delivery
+- Merge branch 'feat/minimal-petrol'
+- Merge branch 'feat/company-360' — Company 360 (F6 + D1 + D2)
+- S-R2-CO360-1 fix: сайдбар не <aside> (тема-правила навигации ломали washi/fuji/aura), ЧЗ-карточка без дубля виджета, имя контакта без «null»
+- Company 360 — highlight-полоса, strength контактов, who-knows, сайдбар реквизитов, фильтры ленты
+- Merge branch 'feat/company-ai-1c'
+- снятие тегов цитирования до проверки формы (v3), перезамер оценки прогона
+- Merge branch 'feat/company-ai-1b'
+- промпт брифа против разметки в значениях (v2), классы 10.11/10.12 в справочнике ЧЗ
+- Merge branch 'feat/company-ai-1a'
+- ретрай брифа без повторного веб-поиска, причина ретрая в meta, честная стоимость прогона
+- Merge branch 'feat/company-ai'
+- маркировочный профиль ЧЗ из ОКВЭД + AI-бриф компании (company_brief, 104, web search)
+- Merge branch 'feat/okved-industry'
+- отрасль компании из ОКВЭД (103), справочник разделов, подстановка в форме и карточке
+- Merge branch 'feat/inn-lookup'
+- юрполя компании + uq(org_id,inn) (102), edge company-lookup (DaData), автозаполнение в форме и карточке
+- Merge branch 'chore/debt-confirm-1'
+- InlineConfirm вместо 26 window.confirm, откат стадии стал видимым действием, запрет закреплён линтом
+- Merge branch 'chore/debt-truth-1'
+- CLAUDE.md и 099 приведены к факту, батчинг .in(), ключи кэша с messageIds, миграция 101 (membership-check состава группы)
+- Merge branch 'feat/chat-audit-1'
+- edited_at ставит триггер (100), viewer не упирается в 42501, чистка вложений при удалении группы и проекта
+- Merge branch 'feat/chat-task-slash'
+- Merge branch 'feat/chat-task-bind'
+- реген после 099, сняты стабы 097 и 099
+- Merge branch 'feat/chat-task-1'
+- Merge branch 'feat/team-read-vis'
+- Merge branch 'feat/chat-hub-1f'
+- Merge branch 'feat/chat-hub-1e'
+- Merge branch 'feat/chat-hub-1d'
+- снять ChatGroupsStub и ChatGroupsFnStub, вернуть Functions в Omit
+- реген после 096, сняты ChatGroupsStub и ChatGroupsFnStub
+- Merge branch 'feat/chat-hub-1c'
+- Merge branch 'feat/chat-hub-1b'
+- удалить ChatHubStub — реген покрыл conversations/messages/conversation_reads
+- реген после 094/095, снят ChatHubStub
+- Merge branch 'feat/chat-hub-1a'
+- реген после 092, снят стаб deal_stakeholders
+- Merge branch 'feat/r2-webhook-journal'
+- реген после apply 091 — снят временный каст rpc
+- Merge branch 'feat/r2-webhook-action'
+- Merge branch 'feat/r2-webhook-transport'
+- Merge branch 'feat/r2-field-audit'
+- Merge branch 'feat/r2-peek-2'
+- Merge branch 'feat/r2-co360'
+- Merge branch 'feat/r2-dwell-cfg'
+- Merge branch 'fix/ai-shape'
+- Merge branch 'feat/r2-ai-harden'
+- Merge branch 'feat/r2-signoff'
+- ledger 001-084, sign-off чеклисты в контракте CLAUDE.md
+- Merge branch 'chore/sec-grants-root'
+- default privileges сужены в корне, MAINTAIN снят со всех таблиц
+- Merge branch 'chore/sec-grants-tail'
+- гранты семи таблиц без org_id, ledger 079/081 в schema.md
+- Merge branch 'chore/sec-grants-narrow'
+- сузить гранты authenticated до RLS-покрываемых, добить хвост 056b
+- Merge branch 'feat/r2-sdp'
+- Merge branch 'feat/r2-wf-dwell'
+- Merge branch 'feat/r2-transition-modal'
+- Merge branch 'feat/r2-transition-core'
+- Merge branch 'feat/r2-segments'
+- реген после 076/077 — сняты стабы Segment*/DatabaseWithSegments
+- Merge branch 'chore/docs-schema-sync'
+- schema.md доведён до 075 (ledger 062–075, baseline/recurring/scheduling)
+- outputFileTracingRoot — пин workspace root
+- Roadmap #2 + архитектура R2 + ревью + CLAUDE.md
+- ревью и фиксы волны DEPTYPES
+- Merge branch 'feat/gantt-dep-types'
+- Merge feat/gantt-polish: undo сдвига дат, печать Ганта, навигация по таймлайну
+- срез S-GANTT-POLISH (undo/печать/навигация), типы связей вынесены
+- спринты и ревью волны Ганта в _analysis
+- Merge chore/baseline-tail: хвосты гейта 074
+- миграция 075 — сузить гранты baseline-таблиц
+- Merge feat/gantt-baseline-1: базовый план (baseline) + ghost-бары план/факт
+- реген supabase.gen.ts после apply 074
+- разрезать POLISH/LOAD на два спринта
+- Merge feat/gantt-cpm: полный CPM (ES/EF/LS/LF + total float) на Ганте
+- цвет сигнала сдвига через токен + актуализация комментариев
+- правки спринтов CPM и BASELINE по внешнему ревью
+- игнор локальной инфры/кэшей/дампов + распаковка audit-contrast
+- синхронизация спринтов, ревью и хендоффов
+- парс дат «Пн ДД.ММ.ГГ» в импорте плана (feat/plan-import-datefmt)
+- task-аналитика MVP — completed_at + RPC + экран /analytics (072)
+- реген типов после apply 072 — убран ручной completed_at и rpc-мост
+- интерактив командного дня B2 — drag=reschedule/reassign (feat/timeblock-b2-team-drag)
+- командный день B1 + видимость встреч 071 (feat/timeblock-b1-team-day)
+- слой meetings в недельной сетке A2c (feat/timeblock-a2c-meetings)
+- drag-перенос и resize тайм-блоков A2b (feat/timeblock-a2b-dnd)
+- недельная сетка тайм-блоков A2a — рендер scheduled + создание по слоту (feat/timeblock-a2a-weekgrid)
+- тайм-блокинг A1 — scheduled_start/end + время в recurring (070)
+- 070 применена — регенерация типов, снят hand-added stopgap (S-TIMEBLOCK-A1)
+- recurring tasks — шаблоны повторения + daily-cron спавн (069)
+- полиш задач — единая сортировка просрочки, empty-states, поиск в Списке, j/k
+- пересборка раздела «Задачи» (стрим по датам + Таблица + фильтр источника)
+- minimal checkbox → чёрный (не accent); мета шапки задач → text-sm
+- null → undefined под строгие regen-типы RPC (хвост 2fe8806)
+- regen после 066/067 (реальные типы вместо stub)
+- Merge branch 'feat/chat'
+- Merge feat/plan-import: S-PLAN-IMPORT-1 — импорт Excel-плана внедрения (фазы+даты+вехи) → задачи
+- Merge feat/gantt-ux-2: S-GANTT-UX-2 — удаление задач/фаз в Ганте + drag из «Без дат»
+- участник project_members видит проект, файлы и доску (RLS, аддитивно, helper is_project_member)
+- заметки проекта для команды (pinned_note) + комментарий к файлам (миграция 064)
+- 8 проектных ролей (миграция 063) + UI-фильтр по типу проекта (ERP/IIoT/internal)
+- solid-акцент бейджа «В работе» (now) вместо блёклого тинта
+- непрозрачный --popover для всплывающих слоёв (тёмные темы) + акцент активной стадии
+- lag_days UI + soft-warn FS-нарушений (062 UPDATE-политика task_dependencies)
+- Sprint W4a: перфоманс — dynamic import (xlsx/Gantt/модалки/charts), шрифты по темам
+- rollup undated-родителя в Gantt (закрытие F1)
+- Vercel-заголовки в next.config + docs/schema 061
+- default-таб delivery=План, error-copy по типу сущности, edit-модалка delivery
+- профиль self-service + welcome-гейт (061) + T1c invite email-guard
+- Sprint T2: атрибуция актора в ленте + лог смены стадии, роль-гейт create в UI, admin не трогает owner (059)
+- Sprint T1a: приём инвайта — accept_invitation(token) RPC (058), /invite, org-guard, токен-ссылки
+- 057 mark applied
+- 057 — подставлен DEPLOY_TS (published_at 2026-07-18T08:41:05Z, деплой 488f3af)
+- 056b revoke trigger-fn execute + docs/schema.md блок W1 (054–056b)
+- Sprint W2: правда во времени и цифрах — TZ-фикс datetime-local + бэкфилл (057), единый deal-metrics, один describeEvent без сырых полей, optimistic задач для board-кеша
+- Sprint W1: security — WITH CHECK+freeze org_id (054), storage policies в git (055), revoke anon defaults (056), HSTS/CSP-lite, safeHref, дедуп ai-summarize
+- S-WBS-1 tail — gen types 052 (parent_task_id/wbs_code), снять ручные overrides, docs/schema.md
+- S-DEPS-1 polish — created_by default (049) + docs/schema дельта 047/048
+- phones zod-parse на границе хуков + Deal Hub scroll + gitignore (тех-долг Волны 1)
+- gitignore Obsidian editor-state (.obsidian/)
+- удалить старые root SPRINT-*.md (перенесены в _analysis/, история сохранена)
+- gitignore scratch/junk (_to_delete, _archive, _test-runs, scratch mjs)
+- sync generated types + migration headers с прод-состоянием (040/041 applied)
+- unit-тесты getDeliveryHealth + isDeliveryTerminal (14 кейсов) (S-DLV-HEALTH-1)
+- .fuse_hidden* из индекса и в .gitignore
+- baseline-снимок 20260712230000 (пропущен в 5705776 из-за прерванного git add) (AUDIT B1)
+- baseline-снимок прод-схемы, архив старой цепочки, удалён дубль 005 (AUDIT B1)
+- security headers в netlify.toml + удаление no-op класса stage-future
+- удалить мёртвый stages.ts (runtime на validators/project.ts)
+- синк 035 (гейт-фикс REVOKE anon) + e2e/unit тесты routing-split и delivery P1
+- раздел «Проекты» → «Сделки» (лейблы + per-record conditional по type; роут/схема/PCT-1 не тронуты)
+- убрать '|| true' из build.command — не маскировать провал next build
+- Combobox (поиск по подстроке) + автоподстановка компании из контакта в модалках звонка/встречи
+- _analysis — оценка contact-hub + sprint-промпты contact/company-deal
+- AI-HUB-CONCEPT.md под git, .claude/ в ignore
+- AI-HUB-CONCEPT.md под git, .claude/ в ignore
+- гейт S-AI-1 закрыт — 030 applied, ai-run задеплоен (sonnet-5), docs/schema.md и crm-architect синхронизированы
+- Sprint AI-1: AI Hub MVP — transcripts/ai_runs (RLS по сущности, идемпотентность), edge ai-run (async, anti-injection), 3 пресета (протокол/записка/SPIN), секция AI в модалках call/meeting, action items→задачи, учёт токенов
+- _analysis под git — история sprint-промптов 23–29, sprint-ai-1, скоркарта
+- _analysis под git — история sprint-промптов 23–29, sprint-ai-1, скоркарта
+- гейт-хвосты S28/S29 закрыты — injection-тест 6/6 PASS, негативные HTTP-смоки 6/6 PASS, BACKLOG актуализирован
+- Sprint 29.1: чеврон детальной страницы на stage_id (phase_group из pipeline_stages), legacy stage больше не пишется из UI, гейт-баннер переиспользован
+- Sprint 29: автоматизация v1 — automation_rules/runs, run_stage_automations (идемпотентно, композиция с notify), Settings→Автоматизации, 3 пресета
+- Sprint 28: AI-саммари звонков/встреч — edge function ai-summarize (JWT+RLS, tool use, anti-injection), ai_summary поля, кнопка в карточках
+- Sprint 27: стадийные гейты — stage_requirements (org-scoped конфиг), check_stage_requirements + enforcement-триггер, чек-лист готовности в UI, Settings→Gates
+- Sprint 26: notifications (колокольчик, realtime) + invitations (Team page, apply_pending_invites) + write-политики memberships + FK converted_* SET NULL
+- Sprint 25: командная видимость leads/activity_log, org_id в log-функциях, гард convert_lead, DROP user_role()/profiles.role, AssigneeSelect + useOrgRole в UI
+- Sprint 24: org-scoped RLS — политики на current_org_role(), org-граница на всех tenant-таблицах, фикс advisors (convert_lead anon, search_path)
+- Sprint 23 hardening: helpers в 021 (current_org_id/is_org_member, SECURITY DEFINER + search_path + ACL), search_path в set_org_id
+- Sprint 23: multitenancy schema — organizations, memberships, org_id на tenant-таблицы (RLS без изменений)
+- vitest + playwright инфраструктура
+- Cupertino cleanup + UI primitives (Badge, ChipFilter, Card, Button, etc.) + ProjectsTable/StackedPipeline
+- track migrations 009-012 (already applied to Supabase)
+- Sprint 25b — hide header, move controls to sidebar
+- frost glass active sidebar item
+- company detail — corner brackets + add buttons
+- replace rectangular borders with corner brackets
+- Sprint 21.5b — border cleanup + expandable call details
+- replace rectangular borders with corner brackets on 360° Hub
+- bracket corners on tasks sections + drawer widgets + KPI individual
+- scandinavian chart palette on Dashboard and Analytics
+- bracket corners on dashboard widgets
+- apply watermarks to dashboard, remove duplicate headers
+- vertical text in collapsed sidebar
+- add watermark and bracket CSS
+- switch font to Geist Sans
+- add hover indicator on donut widget for diagnostics
+- Chalk theme — vivid fuchsia accent + bright palette
+- color accents for Contacts, Companies, Meetings, Analytics
+- add color accents + redesign sidebar active state
+- frost theme contrast polish — WCAG AA compliance
+- complete theme system — zero hardcoded colors, glassmorphism, 6 full themes
+- hero metrics, corner notch cards, glow hover, floating alerts, SVG icons
+- legacy-style task cards — borderless rows with checkbox, column dividers
+- clean task cards, smart alert pills, layout density, right sidebar widgets
+- full theme system from legacy, glassmorphism, KPI cards, progress bars, sidebar badges, chart theming
+- visual polish — color depth, typography hierarchy, card shadows, sidebar, tables, activity log
+- remove sensitive files from tracking
+
+
+### Рефакторинг
+- MessageThread из ProjectChat, привязка через conversation
+- снять стаб-типы после регена supabase.gen.ts
+- recurring на сгенерированных типах, снят структурный каст (069 применена)
+- семантические fontSize text-meta/body — консолидация text-[11px]×84 + 13px-форм×27 в rem-токены (S-TYPO-TOKENS, аудит F-02, вариант 13a); синхронно globals washi/fuji контраст-селекторы
+- геометрия — xl в токен-шкалу (fix инверсии), rounded-md→rounded (дубль), floating-тени на канон elevation + fix hover (S-TOKENS-GEOM, аудит F-08/F-09)
+- компактный стептер — завершённые/будущие фазы в чипы, активная в чевронах
+- единая палитра фаз с /overview, донат-итог всем темам, empty-CTA, экспорт — утилитарная полоса
+- материалы (1С:ДО/заметки/файлы/видео) в сворачиваемую секцию — план к сгибу (F-10)
+- композиция /tasks по референсу — шапка с метой, карточка списка, один контекст-тег
+- widget discipline — анатомия KPI, тихий risk-виджет, бюджет маркеров (все темы)
+- карточка канбана ~13→6 сигналов — свёрнута строка внимания, убраны декор/health-dot/%/контакт (S-DEAL-CARD, аудит F-04)
+- снять легаси-символы deal_stage, regen типов (B3, пост-DROP 047)
+- убрать клиентские записи projects.stage (B1, перед DROP)
+- ProjectPeek имя стадии на stage_id
+- ProjectsTable трек/имя на stage_id (phase_group)
+- ProjectCard на stage_id (без STAGE_CONFIG-фолбэка)
+- чеврон ProjectDetail на stage_id (убран мёртвый legacy-reader)
+- сделки → /deals, /projects освобождён под delivery-«Проекты» (redirect-бэкстопы по типу)
+- AI вынесен в отдельную AiWorkspaceModal (иконка Sparkles), модалки редактирования — только данные сущности
+- аналитика и фильтры на stage_id/phase_group, депрекейт legacy stage (Путь A)
+- структурные селекторы -> data-атрибуты, z-index по иерархии
+
+
+### Фичи
+- контакт из бота привязывается к компании (S-CONTACT-COMPANY)
+- раскатка .sheet — настройки, чат, аналитика, звонки
+- лист как примитив — .sheet и три точки применения
+- Minimal v2 — глубина и контраст
+- голосовое сообщение как вход быстрого ввода (S-TG-VOICE-1)
+- создание задачи из сообщения боту — интент task (S-TG-TASK-1)
+- маркировка в брифе, зачистка реквизитов кодом, цена по новым слагам (S-DEBT-1)
+- бриф в два прохода — Grok ищет нативно, DeepSeek структурирует (S-BRIEF-2PASS)
+- веб-поиск через OpenRouter, классы ошибок доступа (S-LLM-SEARCH-1)
+- карточка лида по согласованному макету (S-LEAD-CARD-VISUAL-1)
+- адаптер провайдера и переезд на OpenRouter (S-LLM-OPENROUTER-1)
+- конверсия переносит квалификацию — роль, бюджет, ЧЗ-профиль (S-LEAD-CARRY-1)
+- нормы дней по стадиям — UI для stage_target_days (S-STAGE-NORMS-UI-3)
+- кольцо времени стадии в канбане, таблице и peek (S-PIPELINE-RING-2)
+- кокпит стадий — единый язык для лидов, сделок и проектов
+- клавиатура — j/k/h/l, Shift+H/L переносит карточку
+- доска по срокам — третий вид раздела Задачи
+- создание компании и контакта из сообщения боту (S-TG-3)
+- приоритет задачи в заголовке напоминания (S-TG-PRIORITY)
+- напоминания по задачам и закрытие задачи кнопкой из бота (S-TG-2)
+- привязка аккаунта и доставка уведомлений в Telegram (S-TG-1)
+- AI-виджет быстрого ввода — контакт/компания из вставленного текста (S-QUICK-CAPTURE-1)
+- акцент minimal — петроль #0E7C86 вместо терракоты (hue-конфликт с --red, контрасты AA пересчитаны)
+- привязка из канала проекта и подсказки из текста
+- поиск сущностей по названию для привязки задачи
+- карточка подтверждения и точки входа — слэш-команда и действие сообщения
+- парсер задачи и срока из текста сообщения
+- 099 tasks.source_message_id (не применена)
+- 098 командная видимость на чтение — 6 таблиц (не применена)
+- пустые состояния и микроанимации
+- композер-капсула, автовысота, драфты per-канал
+- пузыри, sticky день-чип, разделитель новых, FAB вниз
+- чат-токены 7 тем + обои-паттерн
+- чипы ссылок на сущности CRM в сообщениях
+- переход в проект из шапки треда и строки канала
+- ChannelAvatar — генерируемые аватары каналов
+- скрепка в composer, превью и скачивание вложений
+- типы-стаб + хуки вложений
+- 097 бакет chat-files, message_attachments, хелпер доступа (не применена)
+- GroupModal, группы в списке каналов, управление составом
+- типы-стаб + хуки групп и участников
+- 096 conversation_members, группы, RPC создания (не применена)
+- пункт «Чат» в меню + бейдж непрочитанного
+- страница /chat, ChatView, ChannelList
+- имя проекта и заголовок канала в useConversations
+- типы-стабы + хуки use-conversations / use-messages
+- 094 conversations + messages + reads, 095 drop legacy (не применены)
+- карта стейкхолдеров сделки
+- журнал доставок, повтор, ретеншн и контракт G3 (091)
+- вебхук как действие движка автоматизаций (090)
+- транспорт исходящих вебхуков — очередь, подпись, доставка (088, 089)
+- аудит критичных полей сделки в БД с «было → стало» (087)
+- предпросмотр компаний и лидов + подсказка порога и типизация ленты
+- Company 360 — сделки и внедрения на карточке компании
+- порог залипания из настроек организации + сид-сегмент (086)
+- nullable transcript, пресеты meeting_prep/deal_summary, хвосты SDP (085)
+- sign-off чеклисты внедрения (083, 084)
+- Smart Deal Progression — HITL-обновление сделки после звонка (R2-P0-C)
+- триггер days_in_stage и действие suggest_spawn в движке автоматизаций (R2-P0-E)
+- модалка перехода стадии — гейты, During-поля, причины won/lost, превью автоматизаций
+- гейт видит патч перехода, история стадий, единый вход смены стадии (R2-P0-A/1a)
+- серверные сегменты + настройки организации (R2-P0-B/D)
+- типы связей SS/FF/SF в расписании и на стрелках
+- кнопка «Сегодня», автоскролл и затенение выходных
+- печать таймлайна через window.print
+- undo последнего сдвига дат
+- базовый план проекта — слепок сроков и ghost-бары план/факт
+- полный CPM — ES/EF/LS/LF, total float, крит-путь по нулевому запасу
+- каскад сдвига зависимых задач (S-SCHEDULE-1B)
+- авто-каскад сдвига зависимых задач (S-SCHEDULE-1B)
+- task-аналитика MVP — completed_at + серверные RPC + экран /analytics (072)
+- интерактив командного дня — drag=reschedule / reassign (B2)
+- командный день — дорожки по людям (B1) + видимость встреч участникам (071)
+- слой meetings в недельной сетке (A2c) — read-only, отдельным классом
+- drag-перенос и resize блоков в недельной сетке (A2b)
+- недельная сетка тайм-блоков (A2a) — рендер scheduled-задач + создание по слоту
+- тайм-блокинг A1 — scheduled_start/end на задачах + время/длительность в recurring (070)
+- recurring tasks — шаблоны повторения + daily-cron спавн (069)
+- пересборка раздела — стрим по датам, фильтр источника, вид Таблица
+- единый display-формат телефона + схлопывание синонимов ролей в фильтр-чипах
+- тёмные фазовые цвета → секвенциальный ramp в тоне акцента (frost/aurora/tidal), уходим от общей радуги
+- импорт плана из Excel на вкладке Гант + скачивание шаблона .xlsx
+- донат по статусу — hover-эмфаза сегмента + значение в центре (паритет с recharts-чартами)
+- глубина чата — токены пузырей 7 тем (fix minimal/fuji), слои канваса, автор, disabled send
+- новая тема Minimal (t-minimal) — нейтральный canvas, Inter, терракотовый акцент
+- единый бренд Torii CRM + нав без капса + фикс орбов в tbody (S-AURA-NAV-1, аудит F-03)
+- реакции на сообщения — message_reactions + RLS + realtime + UI (S-CHAT-2, migration 068 не применена)
+- контраст своих пузырей (chat-токены, 6 тем) + эмодзи-пикер в composer (S-CHAT-1.2)
+- telegram-lite UI — пузыри, время+день-чипы (MSK), инверсия глубины, aria-live, focus-within, reduced-motion
+- панель ProjectChat (лента + composer + правка/удаление своих) + таб «Чат»
+- миграция 067 project_messages (RLS команда + realtime) + хук use-project-messages
+- хук + секция «Видео» (embed через parseVideoUrl на рендере, confirm-delete, гейт canManage) + CSP frame-src
+- миграция 066 project_videos (RLS зеркалит projects_select, GRANT) + парсер + типы-stub + vitest
+- модалка импорта плана (фазы+даты+вехи, lane=next, skip-and-continue) + монтаж на доске «План»
+- чистые хелперы парсинга плана + vitest
+- drag задачи из «Без дат» на таймлайн → даты (fallback-ось, click-threshold, useUpdateTaskDates, гейт canManage+toast)
+- удаление задачи (confirm) и фазы (пикер target, useDeleteColumn) в Ганте — гейт canManage, toast на 42501
+- S-QUOTE-1 — КП на сделке (quotes + lifecycle + accept→budget)
+- S-WBS-1 — иерархия задач (parent_task_id + wbs_code), группировка на Gantt
+- S-PORTFOLIO-2 — risk-виджет на /overview (общий usePortfolioHealth, таб-URL, deep-link)
+- S-PORTFOLIO-1 — портфель внедрений (health-ранжирование, риск-счётчики, старение по фазам)
+- S-WF-2C-B — task_overdue в UI + NotificationBell route по entity_type
+- S-WF-2C-A — task_overdue (pg_cron scheduled executor)
+- S-WF-2B — UI редактора правил (3 триггера × 4 действия + conditions)
+- S-WF-2A — обобщение automation-движка (triggers + actions + conditions)
+- S-CRIT-PATH — подсветка критического пути (longest path в DAG)
+- S-DEPS-1 — task_dependencies (FS) + DAG-валидация + стрелки на Гантте
+- drag-to-resize/move баров — правка start_date/end_date (S-GANTT-VIEW-2)
+- tooltip (исполнитель/lane) + фильтр open/all/milestones
+- swimlane по фазам + milestone-ромб + today line
+- zoom day/week/month на бакет-оси
+- переименование таб «Гант» + useProjectSchedule (swimlane по фазе)
+- v0 таблица-таймлайн (таб на проекте, CSS-grid без либы)
+- даты задачи (start/end) в TaskModal + миграция 046 в репо
+- won → notify владельца + авто-открытие Win Wizard (S-WON-AUTO-1, 045)
+- Win Wizard — контур+шаблон+owner при spawn (S-WIN-WIZARD-1, 044)
+- причина выигрыша won_reason/won_detail — симметрия loss (S-WON-REASON-1, 043)
+- заметки на контактах/компаниях — activity_log entity-links (S-NOTES-TIMELINE-1, 042)
+- stage-aging бейдж + default-sort воронки по next-action (S-AGING-1)
+- health-score внедрений + бейдж (доска, Deal Hub, карточка) (S-DLV-HEALTH-1)
+- Deal Delivery Hub — дочерние внедрения на won-сделке (S-DEAL-HUB-1)
+- UI мультителефона (useFieldArray) + fix клипа дропдаунов в модалках (портал попапа)
+- мультителефон — phones jsonb на contacts/companies (041, pending), типы+валидаторы
+- AUDIT C — дефолт aura, удалены scandi/paper/sand, единый shell TextNavSidebar
+- генерированные Supabase-типы + generic-клиент (AUDIT B3)
+- bulk reorder_tasks RPC (039, pending) (AUDIT A2.2)
+- единый Modal primitive — isDirty-guard, viewport-fit; 9 модалок переведены; auth-expiry handling (AUDIT A1.2-4)
+- toast-провайдер + mutation defaults + yellow a11y-override (AUDIT A1.0-1)
+- P3 UI — чеклист-модалка завершения, parseDeliveryGateError, milestone-ромб в TaskCard
+- P3 гейт завершения — is_milestone в tasks, check_delivery_completion, триггер-backstop (038, pending)
+- токен --border-input ≥3:1 + scandi override + reclass декор-границ в info-only (P2 §1.4.11)
+- P2b UI — команда проекта (3 роли), прогресс N/M на карточках, создание фаз из шаблона, CRUD фаз + schema.md синк
+- P2b миграция — project_members (3 роли), прогресс X/Y триггером, apply_delivery_template RPC, фикс realtime-публикации
+- P2a фазовая доска — колонки=фазы СДР, статус задачи badge, просрочка computed
+- P2a миграция — фазовые колонки (category=phase), шаблоны Запуск/Эксперимент, spawn v2 с копированием шаблона
+- P1 модуль «Проекты» внедрения — type=delivery, spawn из won-сделки, 4-состояние (phase_group), канбан+internal-список, ссылка в 1С:ДО
+- S31 полиш — релевантное ранжирование, scrollIntoView, Лиды/Календарь, читаемые подписи (lane/stage/status, internal → Внутренний)
+- Sprint PCT-1 — project boards (project_columns + tasks.column_id, internal-проекты)
+- Company/Deal Hub на EntityTimeline — единая лента событий (сделка: +activity_log/ai_runs, composer заметок), связи; общий openTimelineEvent
+- переиспользуемый EntityTimeline (contact/company/project) + Contact Hub — unified timeline (calls/meetings/tasks/projects), связи, key-info по факту; серверный фильтр вместо org-fetch
+- кликабельная лента активности на карточке контакта — звонок открывает CallModal, проект ведёт на карточку
+- доработка разделов — лиды, воронка, контакты, компании, коммуникации, задачи
+- Sprint W2d — keyboard nav (j/k) в DataTable и Сегодня, PeekPanel сделки
+- Sprint W2c — фильтры в URL + saved views + секция Виды в палитре
+- Sprint W2b — last_touch на клиенте, секция Остывают, касание в контактах
+- Sprint W2a — command palette 2.0: действия создания, GlobalModals host, shortcuts
+- Sprint W1c — Focus panel (next step + pinned note + health) в карточке сделки
+- Sprint W1b — экран Сегодня (action inbox), обзор на /overview
+- Sprint W1a — next_action_date + rotting indicator (activity-based selling)
+- акцент янтарь→графит (орб Дашборда остаётся янтарным)
+- тема Аура (t-aura) — светлая тема с цветной атмосферой
+- Sprint 2 — Lead module with Kanban, conversion to Deal
+- Sprint 1.75 — universal DealProgressBar on project detail
+- Sprint 1.5 — dynamic pipeline columns from stage_id
+- Sprint 1 — directions (ERP/IIoT), pipeline stages, ChipFilter, Badge
+- Sprint 25c — additional animations
+- Sprint 24c — Cupertino JS hooks (spotlight + morph)
+- Sprint 24b — Cupertino animations (CSS only)
+- Sprint 24a — Cupertino foundation (tokens + glass + registration)
+- smart column mapping for Excel import
+- add '+ Контакт' button to company detail contacts widget
+- CTA pills open creation modals with pre-filled contact/company
+- Sprint 22 — Excel import (companies + contacts)
+- Sprint 20 — UI polish (AI review findings)
+- add Watermark, Bracket components and useWatermark hook
+- Sprint 20 — event reminders (toast notifications)
+- Sprint 19.5 — clickable calendar events + export polish
+- Sprint 19 — calendar markers + full calendar page
+- Sprint 18 — Activity Drawer with calendar
+- Sprint 17 — kanban card hierarchy
+- Sprint 16 — charts + donut polish
+- Sprint 15 revised — project + contact polish
+- Sprint 15 — per-page polish
+- Sprint 14.5 — watermark auto-activation
+- Sprint 14 — watermark discipline + sidebar abbreviations
+- Sprint 13 — Inter font, elevation, filled CTA, softer colors
+- sprint 12.8 — sidebar persist + theme dropdown z-index
+- sprint 12.7 — unified page headers with watermarks
+- visual polish sprint 12
+- calls/meetings/analytics — watermarks + monochrome CSS
+- tasks sidebar watermarks, table/task CSS overrides
+- pipeline watermarks, kanban flat columns, detail sections
+- dashboard with watermark stat cards and widget wrappers
+- CTA button component + outline-fill animation, inputs, chips
+- watermark system — component, hook, gradients
+- new sidebar layout with living tasks, inline header
+- add Scandinavian monochrome theme, set as default
+- watermark titles on all dashboard widgets, calls 14→7 days
+- dashboard v2 — watermark KPIs, chart axis cleanup, separators
+- dashboard visual overhaul — KPI, charts, activity
+- improve text readability, add file attachments
+- bigger fields, optional selects, company/contact in tasks
+- rename to Torii CRM + fuji bleed/wave/logo fixes
+- Sprint 2 — Projects, sidebar markers, bleed, waves
+- add Fuji 富士 theme — Sprint 1 (Tasks)
+- sumi frame — dark sidebar + header, ivory content
+- keyboard-first navigation — J/K/Enter + G-shortcuts + ? help
+- deal health score with colored indicators
+- extend Cmd+K search to include calls and meetings
+- bulk actions bar with checkbox selection
+- inline cell editing for Companies and Contacts tables
+- add animations — page transitions, staggered lists, animated counters
+- add Chalk light theme — Apple HIG minimalism with powder accents
+- dashboard with KPI cards, pipeline funnel, calls chart, deadlines and activity feed
+- pipeline board with drag-and-drop stage transitions
+- activity timeline, company/contact select, linked items on ProjectDetail
+
