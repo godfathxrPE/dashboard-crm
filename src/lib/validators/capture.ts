@@ -84,6 +84,28 @@ export const captureResultSchema = z.object({
   task: nullBranch(captureTaskSchema),
 });
 
+/**
+ * Телеметрия прогона — поле `run` ответа `ai-capture` (S-AI-OBS-1).
+ *
+ * ⚠️ ВСЁ НЕОБЯЗАТЕЛЬНО, И ЭТО НЕ НЕБРЕЖНОСТЬ. Функция деплоится отдельно от фронта:
+ *    её прежняя версия ключа `run` не вернёт вовсе, а провайдер может не отдать
+ *    токены (у OpenRouter это штатно). Прогон при этом СОСТОЯЛСЯ и обязан попасть
+ *    в журнал — без токенов, но попасть. Отказ писать строку из-за неполноты полей
+ *    воспроизвёл бы ровно то слепое пятно, ради которого затевался спринт.
+ *
+ * ⚠️ `model` — СЛАГ ИЗ СЕКРЕТА функции, а не имя модели глазами провайдера
+ *    (S-LLM-OPENROUTER-1). По нему `RunCostMeta` ищет цену; вендорный префикс
+ *    OpenRouter таблице цен незнаком, и строка про рубли просто исчезла бы.
+ */
+export const captureRunSchema = z.object({
+  model: z.string().nullish().transform((v) => v || null),
+  input_tokens: z.number().int().nullish().transform((v) => v ?? null),
+  output_tokens: z.number().int().nullish().transform((v) => v ?? null),
+  duration_ms: z.number().int().nullish().transform((v) => v ?? null),
+});
+
+export type CaptureRun = z.infer<typeof captureRunSchema>;
+
 export type CaptureContact = z.infer<typeof captureContactSchema>;
 export type CaptureCompany = z.infer<typeof captureCompanySchema>;
 export type CaptureTask = z.infer<typeof captureTaskSchema>;

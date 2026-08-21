@@ -346,6 +346,106 @@ function logGatewayDiagnosis(name: string): void {
   );
 }
 
+// ═══ Журнал прогонов (S-AI-OBS-1) ═══
+//
+// ⚠️ ПИШЕТ ВЫЗЫВАЮЩИЙ, А НЕ `ai-capture`. У функции разбора нет ни `org_id`, ни
+//    `profile_id` — обе колонки NOT NULL с FK, а в JWT ни того, ни другого нет.
+//    Принять их телом запроса значило бы разрешить писать прогоны в чужую
+//    организацию. Здесь обе координаты уже разрешены по привязке
+//    (`telegram_accounts`), и это единственное место, где они честные.
+//
+// ⚠️ ЗАПИСЬ ИДЁТ СЕРВИСНЫМ КЛИЕНТОМ, МИМО RLS, и `created_by` поэтому проставляется
+//    ЯВНО: под service_role `auth.uid()` = NULL, а колонка NOT NULL — дефолт тут не
+//    сработает. Тот же принцип, что у `tg_apply_capture`: актор явный.
+//
+// ⚠️ ОТКАЗ ЖУРНАЛА НЕ ОТМЕНЯЕТ РАЗБОР. Лог — побочный эффект: человек уже ждёт
+//    карточку, и терять её из-за несработавшей статистики нельзя.
+
+/** Телеметрия прогона из поля `run` ответа `ai-capture`. */
+type CaptureRunMeta = {
+  model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  duration_ms: number | null;
+};
+
+/**
+ * Сужение `run` — внешний payload, как и `result`.
+ *
+ * ⚠️ ОТСУТСТВИЕ ПОЛЯ — ШТАТНЫЙ СЛУЧАЙ, А НЕ СБОЙ. `ai-capture` деплоится отдельно
+ *    от бота, и порядок деплоев не гарантирован: прежняя версия функции ключа
+ *    `run` не вернёт вовсе. Прогон при этом состоялся и обязан попасть в журнал —
+ *    без токенов, но попасть. Пустой журнал ради полноты полей был бы ровно тем
+ *    же слепым пятном, из-за которого затевался спринт.
+ */
+function narrowRunMeta(raw: unknown): CaptureRunMeta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : null);
+  return {
+    model: typeof r.model === 'string' && r.model ? r.model : null,
+    input_tokens: num(r.input_tokens),
+    output_tokens: num(r.output_tokens),
+    duration_ms: num(r.duration_ms),
+  };
+}
+
+/**
+ * Одна вставка постфактум, сразу со статусом `done`/`error`.
+ *
+ * ⚠️ СТАТУС СРАЗУ ТЕРМИНАЛЬНЫЙ — не `pending`, как у `ai-run`. Не оптимизация:
+ *    частичный уникальный индекс `ux_ai_runs_active_entity` покрывает только
+ *    `status in ('pending','running')`, и терминальная строка не попадает под него
+ *    вовсе. Параллельные разборы не смогут заблокировать друг друга.
+ *
+ * ⚠️ `draft_id` В `result` НЕ КЛАДЁТСЯ. Черновик появляется позже — а ветка задачи
+ *    и все три ветки отказа до него не доходят вовсе. Класть ключ, который есть
+ *    у меньшинства строк, значит сделать его бесполезным для запроса.
+ */
+async function logCaptureRun(
+  supabase: Supa,
+  actor: TelegramActor,
+  outcome: {
+    ok: boolean;
+    /** Что разобрали: `contact` | `company` | `task` | `unclear`; у отказа — null. */
+    kind: string | null;
+    /** Причина отказа в терминах контура, без тел и ключей. */
+    error: string | null;
+    run: CaptureRunMeta | null;
+    /** Замер вокруг вызова — на случай, когда своего `duration_ms` функция не дала. */
+    fallbackMs: number;
+  },
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('ai_runs').insert({
+      org_id: actor.org_id,
+      preset_key: 'capture',
+      entity_type: 'capture',
+      entity_id: null,
+      status: outcome.ok ? 'done' : 'error',
+      // Источник живёт в `result`, а не в отдельной колонке: колонки `meta` у
+      // `ai_runs` нет, и заводить её ради одного поля дороже, чем ключ в jsonb.
+      // ⚠️ `source` пишется И ПРИ ОТКАЗЕ. Иначе первый же вопрос к статистике —
+      //    «доля отказов по источнику» — не отвечается: у ошибок источник терялся бы,
+      //    а именно отказы бота и веба надо уметь различать. `kind` при отказе не
+      //    кладётся: разбирать было нечего.
+      result: outcome.ok
+        ? { source: 'telegram', kind: outcome.kind }
+        : { source: 'telegram' },
+      error: outcome.error,
+      model: outcome.run?.model ?? null,
+      input_tokens: outcome.run?.input_tokens ?? null,
+      output_tokens: outcome.run?.output_tokens ?? null,
+      duration_ms: outcome.run?.duration_ms ?? outcome.fallbackMs,
+      created_by: actor.profile_id,
+      finished_at: new Date().toISOString(),
+    });
+    if (error) console.error('telegram-webhook: журнал ai_runs не записан:', error.message);
+  } catch (e) {
+    console.error('telegram-webhook: журнал ai_runs не записан:', e);
+  }
+}
+
 // ═══ Дедуп ═══
 
 /**
@@ -451,20 +551,51 @@ export async function handleCaptureText(
     else await bot.send(chatId, text);
   };
 
+  // S-AI-OBS-1: замер вокруг вызова — резерв на случай, когда своего `duration_ms`
+  // функция не вернула (сбой вызова или её прежняя версия).
+  const runStarted = Date.now();
   const parsedRaw = await invokeJson(supabase, 'ai-capture', { text: rawText });
+  const runMeta = narrowRunMeta((parsedRaw as { run?: unknown } | null)?.run);
   // ⚠️ ДВА РАЗНЫХ ИСХОДА, РАНЬШЕ СКЛЕЕННЫЕ В ОДНУ СТРОКУ. `invokeJson` отдаёт
   //    `null` ТОЛЬКО на сбое вызова — это наша сторона, и «попробуйте ещё раз»
   //    там ложный совет. Ответ, не легший в схему, — другое дело: он приходит
   //    объектом, и повтор с другой формулировкой может сработать.
   if (parsedRaw === null) {
+    // ⚠️ ОТКАЗЫ ЖУРНАЛИРУЮТСЯ НАРАВНЕ С УСПЕХАМИ. Лог только успехов — это тот же
+    //    слепой лог, только с другой стороны: доля отказов по источнику и есть
+    //    первое, что спросят у статистики.
+    await logCaptureRun(supabase, actor, {
+      ok: false,
+      kind: null,
+      error: 'invoke|ai-capture не ответила',
+      run: runMeta,
+      fallbackMs: Date.now() - runStarted,
+    });
     await say(MSG_UNAVAILABLE);
     return;
   }
   const parsed = narrowCapture((parsedRaw as { result?: unknown } | null)?.result);
   if (!parsed) {
+    await logCaptureRun(supabase, actor, {
+      ok: false,
+      kind: null,
+      error: 'shape|ответ не лёг в схему разбора',
+      run: runMeta,
+      fallbackMs: Date.now() - runStarted,
+    });
     await say(MSG_PARSE_FAILED);
     return;
   }
+
+  // Прогон состоялся — пишем ДО ветвления по интенту: ветка задачи уходит в
+  // `handleTaskIntent` и сюда не возвращается, а прогон у неё такой же.
+  await logCaptureRun(supabase, actor, {
+    ok: true,
+    kind: parsed.intent,
+    error: null,
+    run: runMeta,
+    fallbackMs: Date.now() - runStarted,
+  });
 
   // ── S-TG-TASK-1: поручение, а не карточка ───────────────────────────
   //
