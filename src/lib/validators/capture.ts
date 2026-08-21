@@ -16,6 +16,17 @@ export const captureContactSchema = z.object({
   position: z.string().default(''),
   email: z.string().default(''),
   phone: z.string().default(''),
+  /**
+   * Место работы человека ДОСЛОВНОЙ ЦИТАТОЙ — S-CONTACT-COMPANY.
+   *
+   * ⚠️ Не `company_id`: сопоставление с записью CRM делает детерминированный
+   *    резолвер, а не модель. Тот же контракт, что у `*_hint` задачи.
+   *
+   * ⚠️ Поле аддитивное. Ответ ПРЕЖНЕЙ версии `ai-capture` (без ключа) обязан
+   *    разбираться как раньше — за это отвечает `.default('')`: функция
+   *    деплоится отдельно от фронта, и порядок деплоев не гарантирован.
+   */
+  company_hint: z.string().default(''),
   notes: z.string().default(''),
 });
 

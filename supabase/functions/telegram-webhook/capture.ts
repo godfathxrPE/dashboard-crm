@@ -481,7 +481,28 @@ export async function handleCaptureText(
   //    факт реестра, а не догадка LLM (инвариант фичи).
   const inn = extractInn(rawText);
 
-  const contact = contactFields(parsed.contact, rawText);
+  // ── S-CONTACT-COMPANY: где человек работает ─────────────────────────
+  //
+  // ⚠️ РЕЗОЛВ ДО ПОКАЗА КАРТОЧКИ, А НЕ ПРИ НАЖАТИИ «СОЗДАТЬ» — тот же инвариант,
+  //    что у привязок задачи: карточка обязана обещать ровно то, что запишет RPC.
+  //
+  // ⚠️ КОМПАНИЮ НАХОДИТ КОД, А НЕ МОДЕЛЬ. Из разбора приходит только цитата
+  //    (`company_hint`), id даёт `resolveCompany` и ТОЛЬКО при единственном
+  //    совпадении: «привязать к похожему» здесь означает приписать человека
+  //    чужому юрлицу.
+  //
+  // Пустая подсказка запроса к БД не делает — `resolveVia` отсекает её раньше.
+  const contactCompany = parsed.contact
+    ? await resolveCompany(supabase as ResolveDb, actor.org_id, str(parsed.contact.company_hint))
+    : null;
+
+  // `company_id` кладётся РЯДОМ с полями `contactFields`, а не внутрь него:
+  // `contactFields` — зеркало `buildContactPrefill` веб-виджета, а веб-виджет
+  // упоминания не резолвит. Ключ читает ветка `contact` в `tg_apply_capture` (125).
+  const contact = {
+    ...contactFields(parsed.contact, rawText),
+    company_id: contactCompany?.id ?? null,
+  };
   let company = companyFields(parsed.company, rawText, inn) as CaptureCardCompany &
     Record<string, unknown>;
 
@@ -549,6 +570,9 @@ export async function handleCaptureText(
     kind,
     contact: hasContact ? (contact as CaptureCardContact) : null,
     company: hasCompany ? (company as CaptureCardCompany) : null,
+    // Привязка показывается только там, где есть сам контакт: строка «Компания»
+    // под карточкой компании читалась бы как её собственное поле.
+    contactCompany: hasContact && contactCompany ? toCardLink(contactCompany) : null,
     duplicate,
     appUrl,
   });

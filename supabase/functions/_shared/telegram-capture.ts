@@ -143,6 +143,19 @@ export interface CaptureCardInput {
   contact?: CaptureCardContact | null;
   company?: CaptureCardCompany | null;
   /**
+   * Место работы контакта — итог резолва `company_hint` (S-CONTACT-COMPANY).
+   *
+   * ⚠️ ЭТО НЕ `company` ВЫШЕ. Там — поля СОЗДАВАЕМОЙ компании (ветка `company`
+   *    разбора), здесь — привязка к УЖЕ СУЩЕСТВУЮЩЕЙ записи, найденной по цитате.
+   *    Одно имя на два разных смысла стоило бы карточки, где «Компания» означает
+   *    то одно, то другое.
+   *
+   * ⚠️ Форма и правила показа — те же, что у привязок задачи: не разрешённое
+   *    ПОКАЗЫВАЕТСЯ с причиной, а не пропускается молча. Человек, нажавший
+   *    «Создать» в уверенности, что компания привязана, узнаёт обратное поздно.
+   */
+  contactCompany?: TaskCardLink | null;
+  /**
    * Найденный дубль: меняет и текст, и набор кнопок.
    *
    * ⚠️ `matchedBy` — не украшение отчёта, а признак, от которого зависит НАБОР
@@ -216,16 +229,25 @@ export function captureLabel(
   return clean(company?.name) ?? '';
 }
 
-/** Блок строк про контакт (без заголовка). Всё уже экранировано. */
-function contactLines(c: CaptureCardContact): string[] {
+/**
+ * Блок строк про контакт (без заголовка). Всё уже экранировано.
+ *
+ * ⚠️ СТРОКУ КОМПАНИИ СОБИРАЕТ `linkLine`, И ОНА ЭКРАНИРУЕТ САМА
+ *    (S-CONTACT-COMPANY). Поэтому она приклеивается ПОСЛЕ `.map(escapeTelegramHtml)`:
+ *    второй проход превратил бы «Ромашка &amp; Ко» в «Ромашка &amp;amp; Ко».
+ */
+function contactLines(c: CaptureCardContact, company?: TaskCardLink | null): string[] {
   const name = [clean(c.first_name), clean(c.last_name)].filter(Boolean).join(' ');
-  return [
+  const lines = [
     name || null,
     clean(c.position),
     joinParts([clean(c.email), clean(c.phone)], ' · '),
   ]
     .filter((l): l is string => l !== null)
     .map(escapeTelegramHtml);
+
+  const link = linkLine('company', company);
+  return link ? [...lines, link] : lines;
 }
 
 /** Блок строк про компанию (без заголовка). Всё уже экранировано. */
@@ -258,7 +280,7 @@ const BTN_AS_COMPANY = 'Компания';
  *    когда разбор выглядит однозначным.
  */
 export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
-  const { draftId, kind, contact, company, duplicate, appUrl } = input;
+  const { draftId, kind, contact, company, contactCompany, duplicate, appUrl } = input;
 
   // ── Дубль: другой текст и другой набор кнопок ──────────────────────
   if (duplicate) {
@@ -316,7 +338,7 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
   if (kind === 'unclear') {
     const blocks: string[] = [];
     if (contact) {
-      const l = contactLines(contact);
+      const l = contactLines(contact, contactCompany);
       if (l.length) blocks.push(`<b>Как контакт</b>\n${l.join('\n')}`);
     }
     if (company) {
@@ -340,7 +362,8 @@ export function buildCaptureCard(input: CaptureCardInput): CaptureCard {
 
   // ── Однозначный разбор ─────────────────────────────────────────────
   const head = kind === 'contact' ? 'Контакт' : 'Компания';
-  const lines = kind === 'contact' ? contactLines(contact ?? {}) : companyLines(company ?? {});
+  const lines =
+    kind === 'contact' ? contactLines(contact ?? {}, contactCompany) : companyLines(company ?? {});
   const body = lines.length ? lines.join('\n') : 'Полей не нашлось — проверьте текст.';
 
   return {

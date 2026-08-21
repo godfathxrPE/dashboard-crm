@@ -202,6 +202,96 @@ describe('buildCaptureCard — контакт', () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════
+// S-CONTACT-COMPANY — место работы контакта в карточке.
+//
+// ⚠️ ГЛАВНОЕ, РАДИ ЧЕГО НАПИСАНО: ЧЕТЫРЕ ИСХОДА РЕЗОЛВА ДАЮТ ЧЕТЫРЕ РАЗНЫХ
+//    СТРОКИ. Молчаливый пропуск на `ambiguous`/`not_found` выглядит в чате ровно
+//    как «компания не называлась» — человек жмёт «Создать», считая, что привязка
+//    есть. Именно этот класс уже ловили на привязках задачи.
+// ═══════════════════════════════════════════════════════
+
+describe('buildCaptureCard — компания контакта', () => {
+  const contact = { first_name: 'Андрей', position: 'Коммерческий директор', phone: '89113435345' };
+
+  it('найдена — печатает ИМЯ ЗАПИСИ, а не цитату', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'ok', label: 'ООО «Агрохолод»', hint: 'агрохолод' },
+    });
+    expect(card.text).toContain('Компания: ООО «Агрохолод»');
+    expect(card.text).not.toContain('«агрохолод»');
+  });
+
+  it('несколько совпадений — цитата и причина', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'ambiguous', hint: 'агрохолод' },
+    });
+    expect(card.text).toContain('Компания: «агрохолод» — несколько совпадений, привяжите в CRM');
+  });
+
+  it('не нашлась — другая причина, чем у неоднозначности', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'not_found', hint: 'агрохолод' },
+    });
+    expect(card.text).toContain('Компания: «агрохолод» — не нашёл, привяжите в CRM');
+  });
+
+  it('справочник не прочитался — НЕ склеивается с «не нашёл»', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'error', hint: 'агрохолод' },
+    });
+    expect(card.text).toContain('Компания: «агрохолод» — не удалось проверить справочник, привяжите в CRM');
+  });
+
+  it('не названа — строки нет вовсе (регресс: карточка как раньше)', () => {
+    const before = buildCaptureCard({ draftId: ID, kind: 'contact', contact });
+    const empty = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'empty', hint: '' },
+    });
+    expect(before.text).toBe('<b>Контакт</b>\nАндрей\nКоммерческий директор\n89113435345');
+    expect(empty.text).toBe(before.text);
+    expect(before.text).not.toContain('Компания');
+  });
+
+  it('название экранируется РОВНО ОДИН РАЗ', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'contact',
+      contact,
+      contactCompany: { reason: 'ok', label: 'Ромашка & Ко' },
+    });
+    expect(card.text).toContain('Компания: Ромашка &amp; Ко');
+    expect(card.text).not.toContain('&amp;amp;');
+  });
+
+  it('в ветке unclear строка живёт в блоке «Как контакт»', () => {
+    const card = buildCaptureCard({
+      draftId: ID,
+      kind: 'unclear',
+      contact,
+      company: { name: 'ООО «Агрохолод»' },
+      contactCompany: { reason: 'ok', label: 'ООО «Агрохолод»' },
+    });
+    const asContact = card.text.split('<b>Как компанию</b>')[0];
+    expect(asContact).toContain('Компания: ООО «Агрохолод»');
+  });
+});
+
 describe('buildCaptureCard — дубль', () => {
   const dup = { kind: 'company' as const, id: ID2, label: 'ООО «Ромашка»', matchedBy: 'name' as const };
 

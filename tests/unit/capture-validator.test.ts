@@ -25,3 +25,44 @@ describe('captureResultSchema — ветки-заглушки от модели'
     expect(captureResultSchema.safeParse({ intent: 'contact', contact, company: 'ООО Ромашка' }).success).toBe(false);
   });
 });
+
+// ═══════════════════════════════════════════════════════
+// S-CONTACT-COMPANY — `company_hint` в ветке контакта.
+//
+// Поле аддитивное, и это не формальность: `ai-capture` деплоится ОТДЕЛЬНО от
+// фронта, порядок деплоев не гарантирован ни в одну сторону. Ответ старой версии
+// функции (без ключа) обязан разбираться ровно как раньше.
+// ═══════════════════════════════════════════════════════
+
+describe('captureResultSchema — место работы контакта', () => {
+  const base = { first_name: 'Андрей', last_name: '', position: 'коммерческий директор',
+    email: '', phone: '89113435345', notes: '' };
+
+  it('цитата доезжает до разобранного результата', () => {
+    const r = captureResultSchema.safeParse({
+      intent: 'contact',
+      contact: { ...base, company_hint: 'агрохолод' },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.contact?.company_hint).toBe('агрохолод');
+  });
+
+  it('ответ ПРЕЖНЕЙ версии функции (ключа нет) разбирается как раньше', () => {
+    const r = captureResultSchema.safeParse({ intent: 'contact', contact: base });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.contact?.company_hint).toBe('');
+      expect(r.data.contact?.notes).toBe('');
+      expect(r.data.contact?.first_name).toBe('Андрей');
+    }
+  });
+
+  it('поле остаётся ЦИТАТОЙ — предлог из речи не отрезается', () => {
+    const r = captureResultSchema.safeParse({
+      intent: 'contact',
+      contact: { ...base, company_hint: 'из Тандера' },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.contact?.company_hint).toBe('из Тандера');
+  });
+});
