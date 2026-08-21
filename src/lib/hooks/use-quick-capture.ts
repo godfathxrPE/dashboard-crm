@@ -68,7 +68,13 @@ async function logCaptureRun(
       status: outcome.ok ? 'done' : 'error',
       // Источник — ключ в уже существующем `result`: колонки `meta` у `ai_runs`
       // нет, и заводить её ради одного поля дороже, чем положить его в jsonb.
-      result: outcome.ok ? { source: 'web', kind: outcome.kind } : null,
+      // ⚠️ `source` пишется И ПРИ ОТКАЗЕ. Иначе первый же вопрос к статистике —
+      //    «доля отказов по источнику» — не отвечается: у ошибок источник терялся бы,
+      //    а именно отказы бота и веба надо уметь различать. `kind` при отказе не
+      //    кладётся: разбирать было нечего.
+      result: outcome.ok
+        ? { source: 'web', kind: outcome.kind }
+        : { source: 'web' },
       error: outcome.error,
       model: outcome.run?.model ?? null,
       input_tokens: outcome.run?.input_tokens ?? null,
