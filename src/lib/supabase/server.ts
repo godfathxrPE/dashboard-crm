@@ -1,7 +1,9 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
+
+type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // См. комментарий в client.ts: каст к SupabaseClient<Database> из-за ssr@0.5 × postgrest@2.100.
 export async function createServerSupabaseClient(): Promise<SupabaseClient<Database>> {
@@ -15,9 +17,9 @@ export async function createServerSupabaseClient(): Promise<SupabaseClient<Datab
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet: any[]) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
-            cookiesToSet.forEach(({ name, value, options }: {name: string; value: string; options: any}) =>
+            cookiesToSet.forEach(({ name, value, options }: CookieToSet) =>
               cookieStore.set(name, value, options),
             );
           } catch {

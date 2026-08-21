@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Upload, CheckCircle, AlertCircle, Loader2, Database, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { localDateKey } from '@/lib/utils/date-helpers';
@@ -295,9 +296,9 @@ export function MigrationTool() {
             <div className="mt-4 rounded-lg bg-green/10 px-4 py-3 text-center">
               <CheckCircle size={20} className="mx-auto mb-1 text-green" />
               <p className="text-sm font-medium text-green">Миграция завершена!</p>
-              <a href="/" className="mt-1 block text-xs text-accent hover:underline">
+              <Link href="/" className="mt-1 block text-xs text-accent hover:underline">
                 Перейти на дашборд →
-              </a>
+              </Link>
             </div>
           )}
         </div>

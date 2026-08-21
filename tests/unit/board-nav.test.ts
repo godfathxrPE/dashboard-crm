@@ -155,7 +155,7 @@ describe('moveTarget — перенос карточки Shift+H/L', () => {
   it('из no_date влево четырьмя шагами доходит до today (разбор без мыши, ср)', () => {
     // Цепочка из смока п.3: later → this_week → tomorrow → today.
     const chain: DateBucket[] = [];
-    let id = 'no_date-0';
+    const id = 'no_date-0';
     let set = full;
     for (let i = 0; i < 4; i++) {
       const t = moveTarget(set, id, 'left', WED)!;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -617,9 +618,9 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
               <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
                 Доска
               </button>
-              <a href="/deals?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+              <Link href="/deals?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
                 Таблица
-              </a>
+              </Link>
             </>
           )}
           <div className="flex items-center gap-1 rounded border border-border px-2 py-1">

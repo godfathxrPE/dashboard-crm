@@ -448,7 +448,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
  */
 async function handleCallbackQuery(
   // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any -- тип клиента supabase-js в Deno-бандле недоступен, tsconfig сюда не заходит; директив две, потому что линтера два
   botToken: string,
   cq: NonNullable<TelegramUpdate['callback_query']>,
 ): Promise<void> {

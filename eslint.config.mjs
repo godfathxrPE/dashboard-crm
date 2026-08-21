@@ -48,7 +48,28 @@ const noBrowserDialogs = {
   ],
 };
 
+// S-CI-2: `next lint` отбрасывал артефакты сборки сам, плоский конфиг — нет. Прямой
+// вызов `eslint .` без этого списка проверяет `.next/` и даёт 190 ошибок в
+// сгенерированном коде (`no-explicit-any`, `ban-ts-comment`, `no-empty-object-type`).
+// В CI этого бы не случилось: `.next/` в .gitignore, а шага сборки перед линтом нет —
+// каталога там просто не существует. Блок нужен ради локального паритета (`npm run lint`
+// без него бесполезен) и как страховка: сборка перед линтом уронила бы CI мгновенно.
+// Игнор-блок обязан быть отдельным объектом без других ключей — иначе он действует
+// только на свою секцию конфига.
+const buildArtifacts = {
+  ignores: [
+    '.next/**',
+    'next-env.d.ts',   // генерится Next при каждом билде, содержит triple-slash-reference
+    'out/**',
+    'build/**',
+    'coverage/**',
+    'playwright-report/**',
+    'test-results/**',
+  ],
+};
+
 const eslintConfig = [
+  buildArtifacts,
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   { rules: noBrowserDialogs },
 ];
