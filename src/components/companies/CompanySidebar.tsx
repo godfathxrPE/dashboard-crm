@@ -213,7 +213,7 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
               соврал бы про обязательность. Молча проглотить их тоже нельзя —
               это данные, которые ввёл человек. */}
           {chzUnknown.length > 0 && (
-            <div className="mt-3 border-t border-border/60 pt-2">
+            <div className="mt-3 border-t border-border pt-2">
               <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике 2026-08</p>
               <div className="flex flex-wrap gap-1">
                 {chzUnknown.map((name) => (
@@ -252,7 +252,7 @@ function SideCard({
   children: React.ReactNode;
 }) {
   return (
-    <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+    <div data-card className="rounded-lg border border-border bg-surface p-4">
       <div className="mb-2.5 flex items-center gap-2">
         <Icon size={13} className="shrink-0 text-text-dim" />
         <span className="text-xs font-semibold text-text-main">{title}</span>

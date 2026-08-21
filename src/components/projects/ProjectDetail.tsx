@@ -570,7 +570,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {/* Company — clickable */}
         <div
-          className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+          className="group rounded-lg border border-border bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
           onClick={() => project.company_id && router.push(`/companies/${project.company_id}`)}
         >
           <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Building2 size={11} /> Компания</div>
@@ -581,7 +581,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
         {/* Contact — clickable */}
         <div
-          className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+          className="group rounded-lg border border-border bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
           onClick={() => project.contact_id && router.push(`/contacts/${project.contact_id}`)}
         >
           <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><User size={11} /> Контакт</div>
@@ -593,7 +593,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         {/* Delivery: родительская сделка вместо бюджета (лёгкая карточка) */}
         {isDelivery ? (
           <div
-            className="group rounded-lg border border-border/50 bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
+            className="group rounded-lg border border-border bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
             onClick={() => project.parent_deal_id && router.push(`/deals/${project.parent_deal_id}`)}
           >
             <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Rocket size={11} /> Сделка</div>
@@ -603,7 +603,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           </div>
         ) : (
           /* Budget — inline edit */
-          <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Banknote size={11} /> Бюджет</div>
             <InlineEdit
               value={project.budget ? String(project.budget) : ''}
@@ -619,7 +619,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
         )}
 
         {/* Deadline — inline edit */}
-        <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+        <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
           <div className="mb-1 flex items-center gap-1 text-body text-text-dim"><Calendar size={11} /> Дедлайн</div>
           <InlineEdit
             value={project.deadline ?? ''}
@@ -666,7 +666,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           type="button"
           onClick={() => setShowMaterials((v) => !v)}
           aria-expanded={showMaterials}
-          className="flex w-full items-center gap-2 rounded-xl border border-border/60 bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface2"
+          className="flex w-full items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface2"
         >
           <ChevronRight size={15} className={cn('shrink-0 text-text-mute transition-transform', showMaterials && 'rotate-90')} />
           <span className="text-xs font-semibold uppercase tracking-wide text-text-mute">Материалы проекта</span>
@@ -676,7 +676,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           <div className="mt-3 space-y-4">
             {/* Delivery P1 (B5): ссылка на проект в 1С:Документооборот (редактируемая) */}
             {isDelivery && (
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2.5">
                 <Link2 size={13} className="shrink-0 text-text-dim" />
                 <span className="shrink-0 text-body text-text-dim">1С:ДО</span>
                 <div className="min-w-0 flex-1">
@@ -924,7 +924,7 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+    <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
       <div className="mb-1 flex items-center gap-1 text-body text-text-dim">
         <Icon size={11} />
         {label}

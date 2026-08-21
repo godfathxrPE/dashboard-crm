@@ -40,7 +40,7 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className={cn(
-        'group -mx-2 flex cursor-pointer items-center gap-3 rounded-lg border-b border-border/60 px-2 py-2.5 transition-colors',
+        'group -mx-2 flex cursor-pointer items-center gap-3 rounded-lg border-b border-border px-2 py-2.5 transition-colors',
         focused ? 'kbd-focus-row' : 'queue-row-hover',
       )}
     >

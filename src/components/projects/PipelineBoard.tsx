@@ -247,7 +247,7 @@ function PhaseColumn({
       )}
 
       {/* Column header */}
-      <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
+      <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: headerColor }} />
         <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: headerTextColor }}>
           {column.label}
@@ -296,7 +296,7 @@ function PhaseColumn({
       </div>
 
       {/* Stages breakdown — дропзоны конкретных стадий при активном drag */}
-      <div className="border-t border-border/30 px-3 py-1.5">
+      <div className="border-t border-border px-3 py-1.5">
         <div className="flex flex-wrap gap-1">
           {column.stages.map((stg) => (
             <StageChip

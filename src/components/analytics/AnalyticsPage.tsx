@@ -13,7 +13,7 @@ import { LeadsAnalytics } from './LeadsAnalytics';
 // W4a: recharts-чарты — dynamic-чанком, первый чанк /analytics без recharts.
 function ChartSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
+    <div className="animate-pulse rounded-xl border border-border bg-surface p-4">
       <div className="mb-4 h-3 w-32 rounded bg-border/50" />
       <div className="h-48 rounded bg-border/30" />
     </div>

@@ -369,7 +369,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             />
 
             {rejecting && (
-              <div className="mt-2 flex w-full flex-wrap items-center gap-1 border-t border-border/50 pt-2">
+              <div className="mt-2 flex w-full flex-wrap items-center gap-1 border-t border-border pt-2">
                 <span className="w-full text-xs text-text-mute">Причина отказа:</span>
                 {disqualifyReasons.map((r) => (
                   <button

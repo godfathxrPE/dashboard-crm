@@ -94,7 +94,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
         {/* Stats grid */}
         <div className="mb-5 grid grid-cols-2 gap-3">
           {stats.map((s) => (
-            <div key={s.label} data-card className="rounded-lg border border-border/50 bg-bg px-3 py-2.5 text-center">
+            <div key={s.label} data-card className="rounded-lg border border-border bg-bg px-3 py-2.5 text-center">
               <s.icon size={16} className={`mx-auto mb-1 ${s.color}`} />
               <div className="text-xl font-bold text-text-main">{s.value}</div>
               <div className="text-xs text-text-dim">{s.label}</div>

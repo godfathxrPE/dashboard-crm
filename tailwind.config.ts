@@ -1,5 +1,22 @@
 import type { Config } from 'tailwindcss';
 
+/* v2.3: цвета объявлялись как 'var(--x)', и Tailwind не мог сгенерировать
+   вариант с альфой — классы вида bg-red/5 и border-red/30 просто не
+   существовали (замер: фона нет, рамка падала на --border). Функция-значение
+   отдаёт var() без модификатора и color-mix с ним. Токены тем не трогаются.
+   Функция-значение поддержана рантаймом Tailwind v3, но тип Config описывает
+   значения цветов только как string — приведение спрятано в хелпер, чтобы блок
+   colors остался читаемым и без `any`. */
+const v = (name: string) =>
+  ((({ opacityValue }: { opacityValue?: string }) =>
+    // Tailwind зовёт функцию и для базовой утилиты, подставляя var(--tw-*-opacity).
+    // Тогда отдаём чистый var(): базовые цвета обязаны остаться ровно теми же,
+    // что до спринта (на этом держится плотность бордеров v2). color-mix идёт
+    // только там, где в классе стоит реальный модификатор — литеральное число.
+    opacityValue === undefined || opacityValue.startsWith('var(')
+      ? `var(${name})`
+      : `color-mix(in srgb, var(${name}) calc(${opacityValue} * 100%), transparent)`) as unknown) as string;
+
 const config: Config = {
   content: [
     './src/components/**/*.{ts,tsx}',
@@ -20,47 +37,47 @@ const config: Config = {
         body: '0.8125rem',   // 13px — осознанный body примитивов (Card/Table/Button/Input)
       },
       colors: {
-        bg: 'var(--bg)',
-        surface: 'var(--surface)',
-        surface2: 'var(--surface2)',
-        surface3: 'var(--surface3)',
-        popover: 'var(--popover)',
-        border: 'var(--border)',
-        'border2': 'var(--border2)',
-        accent: 'var(--accent)',
-        'accent-l': 'var(--accent-l)',
-        'accent-l2': 'var(--accent-l2)',
-        'text-main': 'var(--text)',
-        'text-dim': 'var(--text-dim)',
-        'text-mute': 'var(--text-mute)',
-        green: 'var(--green)',
-        'green-l': 'var(--green-l)',
-        red: 'var(--red)',
-        'red-l': 'var(--red-l)',
-        blue: 'var(--blue)',
-        'blue-l': 'var(--blue-l)',
-        yellow: 'var(--yellow)',
-        'yellow-l': 'var(--yellow-l)',
-        purple: 'var(--purple)',
-        'purple-l': 'var(--purple-l)',
+        bg: v('--bg'),
+        surface: v('--surface'),
+        surface2: v('--surface2'),
+        surface3: v('--surface3'),
+        popover: v('--popover'),
+        border: v('--border'),
+        'border2': v('--border2'),
+        accent: v('--accent'),
+        'accent-l': v('--accent-l'),
+        'accent-l2': v('--accent-l2'),
+        'text-main': v('--text'),
+        'text-dim': v('--text-dim'),
+        'text-mute': v('--text-mute'),
+        green: v('--green'),
+        'green-l': v('--green-l'),
+        red: v('--red'),
+        'red-l': v('--red-l'),
+        blue: v('--blue'),
+        'blue-l': v('--blue-l'),
+        yellow: v('--yellow'),
+        'yellow-l': v('--yellow-l'),
+        purple: v('--purple'),
+        'purple-l': v('--purple-l'),
         // S-UI-SEMANTIC-1: семантический слой состояний. Палитровые токены выше
         // (red/green/yellow/blue) отвечают «какой цвет», эти — «что это значит».
         // Массовая замена 614 палитровых использований НЕ делалась намеренно: в
         // большинстве мест red — это домен (приоритет, стадия, статус сделки), а не
         // danger. Семантику берём там, где цвет означает состояние операции.
         // Источник значений — :root в конце globals.css, alias на палитру темы.
-        danger: 'var(--danger)',
-        'danger-l': 'var(--danger-l)',
-        'danger-text': 'var(--danger-text)',
-        success: 'var(--success)',
-        'success-l': 'var(--success-l)',
-        'success-text': 'var(--success-text)',
-        warning: 'var(--warning)',
-        'warning-l': 'var(--warning-l)',
-        'warning-text': 'var(--warning-text)',
-        info: 'var(--info)',
-        'info-l': 'var(--info-l)',
-        'info-text': 'var(--info-text)',
+        danger: v('--danger'),
+        'danger-l': v('--danger-l'),
+        'danger-text': v('--danger-text'),
+        success: v('--success'),
+        'success-l': v('--success-l'),
+        'success-text': v('--success-text'),
+        warning: v('--warning'),
+        'warning-l': v('--warning-l'),
+        'warning-text': v('--warning-text'),
+        info: v('--info'),
+        'info-l': v('--info-l'),
+        'info-text': v('--info-text'),
         chart: {
           fjord: '#5B5EA6',
           granit: '#6D5D7B',

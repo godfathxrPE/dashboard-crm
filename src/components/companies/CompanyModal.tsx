@@ -366,7 +366,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
               телефону, и четыре пустых поля реквизитов только удлиняют форму.
               Успешный lookup раскрывает блок сам — подставленное обязано быть видно
               до сохранения (дизайн-инвариант фичи). */}
-          <div className="rounded-lg border border-border/60">
+          <div className="rounded-lg border border-border">
             <button
               type="button"
               onClick={() => setShowLegal((v) => !v)}
@@ -376,7 +376,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
               Реквизиты ЕГРЮЛ
             </button>
             {showLegal && (
-              <div className="space-y-3 border-t border-border/60 px-3 py-3">
+              <div className="space-y-3 border-t border-border px-3 py-3">
                 {legalFields.map((f) => (
                   <div key={f.name}>
                     <label className="mb-1 block text-xs font-medium text-text-dim">{f.label}</label>

@@ -322,7 +322,7 @@ function TransitionModalBody({
 
         {/* Не закрывается формой: файлы и колонки вне whitelist гейта. */}
         {preview.blockingChecklist.length > 0 && (
-          <div className="rounded-lg border border-border/60 bg-surface2 p-3">
+          <div className="rounded-lg border border-border bg-surface2 p-3">
             <h4 className="mb-2 text-xs font-semibold text-text-dim">
               Нужно закрыть до перехода
             </h4>

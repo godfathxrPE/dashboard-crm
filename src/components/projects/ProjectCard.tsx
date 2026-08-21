@@ -252,7 +252,7 @@ export function ProjectCard({
         })()}
 
         {/* Actions — hover only */}
-        <div className="mt-2 flex items-center gap-1 border-t border-border/50 pt-1.5
+        <div className="mt-2 flex items-center gap-1 border-t border-border pt-1.5
                         opacity-0 transition-opacity group-hover:opacity-100">
           {!isTerminal && (() => {
             const next = pipelineStage

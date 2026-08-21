@@ -51,7 +51,7 @@ export function ChecklistCard({
   const done = checklist.completed_at !== null;
 
   return (
-    <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+    <div data-card className="rounded-lg border border-border bg-surface p-4">
       <div className="mb-2.5 flex items-center gap-2">
         {done ? (
           <CheckCircle2 size={14} className="shrink-0 text-green" />

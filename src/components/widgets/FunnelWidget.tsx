@@ -68,7 +68,7 @@ export function FunnelWidget() {
         })}
 
         {/* Won row */}
-        <div className="mt-1 flex items-center gap-2 border-t border-border/50 pt-2">
+        <div className="mt-1 flex items-center gap-2 border-t border-border pt-2">
           <span className="w-24 text-right text-xs font-medium text-green">Выиграно</span>
           <div className="flex-1">
             <span className="text-sm font-bold text-green">{wonCount}</span>

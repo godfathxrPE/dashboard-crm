@@ -30,7 +30,7 @@ export function CompanyDealsCard({ deals, stages, canCreate, onCreate }: Company
   const sorted = [...deals].sort(compareByNextAction);
 
   return (
-    <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+    <div data-card className="rounded-lg border border-border bg-surface p-4">
       <div className="mb-3 flex items-center gap-2">
         <FolderKanban size={14} className="text-text-dim" />
         <span className="text-xs font-semibold text-text-main">Сделки</span>

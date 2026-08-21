@@ -225,7 +225,7 @@ function LeadCard({
 
       {/* Reject: выбор причины */}
       {rejecting && (
-        <div className="mb-1 flex flex-wrap items-center gap-1 border-t border-border/50 pt-2">
+        <div className="mb-1 flex flex-wrap items-center gap-1 border-t border-border pt-2">
           <span className="w-full text-xs text-text-mute">Причина отказа:</span>
           {disqualifyReasons.map((r) => (
             <button
@@ -247,7 +247,7 @@ function LeadCard({
       )}
 
       {/* Actions by status */}
-      <div className="flex items-center gap-1 border-t border-border/50 pt-2">
+      <div className="flex items-center gap-1 border-t border-border pt-2">
         {lead.status === 'new' && (
           <button
             onClick={() => onStatusChange(lead.id, 'contacted')}
@@ -318,7 +318,7 @@ function ConvertedLeads() {
   if (converted.length === 0) return null;
 
   return (
-    <div className="mt-6 rounded-xl border border-border/50 bg-surface/50">
+    <div className="mt-6 rounded-xl border border-border bg-surface/50">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-surface2"
@@ -331,12 +331,12 @@ function ConvertedLeads() {
       </button>
 
       {isOpen && (
-        <div className="border-t border-border/50 p-4">
+        <div className="border-t border-border p-4">
           <div className="space-y-2">
             {converted.map((lead) => (
               <div
                 key={lead.id}
-                className="group flex items-center gap-3 rounded-lg border border-border/50 bg-bg px-3 py-2.5 transition-colors hover:border-border"
+                className="group flex items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2.5 transition-colors hover:border-border"
               >
                 <div className="min-w-0 flex-1">
                   <button

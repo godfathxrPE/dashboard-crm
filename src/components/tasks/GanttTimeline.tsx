@@ -1312,7 +1312,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                 {buckets.map((b, i) => (
                   <div
                     key={b.key}
-                    className={`flex flex-col items-center justify-center border-l border-border/40 text-xs tabular-nums ${
+                    className={`flex flex-col items-center justify-center border-l border-border text-xs tabular-nums ${
                       i === todayIdx ? 'font-semibold text-accent' : 'text-text-mute'
                     }`}
                   >
@@ -1350,7 +1350,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
                         ? 'вне плана'
                         : undefined;
                     return (
-                      <div key={gt.task.id} className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }}>
+                      <div key={gt.task.id} className="grid border-t border-border" style={{ ...gridCols, height: ROW_H }}>
                         {ghost && gsRaw !== undefined && geRaw !== undefined && (
                           <GhostBar gs={gsRaw} ge={geRaw} />
                         )}
@@ -1383,7 +1383,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
               {/* S-GANTT-UX-2 (B3): fallback-ось без единого бара — пустой ряд, чтобы
                   timeline-body имел высоту-приёмник для drop из «Без дат» */}
               {laneRows.length === 0 && (
-                <div className="grid border-t border-border/40" style={{ ...gridCols, height: ROW_H }} />
+                <div className="grid border-t border-border" style={{ ...gridCols, height: ROW_H }} />
               )}
 
               {/* S-GANTT-POLISH: затенение выходных (только zoom='day'). Оверлей идёт
@@ -1532,7 +1532,7 @@ export function GanttTimeline({ projectId, canManage, onEditTask }: GanttTimelin
 
       {/* Без дат */}
       {filteredUndated.length > 0 && (
-        <div className="mt-3 border-t border-border/40 pt-2">
+        <div className="mt-3 border-t border-border pt-2">
           <div className="mb-1 text-xs uppercase tracking-wide text-text-mute">Без дат</div>
           <div className="flex flex-wrap gap-1.5">
             {/* S-GANTT-UX-2: chip таскается на таймлайн (canManage) — pointer-flow сам

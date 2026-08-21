@@ -46,7 +46,7 @@ export function WonDeals({ projects }: { projects: Project[] }) {
               return (
                 <div
                   key={project.id}
-                  className="group flex items-center gap-3 rounded-lg border border-border/50
+                  className="group flex items-center gap-3 rounded-lg border border-border
                              bg-bg px-3 py-2.5 transition-colors hover:border-border"
                 >
                   {/* Info */}

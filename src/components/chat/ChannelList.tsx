@@ -72,7 +72,7 @@ export function ChannelList({ activeId, onSelect }: ChannelListProps) {
           {general && (
             <>
               <ChannelRow item={general} activeId={activeId} onSelect={onSelect} />
-              <div className="my-2 border-t border-border/50" />
+              <div className="my-2 border-t border-border" />
             </>
           )}
 

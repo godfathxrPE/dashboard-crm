@@ -122,7 +122,7 @@ export function CompanyPeekContent({ company }: { company: CompanyRow }) {
       </p>
 
       {shownDeals.length > 0 && (
-        <div className="space-y-1.5 border-t border-border/50 pt-3">
+        <div className="space-y-1.5 border-t border-border pt-3">
           <p className="text-xs font-medium text-text-dim">Открытые сделки</p>
           {shownDeals.map((p) => {
             const dh = getDealHealth(p);

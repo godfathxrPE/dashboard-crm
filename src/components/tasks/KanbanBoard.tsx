@@ -244,7 +244,7 @@ export function KanbanBoard() {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-surface px-2 py-1 shadow-[var(--shadow-xs)]">
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface px-2 py-1 shadow-[var(--shadow-xs)]">
               {taskLanes.map((lane, i) => (
                 <div key={lane} className={staggerClass(i)}>
                   <AccordionLane

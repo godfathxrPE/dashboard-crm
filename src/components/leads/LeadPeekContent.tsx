@@ -86,7 +86,7 @@ export function LeadPeekContent({ lead, ownerName }: { lead: Lead; ownerName?: s
 
       {/* Работа по лиду (117): шаг, сумма, ответственный — то, ради чего peek и открывают */}
       {(lead.next_step || lead.estimated_value != null || ownerName) && (
-        <div className="space-y-1 border-t border-border/50 pt-3 text-xs">
+        <div className="space-y-1 border-t border-border pt-3 text-xs">
           {lead.next_step && (
             <p className="text-text-dim">
               <span className="text-text-mute">Шаг: </span>
@@ -124,7 +124,7 @@ export function LeadPeekContent({ lead, ownerName }: { lead: Lead; ownerName?: s
       )}
 
       {lead.notes && (
-        <div className="border-t border-border/50 pt-3">
+        <div className="border-t border-border pt-3">
           <p className="mb-1 text-xs font-medium text-text-dim">Заметки</p>
           <p className="whitespace-pre-wrap text-xs text-text-dim line-clamp-3">{lead.notes}</p>
         </div>

@@ -703,7 +703,7 @@ export function MessageThread({
         поэтому порядок отрисовки задаёт порядок в DOM: обои → сообщения → FAB.
       */}
       <div
-        className={`relative mb-3 min-h-0 overflow-hidden rounded-[var(--radius-m)] border border-border/50 ${
+        className={`relative mb-3 min-h-0 overflow-hidden rounded-[var(--radius-m)] border border-border ${
           variant === 'page' ? 'chat-wallpaper' : 'bg-bg'
         } ${listClassName}`}
       >
@@ -723,7 +723,7 @@ export function MessageThread({
           // 1f: на обоях пустой канал — не дырка, а приглашение: иконка в мягком круге
           // подложки --chat-chip по центру узора.
           <div className="flex h-full flex-col items-center justify-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-[var(--chat-chip)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-[var(--chat-chip)]">
               <MessagesSquare size={24} className="text-text-mute" aria-hidden="true" />
             </div>
             <p className="max-w-[18rem] text-center text-xs text-text-mute">{emptyText}</p>
@@ -735,7 +735,7 @@ export function MessageThread({
                 {/* День-чип залипает сверху, пока идёт его день (НЕ aria-hidden:
                     aria-live озвучит его как обычный текст в потоке). */}
                 <div className="sticky top-0 z-[2] flex justify-center pb-1 pt-3">
-                  <span className="rounded-full border border-border/60 bg-[var(--chat-chip)] px-2.5 py-0.5 text-meta text-text-mute backdrop-blur-[6px]">
+                  <span className="rounded-full border border-border bg-[var(--chat-chip)] px-2.5 py-0.5 text-meta text-text-mute backdrop-blur-[6px]">
                     {dayChipLabel(group.dayKey, todayKey)}
                   </span>
                 </div>

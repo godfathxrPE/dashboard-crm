@@ -50,7 +50,7 @@ function ImagePreview({ attachment }: { attachment: MessageAttachment }) {
 
   if (isLoading || !url) {
     return (
-      <div className="h-24 w-40 animate-pulse rounded-lg border border-border/60 bg-surface2" />
+      <div className="h-24 w-40 animate-pulse rounded-lg border border-border bg-surface2" />
     );
   }
 
@@ -59,7 +59,7 @@ function ImagePreview({ attachment }: { attachment: MessageAttachment }) {
       type="button"
       onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
       title={attachment.file_name}
-      className="block max-w-[16rem] overflow-hidden rounded-lg border border-border/60 transition-opacity hover:opacity-90"
+      className="block max-w-[16rem] overflow-hidden rounded-lg border border-border transition-opacity hover:opacity-90"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -100,7 +100,7 @@ function FileRow({ attachment }: { attachment: MessageAttachment }) {
       type="button"
       onClick={onDownload}
       disabled={busy}
-      className="flex max-w-full items-center gap-2 rounded-lg border border-border/60 bg-surface2 px-2 py-1.5
+      className="flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface2 px-2 py-1.5
                  text-left transition-colors hover:bg-surface-hover disabled:opacity-50"
     >
       {/* Картинка, для которой не вышло превью, честно показывает это иконкой. */}

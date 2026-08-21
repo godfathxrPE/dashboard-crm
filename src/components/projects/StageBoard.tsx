@@ -218,7 +218,7 @@ function StageColumn({
       }
     >
       {/* Header */}
-      <div className={`border-b border-border/50 px-2.5 py-2 rounded-t-xl ${bgClass}`}>
+      <div className={`border-b border-border px-2.5 py-2 rounded-t-xl ${bgClass}`}>
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor }} />
           <span className="truncate text-meta font-semibold text-text-main">

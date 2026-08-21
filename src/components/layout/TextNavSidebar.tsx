@@ -230,7 +230,7 @@ export function TextNavSidebar() {
         {MAIN_NAV.map(renderItem)}
 
         {/* Separator */}
-        <div className="my-2 border-t border-border/50" />
+        <div className="my-2 border-t border-border" />
 
         {UTIL_NAV.map(renderItem)}
       </nav>

@@ -61,7 +61,7 @@ function deadlineUrgency(date: string): { label: string; color: string } {
 
 function SkeletonCard() {
   return (
-    <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
+    <div className="animate-pulse rounded-xl border border-border bg-surface p-4">
       <div className="mb-2 h-3 w-16 rounded bg-border/50" />
       <div className="h-7 w-20 rounded bg-border/50" />
     </div>
@@ -70,7 +70,7 @@ function SkeletonCard() {
 
 function SkeletonChart() {
   return (
-    <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
+    <div className="animate-pulse rounded-xl border border-border bg-surface p-4">
       <div className="mb-4 h-3 w-32 rounded bg-border/50" />
       <div className="h-48 rounded bg-border/30" />
     </div>
@@ -379,7 +379,7 @@ function UpcomingDeadlines() {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse rounded-xl border border-border/50 bg-surface p-4">
+      <div className="animate-pulse rounded-xl border border-border bg-surface p-4">
         <div className="mb-3 h-3 w-32 rounded bg-border/50" />
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="mb-2 h-8 rounded bg-border/30" />

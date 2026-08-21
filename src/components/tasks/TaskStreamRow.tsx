@@ -76,7 +76,7 @@ export function TaskStreamRow({ task, now, isOverdue, onEdit, canEdit, kbdIndex,
       aria-selected={focused}
       className={cn(
         'group/row flex items-center gap-3 rounded-lg border border-transparent px-2 py-2 cursor-pointer transition-colors',
-        focused ? 'kbd-focus-row' : 'hover:border-border/60 hover:bg-surface2/50',
+        focused ? 'kbd-focus-row' : 'hover:border-border hover:bg-surface2/50',
       )}
     >
       {/* Чекбокс «Готово» */}

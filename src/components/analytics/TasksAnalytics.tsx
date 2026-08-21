@@ -112,7 +112,7 @@ export function TasksAnalytics() {
       )}
 
       {summary.isError ? (
-        <p className="rounded-lg border border-border/50 bg-surface px-4 py-6 text-center text-xs text-text-mute">
+        <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-xs text-text-mute">
           Не удалось загрузить аналитику.
         </p>
       ) : (

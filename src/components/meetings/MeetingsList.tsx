@@ -91,12 +91,12 @@ export function MeetingsList() {
 
       {/* Upcoming */}
       {upcoming.length > 0 && (
-        <div className="mb-6">
-          <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold text-yellow">
+        <div className="sheet mb-6 overflow-hidden">
+          <h2 className="flex items-center gap-2 border-b border-border bg-surface2 px-4 py-2 text-xs font-semibold text-yellow">
             <Clock size={12} /> Предстоящие
             <span className="rounded-full bg-yellow-l px-2 py-0.5 text-xs font-medium text-yellow">{upcoming.length}</span>
           </h2>
-          <div className="space-y-2">
+          <div className="space-y-2 px-4 py-1">
             {upcoming.map((m, i) => (
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
@@ -114,15 +114,15 @@ export function MeetingsList() {
       )}
 
       {/* Past */}
-      <div data-meetings-past>
-        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-dim">
+      <div data-meetings-past className="sheet mb-6 overflow-hidden">
+        <h2 className="flex items-center gap-2 border-b border-border bg-surface2 px-4 py-2 text-xs font-semibold text-text-dim">
           Прошедшие
           <span className="rounded-full bg-green-l px-2 py-0.5 text-xs font-medium text-green">{past.length}</span>
         </h2>
         {past.length === 0 ? (
-          <div className="py-8 text-center text-xs text-text-mute">Нет прошедших встреч</div>
+          <div className="px-4 py-8 text-center text-xs text-text-mute">Нет прошедших встреч</div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 px-4 py-1">
             {past.map((m, i) => (
               <div key={m.id} className={staggerClass(i)}>
                 <MeetingCard meeting={m}
@@ -222,8 +222,8 @@ function MeetingCard({
         'group flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-border bg-surface',
         // Палки border-l — только НЕ в Aura
         !isAura && isUpcoming && 'border-yellow/30 border-l-2 border-l-yellow',
-        !isAura && !isUpcoming && 'border-border/50 border-l-2 border-l-green',
-        isAura && 'border-border/60',
+        !isAura && !isUpcoming && 'border-border border-l-2 border-l-green',
+        isAura && 'border-border',
       )}
     >
       {/* Date badge */}

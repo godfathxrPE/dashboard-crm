@@ -126,7 +126,7 @@ export function LeadsAnalytics() {
       </div>
 
       {isLoading ? (
-        <div className="h-24 animate-pulse rounded-xl border border-border/50 bg-surface" />
+        <div className="h-24 animate-pulse rounded-xl border border-border bg-surface" />
       ) : leads.length === 0 ? (
         <div className="sheet p-6 text-center text-sm text-text-dim">
           За выбранный период лидов нет.
@@ -184,7 +184,7 @@ export function LeadsAnalytics() {
                   </thead>
                   <tbody>
                     {bySource.map((r) => (
-                      <tr key={r.source} className="border-t border-border/40">
+                      <tr key={r.source} className="border-t border-border">
                         <td className="py-1.5 text-text-main">{sourceLabel(r.source)}</td>
                         <td className="py-1.5 text-right tabular-nums text-text-dim">{r.total}</td>
                         <td className="py-1.5 text-right tabular-nums text-text-dim">{r.converted}</td>

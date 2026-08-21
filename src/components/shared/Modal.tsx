@@ -113,7 +113,7 @@ export function Modal({
 
         {/* Footer — flex-none, липкий */}
         {footer && (
-          <div className="flex flex-none items-center justify-end gap-2 border-t border-border/60 px-6 py-4">
+          <div className="flex flex-none items-center justify-end gap-2 border-t border-border px-6 py-4">
             {footer}
           </div>
         )}

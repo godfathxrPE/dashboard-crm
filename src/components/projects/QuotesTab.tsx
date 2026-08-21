@@ -147,7 +147,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
             return (
               <li
                 key={q.id}
-                className="group flex items-center gap-3 rounded-lg border border-border/60 bg-surface2/40 px-3 py-2"
+                className="group flex items-center gap-3 rounded-lg border border-border bg-surface2/40 px-3 py-2"
               >
                 <span
                   className={`flex items-center gap-1 text-xs font-medium ${cfg.text}`}

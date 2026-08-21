@@ -145,7 +145,7 @@ function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }:
         borderRight: isLast ? undefined : `1px solid color-mix(in srgb, ${color} 18%, transparent)`,
       }}
     >
-      <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-2.5">
+      <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
         <span className="text-xs font-bold uppercase tracking-[0.06em]" style={{ color: textColor }}>
           {DELIVERY_PHASE_LABELS[phase]}

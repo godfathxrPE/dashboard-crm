@@ -84,7 +84,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
 
       {/* Quick add */}
       {lane !== 'done' && (
-        <div className="mt-2 pt-2 border-t border-border/40">
+        <div className="mt-2 pt-2 border-t border-border">
           <TaskQuickAdd lane={lane} />
         </div>
       )}

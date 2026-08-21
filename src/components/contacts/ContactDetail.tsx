@@ -125,13 +125,13 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
       {/* Info grid */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {hasPhones && (
-          <div className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-xs text-text-dim"><Phone size={10} /> Телефон</div>
             <PhoneList phones={contact.phones} fallback={contact.phone} />
           </div>
         )}
         {infoFields.filter((f) => f.value).map((f) => (
-          <div key={f.label} className="rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+          <div key={f.label} className="rounded-lg border border-border bg-surface px-3 py-2.5">
             <div className="mb-1 flex items-center gap-1 text-xs text-text-dim"><f.icon size={10} /> {f.label}</div>
             <div className="text-sm text-text-main">{f.value}</div>
           </div>
@@ -140,7 +140,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
 
       {/* Notes */}
       {contact.notes && (
-        <div className="mb-6 rounded-xl border border-border/50 bg-surface/50 px-4 py-3">
+        <div className="mb-6 rounded-xl border border-border bg-surface/50 px-4 py-3">
           <p className="mb-1 text-xs font-medium text-text-dim">Заметки</p>
           <p className="text-sm text-text-main whitespace-pre-wrap">{contact.notes}</p>
         </div>

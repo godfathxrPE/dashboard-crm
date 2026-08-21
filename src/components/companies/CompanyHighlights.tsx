@@ -216,7 +216,7 @@ function Widget({
     <div
       data-card
       className={cn(
-        'flex min-w-0 flex-col rounded-lg border border-border/60 bg-surface px-3 py-2.5',
+        'flex min-w-0 flex-col rounded-lg border border-border bg-surface px-3 py-2.5',
         hot && 'co360-hot',
       )}
     >

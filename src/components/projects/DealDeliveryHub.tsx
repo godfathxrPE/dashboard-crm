@@ -70,7 +70,7 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
       {isLoading ? (
         <div className="space-y-2" aria-busy="true">
           {[0, 1].map((i) => (
-            <div key={i} className="h-[52px] animate-pulse rounded-lg border border-border/50 bg-surface2" />
+            <div key={i} className="h-[52px] animate-pulse rounded-lg border border-border bg-surface2" />
           ))}
         </div>
       ) : isError ? (
@@ -127,7 +127,7 @@ function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; 
   const doHref = safeHref(d.do_url); // фильтр схемы: javascript:/data: → ссылка не рендерится
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-surface px-3 py-2.5">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
       {/* S-DLV-HEALTH-1: health-бейдж внедрения (форма+цвет, tooltip с причинами) */}
       <DeliveryHealthDot health={health} />
 

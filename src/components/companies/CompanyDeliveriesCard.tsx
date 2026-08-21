@@ -48,7 +48,7 @@ export function CompanyDeliveriesCard({
   if (deliveries.length === 0 && orphanWon.length === 0) return null;
 
   return (
-    <div data-card className="rounded-lg border border-border/60 bg-surface p-4">
+    <div data-card className="rounded-lg border border-border bg-surface p-4">
       <div className="mb-3 flex items-center gap-2">
         <Rocket size={14} className="text-text-dim" />
         {/* Заголовок называет ровно то, что перечисляет список: `internal` живёт

@@ -240,6 +240,8 @@ export function WeekLanes({
         borderRadius: 'var(--radius)',
         background: 'var(--surface)',
         overflow: 'hidden',
+        /* v2.3: тень — как у MonthGrid, иначе виды календаря на разных уровнях */
+        boxShadow: 'var(--shadow-card)',
       }}
     >
       <div style={{ position: 'relative' }}>

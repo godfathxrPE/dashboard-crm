@@ -25,7 +25,7 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
   const totalLost = projects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
 
   return (
-    <div className="mt-6 rounded-xl border border-border/50 bg-surface/50">
+    <div className="mt-6 rounded-xl border border-border bg-surface/50">
       {/* Toggle header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -48,12 +48,12 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
 
       {/* Collapsible content */}
       {isOpen && (
-        <div className="border-t border-border/50 p-4">
+        <div className="border-t border-border p-4">
           <div className="space-y-2">
             {projects.map((project) => (
               <div
                 key={project.id}
-                className="group flex items-center gap-3 rounded-lg border border-border/50
+                className="group flex items-center gap-3 rounded-lg border border-border
                            bg-bg px-3 py-2.5 transition-colors hover:border-border"
               >
                 {/* Info */}

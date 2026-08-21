@@ -82,7 +82,7 @@ export function VerificationPanel() {
           <div className="space-y-1.5">
             {counts.map((c) => (
               <div key={c.table} data-card
-                className="flex items-center gap-2 rounded-lg border border-border/50 bg-bg px-3 py-2">
+                className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2">
                 {c.error
                   ? <AlertCircle size={13} className="text-red" />
                   : <CheckCircle size={13} className="text-green" />

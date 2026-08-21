@@ -129,7 +129,7 @@ export function CallLog() {
               </div>
               <div className="space-y-2">
                 {scheduledCalls.map((c) => (
-                  <div key={c.id} data-card className="rounded-lg border border-border/50 bg-bg px-2.5 py-2">
+                  <div key={c.id} data-card className="rounded-lg border border-border bg-bg px-2.5 py-2">
                     <div className="flex items-center gap-1 text-xs text-blue">
                       <Calendar size={9} />
                       {new Date(c.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -178,7 +178,7 @@ export function CallLog() {
 
                 return (
                 <div key={call.id} data-card
-                  className={`group flex items-start gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3 transition-colors hover:border-border ${staggerClass(i)}`}>
+                  className={`group flex items-start gap-3 rounded-xl border border-border bg-surface px-4 py-3 transition-colors hover:border-border ${staggerClass(i)}`}>
 
                   {/* Status dot */}
                   <div className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${statusBg}`}>

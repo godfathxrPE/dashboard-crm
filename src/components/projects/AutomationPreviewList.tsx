@@ -15,7 +15,7 @@ export function AutomationPreviewList({ items }: { items: AutomationPreviewItem[
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-border/60 bg-surface2 p-3">
+    <div className="rounded-lg border border-border bg-surface2 p-3">
       <div className="mb-2 flex items-center gap-2">
         <Zap size={13} className="text-text-dim" />
         <h4 className="text-xs font-semibold text-text-dim">После перехода сработает</h4>
