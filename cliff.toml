@@ -1,0 +1,50 @@
+[changelog]
+header = "# Changelog — dashboard-crm\n\n"
+body = """
+{% if version %}## {{ version }} — {{ timestamp | date(format="%d.%m.%Y") }}
+{% else %}## Unreleased
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}- {{ commit.message | split(pat="\n") | first }}
+{% endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+tag_pattern = "v[0-9]*"
+sort_commits = "newest"
+
+# Merge-коммиты не описывают изменение — только операцию слияния. Без этого правила
+# в changelog уезжает 81 строка «Merge branch 'feat/…'». Парсер должен идти ПЕРВЫМ:
+# выигрывает первое совпадение.
+[[git.commit_parsers]]
+message = "^Merge (branch|pull request|remote-tracking)"
+skip = true
+
+[[git.commit_parsers]]
+message = "^feat"
+group = "Фичи"
+
+[[git.commit_parsers]]
+message = "^fix|^hotfix"
+group = "Исправления"
+
+[[git.commit_parsers]]
+message = "^refactor"
+group = "Рефакторинг"
+
+[[git.commit_parsers]]
+message = "^docs|^memory"
+group = "Документация"
+
+[[git.commit_parsers]]
+message = "^chore|^style|^design|^polish|^test|^debug|^wip"
+group = "Прочее"
+
+[[git.commit_parsers]]
+message = ".*"
+group = "Прочее"

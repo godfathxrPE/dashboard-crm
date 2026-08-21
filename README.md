@@ -1,75 +1,55 @@
-# Dashboard CRM — Phase 3
+# dashboard-crm
 
 ![CI](https://github.com/godfathxrPE/dashboard-crm/actions/workflows/ci.yml/badge.svg)
 
-Next.js 15 + TypeScript + Tailwind CSS + Supabase
+CRM для проектного внедрения: компании и контакты, лиды и сделки, проекты и задачи,
+звонки, встречи, чат и аналитика. Соло-проект, одна прод-инсталляция.
+
+**Стек:** Next.js 15 App Router · TypeScript strict · Tailwind · Supabase (Postgres + RLS + Edge)
+· TanStack Query · Zustand · React Hook Form + Zod. Деплой — Vercel, авто из `main`.
 
 ## Quick Start
 
 ```bash
-# 1. Установить зависимости
 npm install
-
-# 2. Скопировать env-файл и заполнить данные из Supabase Dashboard
-cp .env.local.example .env.local
-# Заполни NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-# 3. Применить SQL-миграции
-# Зайди в Supabase Dashboard → SQL Editor → выполни файлы из supabase/migrations/ по порядку:
-# 001_profiles.sql → 002_companies_contacts.sql → ... → 007_kpi_tracker_settings.sql
-
-# 4. Запустить dev-сервер
-npm run dev
-# Открой http://localhost:3000
+cp .env.local.example .env.local   # заполнить значениями из Supabase Dashboard
+npm run dev                        # http://localhost:3000
 ```
 
-## Supabase Setup Checklist
+Вход — magic link: Supabase → Authentication → Providers → Email, в URL Configuration
+добавить `http://localhost:3000/callback` в Redirect URLs.
 
-1. **Authentication → Providers → Email**: включить Magic Link
-2. **Authentication → URL Configuration**: добавить `http://localhost:3000/callback` в Redirect URLs
-3. **SQL Editor**: выполнить все 7 миграций по порядку
-4. **Database → Replication**: убедиться что таблицы tasks, projects, calls, meetings, activities в publication `supabase_realtime`
+## Миграции
 
-## Project Structure
+**Руками не применяются.** SQL-файлы лежат в `supabase/migrations/`, применяет гейт Cowork
+(apply → регенерация типов → advisors → ролевые смоки). Правила — `CLAUDE.md`, раздел
+«Жёсткие правила». Актуальная схема — `docs/schema.md`.
 
-```
-src/
-├── app/
-│   ├── (auth)/          # Login + callback (без sidebar)
-│   ├── (dashboard)/     # Все рабочие страницы (с sidebar + header)
-│   └── layout.tsx       # Root: providers, fonts, global CSS
-├── components/
-│   ├── layout/          # Sidebar, Header, ThemeProvider, QueryProvider
-│   └── ui/              # Reusable UI components (Sprint 1+)
-├── lib/
-│   ├── supabase/        # Client, server, middleware helpers
-│   ├── stores/          # Zustand: theme, UI state
-│   ├── hooks/           # React Query hooks (Sprint 1+)
-│   ├── utils/           # cn(), dates, validators
-│   └── constants/       # Pipeline stages, priorities, roles
-└── types/
-    ├── database.ts      # Supabase types (replace with gen types)
-    └── entities.ts      # Domain type aliases
+`src/types/supabase.gen.ts` и `src/types/database.ts` руками не правятся — только
+регенерация (`npm run db:gen-types`).
+
+## Тесты
+
+```bash
+npm run test       # vitest, unit — tests/unit/**
+npm run test:e2e   # playwright — tests/e2e/**, dev-сервер поднимается сам (reuseExistingServer)
+npm run lint       # eslint .
+npx tsc --noEmit   # типы
 ```
 
-## Deploy on Vercel
+## Структура
 
-1. Подключи GitHub-репозиторий в Vercel
-2. Framework preset определяется автоматически (Next.js), build command и output менять не нужно
-3. Environment variables: `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   (полный список — `.env.local.example`)
-4. Supabase → Authentication → URL Configuration: добавь `<домен>/callback` в Redirect URLs
+```
+src/app/                 # (auth) и (dashboard) route-группы App Router
+src/components/{domain}/ # UI по доменам: leads, projects, tasks, chat, ui, …
+src/lib/hooks/           # use-*.ts — TanStack Query
+src/lib/{domain,utils}/  # чистая логика; validators/ — Zod; stores/ — Zustand
+supabase/                # migrations/ и functions/ (Edge: ai-run, ai-capture, telegram-*, …)
+```
 
-Push в `main` деплоит прод автоматически. Подробности — `GO-LIVE.md`.
+## Ссылки
 
-## Themes
-
-6 тем, перенесённых из текущего дашборда:
-- **Claude** (default) — тёплый светлый
-- **Frost** — холодный тёмный
-- **Paper** — бумажный тёплый
-- **Sand** — песочный светлый
-- **Aurora** — северное сияние
-- **Tidal** — морской тёмный
-
-Переключение: Header → иконка солнца/луны, или Settings → Тема оформления.
+- `CLAUDE.md` — контракт работы с репозиторием (стек, миграции, конвенции, грабли)
+- `docs/schema.md` — схема БД · `docs/TECH-STACK.md`, `docs/TELEGRAM-SETUP.md`, `docs/WEBHOOKS-CONTRACT.md`
+- `_analysis/` — спринты и аудиты · `improvements/` — roadmap
+- `GO-LIVE.md` — деплой и прод-чеклист · `CHANGELOG.md` — история версий (git-cliff)
