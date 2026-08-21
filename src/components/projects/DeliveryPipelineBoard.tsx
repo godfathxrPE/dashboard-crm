@@ -135,7 +135,7 @@ function PhaseColumn({ phase, projects, stageNameOf, healthOf, isLast, onOpen }:
     <div
       ref={setNodeRef}
       className={`flex min-h-[200px] flex-1 flex-col transition-colors ${
-        isOver ? 'bg-accent-l/20' : ''
+        isOver ? 'bg-accent-l2' : ''
       }`}
       style={{
         background: isOver

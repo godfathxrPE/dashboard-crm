@@ -368,7 +368,7 @@ function TransitionModalBody({
 
         {/* Отказ гейта — внутри модалки; это acceptance-критерий P0. */}
         {gateBlock && (
-          <div className="rounded-lg border border-red/40 bg-red-l/30 p-3">
+          <div className="rounded-lg border border-red/40 bg-red-l p-3">
             <div className="mb-1.5 flex items-center gap-2">
               <AlertTriangle size={13} className="text-red" />
               <h4 className="text-xs font-semibold text-red">Переход отклонён</h4>

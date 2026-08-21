@@ -159,7 +159,7 @@ export function NotificationBell() {
                   onClick={() => openItem(n)}
                   className={cn(
                     'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-surface2',
-                    n.read_at === null && 'bg-accent-l/40',
+                    n.read_at === null && 'bg-accent-l',
                   )}
                 >
                   <TypeIcon type={n.type} />

@@ -205,7 +205,7 @@ function StageColumn({
         ${isEmpty
           ? 'w-32 border border-dashed bg-bg/50'
           : 'w-56 border bg-bg shadow-card'}
-        ${isOver ? 'border-accent/50 bg-accent-l/20 shadow-card-hover' : ''}
+        ${isOver ? 'border-accent/50 bg-accent-l2 shadow-card-hover' : ''}
       `}
       // Minimal v2: колонка — отдельная карточка, но границы у неё не было.
       // Рамка берёт хром стадии (тот же токен, что у точки-маркера и шапки).

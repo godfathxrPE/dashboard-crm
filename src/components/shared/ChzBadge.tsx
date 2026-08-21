@@ -20,7 +20,7 @@ import type { ChzStatus } from '@/lib/data/chz-groups';
 export function ChzBadge({ status, label }: { status: ChzStatus; label: string }) {
   if (status === 'starting') {
     return (
-      <span data-tag className="rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+      <span data-tag className="rounded bg-yellow-l px-1.5 py-0.5 text-xs"
         style={{ color: 'var(--yellow-text, var(--yellow))' }}>
         {label}
       </span>

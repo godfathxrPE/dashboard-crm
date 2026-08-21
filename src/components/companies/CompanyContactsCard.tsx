@@ -21,7 +21,7 @@ import type { Contact } from '@/lib/hooks/use-contacts';
  *  в светлых темах, фолбэк отдаёт базовый цвет в тёмных (приём ChzBadge). */
 const BAND_STYLE: Record<StrengthBand, { className: string; color?: string }> = {
   strong: { className: 'bg-green-l', color: 'var(--green-text, var(--green))' },
-  warm: { className: 'bg-yellow-l/60', color: 'var(--yellow-text, var(--yellow))' },
+  warm: { className: 'bg-yellow-l', color: 'var(--yellow-text, var(--yellow))' },
   cold: { className: 'bg-surface3 text-text-mute' },
 };
 

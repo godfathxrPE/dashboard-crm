@@ -545,7 +545,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
           {/* Company Link Form (shown when linkOpen) */}
           {linkOpen && (
-            <div className="rounded-lg border border-accent/30 bg-accent-l/30 p-3">
+            <div className="rounded-lg border border-accent/30 bg-accent-l p-3">
               <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>

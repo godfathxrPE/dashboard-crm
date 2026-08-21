@@ -92,7 +92,7 @@ export function EditableCell({
     <span
       onClick={(e) => { e.stopPropagation(); setEditing(true); }}
       className={`inline-block cursor-pointer rounded px-1 py-0.5 transition-colors
-                 hover:bg-accent-l/50 ${!value ? 'text-text-mute' : ''} ${className}`}
+                 hover:bg-accent-l ${!value ? 'text-text-mute' : ''} ${className}`}
       title="Кликни для редактирования"
     >
       {value ? (format ? format(value) : value) : placeholder}

@@ -85,8 +85,8 @@ export function SpawnWizard({
           <button
             type="button"
             onClick={() => setStep('form')}
-            className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent-l/40 p-4 text-left
-                       transition-colors hover:border-accent hover:bg-accent-l/60
+            className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent-l p-4 text-left
+                       transition-colors hover:border-accent hover:bg-accent-l2
                        focus:outline-none focus:ring-2 focus:ring-accent"
           >
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-white">
@@ -168,7 +168,7 @@ export function SpawnWizard({
                   className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left
                              transition-colors focus:outline-none focus:ring-2 focus:ring-accent ${
                                active
-                                 ? 'border-accent bg-accent-l/50'
+                                 ? 'border-accent bg-accent-l2'
                                  : 'border-input bg-surface2 hover:border-border2'
                              }`}
                 >

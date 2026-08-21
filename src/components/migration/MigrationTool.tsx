@@ -243,7 +243,7 @@ export function MigrationTool() {
           Или в DevTools console: <code className="bg-bg px-1 rounded">JSON.stringify(localStorage)</code>
         </p>
 
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 transition-colors hover:border-accent hover:bg-accent-l/20">
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 transition-colors hover:border-accent hover:bg-accent-l">
           <Upload size={16} className="text-text-mute" />
           <span className="flex-1 text-xs text-text-dim">
             {file ? file.name : 'Выбери JSON файл...'}

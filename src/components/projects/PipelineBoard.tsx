@@ -219,7 +219,7 @@ function PhaseColumn({
       ref={setNodeRef}
       className={`
         relative flex min-h-[200px] flex-1 flex-col transition-colors overflow-hidden
-        ${isOver ? 'bg-accent-l/20' : ''}
+        ${isOver ? 'bg-accent-l2' : ''}
       `}
       style={{
         background: isOver

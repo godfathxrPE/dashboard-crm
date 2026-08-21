@@ -41,7 +41,7 @@ export function LaneColumn({ lane, tasks, onEdit, onDelete }: LaneColumnProps) {
         lane === 'done'
           ? 'bg-surface2/50'
           : 'border-r border-border',
-        isOver && 'bg-accent-l/20',
+        isOver && 'bg-accent-l2',
       )}
     >
       {/* Lane header */}

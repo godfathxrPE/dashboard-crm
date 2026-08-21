@@ -200,7 +200,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
 
           {/* Дубль по телефону/email — предупреждение, не блокирует */}
           {duplicate && (
-            <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l/40 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2 text-xs">
               <AlertTriangle size={13} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
               <span className="text-text-dim">
                 Похоже на существующий контакт:{' '}

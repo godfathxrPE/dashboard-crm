@@ -178,7 +178,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               {company.industry && <span className="truncate">{company.industry}</span>}
               {statusLabel && (
                 statusRisky ? (
-                  <span data-tag className="flex items-center gap-1 rounded bg-yellow-l/60 px-1.5 py-0.5 text-xs"
+                  <span data-tag className="flex items-center gap-1 rounded bg-yellow-l px-1.5 py-0.5 text-xs"
                     style={{ color: 'var(--yellow-text, var(--yellow))' }}>
                     <AlertTriangle size={10} /> {statusLabel}
                   </span>

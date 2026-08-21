@@ -393,7 +393,7 @@ function DroppableColumn({ status, color, children }: { status: LeadStatus; colo
       ref={setNodeRef}
       className={cn(
         'flex min-h-[96px] flex-1 flex-col gap-2 rounded-lg p-2 transition-colors',
-        isOver && 'bg-accent-l/30',
+        isOver && 'bg-accent-l2',
       )}
       // Minimal v2: у колонки не было ни заливки, ни рамки — на сером canvas она
       // не читалась как контейнер. Рамка берёт хром колонки (тот же `col.color`,

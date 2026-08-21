@@ -210,7 +210,7 @@ export function StageTransitionFields({
                     aria-pressed={field.value === r}
                     className={`rounded border px-2 py-0.5 text-xs transition-colors ${
                       field.value === r
-                        ? 'border-green bg-green-l/40 text-green'
+                        ? 'border-green bg-green-l text-green'
                         : 'border-border bg-surface text-text-dim hover:border-green hover:text-green'
                     }`}
                   >
@@ -245,7 +245,7 @@ export function StageTransitionFields({
                     aria-pressed={field.value === r}
                     className={`rounded border px-2 py-0.5 text-xs transition-colors ${
                       field.value === r
-                        ? 'border-red bg-red-l/40 text-red'
+                        ? 'border-red bg-red-l text-red'
                         : 'border-border bg-surface text-text-dim hover:border-red hover:text-red'
                     }`}
                   >

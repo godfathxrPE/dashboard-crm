@@ -155,7 +155,7 @@ function BoardColumn({
       {/* Tasks */}
       <div
         ref={setNodeRef}
-        className={`flex min-h-[80px] flex-1 flex-col gap-1 p-2 transition-colors ${isOver ? 'bg-accent-l/40' : ''}`}
+        className={`flex min-h-[80px] flex-1 flex-col gap-1 p-2 transition-colors ${isOver ? 'bg-accent-l2' : ''}`}
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (

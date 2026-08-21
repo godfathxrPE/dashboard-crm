@@ -406,7 +406,7 @@ export function ExcelImportButton() {
                   </p>
                 )}
                 {result.errors.length > 0 && (
-                  <div className="mx-auto mt-3 w-full max-w-xl min-h-0 flex-1 overflow-y-auto rounded-lg border border-yellow/40 bg-yellow-l/40 p-3 text-left">
+                  <div className="mx-auto mt-3 w-full max-w-xl min-h-0 flex-1 overflow-y-auto rounded-lg border border-yellow/40 bg-yellow-l p-3 text-left">
                     <ul className="space-y-1">
                       {result.errors.map((e, i) => (
                         <li key={i} className="text-xs text-text-dim">• {e}</li>

@@ -348,7 +348,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
                   с ликвидируемым юрлицом подписывать нельзя. */}
               {f.name === 'inn' && statusLabel && (
                 statusRisky ? (
-                  <p className="mt-1 flex items-center gap-1.5 rounded-lg border border-yellow/40 bg-yellow-l/40 px-2 py-1 text-xs text-text-dim">
+                  <p className="mt-1 flex items-center gap-1.5 rounded-lg border border-yellow/40 bg-yellow-l px-2 py-1 text-xs text-text-dim">
                     <AlertTriangle size={12} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
                     Юрлицо в статусе «{statusLabel}» — проверьте перед договором
                   </p>
@@ -395,7 +395,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
           {/* Дубль — предупреждение, не блок. После отказа сервера по
               uq_companies_org_inn (102) тот же баннер называет вещи прямо. */}
           {duplicate && (
-            <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l/40 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2 rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2 text-xs">
               <AlertTriangle size={13} className="shrink-0" style={{ color: 'var(--yellow-text, var(--yellow))' }} />
               <span className="text-text-dim">
                 {innConflict ? 'Компания с таким ИНН уже есть:' : 'Похоже на существующую компанию:'}{' '}

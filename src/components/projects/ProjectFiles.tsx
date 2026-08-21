@@ -93,7 +93,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
           handleFiles(e.dataTransfer.files);
         }}
         className={`rounded-lg border border-dashed transition-colors ${
-          dragOver ? 'border-accent bg-accent-l/30' : 'border-border'
+          dragOver ? 'border-accent bg-accent-l2' : 'border-border'
         }`}
       >
         {isLoading ? (

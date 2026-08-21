@@ -62,7 +62,7 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
       <div
         className={cn(
           'min-w-0',
-          noAction && 'rounded-lg border border-yellow/40 bg-yellow-l/30 px-3 py-2',
+          noAction && 'rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2',
         )}
       >
         <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-accent">

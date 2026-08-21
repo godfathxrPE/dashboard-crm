@@ -281,7 +281,7 @@ export function QuickCapture() {
 
           {/* Дубль — предлагаем открыть существующее, но не запрещаем создать. */}
           {duplicate && pending && (
-            <div className="mt-2 rounded-lg border border-yellow/40 bg-yellow-l/40 px-3 py-2 text-xs">
+            <div className="mt-2 rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2 text-xs">
               <p className="text-text-dim">
                 Похоже, это существующая запись:{' '}
                 <span className="font-medium text-text-main">{duplicate.label}</span>

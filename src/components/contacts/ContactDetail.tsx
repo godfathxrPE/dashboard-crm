@@ -164,7 +164,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
 
           {/* Link form */}
           {linkOpen && (
-            <div className="mb-3 rounded-lg border border-accent/30 bg-accent-l/30 p-2.5">
+            <div className="mb-3 rounded-lg border border-accent/30 bg-accent-l p-2.5">
               <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>
