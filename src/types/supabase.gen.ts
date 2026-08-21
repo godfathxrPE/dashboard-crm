@@ -3801,6 +3801,7 @@ export type Database = {
           ts: string
         }[]
       }
+      export_org_data: { Args: { p_org_id: string }; Returns: Json }
       get_webhook_secrets: {
         Args: { p_endpoint_ids: string[] }
         Returns: {

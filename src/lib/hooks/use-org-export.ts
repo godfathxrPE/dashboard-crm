@@ -16,29 +16,12 @@ import {
  * `URL.createObjectURL` без парного `revokeObjectURL` держит blob в памяти до
  * перезагрузки вкладки, а компонент про это забудет.
  *
- * ⚠️ Тип RPC ЛОКАЛЬНЫЙ, потому что 126 ещё НЕ ПРИМЕНЕНА: в `supabase.gen.ts`
- * функции `export_org_data` нет, и вызов не прошёл бы проверку. Править
- * сгенерированные типы руками запрещено (правило 2) — после apply + регена
- * локальный интерфейс и каст снимаются, больше ничего не меняется.
- *
- * ⚠️ Кастуется КЛИЕНТ, а не метод. `const rpc = supabase.rpc` отрывает метод от
- * объекта: внутри supabase-js он читает `this.rest`, оторванный вызов бросает
- * TypeError ещё ДО сети (FIX S-TL-1-RPC-THIS).
+ * Локальные типы RPC сняты на гейте 21.08 после apply 126 и регенерации:
+ * `export_org_data` есть в `supabase.gen.ts`, вызов типизирован генерацией.
  */
 interface ExportRpcError {
   message: string;
   code?: string;
-}
-
-interface ExportRpcClient {
-  rpc(
-    fn: 'export_org_data',
-    args: { p_org_id: string },
-  ): PromiseLike<{ data: unknown; error: ExportRpcError | null }>;
-}
-
-interface OrgIdRpcClient {
-  rpc(fn: 'current_org_id'): PromiseLike<{ data: unknown; error: ExportRpcError | null }>;
 }
 
 export interface OrgExportResult {
@@ -80,16 +63,11 @@ export function useOrgExport() {
     mutationFn: async (): Promise<OrgExportResult> => {
       const supabase = createClient();
 
-      const { data: orgId, error: orgErr } = await (
-        supabase as unknown as OrgIdRpcClient
-      ).rpc('current_org_id');
+      const { data: orgId, error: orgErr } = await supabase.rpc('current_org_id');
       if (orgErr) throw explainExportError(orgErr);
       if (typeof orgId !== 'string' || !orgId) throw new Error('Нет активной организации');
 
-      const { data, error } = await (supabase as unknown as ExportRpcClient).rpc(
-        'export_org_data',
-        { p_org_id: orgId },
-      );
+      const { data, error } = await supabase.rpc('export_org_data', { p_org_id: orgId });
       if (error) throw explainExportError(error);
 
       // Форму ответа проверяем ДО записи файла: сохранить под именем выгрузки то,
