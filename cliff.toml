@@ -18,6 +18,13 @@ filter_unconventional = false
 tag_pattern = "v[0-9]*"
 sort_commits = "newest"
 
+# Merge-коммиты не описывают изменение — только операцию слияния. Без этого правила
+# в changelog уезжает 81 строка «Merge branch 'feat/…'». Парсер должен идти ПЕРВЫМ:
+# выигрывает первое совпадение.
+[[git.commit_parsers]]
+message = "^Merge (branch|pull request|remote-tracking)"
+skip = true
+
 [[git.commit_parsers]]
 message = "^feat"
 group = "Фичи"
