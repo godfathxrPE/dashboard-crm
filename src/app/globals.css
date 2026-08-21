@@ -561,6 +561,11 @@
 /* ── Fuji: Task section lane colors ── */
 .t-fuji .text-accent { color: #C23B3B; }
 .t-fuji .bg-accent-l { background: rgba(194,59,59,0.10); }
+/* Гейт v2.4: -l2 сюда же. Правило выше перекрашивает акцентные подложки Fuji в
+   красный (тема так и задумана: .text-accent рядом тоже #C23B3B), но накрывало
+   только -l. После v2.4 активные состояния переехали на -l2 и остались синими —
+   в одной теме два хрома акцента. Пропорция та же, что у -l/-l2 других тем. */
+.t-fuji .bg-accent-l2 { background: rgba(194,59,59,0.20); }
 
 /* Task checkbox — kinu border, suna hover, bero-ai checked */
 .t-fuji .border-border2 { border-color: #DDD5C5; }
