@@ -1,5 +1,7 @@
 # Dashboard CRM — Phase 3
 
+![CI](https://github.com/godfathxrPE/dashboard-crm/actions/workflows/ci.yml/badge.svg)
+
 Next.js 15 + TypeScript + Tailwind CSS + Supabase
 
 ## Quick Start
