@@ -30,7 +30,7 @@ Always use `var(--token)`.
 | `t-frost` | «Frost» | `#6ba3be` | **Dark, glass** (полупрозрачный `--surface`) |
 | `t-aurora` | «Aurora» | `#7c6bc4` | **Dark, glass** |
 | `t-tidal` | «Tidal» | `#4a9e8e` | **Dark, glass** |
-| `t-minimal` | «Minimal» | **`#0E7C86` (петроль)** | **Рабочая тема владельца** — визуальные правки смокать здесь первыми. M1 (2026-07-19), акцент заменён 2026-08-04. Light, **непрозрачная** (`--glass-blur: none`). Нейтральный canvas `#F6F6F7` / `#FFFFFF` (Linear/Attio class). Шрифт → Inter (`--font-app`, `font-feature-settings: 'cv11'`), заголовки 1.25rem/600 — крупного `aura-page-title` здесь нет. **Острые углы** (`--radius-l: 8px`, острее прочих ~12–14). Primary-кнопки — сплошной акцент (белый на `#0E7C86` = 4.95:1, AA). Текстовый токен `--accent-text: #0A6771` (6.58 / 6.09 / 5.48 на surface / bg / surface3). Без орбов / glass / watermark. Иконочный nav как washi/fuji |
+| `t-minimal` | «Minimal» | **`#0E7C86` (петроль)** | **Рабочая тема владельца** — визуальные правки смокать здесь первыми. M1 (2026-07-19), акцент заменён 2026-08-04. Light, **непрозрачная** (`--glass-blur: none`). Нейтральный canvas `#ECECEF` / `#FFFFFF` (Linear/Attio class; v2 затемнил фон с `#F6F6F7` — белые карточки отделяются без тяжёлых теней). Шрифт → Inter (`--font-app`, `font-feature-settings: 'cv11'`), заголовки 1.25rem/600 — крупного `aura-page-title` здесь нет. Радиусы средние (`--radius: 10px`, `--radius-m: 10px`, `--radius-l: 14px`) — «острая» тема здесь washi (`--radius: 4px`). Primary-кнопки — сплошной акцент (белый на `#0E7C86` = 4.95:1, AA). Текстовый токен `--accent-text: #0A6771` (6.58 / 6.09 / 5.48 на surface / bg / surface3). Без орбов / glass / watermark. Иконочный nav как washi/fuji |
 
 **Удалённые темы (AUDIT C):** `scandi` / `paper` / `sand` больше не существуют.
 В сторе — `LEGACY_THEMES = ['t-scandi','t-paper','t-sand']`: persisted-значение из этого
@@ -164,6 +164,24 @@ Token contexts: `:root` (общие дефолты, `--font-app: var(--font-manr
 темах его не будет, и `color` тихо унаследует чужой цвет, а `border-*` исчезнет совсем
 (learnings, S-UI-SEMANTIC-1).
 
+**Альфа-модификаторы Tailwind.** Цвета в `tailwind.config.ts` отдаются функцией-значением с
+`opacityValue` (v2.3): без модификатора — чистый `var(--x)`, с модификатором —
+`color-mix(in srgb, var(--x) calc(N * 100%), transparent)`. До этой правки цвета объявлялись
+строкой `'var(--x)'`, и Tailwind **не генерировал класс вовсе**: 309 мест в коде не давали ни
+фона, ни цвета рамки — блоки ошибок читались как обычный текст в серой рамке, подсветка
+drop-зон не появлялась. Два следствия, обязательны к соблюдению:
+
+1. **`-l`-токен + модификатор альфы — запрещённый паттерн.** `--accent-l`, `--red-l` и прочие
+   уже полупрозрачны (8–15%); модификатор даёт процент от процента — `bg-accent-l/20` в Minimal
+   это альфа **0.0157**, не видно ни в одной из семи тем. Активное состояние (drag-over,
+   выбранная опция, hover поверх выбранного) → **`--accent-l2`** (16–25%, объявлен во всех
+   темах); спокойная подложка → `-l` без модификатора; нужна точная альфа → обычный токен
+   (`bg-accent/10`). Модификаторы на обычных токенах работают правильно и трогать их не нужно.
+2. **Функция обязана отдавать чистый `var()` не только при `opacityValue === undefined`.**
+   Tailwind зовёт её и для базовой утилиты, подставляя `var(--tw-*-opacity)`; без проверки
+   `opacityValue.startsWith('var(')` в `color-mix` уедут **все** цветовые утилиты, включая
+   `.border-border`, на котором держится плотность бордеров v2.
+
 **Заливка vs текст:** для текста/иконок на светлом фоне бери `*-text`-токен (тёмный вариант,
 AA), для заливок (`.bg-accent`, орбы, кнопки) — базовый (яркий). В светлых темах есть
 `.t-aura .bg-accent { background-color: var(--accent-text) !important }` и т.п. — заливка
@@ -174,7 +192,7 @@ AA), для заливок (`.bg-accent`, орбы, кнопки) — базов
 ## Геометрия, тени, type-токены (design-волна: S-TOKENS-GEOM + S-TYPO-TOKENS, 2026-07-21)
 
 ### Радиусы — Tailwind ↔ CSS-переменные
-`--radius-s/-m/-l` задаются per-theme (`t-minimal` острее: `--radius-l: 8px` против ~12–14 у прочих). `tailwind.config.ts` → `borderRadius`:
+`--radius-s/-m/-l` задаются per-theme. Разброс `--radius-l`: washi 8, tidal/aurora 12, fuji/minimal 14, frost 16, aura 18. Острая тема — washi (`--radius: 4px`), не minimal. `tailwind.config.ts` → `borderRadius`:
 - `rounded` = `var(--radius)` (== `--radius-m`).
 - `rounded-md` **удалён** — был дублем `rounded`; в коде `rounded-md`→`rounded` (55 мест, 0 сдвига т.к. `--radius == --radius-m` во всех темах).
 - `rounded-xl` = `calc(var(--radius-l) + 2px)` — **фикс инверсии** (раньше `rounded-xl` брал дефолтный TW 12px и оказывался меньше `rounded-lg`). Порядок extend-мержа с дефолтом TW важен.
@@ -184,6 +202,15 @@ AA), для заливок (`.bg-accent`, орбы, кнопки) — базов
 - **Floating-слои** (тултипы, тема-дропдаун, emoji-picker, AssigneeSelect/Combobox, DataTable bulk-bar, drag-state/DragOverlay) → `var(--elevation-3)`; **чарт-тултипы** → `var(--elevation-2)`. `--elevation-0..3` — per-theme.
 - **Карточки** → `--shadow-card` / `--shadow-card-hover` (**НЕ** elevation). Dark-inset у frost/aurora/tidal осмыслен — не трогать.
 - **Грабля:** `hover:elevation-N` не работает (утилитный класс `.elevation-*` не реагирует на `hover:`-вариант) — нужен `hover:shadow-[var(--elevation-N)]`.
+- **Лист** → `.sheet` (`@layer components`): `--surface` + `--border` + `--radius-m` + `--shadow-card`.
+  Единственный примитив подложки; `ui/Card.tsx` удалён 2026-08-21 как мёртвый (не импортировался нигде).
+  **Не писать** `bg-surface border border-border rounded-xl` руками — ровно это чинили в v2.1–v2.2
+  (≈300 мест мимо любых токенов тени; правка токенов темы доставала до 28 элементов из сотен).
+  **В стеклянных темах** (`t-frost`/`t-aurora`/`t-tidal`) `.sheet` обязан стоять в блоке Dark-theme
+  glassmorphism рядом с `.shadow-card`: там `--surface` полупрозрачен и лист держится на
+  `backdrop-filter`, иначе читается грязным пятном.
+  Иерархия: `.sheet` — статичная подложка · `.elevation-hover` — карточка под курсором ·
+  `.shadow-card` — карточка доски.
 
 ### fontSize-токены (a11y-scalable, rem)
 `tailwind.config.ts` → `fontSize`: `meta = 0.6875rem` (11px), `body = 0.8125rem` (13px). **Только size, без lineHeight** (leading наследуется как раньше → 0 вертикального сдвига).

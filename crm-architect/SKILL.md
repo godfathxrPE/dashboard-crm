@@ -241,6 +241,16 @@ Claude (chat) → спринт-файл в _analysis/ → ревью Grok → п
 
 ## Conventions
 
+### UI-примитивы
+| Роль | Что использовать |
+|---|---|
+| Лист / подложка | `.sheet` (`@layer components`) |
+| Карточка под курсором | `.elevation-hover` |
+| Карточка доски | `.shadow-card` |
+| Активное состояние (drag-over, выбрано) | `--accent-l2`, **не** `-l` с модификатором |
+
+`ui/Card.tsx` удалён 2026-08-21. Подробности и запреты — `references/theme-system.md`.
+
 ### Naming
 - Pages: `src/app/[entity]/page.tsx`
 - Detail pages: `src/app/[entity]/[id]/page.tsx`
