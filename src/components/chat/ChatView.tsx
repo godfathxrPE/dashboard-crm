@@ -92,7 +92,7 @@ export function ChatView() {
       {/* Узкий экран: видно что-то одно — список (без ?c) или тред (с ?c) */}
       <aside
         className={cn(
-          'min-h-0 w-full shrink-0 rounded-xl border border-border bg-surface md:w-[18rem]',
+          'min-h-0 w-full shrink-0 sheet md:w-[18rem]',
           activeId ? 'hidden md:block' : 'block',
         )}
       >
@@ -120,7 +120,7 @@ export function ChatView() {
                   ? `${GENERAL_CHANNEL_TITLE} пуст. Напиши первое сообщение команде`
                   : 'Пока тихо. Напиши первое сообщение команде'
               }
-              className="flex min-h-0 flex-1 flex-col rounded-xl border border-border bg-surface p-4"
+              className="sheet flex min-h-0 flex-1 flex-col p-4"
               listClassName="min-h-0 flex-1"
               // 1f: обои — только здесь. Вкладка «Чат» на карточке остаётся карточкой
               // среди карточек (вариант по умолчанию — 'card').
@@ -160,7 +160,7 @@ export function ChatView() {
             />
           </>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface p-4">
+          <div className="sheet flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-4">
             <MessagesSquare size={20} className="text-text-mute" aria-hidden="true" />
             <p className="text-xs text-text-mute">
               {isLoading ? 'Загрузка...' : unavailable ? 'Канал недоступен' : 'Выберите канал слева'}

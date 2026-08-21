@@ -42,7 +42,7 @@ function KpiTile({
   tone: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface px-4 py-3">
+    <div className="sheet flex items-center gap-3 px-4 py-3">
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone}`}>
         <Icon size={16} />
       </div>
@@ -128,7 +128,7 @@ export function LeadsAnalytics() {
       {isLoading ? (
         <div className="h-24 animate-pulse rounded-xl border border-border/50 bg-surface" />
       ) : leads.length === 0 ? (
-        <div className="rounded-xl border border-border/50 bg-surface p-6 text-center text-sm text-text-dim">
+        <div className="sheet p-6 text-center text-sm text-text-dim">
           За выбранный период лидов нет.
         </div>
       ) : (
@@ -166,7 +166,7 @@ export function LeadsAnalytics() {
 
           <div className="grid gap-3 lg:grid-cols-2">
             {/* Источники */}
-            <div className="rounded-xl border border-border/50 bg-surface p-4">
+            <div className="sheet p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-mute">
                 Источники
               </h3>
@@ -199,7 +199,7 @@ export function LeadsAnalytics() {
             </div>
 
             {/* Причины отказов */}
-            <div className="rounded-xl border border-border/50 bg-surface p-4">
+            <div className="sheet p-4">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-mute">
                 Причины отказов
               </h3>

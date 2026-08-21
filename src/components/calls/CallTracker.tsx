@@ -49,7 +49,7 @@ export function CallTracker({ dailyGoal = 10, onQuickLog }: CallTrackerProps) {
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="sheet p-4">
       <div className="mb-3 flex items-center gap-2">
         <Phone size={14} className="text-accent" />
         <span className="text-xs font-semibold text-text-main">Звонки сегодня</span>

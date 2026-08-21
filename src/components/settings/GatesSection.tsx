@@ -175,7 +175,7 @@ export function GatesSection() {
   if (!canManage) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="sheet p-4">
       <div className="mb-3 flex items-center gap-2">
         <ShieldCheck size={14} className="text-text-dim" />
         <h2 className="text-xs font-semibold text-text-dim">Стадийные гейты</h2>

@@ -1599,7 +1599,10 @@ table { font-variant-numeric: tabular-nums; }
   .sheet {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-l);
+    /* v2.2: --radius-m, не -l. Заменяемые места несут rounded-xl (12px);
+       --radius-l у Aura 18px, у Washi 8px при базовом 4px — примитив спорил
+       бы с характером темы. --radius-m: 4…12px, совпадает с фактом. */
+    border-radius: var(--radius-m);
     box-shadow: var(--shadow-card);
   }
 }/* Dark-theme glassmorphism on elevated elements */
@@ -1611,7 +1614,14 @@ table { font-variant-numeric: tabular-nums; }
 .t-tidal .elevation-1,
 .t-frost .elevation-hover,
 .t-aurora .elevation-hover,
-.t-tidal .elevation-hover {
+.t-tidal .elevation-hover,
+/* Гейт v2.1: .sheet сюда же. В стеклянных темах --surface полупрозрачен
+   (rgba(255,255,255,0.07) и т.п.) и без blur читается плёнкой, а не листом —
+   тот же приём, что у .shadow-card, иначе примитив ведёт себя иначе, чем
+   карточки рядом с ним. */
+.t-frost .sheet,
+.t-aurora .sheet,
+.t-tidal .sheet {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-color: var(--glass-border);

@@ -453,8 +453,8 @@ function Section({ title, count, icon, children }: {
   if (count === 0) return null;
   return (
     /* v2.1: секция — лист. Шапка на surface2, тело на surface.
-       px-2 у тела: QueueRow несёт -mx-2 и без этого паддинга hover-полоса
-       вылезет за край листа. Сброс border-b у последней строки — иначе
+       px-4 у тела при -mx-2 у QueueRow даёт 8px до края листа: hover-полоса
+       шире текста, но внутрь листа. Сброс border-b у последней строки — иначе
        её разделитель дублирует нижнюю рамку листа. */
     <section className="sheet mb-7 overflow-hidden">
       <div className="flex items-center gap-1.5 border-b border-border bg-surface2 px-4 py-2

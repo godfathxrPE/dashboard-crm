@@ -122,7 +122,7 @@ export function CallLog() {
 
           {/* Scheduled calls */}
           {scheduledCalls.length > 0 && (
-            <div className="rounded-xl border border-border bg-surface p-4">
+            <div className="sheet p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Clock size={14} className="text-blue" />
                 <span className="text-xs font-semibold text-text-main">Ближайшие звонки</span>

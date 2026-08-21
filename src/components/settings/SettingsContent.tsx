@@ -52,7 +52,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
       <div className="space-y-4">
         {/* Profile — self-service (S-ONBOARD-1): свой профиль правит каждый сам */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="sheet p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xs font-semibold text-text-dim">Профиль</h2>
             {!editingProfile && (
@@ -124,7 +124,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
         <OrgSettingsSection />
 
         {/* Theme */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="sheet p-4">
           <div className="mb-3 flex items-center gap-2">
             <Palette size={14} className="text-text-dim" />
             <h2 className="text-xs font-semibold text-text-dim">Тема оформления</h2>
@@ -148,7 +148,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
         <VerificationPanel />
 
         {/* Migration tool link */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="sheet p-4">
           <div className="mb-3 flex items-center gap-2">
             <Upload size={14} className="text-text-dim" />
             <h2 className="text-xs font-semibold text-text-dim">Миграция данных</h2>
@@ -163,7 +163,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
         </div>
 
         {/* Hotkeys reference */}
-        <div className="rounded-xl border border-border bg-surface p-4">
+        <div className="sheet p-4">
           <h2 className="mb-3 text-xs font-semibold text-text-dim">Горячие клавиши</h2>
           <div className="space-y-1 text-xs">
             {[

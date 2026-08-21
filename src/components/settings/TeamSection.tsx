@@ -240,7 +240,7 @@ export function TeamSection() {
   const canAssignOwner = role === 'owner';
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="sheet p-4">
       <div className="mb-2 flex items-center gap-2">
         <Users size={14} className="text-text-dim" />
         <h2 className="text-xs font-semibold text-text-dim">Команда</h2>
