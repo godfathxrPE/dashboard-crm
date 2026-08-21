@@ -25,45 +25,17 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-// ═══ S-AI-OBS-1 (127, на гейте): ai_runs.entity_type/entity_id стали nullable ═══
-// ВРЕМЕННЫЙ СТАБ. Снять целиком после apply 127 + регенерации типов: обе колонки
-// приедут nullable из автогенерации, а этот блок обязан уйти — оставленный стаб
-// переживает миграцию молча и продолжает врать про схему.
-//
-// Зачем: разбор быстрого ввода (`preset_key='capture'`) — прогон модели БЕЗ
-// сущности, он идёт до её появления. До регена автогенерация держит обе колонки
-// required/NOT NULL, и журнальная вставка в `use-quick-capture` не собралась бы.
-//
-// ⚠️ ЧЕРЕЗ `Omit`, А НЕ ПЕРЕСЕЧЕНИЕМ, как стаб 123 (`companies.chz_groups`). Тот
-// добавлял колонку, которой в автогенерации НЕ БЫЛО, и пересечение работало. Эти
-// две колонки там есть, а пересечение СУЖАЕТ: `string & (string | null)` = `string`,
-// то есть стаб-пересечение не изменил бы ничего и молча.
-type DropCapturePair<T> = Omit<T, 'entity_type' | 'entity_id'>;
-
-// ⚠️ ПРИМЕНЯЕТСЯ ПОСЛЕ `RelaxOrgId`, А НЕ РЯДОМ С НИМ. Два независимых пересечения
-// поверх одной таблицы дали бы `Insert` дважды, и required-версия из первого
-// пересеклась бы с optional-версией из второго обратно в required — то есть стаб
-// снова не сделал бы ничего, и снова молча.
-type ApplyCaptureStub<K, T extends { Row: unknown; Insert: unknown; Update: unknown }> =
-  K extends 'ai_runs'
-    ? Omit<T, 'Row' | 'Insert' | 'Update'> & {
-        Row: DropCapturePair<T['Row']> & { entity_type: string | null; entity_id: string | null };
-        Insert: DropCapturePair<T['Insert']> & { entity_type?: string | null; entity_id?: string | null };
-        Update: DropCapturePair<T['Update']> & { entity_type?: string | null; entity_id?: string | null };
-      }
-    : T;
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
   public: Omit<GenDatabase['public'], 'Tables'> & {
     Tables: {
-      [K in keyof GenDatabase['public']['Tables']]: ApplyCaptureStub<
-        K,
-        Omit<GenDatabase['public']['Tables'][K], 'Insert'> & {
-          Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']>;
-        }
-      >;
+      [K in keyof GenDatabase['public']['Tables']]: Omit<
+        GenDatabase['public']['Tables'][K],
+        'Insert'
+      > & {
+        Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']>;
+      };
     };
   };
 };

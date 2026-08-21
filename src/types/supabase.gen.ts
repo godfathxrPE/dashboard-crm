@@ -197,8 +197,8 @@ export type Database = {
           created_at: string
           created_by: string
           duration_ms: number | null
-          entity_id: string
-          entity_type: string
+          entity_id: string | null
+          entity_type: string | null
           error: string | null
           feedback_note: string | null
           finished_at: string | null
@@ -218,8 +218,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           duration_ms?: number | null
-          entity_id: string
-          entity_type: string
+          entity_id?: string | null
+          entity_type?: string | null
           error?: string | null
           feedback_note?: string | null
           finished_at?: string | null
@@ -239,8 +239,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           duration_ms?: number | null
-          entity_id?: string
-          entity_type?: string
+          entity_id?: string | null
+          entity_type?: string | null
           error?: string | null
           feedback_note?: string | null
           finished_at?: string | null
