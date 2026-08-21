@@ -50,14 +50,15 @@ src/
     └── entities.ts      # Domain type aliases
 ```
 
-## Deploy on Netlify
+## Deploy on Vercel
 
-1. Подключи GitHub-репозиторий в Netlify
-2. Build command: `npm run build`
-3. Publish directory: `.next`
-4. Environment variables: добавь `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+1. Подключи GitHub-репозиторий в Vercel
+2. Framework preset определяется автоматически (Next.js), build command и output менять не нужно
+3. Environment variables: `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   (полный список — `.env.local.example`)
+4. Supabase → Authentication → URL Configuration: добавь `<домен>/callback` в Redirect URLs
 
-Netlify автоматически определит Next.js и включит SSR через Netlify Runtime.
+Push в `main` деплоит прод автоматически. Подробности — `GO-LIVE.md`.
 
 ## Themes
 

@@ -1,9 +1,9 @@
 import type { NextConfig } from 'next';
 
-// Security headers — перенесены из netlify.toml [[headers]] в next.config,
-// чтобы жить на любой платформе (Vercel читает headers() нативно; Netlify —
-// через @netlify/plugin-nextjs). CSP-lite (object-src/base-uri/frame-ancestors):
-// полный CSP с nonce для inline theme-init — отдельная задача.
+// Security headers живут здесь, а не в конфиге платформы: Vercel читает headers()
+// нативно, и настройка переезжает вместе с кодом. Единственный действующий источник
+// заголовков. CSP-lite (object-src/base-uri/frame-ancestors): полный CSP с nonce для
+// inline theme-init — отдельная задача.
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -21,10 +21,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Хвост: в дереве два lockfile'а (корневой + реликтовый .netlify/plugins/
-  // package-lock.json от первого Netlify-деплоя 2026-03-30). Next по второму
-  // угадывает workspace root и ворчит на каждом старте. Пиним корень явно —
-  // реликт .netlify/ трогать не надо (это путь отката).
+  // Корень workspace пиним явно: Next иначе угадывает его по ближайшему lockfile
+  // и может уехать выше по дереву. Исторически здесь лежал второй lockfile от
+  // прежней платформы (удалён 2026-08-21); пин оставлен как защита от повторения.
   outputFileTracingRoot: __dirname,
   images: {
     unoptimized: true,

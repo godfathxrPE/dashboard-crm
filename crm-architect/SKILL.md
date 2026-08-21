@@ -36,7 +36,7 @@ schema, file structure, design system, conventions, and accumulated learnings fr
 | Supabase ref | `uoiavcabxgdjugzryrmj` |
 | Migrations | Полный ledger — **`docs/schema.md` в репозитории**, не эта таблица. На 2026-08-12: последний применённый — **123** (`20260812060950 lead_convert_carryover`), всего версий в ledger 118, файлов в `supabase/migrations/` — 83. Номера в папке дырявые: 047 и 088a применены без файла, **060 зарезервирована и не занята**, **116 ОТМЕНЕНА и удалена** (её популяция вычищена вручную до apply — см. `docs/schema.md`). **Номер следующей миграции берётся запросом к `supabase_migrations.schema_migrations`** — не из этой таблицы и не из `ls` папки (069–073 записаны там без числового префикса, греп по номеру их не находит) |
 | Tenancy | **Multi-tenant**: organizations + memberships; роли owner/admin/manager/viewer (только в memberships) |
-| Deploy | **Vercel** (dashboard-crm-ten.vercel.app; netlify.toml — реликт для отката) |
+| Deploy | **Vercel** (dashboard-crm-ten.vercel.app), автодеплой из `main`; `vercel.json` нет — настройки в дашборде |
 | Themes | **7 тем**: aura (дефолт) / washi / fuji / **minimal** / frost / aurora / tidal. **minimal — рабочая тема владельца**, смоки визуальных правок гнать в ней в первую очередь. Акцент minimal — петроль `#0E7C86` (терракота ушла, см. theme-system.md) |
 | Locale | Russian UI, English code |
 

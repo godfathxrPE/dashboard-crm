@@ -70,8 +70,8 @@ UI (форма / drag) → Zod / RHF
   - `(dashboard)` — рабочие экраны с sidebar / header.
 - Страницы-обёртки часто server-side: проверка `supabase.auth.getUser()` → `redirect('/login')`, контент — client components.
 - Path alias: `@/*` → `./src/*` (`tsconfig.json`).
-- `images.unoptimized: true` — без Next Image Optimization CDN. Настройка родом из Netlify-периода; на Vercel
-  оптимизация была бы доступна — снятие флага не проверялось, трогать без замера не нужно.
+- `images.unoptimized: true` — без Next Image Optimization CDN. Настройка досталась от прежней платформы;
+  на Vercel оптимизация доступна — снятие флага не проверялось, трогать без замера не нужно (техдолг).
 
 ### 3.2 Язык UI и i18n
 
@@ -246,11 +246,10 @@ Gantt: **кастомный** (`GanttTimeline.tsx`) — не dhtmlx/gantt-lib; P
 | **Build** | `npm run build` |
 | **Security headers** | `next.config.ts` (XFO, nosniff, Referrer-Policy, Permissions-Policy, HSTS, CSP-lite) — единственный действующий источник |
 
-⚠️ **`netlify.toml` и `.netlify/` в репо — реликты Netlify-периода (июль 2026), НЕ актуальный
-конфиг** (то же сказано в `CLAUDE.md:10-11`). Переезд на Vercel — из-за исчерпания лимитов на
-деплои в Netlify. Файл оставлен как след истории; дубль security-заголовков в нём не применяется.
-Не считать его источником правды о хостинге — этот документ ошибочно опирался на него до
-2026-07-29 и вводил в заблуждение arch-разведку.
+ℹ️ Конфиг прежней платформы (`netlify.toml`, `.netlify/`) удалён 2026-08-21. До этого он лежал
+в репо как «путь отката» и дважды вводил в заблуждение arch-разведку: документ опирался на него
+как на источник правды о хостинге. Единственный действующий источник security-заголовков —
+`next.config.ts`. Переезд на Vercel (июль 2026) — из-за исчерпания лимитов на деплои.
 
 ### 9.1 PWA-лёгкий слой
 
@@ -258,7 +257,7 @@ Gantt: **кастомный** (`GanttTimeline.tsx`) — не dhtmlx/gantt-lib; P
 
 ### 9.2 Не используется (явно)
 
-- Netlify (был хостингом до 2026-07; `netlify.toml` — реликт);
+- Netlify (был хостингом до 2026-07, конфиг удалён 2026-08-21);
 - Docker / k8s в репо;
 - GraphQL / tRPC / Prisma / Drizzle;
 - Redis / Elasticsearch;
@@ -321,7 +320,6 @@ dashboard-crm/
 │   └── e2e/                 # Playwright
 ├── docs/                    # schema.md, этот документ
 ├── public/                  # manifest, static
-├── netlify.toml            # реликт Netlify-периода, не используется
 ├── next.config.ts
 ├── tailwind.config.ts
 ├── vitest.config.ts
@@ -391,10 +389,9 @@ dashboard-crm/
 | `README.md` | Quick start, структура, themes overview |
 | `docs/schema.md` | Схема БД, RLS, миграции |
 | `docs/Z-INDEX.md` | Слои интерфейса: занятые полосы z-index, правила, инциденты |
-| `GO-LIVE.md` | Деплой / Supabase checklist ⚠️ писался под Netlify — сверить перед использованием |
+| `GO-LIVE.md` | Деплой на Vercel, env-переменные, Supabase redirect URLs, смок после деплоя |
 | `INTEGRATION.md` | Интеграции (если актуально) |
 | `package.json` | Точные версии зависимостей |
-| `netlify.toml` | ⚠️ реликт Netlify-периода, не используется |
 | `next.config.ts` | Headers, images, TS/ESLint policy |
 
 ---

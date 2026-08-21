@@ -7,8 +7,7 @@
 ## Стек (не менять)
 
 Next.js 15 App Router · TypeScript strict · Tailwind · Supabase (Postgres + RLS + Edge)
-· TanStack Query · Zustand (UI-state) · RHF + Zod. Деплой — **Vercel**, авто из `main`
-(`netlify.toml` и `.netlify/` — реликты отката, не актуальный конфиг).
+· TanStack Query · Zustand (UI-state) · RHF + Zod. Деплой — **Vercel**, авто из `main`; `vercel.json` нет, настройки в дашборде.
 Supabase ref: `uoiavcabxgdjugzryrmj`, Postgres 17.6. Применённые миграции — **001–100**,
 следующая свободная — **101** (060 зарезервирована и не занята — не возвращаться к ней).
 Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize` — **version 5**,

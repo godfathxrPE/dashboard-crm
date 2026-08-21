@@ -1,100 +1,65 @@
-# Sprint 7 — Go Live Checklist
+# Go Live — деплой и окружение
 
-## 1. Подготовка к деплою
+Прод: **Vercel**, `dashboard-crm-ten.vercel.app`. Деплой автоматический из `main` —
+push запускает сборку. `vercel.json` в репозитории нет: build command и output настроены
+дефолтами Next.js, остальное задаётся в дашборде проекта.
 
-### Netlify Setup
-```bash
-# Установи Netlify CLI (если ещё нет)
-npm install -g netlify-cli
+История: первый запуск (Sprint 7, июль 2026) шёл на Netlify, переезд на Vercel — август.
+Конфиг Netlify и его артефакты удалены 2026-08-21, упоминания в `_analysis/` оставлены как есть —
+это записи о том, что было.
 
-# Логин
-netlify login
+---
 
-# Инициализация (из корня проекта)
-cd ~/Downloads/dashboard-crm
-netlify init
-# → Create & configure a new site
-# → Team: выбери свой
-# → Site name: dashboard-crm (или свой вариант)
-# → Build command: npm run build
-# → Deploy directory: .next
-```
+## 1. Переменные окружения
 
-### Environment Variables
-В Netlify Dashboard → Site settings → Environment variables, добавь:
+Vercel Dashboard → Project → Settings → Environment Variables. Обязательный минимум:
 
-| Variable | Value |
-|----------|-------|
+| Variable | Пример |
+|----------|--------|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` |
 
-### Supabase: Redirect URLs
-В Supabase Dashboard → Authentication → URL Configuration:
-- Добавь `https://your-site.netlify.app/callback` в Redirect URLs
-- Добавь `https://your-custom-domain.com/callback` если будет свой домен
+Полный список — в `.env.local.example`. Серверные ключи (`SUPABASE_SERVICE_ROLE_KEY`,
+токены интеграций) добавляются там же, но **только** в Production/Preview scope, не в
+`NEXT_PUBLIC_*`.
 
-## 2. Первый деплой
+## 2. Supabase — Redirect URLs
 
-```bash
-# Push в GitHub
-git add -A
-git commit -m "Sprint 7: go live"
-git push
+Supabase Dashboard → Authentication → URL Configuration:
 
-# Netlify автоматически задеплоит из GitHub
-# Или ручной деплой:
-netlify deploy --prod
-```
+- `https://dashboard-crm-ten.vercel.app/callback`
+- `https://<preview-url>/callback` — если гоняешь авторизацию на preview-деплое
+- домен из п.4, когда появится
 
-## 3. Верификация после деплоя
+Без этого Magic Link уводит на `localhost` и вход на проде не работает.
 
-1. Открой `https://your-site.netlify.app`
-2. Проверь Magic Link авторизацию
-3. Перейди в Настройки → секция "Верификация данных"
-4. Убедись что все таблицы показывают корректные числа
-5. Протестируй CRUD: создай задачу, проект, звонок
-6. Проверь Cmd+K — Command Palette работает
-7. Проверь переключение тем
+## 3. Проверка после деплоя
 
-## 4. Миграция данных (если нужно)
+1. Открыть прод, войти по Magic Link.
+2. Настройки → «Верификация данных» — числа по таблицам совпадают с ожидаемыми.
+3. CRUD-смок: задача, проект, звонок — создать и удалить.
+4. `Cmd+K` — Command Palette открывается и ищет.
+5. Переключение тем: Minimal, одна тёмная (Frost/Aurora/Tidal), Washi.
+6. DevTools Console — ноль ошибок; Network — CSS-чанки отдаются 200.
 
-1. Открой старый Dashboard: `https://godfathxrpe.github.io/Dashboard/`
-2. В DevTools Console:
-   ```js
-   // Экспорт всех данных из localStorage
-   const backup = {};
-   ['tasks','projects','calls','meetings'].forEach(key => {
-     try { backup[key] = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
-   });
-   const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
-   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-   a.download = 'dashboard-export.json'; a.click();
-   ```
-3. Открой новый Dashboard → Настройки → Миграция данных
-4. Загрузи JSON файл → Нажми "Начать миграцию"
-5. Проверь результат в Верификации данных
+Пункт 6 не формальность: тема ломается именно так — приложение живо, а стили 404.
 
-## 5. Отключение старого Dashboard (опционально)
+## 4. Custom domain (когда понадобится)
 
-После подтверждения что всё работает:
-1. GitHub repo → Settings → Pages → Source: None
-2. Или просто оставь как архив
+Vercel Dashboard → Project → Settings → Domains → Add. DNS: `CNAME` на
+`cname.vercel-dns.com`, SSL выпускается автоматически. После добавления домена —
+дописать его callback в Supabase (п.2).
 
-## 6. Custom Domain (опционально)
-
-```bash
-# В Netlify Dashboard → Domain settings → Add custom domain
-# Настрой DNS: CNAME → your-site.netlify.app
-# SSL выпустится автоматически через Let's Encrypt
-```
-
-## Итоговая архитектура
+## 5. Архитектура
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌────────────┐
-│   Browser    │────▶│   Netlify    │────▶│  Supabase  │
-│  Next.js App │     │   (SSR/SSG)  │     │ PostgreSQL │
-│  React Query │     │   Edge Funcs │     │ Auth + RLS │
-│  Tailwind    │     │              │     │ Realtime   │
-└─────────────┘     └──────────────┘     └────────────┘
+┌──────────────┐     ┌──────────────┐     ┌────────────┐
+│   Browser    │────▶│    Vercel    │────▶│  Supabase  │
+│  Next.js 15  │     │  SSR / Edge  │     │ PostgreSQL │
+│ React Query  │     │  Middleware  │     │ Auth + RLS │
+│  Tailwind    │     │              │     │  Realtime  │
+└──────────────┘     └──────────────┘     └────────────┘
 ```
+
+Крон-задачи живут в Postgres (`pg_cron`), не в платформенных scheduled functions —
+решение S-WF-2C, чтобы движок автоматизаций был один и с `SECURITY DEFINER`.
