@@ -452,13 +452,18 @@ function Section({ title, count, icon, children }: {
 }) {
   if (count === 0) return null;
   return (
-    <section className="mb-7">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-text-dim">
+    /* v2.1: секция — лист. Шапка на surface2, тело на surface.
+       px-2 у тела: QueueRow несёт -mx-2 и без этого паддинга hover-полоса
+       вылезет за край листа. Сброс border-b у последней строки — иначе
+       её разделитель дублирует нижнюю рамку листа. */
+    <section className="sheet mb-7 overflow-hidden">
+      <div className="flex items-center gap-1.5 border-b border-border bg-surface2 px-4 py-2
+                      text-xs font-medium uppercase tracking-wider text-text-dim">
         {icon}
         {title}
         <span className="text-text-mute">{count}</span>
       </div>
-      <div>{children}</div>
+      <div className="px-4 py-1 [&>*:last-child]:border-b-0">{children}</div>
     </section>
   );
 }

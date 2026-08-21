@@ -23,19 +23,22 @@ export function TodayFocus() {
   };
 
   return (
-    <section className="mb-8">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-text-dim">
+    <section className="sheet mb-8 overflow-hidden">
+      <div className="flex items-center gap-1.5 border-b border-border bg-surface2 px-4 py-2
+                      text-xs font-medium uppercase tracking-wider text-text-dim">
         <Target size={13} />
         Фокус дня
       </div>
-      <input
-        value={text}
-        onChange={(e) => save(e.target.value)}
-        placeholder="Одно главное дело на сегодня…"
-        className="w-full border-0 border-b border-input bg-transparent pb-2 text-lg
-                   text-text-main placeholder:text-text-mute
-                   focus:border-accent focus:outline-none"
-      />
+      <div className="p-4">
+        <input
+          value={text}
+          onChange={(e) => save(e.target.value)}
+          placeholder="Одно главное дело на сегодня…"
+          className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-lg
+                     text-text-main placeholder:text-text-mute
+                     focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        />
+      </div>
     </section>
   );
 }

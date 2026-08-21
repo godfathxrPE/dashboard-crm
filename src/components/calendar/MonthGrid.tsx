@@ -92,6 +92,8 @@ export function MonthGrid({
         border: '1px solid var(--cal-line)',
         borderRadius: 'var(--radius)',
         overflow: 'hidden',
+        /* v2.1: лист сетки был без тени — читался наклейкой на canvas */
+        boxShadow: 'var(--shadow-card)',
       }}>
         {deadlines.length > 0 && (
           <FocusStrip deadlines={deadlines} onSelectDay={onSelectDay} />

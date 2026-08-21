@@ -235,9 +235,11 @@ export function DataTable<T>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-border">
+      {/* v2.1: фон и тень — обёртка была прозрачной, на новом сером canvas таблица
+          сливалась с фоном. Радиус оставлен rounded-xl: под него настроена подрезка. */}
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-card">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="bg-surface2">
             <tr className="border-b border-border">
               {selectable && (
                 <th className="w-10 px-2 py-2">

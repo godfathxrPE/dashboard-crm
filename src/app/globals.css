@@ -1591,6 +1591,17 @@ table { font-variant-numeric: tabular-nums; }
     box-shadow: var(--elevation-2);
     transform: translateY(-1px);
   }
+
+  /* Лист — статичная белая подложка на canvas. Один примитив вместо
+     повторения `bg-surface border border-border rounded-xl` по всему коду.
+     Темонезависим: все четыре токена объявлены в каждой теме.
+     Для карточек, реагирующих на курсор, — .elevation-hover, не .sheet. */
+  .sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-card);
+  }
 }/* Dark-theme glassmorphism on elevated elements */
 .t-frost .shadow-card,
 .t-aurora .shadow-card,
