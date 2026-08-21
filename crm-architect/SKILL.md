@@ -49,7 +49,8 @@ schema, file structure, design system, conventions, and accumulated learnings fr
 | `references/schema.md` | Перед любой DB-работой — **прочитать первым** | **Указатель, не схема** (с 2026-08-05): куда идти за истиной + конвенции, которых нет в `docs/schema.md` (порядок слоёв, ownership, RLS org-first, hardening, правила новой org-таблицы). Сами таблицы и колонки — в `docs/schema.md` репозитория |
 | `references/architecture.md` | Adding pages, components, hooks, or understanding structure | File tree, component patterns, state management, routing |
 | `references/theme-system.md` | Any UI/styling work, theme changes, z-index issues | CSS variable system, theme rules, elevation, z-index hierarchy |
-| `references/learnings.md` | Before ANY sprint prompt or architecture decision | Accumulated gotchas, anti-patterns, proven solutions from 40+ sprints |
+| `references/learnings.md` | Before ANY sprint prompt or architecture decision | **Тематический** справочник: грабли и проверенные решения по областям (Supabase, RLS, CSS/темы, React, Z-index, промпты) |
+| `references/journal.md` | Нужен контекст конкретного спринта или эпика | Хроника уроков по спринтам, от старых к новым (выделена из `learnings.md` в S-MEM-1) |
 
 _(`references/sprint-example.md` в этой таблице числился до 2026-08-05, но файла нет и
 не было — строка удалена. Образец промпта — любой `_analysis/sprint-*.md` в репозитории.)_
@@ -281,3 +282,9 @@ User Action → Modal Form (Zod validation)
 - Theme changes scoped inside `.t-aura {}`, `.t-washi {}`, etc.
 - Units: rem/em/clamp — never px (except borders ≤ 2px)
 - No emoji in UI — SVG icons only (Lucide)
+
+### Память
+- **Память пишется в два файла, не в один.** Урок конкретного спринта → `references/journal.md`
+  (хроника). Переиспользуемое правило → одна строка в тематический раздел `references/learnings.md`
+  со ссылкой на раздел журнала, а не пересказ целиком. Причина: до S-MEM-1 всё писалось
+  в `learnings.md`, он вырос до 166 КБ (72% — хроника) и перестал читаться целиком.

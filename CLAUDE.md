@@ -58,7 +58,9 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
   раскатку и не попадёт в ревью. Пакет загружать в аккаунт сразу после раскатки —
   иначе Cowork-сессии и гейт читают старую версию памяти.
 - Журнал Claude Code (`~/.claude/projects/…/memory/`) остаётся вне git — это хроника
-  спринтов; общие правила из него переносятся в `crm-architect/references/learnings.md`.
+  спринтов; переносится он в два адреса: тематическое, переиспользуемое правило —
+  в `crm-architect/references/learnings.md`, урок конкретного спринта —
+  в `crm-architect/references/journal.md`.
 
 ## Конвенции
 
