@@ -12,6 +12,7 @@ import { AutomationsSection } from '@/components/settings/AutomationsSection';
 import { WebhooksSection } from '@/components/settings/WebhooksSection';
 import { ChecklistTemplatesSection } from '@/components/settings/ChecklistTemplatesSection';
 import { OrgSettingsSection } from '@/components/settings/OrgSettingsSection';
+import { OrgExportSection } from '@/components/settings/OrgExportSection';
 import { ProfileForm } from '@/components/settings/ProfileForm';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useMyProfile } from '@/lib/hooks/use-profile';
@@ -123,6 +124,12 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
 
         {/* Org settings — правит owner, остальные видят значение (R2-P0-D) */}
         <OrgSettingsSection />
+
+        {/* Выгрузка данных организации (S-EXPORT-1) — owner only: объём файла
+            равен правам вызывающего по RLS, и у manager он был бы меньше
+            без единого признака этого в самом файле. Рядом с настройками org,
+            потому что это действие над организацией, а не над своим профилем. */}
+        <OrgExportSection />
 
         {/* Theme */}
         <div className="sheet p-4">
