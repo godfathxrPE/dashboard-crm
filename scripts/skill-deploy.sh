@@ -13,7 +13,7 @@ SRC="crm-architect"
 DEST="$HOME/.claude/skills/crm-architect"
 BACKUP_DIR="$HOME/.claude/skills/.backup"
 PKG="crm-architect.skill"
-REFS=(architecture learnings schema theme-system)
+REFS=(architecture journal learnings schema theme-system)
 
 # ── 1. Санити-проверки источника ────────────────────────────────────────────
 if [ ! -f "$SRC/SKILL.md" ]; then
@@ -76,7 +76,7 @@ PKG_ABS="$PWD/$PKG"
 
 # ── 5. Отчёт ────────────────────────────────────────────────────────────────
 lines=$(cat "$DEST/SKILL.md" "$DEST"/references/*.md | wc -l | tr -d ' ')
-echo "skill-deploy: раскатано в $DEST (5 файлов, $lines строк)"
+echo "skill-deploy: раскатано в $DEST ($(( ${#REFS[@]} + 1 )) файлов, $lines строк)"
 pkg_files=$(unzip -Z1 "$PKG" | grep -cv '/$')
 echo "skill-deploy: пакет $PKG собран ($pkg_files файлов)"
 if [ -n "$BACKUP" ]; then
