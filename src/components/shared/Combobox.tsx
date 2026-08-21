@@ -31,6 +31,15 @@ interface ComboboxProps {
   initialSearch?: string;
   /** Ответ сервера ещё в пути — «Ничего не найдено» тут соврало бы. */
   loading?: boolean;
+  /**
+   * Доступное имя поля — S-CONTACT-COMPANY.
+   *
+   * Без него имя триггера берётся из содержимого: пока ничего не выбрано, это
+   * placeholder, а после выбора — название записи, то есть скрин-ридер перестаёт
+   * называть САМО ПОЛЕ. Там, где рядом нет `<label>` (карточка контакта, где
+   * подпись — заголовок блока), это единственный источник имени.
+   */
+  ariaLabel?: string;
 }
 
 export function Combobox({
@@ -42,6 +51,7 @@ export function Combobox({
   onSearchChange,
   initialSearch = '',
   loading = false,
+  ariaLabel,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState(initialSearch);
@@ -137,6 +147,7 @@ export function Combobox({
           type="button"
           onClick={openDropdown}
           disabled={disabled}
+          aria-label={ariaLabel}
           title={selected?.label}
           className="flex w-full items-center justify-between gap-2 rounded-lg border border-input
                      bg-surface px-3 py-2 text-sm text-left
@@ -165,6 +176,7 @@ export function Combobox({
           value={search}
           onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          aria-label={ariaLabel}
           placeholder="Поиск..."
           className="w-full rounded-lg border border-accent bg-surface px-3 py-2
                      text-sm text-text-main placeholder:text-text-mute

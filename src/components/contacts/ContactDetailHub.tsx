@@ -31,6 +31,7 @@ import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
 import type { AiRunRow } from '@/types/database';
 import { BorderTrace } from '@/components/ui/BorderTrace';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
+import { Combobox } from '@/components/shared/Combobox';
 import type { Task } from '@/types/entities';
 import type { TimelineEvent } from '@/types/timeline';
 
@@ -209,6 +210,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
 
   const linkedCompanyIds = new Set((contact.companies ?? []).map((cc) => cc.company_id));
   const availableCompanies = (allCompanies ?? []).filter((c) => !linkedCompanyIds.has(c.id));
+  const companyOptions = availableCompanies.map((c) => ({ value: c.id, label: c.name }));
 
   // Reconnect-индикатор: дней с последнего касания (тот же язык, что «Здоровье» в DealFocusPanel)
   const touch = lastTouch.get(contactId) ?? null;
@@ -549,14 +551,19 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
               <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>
-              <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
-                aria-label="Выбрать компанию"
-                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
-                <option value="">Выбери компанию...</option>
-                {availableCompanies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              {/* 273 компании в нативном `select` не искались по вводу: название
+                  приходилось находить глазами в алфавитном списке. Combobox с
+                  фильтрацией — стандарт проекта (в том числе `ContactModal` с этим
+                  же справочником); поведение, поля и обработчик прежние. */}
+              <div className="mb-2">
+                <Combobox
+                  options={companyOptions}
+                  value={linkCompanyId || null}
+                  onChange={(v) => setLinkCompanyId(v ?? '')}
+                  placeholder="Выбрать компанию..."
+                  ariaLabel="Выбрать компанию"
+                />
+              </div>
               <input value={linkRole} onChange={(e) => setLinkRole(e.target.value)}
                 placeholder="Роль (необязательно)"
                 aria-label="Роль в компании"

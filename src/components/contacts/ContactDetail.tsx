@@ -15,6 +15,7 @@ import { formatBudget } from '@/lib/validators/project';
 import { PhoneList } from '@/components/shared/PhoneList';
 import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
 import { ContactModal } from './ContactModal';
+import { Combobox } from '@/components/shared/Combobox';
 
 interface ContactDetailProps { contactId: string; }
 
@@ -57,6 +58,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
   // Компании, к которым контакт НЕ привязан (для выбора)
   const linkedCompanyIds = new Set((contact.companies ?? []).map((cc) => cc.company_id));
   const availableCompanies = (allCompanies ?? []).filter((c) => !linkedCompanyIds.has(c.id));
+  const companyOptions = availableCompanies.map((c) => ({ value: c.id, label: c.name }));
 
   function handleDelete() {
     setConfirmingDelete(false);
@@ -168,13 +170,18 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
               <div className="mb-2 flex items-center gap-1 text-xs font-medium text-accent">
                 <Link2 size={10} /> Привязать к компании
               </div>
-              <select value={linkCompanyId} onChange={(e) => setLinkCompanyId(e.target.value)}
-                className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main focus:border-accent focus:outline-none">
-                <option value="">Выбери компанию...</option>
-                {availableCompanies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              {/* Combobox, а не нативный `select`: в справочнике сотни компаний, и
+                  выбор глазами по алфавиту — не выбор. Второе такое место —
+                  `ContactDetailHub`; поведение и обработчик не менялись. */}
+              <div className="mb-2">
+                <Combobox
+                  options={companyOptions}
+                  value={linkCompanyId || null}
+                  onChange={(v) => setLinkCompanyId(v ?? '')}
+                  placeholder="Выбрать компанию..."
+                  ariaLabel="Выбрать компанию"
+                />
+              </div>
               <input value={linkRole} onChange={(e) => setLinkRole(e.target.value)}
                 placeholder="Роль (необязательно): CEO, менеджер..."
                 className="mb-2 w-full rounded border border-input bg-surface px-2 py-1.5 text-xs text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none" />
