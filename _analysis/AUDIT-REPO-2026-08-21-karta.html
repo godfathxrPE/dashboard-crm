@@ -1,0 +1,505 @@
+<meta charset="utf-8">
+<title>Карта dashboard-crm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap&subset=cyrillic">
+<style>
+  :root{
+    --paper:#F6F5F1; --surface:#FFFFFF; --ink:#21242A; --muted:#66696F;
+    --line:#E4E2DA; --line-soft:#EDEBE4;
+    --accent:#B45309; --accent-strong:#8A3E06; --accent-soft:#F3E3CE;
+    --graphite:#3A3F47; --graphite-soft:#D8D9DC;
+    --ok:#2E7D46; --ok-soft:#DFEEE4; --part:#A06F14; --part-soft:#F2E6C9; --gap:#B23A32; --gap-soft:#F4DEDC;
+    --code-bg:#EFEEE8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#16181C; --surface:#1E2126; --ink:#E8E6E0; --muted:#9A9DA4;
+      --line:#31353C; --line-soft:#272B31;
+      --accent:#E5A244; --accent-strong:#F0B564; --accent-soft:#3A2E1B;
+      --graphite:#B9BDC4; --graphite-soft:#3A3F47;
+      --ok:#63B87F; --ok-soft:#1F3327; --part:#D3A64A; --part-soft:#38301C; --gap:#DD7168; --gap-soft:#3B2422;
+      --code-bg:#272B31;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#16181C; --surface:#1E2126; --ink:#E8E6E0; --muted:#9A9DA4;
+    --line:#31353C; --line-soft:#272B31;
+    --accent:#E5A244; --accent-strong:#F0B564; --accent-soft:#3A2E1B;
+    --graphite:#B9BDC4; --graphite-soft:#3A3F47;
+    --ok:#63B87F; --ok-soft:#1F3327; --part:#D3A64A; --part-soft:#38301C; --gap:#DD7168; --gap-soft:#3B2422;
+    --code-bg:#272B31;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;
+    font-size:15px; line-height:1.55; margin:0; padding:0;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:40px 28px 72px}
+  h1,h2,h3{font-family:'Bitter',Georgia,serif; text-wrap:balance; margin:0}
+  h1{font-size:34px; font-weight:700; letter-spacing:-.01em}
+  h2{font-size:21px; font-weight:600; margin-bottom:4px}
+  h3{font-size:16px; font-weight:600}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+  .eyebrow{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);
+    font-weight:600; margin-bottom:8px; font-family:'IBM Plex Mono',monospace;
+  }
+  .lede{color:var(--muted); max-width:64ch; margin-top:10px}
+  section{margin-top:52px}
+  .sec-head{border-bottom:2px solid var(--ink); padding-bottom:10px; margin-bottom:22px;
+    display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  .sec-head .note{color:var(--muted); font-size:13px}
+
+  /* header */
+  header .meta{display:flex; gap:20px; flex-wrap:wrap; margin-top:16px; color:var(--muted); font-size:13px}
+  header .meta span b{color:var(--ink); font-weight:600}
+
+  /* stat tiles */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:26px}
+  .tile{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:14px 16px}
+  .tile .num{font-family:'Bitter',serif; font-size:28px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1}
+  .tile .lbl{font-size:12px; color:var(--muted); margin-top:4px}
+  .tile .sub{font-size:11px; color:var(--muted); margin-top:2px; font-family:'IBM Plex Mono',monospace}
+
+  /* phases timeline */
+  .phase{display:grid; grid-template-columns:130px 1fr; gap:0 22px; position:relative; padding-bottom:26px}
+  .phase::before{content:''; position:absolute; left:141px; top:6px; bottom:-4px; width:2px; background:var(--line)}
+  .phase:last-child{padding-bottom:0}
+  .phase:last-child::before{bottom:auto; height:100%}
+  .phase .when{text-align:right; padding-right:0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); padding-top:3px}
+  .phase .when b{display:block; color:var(--ink); font-size:13px; font-weight:600}
+  .phase .body{position:relative; padding-left:22px}
+  .phase .body::before{content:''; position:absolute; left:-5px; top:7px; width:12px; height:12px; border-radius:50%;
+    background:var(--accent); border:2px solid var(--paper)}
+  .phase.quiet .body::before{background:var(--graphite-soft)}
+  .phase .counts{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--accent-strong); margin:2px 0 6px}
+  .phase p{margin:0; color:var(--muted); max-width:66ch}
+  .phase p b{color:var(--ink); font-weight:600}
+  .phase ul{margin:8px 0 0; padding-left:18px; color:var(--muted)}
+  .phase li{margin-top:3px}
+  .phase li b{color:var(--ink); font-weight:500}
+
+  /* charts */
+  .charts{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .chart-card{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:18px 20px 14px}
+  .chart-card.full{grid-column:1/-1}
+  .chart-card h3{margin-bottom:2px}
+  .chart-card .sub{font-size:12px; color:var(--muted); margin-bottom:12px}
+  .chart-card svg{width:100%; height:auto; display:block}
+  svg text{font-family:'IBM Plex Mono',monospace; fill:var(--muted); font-size:11px}
+  svg .val{fill:var(--ink); font-weight:500}
+  svg .bar{fill:var(--accent)}
+  svg .bar-dim{fill:var(--graphite-soft)}
+  svg .grid{stroke:var(--line-soft); stroke-width:1}
+  @media(max-width:760px){ .charts{grid-template-columns:1fr} .phase{grid-template-columns:86px 1fr} .phase::before{left:97px} .tiles{grid-template-columns:repeat(2,1fr)} }
+
+  /* tables */
+  table{width:100%; border-collapse:collapse; font-size:13.5px}
+  th{font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--muted); text-align:left; font-weight:500; padding:8px 10px; border-bottom:2px solid var(--line)}
+  td{padding:8px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  td.n{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap}
+  th.n{text-align:right}
+  .tbl-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:6px 12px 10px}
+  code{font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--code-bg); padding:1px 5px; border-radius:3px}
+
+  /* pills */
+  .pill{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; border-radius:100px;
+    padding:2px 10px; white-space:nowrap; font-family:'IBM Plex Mono',monospace}
+  .pill::before{content:''; width:7px; height:7px; border-radius:50%}
+  .pill.ok{background:var(--ok-soft); color:var(--ok)} .pill.ok::before{background:var(--ok)}
+  .pill.part{background:var(--part-soft); color:var(--part)} .pill.part::before{background:var(--part)}
+  .pill.gap{background:var(--gap-soft); color:var(--gap)} .pill.gap::before{background:var(--gap)}
+
+  /* scorecard */
+  .score{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:760px){.score{grid-template-columns:1fr}}
+  .score-card{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:16px 18px}
+  .score-card .head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px}
+  .score-card ul{margin:0; padding-left:0; list-style:none}
+  .score-card li{padding:5px 0; border-top:1px solid var(--line-soft); display:flex; gap:10px; justify-content:space-between; align-items:baseline; font-size:13.5px}
+  .score-card li span.what{color:var(--muted)}
+  .score-card li span.what b{color:var(--ink); font-weight:500}
+
+  /* recommendations */
+  .rec{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:6px;
+    padding:14px 18px; margin-bottom:10px; display:grid; grid-template-columns:52px 1fr auto; gap:14px; align-items:baseline}
+  .rec .prio{font-family:'Bitter',serif; font-weight:700; font-size:18px; color:var(--accent)}
+  .rec.p2{border-left-color:var(--graphite-soft)} .rec.p2 .prio{color:var(--muted)}
+  .rec.done{border-left-color:var(--ok); background:linear-gradient(to right,var(--ok-soft),var(--surface) 40%)}
+  .rec.done .prio{color:var(--ok)}
+  .rec.done h3{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--graphite-soft)}
+  .tag{font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--ok); background:var(--ok-soft); border-radius:100px;
+    padding:2px 8px; margin-left:8px; text-decoration:none; display:inline-block; vertical-align:middle}
+  .rec h3{font-size:15px}
+  .rec p{margin:3px 0 0; color:var(--muted); font-size:13.5px; max-width:70ch}
+  .rec .eff{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); white-space:nowrap}
+  @media(max-width:640px){.rec{grid-template-columns:40px 1fr}.rec .eff{grid-column:2}}
+
+  .footer-note{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; font-family:'IBM Plex Mono',monospace}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Аудит репозитория · 21.08.2026 · ревизия 4 — P0, P1 и память закрыты</div>
+  <h1>Карта dashboard-crm</h1>
+  <p class="lede">Пять месяцев от MVP до CRM с Telegram-ботом, транскрибацией и AI-контуром.
+  703 коммита, 125 миграций, один разработчик. Что построено, как менялся процесс и что отделяет его от западного стандарта.</p>
+  <div class="meta">
+    <span>Период: <b>30.03 — 21.08.2026</b></span>
+    <span>Стек: <b>Next.js 15 · TS strict · Supabase</b></span>
+    <span>Деплой: <b>Vercel ← main</b></span>
+    <span>Команда: <b>1 разработчик</b></span>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="num">703</div><div class="lbl">коммита</div><div class="sub">52 активных дня</div></div>
+    <div class="tile"><div class="num">125</div><div class="lbl">миграций применено</div><div class="sub">baseline 13.07</div></div>
+    <div class="tile"><div class="num">73,5K</div><div class="lbl">строк кода</div><div class="sub">TS 58K · SQL 14K</div></div>
+    <div class="tile"><div class="num">111</div><div class="lbl">тест-файлов</div><div class="sub">101 unit · 10 e2e</div></div>
+    <div class="tile"><div class="num">9</div><div class="lbl">edge-функций</div><div class="sub">10,1K строк</div></div>
+    <div class="tile"><div class="num">98</div><div class="lbl">merge-коммитов</div><div class="sub">20 веток, все влиты</div></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head">
+    <div><div class="eyebrow">01</div><h2>Как развивался проект</h2></div>
+    <div class="note">пять фаз по истории коммитов и миграций</div>
+  </div>
+
+  <div class="phase">
+    <div class="when"><b>Март — апрель</b>30.03 – 19.04</div>
+    <div class="body">
+      <h3>MVP-спринт</h3>
+      <div class="counts">130 коммитов · миграции 001–039</div>
+      <p>Из legacy-наработок за три недели собран рабочий каркас: дашборд с KPI, pipeline с drag-and-drop,
+      activity timeline, модуль лидов с Kanban и конверсией в сделку (15.04). Много визуальных итераций —
+      темы, glassmorphism, «Scandi». Коммиты прямо в <code>main</code>, без веток.</p>
+    </div>
+  </div>
+
+  <div class="phase quiet">
+    <div class="when"><b>Май — начало июня</b>20.04 – 11.06</div>
+    <div class="body">
+      <h3>Пауза</h3>
+      <div class="counts">0 коммитов ~7 недель</div>
+      <p>Полная остановка. Для соло-проекта это норма, но именно такие разрывы стирают контекст —
+      отсюда позже выросла система handoff-документов и памяти проекта.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when"><b>Середина июня</b>12.06 – 15.06</div>
+    <div class="body">
+      <h3>Возврат через качество</h3>
+      <div class="counts">8 коммитов</div>
+      <p>Возвращение началось не с фич: тема «Аура», <b>инфраструктура vitest + playwright</b>,
+      рефакторинг аналитики на <code>stage_id</code>, первый большой аудит (AUDIT-2026-06-14) и ремедиация Supabase.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when"><b>Июль</b></div>
+    <div class="body">
+      <h3>Индустриализация</h3>
+      <div class="counts">319 коммитов · пик · миграции ~040–091</div>
+      <p>Переломный месяц — сменился сам способ работы:</p>
+      <ul>
+        <li><b>Baseline прод-схемы БД</b> (13.07): старая цепочка миграций в архив, ledger — источник истины</li>
+        <li><b>Первые merge-коммиты</b>: переход с «всё в main» на ветки feat/* и fix/* (39 merges за месяц)</li>
+        <li>Спринтовый цикл S-* с гейтами: apply_migration → gen-types → advisors → смоки</li>
+        <li>Фичи: Gantt, КП на сделке (quotes), чат-хаб, workflow-движок, исходящие вебхуки</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when"><b>Август</b>по 21.08</div>
+    <div class="body">
+      <h3>Интеграции и AI</h3>
+      <div class="counts">246 коммитов · миграции 092–125</div>
+      <ul>
+        <li><b>Telegram-эпик</b> (107–111, 124–125): бот, напоминания, захват задач и контактов, дубли по ИНН</li>
+        <li><b>Голос</b> (07.08): транскрибация аудио — edge transcribe, нарезка по тишине в браузере</li>
+        <li><b>Единая лента событий</b> S-TL-1…4 (112–115): шесть источников, keyset-курсор, org-режим</li>
+        <li>Переработка лидов (117–123), ОКВЭД, стоимость AI-прогонов по факту</li>
+        <li>Roadmap-ревизии «сделано / отклонено / осталось» — ответ на трёхкратный дрейф роадмапа</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div><div class="eyebrow">02</div><h2>Цифры</h2></div>
+    <div class="note">наведи курсор на столбец — точное значение</div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-card full">
+      <h3>Коммиты по месяцам</h3>
+      <div class="sub">два горба: апрельский MVP и июльско-августовская индустриализация; май — пауза</div>
+      <svg viewBox="0 0 960 190" role="img" aria-label="Коммиты по месяцам: март 31, апрель 99, май 0, июнь 8, июль 319, август 246">
+        <line class="grid" x1="40" y1="150" x2="940" y2="150"/>
+        <g>
+          <rect class="bar" x="70"  y="136" width="90" height="14" rx="4"><title>Март: 31</title></rect>
+          <rect class="bar" x="220" y="105" width="90" height="45" rx="4"><title>Апрель: 99</title></rect>
+          <rect class="bar-dim" x="370" y="148" width="90" height="2"><title>Май: 0</title></rect>
+          <rect class="bar" x="520" y="146" width="90" height="4" rx="2"><title>Июнь: 8</title></rect>
+          <rect class="bar" x="670" y="6"  width="90" height="144" rx="4"><title>Июль: 319</title></rect>
+          <rect class="bar" x="820" y="39" width="90" height="111" rx="4"><title>Август: 246 (к 21.08)</title></rect>
+        </g>
+        <g text-anchor="middle">
+          <text class="val" x="115" y="128">31</text><text class="val" x="265" y="97">99</text>
+          <text class="val" x="415" y="140">0</text><text class="val" x="565" y="138">8</text>
+          <text class="val" x="715" y="-2" dy="1em" font-weight="600">319</text><text class="val" x="865" y="31">246</text>
+        </g>
+        <g text-anchor="middle">
+          <text x="115" y="170">мар</text><text x="265" y="170">апр</text><text x="415" y="170">май</text>
+          <text x="565" y="170">июн</text><text x="715" y="170">июл</text><text x="865" y="170">авг*</text>
+        </g>
+        <text x="940" y="186" text-anchor="end">* по 21 августа</text>
+      </svg>
+    </div>
+
+    <div class="chart-card">
+      <h3>По дням недели</h3>
+      <div class="sub">44% коммитов — в выходные (выделены); проект живёт вечерами и уикендами</div>
+      <svg viewBox="0 0 440 210" role="img" aria-label="Коммиты по дням недели, максимум воскресенье 210">
+        <g>
+          <rect class="bar-dim" x="120" y="10"  width="86"  height="16" rx="4"><title>Пн: 109</title></rect>
+          <rect class="bar-dim" x="120" y="36"  width="93"  height="16" rx="4"><title>Вт: 117</title></rect>
+          <rect class="bar-dim" x="120" y="62"  width="59"  height="16" rx="4"><title>Ср: 75</title></rect>
+          <rect class="bar-dim" x="120" y="88"  width="36"  height="16" rx="4"><title>Чт: 46</title></rect>
+          <rect class="bar-dim" x="120" y="114" width="34"  height="16" rx="4"><title>Пт: 43</title></rect>
+          <rect class="bar"     x="120" y="140" width="82"  height="16" rx="4"><title>Сб: 103</title></rect>
+          <rect class="bar"     x="120" y="166" width="166" height="16" rx="4"><title>Вс: 210</title></rect>
+        </g>
+        <g text-anchor="end">
+          <text x="110" y="22">Пн</text><text x="110" y="48">Вт</text><text x="110" y="74">Ср</text>
+          <text x="110" y="100">Чт</text><text x="110" y="126">Пт</text><text x="110" y="152">Сб</text><text x="110" y="178">Вс</text>
+        </g>
+        <g class="val">
+          <text x="212" y="22">109</text><text x="219" y="48">117</text><text x="185" y="74">75</text>
+          <text x="162" y="100">46</text><text x="160" y="126">43</text><text x="208" y="152">103</text>
+          <text x="292" y="178" font-weight="600">210</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="chart-card">
+      <h3>Типы коммитов</h3>
+      <div class="sub">77% — conventional; feat/fix = 1,3 : 1 — здоровый баланс новой работы и починки</div>
+      <svg viewBox="0 0 440 210" role="img" aria-label="Типы коммитов: feat 206, fix 157, прочие 159, docs 65, chore 63, refactor 21, style и design 22, test 3">
+        <g>
+          <rect class="bar"     x="120" y="10"  width="206" height="16" rx="4"><title>feat: 206</title></rect>
+          <rect class="bar"     x="120" y="36"  width="157" height="16" rx="4"><title>fix: 157</title></rect>
+          <rect class="bar-dim" x="120" y="62"  width="159" height="16" rx="4"><title>вне конвенции: 159 (в основном ранние, март–апрель)</title></rect>
+          <rect class="bar"     x="120" y="88"  width="65"  height="16" rx="4"><title>docs: 65</title></rect>
+          <rect class="bar"     x="120" y="114" width="63"  height="16" rx="4"><title>chore: 63</title></rect>
+          <rect class="bar"     x="120" y="140" width="21"  height="16" rx="4"><title>refactor: 21</title></rect>
+          <rect class="bar"     x="120" y="166" width="22"  height="16" rx="4"><title>style + design: 22</title></rect>
+        </g>
+        <g text-anchor="end">
+          <text x="110" y="22">feat</text><text x="110" y="48">fix</text><text x="110" y="74">прочее</text>
+          <text x="110" y="100">docs</text><text x="110" y="126">chore</text><text x="110" y="152">refactor</text><text x="110" y="178">style</text>
+        </g>
+        <g class="val">
+          <text x="332" y="22" font-weight="600">206</text><text x="283" y="48">157</text><text x="285" y="74">159</text>
+          <text x="191" y="100">65</text><text x="189" y="126">63</text><text x="147" y="152">21</text><text x="148" y="178">22</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div><div class="eyebrow">03</div><h2>Горячие точки кода</h2></div>
+    <div class="note">churn: +99 377 / −22 285 строк в src за всю историю</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Файл</th><th class="n">Изменений</th><th class="n">Строк</th><th>Что это значит</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/globals.css</code></td><td class="n">117</td><td class="n">1 441</td><td>Каждый шестой коммит трогает глобальный CSS — тема-система просится в токены/модули</td></tr>
+        <tr><td><code>projects/ProjectDetail.tsx</code></td><td class="n">75</td><td class="n">935</td><td>Центр тяжести домена; кандидат №1 на декомпозицию</td></tr>
+        <tr><td><code>types/database.ts</code></td><td class="n">59</td><td class="n">859</td><td>Ручные типы поверх генерации — двойная правда, следить за дрейфом</td></tr>
+        <tr><td><code>projects/PipelineBoard.tsx</code></td><td class="n">47</td><td class="n">732</td><td>Высокий churn + размер — риск регрессий при правках</td></tr>
+        <tr><td><code>dashboard/DashboardHome.tsx</code></td><td class="n">47</td><td class="n">—</td><td>Виджеты дашборда меняются с каждой осью роадмапа</td></tr>
+        <tr><td><code>tasks/GanttTimeline.tsx</code></td><td class="n">32</td><td class="n">1 754</td><td>Крупнейший рукописный файл проекта</td></tr>
+        <tr><td><code>chat/MessageThread.tsx</code></td><td class="n">—</td><td class="n">1 255</td><td>Второй по размеру; чат-хаб рос быстро</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div><div class="eyebrow">04</div><h2>Скоркард процесса</h2></div>
+    <div class="note">против практик западной продуктовой разработки</div>
+  </div>
+
+  <div class="score">
+    <div class="score-card">
+      <div class="head"><h3>Version control</h3><span class="pill part">частично</span></div>
+      <ul>
+        <li><span class="what">Conventional commits — <b>77%</b> (вне конвенции в основном март–апрель)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Ветки feat/fix + PR-flow с июля, все 20 веток влиты, хвостов нет</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Теги и релизы: <code>v2026.08.1</code>, CHANGELOG из git-cliff (S-REL-1)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Три имени на одной почте свёрнуты через <code>.mailmap</code>; гейт оставлен отдельно</span><span class="pill ok">ок</span></li>
+      </ul>
+    </div>
+
+    <div class="score-card">
+      <div class="head"><h3>CI / CD</h3><span class="pill ok">закрыто 21.08</span></div>
+      <ul>
+        <li><span class="what">Деплой: Vercel автоматически из <code>main</code></span><span class="pill ok">ок</span></li>
+        <li><span class="what"><b>CI есть</b> (S-CI-1, PR #3): lint + tsc + vitest на push и PR</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Lint зачищен до нуля ошибок (S-CI-2, PR #4); уход с deprecated <code>next lint</code></span><span class="pill ok">ок</span></li>
+        <li><span class="what">Branch protection на <code>main</code> с required check <code>checks</code></span><span class="pill ok">ок</span></li>
+        <li><span class="what">36 warnings не валят CI; <code>--max-warnings 0</code> — осознанный долг</span><span class="pill part">долг</span></li>
+        <li><span class="what">e2e и <code>next build</code> вне CI: нужны секреты и живая БД</span><span class="pill part">осознанно</span></li>
+        <li><span class="what">Netlify отвязан — в PR остался один check-run вместо девяти</span><span class="pill ok">ок</span></li>
+      </ul>
+    </div>
+
+    <div class="score-card">
+      <div class="head"><h3>Тесты</h3><span class="pill ok">выше нормы для соло</span></div>
+      <ul>
+        <li><span class="what"><b>101 unit + 10 e2e</b>, 15,6K строк тестов (~21% от кода)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Инфраструктура vitest + playwright с июня</span><span class="pill ok">ок</span></li>
+        <li><span class="what">С 21.08 гоняются в CI на каждый PR — 1697 тестов, все зелёные</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Урок S-TL-1 задокументирован: сдан с зелёными тестами при мёртвой ленте</span><span class="pill part">учтено</span></li>
+      </ul>
+    </div>
+
+    <div class="score-card">
+      <div class="head"><h3>База данных</h3><span class="pill ok">сильно</span></div>
+      <ul>
+        <li><span class="what">125 миграций через гейт: apply → gen-types → advisors → смоки</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Baseline прод-схемы (13.07), архив старой цепочки, ledger как истина</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Серии RLS-hardening и grants-narrowing (054, 056, 080–082)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Дыры в нумерации (047, 060, 088a) — известны, зафиксированы в контракте</span><span class="pill part">учтено</span></li>
+      </ul>
+    </div>
+
+    <div class="score-card">
+      <div class="head"><h3>Документация и память</h3><span class="pill ok">редкая сильная сторона</span></div>
+      <ul>
+        <li><span class="what">CLAUDE.md-контракт, скилл crm-architect с deploy/verify-скриптами</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Roadmap с ревизиями «сделано / отклонено / осталось» + причины отказов</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Память расщеплена (S-MEM-1): справочник <b>166→47 КБ</b> + <code>journal.md</code> 120 КБ</span><span class="pill ok">ок</span></li>
+        <li><span class="what">README переписан под реальность (S-REL-1)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Знание распылено: 383 файла в <code>_analysis/</code> + доки в Claude Project</span><span class="pill part">риск</span></li>
+      </ul>
+    </div>
+
+    <div class="score-card">
+      <div class="head"><h3>Безопасность и риски</h3><span class="pill part">частично</span></div>
+      <ul>
+        <li><span class="what">Секреты не в git — только <code>.env.local.example</code></span><span class="pill ok">ок</span></li>
+        <li><span class="what">RLS-дисциплина + advisors в каждом гейте</span><span class="pill ok">ок</span></li>
+        <li><span class="what"><b>Bus factor = 1</b>: один человек, один ноутбук; бэкап истории — GitHub</span><span class="pill part">риск</span></li>
+        <li><span class="what">Claude API из РФ — риск материализовался 08.08; provider seam не сделан</span><span class="pill gap">открыто</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div><div class="eyebrow">05</div><h2>Что делать</h2></div>
+    <div class="note">приоритет × усилие; P0 закрывает главный разрыв</div>
+  </div>
+
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>GitHub Actions + branch protection <span class="tag">сделано 21.08</span></h3>
+    <p>S-CI-1 (PR #3) — workflow <code>checks</code>: lint + tsc + vitest на push в main и на каждый PR.
+    S-CI-2 (PR #4) — lint зачищен до 0 ошибок, уход с deprecated <code>next lint</code> на <code>eslint .</code>,
+    игнор артефактов сборки. Ruleset на main с required check. CI из информации стал воротами.</p></div>
+    <div class="eff">факт: ~3 ч</div>
+  </div>
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>Релизы, CHANGELOG, README <span class="tag">сделано 21.08</span></h3>
+    <p>S-REL-1 (PR #5): git-cliff + <code>CHANGELOG.md</code> (653 строки, merge-коммиты отфильтрованы),
+    первый тег <code>v2026.08.1</code>, <code>.mailmap</code> (три имени на одной почте свёрнуты в одно,
+    гейт оставлен отдельно), README переписан под реальность, схема тегов <code>vYYYY.MM.N</code> в CLAUDE.md.</p></div>
+    <div class="eff">факт: ~1,5 ч</div>
+  </div>
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>Netlify отвязан от репозитория <span class="tag">сделано 21.08</span></h3>
+    <p>Конфиг убрали ещё в июле, но GitHub-интеграция жила и цепляла три сайта: <b>8 красных
+    проверок в каждом PR</b> рядом с настоящим CI — шум, в котором реальный провал незаметен.
+    Вскрылось на прогоне S-REL-1. После unlink на коммите <code>884bc10</code> остался
+    единственный check-run — <code>checks</code>.</p></div>
+    <div class="eff">факт: 10 мин</div>
+  </div>
+  <div class="rec">
+    <div class="prio">P1</div>
+    <div><h3>Эта карта — живой документ статуса</h3>
+    <p>Одна страница «сделали / делаем / стремимся» против 100 чатов. Обновлять по факту гейта в конце каждого эпика —
+    той же дисциплиной, что roadmap-ревизии. Артефакт остаётся по постоянной ссылке.</p></div>
+    <div class="eff">~15 мин / эпик</div>
+  </div>
+  <div class="rec p2">
+    <div class="prio">P2</div>
+    <div><h3>Декомпозиция горячих точек</h3>
+    <p>GanttTimeline (1 754), MessageThread (1 255), ProjectDetail (935) + globals.css со 117 изменениями.
+    Не срочно, но каждый следующий эпик в этих файлах дороже предыдущего.</p></div>
+    <div class="eff">по эпику за раз</div>
+  </div>
+  <div class="rec p2">
+    <div class="prio">P2</div>
+    <div><h3>Гигиена: единый git-автор, уборка корня и веток</h3>
+    <p><code>.mailmap</code> для двух идентичностей (входит в S-REL-1); scratch-файлы (<code>_shot.mjs</code>,
+    <code>backup.json</code> и др.) из корня в архив. Плюс 20 локальных веток <code>feat/*</code>, все давно влиты —
+    <code>git branch --merged main | grep -v main | xargs git branch -d</code>.</p></div>
+    <div class="eff">~30 мин</div>
+  </div>
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>Память проекта расщеплена <span class="tag">сделано 21.08</span></h3>
+    <p>S-MEM-1 (PR #6): <code>learnings.md</code> был 166 КБ, из них 72% — хроника спринтов;
+    справочник не читался целиком ни человеком, ни агентом. Механическое расщепление без правки
+    текста — реконструкция сходится побайтово. Справочник 47 КБ, <code>journal.md</code> 120 КБ,
+    правило «в два файла» в контракте. Попутно вскрыт дефект <code>skill-deploy.sh</code>:
+    захардкоженный список файлов, выход с кодом 0 и ложный отчёт об успехе.</p></div>
+    <div class="eff">факт: ~1 ч</div>
+  </div>
+  <div class="rec p2">
+    <div class="prio">P2</div>
+    <div><h3>S-MEM-2: содержательный разбор памяти</h3>
+    <p>Поднять переиспользуемое из 20 разделов журнала в тематику; вернуть две «Волны 2»,
+    застрявшие посреди справочника; измерить долю хроники в <code>architecture.md</code> (81 КБ,
+    не мерена). Отдельно — <code>SKILL.md</code> 19,7 КБ грузится всегда.</p></div>
+    <div class="eff">~2 ч</div>
+  </div>
+  <div class="rec p2">
+    <div class="prio">P2</div>
+    <div><h3>Долг из CI: 36 warnings и покрытие Deno-кода</h3>
+    <p>Неиспользуемые импорты в ~20 файлах, два <code>exhaustive-deps</code> в GanttTimeline, четыре мёртвых
+    <code>eslint-disable</code>. Ставить <code>--max-warnings 0</code> только после зачистки. Отдельно: <code>eslint .</code>
+    теперь линтит <code>supabase/functions</code>, исключённые из tsconfig — правка edge-функции может уронить CI
+    на правиле, писанном под браузерный TS.</p></div>
+    <div class="eff">~2 ч</div>
+  </div>
+</section>
+
+<div class="footer-note">
+  Источники: git-история (703 коммита, bundle от 21.08.2026), cloc 2.06, supabase/migrations + ledger,
+  roadmap-ревизия 09.08, CLAUDE.md. Цифры за август — по 21.08 включительно.<br>
+  Ревизия 4 (21.08, вечер): за вечер закрыты оба P0, оба P1 и память — PR #3 (S-CI-1), #4 (S-CI-2),
+  #5 (S-REL-1), #6 (S-MEM-1). Main на <code>884bc10</code>, тег <code>v2026.08.1</code>, ruleset активен
+  с тремя правилами, <code>eslint .</code> 0 ошибок, <code>tsc</code> 0, 1697 тестов зелёные.
+  Каждый пункт проверен на гейте независимым прогоном, не по отчёту.
+</div>
+
+</div>
