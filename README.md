@@ -52,4 +52,4 @@ supabase/                # migrations/ и functions/ (Edge: ai-run, ai-capture, 
 - `CLAUDE.md` — контракт работы с репозиторием (стек, миграции, конвенции, грабли)
 - `docs/schema.md` — схема БД · `docs/TECH-STACK.md`, `docs/TELEGRAM-SETUP.md`, `docs/WEBHOOKS-CONTRACT.md`
 - `_analysis/` — спринты и аудиты · `improvements/` — roadmap
-- `GO-LIVE.md` — деплой и прод-чеклист · `CHANGELOG.md` — история версий (git-cliff)
+- `CHANGELOG.md` — история версий (git-cliff) · старые доки эпох — `_analysis/archive-root/`

@@ -67,3 +67,6 @@ scripts/audit-contrast-results.json
 docs/grok_CRM.pdf
 docs/grok_report.pdf
 screenshots/
+
+# артефакт skill-deploy.sh — пересобирается, в git не нужен
+crm-architect.skill
