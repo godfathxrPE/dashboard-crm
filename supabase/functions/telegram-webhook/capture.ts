@@ -415,9 +415,12 @@ async function logCaptureRun(
     /** Замер вокруг вызова — на случай, когда своего `duration_ms` функция не дала. */
     fallbackMs: number;
   },
-): Promise<void> {
+): Promise<string | null> {
+  // S-AI-OBS-2: возврат id — прогон дальше едет в черновике (`ai_run_id`), и исход
+  // («создано» / «дубль» / «отменено») в той же строке проставит RPC применения.
+  // `null` при отказе журнала: разбор состоялся, черновик пойдёт без прогона.
   try {
-    const { error } = await supabase.from('ai_runs').insert({
+    const { data, error } = await supabase.from('ai_runs').insert({
       org_id: actor.org_id,
       preset_key: 'capture',
       entity_type: 'capture',
@@ -439,10 +442,15 @@ async function logCaptureRun(
       duration_ms: outcome.run?.duration_ms ?? outcome.fallbackMs,
       created_by: actor.profile_id,
       finished_at: new Date().toISOString(),
-    });
-    if (error) console.error('telegram-webhook: журнал ai_runs не записан:', error.message);
+    }).select('id').single();
+    if (error) {
+      console.error('telegram-webhook: журнал ai_runs не записан:', error.message);
+      return null;
+    }
+    return (data as { id?: string } | null)?.id ?? null;
   } catch (e) {
     console.error('telegram-webhook: журнал ai_runs не записан:', e);
+    return null;
   }
 }
 
@@ -589,7 +597,8 @@ export async function handleCaptureText(
 
   // Прогон состоялся — пишем ДО ветвления по интенту: ветка задачи уходит в
   // `handleTaskIntent` и сюда не возвращается, а прогон у неё такой же.
-  await logCaptureRun(supabase, actor, {
+  // S-AI-OBS-2: id прогона едет в черновик — исход проставит RPC применения.
+  const runId = await logCaptureRun(supabase, actor, {
     ok: true,
     kind: parsed.intent,
     error: null,
@@ -604,7 +613,7 @@ export async function handleCaptureText(
   //    `company-lookup` на тексте «позвонить Иванову» — это чужой сетевой запрос
   //    на каждое поручение.
   if (parsed.intent === 'task') {
-    await handleTaskIntent(supabase, actor, say, parsed.task, rawText);
+    await handleTaskIntent(supabase, actor, say, parsed.task, rawText, runId);
     return;
   }
 
@@ -682,6 +691,9 @@ export async function handleCaptureText(
       source_text: rawText,
       duplicate_id: duplicate?.id ?? null,
       duplicate_kind: duplicate?.kind ?? null,
+      // S-AI-OBS-2: связь прогон → черновик → сущность. Исход в ai_runs проставит
+      // tg_apply_capture / tg_cancel_capture — атомарно с самим применением.
+      ai_run_id: runId,
     })
     .select('id')
     .single();
@@ -732,6 +744,8 @@ async function handleTaskIntent(
   say: (text: string, opts?: { parseMode?: 'HTML'; replyMarkup?: unknown }) => Promise<void>,
   task: Record<string, unknown> | null,
   rawText: string,
+  /** S-AI-OBS-2: прогон ai_runs этого разбора; null — журнал отказал. */
+  aiRunId: string | null,
 ): Promise<void> {
   const text = str(task?.text);
   if (!text) {
@@ -775,6 +789,7 @@ async function handleTaskIntent(
       // в отличие от двух одинаковых компаний.
       duplicate_id: null,
       duplicate_kind: null,
+      ai_run_id: aiRunId,
     })
     .select('id')
     .single();

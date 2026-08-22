@@ -59,9 +59,12 @@ async function logCaptureRun(
     /** Замер вокруг вызова — резерв, когда своего `duration_ms` функция не дала. */
     fallbackMs: number;
   },
-): Promise<void> {
+): Promise<string | null> {
+  // S-AI-OBS-2: возврат id — исход разбора («создано» / «открыл существующее»)
+  // допишет `capture_set_outcome`, когда человек доведёт дело до конца.
+  // `null` при отказе журнала: разбор состоялся, форма важнее статистики.
   try {
-    const { error } = await supabase.from('ai_runs').insert({
+    const { data, error } = await supabase.from('ai_runs').insert({
       preset_key: 'capture',
       entity_type: 'capture',
       entity_id: null,
@@ -81,14 +84,56 @@ async function logCaptureRun(
       output_tokens: outcome.run?.output_tokens ?? null,
       duration_ms: outcome.run?.duration_ms ?? outcome.fallbackMs,
       finished_at: new Date().toISOString(),
-    });
-    if (error) console.error('ai_runs: журнал разбора не записан:', error.message);
+    }).select('id').single();
+    if (error) {
+      console.error('ai_runs: журнал разбора не записан:', error.message);
+      return null;
+    }
+    return data?.id ?? null;
   } catch (e) {
     console.error('ai_runs: журнал разбора не записан:', e);
+    return null;
   }
 }
 
-async function parseText(text: string): Promise<CaptureResult> {
+/** Исход разбора: до чего он в итоге дошёл. Отсутствие исхода — тоже ответ. */
+export type CaptureOutcome = 'created' | 'matched_existing' | 'rejected';
+
+/**
+ * Дописать исход в свой capture-прогон — S-AI-OBS-2.
+ *
+ * ⚠️ ЧЕРЕЗ RPC, А НЕ `update()`: supabase-js заменяет jsonb-колонку целиком,
+ *    и клиентский update затёр бы `source`/`kind` из S-AI-OBS-1. `result || …`
+ *    делает `capture_set_outcome` на стороне БД; границу держит RLS-политика
+ *    `ai_runs_update_capture` (только свои capture-строки).
+ *
+ * ⚠️ FIRE-AND-FORGET (`void` у вызывающих) — как и сам журнал: человек уже
+ *    получил свою запись, и отказ статистики не должен ему об этом сообщать.
+ */
+export async function logCaptureOutcome(
+  runId: string | null,
+  outcome: CaptureOutcome,
+  entity: { kind: 'contact' | 'company' | 'task'; id: string } | null,
+): Promise<void> {
+  if (!runId) return;
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.rpc('capture_set_outcome', {
+      p_run_id: runId,
+      p_outcome: outcome,
+      p_entity_kind: entity?.kind ?? undefined,
+      p_entity_id: entity?.id ?? undefined,
+    });
+    if (error) console.error('ai_runs: исход разбора не записан:', error.message);
+  } catch (e) {
+    console.error('ai_runs: исход разбора не записан:', e);
+  }
+}
+
+/** Разбор + id его прогона в журнале (null — журнал отказал). */
+export type CaptureParsed = { result: CaptureResult; runId: string | null };
+
+async function parseText(text: string): Promise<CaptureParsed> {
   const supabase = createClient();
   const started = Date.now();
   const { data, error } = await supabase.functions.invoke('ai-capture', {
@@ -136,14 +181,17 @@ async function parseText(text: string): Promise<CaptureResult> {
     throw new Error('Некорректный ответ сервиса разбора');
   }
 
-  void logCaptureRun(supabase, {
+  // S-AI-OBS-2: успешный прогон ждём (одна быстрая вставка) — его id нужен
+  // вызывающему, чтобы позже дописать исход. Отказные ветки выше остаются
+  // fire-and-forget: у них исхода не будет.
+  const runId = await logCaptureRun(supabase, {
     ok: true,
     kind: parsed.data.intent,
     error: null,
     run,
     fallbackMs: Date.now() - started,
   });
-  return parsed.data;
+  return { result: parsed.data, runId };
 }
 
 export function useQuickCapture() {

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
-import { useQuickCapture, type CaptureDuplicate } from '@/lib/hooks/use-quick-capture';
+import { useQuickCapture, logCaptureOutcome, type CaptureDuplicate } from '@/lib/hooks/use-quick-capture';
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { CAPTURE_MAX_CHARS, type CaptureResult } from '@/lib/validators/capture';
 import { extractEmail, extractInn } from '@/lib/utils/capture-helpers';
@@ -71,6 +71,11 @@ export function QuickCapture() {
   // (state), как того требует контракт пропа `prefill`.
   const [contactPrefill, setContactPrefill] = useState<Partial<ContactFormValues> | null>(null);
   const [companyPrefill, setCompanyPrefill] = useState<Partial<CompanyFormValues> | null>(null);
+  // S-AI-OBS-2: прогон последнего разбора. НЕ сбрасывается в resetOutput
+  // намеренно: `openModalFor` зовёт resetOutput до того, как модалка создаст
+  // запись, — сброшенный здесь id оставил бы исход «создано» незаписанным.
+  // Перезаписывается следующим разбором.
+  const [captureRunId, setCaptureRunId] = useState<string | null>(null);
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const busy = parse.isPending || lookup.isPending;
@@ -187,7 +192,8 @@ export function QuickCapture() {
     if (!raw) return;
     resetOutput();
     try {
-      const result = await parse.mutateAsync(raw.slice(0, CAPTURE_MAX_CHARS));
+      const { result, runId } = await parse.mutateAsync(raw.slice(0, CAPTURE_MAX_CHARS));
+      setCaptureRunId(runId);
       const dup = findDuplicate(result, extractInn(raw));
       if (dup) {
         setPending(result);
@@ -208,6 +214,10 @@ export function QuickCapture() {
   }
 
   function openExisting(dup: CaptureDuplicate) {
+    // S-AI-OBS-2: «Открыть» — явное признание, что запись уже есть. Разбор дошёл
+    // до существующей сущности; фиксируем, НЕ дожидаясь (fire-and-forget — журнал
+    // не должен задерживать переход).
+    void logCaptureOutcome(captureRunId, 'matched_existing', { kind: dup.kind, id: dup.id });
     close();
     resetOutput();
     setText('');
@@ -348,6 +358,7 @@ export function QuickCapture() {
           onClose={() => setContactPrefill(null)}
           editContact={null}
           prefill={contactPrefill}
+          onCreated={(id) => void logCaptureOutcome(captureRunId, 'created', { kind: 'contact', id })}
         />,
         document.body,
       )}
@@ -357,6 +368,7 @@ export function QuickCapture() {
           onClose={() => setCompanyPrefill(null)}
           editCompany={null}
           prefill={companyPrefill}
+          onCreated={(id) => void logCaptureOutcome(captureRunId, 'created', { kind: 'company', id })}
         />,
         document.body,
       )}

@@ -3236,6 +3236,7 @@ export type Database = {
       }
       telegram_capture_drafts: {
         Row: {
+          ai_run_id: string | null
           applied_at: string | null
           created_at: string
           created_entity_id: string | null
@@ -3251,6 +3252,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_run_id?: string | null
           applied_at?: string | null
           created_at?: string
           created_entity_id?: string | null
@@ -3266,6 +3268,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_run_id?: string | null
           applied_at?: string | null
           created_at?: string
           created_entity_id?: string | null
@@ -3684,6 +3687,15 @@ export type Database = {
         Returns: Json
       }
       can_access_chat_file: { Args: { p_name: string }; Returns: boolean }
+      capture_set_outcome: {
+        Args: {
+          p_entity_id?: string
+          p_entity_kind?: string
+          p_outcome: string
+          p_run_id: string
+        }
+        Returns: undefined
+      }
       category_to_lane: {
         Args: { p: string }
         Returns: Database["public"]["Enums"]["task_lane"]
