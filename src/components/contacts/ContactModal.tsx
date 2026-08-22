@@ -36,9 +36,14 @@ interface ContactModalProps {
    * форму под руками у пользователя.
    */
   prefill?: Partial<ContactFormValues>;
+  /**
+   * S-AI-OBS-2: вызывается ПОСЛЕ успешного создания с id новой записи — виджет
+   * быстрого ввода дописывает исход в журнал прогона. Только при создании.
+   */
+  onCreated?: (id: string) => void;
 }
 
-export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = null, prefill }: ContactModalProps) {
+export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = null, prefill, onCreated }: ContactModalProps) {
   const router = useRouter();
   const create = useCreateContact();
   const update = useUpdateContact();
@@ -122,6 +127,9 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
         await update.mutateAsync({ id: editContact.id, ...payload });
       } else {
         const created = await create.mutateAsync(payload);
+        // S-AI-OBS-2: исход фиксируем сразу после создания, ДО привязки к
+        // компании: контакт уже существует, и падение привязки его не отменит.
+        onCreated?.(created.id);
         if (companyId) {
           await linkCompany.mutateAsync({ contact_id: created.id, company_id: companyId });
         }

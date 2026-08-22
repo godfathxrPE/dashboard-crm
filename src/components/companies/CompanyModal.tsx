@@ -38,6 +38,12 @@ interface CompanyModalProps {
    * форму под руками у пользователя.
    */
   prefill?: Partial<CompanyFormValues>;
+  /**
+   * S-AI-OBS-2: вызывается ПОСЛЕ успешного создания с id новой записи — виджет
+   * быстрого ввода дописывает исход в журнал прогона. Только при создании:
+   * в режиме редактирования не зовётся. Опционален и необязателен к ожиданию.
+   */
+  onCreated?: (id: string) => void;
 }
 
 const INPUT_CLASS =
@@ -51,7 +57,7 @@ const INPUT_CLASS =
  */
 const CHZ_GROUP_NAMES = [...new Set(CHZ_GROUPS.map((g) => g.group))].sort((a, b) => a.localeCompare(b, 'ru'));
 
-export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyModalProps) {
+export function CompanyModal({ isOpen, onClose, editCompany, prefill, onCreated }: CompanyModalProps) {
   const router = useRouter();
   const create = useCreateCompany();
   const update = useUpdateCompany();
@@ -248,7 +254,8 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill }: CompanyM
       if (editCompany) {
         await update.mutateAsync({ id: editCompany.id, ...payload });
       } else {
-        await create.mutateAsync(payload);
+        const created = await create.mutateAsync(payload);
+        onCreated?.(created.id);
       }
       onClose();
     } catch (err) {

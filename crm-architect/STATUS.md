@@ -1,6 +1,6 @@
 # STATUS — dashboard-crm
 
-**Ревизия 3 · 2026-08-22 · main: `2aba760` (PR #9) · тег: `v2026.08.1`**
+**Ревизия 4 · 2026-08-22 · main: `0c101de` (PR #10) · тег: `v2026.08.1`**
 
 Единственный носитель состояния «что открыто / что закрыто». Правится только этот файл;
 события (спринт-отчёты в `_analysis/`, гейты и хендоффы в Claude Project) неизменяемы
@@ -9,15 +9,12 @@
 
 ## В работе
 
-- **Netlify — повторная отвязка.** На PR #9 вскрылось: 21.08 отвязан только rococo-quokka,
-  а `toriicrm` и `incomparable-marshmallow-2ba9c5` дали 8 крестов. Проверка 21.08 была
-  на push в main, а deploy preview триггерится только на PR — метод проверки был неверен.
-  Unlink в UI сделан 22.08; подтверждение — отсутствие Netlify в check-runs этого же PR.
-
 - **S-AI-OBS-2** — связать прогон `ai_runs` с созданной сущностью (`entity_type`/`entity_id`/
   `outcome`). Дедлайн: до конца недели наблюдения, иначе её данные не ответят на главный
-  вопрос. Бриф: Claude Project → `claude/backlog-S-AI-OBS-2.md`. ⚠️ Первая правка
-  edge-функций после S-CI-2 — см. мину eslint в «Отложено».
+  вопрос. Бриф: Claude Project → `claude/backlog-S-AI-OBS-2.md`.
+  Код готов (миграция 128 + бот + веб), lint 0 / tsc падает только на типе RPC до
+  регена. Осталось: apply 128 → гейт → `db:gen-types` → PR → деплой `telegram-webhook`
+  → живой смок. Мина eslint по Deno-коду проверена — не сработала.
 
 ## Очередь
 
@@ -61,7 +58,8 @@
 | #7 | S-EXPORT-1 | `export_org_data`, миграция 126, owner-only |
 | #8 | S-AI-OBS-1 | `ai_runs` пишется из capture, миграция 127 |
 | #9 | chore/types-127 | реген типов после 127, снят стаб; + STATUS.md, протокол закрытия, status-check |
-| — | Netlify | отвязка 21.08 частичная (1 сайт из 3) — см. «В работе» |
+| — | Netlify | отвязка 21.08 частичная (1 сайт из 3); toriicrm + marshmallow сняты 22.08 |
+| #10 | status | STATUS ревизия 3; отвязка Netlify подтверждена верным методом — чистые check-runs PR #10 |
 | — | deploy | `telegram-webhook` + `ai-capture` редеплоены; подтверждено живым capture `source='telegram'` 22.08 |
 
 Закрытое до августа — `CHANGELOG.md` и roadmap-ревизии; сюда не переносится.
