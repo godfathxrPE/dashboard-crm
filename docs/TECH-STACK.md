@@ -389,8 +389,8 @@ dashboard-crm/
 | `README.md` | Quick start, структура, themes overview |
 | `docs/schema.md` | Схема БД, RLS, миграции |
 | `docs/Z-INDEX.md` | Слои интерфейса: занятые полосы z-index, правила, инциденты |
-| `GO-LIVE.md` | Деплой на Vercel, env-переменные, Supabase redirect URLs, смок после деплоя |
-| `INTEGRATION.md` | Интеграции (если актуально) |
+| `_analysis/archive-root/GO-LIVE.md` | Деплой на Vercel, env-переменные, Supabase redirect URLs, смок после деплоя |
+| `_analysis/archive-root/INTEGRATION.md` | Интеграции (если актуально) |
 | `package.json` | Точные версии зависимостей |
 | `next.config.ts` | Headers, images, TS/ESLint policy |
 
