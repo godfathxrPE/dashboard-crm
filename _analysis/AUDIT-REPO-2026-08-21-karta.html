@@ -144,12 +144,12 @@
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">Аудит репозитория · 21.08.2026 · ревизия 4 — P0, P1 и память закрыты</div>
+  <div class="eyebrow">Аудит репозитория · 22.08.2026 · ревизия 5 — AI-контур наблюдаем, процессный контур поставлен</div>
   <h1>Карта dashboard-crm</h1>
   <p class="lede">Пять месяцев от MVP до CRM с Telegram-ботом, транскрибацией и AI-контуром.
-  703 коммита, 125 миграций, один разработчик. Что построено, как менялся процесс и что отделяет его от западного стандарта.</p>
+  703 коммита, 128 миграций, один разработчик. Что построено, как менялся процесс и что отделяет его от западного стандарта.</p>
   <div class="meta">
-    <span>Период: <b>30.03 — 21.08.2026</b></span>
+    <span>Период: <b>30.03 — 22.08.2026</b></span>
     <span>Стек: <b>Next.js 15 · TS strict · Supabase</b></span>
     <span>Деплой: <b>Vercel ← main</b></span>
     <span>Команда: <b>1 разработчик</b></span>
@@ -157,7 +157,7 @@
 
   <div class="tiles">
     <div class="tile"><div class="num">703</div><div class="lbl">коммита</div><div class="sub">52 активных дня</div></div>
-    <div class="tile"><div class="num">125</div><div class="lbl">миграций применено</div><div class="sub">baseline 13.07</div></div>
+    <div class="tile"><div class="num">128</div><div class="lbl">миграций применено</div><div class="sub">baseline 13.07</div></div>
     <div class="tile"><div class="num">73,5K</div><div class="lbl">строк кода</div><div class="sub">TS 58K · SQL 14K</div></div>
     <div class="tile"><div class="num">111</div><div class="lbl">тест-файлов</div><div class="sub">101 unit · 10 e2e</div></div>
     <div class="tile"><div class="num">9</div><div class="lbl">edge-функций</div><div class="sub">10,1K строк</div></div>
@@ -168,7 +168,7 @@
 <section>
   <div class="sec-head">
     <div><div class="eyebrow">01</div><h2>Как развивался проект</h2></div>
-    <div class="note">пять фаз по истории коммитов и миграций</div>
+    <div class="note">шесть фаз по истории коммитов и миграций</div>
   </div>
 
   <div class="phase">
@@ -218,16 +218,35 @@
   </div>
 
   <div class="phase">
-    <div class="when"><b>Август</b>по 21.08</div>
+    <div class="when"><b>Август</b>по 20.08</div>
     <div class="body">
       <h3>Интеграции и AI</h3>
-      <div class="counts">246 коммитов · миграции 092–125</div>
+      <div class="counts">246 коммитов (к 21.08) · миграции 092–125</div>
       <ul>
         <li><b>Telegram-эпик</b> (107–111, 124–125): бот, напоминания, захват задач и контактов, дубли по ИНН</li>
         <li><b>Голос</b> (07.08): транскрибация аудио — edge transcribe, нарезка по тишине в браузере</li>
         <li><b>Единая лента событий</b> S-TL-1…4 (112–115): шесть источников, keyset-курсор, org-режим</li>
         <li>Переработка лидов (117–123), ОКВЭД, стоимость AI-прогонов по факту</li>
         <li>Roadmap-ревизии «сделано / отклонено / осталось» — ответ на трёхкратный дрейф роадмапа</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when"><b>21–22.08</b></div>
+    <div class="body">
+      <h3>Инженерный и процессный контур</h3>
+      <div class="counts">PR #3–#11 · миграции 126–128</div>
+      <ul>
+        <li><b>CI + ruleset + релизы + память</b> (21.08): workflow <code>checks</code>, branch protection,
+        git-cliff/тег, расщепление 166 КБ памяти — четыре спринта за вечер</li>
+        <li><b>Наблюдаемость AI</b> (126–128): экспорт данных организации, журнал capture перестал быть
+        слепым, исходы разбора (created / matched_existing / rejected) — атомарно с созданием сущности</li>
+        <li><b>Процессный контур</b> (22.08): <code>crm-architect/STATUS.md</code> — единственный носитель
+        состояния, протокол закрытия спринта в скилле, <code>status-check.sh</code> — сверка с git.
+        За первый же день трижды поймал дрейф состояния</li>
+        <li>Netlify добит по-настоящему: отвязка 21.08 оказалась частичной (1 сайт из 3),
+        два оставшихся вскрылись крестами на PR #9 и сняты 22.08</li>
       </ul>
     </div>
   </div>
@@ -364,7 +383,7 @@
         <li><span class="what">Branch protection на <code>main</code> с required check <code>checks</code></span><span class="pill ok">ок</span></li>
         <li><span class="what">36 warnings не валят CI; <code>--max-warnings 0</code> — осознанный долг</span><span class="pill part">долг</span></li>
         <li><span class="what">e2e и <code>next build</code> вне CI: нужны секреты и живая БД</span><span class="pill part">осознанно</span></li>
-        <li><span class="what">Netlify отвязан — в PR остался один check-run вместо девяти</span><span class="pill ok">ок</span></li>
+        <li><span class="what">Netlify отвязан со второй попытки: 21.08 снят 1 сайт из 3, остальные вскрылись на PR #9; подтверждено чистыми check-runs PR #10</span><span class="pill ok">ок</span></li>
       </ul>
     </div>
 
@@ -381,7 +400,7 @@
     <div class="score-card">
       <div class="head"><h3>База данных</h3><span class="pill ok">сильно</span></div>
       <ul>
-        <li><span class="what">125 миграций через гейт: apply → gen-types → advisors → смоки</span><span class="pill ok">ок</span></li>
+        <li><span class="what">128 миграций через гейт: apply → gen-types → advisors → ролевые смоки под сессиями</span><span class="pill ok">ок</span></li>
         <li><span class="what">Baseline прод-схемы (13.07), архив старой цепочки, ledger как истина</span><span class="pill ok">ок</span></li>
         <li><span class="what">Серии RLS-hardening и grants-narrowing (054, 056, 080–082)</span><span class="pill ok">ок</span></li>
         <li><span class="what">Дыры в нумерации (047, 060, 088a) — известны, зафиксированы в контракте</span><span class="pill part">учтено</span></li>
@@ -395,7 +414,8 @@
         <li><span class="what">Roadmap с ревизиями «сделано / отклонено / осталось» + причины отказов</span><span class="pill ok">ок</span></li>
         <li><span class="what">Память расщеплена (S-MEM-1): справочник <b>166→47 КБ</b> + <code>journal.md</code> 120 КБ</span><span class="pill ok">ок</span></li>
         <li><span class="what">README переписан под реальность (S-REL-1)</span><span class="pill ok">ок</span></li>
-        <li><span class="what">Знание распылено: 383 файла в <code>_analysis/</code> + доки в Claude Project</span><span class="pill part">риск</span></li>
+        <li><span class="what"><b>STATUS.md — единственный носитель состояния</b> + протокол закрытия спринта + <code>status-check.sh</code> (22.08)</span><span class="pill ok">ок</span></li>
+        <li><span class="what">События распылены (400+ файлов в <code>_analysis/</code> + Claude Project) — но состояние теперь в одном файле</span><span class="pill part">учтено</span></li>
       </ul>
     </div>
 
@@ -405,7 +425,7 @@
         <li><span class="what">Секреты не в git — только <code>.env.local.example</code></span><span class="pill ok">ок</span></li>
         <li><span class="what">RLS-дисциплина + advisors в каждом гейте</span><span class="pill ok">ок</span></li>
         <li><span class="what"><b>Bus factor = 1</b>: один человек, один ноутбук; бэкап истории — GitHub</span><span class="pill part">риск</span></li>
-        <li><span class="what">Claude API из РФ — риск материализовался 08.08; provider seam не сделан</span><span class="pill gap">открыто</span></li>
+        <li><span class="what">Claude API из РФ: provider seam есть (<code>_shared/llm.ts</code>, capture на OpenRouter); не переехал только <code>company_brief</code> — серверный web search</span><span class="pill part">частично</span></li>
       </ul>
     </div>
   </div>
@@ -414,7 +434,7 @@
 <section>
   <div class="sec-head">
     <div><div class="eyebrow">05</div><h2>Что делать</h2></div>
-    <div class="note">приоритет × усилие; P0 закрывает главный разрыв</div>
+    <div class="note">рендер <code>crm-architect/STATUS.md</code> ревизии 5 — сам список живёт там</div>
   </div>
 
   <div class="rec done">
@@ -438,16 +458,38 @@
     <div><h3>Netlify отвязан от репозитория <span class="tag">сделано 21.08</span></h3>
     <p>Конфиг убрали ещё в июле, но GitHub-интеграция жила и цепляла три сайта: <b>8 красных
     проверок в каждом PR</b> рядом с настоящим CI — шум, в котором реальный провал незаметен.
-    Вскрылось на прогоне S-REL-1. После unlink на коммите <code>884bc10</code> остался
-    единственный check-run — <code>checks</code>.</p></div>
-    <div class="eff">факт: 10 мин</div>
+    <b>Ревизия 5, честно:</b> отвязка 21.08 сняла только rococo-quokka — проверка шла на push в main,
+    а deploy preview триггерится только на PR. Два оставшихся сайта дали 8 крестов на PR #9,
+    сняты в UI 22.08; подтверждение верным методом — чистые check-runs PR #10.</p></div>
+    <div class="eff">факт: 10 мин × 2</div>
   </div>
-  <div class="rec">
-    <div class="prio">P1</div>
-    <div><h3>Эта карта — живой документ статуса</h3>
-    <p>Одна страница «сделали / делаем / стремимся» против 100 чатов. Обновлять по факту гейта в конце каждого эпика —
-    той же дисциплиной, что roadmap-ревизии. Артефакт остаётся по постоянной ссылке.</p></div>
-    <div class="eff">~15 мин / эпик</div>
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>Наблюдаемость AI: журнал с исходами <span class="tag">сделано 22.08</span></h3>
+    <p>S-AI-OBS-1 (PR #8, миграция 127): журнал <code>ai_runs</code> перестал быть слепым на capture —
+    записи мешали шесть механизмов. S-AI-OBS-2 (PR #11, миграция 128): прогон связан с созданной
+    сущностью — исход (<code>created / matched_existing / rejected</code>) проставляют RPC создания
+    атомарно; отсутствие исхода — тоже ответ. Живой смок в проде: created и rejected из Telegram.
+    <b>Неделя наблюдения идёт</b> — по итогам решение по S-AI-1 и судьбе семи пресетов.</p></div>
+    <div class="eff">факт: ~4 ч</div>
+  </div>
+  <div class="rec done">
+    <div class="prio">✓</div>
+    <div><h3>Процессный контур: STATUS + протокол + сверка <span class="tag">сделано 22.08</span></h3>
+    <p>Состояние «что открыто / что закрыто» жило в шести местах и дважды за день дало ложные выводы.
+    Теперь: <code>crm-architect/STATUS.md</code> — единственный носитель, событийные документы своих
+    списков долга не ведут; протокол закрытия спринта — в скилле; <code>status-check.sh</code> сверяет
+    STATUS с git и падает громко. Эта карта обновляется раз в эпик как рендер STATUS — пункт P1
+    ревизии 4 закрыт самим фактом ревизии 5.</p></div>
+    <div class="eff">факт: ~2 ч</div>
+  </div>
+  <div class="rec p2">
+    <div class="prio">P2</div>
+    <div><h3>MEMORY.md журнала Claude Code — 39 КБ при лимите 24,4 КБ</h3>
+    <p>Часть индекса молча не грузится в контекст — тот же класс дефекта «тихий отказ», что пять раз
+    ловили 21.08. Всплывало в трёх отчётах подряд. Бьёт по каждой сессии; дешевле S-MEM-2 и чинит
+    инструмент, которым делается всё остальное. Первый кандидат из очереди.</p></div>
+    <div class="eff">~1 ч</div>
   </div>
   <div class="rec p2">
     <div class="prio">P2</div>
@@ -486,19 +528,22 @@
     <div class="prio">P2</div>
     <div><h3>Долг из CI: 36 warnings и покрытие Deno-кода</h3>
     <p>Неиспользуемые импорты в ~20 файлах, два <code>exhaustive-deps</code> в GanttTimeline, четыре мёртвых
-    <code>eslint-disable</code>. Ставить <code>--max-warnings 0</code> только после зачистки. Отдельно: <code>eslint .</code>
-    теперь линтит <code>supabase/functions</code>, исключённые из tsconfig — правка edge-функции может уронить CI
-    на правиле, писанном под браузерный TS.</p></div>
+    <code>eslint-disable</code>. Ставить <code>--max-warnings 0</code> только после зачистки. Мина «<code>eslint .</code>
+    линтит <code>supabase/functions</code> вне tsconfig» проверена боем в S-AI-OBS-2: правка edge-функции
+    прошла с lint 0 — риск ниже заявленного.</p></div>
     <div class="eff">~2 ч</div>
   </div>
 </section>
 
 <div class="footer-note">
   Источники: git-история (703 коммита, bundle от 21.08.2026), cloc 2.06, supabase/migrations + ledger,
-  roadmap-ревизия 09.08, CLAUDE.md. Цифры за август — по 21.08 включительно.<br>
-  Ревизия 4 (21.08, вечер): за вечер закрыты оба P0, оба P1 и память — PR #3 (S-CI-1), #4 (S-CI-2),
-  #5 (S-REL-1), #6 (S-MEM-1). Main на <code>884bc10</code>, тег <code>v2026.08.1</code>, ruleset активен
-  с тремя правилами, <code>eslint .</code> 0 ошибок, <code>tsc</code> 0, 1697 тестов зелёные.
+  roadmap-ревизия 09.08, CLAUDE.md, <code>crm-architect/STATUS.md</code>. Цифры коммитов и строк — по 21.08.<br>
+  Ревизия 4 (21.08, вечер): закрыты оба P0, оба P1 и память — PR #3–#6. Тег <code>v2026.08.1</code>,
+  ruleset активен, lint 0, tsc 0, 1697 тестов зелёные.<br>
+  Ревизия 5 (22.08): PR #7–#11 — экспорт org-данных (126), журнал capture (127), исходы разбора (128);
+  STATUS-контур с протоколом закрытия и <code>status-check.sh</code>; Netlify добит со второй попытки;
+  живые исходы created/rejected в проде из Telegram. Раздел «Что делать» отныне — рендер STATUS
+  (ревизия 5): состояние правится там, карта обновляется раз в эпик.
   Каждый пункт проверен на гейте независимым прогоном, не по отчёту.
 </div>
 
