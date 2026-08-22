@@ -13,7 +13,14 @@ SRC="crm-architect"
 DEST="$HOME/.claude/skills/crm-architect"
 BACKUP_DIR="$HOME/.claude/skills/.backup"
 PKG="crm-architect.skill"
-REFS=(architecture journal learnings schema theme-system)
+# CORE — минимум, без которого память неполна: их отсутствие валит раскатку.
+# REFS собирается из фактического содержимого references/ — захардкоженный список
+# 2026-08-21 молча не раскатал новый файл, напечатав успех (дефект вскрыт в S-MEM-1).
+CORE=(architecture journal learnings schema theme-system)
+REFS=()
+for f in "$SRC"/references/*.md; do
+  REFS+=("$(basename "$f" .md)")
+done
 
 # ── 1. Санити-проверки источника ────────────────────────────────────────────
 if [ ! -f "$SRC/SKILL.md" ]; then
@@ -28,9 +35,15 @@ fi
 grep -q "^name: crm-architect" "$SRC/SKILL.md" || {
   echo "skill-deploy: в $SRC/SKILL.md нет строки 'name: crm-architect' — ничего не тронуто" >&2
   exit 1; }
-for ref in "${REFS[@]}"; do
+for ref in "${CORE[@]}"; do
   if [ ! -s "$SRC/references/$ref.md" ]; then
     echo "skill-deploy: $SRC/references/$ref.md отсутствует или пуст — ничего не тронуто" >&2
+    exit 1
+  fi
+done
+for ref in "${REFS[@]}"; do
+  if [ ! -s "$SRC/references/$ref.md" ]; then
+    echo "skill-deploy: $SRC/references/$ref.md пуст — ничего не тронуто" >&2
     exit 1
   fi
 done
