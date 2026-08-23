@@ -3791,7 +3791,7 @@ where n.nspname = 'public' and c.relkind = 'r'
 - **Не входит в S-EXPORT-1:** CSV и выгрузка файлов из Storage (S-EXPORT-2), импорт
   (обратная операция сложнее на порядок), расписание/автобэкап.
 
-### queue_snoozes (129, **НАПИСАНА, НЕ ПРИМЕНЕНА**) — личный snooze строки очереди дня
+### queue_snoozes (129, applied `20260823182046`) — личный snooze строки очереди дня
 
 - **Назначение (S-QUEUE-1).** «Отложить до завтра» для строк экрана «Сегодня». Покрывает
   ровно три вида — `deal` / `lead` / `contact`: у звонков есть `bump` на завтра, у задач —
@@ -3839,8 +3839,10 @@ where n.nspname = 'public' and c.relkind = 'r'
 - **Потребитель:** `src/lib/hooks/use-queue-snooze.ts` (`useQueueSnoozes` /
   `useSnooze` / `useUnsnooze`, оптимистичные мутации с rollback, ключ `['queue_snoozes']`),
   чистая часть — `src/lib/domain/queue-snooze.ts`.
-  ⚠️ **До apply в хуке стоит стаб типов**: `from('queue_snoozes' as never)` +
-  локальный `QueueSnoozeRow`; снимается вместе с регенерацией `supabase.gen.ts`.
+  Стаб типов снят вместе с apply: хук ходит `supabase.from('queue_snoozes')` напрямую,
+  форма строки — `Pick<Database[…]['queue_snoozes']['Row'], …>`. Единственное сужение —
+  `entity_type` к union `deal|lead|contact` на границе хука: в БД это `text` + CHECK,
+  не enum-тип, и автогенерация отдаёт `string`.
 
 ### Планировщик (pg_cron) — два ежедневных задания
 

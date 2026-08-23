@@ -9,44 +9,54 @@ import {
   type QueueSnooze,
   type SnoozeEntityType,
 } from '@/lib/domain/queue-snooze';
+import type { Database } from '@/types/database';
 
 /**
  * S-QUEUE-1: личный snooze строки очереди дня (`queue_snoozes`, миграция 129).
  *
- * ⚠️ СТАБ ТИПОВ ДО РЕГЕНА. На момент спринта миграция 129 НАПИСАНА, НО НЕ ПРИМЕНЕНА,
- * поэтому таблицы нет в `src/types/supabase.gen.ts` и `.from('queue_snoozes')` не
- * типизируется. До регена:
- *   • форма строки описана здесь локальным `QueueSnoozeRow`;
- *   • запросы идут через `snoozeTable()` — единственное место с приведением имени
- *     таблицы (`'queue_snoozes' as never`) и результата.
- * Стаб снимается ВМЕСТЕ с apply миграции и регенерацией типов: убрать `snoozeTable`,
- * звать `supabase.from('queue_snoozes')` напрямую, `QueueSnoozeRow` заменить на
- * `Database['public']['Tables']['queue_snoozes']['Row']`.
- * Руками `supabase.gen.ts` / `database.ts` не править — только реген.
+ * Миграция 129 применена гейтом (ledger `20260823182046`), типы сгенерированы —
+ * форма строки берётся из `supabase.gen.ts`, приведений имени таблицы и результата нет.
  *
  * Realtime не вешается намеренно: таблица в публикацию не добавляется (см. шапку 129) —
  * чужие snooze по построению не видны, свои приходят оптимистичной мутацией.
  */
 
-/** Стаб-форма строки до регена типов. Ровно колонки, которые читает очередь. */
-interface QueueSnoozeRow {
-  id: string;
-  entity_type: SnoozeEntityType;
-  entity_id: string;
-  until: string;
-}
+/**
+ * Ровно те колонки, которые читает очередь, — `Pick` по сгенерированной `Row`
+ * (весь `Row` тянул бы `org_id`/`created_by`/таймстемпы, которые тут не нужны, и
+ * заставлял бы `select('*')`). Расхождение со списком в `.select()` поймает tsc.
+ */
+type QueueSnoozeRow = Pick<
+  Database['public']['Tables']['queue_snoozes']['Row'],
+  'id' | 'entity_type' | 'entity_id' | 'until'
+>;
+
+/** Список колонок один и тот же для типа выше и для запроса — держать синхронно. */
+const SNOOZE_COLUMNS = 'id, entity_type, entity_id, until';
 
 const QUEUE_SNOOZES_KEY = ['queue_snoozes'] as const;
 
-/** Единственная точка приведения имени таблицы — см. блок «СТАБ ТИПОВ» выше. */
-function snoozeTable(supabase: ReturnType<typeof createClient>) {
-  return supabase.from('queue_snoozes' as never);
+/**
+ * Сужение к union на границе хука — тот же приём, что у `ProjectMember.role` и
+ * `DealStakeholder.role`. В БД `entity_type` это `text` + CHECK
+ * `queue_snoozes_entity_type_chk`, а не enum-тип, поэтому автогенерация честно
+ * отдаёт `string`: сузить его может только код, знающий про CHECK.
+ */
+function toQueueSnooze(row: QueueSnoozeRow): QueueSnooze {
+  return {
+    id: row.id,
+    entity_type: row.entity_type as SnoozeEntityType,
+    entity_id: row.entity_id,
+    until: row.until,
+  };
 }
 
 /** Дружелюбный текст ошибки (сырой PG-код пользователю не показываем). */
 export function parseQueueSnoozeError(err: unknown): string {
   const e = err as { code?: string; message?: string } | null;
-  // 42P01 — таблицы ещё нет: миграция 129 не применена гейтом.
+  // 42P01 — таблицы нет. В проде это уже не случится (129 применена `20260823182046`),
+  // ветка остаётся защитой от локальной/ветковой БД, где миграцию не накатывали:
+  // человеческий текст вместо `relation "queue_snoozes" does not exist`.
   if (e?.code === '42P01') return 'Отложить пока нельзя: обновление базы не применено';
   if (e?.code === '42501') return 'Недостаточно прав, чтобы отложить строку';
   return e?.message ?? 'Не удалось отложить строку';
@@ -72,14 +82,15 @@ export function useQueueSnoozes(): UseQueueSnoozesResult {
   const { data = [] } = useQuery({
     queryKey: QUEUE_SNOOZES_KEY,
     queryFn: async (): Promise<QueueSnooze[]> => {
-      const { data: rows, error } = await snoozeTable(supabase)
-        .select('id, entity_type, entity_id, until')
+      const { data: rows, error } = await supabase
+        .from('queue_snoozes')
+        .select(SNOOZE_COLUMNS)
         .gte('until', localDateKey());
 
       if (error) throw error;
-      return (rows ?? []) as unknown as QueueSnoozeRow[];
+      return (rows ?? []).map(toQueueSnooze);
     },
-    // Таблицы может не быть до apply миграции — ретраить 42P01 бессмысленно.
+    // 42P01 в среде без миграции ретраить бессмысленно (см. parseQueueSnoozeError).
     retry: false,
   });
 
@@ -113,12 +124,12 @@ export function useSnooze() {
 
   return useMutation({
     mutationFn: async (input: SnoozeInput) => {
-      const { error } = await snoozeTable(supabase).upsert(
+      const { error } = await supabase.from('queue_snoozes').upsert(
         {
           entity_type: input.entity_type,
           entity_id: input.entity_id,
           until: tomorrowKey(),
-        } as never,
+        },
         { onConflict: 'created_by,entity_type,entity_id' },
       );
       if (error) throw error;
@@ -156,7 +167,7 @@ export function useUnsnooze() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await snoozeTable(supabase).delete().eq('id', id);
+      const { error } = await supabase.from('queue_snoozes').delete().eq('id', id);
       if (error) throw error;
     },
     onMutate: async (id) => {
