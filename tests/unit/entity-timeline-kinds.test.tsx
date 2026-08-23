@@ -123,20 +123,18 @@ describe('S-TL-3 — виды уходят в RPC', () => {
   });
 
   it('«Заметки» — отдельный вид `note`, а не срез на клиенте', async () => {
-    respond = () => [];
-    setup();
-
-    await screen.findByText('Пока нет активности');
+    // ⚠️ Лента НЕ пустая намеренно (S-HEALTH-V2-1, F-08): у сущности без единого
+    // события чипы скрыты, и кликать было бы не по чему. Предмет теста — что вид
+    // `note` уходит в RPC, а не видимость чипов; фикстура даёт ленте одну строку.
+    respond = (a) => (a.p_kinds === null ? [taskRow(1)] : []);
     // Чип «Заметки» появляется рядом с «Системой» — просим набор с activity.
-    cleanup();
-    rpcCalls.length = 0;
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}>
         <EntityTimeline entityType="project" entityId="p-1" kindFilter={['task', 'activity']} />
       </QueryClientProvider>,
     );
-    await screen.findByText('Пока нет активности');
+    await screen.findByText('Задача: Задача 1');
     fireEvent.click(screen.getByRole('button', { name: 'Заметки' }));
 
     await waitFor(() => expect(rpcCalls.length).toBeGreaterThan(1));
@@ -193,5 +191,46 @@ describe('S-TL-3 — виды уходят в RPC', () => {
     expect(last.p_kinds).toEqual(['task']);
     expect(last.p_before).toBe('2026-07-12T17:43:03.178164Z');
     expect(last.p_before_id).toBe(`task:${uuid(TIMELINE_PAGE_SIZE)}`);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// S-HEALTH-V2-1 (F-08): чипы фильтров у сущности БЕЗ ленты.
+//
+// Условие скрытия — «фильтр all + загрузка завершена + ноль событий», а НЕ
+// «мало событий». Скрытие по количеству загнало бы пользователя в тупик:
+// выбрал «Задачи», по ним ноль — чипы исчезли, вернуться к «Все» нечем.
+// ═══════════════════════════════════════════════════════
+
+describe('S-HEALTH-V2-1 — чипы фильтров при пустой ленте', () => {
+  it('у сущности вообще нет активности — чипов нет', async () => {
+    respond = () => [];
+    setup();
+
+    await screen.findByText('Пока нет активности');
+    expect(screen.queryByRole('button', { name: 'Все' })).not.toBeInTheDocument();
+  });
+
+  it('есть события — чипы на месте', async () => {
+    respond = () => [callRow(1)];
+    setup();
+
+    await screen.findByText('Звонок выполнен');
+    expect(screen.getByRole('button', { name: 'Все' })).toBeInTheDocument();
+  });
+
+  it('выбран вид с нулём событий — чипы ОСТАЮТСЯ (иначе не вернуться к «Все»)', async () => {
+    respond = (a) => (a.p_kinds === null ? [callRow(1)] : []);
+    setup();
+
+    await screen.findByText('Звонок выполнен');
+    fireEvent.click(screen.getByRole('button', { name: 'Задачи' }));
+
+    await screen.findByText('Нет событий этого типа');
+    const back = screen.getByRole('button', { name: 'Все' });
+    expect(back).toBeInTheDocument();
+
+    fireEvent.click(back);
+    expect(await screen.findByText('Звонок выполнен')).toBeInTheDocument();
   });
 });
