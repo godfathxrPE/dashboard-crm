@@ -60,6 +60,12 @@ export interface PipelineCockpitProps {
   metaRight?: React.ReactNode;
   /** Терминал (won/lost/converted/completed): гейт и кнопка скрыты, заливки нет. */
   locked?: boolean;
+  /**
+   * Слот под основной строкой, НАД картой воронки (сделка: «Что делаем на стадии»,
+   * S-STAGE-STORY-1). Опционален, потому что лиды его не передают: компонент общий
+   * и знания о сущностях у него нет — данные собирают вызывающие.
+   */
+  guidance?: React.ReactNode;
   /** Карта воронки (StageRail) — раскрывается под строкой. */
   map: React.ReactNode;
 }
@@ -90,6 +96,7 @@ export function PipelineCockpit({
   restGroupsCount,
   metaRight,
   locked = false,
+  guidance,
   map,
 }: PipelineCockpitProps) {
   const [mapOpen, setMapOpen] = useState(false);
@@ -236,6 +243,8 @@ export function PipelineCockpit({
 
         {metaRight && <span className="ml-auto text-xs tabular-nums text-text-mute">{metaRight}</span>}
       </div>
+
+      {guidance && <div className="mt-2">{guidance}</div>}
 
       {mapOpen && <div className="mt-2">{map}</div>}
     </div>

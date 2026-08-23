@@ -63,7 +63,12 @@ export function RecentActivityList() {
         заводит новый запрос, и ранний `return` убирал бы с экрана сам переключатель:
         табы мигали бы на каждом клике, а промахнуться по исчезающей кнопке легко.
       */}
-      <div className="mb-3 flex gap-1 border-b border-border">
+      {/* `data-activity-tabs` — якорь для фикса темы Fuji: она прячет таб «Удаления»,
+          и раньше делала это позиционно (`button:nth-child(5)` у ЛЮБОЙ полосы
+          `.flex.gap-1.border-b`). Полоса вкладок карточки сделки попадала под тот же
+          селектор, и добавленная пятой вкладка исчезала в Fuji без единого признака
+          (S-STAGE-STORY-1). Атрибут привязывает правило к этой конкретной полосе. */}
+      <div data-activity-tabs className="mb-3 flex gap-1 border-b border-border">
         {ACTIVITY_TABS.map((tab) => (
           <button
             key={tab.key}

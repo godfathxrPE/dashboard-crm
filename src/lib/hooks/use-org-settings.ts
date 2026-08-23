@@ -8,6 +8,7 @@ import {
   parseOrgSettings,
   readCompletenessOverrides,
   readDealSignalThresholds,
+  readStageGuidance,
   readStageTargetDays,
 } from '@/lib/validators/org-settings';
 import type { DealSignalThresholds } from '@/lib/domain/deal-signals';
@@ -141,4 +142,17 @@ export function useCompletenessRules(): CompletenessRules {
 export function useDealSignalThresholds(): DealSignalThresholds {
   const { data } = useOrgSettings();
   return useMemo(() => readDealSignalThresholds(data), [data]);
+}
+
+/**
+ * Подсказки по стадиям (S-STAGE-STORY-1): `stage_id` → текст «что делаем на стадии».
+ * `undefined` — подсказок не заведено: кокпит тогда не рисует блок вовсе (пустая
+ * рамка «подсказки нет» — шум), кроме owner'а, которому показывается приглашение.
+ *
+ * `useMemo` — не косметика: ридер строит новый объект на каждый вызов, и без
+ * мемоизации значение нельзя было бы класть в зависимости потребителей.
+ */
+export function useStageGuidance(): Record<string, string> | undefined {
+  const { data } = useOrgSettings();
+  return useMemo(() => readStageGuidance(data), [data]);
 }
