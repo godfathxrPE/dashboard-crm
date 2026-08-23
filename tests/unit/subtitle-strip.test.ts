@@ -7,7 +7,9 @@ import { looksLikeSubtitles, stripSubtitleMarkup } from '@/lib/domain/transcript
 
 const VTT = `WEBVTT - Kind: captions
 
-NOTE recorded by Zoom
+NOTE
+Многострочный комментарий Zoom:
+блок тянется до пустой строки.
 
 1
 00:00:12.480 --> 00:00:15.120
@@ -60,6 +62,33 @@ describe('stripSubtitleMarkup', () => {
   it('склеивает реплики одного блока и рвёт абзац на пустой строке', () => {
     // Реплики 1 и 2 разделены пустой строкой исходника → разные абзацы.
     expect(stripSubtitleMarkup(VTT).split('\n\n')).toHaveLength(3);
+  });
+
+  it('срезает МНОГОСТРОЧНЫЙ блок NOTE целиком, а не только заголовок', () => {
+    // Регрессия: первая редакция срезала строку `NOTE`, а тело комментария
+    // принимала за речь — поймано живым смоуком, а не этим тестом.
+    const out = stripSubtitleMarkup(VTT);
+    expect(out).not.toContain('Многострочный комментарий');
+    expect(out).not.toContain('блок тянется до пустой строки');
+    expect(out.startsWith('Рассмотрим взаимодействие')).toBe(true);
+  });
+
+  it('STYLE-блок WebVTT тоже не попадает в речь', () => {
+    const styled = [
+      'WEBVTT',
+      '',
+      'STYLE',
+      '::cue { color: yellow }',
+      '',
+      '1',
+      '00:00:01.000 --> 00:00:02.000',
+      'Речь.',
+      '',
+      '2',
+      '00:00:02.500 --> 00:00:03.000',
+      'Ещё речь.',
+    ].join('\n');
+    expect(stripSubtitleMarkup(styled)).toBe('Речь.\n\nЕщё речь.');
   });
 
   it('чистит SRT', () => {

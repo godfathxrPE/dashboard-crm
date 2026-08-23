@@ -91,7 +91,12 @@ const CUE_TIMING = /-->/;
 const CUE_NUMBER = /^\d+$/;
 /** Заголовок файла WebVTT (может нести кодировку: `WEBVTT - Kind: captions`). */
 const VTT_HEADER = /^WEBVTT(\s|$)/;
-/** Блоки метаданных WebVTT, идущие до первой реплики. */
+/**
+ * Начало блока метаданных WebVTT. ⚠️ Блок тянется ДО ПУСТОЙ СТРОКИ, а не одну
+ * строку: `NOTE` часто стоит одиноко, а комментарий идёт следующими строками.
+ * Построчный фильтр (редакция S-TR-VTT-1) срезал только заголовок и пускал тело
+ * комментария в речь — поймано первым же живым смоуком владельца.
+ */
 const VTT_BLOCK = /^(NOTE|STYLE|REGION)(\s|$)/;
 /** Инлайн-теги WebVTT: `<v Иван>`, `<c.yellow>`, `<00:00:12.480>`. */
 const VTT_INLINE_TAG = /<\/?[^>]*>/g;
@@ -134,13 +139,22 @@ export function stripSubtitleMarkup(text: string): string {
     }
   };
 
+  // Внутри блока метаданных: всё до пустой строки — не речь.
+  let inMetaBlock = false;
+
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (line === '') {
+      inMetaBlock = false;
       flush();
       continue;
     }
-    if (VTT_HEADER.test(line) || VTT_BLOCK.test(line)) continue;
+    if (inMetaBlock) continue;
+    if (VTT_BLOCK.test(line)) {
+      inMetaBlock = true;
+      continue;
+    }
+    if (VTT_HEADER.test(line)) continue;
     if (CUE_TIMING.test(line)) continue;
     if (CUE_NUMBER.test(line)) continue;
 
