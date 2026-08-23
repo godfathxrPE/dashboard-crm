@@ -7,8 +7,10 @@ import { DEFAULT_RECONNECT_DAYS } from '@/lib/constants/reconnect';
 import {
   parseOrgSettings,
   readCompletenessOverrides,
+  readDealSignalThresholds,
   readStageTargetDays,
 } from '@/lib/validators/org-settings';
+import type { DealSignalThresholds } from '@/lib/domain/deal-signals';
 import { DEFAULT_RULES, resolveRules, type CompletenessRules } from '@/lib/domain/deal-completeness';
 import type { DwellThresholds } from '@/lib/utils/deal-health';
 import type { Json, OrgSettings } from '@/types/database';
@@ -128,4 +130,15 @@ export function useStageTargetDays(): Record<string, number> | undefined {
 export function useCompletenessRules(): CompletenessRules {
   const { data } = useOrgSettings();
   return useMemo(() => resolveRules(DEFAULT_RULES, readCompletenessOverrides(data)), [data]);
+}
+
+/**
+ * Пороги сигналов сделки (S-HEALTH-V2-1). Ненастроенная org получает
+ * `DEFAULT_SIGNAL_THRESHOLDS` — и ТУ ЖЕ ссылку, поэтому значение можно класть в
+ * зависимости `useMemo` у потребителей. Пишущего UI пока нет: ключ читается,
+ * редактор появится отдельным спринтом (ровно как `stage_target_days`).
+ */
+export function useDealSignalThresholds(): DealSignalThresholds {
+  const { data } = useOrgSettings();
+  return useMemo(() => readDealSignalThresholds(data), [data]);
 }

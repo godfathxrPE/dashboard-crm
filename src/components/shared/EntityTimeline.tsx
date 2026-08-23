@@ -197,6 +197,20 @@ export function EntityTimeline({
     [allEvents, kindFilter, kinds],
   );
 
+  /*
+    S-HEALTH-V2-1 (F-08): чипы фильтров у сущности БЕЗ ленты — управление,
+    которым нечем управлять.
+
+    ⚠️ Условие скрытия — НЕ «мало событий» и НЕ «загрузка». Прячем только
+    «у сущности вообще нет активности»: фильтр `all` + загрузка завершена +
+    ноль событий. Скрытие по `events.length < N` наступило бы на те же грабли,
+    что описаны ниже, в худшем виде: пользователь выбирает чип «Звонки», по нему
+    ноль событий — чипы исчезают, и ВЕРНУТЬСЯ к «Все» уже нечем. При
+    `filter !== 'all'` ветка не срабатывает, поэтому условие безопасно и в
+    управляемом режиме (`controlled`).
+  */
+  const emptyEntity = filter === 'all' && !isLoading && !error && events.length === 0;
+
   const groups = useMemo(() => {
     const now = new Date();
     if (splitUpcoming) {
@@ -240,7 +254,7 @@ export function EntityTimeline({
         на время загрузки: чипы мигали бы при каждом клике, а промахнуться по
         исчезающей кнопке легко.
       */}
-      {showFilters && (
+      {showFilters && !emptyEntity && (
         <TimelineFilterChips className="mb-3" kinds={kinds} value={filter} onChange={setFilter} />
       )}
 
