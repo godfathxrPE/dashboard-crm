@@ -385,6 +385,7 @@ union). Грабли:
 - `''::date` невалиден в Postgres → на date-инпутах `setValueAs: v => v === '' ? null : v`.
 
 ### ✅ Однострочники (детали — по ссылке)
+- **Снятый каст доказывается ошибкой компилятора:** после регена типов добавь в `.select()` несуществующую колонку — обязан появиться `SelectQueryError<"column … does not exist">`. Тишина означает, что выражение схлопнулось в `any` и проверка исчезла молча. Журнал: «S-QUEUE-1».
 - Стаб таблицы до apply — `type` интерсекшеном в `database.ts`, НЕ `interface` (postgrest-js требует индексную сигнатуру); снимать полностью. Журнал: «Сквозные грабли».
 - Стаб не покрывает РУКОПИСНЫЕ интерфейсы: `Company` живёт в `use-companies.ts`, не в `entities.ts` — новое поле добавляется в ДВА места, из рукописного после регена НЕ уходит. Журнал: «S-LEAD-CARRY-1».
 - Payload формы держит Zod-схема, не интерфейс: `.insert(x as never)` снимает проверку, новое поле схемы уезжает в запрос ВСЕГДА (в т.ч. `null`) ⇒ ветка с колонкой до apply ломает каждое сохранение (PGRST204). Журнал: «S-LEAD-CARRY-1».
@@ -400,6 +401,7 @@ union). Грабли:
 - В проекте ДВА типа `Company` — карточка читает рукописный из `use-companies.ts`. Журнал: «S-LEAD-CARRY-1».
 - **Формула, читающая несуществующую колонку, не падает — она молча занижает результат.** `calculateDealHealth` читал `last_contact_date` (колонки нет ни в БД, ни в `PROJECT_COLUMNS`): фактор всегда 0, потолок 6 из 8 при пороге «зелёная» 6. Входы формулы сверять со СХЕМОЙ, а не с TS-интерфейсом — там поле было `optional`. Журнал: «S-HEALTH-V2-1».
 - **Данные пишутся ≠ данные показаны.** `stage_transitions` заполнялась триггером месяц и не читалась в UI ни разу; аудит полей 087, наоборот, уже рендерился `describeEvent`. Перед фичей проверять обе стороны — иначе заводится второе место для одного факта. Журнал: «S-STAGE-STORY-1».
+- **Личное состояние интерфейса (snooze, скрытие, персональный порядок) — отдельная таблица с `created_by = auth.uid()`, НЕ колонка сущности:** колонка общая на org, плюс UPDATE `projects` будит `trg_zz_run_automations`. Журнал: «S-QUEUE-1».
 - **Триггер `AFTER UPDATE OF col` не видит INSERT:** вход в первую стадию в журнал переходов не попадает (`from_stage_id is null` — 0 строк), начало первого отрезка берётся из `created_at`. Журнал: «S-STAGE-STORY-1».
 
 ### ⚠️ Gantt-фаза = `column_id` → колонка `category='phase'`, НЕ `phase_group`
@@ -750,6 +752,12 @@ Every sprint prompt ends with a git commit command.
 ### ✅ One concern per task block
 Don't mix UI changes with DB migrations in the same task section.
 DB changes first (migration), then types, then hooks, then components.
+
+### ⚠️ Имя файла миграции ≠ версия в ledger
+В папке конвенция `NNN_name.sql` (README миграций), версию ставит `apply_migration`
+(129 → `20260823182046`). Требовать timestamp в ИМЕНИ файла — значит путать носитель
+порядка с версией и готовить следующий ложный вывод «миграция не применена».
+Журнал: «S-QUEUE-1».
 
 ### ✅ Migration → Types → Validator → Hook → Component
 This is the dependency order. Always follow it.
