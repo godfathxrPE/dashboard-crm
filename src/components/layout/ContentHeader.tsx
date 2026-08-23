@@ -3,7 +3,8 @@
 import { Search, LogOut, Sun, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { useDrawerStore } from '@/lib/stores/drawer-store';
 import { usePathname } from 'next/navigation';
-import { useThemeStore, THEMES, type Theme } from '@/lib/stores/theme-store';
+import { useThemeStore, THEMES } from '@/lib/stores/theme-store';
+import { THEME_SWATCH } from '@/lib/constants/themes';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { cn } from '@/lib/utils/cn';
@@ -35,16 +36,6 @@ function getPageTitle(pathname: string): string {
   }
   return 'Дашборд';
 }
-
-const THEME_SWATCHES: Record<Theme, string> = {
-  't-aura': '#E0A03A',
-  't-washi': '#C23B3B',
-  't-fuji': '#2B5078',
-  't-frost': '#5b8aff',
-  't-aurora': '#a060ff',
-  't-tidal': '#48b890',
-  't-minimal': '#0E7C86',
-};
 
 function DrawerToggle() {
   const { isOpen, toggle } = useDrawerStore();
@@ -134,7 +125,7 @@ export function ContentHeader() {
                 >
                   <span
                     className="h-2.5 w-2.5"
-                    style={{ background: THEME_SWATCHES[t], borderRadius: '50%' }}
+                    style={{ background: THEME_SWATCH[t], borderRadius: '50%' }}
                   />
                   {t.replace('t-', '')}
                 </button>

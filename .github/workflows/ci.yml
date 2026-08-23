@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Token contract
+        run: python3 scripts/audit-tokens.py
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Unit tests
