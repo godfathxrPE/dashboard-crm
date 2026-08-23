@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake, Target } from 'lucide-react';
+import { Phone, PhoneOutgoing, CheckSquare, Briefcase, CalendarDays, Snowflake, Target, CircleDashed, Clock } from 'lucide-react';
 import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
 import { useLeads, useUpdateLead } from '@/lib/hooks/use-leads';
 import { getLeadHealth, compareLeadHealth } from '@/lib/utils/lead-health';
@@ -22,6 +22,14 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { localDateKey } from '@/lib/utils/date-helpers';
+import { useQueueSnoozes, useSnooze, useUnsnooze } from '@/lib/hooks/use-queue-snooze';
+import {
+  activeSnoozes,
+  excludeSnoozed,
+  splitDealsByHealth,
+  noPlanReason,
+  type SnoozeEntityType,
+} from '@/lib/domain/queue-snooze';
 import { ProjectModal } from '@/components/projects/ProjectModal';
 import { TodayFocus } from './TodayFocus';
 import { QueueRow } from './QueueRow';
@@ -58,6 +66,11 @@ export function TodayView() {
   const updateCall = useUpdateCall();
   const updateTask = useUpdateTask();
   const updateLead = useUpdateLead();
+  // S-QUEUE-1: личный snooze строк очереди (сделки, лиды, остывающие контакты).
+  const { snoozes, keys: snoozedKeys } = useQueueSnoozes();
+  const snooze = useSnooze();
+  const unsnooze = useUnsnooze();
+  const [showSnoozed, setShowSnoozed] = useState(false);
 
   // ProjectModal (для «Запланировать шаг» из строки сделки — Sprint W1a)
   const [editProject, setEditProject] = useState<Project | null>(null);
@@ -95,13 +108,19 @@ export function TodayView() {
   // менеджер вернётся послезавтра, из очереди уходит, а лид с просроченным шагом
   // приходит в неё, даже будучи «свежим». Порядок — `compareLeadHealth`: просрочка
   // это обещание клиенту, молчание — только риск.
-  const leadsNeedingAction = useMemo(
+  const leadsNeedingActionAll = useMemo(
     () => leads
       .filter((l) => l.status === 'new' || l.status === 'contacted')
       .map((l) => ({ lead: l, h: getLeadHealth(l) }))
       .filter((r) => r.h.level !== 'ok')
       .sort((a, b) => compareLeadHealth(a.h, b.h)),
     [leads],
+  );
+  // Отложенные вычитаются ПОСЛЕ отбора: `…All` остаётся источником для блока
+  // «Отложено» — иначе отложенную строку не по чему показать и вернуть.
+  const leadsNeedingAction = useMemo(
+    () => excludeSnoozed(leadsNeedingActionAll, 'lead', (r) => r.lead.id, snoozedKeys),
+    [leadsNeedingActionAll, snoozedKeys],
   );
   const nowTasks = useMemo(() => {
     const isOverdue = (t: typeof tasks[number]) => !!t.deadline && t.deadline < todayKey;
@@ -115,6 +134,22 @@ export function TodayView() {
   const rottingDeals = useMemo(
     () => projects.filter((p) => p.type === 'client' && isProjectActive(p) && getDealHealth(p) !== 'ok'),
     [projects, isProjectActive],
+  );
+  // ── S-QUEUE-1: «шаг просрочен» и «плана нет» — РАЗНЫЕ действия ──
+  //
+  // Первое — сделать или перенести уже данное обещание, второе — впервые
+  // спланировать. В одной секции они читались как один упрёк, и девять сделок
+  // выглядели одинаково безнадёжно. Ось та же, что у сигнала карточки
+  // (`deal-signals.nextStepSignal`: bad против warn) — список и карточка обязаны
+  // говорить на одном языке, иначе снова разойдутся.
+  const dealsSplit = useMemo(() => splitDealsByHealth(rottingDeals), [rottingDeals]);
+  const dealsOverdueStep = useMemo(
+    () => excludeSnoozed(dealsSplit.overdueStep, 'deal', (p) => p.id, snoozedKeys),
+    [dealsSplit, snoozedKeys],
+  );
+  const dealsNoPlan = useMemo(
+    () => excludeSnoozed(dealsSplit.noPlan, 'deal', (p) => p.id, snoozedKeys),
+    [dealsSplit, snoozedKeys],
   );
   // Встречи дня — сначала режем по дате, и только потом по «моим»: `useMyMeetings`
   // тянет состав по переданным id, и кормить его всей лентой встреч значило бы
@@ -137,7 +172,7 @@ export function TodayView() {
   // сделки, где человек участник. `useLastTouchMap` при этом стал командным, и это
   // прямое улучшение: звонок коллеги теперь считается касанием контакта, а раньше
   // контакт «остывал» в глазах того, кто просто не видел чужого звонка.
-  const coolingContacts = useMemo(() => {
+  const coolingContactsAll = useMemo(() => {
     const activeProjects = projects.filter((p) => isProjectActive(p));
     const activeContactIds = new Set(activeProjects.map((p) => p.contact_id).filter(Boolean) as string[]);
     const activeCompanyIds = new Set(activeProjects.map((p) => p.company_id).filter(Boolean) as string[]);
@@ -154,9 +189,15 @@ export function TodayView() {
       .filter((r) => r.days === null || r.days > reconnectDays)
       .sort((a, b) => (b.days ?? Infinity) - (a.days ?? Infinity)); // холоднее сверху
   }, [contacts, projects, isProjectActive, lastTouch, reconnectDays]);
+  const coolingContacts = useMemo(
+    () => excludeSnoozed(coolingContactsAll, 'contact', (r) => r.contact.id, snoozedKeys),
+    [coolingContactsAll, snoozedKeys],
+  );
 
+  // ⚠️ `total` считает ВИДИМОЕ: отложенная строка выходит и из секции, и из счётчика,
+  // иначе шапка обещает «13 требуют действия» над наполовину пустым экраном.
   const total = overdueCalls.length + todayCalls.length + leadsNeedingAction.length + nowTasks.length
-    + rottingDeals.length + todayMeetings.length + coolingContacts.length;
+    + dealsOverdueStep.length + dealsNoPlan.length + todayMeetings.length + coolingContacts.length;
 
   const bumpCall = (id: string, iso: string) => {
     const d = new Date(iso);
@@ -170,6 +211,46 @@ export function TodayView() {
     updateLead.mutate({ id, next_step: null, next_action_date: null });
 
   const openDeal = (p: Project) => { setEditProject(p); setModalOpen(true); };
+
+  // S-QUEUE-1: «Отложить» — secondary-действие строки; отдельный проп QueueRow не заводим.
+  const snoozeRow = (entity_type: SnoozeEntityType, entity_id: string) =>
+    ({ label: 'Отложить', onClick: () => snooze.mutate({ entity_type, entity_id }) });
+
+  // Отложенные строки для блока «Отложено на завтра · показать». Собираются
+  // сопоставлением snooze с ПОЛНЫМИ списками (`…All`): если сделке за это время
+  // назначили шаг, она вышла из очереди — показывать её как отложенную незачем,
+  // и висячий snooze просто не находит свою строку (FK у entity_id нет, см. 129).
+  const snoozedEntries = useMemo(() => {
+    const out: { snoozeId: string; title: string; subtitle?: string; open: () => void }[] = [];
+    for (const s of activeSnoozes(snoozes, todayKey)) {
+      if (s.entity_type === 'deal') {
+        const p = rottingDeals.find((x) => x.id === s.entity_id);
+        if (p) out.push({
+          snoozeId: s.id,
+          title: p.name,
+          subtitle: p.company?.name ?? undefined,
+          open: () => router.push(projectHref(p)),
+        });
+      } else if (s.entity_type === 'lead') {
+        const r = leadsNeedingActionAll.find((x) => x.lead.id === s.entity_id);
+        if (r) out.push({
+          snoozeId: s.id,
+          title: r.lead.title,
+          subtitle: r.lead.company_name_raw ?? r.lead.contact_name_raw ?? undefined,
+          open: () => router.push(`/leads/${r.lead.id}`),
+        });
+      } else {
+        const r = coolingContactsAll.find((x) => x.contact.id === s.entity_id);
+        if (r) out.push({
+          snoozeId: s.id,
+          title: `${r.contact.first_name} ${r.contact.last_name}`,
+          subtitle: (r.contact.companies ?? [])[0]?.company?.name,
+          open: () => router.push(`/contacts/${r.contact.id}`),
+        });
+      }
+    }
+    return out;
+  }, [snoozes, todayKey, rottingDeals, leadsNeedingActionAll, coolingContactsAll, router]);
 
   // ─── Keyboard nav (Sprint W2d): j/k по плоской очереди, Enter — открыть, d — primary ───
   const coolingSlice = useMemo(() => coolingContacts.slice(0, 5), [coolingContacts]);
@@ -201,7 +282,11 @@ export function TodayView() {
       open: () => router.push('/tasks'),
       primary: () => updateTask.mutate({ id: t.id, lane: 'done' as const }),
     })),
-    ...rottingDeals.map((p) => ({
+    ...dealsOverdueStep.map((p) => ({
+      open: () => router.push(projectHref(p)),
+      primary: () => openDeal(p),
+    })),
+    ...dealsNoPlan.map((p) => ({
       open: () => router.push(projectHref(p)),
       primary: () => openDeal(p),
     })),
@@ -217,11 +302,20 @@ export function TodayView() {
       open: () => router.push('/meetings'),
     })),
   ];
+  // ⚠️ Смещения обязаны идти тем же порядком, что секции в JSX ниже, и тем же, что
+  // spread'ы в flatRows выше. Расхождение выглядит как «j/k подсвечивает одну строку,
+  // Enter открывает другую» и не ловится ни tsc, ни тестами — сверять глазами по всем
+  // ТРЁМ спискам. Порядок: звонки просроч. · звонки сегодня · лиды · задачи ·
+  // сделки «просрочен шаг» · сделки «без плана» · остывают · встречи.
+  //
+  // Отложенные строки в flatRows НЕ входят намеренно: блок «Отложено» свёрнут по
+  // умолчанию, и невидимые позиции в очереди j/k давали бы провалы фокуса.
   const offTodayCalls = overdueCalls.length;
   const offLeads = offTodayCalls + todayCalls.length;
   const offTasks = offLeads + leadsNeedingAction.length;
-  const offDeals = offTasks + nowTasks.length;
-  const offCooling = offDeals + rottingDeals.length;
+  const offDealsOverdue = offTasks + nowTasks.length;
+  const offDealsNoPlan = offDealsOverdue + dealsOverdueStep.length;
+  const offCooling = offDealsNoPlan + dealsNoPlan.length;
   const offMeetings = offCooling + coolingSlice.length;
 
   const { activeIndex } = useKeyboardNav({
@@ -324,6 +418,7 @@ export function TodayView() {
                     : l.status === 'new'
                       ? { label: 'Связаться', onClick: () => updateLead.mutate({ id: l.id, status: 'contacted' }) }
                       : { label: 'Квалифицировать', onClick: () => updateLead.mutate({ id: l.id, status: 'qualified' }) }}
+                  secondary={snoozeRow('lead', l.id)}
                 />
               );
             })}
@@ -354,35 +449,48 @@ export function TodayView() {
             })}
           </Section>
 
-          {/* 5. Сделки без шага */}
-          <Section title="Сделки без шага" count={rottingDeals.length} icon={<Briefcase size={13} />}>
-            {rottingDeals.map((p, i) => {
-              const dh = getDealHealth(p);
-              const overdue = dh === 'overdue-action';
-              return (
-                <QueueRow
-                  key={p.id}
-                  kbdIndex={offDeals + i}
-                  focused={activeIndex === offDeals + i}
-                  marker={overdue
-                    ? { filled: true, color: RED }
-                    : { filled: false, color: YELLOW }}
-                  title={p.name}
-                  subtitle={p.company?.name ?? undefined}
-                  meta={
-                    <span style={{ color: overdue ? RED : YELLOW }}>
-                      {overdue
-                        ? `шаг просрочен ${getNextActionOverdueDays(p.next_action_date!)} дн.`
-                        : p.next_step?.trim()
-                          ? 'нет даты шага'
-                          : 'нет шага'}
-                    </span>
-                  }
-                  onOpen={() => router.push(projectHref(p))}
-                  primary={{ label: 'Запланировать шаг', onClick: () => openDeal(p) }}
-                />
-              );
-            })}
+          {/* 5a. Просрочен шаг — обещание, которое уже нарушено */}
+          <Section title="Просрочен шаг" count={dealsOverdueStep.length} icon={<Briefcase size={13} />}>
+            {dealsOverdueStep.map((p, i) => (
+              <QueueRow
+                key={p.id}
+                kbdIndex={offDealsOverdue + i}
+                focused={activeIndex === offDealsOverdue + i}
+                marker={{ filled: true, color: RED, title: 'Просрочен шаг' }}
+                title={p.name}
+                subtitle={p.company?.name ?? undefined}
+                meta={
+                  <span style={{ color: RED }}>
+                    просрочен {getNextActionOverdueDays(p.next_action_date!)} дн.
+                  </span>
+                }
+                onOpen={() => router.push(projectHref(p))}
+                primary={{ label: 'Запланировать шаг', onClick: () => openDeal(p) }}
+                secondary={snoozeRow('deal', p.id)}
+              />
+            ))}
+          </Section>
+
+          {/* 5b. Без плана — работу ещё не назначали */}
+          <Section title="Без плана" count={dealsNoPlan.length} icon={<CircleDashed size={13} />}>
+            {dealsNoPlan.map((p, i) => (
+              <QueueRow
+                key={p.id}
+                kbdIndex={offDealsNoPlan + i}
+                focused={activeIndex === offDealsNoPlan + i}
+                marker={{ filled: false, color: YELLOW, title: 'Без плана' }}
+                title={p.name}
+                subtitle={p.company?.name ?? undefined}
+                meta={
+                  <span style={{ color: YELLOW }}>
+                    {noPlanReason(p) === 'no-date' ? 'у шага нет даты' : 'шаг не назначен'}
+                  </span>
+                }
+                onOpen={() => router.push(projectHref(p))}
+                primary={{ label: 'Запланировать шаг', onClick: () => openDeal(p) }}
+                secondary={snoozeRow('deal', p.id)}
+              />
+            ))}
           </Section>
 
           {/* 6. Остывают (reconnect) */}
@@ -412,6 +520,7 @@ export function TodayView() {
                       companyId: (c.companies ?? [])[0]?.company_id,
                     }),
                   }}
+                  secondary={snoozeRow('contact', c.id)}
                 />
               );
             })}
@@ -433,6 +542,38 @@ export function TodayView() {
             ))}
           </Section>
         </div>
+      )}
+
+      {/* S-QUEUE-1: одна полоса на весь экран, не по блоку в каждой секции.
+          Рендерится и при пустой очереди — иначе отложенное некуда вернуть. */}
+      {snoozedEntries.length > 0 && (
+        <section className="mb-7">
+          <button
+            onClick={() => setShowSnoozed((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-text-mute transition-colors hover:text-text-dim"
+          >
+            <Clock size={13} />
+            Отложено на завтра: {snoozedEntries.length}
+            <span className="text-text-dim">· {showSnoozed ? 'скрыть' : 'показать'}</span>
+          </button>
+
+          {showSnoozed && (
+            <div className="sheet mt-2 overflow-hidden">
+              <div className="px-4 py-1 [&>*:last-child]:border-b-0">
+                {snoozedEntries.map((e) => (
+                  <QueueRow
+                    key={e.snoozeId}
+                    marker={{ filled: false, color: 'var(--text-mute)', title: 'Отложено' }}
+                    title={e.title}
+                    subtitle={e.subtitle}
+                    onOpen={e.open}
+                    secondary={{ label: 'Вернуть', onClick: () => unsnooze.mutate(e.snoozeId) }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
       <ProjectModal

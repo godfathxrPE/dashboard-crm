@@ -2517,6 +2517,54 @@ export type Database = {
           },
         ]
       }
+      queue_snoozes: {
+        Row: {
+          created_at: string
+          created_by: string
+          entity_id: string
+          entity_type: string
+          id: string
+          org_id: string
+          until: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          org_id: string
+          until: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          org_id?: string
+          until?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_snoozes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_snoozes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           accepted_at: string | null

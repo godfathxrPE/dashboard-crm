@@ -3791,6 +3791,59 @@ where n.nspname = 'public' and c.relkind = 'r'
 - **Не входит в S-EXPORT-1:** CSV и выгрузка файлов из Storage (S-EXPORT-2), импорт
   (обратная операция сложнее на порядок), расписание/автобэкап.
 
+### queue_snoozes (129, applied `20260823182046`) — личный snooze строки очереди дня
+
+- **Назначение (S-QUEUE-1).** «Отложить до завтра» для строк экрана «Сегодня». Покрывает
+  ровно три вида — `deal` / `lead` / `contact`: у звонков есть `bump` на завтра, у задач —
+  дедлайн и lane, а у сделок, лидов и остывающих контактов механизма переноса не было
+  вовсе, и строка висела в очереди до выполнения действия.
+- **Колонки:** `id uuid pk` · `org_id uuid not null → organizations(id) cascade` ·
+  `created_by uuid not null default auth.uid() → profiles(id) **cascade**` ·
+  `entity_type text not null` (CHECK `in ('deal','lead','contact')`) ·
+  `entity_id uuid not null` · `until date not null` · `created_at`/`updated_at`.
+- **Индексы:** `queue_snoozes_owner_entity_uniq` UNIQUE `(created_by, entity_type,
+  entity_id)` — конфликт-таргет клиентского upsert: повторное «отложить» ПРОДЛЕВАЕТ срок,
+  а не плодит вторую строку; `queue_snoozes_active_idx (created_by, until)` под
+  единственный рабочий запрос «мои активные»; `queue_snoozes_org_idx (org_id)`.
+- **Триггеры:** `trg_set_org_id` (BEFORE INSERT — клиент `org_id` не шлёт),
+  `trg_aa_freeze_org_id` (BEFORE UPDATE OF org_id — **вручную**, автоцикл 054 покрыл
+  только таблицы своего момента), `trg_set_updated_at` → `public.update_updated_at()`.
+- **RLS — org-граница первым конъюнктом, личная видимость вторым:** все четыре политики
+  (`queue_snoozes_select/insert/update/delete`, раздельные, не FOR ALL) —
+  `org_id = ( select public.current_org_id() ) and created_by = ( select auth.uid() )`,
+  у UPDATE WITH CHECK повторяет USING. **Роль не проверяется намеренно**: отложить строку
+  в СВОЕЙ очереди вправе любой член org — ограничение по роли означало бы «viewer обязан
+  смотреть на список, который не может ни сделать, ни убрать».
+- **Гранты:** `revoke all … from anon` + явные `select, insert, update, delete` для
+  `authenticated`. `revoke truncate, references, trigger` не пишем — 082 сузил корень.
+- ⚠️ **Snooze — ЛИЧНОЕ состояние очереди, поэтому таблица, а не колонка `snoozed_until`
+  в projects/leads/contacts.** Колонка была бы общей на организацию, и «отложил» одного
+  менеджера прятало бы строку у коллеги. Второй довод — технический: любой UPDATE
+  `public.projects` будит `trg_zz_run_automations`, и интерфейсный жест «скрыть на день»
+  гонял бы движок автоматизаций (тот же аргумент, что в шапке 092).
+- ⚠️ **`until` — `date`, не `timestamptz`.** «До завтра» — календарное обещание
+  («покажи снова завтра утром»), а не 24 часа от клика: иначе клик в 23:50 прятал бы
+  строку почти на весь следующий день. Активные = `until >= сегодня`, граница
+  **включающая**: строка со сроком «до сегодня» ещё скрыта. Клиент сравнивает ключом дня
+  (`localDateKey`), типы совпадают: `'YYYY-MM-DD'` ↔ `date`.
+- ⚠️ **`created_by … on delete cascade`, а не обычный `set null`.** Строка без владельца
+  бессмысленна — snooze прячет ИМЕННО у своего автора; осиротевшая держала бы место
+  в уникальном индексе.
+- ⚠️ **FK у `entity_id` нет** — ссылка полиморфная (projects/leads/contacts), одним ключом
+  не выражается. Цена — висячая строка после удаления сущности; она безвредна: очередь
+  сопоставляет snooze с уже загруженным списком, и «отложенное несуществующее» просто
+  не находится (`snoozedEntries` в `TodayView`).
+- **Realtime НЕ включён** намеренно: чужие snooze по построению не видны (RLS), свои
+  приезжают оптимистичной мутацией того же клиента. Бэкфилла нет — отложенных строк
+  до 129 не существовало.
+- **Потребитель:** `src/lib/hooks/use-queue-snooze.ts` (`useQueueSnoozes` /
+  `useSnooze` / `useUnsnooze`, оптимистичные мутации с rollback, ключ `['queue_snoozes']`),
+  чистая часть — `src/lib/domain/queue-snooze.ts`.
+  Стаб типов снят вместе с apply: хук ходит `supabase.from('queue_snoozes')` напрямую,
+  форма строки — `Pick<Database[…]['queue_snoozes']['Row'], …>`. Единственное сужение —
+  `entity_type` к union `deal|lead|contact` на границе хука: в БД это `text` + CHECK,
+  не enum-тип, и автогенерация отдаёт `string`.
+
 ### Планировщик (pg_cron) — два ежедневных задания
 
 | Job | Расписание (UTC) | Команда | Введён |
