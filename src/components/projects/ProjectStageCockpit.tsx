@@ -156,7 +156,13 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const next = nextStage
     ? {
         label: nextStage.name,
-        probability: isDelivery ? null : nextStage.probability,
+        // S-HEALTH-V2-1 (F-03): вероятность СЛЕДУЮЩЕЙ стадии на кнопке снята.
+        // В зоне кокпита подряд шли три процента (прогресс воронки, вероятность
+        // текущей стадии в metaRight, вероятность следующей здесь) — третье
+        // число читалось как прогресс. Величина сделки — вероятность ТЕКУЩЕЙ
+        // стадии, она осталась в metaRight. Проп `PipelineCockpit` не тронут:
+        // он остаётся для лидов.
+        probability: null,
         // Сервер — истина: приглушённая кнопка всё равно кликается, невыполненные
         // требования покажет модалка перехода.
         locked: unmetCount > 0,

@@ -59,9 +59,7 @@ import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
 import type { AiRunRow } from '@/types/database';
 import type { TimelineEvent } from '@/types/timeline';
-import { calculateDealHealth } from '@/lib/utils/deal-health';
 import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
-import { HealthDot } from '@/components/shared/HealthDot';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { Badge } from '@/components/ui/Badge';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
@@ -352,9 +350,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
                 </>
               );
             })()}
-            {project.type === 'client' && (
-              <HealthDot level={calculateDealHealth(project).level} score={calculateDealHealth(project).total} size="md" showLabel />
-            )}
+            {/* S-HEALTH-V2-1 (F-01): вердикт здоровья из шапки УБРАН. Он жил и здесь,
+                и в зоне «Здоровье» фокус-панели — одна величина в двух местах
+                девальвирует сигнал. Теперь вердикт ровно один, в DealSignals. */}
             {/* Delivery — лёгкая карточка: чек-лист заполненности не показываем */}
             {!isDelivery && <CompletenessBadge project={project} />}
           </div>
@@ -567,7 +565,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       )}
 
       {/* Info grid */}
-      <div data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div id="deal-info-grid" data-stats-grid className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {/* Company — clickable */}
         <div
           className="group rounded-lg border border-border bg-surface px-3 py-2.5 cursor-pointer transition-colors hover:border-border2"
@@ -613,7 +611,11 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
               onSave={async (val) => {
                 updateProject.mutate({ id: project.id, budget: val ? Number(val) : null });
               }}
-              className="text-base font-medium"
+              // S-HEALTH-V2-1 (F-05): «Указать» — приглашение, а не значение.
+              // Тот же приём, что у «Следующий шаг»/«Дата» в DealFocusPanel
+              // (S-UI-CLARITY-1): плейсхолдер того же начертания, что реальный
+              // бюджет, пролистывался как заполненное поле.
+              className={cn('text-base font-medium', !project.budget && 'italic')}
             />
           </div>
         )}
@@ -633,7 +635,8 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
             onSave={async (val) => {
               updateProject.mutate({ id: project.id, deadline: val || null });
             }}
-            className="text-base font-medium"
+            // F-05, то же основание: «Установить» обязано выглядеть приглашением.
+            className={cn('text-base font-medium', !project.deadline && 'italic')}
           />
         </div>
       </div>
@@ -641,12 +644,14 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {/* S-R2-D3: карта стейкхолдеров — сразу под info-grid, до Команды и Материалов.
           Участники со стороны клиента есть и у сделки, и у внедрения, поэтому без
           фильтра по типу проекта. Primary вычисляется из project.contact_id. */}
-      <DealStakeholders
-        projectId={projectId}
-        primaryContactId={project.contact_id}
-        primaryContact={project.contact ?? null}
-        companyId={project.company_id}
-      />
+      <div id="deal-stakeholders">
+        <DealStakeholders
+          projectId={projectId}
+          primaryContactId={project.contact_id}
+          primaryContact={project.contact ?? null}
+          companyId={project.company_id}
+        />
+      </div>
 
       {/* P2b (B2): команда — full-width секция; S-TEAM-ROLES-1: роли фильтруются по категории (direction+type) */}
       {isDelivery && (
@@ -804,7 +809,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {activeTab === 'chat' && <ProjectChat projectId={projectId} />}
 
       {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
-      <div className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
+      <div id="deal-activity" className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-text-dim" />

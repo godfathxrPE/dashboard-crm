@@ -2,11 +2,9 @@
 
 import { ChevronRight, Pin, Check } from 'lucide-react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
-import { useActivityLog } from '@/lib/hooks/use-activity-log';
 import { InlineEdit } from '@/components/ui/InlineEdit';
-import { HealthDot } from '@/components/shared/HealthDot';
+import { DealSignals, useDealSignals, scrollToSignalAnchor } from './DealSignals';
 import {
-  calculateDealHealth,
   getDealHealth,
   getNextActionOverdueDays,
 } from '@/lib/utils/deal-health';
@@ -27,7 +25,9 @@ function formatActionDate(value: string): string {
 
 export function DealFocusPanel({ project, compact }: { project: Project; compact?: boolean }) {
   const updateProject = useUpdateProject();
-  const { data: entries = [] } = useActivityLog(project.id);
+  // Контекст сигналов собирается ОДИН раз здесь (панель живёт в зоне 3) —
+  // `useActivityLog` внутри бьёт в тот же ключ кеша, второго запроса нет.
+  const signals = useDealSignals(project);
 
   const health = getDealHealth(project);
   const overdue = health === 'overdue-action';
@@ -35,13 +35,6 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
   const overdueDays = overdue && project.next_action_date
     ? getNextActionOverdueDays(project.next_action_date)
     : 0;
-
-  // Дней с последней активности — из уже закешированного activity_log (без нового запроса)
-  const lastActivityDays = entries.length > 0
-    ? Math.floor((Date.now() - new Date(entries[0].created_at!).getTime()) / 86400000)
-    : null;
-
-  const dealHealth = calculateDealHealth(project);
 
   function markStepDone() {
     updateProject.mutate({ id: project.id, next_step: null, next_action_date: null });
@@ -60,6 +53,10 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
     >
       {/* ─── Зона 1: Следующий шаг (доминирует) ─── */}
       <div
+        // Якорь CTA сигнала `next_step`. В compact (peek) id НЕ ставится: панель
+        // монтируется поверх страницы, где такой же id уже есть, и дубль увёл бы
+        // getElementById не туда.
+        id={compact ? undefined : 'deal-next-step'}
         className={cn(
           'min-w-0',
           noAction && 'rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2',
@@ -135,18 +132,17 @@ export function DealFocusPanel({ project, compact }: { project: Project; compact
       </div>
 
       {/* ─── Зона 3: Здоровье ─── */}
-      <div className={cn('flex flex-row items-start gap-4', !compact && 'md:flex-col md:items-end md:gap-1')}>
-        <div className={cn('mb-0 flex items-center gap-1 text-xs font-semibold text-text-dim', !compact && 'md:mb-1.5')}>
+      {/* Строки «N дн. без активности» здесь больше нет: она стала сигналом
+          `silence` и живёт внутри панели вместе с порогом и действием. */}
+      <div className={cn('min-w-0', !compact && 'md:w-80 md:justify-self-end')}>
+        <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-text-dim">
           Здоровье
         </div>
-        <HealthDot level={dealHealth.level} score={dealHealth.total} size="md" showLabel />
-        {lastActivityDays !== null && (
-          <span className="text-xs text-text-mute">
-            {lastActivityDays === 0
-              ? 'активность сегодня'
-              : `${lastActivityDays} дн. без активности`}
-          </span>
-        )}
+        <DealSignals
+          result={signals}
+          // В peek кнопок нет: скроллить некуда — якоря живут на полной карточке.
+          onAction={compact ? undefined : scrollToSignalAnchor}
+        />
       </div>
     </div>
   );

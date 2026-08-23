@@ -6,6 +6,10 @@ import {
   COMPLETENESS_WEIGHT_MIN,
   type CompletenessOverrides,
 } from '@/lib/domain/deal-completeness';
+import {
+  DEFAULT_SIGNAL_THRESHOLDS,
+  type DealSignalThresholds,
+} from '@/lib/domain/deal-signals';
 
 /**
  * Настройки организации (`organizations.settings`, миграция 076).
@@ -68,12 +72,28 @@ const stageTargetDaysSchema = z.record(
   z.number().int().min(STAGE_DWELL_MIN).max(STAGE_DWELL_MAX).optional(),
 );
 
+/**
+ * Пороги сигналов сделки (S-HEALTH-V2-1). Clamp — по смыслу каждого порога:
+ * grace 0..30 (льгота дольше месяца — не льгота), тишина 3..90 (те же границы,
+ * что у `reconnect_days` — величина одного рода), предупреждение о дедлайне
+ * 1..60. Миграция не нужна: ключ живёт в `organizations.settings` (076) через
+ * `.passthrough()`.
+ */
+const dealSignalThresholdsSchema = z
+  .object({
+    grace_days: z.number().int().min(0).max(30).optional(),
+    silence_days: z.number().int().min(3).max(90).optional(),
+    deadline_warn_days: z.number().int().min(1).max(60).optional(),
+  })
+  .optional();
+
 export const orgSettingsSchema = z
   .object({
     reconnect_days: reconnectDaysSchema.optional(),
     stage_dwell_defaults: stageDwellDefaultsSchema.optional(),
     stage_target_days: stageTargetDaysSchema.optional(),
     completeness_rules: completenessRulesSchema.optional(),
+    deal_signal_thresholds: dealSignalThresholdsSchema,
   })
   .passthrough();
 
@@ -296,6 +316,49 @@ export function readStageTargetDays(
     }
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Пороги сигналов сделки из настроек org (`settings.deal_signal_thresholds`).
+ *
+ * Читается кастом по той же причине, что `completeness_rules` и
+ * `stage_target_days`: ключ живёт в jsonb через `.passthrough()`, а
+ * `src/types/database.ts` руками не правится (правило 2 контракта).
+ *
+ * ⚠️ Поле за полем и независимо: невалидное значение ИГНОРИРУЕТСЯ и подменяется
+ * дефолтом, а не роняет разбор остальных. Это форвард-совместимость — настройка,
+ * записанная будущей версией клиента, не должна ломать текущую.
+ *
+ * ⚠️ Возвращает ВСЕГДА полный объект (в отличие от `readStageTargetDays`):
+ * у сигналов нет «фолбэка ниже по цепочке», дефолт и есть конечное значение.
+ * При полностью пустых настройках отдаётся ТА ЖЕ ссылка
+ * `DEFAULT_SIGNAL_THRESHOLDS` — новый литерал на каждый вызов ломал бы
+ * мемоизацию потребителей (грабля `useDwellThresholds`).
+ */
+export function readDealSignalThresholds(
+  settings: OrgSettings | null | undefined,
+): DealSignalThresholds {
+  const raw = (settings as Record<string, unknown> | null | undefined)?.deal_signal_thresholds;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_SIGNAL_THRESHOLDS;
+
+  const obj = raw as Record<string, unknown>;
+  const read = (key: string, min: number, max: number, fallback: number): number => {
+    const v = obj[key];
+    return typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max ? v : fallback;
+  };
+
+  const out: DealSignalThresholds = {
+    graceDays: read('grace_days', 0, 30, DEFAULT_SIGNAL_THRESHOLDS.graceDays),
+    silenceDays: read('silence_days', 3, 90, DEFAULT_SIGNAL_THRESHOLDS.silenceDays),
+    deadlineWarnDays: read('deadline_warn_days', 1, 60, DEFAULT_SIGNAL_THRESHOLDS.deadlineWarnDays),
+  };
+
+  // Ни одно поле не переопределено ⇒ отдаём ту же ссылку, а не эквивалентный литерал.
+  return out.graceDays === DEFAULT_SIGNAL_THRESHOLDS.graceDays &&
+    out.silenceDays === DEFAULT_SIGNAL_THRESHOLDS.silenceDays &&
+    out.deadlineWarnDays === DEFAULT_SIGNAL_THRESHOLDS.deadlineWarnDays
+    ? DEFAULT_SIGNAL_THRESHOLDS
+    : out;
 }
 
 /** jsonb-настройки → строковые поля формы (нет ключа ⇒ пустое поле ⇒ вес по умолчанию). */
