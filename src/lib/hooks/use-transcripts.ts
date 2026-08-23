@@ -60,6 +60,10 @@ export type TranscriptListRow = {
   /** Привязки строки — нужны, чтобы открыть AI-модалку с тем же контекстом. */
   projectId: string | null;
   contactId: string | null;
+  /** S-TR-CREATE-1: имя сделки для колонки «Сделка» (эмбед по FK родителя). */
+  projectName: string | null;
+  /** S-TR-CREATE-1: сколько прогонов AI сделано по этой расшифровке. */
+  runCount: number;
 };
 
 type TranscriptRawRow = {
@@ -144,13 +148,13 @@ export function useTranscriptsList(filter: TranscriptsFilter = {}) {
       const callIds = raw.filter((r) => r.entity_type === 'call').map((r) => r.entity_id);
       const meetingIds = raw.filter((r) => r.entity_type === 'meeting').map((r) => r.entity_id);
 
-      const [calls, meetings] = await Promise.all([
+      const [calls, meetings, runsByTranscript] = await Promise.all([
         fetchRelated(
           callIds,
           (batch) =>
             supabase
               .from('calls')
-              .select('id, date, project_id, contact_id, company_id, company:companies(id, name), contact:contacts(id, first_name, last_name)')
+              .select('id, date, project_id, contact_id, company_id, company:companies(id, name), contact:contacts(id, first_name, last_name), project:projects(id, name)')
               .in('id', batch),
         ),
         fetchRelated(
@@ -158,9 +162,10 @@ export function useTranscriptsList(filter: TranscriptsFilter = {}) {
           (batch) =>
             supabase
               .from('meetings')
-              .select('id, date, title, project_id, contact_id, company_id, company:companies(id, name), contact:contacts(id, first_name, last_name)')
+              .select('id, date, title, project_id, contact_id, company_id, company:companies(id, name), contact:contacts(id, first_name, last_name), project:projects(id, name)')
               .in('id', batch),
         ),
+        fetchRunCounts(supabase, raw.map((r) => r.id)),
       ]);
 
       const byId = new Map<string, RelatedRow>();
@@ -184,12 +189,42 @@ export function useTranscriptsList(filter: TranscriptsFilter = {}) {
             entityDate: rel?.date ?? null,
             projectId: rel?.project_id ?? null,
             contactId: rel?.contact_id ?? null,
+            projectName: rel?.project?.name ?? null,
+            runCount: runsByTranscript.get(r.id) ?? 0,
           };
         })
         // Батчи `.in` порядок между собой не держат (см. шапку query-batching).
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
   });
+}
+
+/**
+ * Сколько прогонов AI сделано по каждой расшифровке — ОДИН запрос на весь список
+ * (нарезка по границе длины URL), а не запрос на строку.
+ *
+ * Считаем на клиенте: агрегата `count ... group by` PostgREST в такой форме не
+ * отдаёт, а RPC ради счётчика в списке — это миграция, которой в спринте нет.
+ * Тянем единственную колонку: числу строк содержимое прогонов не нужно.
+ */
+async function fetchRunCounts(
+  supabase: ReturnType<typeof createClient>,
+  transcriptIds: string[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (transcriptIds.length === 0) return counts;
+  for (const batch of chunkForIn([...new Set(transcriptIds)])) {
+    const { data, error } = await supabase
+      .from('ai_runs')
+      .select('transcript_id')
+      .in('transcript_id', batch);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const id = row.transcript_id as string | null;
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return counts;
 }
 
 type RelatedRow = {
@@ -201,6 +236,7 @@ type RelatedRow = {
   company_id: string | null;
   company?: { id: string; name: string } | null;
   contact?: { id: string; first_name: string; last_name: string } | null;
+  project?: { id: string; name: string } | null;
 };
 
 /** Один запрос на весь список id (с нарезкой по границе длины URL), а не на строку. */

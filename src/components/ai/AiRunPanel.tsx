@@ -26,7 +26,7 @@ import type { AiRunRow } from '@/types/database';
 import { AiResultRenderer } from './renderers/AiResultRenderer';
 import { RunCostMeta } from './RunCostMeta';
 import { AiProgressionPanel } from './AiProgressionPanel';
-import { TranscribeDropzone } from './TranscribeDropzone';
+import { TranscriptInput } from '@/components/transcripts/TranscriptInput';
 import type { ActionItem } from './renderers/ProtocolRenderer';
 
 interface AiRunPanelProps {
@@ -83,7 +83,9 @@ export function AiRunPanel({
   // Ручная правка расшифровки источник НЕ меняет: это по-прежнему машинный текст,
   // доведённый человеком, и знать это полезнее, чем «paste» после одной запятой.
   const [source, setSource] = useState<TranscriptSource>('paste');
-  const [mode, setMode] = useState<'paste' | 'audio'>('paste');
+  // Зеркало вкладки `TranscriptInput` — им управляет сам компонент, здесь оно
+  // нужно ровно одной подсказке под кнопками пресетов (см. комментарий у неё).
+  const [mode, setMode] = useState<'paste' | 'audio' | 'file'>('paste');
   /**
    * S-AI-VIS-1: что именно уже сохранено в БД. Хранится вместе с текстом, а не
    * одним флагом: человек правит расшифровку прямо в поле, и «сохранено» про
@@ -128,9 +130,8 @@ export function AiRunPanel({
   const handleTranscribed = (result: string, complete: boolean) => {
     setText(result);
     setSource('audio');
-    // Текст готов — возвращаем человека к полю, где он его вычитает глазами
-    // и сам запустит пресет. Автозапуска прогона нет намеренно.
-    setMode('paste');
+    // Возврат к полю после расшифровки делает сам `TranscriptInput` — правило
+    // «человек вычитывает текст глазами и сам запускает пресет» одно на оба места.
     if (!canHaveTranscript(entityType) || result.trim() === '') return;
     setSaved({ text: result, complete });
     saveTranscript.mutate(
@@ -194,60 +195,21 @@ export function AiRunPanel({
         <span>AI-анализ по транскрипту</span>
       </div>
 
-      {/* Откуда взять транскрипт: вставить руками или расшифровать аудио (S-R3-VOICE-1).
-          Только у звонка и встречи: `transcripts.entity_type` — call|meeting, у сделки и
-          компании транскрипта не бывает, и предлагать там расшифровку значило бы вести
-          в тупик «К сделке нельзя привязать транскрипт». */}
-      {canTranscribe && (
-        <div className="mb-2 inline-flex rounded-lg border border-border bg-surface p-0.5">
-          {(
-            [
-              ['paste', 'Вставить'],
-              ['audio', 'Аудио'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setMode(value)}
-              aria-pressed={mode === value}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                mode === value
-                  ? 'bg-accent-l text-accent'
-                  : 'text-text-dim hover:bg-surface-hover hover:text-text-main'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Режимы — альтернативы: поле показываем только во «Вставить», чтобы не было
-          двух мест ввода одного текста одновременно. */}
-      {canTranscribe && mode === 'audio' ? (
-        <div className="mb-3">
-          <TranscribeDropzone onResult={handleTranscribed} />
-        </div>
-      ) : (
-        <>
-          {/* Транскрипт */}
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={4}
-            placeholder="Вставьте транскрипт разговора…"
-            className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            style={{ resize: 'vertical', minHeight: '80px' }}
-          />
-          <div className="mt-1 flex items-center justify-end gap-2 text-meta text-text-mute">
-            {source === 'audio' && <span className="text-accent">расшифровка аудио</span>}
-            <span>{text.length.toLocaleString('ru')} симв.</span>
-          </div>
-
-          {/* Факт сохранения — строкой, а не только тостом: тост исчезает, а вопрос
-              «сохранилось ли» остаётся (урок S-FIX-VOICE-1). */}
-          {saved && (
+      {/* Ввод текста расшифровки — общий компонент с мастером создания
+          (S-TR-CREATE-1). Вкладка «Аудио» только у звонка и встречи:
+          `transcripts.entity_type` — call|meeting, у сделки и компании транскрипта
+          не бывает, и предлагать там расшифровку значило бы вести в тупик. */}
+      <TranscriptInput
+        text={text}
+        onTextChange={setText}
+        source={source}
+        onTranscribed={handleTranscribed}
+        withAudio={canTranscribe}
+        onModeChange={setMode}
+        footer={
+          /* Факт сохранения — строкой, а не только тостом: тост исчезает, а вопрос
+             «сохранилось ли» остаётся (урок S-FIX-VOICE-1). */
+          saved ? (
             <p className="mt-1 flex items-start gap-1 text-meta">
               {saveTranscript.isPending ? (
                 <span className="text-text-mute">Сохраняю расшифровку…</span>
@@ -268,9 +230,9 @@ export function AiRunPanel({
                 </span>
               )}
             </p>
-          )}
-        </>
-      )}
+          ) : null
+        }
+      />
 
       {/* Кнопки пресетов */}
       <div className="mt-2 flex flex-wrap gap-1.5">

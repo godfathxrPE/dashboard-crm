@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, Search, Loader2, Download, Phone, CalendarDays, X } from 'lucide-react';
+import { FileText, Search, Loader2, Download, Phone, CalendarDays, X, Plus, Sparkles, ChevronRight, CornerDownRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { CTAButton } from '@/components/ui/CTAButton';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { useCompanies } from '@/lib/hooks/use-companies';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { useCallMeetingIds, useTranscriptsList, type TranscriptListRow } from '@/lib/hooks/use-transcripts';
 import { formatCharCount, textPreview } from '@/lib/domain/transcript';
+import { groupTranscripts, type GroupedTranscript } from '@/lib/domain/transcript-grouping';
 import { downloadTranscript, sourceLabel } from '@/lib/utils/transcript-export';
 import { TranscriptViewModal } from './TranscriptViewModal';
+import { TranscriptCreateModal, type CreatedTranscriptParent } from './TranscriptCreateModal';
 import { cn } from '@/lib/utils/cn';
 
 // ═══════════════════════════════════════════════════════
@@ -24,6 +28,15 @@ import { cn } from '@/lib/utils/cn';
 // ═══════════════════════════════════════════════════════
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+/** Строка таблицы = строка списка + её место в группе фрагментов. */
+type TranscriptDisplayRow = GroupedTranscript<TranscriptListRow>;
+
+/** Чего хватает, чтобы открыть AI-модалку разговора (её открывает и чип «✦ N»). */
+type TranscriptRowRef = Pick<
+  TranscriptListRow,
+  'entityType' | 'entityId' | 'projectId' | 'companyId' | 'contactId'
+>;
 
 type EntityFilter = 'all' | 'call' | 'meeting';
 type SourceFilter = 'all' | 'audio' | 'paste' | 'file';
@@ -88,9 +101,15 @@ export function TranscriptsView() {
   const [companyId, setCompanyId] = useState<string | null>(null);
 
   const [viewing, setViewing] = useState<TranscriptListRow | null>(null);
-  const [aiFor, setAiFor] = useState<TranscriptListRow | null>(null);
+  const [aiFor, setAiFor] = useState<TranscriptRowRef | null>(null);
+  const [creating, setCreating] = useState(false);
+  /** Раскрытые группы фрагментов — ключи `entity_type:entity_id`. */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const { data: companies } = useCompanies();
+  const { data: role } = useOrgRole();
+  // T2: viewer не создаёт — RLS вернёт 42501, кнопка врать не должна.
+  const canCreate = role != null && role !== 'viewer';
 
   // Фильтр по компании — СЕРВЕРНЫЙ: id её звонков и встреч сужают выборку самих
   // расшифровок. Клиентский фильтр по загруженной странице отфильтровал бы только
@@ -111,16 +130,57 @@ export function TranscriptsView() {
     [companies],
   );
 
-  const columns: Column<TranscriptListRow>[] = useMemo(() => [
+  // Группировка КЛИЕНТСКАЯ: серверная выборка не меняется. При активном поиске все
+  // группы раскрыты — прятать под чипом «+N» строку, которую человек только что
+  // нашёл по слову из неё, значит не показать результат поиска.
+  const searchActive = search.trim() !== '';
+  const displayRows: TranscriptDisplayRow[] = useMemo(
+    () => groupTranscripts(rows ?? [], expanded, { expandAll: searchActive }),
+    [rows, expanded, searchActive],
+  );
+
+  const toggleGroup = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const columns: Column<TranscriptDisplayRow>[] = useMemo(() => [
     {
       key: 'createdAt',
       label: 'Дата',
       sortable: true,
-      width: '120px',
+      width: '170px',
       render: (t) => (
-        <span className="whitespace-nowrap text-xs text-text-dim">
-          {new Date(t.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' })}
-        </span>
+        <div className={cn('flex items-center gap-1.5', t.isChild && 'pl-4')}>
+          {t.isChild && <CornerDownRight size={11} className="shrink-0 text-text-mute" />}
+          <span className="whitespace-nowrap text-xs text-text-dim">
+            {new Date(t.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: '2-digit' })}
+          </span>
+          {/* Фрагменты одного разговора — под чипом: до группировки час разговора,
+              расшифрованный кусками, читался как десять разных звонков. */}
+          {t.childCount > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); toggleGroup(t.groupKey); }}
+              aria-expanded={searchActive || expanded.has(t.groupKey)}
+              title={`Ещё ${t.childCount} фрагмент(ов) этого разговора`}
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent-l px-1.5 py-0.5 text-meta font-medium text-accent hover:opacity-80"
+            >
+              <ChevronRight
+                size={10}
+                className={cn(
+                  'transition-transform',
+                  (searchActive || expanded.has(t.groupKey)) && 'rotate-90',
+                )}
+              />
+              +{t.childCount}
+            </button>
+          )}
+        </div>
       ),
     },
     {
@@ -143,6 +203,9 @@ export function TranscriptsView() {
       sortable: true,
       width: '220px',
       render: (t) => {
+        // Вложенная строка — тот же разговор: компания и контакт у неё совпадают
+        // с главной, и повтор в каждой строке читался бы как разные записи.
+        if (t.isChild) return <span className="text-xs text-text-mute">·</span>;
         const subject = t.company ?? t.subject;
         if (!subject && !t.contact) {
           // Звонок мог быть удалён — расшифровка живёт своей строкой и остаётся.
@@ -158,6 +221,27 @@ export function TranscriptsView() {
       searchValue: (t) => `${t.company ?? ''} ${t.subject ?? ''} ${t.contact ?? ''}`,
     },
     {
+      key: 'projectName',
+      label: 'Сделка',
+      sortable: true,
+      width: '170px',
+      render: (t) => {
+        if (t.isChild) return <span className="text-xs text-text-mute">·</span>;
+        if (!t.projectName || !t.projectId) return <span className="text-xs text-text-mute">—</span>;
+        return (
+          <a
+            href={`/projects/${t.projectId}`}
+            onClick={(e) => e.stopPropagation()}
+            title={t.projectName}
+            className="inline-block max-w-full truncate rounded-full bg-accent-l px-2 py-0.5 text-xs text-accent hover:opacity-80"
+          >
+            {t.projectName}
+          </a>
+        );
+      },
+      searchValue: (t) => t.projectName ?? '',
+    },
+    {
       key: 'charCount',
       label: 'Объём',
       sortable: true,
@@ -170,6 +254,25 @@ export function TranscriptsView() {
       sortable: true,
       width: '130px',
       render: (t) => <span className="whitespace-nowrap text-xs text-text-mute">{sourceLabel(t.source)}</span>,
+    },
+    {
+      key: 'runCount',
+      label: 'Прогоны',
+      sortable: true,
+      width: '90px',
+      render: (t) => {
+        if (t.runCount === 0) return <span className="text-xs text-text-mute">—</span>;
+        return (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setAiFor(t); }}
+            title={`Прогонов AI по этой расшифровке: ${t.runCount}`}
+            className="inline-flex items-center gap-1 rounded-full bg-accent-l px-2 py-0.5 text-xs font-medium text-accent hover:opacity-80"
+          >
+            <Sparkles size={11} /> {t.runCount}
+          </button>
+        );
+      },
     },
     {
       key: 'content',
@@ -214,7 +317,9 @@ export function TranscriptsView() {
         </button>
       ),
     },
-  ], []);
+    // Колонки читают состояние раскрытия (чип «+N») — без зависимостей чип
+    // остался бы со стрелкой в исходном положении после клика.
+  ], [expanded, searchActive]);
 
   const busy = isLoading || (!!companyId && idsLoading);
   const hasFilters = search.trim() !== '' || entityFilter !== 'all' || sourceFilter !== 'all' || companyId !== null;
@@ -227,6 +332,9 @@ export function TranscriptsView() {
         wmColors={WATERMARK_GRADIENTS.frost}
         count={rows?.length ?? 0}
         icon={<FileText size={18} className="text-accent" />}
+        action={canCreate
+          ? <CTAButton size="sm" onClick={() => setCreating(true)}><Plus size={14} /> Транскрипт</CTAButton>
+          : undefined}
       />
 
       {/* Панель фильтров. Поиск, источник, способ и компания комбинируются по «И». */}
@@ -283,7 +391,7 @@ export function TranscriptsView() {
             description={
               hasFilters
                 ? 'Попробуйте другое слово или снимите фильтры — поиск идёт по всему тексту разговора.'
-                : 'Расшифровка появляется здесь после вкладки «Аудио» в AI-анализе звонка или встречи.'
+                : 'Заведите расшифровку прямо здесь — звонок или встреча создадутся вместе с ней.'
             }
             action={hasFilters
               ? {
@@ -295,19 +403,21 @@ export function TranscriptsView() {
                     setCompanyId(null);
                   },
                 }
-              : { label: 'К звонкам', href: '/calls' }}
+              : canCreate
+                ? { label: '+ Транскрипт', onClick: () => setCreating(true) }
+                : { label: 'К звонкам', href: '/calls' }}
           />
         </div>
       ) : (
         <DataTable
-          data={rows ?? []}
+          data={displayRows}
           columns={columns}
           keyField="id"
           hideSearch
           pageSize={25}
           onRowClick={(t) => setViewing(t)}
           emptyMessage="Расшифровок пока нет"
-          peekSuppressed={viewing !== null || aiFor !== null}
+          peekSuppressed={viewing !== null || aiFor !== null || creating}
         />
       )}
 
@@ -317,6 +427,18 @@ export function TranscriptsView() {
         onOpenEntity={(t) => {
           setViewing(null);
           setAiFor(t);
+        }}
+      />
+
+      {/* Мастер создания: звонок/встреча заводится под капотом, транскрипт садится
+          на него. По успеху сразу открываем AI-модалку созданного разговора —
+          пресеты под рукой, второй заход в раздел не нужен (S-TR-CREATE-1). */}
+      <TranscriptCreateModal
+        isOpen={creating}
+        onClose={() => setCreating(false)}
+        onCreated={(parent: CreatedTranscriptParent) => {
+          setCreating(false);
+          setAiFor(parent);
         }}
       />
 

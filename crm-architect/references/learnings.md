@@ -544,6 +544,16 @@ Every create/update/delete mutation should:
 ['activity-log', projectId]  — activity for project
 ```
 
+### ❌ Вторая витрина тех же строк без инвалидации — молчаливо устаревшая цифра
+Раздел «Транскрипты» показывает производную от `transcripts` + счётчик прогонов из `ai_runs`.
+Запись расшифровки и запуск прогона сбрасывали только «свои» ключи (`transcript`,
+`transcripts-presence`), про ключ витрины (`transcripts-list`) не знал никто — бейдж «✦ N»
+оставался на старом числе, а новая расшифровка не появлялась в разделе до истечения
+`staleTime`. Ошибки нет, тесты зелёные, дефект виден только глазами в браузере.
+**Fix**: сбрасывать ВСЕ витрины сущности из ОДНОЙ общей функции инвалидации
+(`invalidateTranscriptKeys` в `use-ai-run.ts`), а не из каждого вызывающего. Новый
+вызывающий тогда не может забыть половину. Поймано смоком S-TR-CREATE-1.
+
 ### ✅ Realtime sync
 `useRealtimeSync('tableName')` in page components.
 Accepts optional second parameter (unused, for signature compatibility).
