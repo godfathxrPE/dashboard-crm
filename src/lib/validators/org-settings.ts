@@ -87,6 +87,22 @@ const dealSignalThresholdsSchema = z
   })
   .optional();
 
+/**
+ * Подсказка по стадии (S-STAGE-STORY-1): `{ [stage_id]: текст }` — что делают
+ * на этой стадии в ЭТОЙ организации (Salesforce Path «Guidance for Success»).
+ *
+ * ⚠️ Почему не колонка `pipeline_stages.guidance`: `pipelines`/`pipeline_stages` —
+ * глобальные словари вне тенант-модели (RLS `USING true`, у клиента только SELECT),
+ * org-специфичному тексту в них не место. Та же развилка, что у `stage_target_days`,
+ * и закрыта она так же: ключ в `organizations.settings`. Подсказка одной org
+ * другой не видна — это свойство модели, а не утечка словаря.
+ */
+export const STAGE_GUIDANCE_MAX = 500;
+
+const stageGuidanceSchema = z
+  .record(z.string(), z.string().max(STAGE_GUIDANCE_MAX).optional())
+  .optional();
+
 export const orgSettingsSchema = z
   .object({
     reconnect_days: reconnectDaysSchema.optional(),
@@ -94,6 +110,7 @@ export const orgSettingsSchema = z
     stage_target_days: stageTargetDaysSchema.optional(),
     completeness_rules: completenessRulesSchema.optional(),
     deal_signal_thresholds: dealSignalThresholdsSchema,
+    stage_guidance: stageGuidanceSchema,
   })
   .passthrough();
 
@@ -315,6 +332,65 @@ export function readStageTargetDays(
       out[stageId] = value;
     }
   }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Подсказки по стадиям из настроек org (`settings.stage_guidance`).
+ *
+ * Читается кастом по той же причине, что `stage_target_days` и
+ * `deal_signal_thresholds`: ключ живёт в jsonb через `.passthrough()`, а
+ * `src/types/database.ts` руками не правится (правило 2 контракта).
+ *
+ * Поле за полем и независимо: не-строка, пустая строка и текст длиннее
+ * `STAGE_GUIDANCE_MAX` ИГНОРИРУЮТСЯ и не роняют разбор остальных стадий.
+ * Пустая строка отбрасывается намеренно — «ключ есть, текста нет» и «ключа нет»
+ * обязаны читаться одинаково, иначе UI показал бы пустую рамку подсказки.
+ *
+ * Возвращает `undefined`, если валидных ключей нет: у подсказки нет фолбэка,
+ * и пустой объект-оверрайд отличался бы от «подсказок не заведено» только
+ * лишним рендером.
+ */
+export function readStageGuidance(
+  settings: OrgSettings | null | undefined,
+): Record<string, string> | undefined {
+  const raw = (settings as Record<string, unknown> | null | undefined)?.stage_guidance;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+  const out: Record<string, string> = {};
+  for (const [stageId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'string') continue;
+    const text = value.trim();
+    if (text === '' || text.length > STAGE_GUIDANCE_MAX) continue;
+    out[stageId] = text;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
+ * Патч `settings.stage_guidance` — одна стадия поверх текущих подсказок.
+ *
+ * ⚠️ Пустой текст УДАЛЯЕТ ключ, а не пишет пустую строку: иначе очищенная
+ * подсказка осталась бы в настройках мёртвым ключом, и ридер всё равно бы её
+ * выбросил — расхождение хранилища и экрана без единого признака.
+ *
+ * ⚠️ Пустой итог — `undefined`, а не `{}`: в merge-патче `{...current, ...patch}`
+ * значение `undefined` выпадает при сериализации в jsonb, то есть удаление
+ * последней подсказки убирает ключ целиком (тот же контракт, что у
+ * `buildStageTargetDays`).
+ *
+ * Подсказки ЧУЖИХ стадий переносятся как есть — правка одной стадии не должна
+ * стирать остальные.
+ */
+export function buildStageGuidancePatch(
+  current: Record<string, string> | undefined,
+  stageId: string,
+  text: string,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = { ...(current ?? {}) };
+  const trimmed = text.trim();
+  if (trimmed === '') delete out[stageId];
+  else out[stageId] = trimmed.slice(0, STAGE_GUIDANCE_MAX);
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

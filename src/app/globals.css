@@ -593,8 +593,12 @@
 .t-fuji .border-b-2.border-accent {
   border-color: var(--gold) !important;
 }
-/* Hide "Удаления" tab (5th child) */
-.t-fuji .flex.gap-1.border-b > button:nth-child(5) {
+/* Hide "Удаления" tab (5th child of the RecentActivityList strip).
+   ⚠️ Селектор ОБЯЗАН быть привязан к `[data-activity-tabs]`: без этого он ловил
+   любую полосу `.flex.gap-1.border-b` — в том числе вкладки карточки сделки, где
+   пятая по счёту вкладка («История», S-STAGE-STORY-1) молча пропадала в Fuji.
+   Позиционный `nth-child` внутри одной известной полосы допустим, поперёк всех — нет. */
+.t-fuji [data-activity-tabs] > button:nth-child(5) {
   display: none;
 }
 /* Activity items — hide icon circles, add separators */

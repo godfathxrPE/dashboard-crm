@@ -44,6 +44,7 @@ import { ProjectFiles } from './ProjectFiles';
 import { ProjectVideos } from './ProjectVideos';
 import { ProjectChat } from './ProjectChat';
 import { QuotesTab } from './QuotesTab';
+import { DealStageStory } from './DealStageStory';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -146,7 +147,7 @@ function CompletenessBadge({ project }: { project: Project }) {
 // ═══════════════════════════════════════════════════════
 
 // PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки
-type Tab = 'activity' | 'board' | 'timeline' | 'quotes' | 'chat';
+type Tab = 'activity' | 'board' | 'timeline' | 'quotes' | 'story' | 'chat';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -754,6 +755,9 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
           { value: 'timeline' as const, label: 'Гант' },
           // S-QUOTE-1: вкладка «КП» — только для сделок (type='client')
           ...(project.type === 'client' ? [{ value: 'quotes' as const, label: 'КП' }] : []),
+          // S-STAGE-STORY-1: траектория по стадиям — тоже только для сделок:
+          // у внедрения фазы СДР, и «возвраты» там означают другое.
+          ...(project.type === 'client' ? [{ value: 'story' as const, label: 'История' }] : []),
           // S-CHAT-1: чат команды — на всех типах проектов (отдельный модуль, НЕ Активность)
           { value: 'chat' as const, label: 'Чат' },
         ]).map((t) => (
@@ -803,6 +807,11 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
       {/* S-QUOTE-1: КП сделки — только client */}
       {activeTab === 'quotes' && project.type === 'client' && (
         <QuotesTab deal={project} />
+      )}
+
+      {/* S-STAGE-STORY-1: траектория сделки по стадиям — сводка, не пересказ ленты */}
+      {activeTab === 'story' && project.type === 'client' && (
+        <DealStageStory project={project} />
       )}
 
       {/* S-CHAT-1: чат команды проекта (realtime) */}

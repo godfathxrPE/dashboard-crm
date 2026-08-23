@@ -1,18 +1,28 @@
 'use client';
 
 import { useMemo } from 'react';
+import { toast } from 'sonner';
+import { Lightbulb } from 'lucide-react';
 import { PipelineCockpit, type CockpitGateItem } from '@/components/shared/PipelineCockpit';
 import { StageRail } from '@/components/shared/StageRail';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
 import { useStageRequirements } from '@/lib/hooks/use-stage-requirements';
 import { useStageGate } from '@/lib/hooks/use-stage-gate';
-import { useDwellThresholds, useStageTargetDays } from '@/lib/hooks/use-org-settings';
+import {
+  useDwellThresholds,
+  useStageGuidance,
+  useStageTargetDays,
+  useUpdateOrgSettings,
+} from '@/lib/hooks/use-org-settings';
+import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { buildStageGuidancePatch, STAGE_GUIDANCE_MAX } from '@/lib/validators/org-settings';
+import { InlineEdit } from '@/components/ui/InlineEdit';
 import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import { useTransitionStore } from '@/lib/stores/transition-store';
 import { resolveStageNorm, stageTimeGauge } from '@/lib/domain/stage-norm';
 import { PHASE_LABELS, phaseLabel } from '@/lib/constants/phase-labels';
 import type { Project } from '@/lib/hooks/use-projects';
-import type { PipelineStage, StageRequirementConfig } from '@/types/database';
+import type { OrgSettings, PipelineStage, StageRequirementConfig } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-PIPELINE-COCKPIT-1: сборка данных кокпита для сделки/проекта внедрения.
@@ -41,6 +51,9 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const allStages = useStagesForPipeline(project.pipeline_id);
   const dwell = useDwellThresholds();
   const targetDays = useStageTargetDays();
+  const guidance = useStageGuidance();
+  const { data: orgRole } = useOrgRole();
+  const updateSettings = useUpdateOrgSettings();
   const { data: requirements } = useStageRequirements(project.pipeline_id);
 
   // Хук НЕ сортирует и НЕ фильтрует — то же, что делал StackedPipeline на месте.
@@ -196,6 +209,27 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
           : null
       }
       locked={locked}
+      guidance={
+        // Подсказка привязана к ТЕКУЩЕЙ стадии и меняется вместе с ней. У лидов
+        // слота нет — блок собирает вызывающий, не общий кокпит.
+        <StageGuidance
+          stageId={currentStage.id}
+          stageName={currentStage.name}
+          text={guidance?.[currentStage.id] ?? ''}
+          canEdit={orgRole === 'owner'}
+          onSave={async (value) => {
+            try {
+              await updateSettings.mutateAsync({
+                stage_guidance: buildStageGuidancePatch(guidance, currentStage.id, value),
+              } as unknown as OrgSettings);
+            } catch (err) {
+              // 42501 у не-owner: политика org_update_owner. Кнопку мы уже скрыли,
+              // но истина на сервере — молча терять текст нельзя.
+              toast.error(err instanceof Error ? err.message : 'Не удалось сохранить подсказку');
+            }
+          }}
+        />
+      }
       map={
         <div className="flex flex-col gap-2">
           <StageRail
@@ -215,5 +249,60 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
         </div>
       }
     />
+  );
+}
+
+/**
+ * «Что делаем на стадии» — org-подсказка под строкой кокпита (S-STAGE-STORY-1,
+ * Salesforce Path «Guidance for Success»).
+ *
+ * ⚠️ Редактор — только у owner: `organizations` UPDATE закрыт политикой
+ * `org_update_owner` (baseline + 054), у admin/manager запись вернула бы 42501.
+ * Не-owner видит текст, но не редактор.
+ *
+ * ⚠️ Пусто и не owner ⇒ блок не рендерится ВОВСЕ: рамка «подсказки нет» — шум на
+ * каждой карточке ненастроенной организации. Пусто и owner ⇒ одна строка-приглашение.
+ */
+function StageGuidance({
+  stageId,
+  stageName,
+  text,
+  canEdit,
+  onSave,
+}: {
+  stageId: string;
+  stageName: string;
+  text: string;
+  canEdit: boolean;
+  onSave: (value: string) => Promise<void>;
+}) {
+  if (!text && !canEdit) return null;
+
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-border bg-surface2 px-3 py-2">
+      <Lightbulb size={13} className="mt-0.5 shrink-0 text-text-mute" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 text-meta font-semibold uppercase tracking-wider text-text-mute">
+          Что делаем на стадии
+        </div>
+        {canEdit ? (
+          <InlineEdit
+            // key по stageId: черновик InlineEdit живёт в его state, и без сброса
+            // при смене стадии текст предыдущей подсказки утёк бы в следующую.
+            key={stageId}
+            as="textarea"
+            value={text}
+            onSave={onSave}
+            placeholder={`Добавить подсказку для стадии «${stageName}» (до ${STAGE_GUIDANCE_MAX} симв.)`}
+            // twMerge: `text-text-dim` перебивает `text-text-main` InlineEdit'а —
+            // подсказка тихая. У пустого значения класс не задаём: приглашение
+            // остаётся `text-text-mute`, как всякий placeholder в проекте.
+            className={text ? 'block text-body text-text-dim' : 'block text-body'}
+          />
+        ) : (
+          <p className="whitespace-pre-wrap text-body text-text-dim">{text}</p>
+        )}
+      </div>
+    </div>
   );
 }

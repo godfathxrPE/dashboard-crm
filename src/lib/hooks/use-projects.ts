@@ -502,6 +502,16 @@ export function useUpdateProject() {
       qc.invalidateQueries({ queryKey: [...QUERY_KEY, vars.id] });
       // AUDIT 2.9: смена стадии (won/lost) меняет счётчик активных сделок на дашборде
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      // S-STAGE-STORY-1: журнал переходов пишет триггер, а таблицы
+      // `stage_transitions` НЕТ в публикации `supabase_realtime` — подписка на неё
+      // молчала бы тихо. Свежесть вкладки «История» держит эта инвалидация, и
+      // стоит она ЗДЕСЬ, в единственном входе смены стадии
+      // (`useStageTransition.commitTransition` → `update.mutate`), а не в
+      // вызывающих: иначе новый путь перехода смог бы забыть половину.
+      qc.invalidateQueries({ queryKey: ['stage_transitions'] });
+      // Перенос дедлайна тоже виден на этой вкладке (аудит полей 087) и приезжает
+      // тем же UPDATE.
+      qc.invalidateQueries({ queryKey: ['deadline-moves'] });
     },
   });
 }
