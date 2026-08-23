@@ -594,6 +594,16 @@ FROM authenticated` (как в `run_stage_automations` 050). `check_task_depende
 верификация side-effects (task/notification/activity/automation_runs) → **`ROLLBACK`**.
 Прогоняет backward-compat, идемпотентность, re-entrancy, swallow — на живой БД, откатывая всё.
 
+### ✅ Ролевой смок из Cowork (MCP `execute_sql`): `DO` + финальный `RAISE EXCEPTION`
+У MCP-канала нет управления транзакцией между вызовами — `begin; … rollback;` в одном
+запросе полагаться нельзя. Приём (S-TR-CREATE-1, гейт): весь сценарий в одном `DO $$ … $$`
+(`set_config('request.jwt.claims', …, true)` + `SET LOCAL ROLE authenticated` → INSERT'ы →
+`SELECT count(*)` видимости) и **последней строкой `RAISE EXCEPTION 'РЕЗУЛЬТАТ … %', …`**.
+Даёт сразу два: гарантированный откат (исключение откатывает блок целиком) и **результат в
+тексте ошибки** — единственный способ вернуть значения наружу, `RAISE NOTICE` через MCP не
+виден. Обязательно после — контрольный `SELECT` по возвращённым id: откат подтверждается
+фактом, а не механикой.
+
 ### ℹ️ Radix НЕ в стеке
 Модалки — кастомный `shared/Modal.tsx`; `components/ui/` — кастомные примитивы (не Radix
 Dialog/Dropdown). Дропдауны — свой `Combobox`/`AssigneeSelect` + портал. UI-либы:

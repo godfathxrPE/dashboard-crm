@@ -7,6 +7,7 @@ import { WATERMARK_GRADIENTS } from '@/lib/watermark-gradients';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { Combobox, type ComboboxOption } from '@/components/shared/Combobox';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { CTAButton } from '@/components/ui/CTAButton';
 import { AiWorkspaceModal } from '@/components/ai/AiWorkspaceModal';
 import { useCompanies } from '@/lib/hooks/use-companies';
@@ -64,34 +65,6 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-function SegmentTabs<T extends string>({
-  tabs, value, onChange,
-}: {
-  tabs: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
-      {tabs.map((t) => (
-        <button
-          key={t.value}
-          type="button"
-          onClick={() => onChange(t.value)}
-          aria-pressed={value === t.value}
-          className={cn(
-            'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-            value === t.value
-              ? 'bg-accent-l text-accent'
-              : 'text-text-dim hover:bg-surface-hover hover:text-text-main',
-          )}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function TranscriptsView() {
   const [searchInput, setSearchInput] = useState('');
@@ -361,8 +334,8 @@ export function TranscriptsView() {
           )}
         </div>
 
-        <SegmentTabs tabs={ENTITY_TABS} value={entityFilter} onChange={setEntityFilter} />
-        <SegmentTabs tabs={SOURCE_TABS} value={sourceFilter} onChange={setSourceFilter} />
+        <SegmentedControl options={ENTITY_TABS} value={entityFilter} onChange={setEntityFilter} ariaLabel="Тип разговора" />
+        <SegmentedControl options={SOURCE_TABS} value={sourceFilter} onChange={setSourceFilter} ariaLabel="Способ получения" />
 
         <div className="min-w-[200px]">
           <Combobox

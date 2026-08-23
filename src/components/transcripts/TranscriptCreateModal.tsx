@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Phone, CalendarDays } from 'lucide-react';
@@ -335,29 +336,19 @@ export function TranscriptCreateModal({ isOpen, onClose, onCreated }: Transcript
               name="kind"
               control={control}
               render={({ field }) => (
-                <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
-                  {([['call', 'Звонок', Phone], ['meeting', 'Встреча', CalendarDays]] as const).map(
-                    ([value, label, Icon]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => {
-                          field.onChange(value);
-                          // У встречи ветки лида нет — `meetings.lead_id` не существует.
-                          if (value === 'meeting') setValue('lead_id', null, { shouldDirty: true });
-                        }}
-                        aria-pressed={field.value === value}
-                        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium ${
-                          field.value === value
-                            ? 'bg-accent-l text-accent'
-                            : 'text-text-dim hover:bg-surface-hover hover:text-text-main'
-                        }`}
-                      >
-                        <Icon size={13} /> {label}
-                      </button>
-                    ),
-                  )}
-                </div>
+                <SegmentedControl
+                  ariaLabel="Тип разговора"
+                  options={[
+                    { value: 'call' as const, label: 'Звонок', icon: Phone },
+                    { value: 'meeting' as const, label: 'Встреча', icon: CalendarDays },
+                  ]}
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    // У встречи ветки лида нет — `meetings.lead_id` не существует.
+                    if (v === 'meeting') setValue('lead_id', null, { shouldDirty: true });
+                  }}
+                />
               )}
             />
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type ReactNode } from 'react';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { toast } from 'sonner';
 import { TranscribeDropzone } from '@/components/ai/TranscribeDropzone';
 import type { TranscriptSource } from '@/lib/hooks/use-ai-run';
@@ -135,23 +136,13 @@ export function TranscriptInput({
   return (
     <div>
       {tabs.length > 1 && (
-        <div className="mb-2 inline-flex rounded-lg border border-border bg-surface p-0.5">
-          {tabs.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setMode(value)}
-              aria-pressed={mode === value}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                mode === value
-                  ? 'bg-accent-l text-accent'
-                  : 'text-text-dim hover:bg-surface-hover hover:text-text-main'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="mb-2"
+          ariaLabel="Способ ввода расшифровки"
+          options={tabs.map(([value, label]) => ({ value, label }))}
+          value={mode}
+          onChange={setMode}
+        />
       )}
 
       {/* Режимы — альтернативы: поле показываем только во «Вставить», чтобы не было
