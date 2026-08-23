@@ -544,6 +544,16 @@ Every create/update/delete mutation should:
 ['activity-log', projectId]  — activity for project
 ```
 
+### ❌ Вторая витрина тех же строк без инвалидации — молчаливо устаревшая цифра
+Раздел «Транскрипты» показывает производную от `transcripts` + счётчик прогонов из `ai_runs`.
+Запись расшифровки и запуск прогона сбрасывали только «свои» ключи (`transcript`,
+`transcripts-presence`), про ключ витрины (`transcripts-list`) не знал никто — бейдж «✦ N»
+оставался на старом числе, а новая расшифровка не появлялась в разделе до истечения
+`staleTime`. Ошибки нет, тесты зелёные, дефект виден только глазами в браузере.
+**Fix**: сбрасывать ВСЕ витрины сущности из ОДНОЙ общей функции инвалидации
+(`invalidateTranscriptKeys` в `use-ai-run.ts`), а не из каждого вызывающего. Новый
+вызывающий тогда не может забыть половину. Поймано смоком S-TR-CREATE-1.
+
 ### ✅ Realtime sync
 `useRealtimeSync('tableName')` in page components.
 Accepts optional second parameter (unused, for signature compatibility).
@@ -583,6 +593,16 @@ FROM authenticated` (как в `run_stage_automations` 050). `check_task_depende
 `SET LOCAL ROLE authenticated` → INSERT правила + UPDATE `projects` (провоцирует триггер) +
 верификация side-effects (task/notification/activity/automation_runs) → **`ROLLBACK`**.
 Прогоняет backward-compat, идемпотентность, re-entrancy, swallow — на живой БД, откатывая всё.
+
+### ✅ Ролевой смок из Cowork (MCP `execute_sql`): `DO` + финальный `RAISE EXCEPTION`
+У MCP-канала нет управления транзакцией между вызовами — `begin; … rollback;` в одном
+запросе полагаться нельзя. Приём (S-TR-CREATE-1, гейт): весь сценарий в одном `DO $$ … $$`
+(`set_config('request.jwt.claims', …, true)` + `SET LOCAL ROLE authenticated` → INSERT'ы →
+`SELECT count(*)` видимости) и **последней строкой `RAISE EXCEPTION 'РЕЗУЛЬТАТ … %', …`**.
+Даёт сразу два: гарантированный откат (исключение откатывает блок целиком) и **результат в
+тексте ошибки** — единственный способ вернуть значения наружу, `RAISE NOTICE` через MCP не
+виден. Обязательно после — контрольный `SELECT` по возвращённым id: откат подтверждается
+фактом, а не механикой.
 
 ### ℹ️ Radix НЕ в стеке
 Модалки — кастомный `shared/Modal.tsx`; `components/ui/` — кастомные примитивы (не Radix

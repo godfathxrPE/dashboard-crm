@@ -27,13 +27,14 @@ export function canHaveTranscript(entityType: AiRunEntity): entityType is Transc
 
 /**
  * Откуда взялся текст транскрипта. 106 расширил CHECK `transcripts.source` до
- * {paste, file, audio}; 'file' в проекте не пишет никто — это задел 030 под VTT.
+ * {paste, file, audio}; с S-TR-CREATE-1 пишутся все три — 'file' проставляет
+ * вкладка «Файл» мастера создания (готовый текст .txt/.md/.vtt, без расшифровки).
  *
  * Домен живёт здесь, а не в `TranscriptRow['source']`, потому что `database.ts`
  * руками не правится (правило 2 контракта). На вставке типы сходятся: клиент
  * Supabase типизирован автогенерацией, где `source?: string`.
  */
-export type TranscriptSource = 'paste' | 'audio';
+export type TranscriptSource = 'paste' | 'audio' | 'file';
 
 /** Разбор ошибки invoke: edge отдаёт человеческий текст в теле, а не в error.message. */
 async function invokeErrorMessage(error: unknown, fallback: string): Promise<string> {
@@ -81,6 +82,11 @@ function invalidateTranscriptKeys(
   // Префиксом: ключ витрины включает производную от списка id, и точного ключа
   // тут не знает никто — звонок может лежать сразу в нескольких открытых списках.
   qc.invalidateQueries({ queryKey: ['transcripts-presence'] });
+  // S-TR-CREATE-1: раздел «Транскрипты» — тоже витрина этих же строк, и с этого
+  // спринта он показывает ещё и счётчик прогонов. Без строки ниже новая
+  // расшифровка не появлялась в списке до истечения staleTime, а бейдж «✦ N»
+  // оставался на старом числе после только что запущенного прогона (поймано смоком).
+  qc.invalidateQueries({ queryKey: ['transcripts-list'] });
 }
 
 /**

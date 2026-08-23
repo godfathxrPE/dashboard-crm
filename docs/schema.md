@@ -1324,7 +1324,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 | org_id | uuid | NOT NULL → organizations ON DELETE CASCADE (trg_set_org_id) |
 | entity_type | text | NOT NULL CHECK `call`\|`meeting` |
 | entity_id | uuid | NOT NULL (звонок/встреча) |
-| source | text | NOT NULL DEFAULT `paste` CHECK `paste`\|`file`\|**`audio`** _(106, S-R3-VOICE-1)_. `file` — задел 030 под VTT/stt, не пишет никто; `audio` — расшифровка через edge `transcribe` |
+| source | text | NOT NULL DEFAULT `paste` CHECK `paste`\|`file`\|**`audio`** _(106, S-R3-VOICE-1)_. `audio` — расшифровка через edge `transcribe`; **`file` пишется с S-TR-CREATE-1** — вкладка «Файл» мастера создания читает готовый текст (.txt/.md/.vtt/.srt) в браузере, файл никуда не загружается |
 | content | text | текст транскрипта (paste в v1; с 106 — ещё и расшифровка аудио) |
 | storage_path | text | оригинал файла (S-AI-2, private bucket). **Не используется и с 106**: аудио не хранится вовсе — файл декодируется в браузере, уходит чанками в edge `transcribe` и исчезает; бакета под записи нет |
 | char_count | int | NOT NULL |
