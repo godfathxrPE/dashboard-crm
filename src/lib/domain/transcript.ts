@@ -70,3 +70,84 @@ export function textPreview(text: string | null | undefined, limit = 120): strin
   const body = lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
   return `${body.trimEnd()}…`;
 }
+
+// ═══════════════════════════════════════════════════════
+// S-TR-VTT-1: очистка субтитровой разметки (вкладка «Файл»).
+//
+// Zoom / Teams / Телемост отдают расшифровку как `.vtt` или `.srt` — форматы для
+// ПЛЕЕРА, а не для чтения: каждая реплика обёрнута номером куба и таймкодом. До
+// этой функции файл клался в `transcripts.content` как есть, и служебные строки
+// (в `.srt` ≈ треть объёма) уезжали в промпт каждого прогона, в поиск по разделу
+// и в глаза читателю.
+//
+// Определяем формат по СОДЕРЖИМОМУ, не по расширению: выгрузка субтитров,
+// сохранённая как `.txt`, — обычный случай, а `.vtt` с обычным текстом внутри
+// портить нечем (без маркеров функция возвращает вход как есть).
+// ═══════════════════════════════════════════════════════
+
+/** Таймкод-строка: `00:00:12.480 --> 00:00:15.120` (+ настройки позиции у WebVTT). */
+const CUE_TIMING = /-->/;
+/** Порядковый номер куба `.srt` — строка, состоящая только из цифр. */
+const CUE_NUMBER = /^\d+$/;
+/** Заголовок файла WebVTT (может нести кодировку: `WEBVTT - Kind: captions`). */
+const VTT_HEADER = /^WEBVTT(\s|$)/;
+/** Блоки метаданных WebVTT, идущие до первой реплики. */
+const VTT_BLOCK = /^(NOTE|STYLE|REGION)(\s|$)/;
+/** Инлайн-теги WebVTT: `<v Иван>`, `<c.yellow>`, `<00:00:12.480>`. */
+const VTT_INLINE_TAG = /<\/?[^>]*>/g;
+
+/**
+ * Похоже ли содержимое на субтитры. Два маркера сразу, а не один: одинокая
+ * стрелка `-->` встречается в обычном тексте (схемы, стрелки в заметках), а
+ * `WEBVTT` без таймкодов — не субтитры, а упоминание формата.
+ */
+export function looksLikeSubtitles(text: string): boolean {
+  if (VTT_HEADER.test(text.trimStart())) return true;
+  const lines = text.split(/\r?\n/);
+  const timings = lines.filter((l) => CUE_TIMING.test(l)).length;
+  // Два таймкода = минимум две реплики. Одна — совпадение, не формат.
+  return timings >= 2;
+}
+
+/**
+ * Снять субтитровую разметку, оставив речь.
+ *
+ * Не трогает текст, в котором маркеров формата нет: `.txt` с обычной расшифровкой
+ * проходит насквозь байт в байт. Это важнее аккуратности разбора — вкладка «Файл»
+ * принимает любой текстовый файл, и порча обычного текста была бы хуже, чем
+ * недочищенные субтитры.
+ *
+ * Подряд идущие реплики склеиваются в абзац через пробел: в исходнике перенос
+ * строки стоит там, где кончился ТИТР, а не фраза, и построчный вывод читается
+ * как столбик обрывков. Абзац рвётся на пустой строке исходника — там смысловая
+ * граница есть.
+ */
+export function stripSubtitleMarkup(text: string): string {
+  if (!looksLikeSubtitles(text)) return text;
+
+  const paragraphs: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    if (current.length > 0) {
+      paragraphs.push(current.join(' '));
+      current = [];
+    }
+  };
+
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line === '') {
+      flush();
+      continue;
+    }
+    if (VTT_HEADER.test(line) || VTT_BLOCK.test(line)) continue;
+    if (CUE_TIMING.test(line)) continue;
+    if (CUE_NUMBER.test(line)) continue;
+
+    const speech = line.replace(VTT_INLINE_TAG, '').trim();
+    if (speech !== '') current.push(speech);
+  }
+  flush();
+
+  return paragraphs.join('\n\n');
+}

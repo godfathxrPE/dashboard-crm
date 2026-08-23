@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { toast } from 'sonner';
 import { TranscribeDropzone } from '@/components/ai/TranscribeDropzone';
+import { stripSubtitleMarkup } from '@/lib/domain/transcript';
 import type { TranscriptSource } from '@/lib/hooks/use-ai-run';
 
 // ═══════════════════════════════════════════════════════
@@ -121,8 +122,19 @@ export function TranscriptInput({
         toast.error('Файл пуст — брать из него нечего');
         return;
       }
+      // Субтитровую разметку снимаем ЗДЕСЬ, а не у вызывающего: вкладку «Файл»
+      // получают все, кто передал `withFile`, и правило чистки должно быть одно.
+      // Обычный текст функция возвращает байт в байт (см. `stripSubtitleMarkup`).
+      const cleaned = stripSubtitleMarkup(content);
+      if (cleaned.trim() === '') {
+        toast.error('В файле только таймкоды — речи в нём нет');
+        return;
+      }
+      if (cleaned !== content) {
+        toast.success('Разметка субтитров снята — в транскрипт легла только речь');
+      }
       setMode('paste');
-      onFileLoaded?.(content, file.name);
+      onFileLoaded?.(cleaned, file.name);
     } catch {
       toast.error('Не удалось прочитать файл');
     } finally {
