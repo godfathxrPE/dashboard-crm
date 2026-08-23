@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Settings, Palette, Upload, ExternalLink, Pencil } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
+import { THEME_SWATCH } from '@/lib/constants/themes';
 import { VerificationPanel } from '@/components/migration/VerificationPanel';
 import { TeamSection } from '@/components/settings/TeamSection';
 import { TelegramSection } from '@/components/settings/TelegramSection';
@@ -25,14 +26,17 @@ const ORG_ROLE_LABEL: Record<OrgRole, string> = {
   viewer: 'Наблюдатель',
 };
 
+// Только подписи: цвет свотча берётся из THEME_SWATCH — единственного
+// источника (до S-TOKENS-CONTRACT-1 frost/aurora/tidal были показаны здесь
+// НЕ теми цветами, которыми красят интерфейс).
 const THEMES = [
-  { id: 't-aura', label: 'Аура', color: '#E0A03A' },
-  { id: 't-washi', label: '和紙 Washi', color: '#C23B3B' },
-  { id: 't-fuji', label: '富士 Fuji', color: '#2B5078' },
-  { id: 't-frost', label: 'Frost', color: '#6ba3be' },
-  { id: 't-aurora', label: 'Aurora', color: '#7c6bc4' },
-  { id: 't-tidal', label: 'Tidal', color: '#4a9e8e' },
-  { id: 't-minimal', label: 'Minimal', color: '#0E7C86' },
+  { id: 't-aura', label: 'Аура' },
+  { id: 't-washi', label: '和紙 Washi' },
+  { id: 't-fuji', label: '富士 Fuji' },
+  { id: 't-frost', label: 'Frost' },
+  { id: 't-aurora', label: 'Aurora' },
+  { id: 't-tidal', label: 'Tidal' },
+  { id: 't-minimal', label: 'Minimal' },
 ] as const;
 
 interface SettingsContentProps {
@@ -145,7 +149,7 @@ export function SettingsContent({ userEmail }: SettingsContentProps) {
                     ? 'border-accent bg-accent-l shadow-sm'
                     : 'border-border hover:border-accent/50'
                   }`}>
-                <div className="h-5 w-5 rounded-full" style={{ backgroundColor: t.color }} />
+                <div className="h-5 w-5 rounded-full" style={{ backgroundColor: THEME_SWATCH[t.id] }} />
                 <span className="text-xs font-medium text-text-dim">{t.label}</span>
               </button>
             ))}
