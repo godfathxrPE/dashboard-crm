@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { FileText, Plus, Download, Trash2, Upload } from 'lucide-react';
 import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
+import { EmptyState } from '@/components/ui/EmptyState';
 import {
   useProjectFiles,
   useUploadProjectFile,
@@ -99,14 +100,13 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
         {isLoading ? (
           <p className="py-6 text-center text-xs text-text-mute">Загрузка...</p>
         ) : files.length === 0 && !upload.isPending ? (
-          <div className="flex flex-col items-center py-6 text-center">
-            <Upload size={20} strokeWidth={1.2} className="text-text-mute" />
-            <p className="mt-2 text-xs text-text-mute">
-              Нет прикреплённых файлов
-            </p>
-            <p className="text-xs text-text-mute">
-              Перетащи сюда или нажми «+ Файл»
-            </p>
+          <div className="[&>div]:py-4">
+            <EmptyState
+              icon={<Upload size={20} strokeWidth={1.2} />}
+              title="Файлов нет"
+              description="КП, ТЗ, протоколы встреч — всё, что понадобится на защите"
+              action={{ label: 'Загрузить файл', onClick: () => inputRef.current?.click() }}
+            />
           </div>
         ) : (
           <div className="divide-y divide-border/40">

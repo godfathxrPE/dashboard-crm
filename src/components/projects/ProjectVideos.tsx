@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Video, Plus, Trash2, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { InlineConfirm, useConfirm } from '@/components/ui/InlineConfirm';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useProjectVideos, useAddVideo, useDeleteVideo } from '@/lib/hooks/use-project-videos';
 import { parseVideoUrl, PROVIDER_LABELS } from '@/lib/utils/video-embed-helpers';
 import type { ProjectVideo } from '@/types/entities';
@@ -137,11 +138,15 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
         <p className="py-6 text-center text-xs text-text-mute">Загрузка...</p>
       ) : videos.length === 0 ? (
         !adding && (
-          <div className="flex flex-col items-center py-6 text-center">
-            <Video size={20} strokeWidth={1.2} className="text-text-mute" />
-            <p className="mt-2 text-xs text-text-mute">
-              {canManage ? 'Добавь демо, обучение или запись встречи — «+ Видео»' : 'Видео пока нет'}
-            </p>
+          <div className="[&>div]:py-4">
+            <EmptyState
+              icon={<Video size={20} strokeWidth={1.2} />}
+              title="Видео нет"
+              description="Записи созвонов и демо — чтобы не пересказывать словами"
+              // Действие только у тех, кто может добавлять: кнопка «+ Видео»
+              // выше по этой же причине скрыта у остальных.
+              action={canManage ? { label: 'Добавить ссылку', onClick: () => setAdding(true) } : undefined}
+            />
           </div>
         )
       ) : (
