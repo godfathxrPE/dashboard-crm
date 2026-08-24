@@ -9,5 +9,9 @@ export default async function ContactDetailPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { id } = await params;
-  return <ContactDetail contactId={id} />;
+  return (
+    <div className="content-shell">
+      <ContactDetail contactId={id} />
+    </div>
+  );
 }

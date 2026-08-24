@@ -12,10 +12,23 @@ interface InlineEditProps {
   className?: string;
   /** 'textarea' renders a multiline editor; Enter inserts a newline, Cmd/Ctrl+Enter saves. */
   as?: 'input' | 'textarea';
+  /**
+   * Открыть редактор сразу при монтировании (S-DEAL-CANVAS-1). Нужно вызывающим,
+   * у которых клик по СВОЕЙ строке-приглашению уже произошёл, и второй клик по
+   * плейсхолдеру внутри был бы лишним. Начальное значение state — на последующие
+   * рендеры не влияет; по умолчанию false, все прежние call-site не меняются.
+   */
+  startEditing?: boolean;
+  /**
+   * Редактор закрыт БЕЗ записи — Escape или уход фокуса с неизменённым значением
+   * (S-DEAL-CANVAS-1). Нужно тем, кто сам открыл редактор и обязан вернуть свою
+   * свёрнутую форму: без сигнала вызывающий не отличает отказ от сохранения.
+   */
+  onCancel?: () => void;
 }
 
-export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDisplay, className, as = 'input' }: InlineEditProps) {
-  const [editing, setEditing] = useState(false);
+export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDisplay, className, as = 'input', startEditing = false, onCancel }: InlineEditProps) {
+  const [editing, setEditing] = useState(startEditing);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -26,8 +39,10 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
 
   useEffect(() => { setDraft(value); }, [value]);
 
+  const cancel = () => { setDraft(value); setEditing(false); onCancel?.(); };
+
   const handleSave = async () => {
-    if (draft === value) { setEditing(false); return; }
+    if (draft === value) { cancel(); return; }
     setSaving(true);
     try { await onSave(draft); }
     finally { setSaving(false); setEditing(false); }
@@ -58,7 +73,7 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
         onBlur={handleSave}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave();
-          if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+          if (e.key === 'Escape') cancel();
         }}
         disabled={saving}
         rows={3}
@@ -78,7 +93,7 @@ export function InlineEdit({ value, onSave, type = 'text', placeholder, formatDi
       onBlur={handleSave}
       onKeyDown={(e) => {
         if (e.key === 'Enter') handleSave();
-        if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+        if (e.key === 'Escape') cancel();
       }}
       disabled={saving}
       aria-label={placeholder}

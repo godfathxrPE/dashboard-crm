@@ -11,5 +11,9 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const { id } = await params;
   // Бэкстопа на тип (как в `deals/[id]`) здесь не нужно: у лида нет второй
   // страницы, в которую его можно было бы перенаправить.
-  return <LeadDetail leadId={id} />;
+  return (
+    <div className="content-shell">
+      <LeadDetail leadId={id} />
+    </div>
+  );
 }

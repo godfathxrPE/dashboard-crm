@@ -8,6 +8,12 @@
   --chart-skog: #3E6B58;
   --chart-is: #3D6B7E;
   --chart-stal: #4A5E8A;
+
+  /* S-DEAL-CANVAS-1: ограничитель полотна детальных страниц.
+     90rem = 1440px. Причина — мера строки: при свёрнутом сайдбаре на 1920
+     полотно = 1816px и тело события ленты уходит за 200 знаков.
+     Доски, таблицы и Гант остаются full-bleed — им ширина нужна. */
+  --content-max: 90rem;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1613,6 +1619,14 @@ table { font-variant-numeric: tabular-nums; }
        бы с характером темы. --radius-m: 4…12px, совпадает с фактом. */
     border-radius: var(--radius-m);
     box-shadow: var(--shadow-card);
+  }
+
+  /* Полотно детальной страницы. Ставится на КОРЕНЬ содержимого страницы,
+     не на main: ContentHeader и хлебные крошки живут в layout и центрируются
+     вместе с ним. */
+  .content-shell {
+    max-width: var(--content-max);
+    margin-inline: auto;
   }
 }/* Dark-theme glassmorphism on elevated elements */
 .t-frost .shadow-card,

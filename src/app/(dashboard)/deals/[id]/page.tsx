@@ -25,5 +25,9 @@ export default async function DealDetailPage({ params }: PageProps) {
   const projectType = (project as { type?: string } | null)?.type;
   if (projectType && projectType !== 'client') redirect(`/projects/${id}`);
 
-  return <ProjectDetail projectId={id} context="deal" />;
+  return (
+    <div className="content-shell">
+      <ProjectDetail projectId={id} context="deal" />
+    </div>
+  );
 }

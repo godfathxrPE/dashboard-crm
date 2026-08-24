@@ -301,7 +301,7 @@ export function EntityTimeline({
                       <button
                         type="button"
                         onClick={() => onOpenEvent?.(event)}
-                        className="min-w-0 flex-1 text-left"
+                        className="min-w-0 flex-1 text-left max-w-[80ch]"
                       >
                         <p className="text-sm text-text-main">
                           {event.title}
