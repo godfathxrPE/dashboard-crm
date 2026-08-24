@@ -446,6 +446,17 @@ new Date()`, домен получает его аргументом. Журна
 
 ## CSS & Themes
 
+### ℹ️ `.t-* aside` сужены до `[data-app-nav]` / `[data-drawer]`
+Запрет на `<aside>` вне навигации снят S-FIX-CO360-1. Единственное непривязанное
+правило — `.t-aura aside:not([data-app-nav]) .bracket` — требует дочернего `.bracket`.
+Рельсы контекста (`DealContextRail`, `CompanySidebar`) на `<aside>` безопасны.
+
+### ❌ Комментарий-запрет живёт дольше своей причины
+«⚠️ НЕ `<aside>`» пережил снятие основания на месяцы и чуть не заставил завести вторую
+семантику для той же рельсы. **Правило**: снял причину — тем же PR перепиши или удали
+комментарий, который на неё ссылался. Запрет без живой причины дороже отсутствия
+комментария (журнал 2026-08-24).
+
 ### ℹ️ Тем 7, дефолт `t-aura` (AUDIT C + M1)
 `scandi`/`paper`/`sand` **удалены**. Живые темы (`THEMES` в `lib/stores/theme-store.ts`):
 `t-aura` (дефолт, light, орбы), `t-washi`, `t-fuji`, `t-minimal` (light, нейтральный, Inter),
@@ -536,6 +547,14 @@ Dropdowns: 50  |  Overlay: 999  |  Modal: 1000
 ---
 
 ## React / Next.js
+
+### ❌ Проп «открыться сразу» через начальное значение `useState`
+`useState(startEditing)` читает проп ОДИН раз, при монтировании. Повторное открытие
+работает, только пока родитель размонтирует компонент между показами; оставишь
+смонтированным — проп замрёт молча, без ошибки и без предупреждения тайпчекера.
+**Fix**: либо гарантировать размонтирование и написать это в JSDoc пропа, либо
+синхронизировать `useEffect`-ом. `InlineEdit.startEditing` — первый вариант
+(журнал 2026-08-24).
 
 ### ❌ Never use `ignoreBuildErrors: true` in next.config
 Masks TypeScript errors that break in production. Fix the errors instead.
@@ -728,6 +747,18 @@ Without BOM, Excel shows кракозябры (mojibake) for Russian text.
 
 ## Sprint Prompt Writing
 
+### ✅ Мокап собирается на ДЕФОЛТНОМ состоянии компонента
+Не на том, что видно на присланном скриншоте. Свёрнутое по умолчанию (`useState(false)`)
+на скриншоте может быть раскрыто рукой — и мокап начнёт согласовывать экран, которого
+пользователь не видит. Стоило неверного упрёка чужому варианту и завышенной на ~120px
+оценки вертикали (журнал 2026-08-24).
+
+### ⚠️ Ветка от невлитой ветки — ребейз обязателен до ревью
+Спринт, ветвящийся от предыдущего, даёт PR с чужими коммитами: `base=main`, а в диффе
+оба спринта. Порядок: смержить базовый PR → `git checkout main && git pull` →
+`git rebase main` → `git push --force-with-lease`. Гейт обязан проверять
+`git log main..HEAD`, а не верить строке отчёта (журнал 2026-08-24).
+
 ### ✅ Always start with РАЗВЕДКА
 Diagnostic bash/grep commands BEFORE any code changes.
 Verify file exists, check current content, confirm column names.
@@ -782,6 +813,12 @@ This is the dependency order. Always follow it.
 ---
 
 ## Common Patterns to Reuse
+
+### ❌ Подъём приватного примитива в общий не меняет дефолт поведения
+`Row` → `RailRow` получил `truncate` по умолчанию ради нового вызывающего — для прежнего
+это был бы тихий регресс обрезки. **Правило**: новое поведение вводится опциональным
+пропом, а все существующие call-site переводятся на явную опцию, сохраняющую прежний вид.
+Проверка на гейте — счёт вызовов до и после плюс счёт вызовов с опцией (журнал 2026-08-24).
 
 ### Pre-filling modals from context
 When opening a modal from a detail page (e.g., creating a call from
