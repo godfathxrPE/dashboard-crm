@@ -99,14 +99,42 @@ export function useDealSignals(project: Project): DealSignalsResult {
   );
 }
 
+/**
+ * Вердикт отдельным элементом (S-DEAL-RAIL-1): на полной карточке он живёт в
+ * рабочей колонке под следующим шагом, а панель сигналов — в рельсе справа.
+ * Стили вердикта одни на оба места: разъехавшись, они дали бы «Киснет» двух
+ * разных цветов на одном экране.
+ */
+export function DealVerdictChip({ verdict }: { verdict: DealSignalsResult['verdict'] }) {
+  const config = VERDICT_CONFIG[verdict];
+  const styles = VERDICT_STYLES[verdict];
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
+        styles.chip,
+      )}
+    >
+      <span aria-hidden className={cn('leading-none', styles.glyph)}>{config.glyph}</span>
+      {config.label}
+    </span>
+  );
+}
+
 export interface DealSignalsProps {
   result: DealSignalsResult;
   /** Хост решает, что делать по CTA: навигации внутри компонента нет. */
   onAction?: (key: SignalKey) => void;
   className?: string;
+  /**
+   * `false` — панель без вердикта и без сворачивания: список сигналов сразу
+   * открыт (S-DEAL-RAIL-1, рельса контекста). Вердикт в этом режиме показывает
+   * хост рядом со следующим шагом — дубль вердикта на одном экране был F-01.
+   */
+  showVerdict?: boolean;
 }
 
-export function DealSignals({ result, onAction, className }: DealSignalsProps) {
+export function DealSignals({ result, onAction, className, showVerdict = true }: DealSignalsProps) {
   const [open, setOpen] = useState(false);
   const { verdict, signals, top } = result;
   const config = VERDICT_CONFIG[verdict];
@@ -114,6 +142,16 @@ export function DealSignals({ result, onAction, className }: DealSignalsProps) {
 
   // Терминальная сделка отдаёт пустой список — панели просто нет.
   if (signals.length === 0) return null;
+
+  if (!showVerdict) {
+    return (
+      <ul className={cn('space-y-1.5', className)}>
+        {signals.map((s) => (
+          <SignalRow key={s.key} signal={s} onAction={onAction} />
+        ))}
+      </ul>
+    );
+  }
 
   const ariaLabel = top
     ? `Здоровье сделки: ${config.label} — ${top.label}`
@@ -200,7 +238,8 @@ function SignalRow({
  */
 export const SIGNAL_ANCHORS: Record<SignalKey, string | null> = {
   next_step: 'deal-next-step',
-  deadline: 'deal-info-grid',
+  // S-DEAL-RAIL-1: инфо-грид расформирован, дедлайн живёт строкой «Сводки».
+  deadline: 'deal-summary',
   silence: 'deal-activity',
   single_threaded: 'deal-stakeholders',
   // Двигать стадию — решение, а не «починка сигнала»: кнопки у него нет.

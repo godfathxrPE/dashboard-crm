@@ -77,7 +77,10 @@ export function StageRail({
       {groups.map((group, gi) => {
         const groupActive = group.stages.some(({ index }) => index === currentIndex);
         return (
-          <div key={`${group.key}-${gi}`} className="flex items-start">
+          // shrink-0 на группе и на стадии (ниже): контейнер скроллится по X,
+          // но без запрета на сжатие flex ужимал группы под ширину колонки, и в
+          // рабочей колонке ~556px подписи стадий наезжали друг на друга.
+          <div key={`${group.key}-${gi}`} className="flex shrink-0 items-start">
             {gi > 0 && <span className="mx-1.5 w-px self-stretch bg-border2" aria-hidden />}
             <div className="flex flex-col gap-1">
               {hasGroupLabels && (
@@ -98,7 +101,7 @@ export function StageRail({
                         ? 'current'
                         : 'future';
                   return (
-                    <div key={stage.id} className="flex items-start">
+                    <div key={stage.id} className="flex shrink-0 items-start">
                       {si > 0 && <Connector filled={allDone || (currentIndex >= 0 && index <= currentIndex)} />}
                       <RailNode
                         stage={stage}

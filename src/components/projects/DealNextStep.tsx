@@ -1,25 +1,23 @@
 'use client';
 
-import { ChevronRight, Pin, Check } from 'lucide-react';
+import { ChevronRight, Check } from 'lucide-react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
 import { InlineEdit } from '@/components/ui/InlineEdit';
-import { DealSignals, useDealSignals } from './DealSignals';
-import {
-  getDealHealth,
-  getNextActionOverdueDays,
-} from '@/lib/utils/deal-health';
+import { DealVerdictChip } from './DealSignals';
+import type { DealSignalsResult } from '@/lib/domain/deal-signals';
+import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { cn } from '@/lib/utils/cn';
 
 // ═══════════════════════════════════════════════════════
-// Фокус-панель сделки — ТОЛЬКО peek 440px (ProjectPeekContent).
+// S-DEAL-RAIL-1 (R-09): «Следующий шаг» — рабочая зона левой колонки.
 //
-// S-DEAL-RAIL-1: на полной карточке её роль разделена. Шаг и вердикт уехали в
-// `DealNextStep` (рабочая колонка), заметка и сигналы — в `DealContextRail`
-// (рельса справа). Трёхколоночная разметка и проп `compact` сняты: панель
-// одноколоночная по определению, второго режима у неё больше нет.
+// Выделен из `DealFocusPanel`: панель тянула в один ряд шаг, закреплённую
+// заметку и здоровье, и справочное соседство отбирало у шага вес. Заметка и
+// сигналы уехали в рельсу контекста, здесь остался шаг и одна строка вердикта
+// под ним — чтобы «что делать» и «как дела» стояли рядом.
 //
-// Кнопок CTA у сигналов здесь нет намеренно: скроллить некуда — якоря живут на
-// полной карточке, а панель монтируется поверх неё.
+// Вердикт здесь ЕДИНСТВЕННЫЙ на экране: в рельсе панель сигналов рисуется без
+// него (`showVerdict={false}`). Два вердикта — воспроизведение F-01.
 // ═══════════════════════════════════════════════════════
 
 // ─── Дата следующего шага: «сегодня/завтра/вчера» вблизи, иначе «7 июля» ───
@@ -35,11 +33,15 @@ function formatActionDate(value: string): string {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
-export function DealFocusPanel({ project }: { project: Project }) {
+export function DealNextStep({
+  project,
+  signals,
+}: {
+  project: Project;
+  /** Контекст сигналов собирается один раз в `ProjectDetail` — второго запроса нет. */
+  signals: DealSignalsResult;
+}) {
   const updateProject = useUpdateProject();
-  // Контекст сигналов собирается ОДИН раз здесь —
-  // `useActivityLog` внутри бьёт в тот же ключ кеша, второго запроса нет.
-  const signals = useDealSignals(project);
 
   const health = getDealHealth(project);
   const overdue = health === 'overdue-action';
@@ -53,17 +55,17 @@ export function DealFocusPanel({ project }: { project: Project }) {
   }
 
   return (
-    <div
-      data-card
-      // px обязателен: в Aura [data-card] делает панель карточкой,
-      // без горизонтальных отступов контент прилипал к её краям
-      className="mb-6 grid grid-cols-1 gap-x-8 gap-y-4 border-y border-border px-5 py-4"
-    >
-      {/* ─── Зона 1: Следующий шаг (доминирует) ─── */}
+    // Якорь CTA сигнала `next_step`. В peek-панели (DealFocusPanel) id не ставится
+    // вовсе: она монтируется поверх страницы, и дубль увёл бы getElementById.
+    <div id="deal-next-step" className="min-w-0">
       <div
+        data-card
         className={cn(
-          'min-w-0',
-          noAction && 'rounded-lg border border-yellow/40 bg-yellow-l px-3 py-2',
+          // Нормальное состояние — лист с акцентной левой границей: шаг обязан
+          // читаться как рабочая зона, но не кричать. Заливка `bg-yellow-l`
+          // остаётся ровно за одним состоянием — шага нет вовсе.
+          'sheet border-l-[3px] border-l-accent px-4 py-3',
+          noAction && 'border-yellow/40 border-l-yellow bg-yellow-l',
         )}
       >
         <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-accent">
@@ -76,8 +78,7 @@ export function DealFocusPanel({ project }: { project: Project }) {
             placeholder="Какой следующий шаг?"
             // S-UI-CLARITY-1: пустое состояние выглядит пустым. Цвет (text-text-mute)
             // InlineEdit даёт сам, курсив — здесь: приглашение того же начертания,
-            // что реальный шаг, пролистывалось как заполненное поле. Кликабельность
-            // не меняется — редактор открывается по тому же клику.
+            // что реальный шаг, пролистывалось как заполненное поле.
             className={cn(!project.next_step && 'italic')}
             onSave={async (val) => {
               updateProject.mutate({ id: project.id, next_step: val || null });
@@ -117,33 +118,19 @@ export function DealFocusPanel({ project }: { project: Project }) {
         </div>
       </div>
 
-      {/* ─── Зона 2: Закреплено ─── */}
-      <div className="min-w-0">
-        <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-text-dim">
-          <Pin size={12} />
-          Закреплено
+      {/* Вердикт — строкой под карточкой, без рамки: он комментирует шаг, а не
+          спорит с ним за внимание. Пилюля «нет даты» рядом с полем даты НЕ
+          добавляется (R-10) — тот же факт уже несёт сигнал в рельсе. */}
+      {signals.signals.length > 0 && (
+        <div className="mt-1.5 flex items-center gap-2 px-1">
+          <DealVerdictChip verdict={signals.verdict} />
+          {signals.top && (
+            <span className="min-w-0 flex-1 truncate text-xs text-text-dim">
+              причина: {signals.top.label}
+            </span>
+          )}
         </div>
-        <div className="text-body leading-relaxed">
-          <InlineEdit
-            as="textarea"
-            value={project.pinned_note ?? ''}
-            placeholder="Закрепить заметку…"
-            onSave={async (val) => {
-              updateProject.mutate({ id: project.id, pinned_note: val || null });
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ─── Зона 3: Здоровье ─── */}
-      {/* Строки «N дн. без активности» здесь больше нет: она стала сигналом
-          `silence` и живёт внутри панели вместе с порогом и действием. */}
-      <div className="min-w-0">
-        <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-text-dim">
-          Здоровье
-        </div>
-        <DealSignals result={signals} />
-      </div>
+      )}
     </div>
   );
 }
