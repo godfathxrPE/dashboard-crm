@@ -8,6 +8,7 @@ import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { DealSignals, scrollToSignalAnchor } from './DealSignals';
 import { DealSummaryCard } from './DealSummaryCard';
 import { DealStakeholders } from './DealStakeholders';
+import { DealMaterialsCard } from './DealMaterialsCard';
 import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import type { DeliveryHealth } from '@/lib/utils/delivery-health';
 import { cn } from '@/lib/utils/cn';
@@ -25,7 +26,6 @@ import { cn } from '@/lib/utils/cn';
 
 export interface DealContextRailProps {
   project: Project;
-  projectId: string;
   isDelivery: boolean;
   /** Собран один раз в `ProjectDetail`: второй сборщик = второй запрос. */
   signals: DealSignalsResult;
@@ -35,21 +35,24 @@ export interface DealContextRailProps {
   /** Бейдж полноты — переехал из шапки в «Сводку» (R-06). */
   completenessBadge?: React.ReactNode;
   onEdit?: () => void;
+  /** Открыть модалку «Материалы проекта» (S-DEAL-CTX-1). */
+  onOpenMaterials: () => void;
   className?: string;
 }
 
 export function DealContextRail({
   project,
-  projectId,
   isDelivery,
   signals,
   deliveryHealth,
   parentDeal,
   completenessBadge,
   onEdit,
+  onOpenMaterials,
   className,
 }: DealContextRailProps) {
   const updateProject = useUpdateProject();
+  const projectId = project.id;
   const isDeal = project.type === 'client';
 
   return (
@@ -117,6 +120,16 @@ export function DealContextRail({
           </div>
         </RailCard>
       )}
+
+      {/* ─── 5. Материалы ─── */}
+      {/* Последней: порядок карточек — по убыванию частоты обращения. Сигналы
+          смотрят каждый раз, сводку часто, участников реже, заметку и материалы
+          — по необходимости. */}
+      <DealMaterialsCard
+        project={project}
+        isDelivery={isDelivery}
+        onOpen={onOpenMaterials}
+      />
     </aside>
   );
 }

@@ -24,7 +24,7 @@ import { DealContextRail } from './DealContextRail';
 import { useDealSignals } from './DealSignals';
 import { ProjectStageCockpit } from './ProjectStageCockpit';
 import { ProjectChecklists } from './ProjectChecklists';
-import { ProjectMaterials } from './ProjectMaterials';
+import { ProjectMaterialsModal } from './ProjectMaterialsModal';
 import { ProjectChat } from './ProjectChat';
 import { QuotesTab } from './QuotesTab';
 import { DealStageStory } from './DealStageStory';
@@ -170,6 +170,8 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
   const { data: allPipelineStages } = usePipelineStages();
 
   const [modalOpen, setModalOpen] = useState(false);
+  // S-DEAL-CTX-1: материалы раскрываются модалкой из карточки рельсы.
+  const [materialsOpen, setMaterialsOpen] = useState(false);
   // S-DEBT-CONFIRM-1: откат стадии — оверлей с одним состоянием на все три
   // воронки. Функцию в состоянии не держим: хранится цель отката, а ветку
   // выбирает обработчик (`kind`). Подтверждение удаления живёт в DealHeader.
@@ -321,13 +323,13 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
 
         <DealContextRail
           project={project}
-          projectId={projectId}
           isDelivery={isDelivery}
           signals={signals}
           deliveryHealth={deliveryHealth}
           parentDeal={parentDeal}
           completenessBadge={!isDelivery ? <CompletenessBadge project={project} /> : undefined}
           onEdit={() => setModalOpen(true)}
+          onOpenMaterials={() => setMaterialsOpen(true)}
           className={cn(
             'order-2 lg:col-start-2 lg:row-start-1',
             hasNextStep && 'lg:row-span-2',
@@ -350,15 +352,11 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             />
           )}
 
-          <ProjectMaterials
-            project={project}
-            projectId={projectId}
-            isDelivery={isDelivery}
-            canManage={canManage}
-          />
-
-          {/* PCT-1: вкладки Активность / Доска задач */}
-          <div className="mb-3 flex gap-1 border-b border-border">
+          {/* PCT-1: вкладки. R-07: справа действия, видимые на любой вкладке.
+              flex-wrap на ОБОИХ уровнях: при колонке ~556px (1280 + открытый
+              ActivityDrawer) шесть вкладок и три кнопки в строку не помещаются,
+              и без переноса кнопки молча обрезались бы справа. */}
+          <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
             {([
               { value: 'activity' as const, label: 'Активность' },
               // P2a: у delivery доска = фазовый план внедрения
@@ -384,6 +382,21 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
                 {t.label}
               </button>
             ))}
+            <div className="ml-auto flex flex-wrap gap-1 pb-1">
+              {([
+                { label: 'Задача', open: () => { setEditingTask(null); setTaskModalOpen(true); } },
+                { label: 'Звонок', open: () => { setEditingCall(null); setCallModalOpen(true); } },
+                { label: 'Встреча', open: () => { setEditingMeeting(null); setMeetingModalOpen(true); } },
+              ]).map((a) => (
+                <button
+                  key={a.label}
+                  onClick={a.open}
+                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                >
+                  <Plus size={12} /> {a.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {activeTab === 'board' && (
@@ -430,31 +443,11 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
 
           {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
           <div id="deal-activity" className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock size={14} className="text-text-dim" />
-                <span className="text-xs font-semibold text-text-main">Активность</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                <button
-                  onClick={() => { setEditingTask(null); setTaskModalOpen(true); }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-                >
-                  <Plus size={12} /> Задача
-                </button>
-                <button
-                  onClick={() => { setEditingCall(null); setCallModalOpen(true); }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-                >
-                  <Plus size={12} /> Звонок
-                </button>
-                <button
-                  onClick={() => { setEditingMeeting(null); setMeetingModalOpen(true); }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-                >
-                  <Plus size={12} /> Встреча
-                </button>
-              </div>
+            {/* R-07: кнопки уехали на полосу вкладок — внутри ленты они пропадали
+                на Доске, Ганте, КП, Истории и в Чате. Разводить нечего. */}
+            <div className="mb-3 flex items-center gap-2">
+              <Clock size={14} className="text-text-dim" />
+              <span className="text-xs font-semibold text-text-main">Активность</span>
             </div>
             <ActivityComposer entityType="project" entityId={projectId} />
             <EntityTimeline
@@ -468,6 +461,13 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
       </div>
 
       {/* Modals */}
+      {materialsOpen && (
+        <ProjectMaterialsModal
+          project={project}
+          canManage={canManage}
+          onClose={() => setMaterialsOpen(false)}
+        />
+      )}
       <ProjectModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
