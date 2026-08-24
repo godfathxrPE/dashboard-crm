@@ -97,11 +97,12 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
   }
 
   return (
-    // ⚠️ НЕ <aside>: тема-правила навигации таргетят голый тег (`.t-washi aside`,
-    // `.t-fuji aside`, `.t-aura aside` в globals.css) и красили эту колонку в
-    // sumi/индиго с !important — тёмные полосы в зазорах и светлый текст на
-    // светлых карточках. Семантику держит role/aria-label, каскад — нет.
-    <div role="complementary" aria-label="Сведения о компании" className="flex flex-col gap-4">
+    // S-DEAL-RAIL-1: снова <aside>. Прежний запрет («тема-правила таргетят голый
+    // тег») снят S-FIX-CO360-1: все `.t-* aside` сужены до [data-app-nav] /
+    // [data-drawer]; единственное непривязанное правило —
+    // `.t-aura aside:not([data-app-nav]) .bracket` — требует дочернего .bracket,
+    // которого в рельсе нет. Тег общий с DealContextRail: рельса одна на два экрана.
+    <aside aria-label="Сведения о компании" className="flex flex-col gap-4">
       {/* ─── Сведения ─── */}
       {hasInfo && (
         <RailCard icon={Info} title="Сведения">
@@ -235,7 +236,7 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
           <p className="whitespace-pre-wrap text-sm text-text-main">{company.notes}</p>
         </RailCard>
       )}
-    </div>
+    </aside>
   );
 }
 
