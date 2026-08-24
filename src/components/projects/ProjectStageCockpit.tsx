@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Lightbulb } from 'lucide-react';
 import { PipelineCockpit, type CockpitGateItem } from '@/components/shared/PipelineCockpit';
@@ -136,12 +136,6 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const restCount = currentIndex >= 0 ? stages.length - currentIndex - 1 : 0;
   const restGroupsCount = groups.filter((g) => g.from > currentIndex).length;
 
-  const pct = isWon
-    ? 100
-    : currentIndex >= 0
-      ? Math.round(((currentIndex + 1) / stages.length) * 100)
-      : 0;
-
   /**
    * Клик по узлу карты — ветки БАЙТ-В-БАЙТ из заменённых блоков ProjectDetail:
    * равный order_index — выход, назад — подтверждение отката, вперёд — модалка
@@ -231,22 +225,14 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
         />
       }
       map={
-        <div className="flex flex-col gap-2">
-          <StageRail
-            stages={stages}
-            currentIndex={currentIndex}
-            locked={locked}
-            allDone={isWon}
-            groupLabels={PHASE_LABELS}
-            onStageClick={locked ? undefined : handleStageClick}
-          />
-          <span
-            title="Доля пройденных стадий воронки"
-            className="text-xs font-medium text-text-dim tabular-nums"
-          >
-            Пройдено {pct}%
-          </span>
-        </div>
+        <StageRail
+          stages={stages}
+          currentIndex={currentIndex}
+          locked={locked}
+          allDone={isWon}
+          groupLabels={PHASE_LABELS}
+          onStageClick={locked ? undefined : handleStageClick}
+        />
       }
     />
   );
@@ -276,7 +262,29 @@ function StageGuidance({
   canEdit: boolean;
   onSave: (value: string) => Promise<void>;
 }) {
+  // Хук объявлен ДО раннего return: порядок хуков обязан совпадать на всех
+  // рендерах, а выходы ниже условны. На поведение это не влияет — у не-owner
+  // с пустым текстом компонент по-прежнему не рисует ничего.
+  const [editing, setEditing] = useState(false);
+
   if (!text && !canEdit) return null;
+
+  // Пустая подсказка у owner — приглашение, а не блок: рамка во всю ширину ради
+  // одной фразы была полосой-пустышкой на каждой ненастроенной стадии.
+  // Заполненная подсказка остаётся прежним блоком — у неё есть содержание.
+  if (!text && canEdit && !editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="inline-flex items-center gap-1.5 text-meta text-text-mute
+                   transition-colors hover:text-accent"
+      >
+        <Lightbulb size={12} aria-hidden />
+        Добавить подсказку для стадии «{stageName}»
+      </button>
+    );
+  }
 
   return (
     <div className="flex items-start gap-2 rounded-lg border border-border bg-surface2 px-3 py-2">
@@ -292,7 +300,16 @@ function StageGuidance({
             key={stageId}
             as="textarea"
             value={text}
-            onSave={onSave}
+            // Клик по строке-приглашению уже был — редактор открываем сразу,
+            // без второго клика по плейсхолдеру внутри блока.
+            startEditing={editing}
+            onSave={async (value) => {
+              await onSave(value);
+              setEditing(false);
+            }}
+            // Отказ (Escape / уход фокуса без правки) возвращает строку-приглашение:
+            // иначе рамка-пустышка, ради снятия которой всё и делалось, остаётся на экране.
+            onCancel={() => setEditing(false)}
             placeholder={`Добавить подсказку для стадии «${stageName}» (до ${STAGE_GUIDANCE_MAX} симв.)`}
             // twMerge: `text-text-dim` перебивает `text-text-main` InlineEdit'а —
             // подсказка тихая. У пустого значения класс не задаём: приглашение

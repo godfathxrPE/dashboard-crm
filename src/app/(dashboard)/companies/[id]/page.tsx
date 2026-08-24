@@ -9,5 +9,9 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
   const { id } = await params;
-  return <CompanyDetail companyId={id} />;
+  return (
+    <div className="content-shell">
+      <CompanyDetail companyId={id} />
+    </div>
+  );
 }

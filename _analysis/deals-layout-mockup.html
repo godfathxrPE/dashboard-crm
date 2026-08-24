@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="ru" class="t-aura">
+<meta charset="utf-8">
+<title>Карточка сделки — компоновка</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══ ТОКЕНЫ — сгенерированы из globals.css, руками не править ══ */
+:root {
+  --chart-fjord: #5B5EA6;
+  --chart-granit: #6D5D7B;
+  --chart-skog: #3E6B58;
+  --chart-is: #3D6B7E;
+  --chart-stal: #4A5E8A;
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --surface3: #e5e3dc;
+  --popover: var(--surface);
+  --border: #e5e3dc;
+  --border2: #d4d2ca;
+  --border-input: #8c8c8c;
+  --text: #1a1916;
+  --text-dim: #6b6860;
+  --text-mute: #6f6d68;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent);
+  --accent: #b5622a;
+  --accent-l: rgba(181,98,42,0.08);
+  --accent-l2: rgba(181,98,42,0.16);
+  --on-accent: #ffffff;
+  --green: #2e7d52;
+  --green-l: rgba(46,125,82,0.09);
+  --red: #c0392b;
+  --red-l: rgba(192,57,43,0.09);
+  --blue: #2d6ab4;
+  --blue-l: rgba(45,106,180,0.09);
+  --yellow: #a07020;
+  --yellow-l: rgba(160,112,32,0.09);
+  --yellow-text: #92661d;
+  --purple: #7c3aed;
+  --purple-l: rgba(124,58,237,0.09);
+  --font-app: var(--font-manrope, 'Manrope');
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --elevation-2: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #d1fae5;
+  --track-prep-current: #34d399;
+  --track-exp-done: #ede9fe;
+  --track-exp-current: #a78bfa;
+  --track-nego-done: #fef3c7;
+  --track-nego-current: #d97706;
+  --track-proj-done: #fce7f3;
+  --track-proj-current: #f472b6;
+  --cal-line: color-mix(in srgb, var(--border) 75%, var(--text-mute));
+  --chat-bg: var(--bg);
+  --chat-in-bg: var(--surface);
+  --chat-in-border: var(--border);
+  --chat-pattern-ink: #1a1916;
+  --chat-pattern-op: 0.045;
+  --chat-chip: rgba(255,255,255,0.85);
+  --danger: var(--red);
+  --danger-l: var(--red-l);
+  --danger-text: var(--red-text, var(--red));
+  --success: var(--green);
+  --success-l: var(--green-l);
+  --success-text: var(--green-text, var(--green));
+  --warning: var(--yellow);
+  --warning-l: var(--yellow-l);
+  --warning-text: var(--yellow-text, var(--yellow));
+  --info: var(--blue);
+  --info-l: var(--blue-l);
+  --info-text: var(--blue-text, var(--blue));
+  --time-ok-fill: color-mix(in srgb, var(--bg) 84%, var(--accent));
+  --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
+  --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
+}
+
+.t-aura {
+  --bg: #EFEFF3;
+  --surface: #FFFFFF;
+  --surface2: #F6F6FA;
+  --surface3: #EAEAF1;
+  --popover: var(--surface);
+  --border: #E2E2EC;
+  --border2: #D2D2DE;
+  --border-input: #8a8a9a;
+  --text: #16161D;
+  --text-dim: #59596D;
+  --text-mute: #61617A;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #484D57;
+  --accent-l: rgba(72,77,87,0.09);
+  --accent-l2: rgba(72,77,87,0.16);
+  --green: #2F8F5B;
+  --green-l: rgba(47,143,91,0.10);
+  --red: #D14343;
+  --red-l: rgba(209,67,67,0.10);
+  --blue: #3B7FD4;
+  --blue-l: rgba(59,127,212,0.10);
+  --yellow: #B0810F;
+  --yellow-l: rgba(176,129,15,0.10);
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.10);
+  --accent-text: #343840;
+  --green-text: #1F7C41;
+  --red-text: #C02B2D;
+  --blue-text: #1D68BC;
+  --yellow-text: #846300;
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+  --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md: 0 4px 14px rgba(20,20,40,0.07), 0 1px 3px rgba(20,20,40,0.04);
+  --shadow-lg: 0 12px 36px rgba(20,20,40,0.10), 0 2px 8px rgba(20,20,40,0.05);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --elevation-2: 0 4px 14px rgba(20,20,40,0.08), 0 2px 4px rgba(20,20,40,0.04);
+  --elevation-3: 0 14px 44px rgba(20,20,40,0.13), 0 4px 10px rgba(20,20,40,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EBEDF1;
+  --track-prep-current: #484D57;
+  --track-exp-done: #E9E2FB;
+  --track-exp-current: #7C5CD4;
+  --track-nego-done: #FDF1CC;
+  --track-nego-current: #B0810F;
+  --track-proj-done: #D7EAFB;
+  --track-proj-current: #3B7FD4;
+  --font-app: var(--font-onest, 'Onest');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #343840;
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(255,255,255,0.85);
+}
+
+.t-washi {
+  --bg: #F5F0E8;
+  --surface: #FDFCFA;
+  --surface2: #EDE7DB;
+  --surface3: #E5DFD5;
+  --popover: var(--surface);
+  --border: #D8D2C8;
+  --border2: #E5DFD5;
+  --border-input: #8a8073;
+  --sidebar-bg: #2C2C2C;
+  --sidebar-text: rgba(232,226,216,0.7);
+  --sidebar-text-dim: rgba(232,226,216,0.62);
+  --sidebar-border: rgba(232,226,216,0.06);
+  --sidebar-hover: rgba(232,226,216,0.05);
+  --text: #2C2C2C;
+  --text-dim: #645E58;
+  --text-mute: #67615C;
+  --sidebar-indicator: transparent;
+  --sidebar-active-text: var(--accent);
+  --accent: #C23B3B;
+  --accent-l: rgba(194,59,59,0.10);
+  --accent-l2: rgba(194,59,59,0.25);
+  --accent-text: #B33434;
+  --green: #5E7A3A;
+  --green-l: rgba(94,122,58,0.12);
+  --green-text: #4E6A2E;
+  --red: #C23B3B;
+  --red-l: rgba(194,59,59,0.10);
+  --red-text: #B33434;
+  --blue: #2B5F8A;
+  --blue-l: rgba(43,95,138,0.12);
+  --blue-text: #2B5F8A;
+  --yellow: #D4993A;
+  --yellow-l: rgba(212,153,58,0.12);
+  --yellow-text: #826112;
+  --purple: #7B68A8;
+  --purple-l: rgba(123,104,168,0.12);
+  --purple-text: #665393;
+  --radius: 4px;
+  --radius-s: 2px;
+  --radius-m: 4px;
+  --radius-l: 8px;
+  --shadow-xs: 0 1px 2px rgba(44,44,44,0.04);
+  --shadow-sm: 0 1px 3px rgba(44,44,44,0.06), 0 1px 2px rgba(44,44,44,0.03);
+  --shadow-md: 0 4px 12px rgba(44,44,44,0.06), 0 1px 3px rgba(44,44,44,0.03);
+  --shadow-lg: 0 10px 32px rgba(44,44,44,0.08), 0 2px 8px rgba(44,44,44,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(44,44,44,0.06), 0 1px 2px rgba(44,44,44,0.03);
+  --elevation-2: 0 4px 12px rgba(44,44,44,0.08), 0 2px 4px rgba(44,44,44,0.03);
+  --elevation-3: 0 12px 40px rgba(44,44,44,0.10), 0 4px 8px rgba(44,44,44,0.05);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: rgba(43,95,138,0.12);
+  --track-prep-current: #2B5F8A;
+  --track-exp-done: rgba(194,59,59,0.10);
+  --track-exp-current: #C23B3B;
+  --track-nego-done: rgba(212,153,58,0.12);
+  --track-nego-current: #D4993A;
+  --track-proj-done: rgba(94,122,58,0.12);
+  --track-proj-current: #5E7A3A;
+  --chat-pattern-ink: #B33434;
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(253,252,250,0.88);
+}
+
+.t-fuji {
+  --bg: #EDE8DF;
+  --surface: #FDFCF8;
+  --surface2: #F0EBE2;
+  --surface3: #E3DDD2;
+  --popover: var(--surface);
+  --border: #DDD5C5;
+  --border2: #C8C0B0;
+  --border-input: #877e70;
+  --text: #1A2744;
+  --text-dim: #545C64;
+  --text-mute: #5C626A;
+  --sidebar-indicator: transparent;
+  --sidebar-active-text: #C4AA78;
+  --accent: #2B5078;
+  --accent-l: rgba(43,80,120,0.08);
+  --accent-l2: rgba(43,80,120,0.16);
+  --green: #4A7A5A;
+  --green-l: rgba(74,122,90,0.10);
+  --green-text: #3A6248;
+  --red: #C23B3B;
+  --red-l: rgba(194,59,59,0.09);
+  --red-text: #ba3939;
+  --blue: #2B5078;
+  --blue-l: rgba(43,80,120,0.08);
+  --blue-text: #2B5078;
+  --yellow: #C4AA78;
+  --yellow-l: rgba(196,170,120,0.12);
+  --yellow-text: #7A6538;
+  --purple: #6A5A8E;
+  --purple-l: rgba(106,90,142,0.09);
+  --purple-text: #6A5A8E;
+  --gold: #C4AA78;
+  --gold-dark: #7A6538;
+  --accent-foam: #8CB4CA;
+  --sidebar-bg: #1A2744;
+  --sidebar-text: rgba(232,219,191,0.7);
+  --sidebar-text-dim: rgba(232,219,191,0.62);
+  --sidebar-border: rgba(200,221,230,0.06);
+  --sidebar-hover: rgba(232,219,191,0.05);
+  --radius: 10px;
+  --radius-s: 4px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(26,39,68,0.04);
+  --shadow-sm: 0 1px 3px rgba(26,39,68,0.06), 0 1px 2px rgba(26,39,68,0.03);
+  --shadow-md: 0 4px 12px rgba(26,39,68,0.06), 0 1px 3px rgba(26,39,68,0.03);
+  --shadow-lg: 0 10px 32px rgba(26,39,68,0.08), 0 2px 8px rgba(26,39,68,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(26,39,68,0.06), 0 1px 2px rgba(26,39,68,0.03);
+  --elevation-2: 0 4px 12px rgba(26,39,68,0.08), 0 2px 4px rgba(26,39,68,0.03);
+  --elevation-3: 0 12px 40px rgba(26,39,68,0.10), 0 4px 8px rgba(26,39,68,0.05);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: rgba(43,80,120,0.10);
+  --track-prep-current: #2B5078;
+  --track-exp-done: rgba(196,170,120,0.10);
+  --track-exp-current: #C4AA78;
+  --track-nego-done: rgba(74,122,158,0.10);
+  --track-nego-current: #4A7A9E;
+  --track-proj-done: rgba(74,122,90,0.10);
+  --track-proj-current: #4A7A5A;
+  --font-app: var(--font-plex, 'IBM Plex Sans');
+  --chat-pattern-ink: #2B5078;
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(253,252,248,0.88);
+}
+
+.t-frost {
+  --bg: #0d1020;
+  --surface: rgba(255,255,255,0.07);
+  --surface2: rgba(255,255,255,0.04);
+  --surface3: rgba(255,255,255,0.10);
+  --popover: #1e2233;
+  --border: rgba(255,255,255,0.12);
+  --border2: rgba(255,255,255,0.22);
+  --border-input: rgba(255,255,255,0.42);
+  --text: #eef2ff;
+  --text-dim: #94a4d4;
+  --text-mute: #7e90c0;
+  --sidebar-indicator: rgba(255,255,255,0.10);
+  --sidebar-active-text: var(--accent);
+  --accent: #5b8aff;
+  --accent-l: rgba(91,138,255,0.15);
+  --accent-l2: rgba(91,138,255,0.25);
+  --accent-text: #7eb0ff;
+  --on-accent: #0d1020;
+  --green: #5BB88E;
+  --green-l: rgba(91,184,142,0.14);
+  --red: #E8795A;
+  --red-l: rgba(232,121,90,0.14);
+  --blue: #5FA8E8;
+  --blue-l: rgba(95,168,232,0.14);
+  --yellow: #F0C45E;
+  --yellow-l: rgba(240,196,94,0.14);
+  --yellow-text: #F0C45E;
+  --purple: #A070E0;
+  --purple-l: rgba(160,112,224,0.14);
+  --purple-text: #c9a0f5;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.35);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.16);
+  --glass-bg: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.11);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.12);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.10);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.12);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #5381C4;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #339CEB;
+  --track-nego-done: #78350f;
+  --track-nego-current: #08BAF8;
+  --track-proj-done: #500724;
+  --track-proj-current: #5CD7F4;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #7eb0ff;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(30,34,51,0.85);
+}
+
+.t-aurora {
+  --bg: #0a0e1a;
+  --surface: rgba(255,255,255,0.055);
+  --surface2: rgba(255,255,255,0.035);
+  --surface3: rgba(255,255,255,0.08);
+  --popover: #1a1e2c;
+  --border: rgba(255,255,255,0.10);
+  --border2: rgba(255,255,255,0.18);
+  --border-input: rgba(255,255,255,0.42);
+  --text: #e8f0ff;
+  --text-dim: #94a8d4;
+  --text-mute: #7e90c0;
+  --sidebar-indicator: rgba(255,255,255,0.10);
+  --sidebar-active-text: var(--accent);
+  --accent: #a060ff;
+  --accent-l: rgba(160,96,255,0.15);
+  --accent-l2: rgba(160,96,255,0.25);
+  --accent-text: #c9a0ff;
+  --on-accent: #0a0e1a;
+  --green: #20e8a0;
+  --green-l: rgba(32,232,160,0.12);
+  --red: #ff6090;
+  --red-l: rgba(255,96,144,0.12);
+  --blue: #40b8ff;
+  --blue-l: rgba(64,184,255,0.12);
+  --yellow: #ffe060;
+  --yellow-l: rgba(255,224,96,0.12);
+  --yellow-text: #ffe060;
+  --purple: #a060ff;
+  --purple-l: rgba(160,96,255,0.12);
+  --purple-text: #d0b0ff;
+  --radius: 8px;
+  --radius-s: 5px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.4);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  --glass-bg: rgba(255,255,255,0.055);
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.08);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.12);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #7E6ED3;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #A974F7;
+  --track-nego-done: #451a03;
+  --track-nego-current: #D283FF;
+  --track-proj-done: #500724;
+  --track-proj-current: #F1A4F7;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #c9a0ff;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(26,30,44,0.85);
+}
+
+.t-tidal {
+  --bg: #080f0d;
+  --surface: rgba(60,140,100,0.07);
+  --surface2: rgba(60,140,100,0.04);
+  --surface3: rgba(60,140,100,0.10);
+  --popover: #102119;
+  --border: rgba(80,160,120,0.15);
+  --border2: rgba(80,160,120,0.25);
+  --border-input: rgba(255,255,255,0.37);
+  --text: #c0d8cc;
+  --text-dim: #7aa08c;
+  --text-mute: #709080;
+  --sidebar-indicator: rgba(255,255,255,0.08);
+  --sidebar-active-text: var(--accent);
+  --accent: #48b890;
+  --accent-l: rgba(72,184,144,0.14);
+  --accent-l2: rgba(72,184,144,0.24);
+  --on-accent: #080f0d;
+  --green: #40c088;
+  --green-l: rgba(64,192,136,0.12);
+  --red: #c86858;
+  --red-l: rgba(200,104,88,0.12);
+  --red-text: #e09080;
+  --blue: #5ca8d0;
+  --blue-l: rgba(92,168,208,0.12);
+  --yellow: #b8a058;
+  --yellow-l: rgba(184,160,88,0.12);
+  --yellow-text: #b8a058;
+  --purple: #8878b0;
+  --purple-l: rgba(136,120,176,0.12);
+  --purple-text: #a898c8;
+  --radius: 8px;
+  --radius-s: 5px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.45);
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.2);
+  --shadow-card-hover: 0 4px 20px rgba(0,0,0,0.3);
+  --glass-bg: rgba(60,140,100,0.06);
+  --glass-border: rgba(80,160,120,0.12);
+  --glass-blur: blur(8px);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.05);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(80,160,120,0.15);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(80,160,120,0.22);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(80,160,120,0.25);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #3B9373;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #23AD90;
+  --track-nego-done: #422006;
+  --track-nego-current: #15C5B1;
+  --track-proj-done: #500724;
+  --track-proj-current: #62DAD6;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #48b890;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(16,33,25,0.85);
+}
+
+.t-minimal {
+  --bg: #ECECEF;
+  --surface: #FFFFFF;
+  --surface2: #F4F4F6;
+  --surface3: #E7E7EB;
+  --popover: var(--surface);
+  --border: #D9D9E0;
+  --border2: #C4C4CE;
+  --border-input: #82828C;
+  --text: #17171C;
+  --text-dim: #4E4E59;
+  --text-mute: #5F5F6A;
+  --sidebar-indicator: #FFFFFF;
+  --sidebar-active-text: var(--text);
+  --accent: #0E7C86;
+  --accent-l: rgba(14,124,134,0.08);
+  --accent-l2: rgba(14,124,134,0.16);
+  --accent-text: #0A6771;
+  --green: #1B8A4C;
+  --green-l: rgba(27,138,76,0.09);
+  --green-text: #177B43;
+  --red: #CC3B2E;
+  --red-l: rgba(204,59,46,0.09);
+  --red-text: #B02A24;
+  --blue: #2563C9;
+  --blue-l: rgba(37,99,201,0.09);
+  --blue-text: #1D68BC;
+  --yellow: #B0680A;
+  --yellow-l: rgba(176,104,10,0.10);
+  --yellow-text: #846300;
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.09);
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(18,18,24,0.05);
+  --shadow-sm: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-md: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --shadow-lg: 0 4px 8px rgba(18,18,24,0.06), 0 18px 48px rgba(18,18,24,0.14);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --elevation-2: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --elevation-3: 0 4px 8px rgba(18,18,24,0.07), 0 20px 56px rgba(18,18,24,0.16);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EDEDEF;
+  --track-prep-current: #2E2E36;
+  --track-exp-done: #DDEEF0;
+  --track-exp-current: #0E7C86;
+  --track-nego-done: #F7EBD4;
+  --track-nego-current: #B0680A;
+  --track-proj-done: #DFEAF9;
+  --track-proj-current: #2563C9;
+  --font-app: var(--font-inter, 'Inter');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #0A6771;
+  --chat-pattern-op: 0.03;
+  --chat-chip: rgba(255,255,255,0.85);
+}
+
+/* ══ КАРКАС МОКАПА ══ */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-app), system-ui, sans-serif;
+  font-size: 0.8125rem; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mockup-bar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; gap: 0.75rem; align-items: center;
+  padding: 0.5rem 1rem; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.mockup-bar strong { font-size: 0.6875rem; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-mute); font-weight: 600; }
+.mockup-bar button {
+  padding: 0.25rem 0.625rem; font: inherit; font-size: 0.6875rem;
+  color: var(--text-dim); background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 999px;
+}
+.mockup-bar button[aria-current] {
+  color: var(--accent); border-color: var(--accent);
+  background: var(--accent-l); font-weight: 600;
+}
+.mockup-bar label { margin-left: auto; display: flex; gap: 0.375rem;
+  align-items: center; font-size: 0.6875rem; color: var(--text-mute); }
+
+/* Полотно: ограничитель ширины — как на детальных страницах.
+   Для досок, таблиц и Ганта снять .canvas--capped. */
+.canvas { padding: 1.5rem; }
+.canvas--capped { max-width: 90rem; margin-inline: auto; }
+.canvas[data-width="1280"] { max-width: 1280px; }
+</style>
+
+<div class="mockup-bar">
+  <strong>Тема</strong>
+      <button data-theme="t-aura" aria-current="true">aura</button>
+      <button data-theme="t-washi">washi</button>
+      <button data-theme="t-fuji">fuji</button>
+      <button data-theme="t-frost">frost</button>
+      <button data-theme="t-aurora">aurora</button>
+      <button data-theme="t-tidal">tidal</button>
+      <button data-theme="t-minimal">minimal</button>
+  <label>
+    Ширина
+    <select id="w">
+      <option value="">полная</option>
+      <option value="1280">1280</option>
+    </select>
+  </label>
+</div>
+
+<style>
+/* ══ ДОБАВКА К КАРКАСУ: симулятор вьюпорта ══
+   Каркас build-mockup.py показывает «полная / 1280». Предмет этого разбора —
+   поведение при 1280…2560 со свёрнутым сайдбаром и открытым drawer, поэтому
+   полотно обёрнуто в симулятор с масштабированием. Всё остальное — по киту. */
+.mockup-bar { flex-wrap: wrap; row-gap: 0.5rem; }
+/* своя панель БЕЗ класса .mockup-bar: обработчик каркаса вешает смену темы
+   на любую кнопку внутри .mockup-bar и перехватил бы эти клики */
+.mockup-bar2 { position: sticky; top: 2.1rem; z-index: 99; display: flex; flex-wrap: wrap;
+  gap: 0.4rem; align-items: center; row-gap: 0.5rem;
+  padding: 0.5rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+.mockup-bar2 strong { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-mute); font-weight: 600; }
+.mockup-bar2 button { padding: 0.25rem 0.625rem; font: inherit; font-size: 0.6875rem;
+  color: var(--text-dim); background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 999px; }
+.mockup-bar2 button[aria-current] { color: var(--accent); border-color: var(--accent);
+  background: var(--accent-l); font-weight: 600; }
+.mockup-bar label { margin-left: 0; }
+.mockup-bar .spacer { margin-left: auto; }
+.mockup-bar select { font: inherit; font-size: 0.6875rem; padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border); border-radius: 0.375rem;
+  background: var(--surface); color: var(--text); }
+
+.sim-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+  padding: 0.625rem 1rem 0; font-size: 0.6875rem; color: var(--text-mute); }
+.sim-meta .chip { border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.5rem; }
+.sim-meta .chip.warn { border-color: var(--yellow); color: var(--yellow-text, var(--yellow)); }
+.sim-meta .chip.good { border-color: var(--green); color: var(--green-text, var(--green)); }
+
+.sim-outer { margin: 0.625rem 1rem 1.5rem; border: 1px solid var(--border);
+  border-radius: var(--radius-l); overflow: hidden; }
+.sim-scaler { transform-origin: top left; }
+.app { display: flex; background: var(--bg); }
+
+.nav { flex: none; background: var(--surface); border-right: 1px solid var(--border); padding: 0.625rem 0; }
+.nav-logo { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; background: var(--accent); margin: 0 auto 0.875rem; }
+.nav i { display: block; width: 1.125rem; height: 1.125rem; border-radius: 0.3rem;
+  background: var(--text-mute); opacity: 0.28; margin: 0.55rem auto; }
+.nav i.on { opacity: 1; background: var(--accent); }
+.drawer { flex: none; width: 280px; background: var(--surface); border-left: 1px solid var(--border); padding: 1rem; }
+.drawer-row { height: 2.5rem; margin-top: 0.625rem; border-radius: 0.5rem; background: var(--surface2); }
+
+/* сгиб */
+.canvas { position: relative; flex: 1; min-width: 0; }
+.canvas::after { content: 'сгиб · 1080p'; position: absolute; left: 0; right: 0; top: 55.5rem;
+  border-top: 2px dashed var(--red); color: var(--red);
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; padding-top: 0.15rem; pointer-events: none; }
+
+/* ══ ПРИМИТИВЫ КАРТОЧКИ ══ */
+.sheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l); }
+.pad { padding: 0.875rem 1rem; }
+svg.ic { width: 0.875rem; height: 0.875rem; flex: none; stroke: currentColor; fill: none;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+svg.ic-s { width: 0.75rem; height: 0.75rem; }
+
+.crumb { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem;
+  color: var(--text-mute); margin-bottom: 0.875rem; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.25rem; margin-bottom: 1.25rem; }
+.head h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.head-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.head-sub { margin-top: 0.25rem; font-size: 0.6875rem; color: var(--text-mute); }
+.head-acts { display: flex; gap: 0.3rem; flex: none; }
+
+.tag { font-size: 0.6875rem; font-weight: 500; padding: 0.1rem 0.5rem; border-radius: 999px; }
+.tag-blue { background: var(--blue-l); color: var(--blue-text, var(--blue)); }
+.tag-amber { background: var(--yellow-l); color: var(--yellow-text, var(--yellow)); }
+.tag-mute { background: var(--surface2); color: var(--text-dim); }
+
+.btn { display: inline-flex; align-items: center; gap: 0.3rem; font: inherit; font-size: 0.75rem;
+  font-weight: 500; padding: 0.35rem 0.6rem; border: 1px solid var(--border);
+  border-radius: var(--radius-s); background: transparent; color: var(--text-dim); }
+.btn-ic { padding: 0.35rem; }
+
+.lbl { display: flex; align-items: center; gap: 0.35rem; font-size: 0.6875rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-mute); }
+.lbl-acc { color: var(--accent-text, var(--accent)); text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
+.dot { width: 0.4375rem; height: 0.4375rem; border-radius: 50%; flex: none; }
+
+/* кокпит */
+.ck { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.75rem; }
+.ck-done { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--green); border-radius: var(--radius-s);
+  color: var(--green-text, var(--green)); font-weight: 600; }
+.ck-cur { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.6rem;
+  border: 1px solid var(--accent); border-radius: var(--radius-s); font-weight: 600;
+  position: relative; overflow: hidden; }
+.ck-cur::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 28%; background: var(--accent-l2); }
+.ck-cur > * { position: relative; }
+.ck-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border); border-radius: var(--radius-s); color: var(--text-dim); }
+.ck-pill.dash { border-style: dashed; border-radius: 999px; }
+.ck-far { margin-left: auto; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.ck-sep { color: var(--text-mute); opacity: 0.45; }
+.ck-mute { color: var(--text-mute); }
+
+.guide-box { margin-top: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-m);
+  background: var(--surface2); padding: 0.75rem 0.875rem; }
+.guide-box p { margin: 0.3rem 0 0; font-size: 0.8125rem; font-style: italic; color: var(--text-mute); }
+
+.rail-stages { display: flex; margin-top: 0.875rem; }
+.ph { flex: 1; min-width: 0; padding-right: 0.875rem; border-right: 1px solid var(--border); }
+.ph:last-child { border-right: 0; padding-right: 0; }
+.ph-name { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-mute); margin-bottom: 0.45rem; }
+.ph-steps { display: flex; gap: 0.25rem; }
+.st { flex: 1; min-width: 0; text-align: center; }
+.st .knob { width: 0.8125rem; height: 0.8125rem; border-radius: 50%;
+  border: 1.5px solid var(--border2); margin: 0 auto 0.3rem; }
+.st.done .knob { background: var(--accent); border-color: var(--accent); }
+.st.cur .knob { border-color: var(--accent); border-width: 4px; }
+.st .cap { font-size: 0.65rem; color: var(--text-mute); line-height: 1.25; }
+.st.cur .cap { color: var(--text); font-weight: 600; }
+
+/* следующий шаг */
+.next { border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-m); background: var(--surface); padding: 0.8rem 1rem; }
+.next.warm { border-left-color: var(--yellow); background: var(--yellow-l); }
+.next-txt { font-size: 0.9375rem; line-height: 1.35; margin-top: 0.35rem; }
+.next-meta { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem;
+  flex-wrap: wrap; font-size: 0.75rem; color: var(--text-dim); }
+.ital { font-style: italic; color: var(--text-mute); }
+
+/* property-list */
+.props > * + * { border-top: 1px solid var(--border); }
+.prop { display: flex; align-items: center; gap: 0.5rem; height: 1.875rem; font-size: 0.8125rem; }
+.prop .k { display: flex; align-items: center; gap: 0.35rem; color: var(--text-dim); flex: none; width: 6.25rem; }
+.prop .v { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto; text-align: right; }
+.prop .v.acc { color: var(--accent-text, var(--accent)); }
+.prop .v.ph { font-weight: 400; font-style: italic; color: var(--text-mute); }
+.prop .cost { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--yellow); flex: none; margin-left: 0.4rem; }
+.prop .num { font-variant-numeric: tabular-nums; }
+/* Длинные юрлица не лечатся шириной рельсы: «ООО «Торговый дом Метизы и Крепёж»»
+   обрезается и на 320, и на 400. Лечится переносом на 2 строки. */
+.prop.tall { height: auto; align-items: flex-start; padding: 0.3rem 0; }
+.prop.tall .v { white-space: normal; text-overflow: clip; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+
+/* сигналы */
+.sig { display: flex; align-items: flex-start; gap: 0.45rem; padding: 0.3rem 0; font-size: 0.75rem; }
+.sig .cta { margin-left: auto; flex: none; font-size: 0.6875rem; color: var(--accent-text, var(--accent));
+  border: 1px solid var(--border); border-radius: var(--radius-s); padding: 0.1rem 0.4rem; }
+.verdict { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.75rem; font-weight: 500; }
+
+/* вкладки и лента */
+/* Седьмая вкладка («Заметки») переполняет полосу при 1280 + открытый drawer:
+   scrollWidth 725 против clientWidth 556 [COMPUTED]. Действия переносятся
+   на вторую строку, а не обрезаются. */
+.tabs { display: flex; align-items: center; gap: 0.15rem; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border); }
+.tab { font-size: 0.75rem; font-weight: 500; padding: 0.5rem 0.7rem; color: var(--text-mute);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.on { color: var(--accent-text, var(--accent)); border-bottom-color: var(--accent); }
+.tab-acts { margin-left: auto; display: flex; gap: 0.3rem; padding-bottom: 0.3rem; flex-wrap: wrap; }
+.composer { display: flex; gap: 0.5rem; align-items: center; }
+.composer .inp { flex: 1; border: 1px solid var(--border); background: var(--surface2);
+  border-radius: var(--radius-m); padding: 0.55rem 0.75rem; font-size: 0.8125rem; color: var(--text-mute); }
+.composer .send { width: 2.125rem; height: 2.125rem; border-radius: 50%; flex: none;
+  background: var(--surface2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; color: var(--text-mute); }
+.ev { display: flex; gap: 0.625rem; padding: 0.7rem 0; }
+.ev + .ev { border-top: 1px solid var(--border); }
+.ev .av { width: 1.625rem; height: 1.625rem; border-radius: 50%; background: var(--surface3); flex: none; }
+.ev .bd { min-width: 0; max-width: 80ch; }
+.ev .t { font-size: 0.8125rem; }
+.ev .m { font-size: 0.6875rem; color: var(--text-mute); margin-top: 0.1rem; }
+.empty { text-align: center; font-style: italic; color: var(--text-mute); padding: 2.25rem 0; font-size: 0.8125rem; }
+.skel { height: 0.75rem; border-radius: 0.25rem; background: var(--surface3); opacity: 0.7; }
+
+/* сплиты */
+.split-r { display: grid; gap: 1.25rem; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.col-rail { min-width: 0; display: flex; flex-direction: column; gap: 0.75rem; position: sticky; top: 1rem; }
+
+.notes { margin: 0 1rem 2rem; }
+.notes .sheet { padding: 1rem 1.125rem; }
+.notes h3 { margin: 0 0 0.6rem; font-size: 0.6875rem; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-mute); }
+.notes li { margin-bottom: 0.4rem; font-size: 0.8125rem; line-height: 1.55; }
+.notes code { background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 0.25rem; padding: 0 0.25rem; font-size: 0.75rem; }
+</style>
+
+<div class="sim-meta" id="meta"></div>
+<div class="sim-outer"><div class="sim-scaler" id="scaler"><div class="app" id="app"></div></div></div>
+
+<div class="notes">
+  <div class="sheet">
+    <h3>Что здесь сравнивается</h3>
+    <ul>
+      <li><b>Сейчас</b> — живая карточка. <b>2a / 2b</b> — варианты Claude Design (правый рейл 400 / левый рейл 360). <b>Синтез</b> — рекомендация: их сильные решения + ограничитель ширины, которого нет ни в одном из трёх.</li>
+      <li><b>Красный пунктир</b> — сгиб на 1080p (900 CSS px рабочей области). Норма проекта — ≤400px вертикали до основного содержимого (<code>crm-ui-designer §5</code>); в строке замеров эта цифра считается для текущего варианта.</li>
+      <li>Переключай <b>вьюпорт до 2560</b>: у «Сейчас», 2a и 2b полотно тянется линейно — ни один не ставит <code>max-width</code>. У «Синтеза» карточка упирается в 90rem.</li>
+      <li><b>Наполнение → пусто</b> показывает, во что превращается экран на новой сделке; <b>типично</b> — на живой, с длинным юрлицом и обрезкой.</li>
+      <li>Токены сгенерированы из <code>globals.css</code> скриптом <code>build-mockup.py</code>, список тем — из <code>theme-store.ts</code>. Дефолтная тема проекта — <b>t-aura</b>, рабочая у владельца — <b>t-minimal</b>.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* ═══ Состояние ═══ */
+const S = { v: 'now', vw: 1920, nav: 56, drawer: 0, fill: 'typical' };
+const SIM_MAX = 1460;
+
+/* ═══ Иконки (упрощённые Lucide-подобные) ═══ */
+const P = {
+  back:'M19 12H5M12 19l-7-7 7-7', chev:'M9 18l6-6-6-6', chevd:'M6 9l6 6 6-6',
+  bld:'M3 21h18M5 21V7l7-4v18M19 21V11l-7-4', usr:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+  cash:'M2 6h20v12H2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', cal:'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4',
+  clock:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2', pin:'M12 17v5M9 3h6l-1 6 3 3H7l3-3z',
+  lock:'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4', chk:'M20 6L9 17l-5-5',
+  plus:'M12 5v14M5 12h14', bulb:'M9 18h6M10 22h4M12 2a6 6 0 0 0-4 10.5V16h8v-3.5A6 6 0 0 0 12 2',
+  net:'M5 21h4v-4H5zM15 21h4v-4h-4zM10 7h4V3h-4zM12 7v4M7 17v-2h10v2', send:'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+  file:'M14 2H6v20h12V6zM14 2v4h4', vid:'M23 7l-7 5 7 5zM1 5h15v14H1z', note:'M4 3h16v12l-5 6H4zM20 15h-5v6',
+  link:'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
+  spark:'M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z', pen:'M17 3l4 4L8 20H4v-4z', trash:'M4 6h16M9 6V4h6v2M6 6l1 15h10l1-15',
+};
+const ico = (n, c='ic') => `<svg class="${c}" viewBox="0 0 24 24"><path d="${P[n]}"/></svg>`;
+
+/* ═══ Данные — реалистичные ═══ */
+const D = {
+  name: 'Метизы и Крепёж — маркировка обуви',
+  company: 'ООО «Торговый дом Метизы и Крепёж»',
+  typical: { contact: 'Власов Дмитрий Александрович', budget: '2 450 000 ₽', stake: 3,
+             mat: { do: 'привязан', notes: 2, files: 7, video: 1 }, events: true },
+  empty:   { contact: null, budget: null, stake: 0,
+             mat: { do: null, notes: 0, files: 0, video: 0 }, events: false },
+};
+const f = () => D[S.fill === 'typical' ? 'typical' : 'empty'];
+
+const PHASES = [
+  ['Привлечение', [['Лид','done'],['Квалификация','done'],['Материалы','cur']]],
+  ['Проработка', [['Подготовка КП',''],['Документы',''],['Согл. ЧЗ','']]],
+  ['Согласование', [['Встреча 3х',''],['Эксперимент','']]],
+  ['Закрытие', [['Защита КП',''],['Договор',''],['Запуск проекта','']]],
+];
+
+/* ═══ Блоки ═══ */
+const crumb = `<div class="crumb">${ico('back','ic ic-s')} Воронка сделок</div>`;
+
+function head(withCreated) {
+  return `<div class="head">
+    <div style="min-width:0">
+      <div class="head-row">
+        <h1>${D.name}</h1>
+        <span class="tag tag-blue">IIoT</span>
+        ${withCreated === 'badge' ? '<span class="tag tag-amber">5/8</span>' : ''}
+      </div>
+      ${withCreated ? `<div class="head-sub">Создан 21.08.2026</div>` : ''}
+    </div>
+    <div class="head-acts">
+      <button class="btn">Выиграна</button><button class="btn">Проиграна</button>
+      <button class="btn">${ico('spark','ic ic-s')} AI</button>
+      <button class="btn btn-ic">${ico('pen','ic ic-s')}</button>
+      <button class="btn btn-ic">${ico('trash','ic ic-s')}</button>
+    </div></div>`;
+}
+
+function stageRail() {
+  return `<div class="rail-stages">${PHASES.map(([n, st]) => `<div class="ph">
+    <div class="ph-name">${n}</div><div class="ph-steps">${st.map(([c, s]) =>
+      `<div class="st ${s}"><div class="knob"></div><div class="cap">${c}</div></div>`).join('')}
+    </div></div>`).join('')}</div>`;
+}
+
+function cockpit(mode) {
+  // mode: 'now' | 'cd' (рельса свёрнута) | 'synth'
+  const row = `<div class="ck">
+    <span class="ck-done">${ico('chk','ic ic-s')} 2</span><span class="ck-sep">—</span>
+    <span class="ck-cur"><span>Материалы</span><span style="font-weight:400">2 дн.</span></span>
+    <span class="ck-mute">готовность 0/2</span><span class="ck-sep">—</span>
+    <span class="ck-pill">${ico('lock','ic ic-s')} Подготовка КП</span>
+    <span class="ck-pill dash">+8 · 3 группы</span>
+    ${mode !== 'now' ? `<span class="ck-pill" title="Что делаем на стадии — подсказка не заполнена">${ico('bulb','ic ic-s')}</span>` : ''}
+    ${mode === 'cd' ? `<span class="ck-pill">${ico('chevd','ic ic-s')}</span>` : ''}
+    <span class="ck-far">3 из 11 · вероятность 15%</span></div>`;
+  const guide = mode === 'now'
+    ? `<div class="guide-box"><div class="lbl">${ico('bulb','ic ic-s')} Что делаем на стадии</div>
+         <p>Добавить подсказку для стадии «Материалы» (до 500 симв.)</p></div>` : '';
+  const rail = mode === 'cd' ? '' : stageRail();
+  const pct = mode === 'now' ? `<div style="margin-top:0.6rem;font-size:0.75rem;color:var(--text-dim)">Пройдено 27%</div>` : '';
+  return `<div class="sheet pad">${row}${guide}${rail}${pct}</div>`;
+}
+
+function nextStep(opts = {}) {
+  return `<div class="next ${opts.warm ? 'warm' : ''}">
+    <div class="lbl lbl-acc">${ico('chev','ic ic-s')} Следующий шаг</div>
+    <div class="next-txt">Ожидаем получение материала — видео анкеты производственной линии</div>
+    <div class="next-meta"><span>Дата: <span class="ital">назначить</span></span>
+      ${opts.pill ? '<span class="tag tag-amber">нет даты</span>' : ''}
+      <button class="btn">${ico('chk','ic ic-s')} Шаг сделан</button></div></div>`;
+}
+
+function healthBlock(full) {
+  const sigs = `
+    <div class="sig"><span class="dot" style="background:var(--yellow);margin-top:0.3rem"></span>
+      <span>У следующего шага нет даты</span><span class="cta">Назначить</span></div>
+    <div class="sig"><span class="dot" style="background:var(--yellow);margin-top:0.3rem"></span>
+      <span>${f().stake ? 'Вся активность на одном человеке' : 'Единственный участник'}</span><span class="cta">Добавить ЛПР</span></div>
+    <div class="sig"><span class="dot" style="background:var(--green);margin-top:0.3rem"></span>
+      <span>В стадии 2 дн. из 7 по норме</span></div>`;
+  return `<div class="lbl" style="margin-bottom:0.5rem">Здоровье</div>
+    ${full ? '' : `<div style="margin-bottom:0.4rem"><span class="verdict">
+      <span class="dot" style="background:var(--text-mute)"></span> Новая</span></div>`}
+    ${full ? sigs : `<div class="sig"><span class="dot" style="background:var(--yellow);margin-top:0.3rem"></span><span>У следующего шага нет даты</span></div>`}`;
+}
+
+function propsCard(withCreated, withBadge) {
+  const d = f();
+  const row = (icn, k, v, cls = '', cost = false) =>
+    `<div class="prop"><span class="k">${ico(icn, 'ic ic-s')} ${k}</span>
+       <span class="v ${cls}">${v}</span>${cost ? '<span class="cost" title="Высокая цена пустоты"></span>' : ''}</div>`;
+  return `<div class="sheet pad">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">
+      <div class="lbl">Сводка</div>${withBadge ? '<span class="tag tag-amber">5/8</span>' : ''}</div>
+    <div class="props">
+      <div class="prop tall"><span class="k">${ico('bld','ic ic-s')} Компания</span>
+        <span class="v acc">${D.company}</span></div>
+      ${row('usr', 'Контакт', d.contact ?? '+ Указать', d.contact ? '' : 'ph', !d.contact)}
+      ${row('cash', 'Бюджет', d.budget ?? '+ Указать', d.budget ? 'num' : 'ph', !d.budget)}
+      ${row('cal', 'Дедлайн', '28 авг 2026', 'num')}
+      ${withCreated ? row('clock', 'Создана', '21.08.2026', 'num') : ''}
+    </div></div>`;
+}
+
+function stakeCard() {
+  const n = f().stake;
+  return `<div class="sheet pad">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">
+      <div class="lbl">${ico('net','ic ic-s')} Стейкхолдеры ${n ? `<span class="tag tag-mute">${n}</span>` : ''}</div>
+      <button class="btn">${ico('plus','ic ic-s')} Добавить</button></div>
+    ${n ? `<div class="props">
+        <div class="prop"><span class="k">ЛПР</span><span class="v">Власов Д. А.</span></div>
+        <div class="prop"><span class="k">Бюджет</span><span class="v">Сорокина М. П.</span></div>
+        <div class="prop"><span class="k">Внедрение</span><span class="v">Кузьмин А. В.</span></div>
+      </div>`
+      : `<div style="font-size:0.75rem;color:var(--text-mute)">Не указаны — добавь тех, кто решает, платит и подписывает</div>`}
+  </div>`;
+}
+
+function matCard() {
+  const m = f().mat;
+  const row = (icn, k, v, ph) => `<div class="prop"><span class="k">${ico(icn,'ic ic-s')} ${k}</span>
+    <span class="v ${ph ? 'ph' : 'num'}">${v}</span></div>`;
+  return `<div class="sheet pad">
+    <div class="lbl" style="margin-bottom:0.4rem">Материалы проекта</div>
+    <div class="props">
+      ${row('link', '1С:ДО', m.do ?? 'привязать', !m.do)}
+      <div class="prop"><span class="k">${ico('note','ic ic-s')} Заметки</span>
+        <span class="v ${m.notes ? 'num acc' : 'ph'}" title="Открыть вкладку «Заметки»">${m.notes || 'нет'}</span></div>
+      ${row('file', 'Файлы', m.files, false)}
+      ${row('vid', 'Видео', m.video, false)}
+    </div></div>`;
+}
+
+function tabsBar(notesTab, actsInBar) {
+  // «Заметки» — заглушка под будущий раздел (спринт отдельно).
+  // Вкладка встаёт второй: и Активность, и Заметки — про содержание работы,
+  // остальные вкладки про артефакты и планы.
+  const list = notesTab
+    ? ['Активность', 'Заметки', 'Доска задач', 'Гант', 'КП', 'История']
+    : ['Активность', 'Доска задач', 'Гант', 'КП', 'История'];
+  list.push('Чат');
+  return `<div class="tabs">${list.map((t, i) => `<div class="tab ${i === 0 ? 'on' : ''}">${t}</div>`).join('')}
+    ${actsInBar ? `<div class="tab-acts">
+      <button class="btn">${ico('plus','ic ic-s')} Задача</button>
+      <button class="btn">${ico('plus','ic ic-s')} Звонок</button>
+      <button class="btn">${ico('plus','ic ic-s')} Встреча</button></div>` : ''}</div>`;
+}
+
+function feed(actsInside) {
+  const d = f();
+  const evs = d.events ? `
+    <div class="ev"><div class="av"></div><div class="bd">
+      <div class="t">Стадия изменена: <b>Квалификация → Материалы</b></div>
+      <div class="m">Олег Мазурок · 21 августа, 16:40</div></div></div>
+    <div class="ev"><div class="av"></div><div class="bd">
+      <div class="t">Звонок · обсудили состав видео-анкеты, сроки предоставления материалов от производства и порядок согласования с ЧЗ</div>
+      <div class="m">Олег Мазурок · 21 августа, 15:12 · 18 мин</div></div></div>
+    <div class="ev"><div class="av"></div><div class="bd">
+      <div class="t">КП «Маркировка обуви · базовый контур» отправлено, просмотра пока нет</div>
+      <div class="m">Система · 21 августа, 14:52</div></div></div>
+    <div class="ev"><div class="av"></div><div class="bd" style="width:100%">
+      <div class="skel" style="width:62%"></div><div class="skel" style="width:38%;margin-top:0.4rem;height:0.5rem"></div>
+      <div class="m">загрузка следующей страницы</div></div></div>`
+    : `<div class="empty">Пока нет активности</div>`;
+  return `<div class="sheet pad">
+    ${actsInside ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+        <div class="lbl">${ico('clock','ic ic-s')} Активность</div>
+        <div style="display:flex;gap:0.3rem">
+          <button class="btn">${ico('plus','ic ic-s')} Задача</button>
+          <button class="btn">${ico('plus','ic ic-s')} Звонок</button>
+          <button class="btn">${ico('plus','ic ic-s')} Встреча</button></div></div>` : ''}
+    <div class="composer"><div class="inp">Добавить комментарий…</div>
+      <div class="send">${ico('send','ic ic-s')}</div></div>
+    <div style="margin-top:0.875rem">${evs}</div></div>`;
+}
+
+function pinnedCard() {
+  return `<div class="sheet pad"><div class="lbl" style="margin-bottom:0.4rem">${ico('pin','ic ic-s')} Закреплено</div>
+    <div style="font-size:0.8125rem;font-style:italic;color:var(--text-mute)">Закрепить заметку…</div></div>`;
+}
+
+/* ═══ Варианты ═══ */
+function vNow() {
+  const d = f();
+  const box = (icn, k, v, ph) => `<div class="sheet" style="padding:0.55rem 0.75rem;border-radius:var(--radius-m)">
+    <div style="display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--text-dim);margin-bottom:0.15rem">${ico(icn,'ic ic-s')} ${k}</div>
+    <div style="font-size:0.9375rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${ph ? ';font-style:italic;color:var(--text-mute)' : ''}">${v}</div></div>`;
+  return `${crumb}${head(true)}
+    <div style="margin-bottom:1.25rem">${cockpit('now')}</div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,0.9fr) auto;gap:0.5rem 2rem;
+                border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+                padding:1rem 1.25rem;margin-bottom:1.25rem">
+      <div>${nextStep({ warm: true })}</div>
+      <div><div class="lbl" style="margin-bottom:0.4rem">${ico('pin','ic ic-s')} Закреплено</div>
+        <div style="font-size:0.8125rem;font-style:italic;color:var(--text-mute)">Закрепить заметку…</div></div>
+      <div style="width:320px;justify-self:end">${healthBlock(false)}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem">
+      ${box('bld','Компания', D.company, false)}
+      ${box('usr','Контакт', d.contact ?? '—', !d.contact)}
+      ${box('cash','Бюджет', d.budget ?? 'Указать', !d.budget)}
+      ${box('cal','Дедлайн','28 августа 2026 г.', false)}</div>
+    <div class="sheet pad" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div><div class="lbl" style="margin-bottom:0.3rem">${ico('net','ic ic-s')} Стейкхолдеры</div>
+          <div style="font-size:0.8125rem;color:var(--text-mute)">${d.stake
+            ? 'Власов Дмитрий Александрович · ЛПР &nbsp;·&nbsp; Сорокина Марина Павловна · бюджет &nbsp;·&nbsp; Кузьмин Артём Владимирович · внедрение'
+            : 'Участники не указаны — добавь тех, кто решает, платит и подписывает'}</div></div>
+        <button class="btn">${ico('plus','ic ic-s')} Добавить</button></div></div>
+    <div class="sheet" style="margin-bottom:1rem;padding:0.6rem 1rem;display:flex;align-items:center;gap:0.5rem">
+      ${ico('chev','ic ic-s')}<span class="lbl">Материалы проекта</span>
+      <span style="margin-left:auto;font-size:0.6875rem;color:var(--text-mute)">1С:ДО · заметки · файлы · видео</span></div>
+    ${tabsBar(false, false)}
+    <div style="margin-top:0.75rem">${feed(true)}</div>`;
+}
+
+function vCD(side, railW) {
+  const rail = `<div class="col-rail">
+    ${side === 'right' ? '' : propsCard(false, true)}
+    ${side === 'right' ? propsCard(true, true) : ''}
+    ${stakeCard()}${matCard()}</div>`;
+  const main = `<div class="col">
+    <div class="sheet pad">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:1.25rem">
+        <div>${nextStep({ pill: true })}</div>
+        <div style="border-left:1px solid var(--border);padding-left:1.25rem">
+          ${healthBlock(false)}
+          <div class="lbl" style="margin-top:0.75rem">${ico('pin','ic ic-s')} Закреплено</div>
+          <div style="font-size:0.8125rem;font-style:italic;color:var(--text-mute);margin-top:0.2rem">Закрепить заметку…</div>
+        </div></div></div>
+    ${tabsBar(false, true)}
+    ${feed(false)}</div>`;
+  const cols = side === 'right'
+    ? `minmax(0,1fr) ${railW}px` : `${railW}px minmax(0,1fr)`;
+  const order = side === 'right' ? main + rail : rail + main;
+  return `${crumb}${head(true)}
+    <div class="split-r" style="grid-template-columns:${cols}">
+      ${side === 'right'
+        ? `<div class="col">${cockpit('cd')}${main.slice(18)}` .replace(/^<div class="col">/, '<div class="col">') + ''
+        : ''}
+    </div>`;
+}
+
+/* CD-варианты собираются явно — так честнее читается порядок колонок */
+function vCDa() { // правый рейл 400
+  return `${crumb}${head(true)}
+    <div class="split-r" style="grid-template-columns:minmax(0,1fr) 400px">
+      <div class="col">
+        ${cockpit('cd')}
+        <div class="sheet pad"><div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1.25rem">
+          <div>${nextStep({ pill: true })}</div>
+          <div style="border-left:1px solid var(--border);padding-left:1.25rem">${healthBlock(false)}
+            <div class="lbl" style="margin-top:0.75rem">${ico('pin','ic ic-s')} Закреплено</div>
+            <div style="font-size:0.8125rem;font-style:italic;color:var(--text-mute);margin-top:0.2rem">Закрепить заметку…</div>
+          </div></div></div>
+        ${tabsBar(false, true)}${feed(false)}
+      </div>
+      <div class="col-rail">${propsCard(true, true)}${stakeCard()}${matCard()}</div>
+    </div>`;
+}
+
+function vCDb() { // левый рейл 360
+  return `${crumb}${head(true)}
+    <div class="split-r" style="grid-template-columns:360px minmax(0,1fr)">
+      <div class="col-rail">${propsCard(true, true)}${stakeCard()}${matCard()}</div>
+      <div class="col">
+        ${cockpit('cd')}
+        <div class="sheet pad"><div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:1.25rem">
+          <div>${nextStep({ pill: true })}</div>
+          <div style="border-left:1px solid var(--border);padding-left:1.25rem">${healthBlock(false)}
+            <div class="lbl" style="margin-top:0.75rem">${ico('pin','ic ic-s')} Закреплено</div>
+            <div style="font-size:0.8125rem;font-style:italic;color:var(--text-mute);margin-top:0.2rem">Закрепить заметку…</div>
+          </div></div></div>
+        ${tabsBar(false, true)}${feed(false)}
+      </div>
+    </div>`;
+}
+
+function vSynth() {
+  return `${crumb}${head(false)}
+    <div style="margin-bottom:1.25rem">${cockpit('synth')}</div>
+    <div class="split-r" style="grid-template-columns:minmax(0,1fr) 320px">
+      <div class="col">
+        <div>${nextStep({ warm: true })}
+          <div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.75rem">
+            <span class="verdict"><span class="dot" style="background:var(--text-mute)"></span> Новая</span>
+            <span style="color:var(--text-dim)">причина: у следующего шага нет даты</span></div></div>
+        ${tabsBar(true, true)}${feed(false)}
+      </div>
+      <div class="col-rail">
+        <div class="sheet pad">${healthBlock(true)}</div>
+        ${propsCard(true, true)}${stakeCard()}${matCard()}${pinnedCard()}
+      </div></div>`;
+}
+
+/* ═══ Рендер ═══ */
+const VARIANTS = {
+  now:   { label: 'Сейчас',    build: vNow,   capped: false, rail: 0 },
+  cda:   { label: '2a · рейл справа 400', build: vCDa, capped: false, rail: 400 },
+  cdb:   { label: '2b · рейл слева 360',  build: vCDb, capped: false, rail: 360 },
+  synth: { label: 'Синтез',    build: vSynth, capped: true,  rail: 320 },
+};
+
+/* вертикаль до основного содержимого (вкладок), rem→px, [ESTIMATED] */
+const VFOLD = { now: 700, cda: 430, cdb: 430, synth: 395 };
+
+function render() {
+  const cfg = VARIANTS[S.v];
+  const app = document.getElementById('app');
+  const navIcons = Array.from({ length: 11 }, (_, i) => `<i class="${i === 4 ? 'on' : ''}"></i>`).join('');
+  app.innerHTML =
+    `<nav class="nav" style="width:${S.nav}px"><div class="nav-logo"></div>${navIcons}</nav>` +
+    `<main class="canvas ${cfg.capped ? 'canvas--capped' : ''}" id="canvas">${cfg.build()}</main>` +
+    (S.drawer ? `<aside class="drawer"><div class="lbl">Активность</div>
+       <div class="drawer-row"></div><div class="drawer-row"></div><div class="drawer-row"></div></aside>` : '');
+
+  const scaler = document.getElementById('scaler');
+  app.style.width = S.vw + 'px';
+  const scale = Math.min(1, SIM_MAX / S.vw);
+  scaler.style.transform = `scale(${scale})`;
+  scaler.style.width = S.vw + 'px';
+  scaler.parentElement.style.height = (app.offsetHeight * scale) + 'px';
+
+  const canvasW = S.vw - S.nav - S.drawer;
+  const inner = Math.min(cfg.capped ? 1440 : 1e9, canvasW - 48);
+  const work = cfg.rail ? inner - cfg.rail - 20 : inner;
+  const vert = VFOLD[S.v];
+  document.getElementById('meta').innerHTML =
+    `<span class="chip"><b>${cfg.label}</b></span>` +
+    `<span class="chip">полотно ${canvasW - 48} px</span>` +
+    `<span class="chip ${cfg.capped ? 'good' : (canvasW - 48 > 1500 ? 'warn' : '')}">карточка ${Math.round(inner)} px</span>` +
+    `<span class="chip">рабочая колонка ${Math.round(work)} px</span>` +
+    `<span class="chip ${vert > 400 ? 'warn' : 'good'}">до содержимого ≈${vert} px${vert > 400 ? ' · норма ≤400' : ''}</span>` +
+    `<span class="chip">масштаб ${Math.round(scale * 100)}%</span>`;
+}
+
+/* ═══ Панель ═══ */
+const bar = document.createElement('div');
+bar.className = 'mockup-bar2';
+document.querySelector('.mockup-bar').after(bar);
+const mk = (title, id, opts, cur) => {
+  const el = document.createElement('span');
+  el.innerHTML = `<strong style="margin-left:0.75rem">${title}</strong> ` +
+    opts.map(([v, l]) => `<button data-${id}="${v}" ${String(v) === String(cur) ? 'aria-current="true"' : ''}>${l}</button>`).join('');
+  bar.appendChild(el);
+  return el;
+};
+mk('Компоновка', 'v', Object.entries(VARIANTS).map(([k, o]) => [k, o.label]), 'now');
+mk('Вьюпорт', 'vw', [[1280, '1280'], [1440, '1440'], [1920, '1920'], [2560, '2560']], 1920);
+mk('Сайдбар', 'nav', [[56, 'свёрнут'], [232, 'развёрнут']], 56);
+mk('Drawer', 'drawer', [[0, 'закрыт'], [280, 'открыт']], 0);
+mk('Наполнение', 'fill', [['typical', 'типично'], ['empty', 'пусто']], 'typical');
+
+bar.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.dataset.theme) return;
+  const key = Object.keys(b.dataset)[0]; if (!key) return;
+  S[key] = isNaN(+b.dataset[key]) ? b.dataset[key] : +b.dataset[key];
+  b.parentElement.querySelectorAll(`button[data-${key}]`).forEach(x => x.removeAttribute('aria-current'));
+  b.setAttribute('aria-current', 'true');
+  render();
+});
+/* стартуем на рабочей теме владельца */
+document.documentElement.classList.remove('t-aura');
+document.documentElement.classList.add('t-minimal');
+document.querySelectorAll('.mockup-bar button[data-theme]').forEach(x => x.removeAttribute('aria-current'));
+document.querySelector('.mockup-bar button[data-theme="t-minimal"]').setAttribute('aria-current', 'true');
+
+render();
+setTimeout(render, 500);
+</script>
+
+
+<script>
+const root = document.documentElement;
+const THEMES = ['t-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'];
+document.querySelectorAll('.mockup-bar button').forEach(b => {
+  b.addEventListener('click', () => {
+    THEMES.forEach(t => root.classList.remove(t));
+    root.classList.add(b.dataset.theme);
+    document.querySelectorAll('.mockup-bar button')
+      .forEach(x => x.removeAttribute('aria-current'));
+    b.setAttribute('aria-current', 'true');
+  });
+});
+document.getElementById('w').addEventListener('change', e => {
+  document.getElementById('canvas').dataset.width = e.target.value;
+});
+</script>
+</html>
