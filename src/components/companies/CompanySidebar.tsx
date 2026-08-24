@@ -12,6 +12,7 @@ import { ChzBadge } from '@/components/shared/ChzBadge';
 import { formatDateHuman } from '@/lib/utils/dates';
 import { PhoneList } from '@/components/shared/PhoneList';
 import { safeHref } from '@/lib/utils/safe-href';
+import { RailCard, RailRow } from '@/components/shared/RailCard';
 import type { Company } from '@/lib/hooks/use-companies';
 
 // ═══════════════════════════════════════════════════════
@@ -96,21 +97,22 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
   }
 
   return (
-    // ⚠️ НЕ <aside>: тема-правила навигации таргетят голый тег (`.t-washi aside`,
-    // `.t-fuji aside`, `.t-aura aside` в globals.css) и красили эту колонку в
-    // sumi/индиго с !important — тёмные полосы в зазорах и светлый текст на
-    // светлых карточках. Семантику держит role/aria-label, каскад — нет.
-    <div role="complementary" aria-label="Сведения о компании" className="flex flex-col gap-4">
+    // S-DEAL-RAIL-1: снова <aside>. Прежний запрет («тема-правила таргетят голый
+    // тег») снят S-FIX-CO360-1: все `.t-* aside` сужены до [data-app-nav] /
+    // [data-drawer]; единственное непривязанное правило —
+    // `.t-aura aside:not([data-app-nav]) .bracket` — требует дочернего .bracket,
+    // которого в рельсе нет. Тег общий с DealContextRail: рельса одна на два экрана.
+    <aside aria-label="Сведения о компании" className="flex flex-col gap-4">
       {/* ─── Сведения ─── */}
       {hasInfo && (
-        <SideCard icon={Info} title="Сведения">
+        <RailCard icon={Info} title="Сведения">
           {hasPhones && (
-            <Row label="Телефон">
+            <RailRow label="Телефон" wrap>
               <PhoneList phones={company.phones} fallback={company.phone} />
-            </Row>
+            </RailRow>
           )}
           {infoFields.map((f) => (
-            <Row key={f.label} label={f.label}>
+            <RailRow key={f.label} label={f.label} wrap>
               {f.href ? (
                 <a href={f.href} target="_blank" rel="noopener noreferrer"
                   className="break-words text-accent transition-colors hover:underline">
@@ -119,16 +121,16 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
               ) : (
                 <span className="break-words">{f.value}</span>
               )}
-            </Row>
+            </RailRow>
           ))}
-        </SideCard>
+        </RailCard>
       )}
 
       {/* ─── Реквизиты (S-INN-1) ───
           Кнопка «Обновить из ЕГРЮЛ» живёт здесь же и рендерится только при
           валидном ИНН: без него запрос слать нечем. */}
       {hasLegal && (
-        <SideCard
+        <RailCard
           icon={FileText}
           title="Реквизиты"
           badge={statusLabel && (
@@ -155,16 +157,16 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
           )}
         >
           {legalFields.map((f) => (
-            <Row key={f.label} label={f.label}>
+            <RailRow key={f.label} label={f.label} wrap>
               <span className="break-words tabular-nums">{f.value}</span>
-            </Row>
+            </RailRow>
           ))}
           {company.inn_verified_at && (
             <p className="mt-2 text-xs text-text-mute">
               Сверено с ЕГРЮЛ · {formatDateHuman(company.inn_verified_at)}
             </p>
           )}
-        </SideCard>
+        </RailCard>
       )}
 
       {/* ─── Маркировка «Честный Знак» (S-COMPANY-AI-1, F2 · S-LEAD-CARRY-1) ───
@@ -186,7 +188,7 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
 
           Дисклеймер источника живёт у виджета: он про то, как посчитан сигнал. */}
       {(chzGroups.length > 1 || chzUnknown.length > 0) && (
-        <SideCard
+        <RailCard
           icon={ScanBarcode}
           title="Маркировка «Честный Знак»"
           badge={chzSource === 'declared' && (
@@ -225,51 +227,16 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
               </div>
             </div>
           )}
-        </SideCard>
+        </RailCard>
       )}
 
       {/* ─── Заметки ─── */}
       {company.notes && (
-        <SideCard icon={StickyNote} title="Заметки">
+        <RailCard icon={StickyNote} title="Заметки">
           <p className="whitespace-pre-wrap text-sm text-text-main">{company.notes}</p>
-        </SideCard>
+        </RailCard>
       )}
-    </div>
+    </aside>
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// Примитивы сайдбара
-// ═══════════════════════════════════════════════════════
-
-function SideCard({
-  icon: Icon, title, badge, action, children,
-}: {
-  icon: typeof Info;
-  title: string;
-  badge?: React.ReactNode;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div data-card className="rounded-lg border border-border bg-surface p-4">
-      <div className="mb-2.5 flex items-center gap-2">
-        <Icon size={13} className="shrink-0 text-text-dim" />
-        <span className="text-xs font-semibold text-text-main">{title}</span>
-        {badge}
-        {action && <span className="ml-auto shrink-0">{action}</span>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/** Key-value: лейбл фиксированной ширины слева, значение справа. */
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-2 py-0.5 text-sm">
-      <span className="w-[5.5rem] shrink-0 text-text-mute">{label}</span>
-      <span className="min-w-0 flex-1 text-text-main">{children}</span>
-    </div>
-  );
-}

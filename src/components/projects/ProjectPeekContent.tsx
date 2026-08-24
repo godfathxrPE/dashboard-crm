@@ -58,7 +58,7 @@ export function ProjectPeekContent({ project }: { project: Project }) {
         )}
       </div>
 
-      <DealFocusPanel project={project} compact />
+      <DealFocusPanel project={project} />
 
       {/* Компания и контакт */}
       {(project.company || project.contact) && (
