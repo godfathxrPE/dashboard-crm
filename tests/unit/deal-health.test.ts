@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 
 // ═══════════════════════════════════════════════════════
 // S-TAILS-1. Off-by-one в просрочке шага сделки: до правки функция сравнивала
@@ -59,5 +59,44 @@ describe('getNextActionOverdueDays', () => {
     // 2026-07-31 → 2026-08-10 ровно 10 дней; арифметика на UTC-полдне
     // не спотыкается ни о длину месяца, ни о DST.
     expect(getNextActionOverdueDays('2026-07-31', NOW)).toBe(10);
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// Детерминизм вердикта. `getDealHealth` читала часы сама, и `nextStepSignal`
+// передавал фиксированное `now` только в арифметику просрочки, а вердикт брала
+// от реального времени: deal-signals.test.ts зеленел в день написания и краснел
+// через двое суток (5 падений в CI 25–29.08). Кейсы ниже падают, если `now`
+// снова перестанет доходить до сравнения.
+// ═══════════════════════════════════════════════════════
+
+describe('getDealHealth — now доходит до сравнения', () => {
+  const deal = (nextActionDate: string) => ({
+    status: 'open' as const,
+    next_step: 'Позвонить',
+    next_action_date: nextActionDate,
+  });
+
+  it('завтрашний шаг относительно ПЕРЕДАННОГО now — ok, а не просрочка', () => {
+    expect(getDealHealth(deal(dateKey(1)), NOW)).toBe('ok');
+  });
+
+  it('тот же шаг с now на неделю позже — overdue-action', () => {
+    const later = new Date(NOW.getTime() + 7 * 86400000);
+    expect(getDealHealth(deal(dateKey(1)), later)).toBe('overdue-action');
+  });
+
+  it('вчерашний шаг относительно переданного now — overdue-action', () => {
+    expect(getDealHealth(deal(dateKey(-1)), NOW)).toBe('overdue-action');
+  });
+
+  it('шаг без даты — no-action независимо от now', () => {
+    expect(
+      getDealHealth({ status: 'open', next_step: 'Позвонить', next_action_date: null }, NOW),
+    ).toBe('no-action');
+  });
+
+  it('терминальная сделка — ok независимо от now', () => {
+    expect(getDealHealth({ ...deal(dateKey(-30)), status: 'won' }, NOW)).toBe('ok');
   });
 });

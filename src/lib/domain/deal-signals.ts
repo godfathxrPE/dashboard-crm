@@ -118,7 +118,7 @@ function plural(days: number): string {
 
 /** Сигнал «следующий шаг» — переиспользует `getDealHealth`, а не повторяет его. */
 function nextStepSignal(project: ProjectForSignals, now: Date): DealSignal {
-  const health = getDealHealth(project);
+  const health = getDealHealth(project, now);
   if (health === 'overdue-action') {
     const days = project.next_action_date
       ? getNextActionOverdueDays(project.next_action_date, now)
