@@ -55,7 +55,14 @@ tests/RESULTS-*.md
 .obsidian/
 
 # локальная инфра/кэши/дампы — не место в репо (chore(git) 2026-07-25)
-.grok/
+# ⚠️ 2026-08-29: игнор сужен с `.grok/` до `.grok/*` + исключение для skills.
+# Контракт гейта (crm-architect/SKILL.md) предписывает звать
+# .grok/skills/review-diff/scripts/cold-review.sh — путь, которого в репо нет,
+# делает шаг невыполнимым для всех, кроме владельца, и это не ловят ни CI,
+# ни status-check. Состояние и логи (cold-review/, sprint-review-watcher/) —
+# по-прежнему мимо git: там дифф рабочей ветки, pid и логи.
+.grok/*
+!.grok/skills/
 scripts/__pycache__/
 supabase/.temp/
 _analysis/auto-sprint-review-artifacts/
