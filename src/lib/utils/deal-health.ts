@@ -19,7 +19,10 @@ interface ProjectForNextAction {
  * «Гниёт» только активная сделка (status === 'open').
  * won/lost — закрыты; on_hold — намеренно на паузе → не нагружаем напоминанием.
  */
-export function getDealHealth(project: ProjectForNextAction): DealHealth {
+export function getDealHealth(
+  project: ProjectForNextAction,
+  now: Date = new Date(),
+): DealHealth {
   if (project.status !== 'open') return 'ok';
   if (!project.next_step?.trim()) return 'no-action';
   if (!project.next_action_date) return 'no-action';
@@ -28,7 +31,13 @@ export function getDealHealth(project: ProjectForNextAction): DealHealth {
   // устойчив — граница суток сдвинута одинаково у обеих дат. Перевод на diffDaysKey
   // менял бы условие попадания сделки в очередь дня, и это отдельная задача со
   // своим смоком, а не «доведение до единообразия».
-  const today = new Date(new Date().toDateString());
+  // ⚠️ `now` — ПАРАМЕТР с дефолтом. Пока функция читала часы сама, `nextStepSignal`
+  // передавал зафиксированное время только в `getNextActionOverdueDays`, а вердикт
+  // брал от РЕАЛЬНЫХ часов: tests/unit/deal-signals.test.ts был зелёным в день
+  // написания и покраснел через двое суток (5 падений, CI ветки гейта 25–29.08).
+  // Тот же класс, что `leadStaleness` в 2b: обёртка приняла `now`, вложенная
+  // функция его не получила. Арифметика не тронута (см. S-TAILS-1 выше).
+  const today = new Date(now.toDateString());
   if (new Date(project.next_action_date) < today) return 'overdue-action';
   return 'ok';
 }
