@@ -44,13 +44,17 @@ fi
 grep -q "^name: $SKILL" "$SRC/SKILL.md" || {
   echo "skill-deploy: в $SRC/SKILL.md нет строки 'name: $SKILL' — ничего не тронуто" >&2
   exit 1; }
-for ref in "${CORE[@]}"; do
+# ⚠️ `${CORE[@]+"${CORE[@]}"}` , а не `"${CORE[@]}"`: в bash 3.2 (штатный /bin/bash macOS)
+# развёртывание ПУСТОГО массива под `set -u` — «unbound variable», и раскатка падает
+# до единой строки вывода. Поймано боем 29.08: три скилла с пустым CORE не раскатались,
+# а проверка шла в bash 5, где пустой массив под set -u уже легален.
+for ref in ${CORE[@]+"${CORE[@]}"}; do
   if [ ! -s "$SRC/references/$ref.md" ]; then
     echo "skill-deploy: $SRC/references/$ref.md отсутствует или пуст — ничего не тронуто" >&2
     exit 1
   fi
 done
-for ref in "${REFS[@]}"; do
+for ref in ${REFS[@]+"${REFS[@]}"}; do
   if [ ! -s "$SRC/references/$ref.md" ]; then
     echo "skill-deploy: $SRC/references/$ref.md пуст — ничего не тронуто" >&2
     exit 1
