@@ -4,8 +4,9 @@
 # см. предупреждение в конце вывода.
 set -uo pipefail
 
-SRC="crm-architect"
-DEST="$HOME/.claude/skills/crm-architect"
+SKILL="${1:-crm-architect}"
+SRC="$SKILL"
+DEST="$HOME/.claude/skills/$SKILL"
 
 if [ ! -f "$SRC/SKILL.md" ]; then
   echo "skill-verify: нет $SRC/SKILL.md — скрипт запускается из корня репозитория" >&2
@@ -33,5 +34,5 @@ else
   echo "skill-verify: правь репозиторий и раскатывай scripts/skill-deploy.sh; обратно не копировать"
 fi
 
-echo "skill-verify: аккаунтную копию (Claude.ai → Customize → Skills) скрипт проверить не может — сверять глазами, пакет crm-architect.skill загружать сразу после раскатки"
+echo "skill-verify: аккаунтную копию (Claude.ai → Customize → Skills) скрипт проверить не может — сверять глазами, пакет $SKILL.skill загружать сразу после раскатки"
 exit $rc

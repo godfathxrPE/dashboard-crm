@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Раскатка памяти проекта из репозитория в производные копии.
-# Источник истины — папка crm-architect/ в этом репозитории. Направление одно:
-# репо → ~/.claude/skills/crm-architect/ (Claude Code) + crm-architect.skill (аккаунт).
+# Источник истины — папка <skill>/ в этом репозитории (по умолчанию crm-architect/).
+# Направление одно: репо → ~/.claude/skills/<skill>/ (Claude Code) + <skill>.skill (аккаунт).
+# Вызов: scripts/skill-deploy.sh [имя-скилла]
 # Обратного копирования нет намеренно: три несинхронизированных копии памяти
 # 2026-08-05 стоили ложного вывода гейта по версии, замершей на 2026-07-29.
 #
@@ -9,14 +10,22 @@
 # затирать рабочую локальную копию.
 set -euo pipefail
 
-SRC="crm-architect"
-DEST="$HOME/.claude/skills/crm-architect"
+# Имя скилла — первым аргументом; без аргумента раскатывается crm-architect,
+# как было до параметризации (обратная совместимость: старые вызовы не меняются).
+SKILL="${1:-crm-architect}"
+SRC="$SKILL"
+DEST="$HOME/.claude/skills/$SKILL"
 BACKUP_DIR="$HOME/.claude/skills/.backup"
-PKG="crm-architect.skill"
+PKG="$SKILL.skill"
 # CORE — минимум, без которого память неполна: их отсутствие валит раскатку.
 # REFS собирается из фактического содержимого references/ — захардкоженный список
 # 2026-08-21 молча не раскатал новый файл, напечатав успех (дефект вскрыт в S-MEM-1).
-CORE=(architecture journal learnings schema theme-system)
+# CORE задаётся по скиллу: для чужого скилла обязательный список свой или пустой.
+case "$SKILL" in
+  crm-architect)        CORE=(architecture journal learnings schema theme-system) ;;
+  sprint-prompt-builder) CORE=(templates claude-code-guide examples) ;;
+  *)                    CORE=() ;;
+esac
 REFS=()
 for f in "$SRC"/references/*.md; do
   REFS+=("$(basename "$f" .md)")
@@ -32,8 +41,8 @@ if [ "$(head -1 "$SRC/SKILL.md")" != "---" ]; then
   echo "              не грузится ни локально, ни в аккаунт. Ничего не тронуто." >&2
   exit 1
 fi
-grep -q "^name: crm-architect" "$SRC/SKILL.md" || {
-  echo "skill-deploy: в $SRC/SKILL.md нет строки 'name: crm-architect' — ничего не тронуто" >&2
+grep -q "^name: $SKILL" "$SRC/SKILL.md" || {
+  echo "skill-deploy: в $SRC/SKILL.md нет строки 'name: $SKILL' — ничего не тронуто" >&2
   exit 1; }
 for ref in "${CORE[@]}"; do
   if [ ! -s "$SRC/references/$ref.md" ]; then
@@ -53,13 +62,13 @@ done
 BACKUP=""
 if [ -d "$DEST" ]; then
   mkdir -p "$BACKUP_DIR"
-  BACKUP="$BACKUP_DIR/crm-architect-$(date +%Y%m%d-%H%M%S)"
+  BACKUP="$BACKUP_DIR/$SKILL-$(date +%Y%m%d-%H%M%S)"
   cp -R "$DEST" "$BACKUP"
 fi
 
 # ── 3. Раскатка через staging в той же ФС → подмена одним rename ────────────
-STAGE="$(dirname "$DEST")/.crm-architect.stage.$$"
-OLD="$(dirname "$DEST")/.crm-architect.old.$$"
+STAGE="$(dirname "$DEST")/.$SKILL.stage.$$"
+OLD="$(dirname "$DEST")/.$SKILL.old.$$"
 mkdir -p "$(dirname "$DEST")"
 rm -rf "$STAGE" "$OLD"
 trap 'rm -rf "$STAGE" "$OLD"' EXIT
