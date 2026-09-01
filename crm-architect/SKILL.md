@@ -88,6 +88,8 @@ crm-architect/ в репозитории (источник, git)
 **Правило: после любой правки памяти — `scripts/skill-deploy.sh` и загрузка
 `crm-architect.skill` в аккаунт; иначе гейт работает по старой версии.** Правку вносить
 только в репозиторий: направление синхронизации одно, обратного копирования нет.
+Те же три экземпляра и тот же скрипт — у `sprint-prompt-builder`, `debug-forensics`,
+`sdd-controller`, `worktree-isolation`: `scripts/skill-deploy.sh <имя>`.
 
 ---
 
@@ -113,36 +115,15 @@ Workflow:
 1. Read `docs/schema.md` **в репозитории** — verify table/column names exist (в скилле схемы нет, `references/schema.md` — указатель)
 2. Read `references/architecture.md` — find affected files
 3. Read `references/learnings.md` — check for known gotchas
-4. Generate prompt in this format:
+4. Формат промпта — **`sprint-prompt-builder`, режим 1** (скелет РАЗВЕДКА → ЗАДАЧА →
+   ТЕСТЫ → ФИНАЛЬНАЯ ПРОВЕРКА → КОММИТ живёт там и только там; здесь копии нет
+   намеренно — две копии уже расходились)
+5. Новый экран или существенная перекомпоновка в спринте → до промпта пройти
+   стадию экрана (Task Type 4, шаг 4): в спринт уходит апрувленный мокап, не описание
 
-```
-# Claude Code Prompt — Sprint N: [Title]
-
-## РАЗВЕДКА (diagnostic commands first)
-bash/grep commands to verify current state
-
-## ЗАДАЧА 1: [Description]
-### Step-by-step instructions with exact file paths
-### str_replace blocks or new code
-
-## ЗАДАЧА 2: ...
-
-## ТЕСТЫ
-vitest для новой логики в src/lib/ — или строка «тестов нет: только UI»
-
-## ФИНАЛЬНАЯ ПРОВЕРКА
-npx tsc --noEmit · npx vitest run · npm run build
-
-## КОММИТ
-git add . && git commit -m "Sprint N: [one-line summary]"
-```
-
-Rules for sprint prompts:
-- **Always start with РАЗВЕДКА** — bash/grep commands before any changes
+Правила dashboard-crm поверх формата sprint-prompt-builder:
 - **Use real column/table names** from `docs/schema.md` (репо) или живой БД через MCP, never guess
-- **Include commit message** at the end
 - **SQL migrations** go to `supabase/migrations/` and are **committed, not applied**: apply — операция гейта Cowork через Supabase MCP (`apply_migration` → gen-types → advisors → ролевые смоки)
-- **Verify after each task** — include check commands
 
 ### 2. Architecture Questions
 
@@ -154,11 +135,13 @@ When: "как устроен X", "где лежит Y", "что у нас в с�
 
 When: user shares error, screenshot, or describes broken behavior
 
-Workflow:
-1. Read `references/learnings.md` — check if this is a known pattern
-2. Read `references/architecture.md` — identify affected components
-3. Generate diagnostic commands (grep, find)
-4. Propose fix with exact file paths
+Порядок — **`debug-forensics`**: ни одного фикса до закрытой Фазы 1 (воспроизведение
+SQL-смоком, ролевым прогоном или браузерным сценарием). Этот скилл даёт ему контекст,
+не заменяет:
+1. Read `references/learnings.md` — известная грабля? (для debug-forensics это Фаза 1, шаг «сверка с памятью»)
+2. Read `references/architecture.md` — какие слои задеты
+3. Дальше по debug-forensics: гипотеза → воспроизведение → root cause → патч → Verification Labels.
+   Три неудачных фикса = D3, разговор про архитектуру, не четвёртая попытка
 
 ### 4. Feature Design
 
@@ -168,13 +151,41 @@ Workflow:
 1. Read `docs/schema.md` (репо) — does it need new tables/columns?
 2. Read architecture.md — where does it fit in the file tree?
 3. Read learnings.md — any relevant gotchas?
-4. Propose: DB changes → Types → Hook → Component → Sprint prompt
+4. **Экран.** Фиче нужен свой экран или заметное место на чужом → `crm-ui-designer`
+   (паттерн из crm-patterns, states-matrix, мокап на живых токенах → апрув). Экран уже
+   есть и жалоба системная → сначала `crm-design-auditor` (диагноз с evidence), его
+   находки — вход designer'а. Тексты состояний и подтверждений — `copy-calm`.
+   Точечная правка одного блока — без мокапа, сразу tsx (тип 3 у designer'а)
+5. Propose: DB changes → Types → **Screen (апрувленный мокап)** → Hook → Component → Sprint prompt
+
+Стадия экрана пропускается только для фич без UI (миграция, триггер, cron, API).
+Экран, «спроектированный» внутри спринт-промпта текстом, — главный источник переделок
+(anti-patterns `crm-ui-designer`: полоса во всю ширину ради одного значения, лента под сгибом).
+
+### Роли и маршрутизация — цикл фичи
+
+```
+Аналитика (этот скилл: схема, роли, конвенции)
+  → Экран: crm-design-auditor (если есть) → crm-ui-designer → copy-calm (тексты состояний)
+  → Данные и API: supabase-patterns (RLS, хуки, realtime) · api-architect (Server Actions, внешние)
+  → Спринт-промпт: sprint-prompt-builder режим 1 (файл в _analysis/)
+  → Изоляция: worktree-isolation → исполнение: Claude Code или sdd-controller (независимые задачи)
+  → Гейт: sprint-prompt-builder режим 2 — линзы по диффу (qa-engineer · security-privacy-reviewer
+    · crm-design-auditor + a11y-auditor · api-architect · supabase-patterns) → cold review
+  → Баг на любом шаге: debug-forensics
+```
+
+Темы и токены: правила — `references/theme-system.md` (источник истины, семь тем `.t-*`);
+значения цветов — `color-architect`; организация токенов — `design-system-architect`
+**с учётом theme-system.md**, а не его дефолта `.dark`/next-themes. `theme-factory` к темам
+dashboard-crm отношения не имеет (тулкит оформления артефактов).
 
 ---
 
 ## Sprint Prompt Quality Checklist
 
 - [ ] Starts with РАЗВЕДКА (diagnostic bash/grep commands)
+- [ ] Новый экран / перекомпоновка в спринте — ссылка на апрувленный мокап `crm-ui-designer`, не текстовое описание экрана
 - [ ] References real table/column names from `docs/schema.md` (репо)
 - [ ] References real file paths from architecture.md
 - [ ] Checks learnings.md for relevant gotchas
@@ -266,9 +277,13 @@ Claude (chat) → спринт-файл в _analysis/ → ревью Grok → п
 - **Агент не меняет настройки среды владельца** — `localStorage`, тема, выбранные
   фильтры: читать можно, писать нет.
 - **Мерж и пуш — руками у Олега.** Гейт даёт вердикт, ветки не двигает.
-- **Гейт не дублирует CI.** Что стоит в required checks (lint, tsc, vitest, build) — на гейте
-  читается как статус, не перепроверяется руками. Пока branch protection не включён —
-  `npm run build` остаётся у Олега перед PR, и это временно.
+- **Гейт не дублирует CI.** Что стоит в required checks — на гейте читается как статус,
+  не перепроверяется руками. Branch protection на `main` включён (required check `checks`:
+  lint · token contract · tsc · vitest): прямой пуш в `main` отклоняется — только PR,
+  в том числе для правок памяти и скиллов. `npm run build` в CI нет — остаётся у Олега
+  перед PR.
+- **`status-check.sh` в CI не стоит** — прогоняется руками при закрытии; PR без строки
+  в STATUS проходит CI и краснеет только на локальной сверке.
 
 ---
 
@@ -349,6 +364,9 @@ User Action → Modal Form (Zod validation)
 4. Прогнать `scripts/status-check.sh` — зелёный.
 5. Карта (`_analysis/AUDIT-REPO-*-karta.html` + артефакт) — раз в эпик, не каждый спринт;
    её раздел «Что делать» — рендер STATUS, не самостоятельный список.
-6. Если менялись `crm-architect/*` — `scripts/skill-deploy.sh` + загрузка пакета в аккаунт.
+6. Менялся любой скилл из репо (`crm-architect`, `sprint-prompt-builder`, `debug-forensics`,
+   `sdd-controller`, `worktree-isolation`) — `scripts/skill-deploy.sh <имя>` для каждого +
+   загрузка пакетов в аккаунт. Процессные скиллы правятся, когда изменился процесс
+   (линза, правило DoD, фаза), не по итогу спринта.
 
 Хендофф в конце сессии ссылается на ревизию STATUS вместо собственного списка долгов.
