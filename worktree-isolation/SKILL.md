@@ -139,3 +139,15 @@ tsc --noEmit: чисто · lint: чисто
 Backward Compatibility: PASS (изоляция аддитивна, рабочая ветка не тронута)
 Runtime Tested:         PASS только если baseline реально прогнан
 ```
+
+---
+
+## Источник и раскатка
+
+Источник этого скилла — папка `worktree-isolation/` в репозитории dashboard-crm. Копии в
+`~/.claude/skills/worktree-isolation/` (Claude Code) и в аккаунте Claude.ai (Cowork, гейт) —
+производные: правки в них не переживают раскатку и не попадают в ревью.
+Цикл: правка в репо → PR → мерж → `scripts/skill-deploy.sh worktree-isolation` → загрузить
+`worktree-isolation.skill` в Claude.ai → Customize → Skills. Повод для правки — изменение
+самого процесса (новое правило, фаза, линза), не итог спринта: состояние
+проекта живёт в crm-architect, здесь его нет намеренно.

@@ -88,6 +88,8 @@ crm-architect/ в репозитории (источник, git)
 **Правило: после любой правки памяти — `scripts/skill-deploy.sh` и загрузка
 `crm-architect.skill` в аккаунт; иначе гейт работает по старой версии.** Правку вносить
 только в репозиторий: направление синхронизации одно, обратного копирования нет.
+Те же три экземпляра и тот же скрипт — у `sprint-prompt-builder`, `debug-forensics`,
+`sdd-controller`, `worktree-isolation`: `scripts/skill-deploy.sh <имя>`.
 
 ---
 
@@ -358,6 +360,9 @@ User Action → Modal Form (Zod validation)
 4. Прогнать `scripts/status-check.sh` — зелёный.
 5. Карта (`_analysis/AUDIT-REPO-*-karta.html` + артефакт) — раз в эпик, не каждый спринт;
    её раздел «Что делать» — рендер STATUS, не самостоятельный список.
-6. Если менялись `crm-architect/*` — `scripts/skill-deploy.sh` + загрузка пакета в аккаунт.
+6. Менялся любой скилл из репо (`crm-architect`, `sprint-prompt-builder`, `debug-forensics`,
+   `sdd-controller`, `worktree-isolation`) — `scripts/skill-deploy.sh <имя>` для каждого +
+   загрузка пакетов в аккаунт. Процессные скиллы правятся, когда изменился процесс
+   (линза, правило DoD, фаза), не по итогу спринта.
 
 Хендофф в конце сессии ссылается на ревизию STATUS вместо собственного списка долгов.

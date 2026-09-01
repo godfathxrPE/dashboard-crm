@@ -158,3 +158,15 @@ Runtime Tested:         [PASS только если реально прогна�
 ```
 
 `Runtime Tested: PASS` без фактического прогона воспроизведения — ложь, а не оптимизм.
+
+---
+
+## Источник и раскатка
+
+Источник этого скилла — папка `debug-forensics/` в репозитории dashboard-crm. Копии в
+`~/.claude/skills/debug-forensics/` (Claude Code) и в аккаунте Claude.ai (Cowork, гейт) —
+производные: правки в них не переживают раскатку и не попадают в ревью.
+Цикл: правка в репо → PR → мерж → `scripts/skill-deploy.sh debug-forensics` → загрузить
+`debug-forensics.skill` в Claude.ai → Customize → Skills. Повод для правки — изменение
+самого процесса (новое правило, фаза, линза), не итог спринта: состояние
+проекта живёт в crm-architect, здесь его нет намеренно.
