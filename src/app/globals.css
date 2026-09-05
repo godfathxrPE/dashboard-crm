@@ -21,8 +21,13 @@
      и подмес уходит в тёмное автоматически. Пер-темный override — только там,
      где провалится audit-contrast.py.
      --zone-base — подложка светлее фона, но темнее карточки: карточка на зоне
-     обязана отделяться без тяжёлой тени. */
-  --zone-base:           color-mix(in srgb, var(--surface) 55%, var(--bg));
+     обязана отделяться без тяжёлой тени.
+     Базой берётся --popover, НЕ --surface: во frost/aurora/tidal --surface
+     полупрозрачен (rgba(255,255,255,.07)), и color-mix отдал бы зону с alpha
+     ≈0.49 — сквозные подложки на трёх темах. --popover заведён проектом ровно
+     как «непрозрачный слой» (S-UI-POLISH-1): в светлых темах он равен
+     --surface, в тёмных — solid hex. */
+  --zone-base:           color-mix(in srgb, var(--popover) 55%, var(--bg));
   --zone-work:           color-mix(in srgb, var(--accent) 14%, var(--zone-base));
   --zone-ctx:            color-mix(in srgb, var(--text)    6%, var(--zone-base));
   --zone-risk-ok:        color-mix(in srgb, var(--green)  12%, var(--zone-base));
@@ -756,34 +761,42 @@
    ГЛАВНОЕ ОТЛИЧИЕ ОТ ОСТАЛЬНЫХ ТЕМ: лайм — цвет ЗАЛИВКИ, никогда цвет текста.
    #C9F25A как текст на белом = 1.29:1. Дефолтный --on-accent: #ffffff из :root
    на лайме тоже 1.29:1 — переопределяем на #14210A (13.05:1).
-   Текст акцентом идёт через --accent-text #336809 (6.72 на белом, минимум 5.22
+   Текст акцентом идёт через --accent-text #336809 (6.72 на белом, минимум 5.35
    на фонах зон).
 
    ПОЧЕМУ СЕМАНТИКА ТЕМНЕЕ, ЧЕМ В t-minimal: у этой темы есть цветные подложки
    зон (--zone-*, ниже). Значения minimal (--green-text #177B43, --yellow-text
    #846300, --blue-text #1D68BC) дают на них 4.13–4.34:1 — ниже AA. Здесь они
-   затемнены до минимума 4.77 / 4.85 / 5.04 по всем пяти зонам.
+   затемнены до минимума 4.90 / 4.98 / 5.21 по всем пяти зонам.
    Контрасты посчитаны WCAG 2.2 sRGB, не на глаз. ══════════════════════════ */
 .t-lime {
-  --bg: #EDE9E1;  --surface: #FFFFFF;  --surface2: #F4F4F6;  --surface3: #F7F7F9;
+  /* Фон. Макет Claude Design рисовал артборд градиентом #FFFFFF→#EFEBE8; в токен
+     сначала уехал #EDE9E1 — цвет ПОЛОТНА вокруг артборда, а не страницы, и тема
+     вышла темнее и minimal (#ECECEF), и ауры (#EFEFF3). #F2EFE9 держит светлоту
+     ауры (L .865 против .866) при тёплом тоне лайма; белая карточка на нём —
+     1.148:1, ровно как в ауре, то есть отделяется без тяжёлой тени.
+     Поверхности и линии тоже переведены в тёплый ряд: холодные #F4F4F6/#ECECF0
+     на бежевом фоне читались как грязь. surface3 темнее surface2 — проектная
+     семантика (в макете было наоборот, это ошибка переноса). */
+  --bg: #F2EFE9;  --surface: #FFFFFF;  --surface2: #F7F5F0;  --surface3: #EAE7E0;
   --popover: var(--surface);
-  --border: #ECECF0;  --border2: #D9D9E0;  --border-input: #8C8C8C;
+  --border: #E6E3DC;  --border2: #D8D4CB;  --border-input: #8C8C8C;
   --text: #17171C;  --text-dim: #5F5F6A;  --text-mute: #5F5F6A;
 
   /* Четвёртой ступени чернил (#8A8A94) в теме НЕТ намеренно: на фонах зон она
      даёт 2.65–3.07:1. Микроподписи 9.5–11px печатаются --text-dim (мин. 4.89). */
 
   --accent: #C9F25A;                       /* только заливка */
-  --accent-text: #336809;                  /* 6.72 бел · 6.03 work · 5.22 attn */
+  --accent-text: #336809;                  /* 6.72 бел · 6.13 work · 5.35 attn */
   --on-accent: #14210A;                    /* 13.05:1 на лайме */
   --accent-l: rgba(201,242,90,0.18);  --accent-l2: rgba(201,242,90,0.32);
   --sidebar-indicator: var(--accent);  --sidebar-active-text: var(--on-accent);
 
-  --green:  #1B8A4C;  --green-l:  rgba(27,138,76,0.10);   --green-text:  #15703C;  /* 6.15 бел · 4.77 min */
-  --red:    #CC3B2E;  --red-l:    rgba(204,59,46,0.10);   --red-text:    #A02620;  /* 7.52 бел · 5.84 min */
-  --yellow: #B0680A;  --yellow-l: rgba(176,104,10,0.12);  --yellow-text: #7A5C00;  /* 6.25 бел · 4.85 min */
-  --blue:   #2563C9;  --blue-l:   rgba(37,99,201,0.10);   --blue-text:   #1A5EA8;  /* 6.54 бел · 5.08 min */
-  --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.09);  --purple-text: #6F4BC8;  /* 5.97 бел · 4.64 min */
+  --green:  #1B8A4C;  --green-l:  rgba(27,138,76,0.10);   --green-text:  #15703C;  /* 6.15 бел · 4.90 min */
+  --red:    #CC3B2E;  --red-l:    rgba(204,59,46,0.10);   --red-text:    #A02620;  /* 7.52 бел · 5.99 min */
+  --yellow: #B0680A;  --yellow-l: rgba(176,104,10,0.12);  --yellow-text: #7A5C00;  /* 6.25 бел · 4.98 min */
+  --blue:   #2563C9;  --blue-l:   rgba(37,99,201,0.10);   --blue-text:   #1A5EA8;  /* 6.54 бел · 5.21 min */
+  --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.09);  --purple-text: #6F4BC8;  /* 5.97 бел · 4.75 min */
 
   --font-app: var(--font-inter, 'Inter');
   font-feature-settings: 'cv11';
@@ -806,6 +819,59 @@
   --glass-sheen: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 45%, rgba(201,242,90,0.08) 100%);
 }
 .t-lime { --tw-ring-color: var(--accent-text); }
+
+/* Lime: актив нава — сплошная лаймовая пилюля без бокового маркера.
+   Глобальный layered `.nav-active` (globals.css, @layer components) даёт
+   `border-left: 3px solid var(--accent)` + `background: var(--accent-l)` +
+   `.lucide { color: var(--accent) }`. На лайме это читается как три дефекта:
+   боковая полоса-маркер, полупрозрачная бледная заливка (--accent-l = 18%)
+   и лаймовая иконка на лаймовом фоне (1.29:1, нечитаема).
+   Токены --sidebar-* сами по себе слой не гасят — компоненты их не читают;
+   перебиваем unlayered, тем же приёмом, что .t-minimal ниже.
+   border-left: none (а не transparent) — иначе активный пункт остаётся
+   сдвинутым на 3px относительно соседей; прецедент — .t-aura .nav-active.
+   Текст и иконка идут одним токеном --sidebar-active-text (= --on-accent,
+   #14210A на #C9F25A = 13.05:1). */
+.t-lime aside[data-app-nav] .nav-active {
+  border-left: none;
+  background: var(--sidebar-indicator);
+  color: var(--sidebar-active-text);
+}
+.t-lime aside[data-app-nav] .nav-active .lucide {
+  color: var(--sidebar-active-text);
+}
+
+/* Lime: акцент как КРАСКА ДЛЯ МЕЛОЧИ — через --accent-text, не --accent.
+   Tailwind-утилита `.text-accent` резолвится в var(--accent) = #C9F25A: иконка
+   Building2 в плитке `bg-accent-l` шапки компании давала 1.10:1 — пятно, а не
+   иконка. Тот же дефект у всякой иконки/подписи с `text-accent`.
+   С --accent-text #336809 та же плитка даёт 5.73:1 на фоне страницы и 6.41:1
+   внутри белой карточки. Заливкам (`bg-accent`) правило не мешает — они красят
+   background, а текст на них уже уведён в --on-accent выше. */
+.t-lime .text-accent { color: var(--accent-text) !important; }
+
+/* Lime: плитка сущности — тёмная с лаймовой иконкой, как в макете
+   («аватар компании 44 r14 ink/lime»). Прод был непоследователен: аватар сделки
+   уже тёмный, а плитка компании — бледно-лаймовая. Лайм на ink = 13.89:1. */
+.t-lime .entity-tile { background: var(--glass-bg); color: var(--accent); }
+
+/* Lime: рельс навигации — единое полотно с контентом, без разделителей.
+   Макет: «рельс … без вертикального разделителя — единое пространство
+   с контентом». В проде aside несёт `border-r bg-surface`, а три линии заданы
+   ИНЛАЙН-стилями (borderBottom у логотипа, borderTop у кнопки сворачивания) —
+   их гасит только !important. Четвёртая линия — `.border-t` между основным
+   и служебным разделами нава.
+   Фон прозрачный, а не --bg: сайдбар обязан оставаться единым полотном при
+   любой смене фона страницы. */
+.t-lime aside[data-app-nav] {
+  background: transparent !important;
+  border-right-color: transparent !important;
+}
+.t-lime aside[data-app-nav] .flex.h-14,
+.t-lime aside[data-app-nav] nav .border-t,
+.t-lime aside[data-app-nav] > button {
+  border-color: transparent !important;
+}
 
 /* Minimal: актив нава — нейтральный тинт, без терракоты.
    Layered .nav-active (border-left+фон+color+lucide accent) не гасится токенами
@@ -1653,6 +1719,18 @@ table { font-variant-numeric: tabular-nums; }
   }
   table td {
     vertical-align: middle;
+  }
+
+  /* Плитка сущности — квадрат с иконкой слева от заголовка карточки записи
+     (компания, сделка, контакт). База: бледный тинт акцента + текстовый акцент.
+     Тема может перевернуть приём (см. .t-lime ниже — тёмная плитка, лаймовая
+     иконка, как в макете «Сделка v2»). Цвет иконки НЕ ставится на самой иконке:
+     она наследует color плитки, поэтому переворот делается одним правилом. */
+  .entity-tile {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-l);
+    background: var(--accent-l);
+    color: var(--accent-text, var(--accent));
   }
 
   /* Sidebar active */
