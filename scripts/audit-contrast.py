@@ -326,12 +326,25 @@ for th in themes:
         # Предпосылка проверяется, а не принимается на веру: если актив и
         # неактив по светлоте неразличимы (< 1.5:1), текст состояние не несёт,
         # его несёт ОДНА подложка — и 3:1 к ней применяется всерьёз.
+        #
+        # ГРАНИЦЫ ЗАМЕРА, чтобы вывод не читался шире, чем доказан:
+        #  · порог 1.5 ЭВРИСТИЧЕСКИЙ, в WCAG такого нет. Выбран как минимальная
+        #    различимость двух текстов по светлоте; менять — только с расчётом.
+        #  · wcag() считает по ОТНОСИТЕЛЬНОЙ ЯРКОСТИ. Два цвета одной светлоты и
+        #    разной насыщенности (#7eb0ff против #94a4d4 у frost) дают ~1.1 —
+        #    разница там есть, но по цветности. Отсюда имя переменной: замер
+        #    отвечает «несёт ли текст состояние ПО СВЕТЛОТЕ», не вообще. Для
+        #    дальтонизма это консервативно и верно, для трихромата — строго.
+        #  · `font-medium` активного пункта в замер НЕ входит намеренно: вес 500
+        #    против 400 при одном кегле — слишком слабый носитель состояния,
+        #    чтобы на него опираться. Комментарий выше называет два средства,
+        #    засчитывается одно.
         idle = resolve(th, 'sidebar-text' if th in NAV_NO_PILL else 'text-dim')
         ink_o = composite(ink, pill) if (ink is not None and ink[3] < 1) else (
             ink[:3] if ink is not None else None)
         idle_o = composite(idle, rail) if (idle is not None and idle[3] < 1) else (
             idle[:3] if idle is not None else None)
-        text_carries_state = (
+        text_carries_state_by_lightness = (
             ink_o is not None and idle_o is not None and wcag(ink_o, idle_o) >= 1.5)
         # У washi/fuji пилюли нет вовсе (`background: transparent !important`):
         # фон активного пункта РАВЕН рельсу, 3:1 применять не к чему — состояние
@@ -339,7 +352,7 @@ for th in themes:
         # цвет и вес. Их пара остаётся info-only при любом исходе проверки;
         # у fuji предпосылка не выполнена (gold/сепия 1.09:1) — см. отчёт фикса.
         add('nav-active-bg / sidebar-bg', pill, rail,
-            kind='decorative' if (th in NAV_NO_PILL or text_carries_state) else 'ui')
+            kind='decorative' if (th in NAV_NO_PILL or text_carries_state_by_lightness) else 'ui')
     T['pairs'] = pairs
     # OKLCH of key colors
     T['oklch'] = {}
