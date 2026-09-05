@@ -42,3 +42,31 @@ describe('formatContactNameShort — короткое имя', () => {
     expect(formatContactNameShort('  ', '  ')).toBe('—');
   });
 });
+
+/**
+ * Регресс гейта S-FORMAT-1: фикс F-01 сначала не сработал на живых данных.
+ * Проверено запросом к проду — у пяти контактов `last_name = '-'`, а не NULL,
+ * и «- Н.» осталось на экране после спринта.
+ */
+describe('заполнители вместо пустого значения (F-01, регресс гейта)', () => {
+  for (const placeholder of ['-', '–', '—', '.', '_']) {
+    test(`фамилия «${placeholder}» — это отсутствие фамилии`, () => {
+      expect(formatContactNameShort('Наталья', placeholder)).toBe('Наталья');
+      expect(formatContactName('Наталья', placeholder)).toBe('Наталья');
+    });
+  }
+
+  test('дефис ВНУТРИ фамилии не трогаем — сравнение точное, не по подстроке', () => {
+    expect(formatContactName('Николай', 'Римский-Корсаков')).toBe('Николай Римский-Корсаков');
+    expect(formatContactNameShort('Николай', 'Римский-Корсаков')).toBe('Римский-Корсаков Н.');
+  });
+
+  test('настоящие короткие фамилии из базы не считаются заполнителями', () => {
+    expect(formatContactNameShort('Виктор', 'Цой')).toBe('Цой В.');
+  });
+
+  test('обе части — заполнители: прочерк', () => {
+    expect(formatContactName('-', '-')).toBe('—');
+    expect(formatContactNameShort('-', '-')).toBe('—');
+  });
+});
