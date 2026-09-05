@@ -20,7 +20,7 @@ import { DealDeliveryHub } from './DealDeliveryHub';
 import { CompletenessBadge } from './CompletenessBadge';
 import { DealHeader } from './DealHeader';
 import { DealNextStep } from './DealNextStep';
-import { DealContextRail } from './DealContextRail';
+import { DealContextRail, DealRisksZone, DealContextZone } from './DealContextRail';
 import { useDealSignals } from './DealSignals';
 import { ProjectStageCockpit } from './ProjectStageCockpit';
 import { ProjectChecklists } from './ProjectChecklists';
@@ -237,6 +237,21 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
   // Рабочий шаг есть только у открытой сделки. От него зависит раскладка грида:
   // без него рельса и вкладки делят первую строку, с ним рельса тянется на две.
   const hasNextStep = project.type === 'client' && project.status === 'open';
+  // S-DEAL-ZONES-1A: зоны получают ТОЛЬКО сделки — см. комментарий у разметки.
+  const isDeal = project.type === 'client';
+  // Уровень здоровья несёт ЗАЛИВКА зоны «Риски», а не ещё один бейдж (F-10).
+  // Вердиктов четыре: `new` — льготный период (graceDays), это НЕ «внимание»,
+  // и фон у него тот же дефолтный --zone-risk-ok, что у `ok`.
+  const healthClass =
+    signals.verdict === 'rotting' ? 'h-rotting'
+    : signals.verdict === 'attention' ? 'h-attention'
+    : '';
+  // Кокпит один, а мест два: у сделки он первый элемент зоны «Работа»,
+  // у внедрения остаётся отдельным блоком над сеткой.
+  const cockpit =
+    project.pipeline_id && project.stage_id && (isDeal || isDelivery)
+      ? <ProjectStageCockpit project={project} onRollback={setRollback} />
+      : null;
 
   /** Подтверждённый откат стадии — ветка та же, что была в обработчиках воронок. */
   function applyRollback() {
@@ -246,6 +261,133 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
     if (kind === 'deal') openTransition({ project, toStageId: stageId });
     else moveToStageId(project.id, stageId);
   }
+
+  /* S-DEAL-ZONES-1A: вкладки и их содержимое — один узел на обе компоновки.
+     У сделки он лежит в зоне «Работа», у внедрения/internal — в левой
+     колонке прежнего двухколонника. Копия JSX означала бы два места, где
+     правится состав вкладок. */
+  const workContent = (
+    <>
+      {/* P2b (B2): команда — full-width секция; S-TEAM-ROLES-1: роли фильтруются по категории (direction+type) */}
+      {isDelivery && (
+        <ProjectTeam
+          projectId={projectId}
+          canManage={canManage}
+          direction={project.direction}
+          type={project.type as ProjectType}
+        />
+      )}
+
+      {/* PCT-1: вкладки. R-07: справа действия, видимые на любой вкладке.
+          flex-wrap на ОБОИХ уровнях: при колонке ~556px (1280 + открытый
+          ActivityDrawer) шесть вкладок и три кнопки в строку не помещаются,
+          и без переноса кнопки молча обрезались бы справа. */}
+      <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
+        {([
+          { value: 'activity' as const, label: 'Активность' },
+          // P2a: у delivery доска = фазовый план внедрения
+          { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
+          { value: 'timeline' as const, label: 'Гант' },
+          // S-QUOTE-1: вкладка «КП» — только для сделок (type='client')
+          ...(project.type === 'client' ? [{ value: 'quotes' as const, label: 'КП' }] : []),
+          // S-STAGE-STORY-1: траектория по стадиям — тоже только для сделок:
+          // у внедрения фазы СДР, и «возвраты» там означают другое.
+          ...(project.type === 'client' ? [{ value: 'story' as const, label: 'История' }] : []),
+          // S-CHAT-1: чат команды — на всех типах проектов (отдельный модуль, НЕ Активность)
+          { value: 'chat' as const, label: 'Чат' },
+        ]).map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={`-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === t.value
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-mute hover:text-text-main'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+        <div className="ml-auto flex flex-wrap gap-1 pb-1">
+          {([
+            { label: 'Задача', open: () => { setEditingTask(null); setTaskModalOpen(true); } },
+            { label: 'Звонок', open: () => { setEditingCall(null); setCallModalOpen(true); } },
+            { label: 'Встреча', open: () => { setEditingMeeting(null); setMeetingModalOpen(true); } },
+          ]).map((a) => (
+            <button
+              key={a.label}
+              onClick={a.open}
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            >
+              <Plus size={12} /> {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'board' && (
+        <div className="mb-4">
+          {/* S-PLAN-IMPORT-1 (W8): кнопка НАД доской, не внутри ProjectBoard */}
+          {isDelivery && (
+            <div className="mb-2 flex justify-end">
+              <PlanImportButton projectId={projectId} canImport={canManage} />
+            </div>
+          )}
+          {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
+          <ProjectBoard projectId={projectId} canManageColumns={canManage} />
+        </div>
+      )}
+
+      {activeTab === 'timeline' && (
+        <div>
+          {/* M8: тот же PlanImportButton, что на доске — датированный план из Excel строит бары Ганта */}
+          {isDelivery && (
+            <div className="mb-2 flex justify-end">
+              <PlanImportButton projectId={projectId} canImport={canManage} />
+            </div>
+          )}
+          <GanttTimeline
+            projectId={projectId}
+            canManage={canManage}
+            onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
+          />
+        </div>
+      )}
+
+      {/* S-QUOTE-1: КП сделки — только client */}
+      {activeTab === 'quotes' && project.type === 'client' && (
+        <QuotesTab deal={project} />
+      )}
+
+      {/* S-STAGE-STORY-1: траектория сделки по стадиям — сводка, не пересказ ленты */}
+      {activeTab === 'story' && project.type === 'client' && (
+        <DealStageStory project={project} />
+      )}
+
+      {/* S-CHAT-1: чат команды проекта (realtime) */}
+      {activeTab === 'chat' && <ProjectChat projectId={projectId} />}
+
+      {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
+      <div id="deal-activity" className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
+        {/* R-07: кнопки уехали на полосу вкладок — внутри ленты они пропадали
+            на Доске, Ганте, КП, Истории и в Чате. Разводить нечего. */}
+        <div className="mb-3 flex items-center gap-2">
+          <Clock size={14} className="text-text-dim" />
+          <span className="text-xs font-semibold text-text-main">Активность</span>
+        </div>
+        <ActivityComposer entityType="project" entityId={projectId} />
+        {/* S-DEAL-ZONES-1A (F-08): 72ch — только на СДЕЛКЕ. `EntityTimeline`
+            общий с контактом, компанией и тредом, и глобальная смена меры
+            переставила бы вёрстку четырёх хабов ради одного. */}
+        <EntityTimeline
+          entityType="project"
+          entityId={projectId}
+          onOpenEvent={handleOpenEvent}
+          bodyMeasureClass={isDeal ? 'max-w-[72ch]' : undefined}
+        />
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -280,13 +422,13 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
           (DealProgressBar у ERP, StackedPipeline у IIoT, StackedPipeline у delivery).
           Кокпит сам решает, что показать: тайм-ячейку, готовность гейта, кнопку
           следующей стадии и карту воронки — контракты переходов прежние. */}
-      {/* Кокпит — во всю ширину карточки: раскрытой карте воронки нужна ширина,
-          в колонке 1100px одиннадцать стадий дают наезд подписей (R-04). */}
-      {project.pipeline_id && project.stage_id && (project.type === 'client' || isDelivery) && (
-        <div className="mb-5">
-          <ProjectStageCockpit project={project} onRollback={setRollback} />
-        </div>
-      )}
+      {/* S-DEAL-ZONES-1A: запрет R-04 («кокпиту нужна вся ширина, в колонке
+          1100px одиннадцать стадий дают наезд подписей») снят — он писался про
+          прежний StageRail в один ряд. Нынешняя карта — группы со `shrink-0`
+          в `overflow-x-auto` (S-DEAL-RAIL-1): она СКРОЛЛИТСЯ, а не сжимается.
+          У сделки кокпит уехал в зону «Работа», чтобы «Риски» стояли вровень
+          с ним. У внедрения зон нет — блок над сеткой остаётся. */}
+      {isDelivery && cockpit && <div className="mb-5">{cockpit}</div>}
 
       {/* R2-P1-G: sign-off чеклисты внедрения (083/084) — рядом с фазовым гридом и вехами,
           в одной зоне с тем, что гейт завершения проверяет. Компонент сам скрыт, если
@@ -309,156 +451,94 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
         />
       )}
 
-      {/* ═══ Двухколонник: работа слева, контекст справа (R-02, R-03) ═══
-          Рельса занимает вторую колонку целиком (`row-span-2`), поэтому на
-          широком экране она стоит вровень с шагом, а не под ним. Ниже `lg`
-          колонок нет и порядок задаёт `order-*`: шаг → контекст → вкладки.
-          Перестановкой JSX это не выражается — рельса обязана быть ОДНИМ узлом. */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {hasNextStep && (
-          <div className="order-1 min-w-0 lg:col-start-1 lg:row-start-1">
-            <DealNextStep project={project} signals={signals} />
-          </div>
-        )}
-
-        <DealContextRail
-          project={project}
-          isDelivery={isDelivery}
-          signals={signals}
-          deliveryHealth={deliveryHealth}
-          parentDeal={parentDeal}
-          completenessBadge={!isDelivery ? <CompletenessBadge project={project} /> : undefined}
-          onEdit={() => setModalOpen(true)}
-          onOpenMaterials={() => setMaterialsOpen(true)}
-          className={cn(
-            'order-2 lg:col-start-2 lg:row-start-1',
-            hasNextStep && 'lg:row-span-2',
-          )}
-        />
-
-        <div
-          className={cn(
-            'order-3 min-w-0 lg:col-start-1',
-            hasNextStep ? 'lg:row-start-2' : 'lg:row-start-1',
-          )}
-        >
-          {/* P2b (B2): команда — full-width секция; S-TEAM-ROLES-1: роли фильтруются по категории (direction+type) */}
-          {isDelivery && (
-            <ProjectTeam
-              projectId={projectId}
-              canManage={canManage}
-              direction={project.direction}
-              type={project.type as ProjectType}
-            />
-          )}
-
-          {/* PCT-1: вкладки. R-07: справа действия, видимые на любой вкладке.
-              flex-wrap на ОБОИХ уровнях: при колонке ~556px (1280 + открытый
-              ActivityDrawer) шесть вкладок и три кнопки в строку не помещаются,
-              и без переноса кнопки молча обрезались бы справа. */}
-          <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
-            {([
-              { value: 'activity' as const, label: 'Активность' },
-              // P2a: у delivery доска = фазовый план внедрения
-              { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
-              { value: 'timeline' as const, label: 'Гант' },
-              // S-QUOTE-1: вкладка «КП» — только для сделок (type='client')
-              ...(project.type === 'client' ? [{ value: 'quotes' as const, label: 'КП' }] : []),
-              // S-STAGE-STORY-1: траектория по стадиям — тоже только для сделок:
-              // у внедрения фазы СДР, и «возвраты» там означают другое.
-              ...(project.type === 'client' ? [{ value: 'story' as const, label: 'История' }] : []),
-              // S-CHAT-1: чат команды — на всех типах проектов (отдельный модуль, НЕ Активность)
-              { value: 'chat' as const, label: 'Чат' },
-            ]).map((t) => (
-              <button
-                key={t.value}
-                onClick={() => setTab(t.value)}
-                className={`-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                  activeTab === t.value
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-text-mute hover:text-text-main'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-            <div className="ml-auto flex flex-wrap gap-1 pb-1">
-              {([
-                { label: 'Задача', open: () => { setEditingTask(null); setTaskModalOpen(true); } },
-                { label: 'Звонок', open: () => { setEditingCall(null); setCallModalOpen(true); } },
-                { label: 'Встреча', open: () => { setEditingMeeting(null); setMeetingModalOpen(true); } },
-              ]).map((a) => (
-                <button
-                  key={a.label}
-                  onClick={a.open}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
-                >
-                  <Plus size={12} /> {a.label}
-                </button>
-              ))}
+      {/* ═══ S-DEAL-ZONES-1A: карточка сделки на три зоны ═══
+          Иерархию задаёт принадлежность зоне, а не размер карточки (аудит 04.09,
+          F-06). Зоны — ТОЛЬКО у сделки: на внедрении здоровье считает
+          getDeliveryHealth, а useDealSignals(project) не гейтится по типу и
+          посчитал бы deal-сигналы для карточки, где их смысла нет. Макет
+          «Сделка v2» внедрение не описывает — оно остаётся на двухколоннике. */}
+      {isDeal ? (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_356px]">
+          {/* ─── Зона «Работа» ─── */}
+          <section
+            className="zone order-1 min-w-0 lg:col-start-1"
+            style={{ ['--zone-surface']: 'var(--zone-work)' } as React.CSSProperties}
+          >
+            {/* Фолбэк как в `.entity-tile`: `--accent-text` объявлен не во всех
+                темах (базовая, t-tidal, t-fuji его не задают). */}
+            <div className="zone-eyebrow" style={{ color: 'var(--accent-text, var(--accent))' }}>
+              Работа <small className="text-text-dim">что делаем сейчас · где в воронке · задачи</small>
             </div>
-          </div>
-
-          {activeTab === 'board' && (
-            <div className="mb-4">
-              {/* S-PLAN-IMPORT-1 (W8): кнопка НАД доской, не внутри ProjectBoard */}
-              {isDelivery && (
-                <div className="mb-2 flex justify-end">
-                  <PlanImportButton projectId={projectId} canImport={canManage} />
-                </div>
-              )}
-              {/* P2b (B0): CRUD фаз/«Создать из шаблона» — по правам RLS, не по canEdit задач */}
-              <ProjectBoard projectId={projectId} canManageColumns={canManage} />
+            {cockpit}
+            {/* Без условия «Какой следующий шаг?» появилось бы на выигранной
+                сделке. Зона «Работа» без шага (кокпит + вкладки) — нормальное
+                состояние. */}
+            {hasNextStep && <DealNextStep project={project} signals={signals} />}
+            <div className="min-w-0">
+              {workContent}
             </div>
-          )}
+          </section>
 
-          {activeTab === 'timeline' && (
-            <div>
-              {/* M8: тот же PlanImportButton, что на доске — датированный план из Excel строит бары Ганта */}
-              {isDelivery && (
-                <div className="mb-2 flex justify-end">
-                  <PlanImportButton projectId={projectId} canImport={canManage} />
-                </div>
-              )}
-              <GanttTimeline
-                projectId={projectId}
-                canManage={canManage}
-                onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
+          {/* ─── Правая колонка: «Риски» + «Контекст» ───
+              Sticky на ОБЁРТКЕ, а не на каждой зоне: иначе «Риски» уедут при
+              скролле ленты. `self-start` не косметика — растянутый по строке
+              грида элемент sticky не липнет. */}
+          <div className="order-2 flex min-w-0 flex-col gap-5 lg:col-start-2 lg:sticky lg:top-4 lg:self-start">
+            {/* Фон зоны динамический (F-10: уровень несёт заливка, а не ещё один
+                бейдж), подзаголовок — СТАТИЧЕСКИЙ: словами вердикт говорит
+                DealVerdictChip под шагом, и два словесных носителя одного факта —
+                ровно закрытая F-01. */}
+            <section
+              className={cn('zone', healthClass)}
+              style={{ ['--zone-surface']: 'var(--h-zone)' } as React.CSSProperties}
+            >
+              <div className="zone-eyebrow" style={{ color: 'var(--h-chip-ink)' }}>
+                Риски <small className="text-text-dim">что может сорвать сделку</small>
+              </div>
+              <DealRisksZone project={project} signals={signals} />
+            </section>
+
+            <section
+              className="zone"
+              style={{ ['--zone-surface']: 'var(--zone-ctx)' } as React.CSSProperties}
+            >
+              <div className="zone-eyebrow text-text-dim">
+                Контекст <small>кто, сколько, что собрано</small>
+              </div>
+              <DealContextZone
+                project={project}
+                parentDeal={parentDeal}
+                completenessBadge={<CompletenessBadge project={project} />}
+                onEdit={() => setModalOpen(true)}
+                onOpenMaterials={() => setMaterialsOpen(true)}
               />
-            </div>
-          )}
-
-          {/* S-QUOTE-1: КП сделки — только client */}
-          {activeTab === 'quotes' && project.type === 'client' && (
-            <QuotesTab deal={project} />
-          )}
-
-          {/* S-STAGE-STORY-1: траектория сделки по стадиям — сводка, не пересказ ленты */}
-          {activeTab === 'story' && project.type === 'client' && (
-            <DealStageStory project={project} />
-          )}
-
-          {/* S-CHAT-1: чат команды проекта (realtime) */}
-          {activeTab === 'chat' && <ProjectChat projectId={projectId} />}
-
-          {/* ═══ Активность сделки — единая лента (звонки/встречи/задачи/лог/AI) + заметка ═══ */}
-          <div id="deal-activity" className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
-            {/* R-07: кнопки уехали на полосу вкладок — внутри ленты они пропадали
-                на Доске, Ганте, КП, Истории и в Чате. Разводить нечего. */}
-            <div className="mb-3 flex items-center gap-2">
-              <Clock size={14} className="text-text-dim" />
-              <span className="text-xs font-semibold text-text-main">Активность</span>
-            </div>
-            <ActivityComposer entityType="project" entityId={projectId} />
-            <EntityTimeline
-              entityType="project"
-              entityId={projectId}
-              onOpenEvent={handleOpenEvent}
-            />
+            </section>
           </div>
-
         </div>
-      </div>
+      ) : (
+      /* ═══ Двухколонник: работа слева, контекст справа (R-02, R-03) ═══
+          Путь внедрения и internal — компоновка прежняя. `hasNextStep` здесь
+          всегда false (шаг только у открытой сделки), поэтому рельса и вкладки
+          делят одну строку, а прежний `row-span-2` не нужен. Ниже `lg` колонок
+          нет и порядок задаёт `order-*`: контекст → вкладки. */
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <DealContextRail
+            project={project}
+            isDelivery={isDelivery}
+            signals={signals}
+            deliveryHealth={deliveryHealth}
+            parentDeal={parentDeal}
+            completenessBadge={!isDelivery ? <CompletenessBadge project={project} /> : undefined}
+            onEdit={() => setModalOpen(true)}
+            onOpenMaterials={() => setMaterialsOpen(true)}
+            className="order-2 lg:col-start-2 lg:row-start-1"
+          />
+
+          <div className="order-3 min-w-0 lg:col-start-1 lg:row-start-1">
+            {workContent}
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {materialsOpen && (
