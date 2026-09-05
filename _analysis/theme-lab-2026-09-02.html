@@ -1,0 +1,641 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0">
+<title>CRM Theme Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* ───────── Лаборатория (рамка вокруг мокапа), не часть темы ───────── */
+:root{
+  --lab-bg:#E9E9EC; --lab-text:#1C1C21; --lab-dim:#5E5E68; --lab-surface:#FFFFFF; --lab-border:#D3D3DA;
+  --lab-font:'Inter',system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --lab-bg:#1A1A1F; --lab-text:#EDEDF0; --lab-dim:#A0A0AA; --lab-surface:#24242A; --lab-border:#3A3A42; }
+}
+:root[data-theme="dark"]{ --lab-bg:#1A1A1F; --lab-text:#EDEDF0; --lab-dim:#A0A0AA; --lab-surface:#24242A; --lab-border:#3A3A42; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--lab-bg);color:var(--lab-text);font-family:var(--lab-font);font-size:.875rem;line-height:1.5;-webkit-font-smoothing:antialiased}
+.lab{max-width:96rem;margin:0 auto;padding:1rem 1.25rem 3rem}
+.lab-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem 1.5rem;padding:.5rem 0 .875rem}
+.lab-bar h1{font:600 .9375rem/1.2 var(--lab-font);margin:0;letter-spacing:-.01em}
+.lab-bar .grp{display:flex;align-items:center;gap:.25rem}
+.lab-bar .grp > span{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:var(--lab-dim);margin-right:.375rem}
+.lab-bar button{font:500 .8125rem/1 var(--lab-font);padding:.4375rem .75rem;border:1px solid var(--lab-border);background:var(--lab-surface);color:var(--lab-text);border-radius:.375rem;cursor:pointer}
+.lab-bar button[aria-pressed="true"]{background:var(--lab-text);color:var(--lab-bg);border-color:var(--lab-text)}
+.lab-bar button:focus-visible{outline:2px solid #2F6BD6;outline-offset:2px}
+.lab-bar .sw{display:inline-block;width:.625rem;height:.625rem;border-radius:999px;margin-right:.4rem;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+.lab-note{font-size:.75rem;color:var(--lab-dim);margin-left:auto}
+.frame{border:1px solid var(--lab-border);border-radius:.5rem;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.notes{margin-top:2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1rem}
+.note{background:var(--lab-surface);border:1px solid var(--lab-border);border-radius:.5rem;padding:1rem 1.125rem;font-size:.8125rem}
+.note h3{margin:0 0 .5rem;font-size:.875rem;letter-spacing:-.01em}
+.note p{margin:.375rem 0;color:var(--lab-dim)}
+.note code{font-size:.75rem;background:var(--lab-bg);padding:.05rem .3rem;border-radius:.25rem}
+.note table{border-collapse:collapse;width:100%;margin-top:.5rem;font-size:.75rem;font-variant-numeric:tabular-nums}
+.note td{padding:.2rem 0;border-top:1px solid var(--lab-border);vertical-align:top}
+.note td:last-child{text-align:right;color:var(--lab-dim)}
+
+/* ───────── Токены тем (в проекте — блоки .t-* в globals.css) ───────── */
+.app{
+  --font-app:'Inter',system-ui,sans-serif; --font-display:var(--font-app);
+  --radius:10px; --radius-s:6px; --radius-m:10px; --radius-l:14px;
+  --shadow-card:0 1px 2px rgba(18,18,24,.06),0 2px 8px rgba(18,18,24,.05);
+  --shadow-md:0 2px 4px rgba(18,18,24,.06),0 10px 24px rgba(18,18,24,.10);
+  --on-accent:#111;
+}
+
+/* ═══ 1. Mythos — адаптация референса: чёрная рама, желток как единственная фишка ═══ */
+.t-mythos{
+  --bg:#F3F3EE; --surface:#FFFFFF; --surface2:#F7F7F3; --surface3:#ECECE6;
+  --border:#DEDED6; --border2:#C9C9C0; --border-input:#82827A;
+  --text:#131313; --text-dim:#4F4F55; --text-mute:#63636A;
+  --rail-bg:#141414; --rail-text:rgba(255,255,255,.72); --rail-text-dim:rgba(255,255,255,.45); --rail-border:rgba(255,255,255,.08);
+  --rail-active-bg:#F6E649; --rail-active-text:#131313; --rail-hover:rgba(255,255,255,.06);
+  --accent:#F6E649; --accent-hover:#EBDB3A; --accent-border:#948A2C; --accent-text:#6B6420; --on-accent:#131313;
+  --accent-l:rgba(246,230,73,.22); --accent-l2:rgba(246,230,73,.34);
+  --red:#C93A2C; --red-l:rgba(201,58,44,.09); --red-text:#B0291F;
+  --green:#1F8A4A; --green-l:rgba(31,138,74,.09); --green-text:#177842;
+  --blue:#2560C4; --blue-l:rgba(37,96,196,.09); --blue-text:#1E5AB8;
+  --yellow:#9A5A00; --yellow-l:rgba(154,90,0,.10); --yellow-text:#7E4B00;
+  --purple:#7A55D0; --purple-l:rgba(122,85,208,.09); --purple-text:#6A45C2;
+  --font-display:'Inter Tight','Inter',sans-serif;
+  --radius:8px; --radius-s:5px; --radius-m:8px; --radius-l:12px;
+  --focus-input-shadow:var(--accent-l);
+}
+/* ═══ 2. Orchid — свет без чёрной рамы: один насыщенный акцент, живой и как текст, и как заливка ═══ */
+.t-orchid{
+  --bg:#F4F3F6; --surface:#FFFFFF; --surface2:#F8F7FA; --surface3:#ECEBF0;
+  --border:#E0DFE6; --border2:#CBCAD3; --border-input:#82818C;
+  --text:#1B1A20; --text-dim:#52515C; --text-mute:#63626D;
+  --rail-bg:#EBEAEF; --rail-text:#52515C; --rail-text-dim:#7B7A86; --rail-border:#DCDBE2;
+  --rail-active-bg:#FFFFFF; --rail-active-text:#A8246A; --rail-hover:rgba(27,26,32,.05);
+  --accent:#C5307C; --accent-hover:#B2286E; --accent-border:#C5307C; --accent-text:#A8246A; --on-accent:#FFFFFF;
+  --accent-l:rgba(197,48,124,.08); --accent-l2:rgba(197,48,124,.16);
+  --red:#C93A2C; --red-l:rgba(201,58,44,.09); --red-text:#B0291F;
+  --green:#1F8A4A; --green-l:rgba(31,138,74,.09); --green-text:#177842;
+  --blue:#2560C4; --blue-l:rgba(37,96,196,.09); --blue-text:#1E5AB8;
+  --yellow:#9A5A00; --yellow-l:rgba(154,90,0,.10); --yellow-text:#7E4B00;
+  --purple:#6D4FD0; --purple-l:rgba(109,79,208,.09); --purple-text:#5E40C0;
+  --font-app:'Instrument Sans','Inter',sans-serif; --font-display:'Instrument Sans','Inter',sans-serif;
+  --radius:12px; --radius-s:7px; --radius-m:12px; --radius-l:16px;
+  --shadow-card:0 1px 2px rgba(27,26,32,.05),0 4px 14px rgba(27,26,32,.06);
+  --focus-input-shadow:var(--accent-l2);
+}
+/* ═══ 3. Spectrum — акцент не константа, а переменная: у каждого раздела свой цвет, рама тёплая ═══ */
+.t-spectrum{
+  --bg:#F2F1EC; --surface:#FFFFFF; --surface2:#F8F7F3; --surface3:#EBEAE4;
+  --border:#DDDCD4; --border2:#C7C6BD; --border-input:#7F7E76;
+  --text:#1A1916; --text-dim:#524F49; --text-mute:#66635C;
+  --rail-bg:#F2F1EC; --rail-text:#524F49; --rail-text-dim:#8A877F; --rail-border:#DDDCD4;
+  --rail-active-bg:var(--section-l); --rail-active-text:var(--section-text); --rail-hover:rgba(26,25,22,.05);
+  /* section-* задаёт раздел через data-section на корне (в проекте — на <html> из layout по pathname): Сегодня — чернила, Сделки — петроль. Акцент темы = цвет раздела. */
+  --section:#1A1916; --section-text:#1A1916; --section-l:rgba(26,25,22,.08); --section-l2:rgba(26,25,22,.16);
+  --accent:var(--section); --accent-hover:var(--section); --accent-border:var(--section); --accent-text:var(--section-text); --on-accent:#FFFFFF;
+  --accent-l:var(--section-l); --accent-l2:var(--section-l2);
+  --red:#C93A2C; --red-l:rgba(201,58,44,.09); --red-text:#B0291F;
+  --green:#1F8A4A; --green-l:rgba(31,138,74,.09); --green-text:#177842;
+  --blue:#2560C4; --blue-l:rgba(37,96,196,.09); --blue-text:#1E5AB8;
+  --yellow:#9A5A00; --yellow-l:rgba(154,90,0,.10); --yellow-text:#7E4B00;
+  --purple:#7A55D0; --purple-l:rgba(122,85,208,.09); --purple-text:#6A45C2;
+  --font-display:'Bricolage Grotesque','Inter',sans-serif;
+  --radius:6px; --radius-s:4px; --radius-m:6px; --radius-l:10px;
+  --shadow-card:0 1px 0 rgba(26,25,22,.06);
+  --focus-input-shadow:var(--section-l2);
+}
+.t-spectrum[data-section="deals"]{ --section:#0E7C86; --section-text:#0A6771; --section-l:rgba(14,124,134,.10); --section-l2:rgba(14,124,134,.20); }
+
+/* ───────── Оболочка приложения ───────── */
+.app{display:grid;grid-template-columns:13.5rem 1fr;min-height:52rem;background:var(--bg);color:var(--text);font-family:var(--font-app);font-size:.875rem;line-height:1.45;font-feature-settings:'cv11'}
+.rail{background:var(--rail-bg);border-right:1px solid var(--rail-border);display:flex;flex-direction:column;padding:.75rem .5rem}
+.rail .brand{display:flex;align-items:center;gap:.5rem;padding:.375rem .625rem .875rem;color:var(--rail-text);font-weight:600;font-size:.8125rem;letter-spacing:-.01em}
+.rail .brand .logo{width:1.375rem;height:1.375rem;border-radius:.375rem;background:var(--accent);display:grid;place-items:center;color:var(--on-accent);font:700 .75rem/1 var(--font-display)}
+.t-spectrum .rail .brand .logo{background:var(--text);color:#fff}
+.t-orchid .rail .brand .logo{background:var(--accent);color:#fff}
+.nav{display:flex;flex-direction:column;gap:.125rem}
+.nav a{display:flex;align-items:center;gap:.625rem;padding:.4375rem .625rem;border-radius:var(--radius-s);color:var(--rail-text);text-decoration:none;font-size:.8125rem;font-weight:500}
+.nav a svg{width:1rem;height:1rem;flex:none;opacity:.7}
+.nav a:hover{background:var(--rail-hover)}
+.nav a[aria-current]{background:var(--rail-active-bg);color:var(--rail-active-text);font-weight:600}
+.nav a[aria-current] svg{opacity:1}
+.t-orchid .nav a[aria-current]{box-shadow:var(--shadow-card)}
+.nav .cnt{margin-left:auto;font-size:.6875rem;font-variant-numeric:tabular-nums;color:var(--rail-text-dim);font-weight:500}
+.nav a[aria-current] .cnt{color:inherit;opacity:.7}
+.nav .cnt.hot{color:var(--on-accent);background:var(--accent);padding:0 .375rem;border-radius:999px;line-height:1.125rem;font-weight:600}
+.t-orchid .nav .cnt.hot,.t-spectrum .nav .cnt.hot{background:var(--red);color:#fff}
+.t-mythos .nav a[aria-current] .cnt.hot{background:#131313;color:#F6E649}
+.nav .sep{height:1px;background:var(--rail-border);margin:.5rem .625rem}
+.rail .user{margin-top:auto;display:flex;align-items:center;gap:.5rem;padding:.5rem .625rem;color:var(--rail-text);font-size:.75rem}
+.rail .user .ava{width:1.5rem;height:1.5rem;border-radius:999px;background:var(--surface3);display:grid;place-items:center;font-size:.625rem;font-weight:600;color:var(--text)}
+.t-mythos .rail .user .ava{background:#2A2A2A;color:#fff}
+.main{padding:1.5rem 1.75rem 2rem;min-width:0}
+
+/* ───────── Примитивы (зеркало .sheet / Badge / кнопок проекта) ───────── */
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);box-shadow:var(--shadow-card)}
+.sheet-head{display:flex;align-items:center;gap:.375rem;padding:.5rem 1rem;border-bottom:1px solid var(--border);background:var(--surface2);font-size:.6875rem;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);border-radius:var(--radius-m) var(--radius-m) 0 0}
+.sheet-head svg{width:.8125rem;height:.8125rem}
+.sheet-head .n{color:var(--text-mute);font-weight:500}
+.btn{display:inline-flex;align-items:center;gap:.375rem;font:500 .75rem/1 var(--font-app);padding:.5rem .75rem;border-radius:var(--radius-s);border:1px solid var(--border);background:var(--surface);color:var(--text-dim);cursor:pointer;white-space:nowrap}
+.btn svg{width:.8125rem;height:.8125rem}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:600}
+.btn-primary:hover{background:var(--accent-hover)}
+.t-mythos .btn-primary{box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.btn-sm{padding:.3125rem .625rem;font-size:.6875rem}
+.btn-ghost{border-color:transparent;background:transparent;padding:.25rem .375rem}
+.pill{display:inline-flex;align-items:center;gap:.25rem;padding:.125rem .5rem;border-radius:999px;font-size:.6875rem;font-weight:500;line-height:1.25rem;font-variant-numeric:tabular-nums}
+.pill-accent{background:var(--accent-l);color:var(--accent-text);box-shadow:inset 0 0 0 1px var(--accent-l2)}
+.t-mythos .pill-accent{background:var(--accent);color:var(--on-accent);box-shadow:none}
+.pill-red{background:var(--red-l);color:var(--red-text)}
+.pill-yellow{background:var(--yellow-l);color:var(--yellow-text)}
+.pill-blue{background:var(--blue-l);color:var(--blue-text)}
+.pill-purple{background:var(--purple-l);color:var(--purple-text)}
+.pill-green{background:var(--green-l);color:var(--green-text)}
+.pill-mute{background:var(--surface3);color:var(--text-dim)}
+.badge{display:inline-block;padding:0 .375rem;border-radius:.25rem;font-size:.625rem;font-weight:600;line-height:1rem;letter-spacing:.02em;text-transform:uppercase}
+.badge-blue{background:var(--blue-l);color:var(--blue-text)}
+.badge-purple{background:var(--purple-l);color:var(--purple-text)}
+.badge-accent{background:var(--accent-l);color:var(--accent-text)}
+.dot{display:inline-block;width:.4375rem;height:.4375rem;border-radius:999px;flex:none}
+.dot-o{background:transparent;border:1.5px solid currentColor}
+.mute{color:var(--text-mute)} .dim{color:var(--text-dim)}
+.num{font-variant-numeric:tabular-nums}
+.page-h{display:flex;align-items:flex-start;gap:.75rem;margin:0 0 1.5rem}
+.page-h h1{margin:0;font:600 1.375rem/1.15 var(--font-display);letter-spacing:-.02em;color:var(--text)}
+.t-spectrum .page-h h1{font-size:1.5rem;font-weight:600;letter-spacing:-.025em}
+.t-mythos .page-h h1{font-weight:700;letter-spacing:-.03em}
+.page-h .sub{margin:.25rem 0 0;font-size:.8125rem;color:var(--text-dim)}
+.page-h .actions{margin-left:auto;display:flex;gap:.5rem;align-items:center}
+.eyebrow{font-size:.6875rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-text);margin-bottom:.25rem;display:flex;align-items:center;gap:.375rem}
+.eyebrow::before{content:'';width:.375rem;height:.375rem;border-radius:999px;background:var(--accent)}
+.t-mythos .eyebrow::before{outline:1px solid var(--accent-border);outline-offset:-1px}
+.focus-ring:focus-visible{outline:2px solid var(--accent-border);outline-offset:2px}
+
+/* ───────── Сегодня ───────── */
+.page-today{max-width:48rem;margin:0 auto}
+.focus{padding:1rem}
+.focus input{width:100%;font:400 1.0625rem/1.3 var(--font-app);padding:.5625rem .75rem;border:1px solid var(--border-input);border-radius:var(--radius-s);background:var(--surface);color:var(--text)}
+.focus input::placeholder{color:var(--text-mute)}
+.focus input:focus{outline:none;border-color:var(--accent-border);box-shadow:0 0 0 3px var(--focus-input-shadow)}
+.t-mythos .focus-sheet{background:#141414;border-color:#141414;color:#fff}
+.t-mythos .focus-sheet .sheet-head{background:transparent;border-bottom-color:rgba(255,255,255,.1);color:rgba(255,255,255,.6)}
+.t-mythos .focus input{background:#1E1E1E;border-color:#3A3A3A;color:#fff}
+.t-mythos .focus input::placeholder{color:rgba(255,255,255,.45)}
+.t-mythos .focus input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(246,230,73,.25)}
+.t-orchid .focus-sheet{background:linear-gradient(135deg,var(--surface) 0%,var(--surface) 60%,rgba(197,48,124,.06) 100%)}
+.t-spectrum .focus-sheet{border-left:3px solid var(--accent)}
+.t-spectrum .focus-sheet .sheet-head{border-radius:0 var(--radius-m) 0 0}
+.q{padding:.25rem 1rem}
+.row{display:flex;align-items:center;gap:.75rem;padding:.5rem .5rem;margin:0 -.5rem;border-bottom:1px solid var(--border);border-radius:var(--radius-s)}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--surface2)}
+.row .t{min-width:0;flex:1}
+.row .t .n{font-size:.875rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t .s{font-size:.75rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .m{font-size:.75rem;color:var(--text-mute);flex:none;font-variant-numeric:tabular-nums}
+.row .m.bad{color:var(--red-text)}
+.row .a{display:flex;gap:.25rem;flex:none}
+.row .d{color:var(--red)} .row .d.warn{color:var(--yellow)} .row .d.info{color:var(--blue)} .row .d.na{color:var(--border2)}
+.sect{margin-bottom:1.5rem}
+.postponed{display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--text-mute);padding:.25rem .25rem}
+.postponed a{color:var(--accent-text);font-weight:500;text-decoration:none}
+.skel{height:.625rem;border-radius:999px;background:var(--surface3);animation:sk 1.4s ease-in-out infinite}
+@keyframes sk{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.kbd{font:500 .625rem/1 var(--font-app);padding:.125rem .3125rem;border:1px solid var(--border2);border-radius:.25rem;color:var(--text-mute);background:var(--surface)}
+
+/* ───────── Сделки (канбан) ───────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.625rem;margin-bottom:1rem}
+.stat{background:var(--surface2);border-radius:var(--radius-s);padding:.75rem .875rem;border:1px solid transparent}
+.t-orchid .stat,.t-spectrum .stat{background:var(--surface);border-color:var(--border);box-shadow:var(--shadow-card)}
+.stat .l{font-size:.6875rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-dim);font-weight:500;margin-bottom:.25rem}
+.stat .v{font:600 1.5rem/1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--text)}
+.stat .v.bad{color:var(--red-text)} .stat .v.zero{color:var(--text-mute)}
+.stat .s{margin-top:.3125rem;font-size:.6875rem;color:var(--text-mute);font-variant-numeric:tabular-nums}
+.t-mythos .stat.hero{background:#141414;color:#fff;border-color:#141414}
+.t-mythos .stat.hero .l{color:rgba(255,255,255,.6)} .t-mythos .stat.hero .v{color:#F6E649} .t-mythos .stat.hero .s{color:rgba(255,255,255,.5)}
+.t-orchid .stat.hero{border-color:var(--accent-l2)} .t-orchid .stat.hero .v{color:var(--accent-text)}
+.t-spectrum .stat.hero{border-top:3px solid var(--accent)}
+.board-wrap{overflow-x:auto;padding-bottom:.5rem}
+.board{display:grid;grid-template-columns:repeat(5,minmax(13.75rem,1fr));gap:.75rem;min-width:70rem;align-items:start}
+.col{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-m);display:flex;flex-direction:column;min-height:20rem}
+.t-orchid .col,.t-spectrum .col{background:var(--surface3);border-color:transparent}
+.col-h{display:flex;align-items:center;gap:.5rem;padding:.625rem .875rem;border-bottom:1px solid var(--border)}
+.col-h .dot{width:.5rem;height:.5rem}
+.col-h .name{font-size:.6875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.col-h .cnt{flex:none;background:var(--surface);color:var(--text-mute);font-size:.6875rem;font-weight:500;padding:0 .375rem;border-radius:999px;line-height:1.125rem}
+.col-h .sum{margin-left:auto;white-space:nowrap;flex:none;font-size:.6875rem;font-weight:600;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.col-b{display:flex;flex-direction:column;gap:.5rem;padding:.5rem;flex:1}
+.col.over .col-b{background:var(--accent-l2);border-radius:0 0 var(--radius-m) var(--radius-m)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-s);padding:.625rem .75rem .5rem;box-shadow:var(--shadow-card);position:relative}
+.card.sel{border-color:var(--accent-border);box-shadow:0 0 0 2px var(--accent-l2),var(--shadow-card)}
+.t-mythos .card.sel{border-color:var(--accent-border);box-shadow:inset 3px 0 0 var(--accent),var(--shadow-card)}
+.card .st{display:flex;align-items:center;gap:.375rem;font-size:.625rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);margin-bottom:.25rem}
+.card .st .dot{width:.3125rem;height:.3125rem}
+.card .nm{display:flex;align-items:center;gap:.375rem;margin-bottom:.25rem}
+.card .nm a{font-size:.875rem;color:var(--text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card .nm a:hover{color:var(--accent-text)}
+.card .co{font-size:.75rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:.25rem;align-items:center}
+.card .co svg{width:.75rem;height:.75rem;flex:none;opacity:.7}
+.card .money{display:flex;align-items:center;gap:.5rem;margin-top:.375rem}
+.card .money .b{font-size:.875rem;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)}
+.card .money .nob{font-size:.75rem;color:var(--yellow-text);display:inline-flex;gap:.25rem;align-items:center}
+.card .money .nob svg{width:.75rem;height:.75rem}
+.card .money .pr{margin-left:auto}
+.card .dl{display:flex;align-items:center;gap:.375rem;margin-top:.25rem;font-size:.75rem;font-variant-numeric:tabular-nums}
+.card .att{display:flex;align-items:center;gap:.375rem;margin-top:.25rem;font-size:.75rem}
+.card .att.warn{color:var(--yellow-text)} .card .att.bad{color:var(--red-text)}
+.card .ns{margin-top:.25rem;font-size:.75rem;color:var(--text-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .ns .dt{display:block}
+.card .ft{display:flex;align-items:center;gap:.25rem;margin-top:.5rem;padding-top:.375rem;border-top:1px solid var(--border);font-size:.6875rem;color:var(--text-mute)}
+.card .ft .ini{display:inline-grid;place-items:center;width:1.125rem;height:1.125rem;border-radius:999px;background:var(--surface3);font-size:.5625rem;font-weight:600;color:var(--text-dim)}
+.card .ft .ago{margin-left:auto;font-variant-numeric:tabular-nums}
+.card .prog{height:3px;border-radius:999px;background:var(--surface3);margin-top:.5rem;overflow:hidden}
+.card .prog i{display:block;height:100%;background:var(--accent-border)}
+.t-orchid .card .prog i,.t-spectrum .card .prog i{background:var(--accent)}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.375rem;padding:1.5rem 1rem;border:1px dashed var(--border2);border-radius:var(--radius-s);margin:.5rem;color:var(--text-mute);font-size:.75rem;text-align:center}
+.empty b{color:var(--text-dim);font-weight:500}
+.col-f{border-top:1px solid var(--border);padding:.375rem .625rem;display:flex;flex-wrap:wrap;gap:.25rem}
+.col-f span{font-size:.6875rem;color:var(--text-mute);padding:.125rem .25rem;border-radius:.25rem}
+.col-f span b{font-weight:500;color:var(--text-dim);margin-left:.125rem}
+.toolbar{display:flex;align-items:center;gap:.5rem}
+.search{display:flex;align-items:center;gap:.375rem;border:1px solid var(--border);border-radius:var(--radius-s);padding:.4375rem .625rem;font-size:.75rem;color:var(--text-mute);background:var(--surface);min-width:12rem}
+.search svg{width:.8125rem;height:.8125rem}
+[hidden]{display:none!important}
+@media (max-width:60rem){.app{grid-template-columns:1fr}.rail{display:none}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 3 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 9 8.4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+    <symbol id="i-bld" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7A2 2 0 0 1 22 16.9z"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 16V10M12 16V6M17 16v-3"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-case" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3"><circle cx="12" cy="12" r="10"/></symbol>
+    <symbol id="i-snow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v18M3 7l4-4 4 4M17 21V3M13 17l4 4 4-4"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  </defs>
+</svg>
+
+<div class="lab">
+  <div class="lab-bar">
+    <h1>CRM Theme Lab · три темы × два экрана</h1>
+    <div class="grp" role="group" aria-label="Тема">
+      <span>Тема</span>
+      <button data-theme-btn="t-mythos" aria-pressed="true"><i class="sw" style="background:#F6E649"></i>1 · Mythos</button>
+      <button data-theme-btn="t-orchid" aria-pressed="false"><i class="sw" style="background:#C5307C"></i>2 · Orchid</button>
+      <button data-theme-btn="t-spectrum" aria-pressed="false"><i class="sw" style="background:linear-gradient(90deg,#1A1916 50%,#0E7C86 50%)"></i>3 · Spectrum</button>
+    </div>
+    <div class="grp" role="group" aria-label="Экран">
+      <span>Экран</span>
+      <button data-page-btn="today" aria-pressed="true">Сегодня</button>
+      <button data-page-btn="deals" aria-pressed="false">Сделки · воронка</button>
+    </div>
+    <div class="lab-note">Мокап на 1440. Данные примерные. Клавиши: 1–3 тема, T / D экран.</div>
+  </div>
+
+  <div class="frame">
+  <div class="app t-mythos" id="app" data-section="today">
+    <aside class="rail" aria-label="Навигация">
+      <div class="brand"><span class="logo">Б</span> Первый Бит · CRM</div>
+      <nav class="nav">
+        <a href="#" data-nav="today" aria-current="page"><svg><use href="#i-sun"/></svg>Сегодня<span class="cnt">9</span></a>
+        <a href="#"><svg><use href="#i-grid"/></svg>Обзор</a>
+        <a href="#"><svg><use href="#i-chat"/></svg>Чат<span class="cnt hot">3</span></a>
+        <a href="#"><svg><use href="#i-check"/></svg>Задачи<span class="cnt">12</span></a>
+        <a href="#"><svg><use href="#i-zap"/></svg>Лиды<span class="cnt">4</span></a>
+        <a href="#" data-nav="deals"><svg><use href="#i-coin"/></svg>Сделки</a>
+        <a href="#"><svg><use href="#i-folder"/></svg>Проекты</a>
+        <a href="#"><svg><use href="#i-users"/></svg>Контакты</a>
+        <a href="#"><svg><use href="#i-bld"/></svg>Компании</a>
+        <a href="#"><svg><use href="#i-phone"/></svg>Звонки<span class="cnt">2</span></a>
+        <a href="#"><svg><use href="#i-cal"/></svg>Встречи</a>
+        <div class="sep"></div>
+        <a href="#"><svg><use href="#i-chart"/></svg>Аналитика</a>
+        <a href="#"><svg><use href="#i-gear"/></svg>Настройки</a>
+      </nav>
+      <div class="user"><span class="ava">ОМ</span> Олег М. <span class="cnt" style="margin-left:auto;opacity:.6">v2026.09</span></div>
+    </aside>
+
+    <main class="main">
+      <!-- ═══════════ СЕГОДНЯ ═══════════ -->
+      <div class="page page-today" data-page="today">
+        <header class="page-h">
+          <div>
+            <div class="eyebrow">Личная очередь</div>
+            <h1>Сегодня</h1>
+            <p class="sub">Среда, 2 сентября · <span class="mute">9 требуют действия</span></p>
+          </div>
+          <div class="actions"><span class="kbd">J</span><span class="kbd">K</span><span class="mute" style="font-size:.6875rem">по строкам</span></div>
+        </header>
+
+        <section class="sheet focus-sheet sect">
+          <div class="sheet-head"><svg><use href="#i-target"/></svg>Фокус дня</div>
+          <div class="focus"><input class="focus-ring" value="Дожать КП по «Молочным рекам» до 16:00 — иначе уедет в следующий квартал" aria-label="Фокус дня"></div>
+        </section>
+
+        <section class="sheet sect">
+          <div class="sheet-head"><svg><use href="#i-phone"/></svg>Просроченные звонки <span class="n">2</span></div>
+          <div class="q">
+            <div class="row"><span class="dot d"></span><div class="t"><div class="n">Перезвонить Гавриловой — уточнить объём остатков обуви</div><div class="s">ИП Гаврилова Е. С. · маркировка обуви</div></div><div class="m bad">вчера, 15:30</div><div class="a"><button class="btn btn-sm">Готово</button><button class="btn btn-sm btn-ghost">Отложить</button></div></div>
+            <div class="row"><span class="dot d"></span><div class="t"><div class="n">Согласовать дату демонстрации 1С:ERP</div><div class="s">ООО «Ярославский завод порошковых красок»</div></div><div class="m bad">3 дн.</div><div class="a"><button class="btn btn-sm">Готово</button><button class="btn btn-sm btn-ghost">Отложить</button></div></div>
+          </div>
+        </section>
+
+        <section class="sheet sect">
+          <div class="sheet-head"><svg><use href="#i-case"/></svg>Просрочен шаг <span class="n">3</span></div>
+          <div class="q">
+            <div class="row"><span class="dot d"></span><div class="t"><div class="n">Маркировка молочной продукции: 1С:ERP + Честный Знак</div><div class="s">ООО «ТД Молочные реки Сибири» · → отправить КП v3</div></div><div class="m bad">−6 дн.</div><div class="a"><button class="btn btn-sm btn-primary">Шаг сделан</button><button class="btn btn-sm btn-ghost">Отложить</button></div></div>
+            <div class="row"><span class="dot d"></span><div class="t"><div class="n">Интеграция ГИС МТ, обувь и лёгкая промышленность</div><div class="s">ООО «Обувная фабрика „Юничел-Плюс“» · → созвон с ИТ-директором</div></div><div class="m bad">−2 дн.</div><div class="a"><button class="btn btn-sm btn-primary">Шаг сделан</button><button class="btn btn-sm btn-ghost">Отложить</button></div></div>
+            <div class="row"><span class="dot d"></span><div class="t"><div class="n">Аудит учёта маркированных товаров</div><div class="s">АО «Северо-Западная фармацевтическая компания» · → выслать анкету</div></div><div class="m bad">−1 дн.</div><div class="a"><button class="btn btn-sm btn-primary">Шаг сделан</button><button class="btn btn-sm btn-ghost">Отложить</button></div></div>
+          </div>
+        </section>
+
+        <section class="sheet sect">
+          <div class="sheet-head"><svg><use href="#i-dash"/></svg>Без плана <span class="n">2</span></div>
+          <div class="q">
+            <div class="row"><span class="dot d warn dot-o"></span><div class="t"><div class="n">Внедрение 1С:ERP, блок производства</div><div class="s">ПАО «Уралхиммаш» · в стадии «Переговоры» 23 дн.</div></div><div class="m">нет шага</div><div class="a"><button class="btn btn-sm">Запланировать</button></div></div>
+            <div class="row"><span class="dot d warn dot-o"></span><div class="t"><div class="n">Пилот IIoT на линии розлива</div><div class="s">ООО «Балтийская табачная фабрика» · новая, 2 дн.</div></div><div class="m">нет шага</div><div class="a"><button class="btn btn-sm">Запланировать</button></div></div>
+          </div>
+        </section>
+
+        <section class="sheet sect">
+          <div class="sheet-head"><svg><use href="#i-snow"/></svg>Остывают <span class="n">…</span></div>
+          <div class="q" aria-busy="true" aria-label="Загрузка">
+            <div class="row"><span class="dot d na"></span><div class="t"><div class="skel" style="width:58%"></div><div class="skel" style="width:34%;margin-top:.4rem;height:.5rem"></div></div><div class="skel" style="width:2.5rem"></div></div>
+            <div class="row"><span class="dot d na"></span><div class="t"><div class="skel" style="width:46%"></div><div class="skel" style="width:28%;margin-top:.4rem;height:.5rem"></div></div><div class="skel" style="width:2.5rem"></div></div>
+          </div>
+        </section>
+
+        <section class="sheet sect">
+          <div class="sheet-head"><svg><use href="#i-cal"/></svg>Встречи сегодня <span class="n">2</span></div>
+          <div class="q">
+            <div class="row"><span class="dot d info"></span><div class="t"><div class="n">Демо кабинета маркировки · Zoom</div><div class="s">ООО «ТД Молочные реки Сибири» · Кузнецова, Мальцев</div></div><div class="m">11:00–11:45</div><div class="a"><button class="btn btn-sm btn-ghost">Открыть</button></div></div>
+            <div class="row"><span class="dot d info"></span><div class="t"><div class="n">Внутренняя: разбор скоупа Уралхиммаш</div><div class="s">Переговорка 3 · 4 участника</div></div><div class="m">16:30–17:00</div><div class="a"><button class="btn btn-sm btn-ghost">Открыть</button></div></div>
+          </div>
+        </section>
+
+        <div class="postponed">Отложено на завтра: 2 · <a href="#">показать</a></div>
+      </div>
+
+      <!-- ═══════════ СДЕЛКИ · ВОРОНКА ═══════════ -->
+      <div class="page page-deals" data-page="deals" hidden>
+        <header class="page-h">
+          <div>
+            <div class="eyebrow">Продажи · Q3</div>
+            <h1>Воронка сделок <span class="pill pill-accent" style="vertical-align:middle;margin-left:.375rem">14 активн.</span></h1>
+          </div>
+          <div class="actions toolbar">
+            <div class="search"><svg><use href="#i-search"/></svg>Поиск по сделкам</div>
+            <button class="btn"><svg><use href="#i-table"/></svg>Таблица</button>
+            <button class="btn"><svg><use href="#i-sort"/></svg>Сумма ↓</button>
+            <button class="btn btn-primary"><svg><use href="#i-plus"/></svg>Сделка</button>
+          </div>
+        </header>
+
+        <div class="stats">
+          <div class="stat hero"><div class="l">В работе</div><div class="v">27,4 млн ₽</div><div class="s">взвеш. 11,8 млн ₽ · 14 сделок</div></div>
+          <div class="stat"><div class="l">Просрочен шаг</div><div class="v bad">4</div><div class="s">на 6,3 млн ₽</div></div>
+          <div class="stat"><div class="l">Закрыто в сентябре</div><div class="v">2</div><div class="s">3,1 млн ₽ · план 9,0</div></div>
+          <div class="stat"><div class="l">Проиграно</div><div class="v zero">0</div><div class="s">за 30 дней</div></div>
+        </div>
+
+        <div class="board-wrap">
+        <div class="board">
+          <!-- Квалификация -->
+          <div class="col">
+            <div class="col-h"><span class="dot" style="background:var(--text-mute)"></span><span class="name">Квалификация</span><span class="cnt">3</span><span class="sum">4,2 млн</span></div>
+            <div class="col-b">
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--text-mute)"></span>Квалификация</div>
+                <div class="nm"><a href="#">Пилот IIoT на линии розлива</a><span class="badge badge-purple">IIoT</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Балтийская табачная фабрика»</div>
+                <div class="money"><span class="nob"><svg><use href="#i-warn"/></svg>Бюджет</span><span class="pr pill pill-mute">10%</span></div>
+                <div class="att warn"><span class="dot dot-o"></span>нет следующего шага</div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">2 дн. в стадии</span></div>
+                <div class="prog"><i style="width:10%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--text-mute)"></span>Квалификация</div>
+                <div class="nm"><a href="#">Переход на ЭДО и маркировку воды</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Кавминводы-Розлив»</div>
+                <div class="money"><span class="b num">1 800 000 ₽</span><span class="pr pill pill-mute">10%</span></div>
+                <div class="ns">→ квалификационный созвон<span class="dt num">пн, 7 сент.</span></div>
+                <div class="ft"><span class="ini">ДК</span><span class="ago">5 дн. в стадии</span></div>
+                <div class="prog"><i style="width:10%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--text-mute)"></span>Квалификация</div>
+                <div class="nm"><a href="#">Учёт остатков в ГИС МТ, парфюмерия</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Торговый дом „Аромат Северной столицы“»</div>
+                <div class="money"><span class="b num">2 400 000 ₽</span><span class="pr pill pill-mute">10%</span></div>
+                <div class="ns">→ запросить выгрузку номенклатуры<span class="dt num">ср, 2 сент.</span></div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">9 дн. в стадии</span></div>
+                <div class="prog"><i style="width:10%"></i></div>
+              </div>
+            </div>
+            <div class="col-f"><span>Квалификация<b>3</b></span><span>КП<b>4</b></span><span>Презентация<b>2</b></span><span>Переговоры<b>3</b></span></div>
+          </div>
+
+          <!-- Подготовка КП -->
+          <div class="col">
+            <div class="col-h"><span class="dot" style="background:var(--blue)"></span><span class="name" style="color:var(--blue-text)">Подготовка КП</span><span class="cnt">4</span><span class="sum">9,6 млн</span></div>
+            <div class="col-b">
+              <div class="card sel">
+                <div class="st"><span class="dot" style="background:var(--blue)"></span>Подготовка КП · 25%</div>
+                <div class="nm"><a href="#">Маркировка молочной продукции: 1С:ERP + Честный Знак</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «ТД Молочные реки Сибири»</div>
+                <div class="money"><span class="b num">4 900 000 ₽</span><span class="pr pill pill-mute">25%</span></div>
+                <div class="dl"><span class="pill pill-red num">срок 28 авг · −5 дн.</span></div>
+                <div class="att bad"><span class="dot" style="background:currentColor"></span>шаг просрочен на 6 дн.</div>
+                <div class="ns">→ отправить КП v3 с расчётом лицензий<span class="dt num">чт, 27 авг.</span></div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">18 дн. в стадии</span></div>
+                <div class="prog"><i style="width:25%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--blue)"></span>Подготовка КП · 25%</div>
+                <div class="nm"><a href="#">Аудит учёта маркированных товаров</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>АО «Северо-Западная фармацевтическая компания»</div>
+                <div class="money"><span class="b num">650 000 ₽</span><span class="pr pill pill-mute">25%</span></div>
+                <div class="att bad"><span class="dot" style="background:currentColor"></span>шаг просрочен на 1 дн.</div>
+                <div class="ns">→ выслать анкету обследования<span class="dt num">вт, 1 сент.</span></div>
+                <div class="ft"><span class="ini">ДК</span><span class="ago">7 дн. в стадии</span></div>
+                <div class="prog"><i style="width:25%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--blue)"></span>Подготовка КП · 25%</div>
+                <div class="nm"><a href="#">Интеграция ГИС МТ, обувь и лёгкая промышленность</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Обувная фабрика „Юничел-Плюс“»</div>
+                <div class="money"><span class="b num">2 150 000 ₽</span><span class="pr pill pill-mute">25%</span></div>
+                <div class="dl"><span class="pill pill-yellow num">срок 12 сент. · 10 дн.</span></div>
+                <div class="ns">→ созвон с ИТ-директором<span class="dt num">пн, 31 авг.</span></div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">11 дн. в стадии</span></div>
+                <div class="prog"><i style="width:25%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--blue)"></span>Подготовка КП · 25%</div>
+                <div class="nm"><a href="#">Мониторинг энергопотребления цеха №2</a><span class="badge badge-purple">IIoT</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Ярославский завод порошковых красок»</div>
+                <div class="money"><span class="b num">1 900 000 ₽</span><span class="pr pill pill-mute">25%</span></div>
+                <div class="ns">→ собрать спецификацию датчиков<span class="dt num">пт, 4 сент.</span></div>
+                <div class="ft"><span class="ini">АС</span><span class="ago">4 дн. в стадии</span></div>
+                <div class="prog"><i style="width:25%"></i></div>
+              </div>
+            </div>
+            <div class="col-f"><span>Квалификация<b>3</b></span><span>КП<b>4</b></span><span>Презентация<b>2</b></span><span>Переговоры<b>3</b></span></div>
+          </div>
+
+          <!-- Презентация -->
+          <div class="col">
+            <div class="col-h"><span class="dot" style="background:var(--purple)"></span><span class="name" style="color:var(--purple-text)">Презентация</span><span class="cnt">2</span><span class="sum">5,4 млн</span></div>
+            <div class="col-b">
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--purple)"></span>Презентация · 50%</div>
+                <div class="nm"><a href="#">Кабинет маркировки для сети аптек</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Аптечная сеть „Вита-Фарм Поволжье“»</div>
+                <div class="money"><span class="b num">3 200 000 ₽</span><span class="pr pill pill-mute">50%</span></div>
+                <div class="ns">→ демо кабинета, 11:00<span class="dt num">сегодня</span></div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">6 дн. в стадии</span></div>
+                <div class="prog"><i style="width:50%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--purple)"></span>Презентация · 50%</div>
+                <div class="nm"><a href="#">Прослеживаемость партий, пиво и сидр</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Пивоварня „Старый Томск“»</div>
+                <div class="money"><span class="b num">2 200 000 ₽</span><span class="pr pill pill-mute">50%</span></div>
+                <div class="ns">→ выслать запись демо и оценку<span class="dt num">чт, 3 сент.</span></div>
+                <div class="ft"><span class="ini">ДК</span><span class="ago">3 дн. в стадии</span></div>
+                <div class="prog"><i style="width:50%"></i></div>
+              </div>
+            </div>
+            <div class="col-f"><span>Квалификация<b>3</b></span><span>КП<b>4</b></span><span>Презентация<b>2</b></span><span>Переговоры<b>3</b></span></div>
+          </div>
+
+          <!-- Переговоры -->
+          <div class="col">
+            <div class="col-h"><span class="dot" style="background:var(--yellow)"></span><span class="name" style="color:var(--yellow-text)">Переговоры</span><span class="cnt">3</span><span class="sum">8,2 млн</span></div>
+            <div class="col-b">
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--yellow)"></span>Переговоры · 75%</div>
+                <div class="nm"><a href="#">Внедрение 1С:ERP, блок производства</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ПАО «Уралхиммаш»</div>
+                <div class="money"><span class="b num">5 600 000 ₽</span><span class="pr pill pill-mute">75%</span></div>
+                <div class="att warn"><span class="dot dot-o"></span>нет следующего шага · 23 дн. в стадии</div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">23 дн. в стадии</span></div>
+                <div class="prog"><i style="width:75%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--yellow)"></span>Переговоры · 75%</div>
+                <div class="nm"><a href="#">Сопровождение 1С:ERP, годовой контракт</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>АО «Пермский моторостроительный комплекс»</div>
+                <div class="money"><span class="b num">1 400 000 ₽</span><span class="pr pill pill-mute">75%</span></div>
+                <div class="dl"><span class="pill pill-mute num">срок 30 сент. · 28 дн.</span></div>
+                <div class="ns">→ согласовать SLA с юристами<span class="dt num">ср, 9 сент.</span></div>
+                <div class="ft"><span class="ini">АС</span><span class="ago">8 дн. в стадии</span></div>
+                <div class="prog"><i style="width:75%"></i></div>
+              </div>
+              <div class="card">
+                <div class="st"><span class="dot" style="background:var(--yellow)"></span>Переговоры · 75%</div>
+                <div class="nm"><a href="#">Маркировка БАД: доработка обмена</a><span class="badge badge-blue">ERP</span></div>
+                <div class="co"><svg><use href="#i-bld"/></svg>ООО «Эвалар-Дистрибьюция»</div>
+                <div class="money"><span class="b num">1 200 000 ₽</span><span class="pr pill pill-mute">75%</span></div>
+                <div class="ns">→ финальная редакция договора<span class="dt num">пт, 4 сент.</span></div>
+                <div class="ft"><span class="ini">ОМ</span><span class="ago">12 дн. в стадии</span></div>
+                <div class="prog"><i style="width:75%"></i></div>
+              </div>
+            </div>
+            <div class="col-f"><span>Квалификация<b>3</b></span><span>КП<b>4</b></span><span>Презентация<b>2</b></span><span>Переговоры<b>3</b></span></div>
+          </div>
+
+          <!-- Договор (пусто, drag-over) -->
+          <div class="col over">
+            <div class="col-h"><span class="dot" style="background:var(--green)"></span><span class="name" style="color:var(--green-text)">Договор</span><span class="cnt">0</span></div>
+            <div class="col-b">
+              <div class="empty"><b>Сюда — сделки с подписанным договором</b>Перетащи карточку или смени стадию в карточке. Гейт проверит бюджет, ЛПР и дату старта.</div>
+            </div>
+            <div class="col-f"><span class="mute">переход с проверкой гейта</span></div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  </div>
+
+  <div class="notes">
+    <div class="note">
+      <h3>1 · Mythos — адаптация референса</h3>
+      <p>Чёрная рама (рельс, фокус дня, hero-KPI) держит характер; жёлтый живёт только заливкой под чёрным текстом: активный пункт, primary-кнопка, выбранная карточка, счётчик. Ни одной жёлтой буквы на белом.</p>
+      <table>
+        <tr><td>чёрный на #F6E649</td><td>14.7:1</td></tr>
+        <tr><td>белый на #F6E649</td><td>1.3:1 — запрещено</td></tr>
+        <tr><td>accent-text #6B6420 / surface</td><td>6.1:1</td></tr>
+        <tr><td>Δhue до --yellow (warning)</td><td>19° — нарушает правило ≥30°</td></tr>
+      </table>
+      <p>Цена: warning и accent соседи по тону. Разведены формой (warning — тёмно-янтарный текст с иконкой, никогда заливка) и светлотой (L 90 vs L 40). Правило Δhue формально не выполнено.</p>
+    </div>
+    <div class="note">
+      <h3>2 · Orchid — свет без чёрного</h3>
+      <p>Единственная свободная зона палитры, где насыщенный цвет работает и как текст, и как заливка на белом: маджента 329°. Рама светлая, жизнь даёт цвет, а не контраст. Соседний тон с фуксией BIT.IIoT без её коллизии с красным.</p>
+      <table>
+        <tr><td>белый на #C5307C</td><td>5.1:1</td></tr>
+        <tr><td>accent-text #A8246A / surface</td><td>6.7:1</td></tr>
+        <tr><td>Δhue до red / purple</td><td>36° / 75° — ок</td></tr>
+      </table>
+      <p>Цена: маджента в B2B читается «смелее» петроля; тона стадий (purple 254°) в одной зоне с акцентом на канбане — смотреть на колонку «Презентация».</p>
+    </div>
+    <div class="note">
+      <h3>3 · Spectrum — цвет раздела вместо акцента темы</h3>
+      <p>Акцент — переменная <code>--section</code>: «Сегодня» — чернила, «Сделки» — петроль. Nav-пилюля, eyebrow, primary-кнопка, hero-KPI и прогресс берут цвет раздела; данные — нейтральные. Тёплая бумага, Bricolage Grotesque в заголовках.</p>
+      <table>
+        <tr><td>секции в мокапе</td><td>2 из 15</td></tr>
+        <tr><td>петроль / surface</td><td>6.6:1 (как t-minimal)</td></tr>
+        <tr><td>sectionColor в коде</td><td>переназначить: Сделки #FF6633 = красный</td></tr>
+      </table>
+      <p>Цена: 15 разделов → нужна карта из 6–7 безопасных тонов, часть разделов делит цвет. На «Сегодня» тема ближе всех к текущей minimal — это осознанно: личная очередь не должна кричать.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var app=document.getElementById('app');
+  var themes=['t-mythos','t-orchid','t-spectrum'];
+  function setTheme(t){
+    themes.forEach(function(x){app.classList.remove(x)}); app.classList.add(t);
+    document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.themeBtn===t))});
+    try{localStorage.setItem('lab-theme',t)}catch(e){}
+  }
+  function setPage(p){
+    document.querySelectorAll('[data-page]').forEach(function(el){el.hidden=el.dataset.page!==p});
+    document.querySelectorAll('[data-page-btn]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.pageBtn===p))});
+    app.dataset.section=p;
+    document.querySelectorAll('[data-nav]').forEach(function(a){ if(a.dataset.nav===p) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+    try{localStorage.setItem('lab-page',p)}catch(e){}
+  }
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.addEventListener('click',function(){setTheme(b.dataset.themeBtn)})});
+  document.querySelectorAll('[data-page-btn]').forEach(function(b){b.addEventListener('click',function(){setPage(b.dataset.pageBtn)})});
+  document.querySelectorAll('[data-nav]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();setPage(a.dataset.nav)})});
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT')return;
+    if(e.key==='1')setTheme('t-mythos'); if(e.key==='2')setTheme('t-orchid'); if(e.key==='3')setTheme('t-spectrum');
+    if(e.key==='t'||e.key==='T'||e.key==='е')setPage('today'); if(e.key==='d'||e.key==='D'||e.key==='в')setPage('deals');
+  });
+  var t=null,p=null; try{t=localStorage.getItem('lab-theme');p=localStorage.getItem('lab-page')}catch(e){}
+  if(t&&themes.indexOf(t)>-1)setTheme(t); if(p==='today'||p==='deals')setPage(p);
+})();
+</script>
+</body></html>
