@@ -93,7 +93,12 @@
   --popover: #1e2233;  /* S-UI-POLISH-1: solid, единый источник и для [data-modal] */
   --border: rgba(255,255,255,0.12);  --border2: rgba(255,255,255,0.22);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.46:1 к surface */
   --text: #eef2ff;  --text-dim: #94a4d4;  --text-mute: #7e90c0;
-  --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
+  /* fix/audit-nav-contrast: активный пункт нава идёт через --accent-text, не
+     --accent. Пилюля .nav-active — layered-дефолт `background: var(--accent-l)`,
+     то есть 15% собственного акцента поверх рельса: акцент на своём же тинте
+     давал 4.00 (frost) и 3.82 (aurora) при пороге 4.5. --accent-text в тёмных
+     темах и заведён как светлая версия акцента для текста на тёмном. */
+  --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent-text);
   --accent: #5b8aff;  --accent-l: rgba(91,138,255,0.15);  --accent-l2: rgba(91,138,255,0.25);  --accent-text: #7eb0ff;
   --on-accent: #0d1020;  /* 5.87:1 на accent */  /* P1 §2.8: solid #5b8aff на accent-l тинте 4.0:1 → 5.85:1 */
   --green: #5BB88E;  --green-l: rgba(91,184,142,0.14);
@@ -127,7 +132,12 @@
   --popover: #1a1e2c;  /* S-UI-POLISH-1: solid, единый источник и для [data-modal] */
   --border: rgba(255,255,255,0.10);  --border2: rgba(255,255,255,0.18);  --border-input: rgba(255,255,255,0.42);  /* P2 §1.4.11: 3.63:1 к surface */
   --text: #e8f0ff;  --text-dim: #94a8d4;  --text-mute: #7e90c0;
-  --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent);
+  /* fix/audit-nav-contrast: активный пункт нава идёт через --accent-text, не
+     --accent. Пилюля .nav-active — layered-дефолт `background: var(--accent-l)`,
+     то есть 15% собственного акцента поверх рельса: акцент на своём же тинте
+     давал 4.00 (frost) и 3.82 (aurora) при пороге 4.5. --accent-text в тёмных
+     темах и заведён как светлая версия акцента для текста на тёмном. */
+  --sidebar-indicator: rgba(255,255,255,0.10);  --sidebar-active-text: var(--accent-text);
   --accent: #a060ff;  --accent-l: rgba(160,96,255,0.15);  --accent-l2: rgba(160,96,255,0.25);  --accent-text: #c9a0ff;
   --on-accent: #0a0e1a;  /* 5.15:1 на accent */  /* P1 §2.8: 3.82:1 badge → 6.77:1 */
   --green: #20e8a0;  --green-l: rgba(32,232,160,0.12);
