@@ -18,7 +18,7 @@ Always use `var(--token)`.
 
 ## Available Themes
 
-**Тем 7** (AUDIT C удалил `scandi`/`paper`/`sand`; **M1 добавил `t-minimal`**).
+**Тем 8** (AUDIT C удалил `scandi`/`paper`/`sand`; **M1 добавил `t-minimal`**; **S-LIME-TOKENS-1 (2026-09-05) добавил `t-lime` и сделал её дефолтом**).
 Порядок = массив `THEMES` в `theme-store.ts` (он же порядок `cycleTheme`).
 Свотчи/подписи — из `src/components/settings/SettingsContent.tsx`.
 
@@ -30,17 +30,18 @@ Always use `var(--token)`.
 | `t-frost` | «Frost» | `#6ba3be` | **Dark, glass** (полупрозрачный `--surface`) |
 | `t-aurora` | «Aurora» | `#7c6bc4` | **Dark, glass** |
 | `t-tidal` | «Tidal» | `#4a9e8e` | **Dark, glass** |
+| `t-lime` | «Lime» | **`#C9F25A` (лайм)** | **Дефолт с 2026-09-05** (PR #45). Light, непрозрачная. **Единственная тема, где `--accent` непригоден как цвет текста**: лайм на белом = 1.29:1, поэтому `--on-accent: #14210A` (13.05:1) и `--accent-text: #336809` обязательны, а два правила в `globals.css` уводят туда 82 места с `bg-accent text-white` и 321 с `text-accent`. Фон `#F2EFE9` (тёплый, светлота ауры), поверхности и линии тёплого ряда. Материал «стекла» — сплошной `#17171C` без `backdrop-filter`. Радиусы 12/20. Шрифт → Inter, `cv11`. Актив нава — сплошная лаймовая пилюля без бокового маркера; рельс без разделителей, фон `transparent` (единое полотно с контентом). Полная выкладка решений — `claude/decisions-lime-theme-2026-09-05.md` |
 | `t-minimal` | «Minimal» | **`#0E7C86` (петроль)** | **Рабочая тема владельца** — визуальные правки смокать здесь первыми. M1 (2026-07-19), акцент заменён 2026-08-04. Light, **непрозрачная** (`--glass-blur: none`). Нейтральный canvas `#ECECEF` / `#FFFFFF` (Linear/Attio class; v2 затемнил фон с `#F6F6F7` — белые карточки отделяются без тяжёлых теней). Шрифт → Inter (`--font-app`, `font-feature-settings: 'cv11'`), заголовки 1.25rem/600 — крупного `aura-page-title` здесь нет. Радиусы средние (`--radius: 10px`, `--radius-m: 10px`, `--radius-l: 14px`) — «острая» тема здесь washi (`--radius: 4px`). Primary-кнопки — сплошной акцент (белый на `#0E7C86` = 4.95:1, AA). Текстовый токен `--accent-text: #0A6771` (6.58 / 6.09 / 5.48 на surface / bg / surface3). Без орбов / glass / watermark. Иконочный nav как washi/fuji |
 
 **Удалённые темы (AUDIT C):** `scandi` / `paper` / `sand` больше не существуют.
 В сторе — `LEGACY_THEMES = ['t-scandi','t-paper','t-sand']`: persisted-значение из этого
 списка **или любое неизвестное → миграция на дефолт `t-aura`**.
 
-**Дефолт — `t-aura`** (`DEFAULT_THEME`), НЕ scandi.
+**Дефолт — `t-lime`** (`DEFAULT_THEME`) с 2026-09-05. До этого был `t-aura`; он остаётся валидной темой, persisted-значения всех семи прежних тем продолжают работать — миграции не было. Порядок `THEMES` = порядок `cycleTheme`, `t-lime` стоит первой.
 
 **Тёмные темы (glass):** `t-frost`, `t-aurora`, `t-tidal` — у них `--glass-blur` задан и
 `--surface` полупрозрачный. `t-aura` — светлая, НЕ glass (`--glass-blur: none`, карточки
-непрозрачны). `t-washi`/`t-fuji`/`t-minimal` — светлые непрозрачные (`--glass-blur: none`).
+непрозрачны). `t-washi`/`t-fuji`/`t-minimal`/`t-lime` — светлые непрозрачные (`--glass-blur: none`).
 
 ### Почему у minimal петроль, а не терракота (правило для любого нового акцента)
 
@@ -95,12 +96,49 @@ Always use `var(--token)`.
 
 ---
 
+### Токены зон (`--zone-*`) — общие для всех тем
+
+Введены S-LIME-TOKENS-1 под зонирование карточки сделки («Работа / Риски / Контекст»,
+макет «Сделка v2»). Живут в `:root`, выводятся из семантики АКТИВНОЙ темы через `color-mix`,
+поэтому пер-темных хардкодов не требуют:
+
+```css
+--zone-base:           color-mix(in srgb, var(--popover) 55%, var(--bg));
+--zone-work:           color-mix(in srgb, var(--accent) 14%, var(--zone-base));
+--zone-ctx:            color-mix(in srgb, var(--text)    6%, var(--zone-base));
+--zone-risk-{ok,attention,rotting}: те же 12 / 14 / 10 % от --green / --yellow / --red;
+```
+
+**База — `--popover`, а не `--surface`.** В `t-frost`/`t-aurora`/`t-tidal` `--surface`
+полупрозрачен (`rgba(255,255,255,0.07)` и родственные), и `color-mix` отдал бы зоны с
+alpha ≈ 0.49 — сквозные подложки на трёх темах. `--popover` заведён как «непрозрачный слой»
+(S-UI-POLISH-1): в светлых темах равен `--surface`, в тёмных — solid hex.
+
+Состояние health переключается классом на контейнере зоны: `.h-attention` / `.h-rotting`
+переопределяют `--h-zone` / `--h-ring` / `--h-chip-ink`. Потребителей у токенов пока нет —
+появятся в S-DEAL-ZONES-1.
+
+### ⚠️ Примитив `.entity-tile`
+
+Плитка сущности в шапке карточки записи (компания, сделка, контакт). База в
+`@layer components`: `--accent-l` + `--accent-text`. Тема может перевернуть приём — в
+`t-lime` это тёмная плитка с лаймовой иконкой (`--glass-bg` + `--accent`, 13.89:1), как в
+макете. **Цвет иконки не задаётся на самой иконке**: она наследует `color` плитки, поэтому
+переворот делается одним правилом, а не обходом потребителей.
+
+### ⚠️ Долг: `audit-contrast.py` не проверяет актив нава у 6 тем из 8
+
+Пара `nav-active / sidebar-bg` считается только для `t-washi` и `t-fuji` (там цвет
+захардкожен в скрипте). У остальных «0 FAIL» означает «эту пару не проверяли». Так лаймовая
+иконка на лаймовой пилюле (1.29:1) прошла аудит `t-lime` и нашлась глазами. Заготовка
+починки — `_analysis/fix-AUDIT-NAV-CONTRAST.md`.
+
 ## FOUC-гард (`src/app/layout.tsx`)
 
-1. `<html>` рендерится с дефолтным классом **`t-aura`** (+ font-variable классы).
+1. `<html>` рендерится с дефолтным классом **`t-lime`** (+ font-variable классы).
 2. Inline **parser-blocking** скрипт `id="theme-init"` до гидрации читает
    `JSON.parse(localStorage['dashboard-theme']).state.theme`; если тема входит в
-   whitelist `['t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal','t-minimal']` **и ≠ `t-aura`** —
+   whitelist `['t-lime','t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal','t-minimal']` **и ≠ `t-lime`** —
    свопает класс на `<html>`.
 3. Неизвестное / legacy (`t-scandi`/`t-paper`/`t-sand`) значение → класс остаётся
    `t-aura` (миграция persisted-значения на дефолт).
