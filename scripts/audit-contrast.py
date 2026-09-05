@@ -270,11 +270,76 @@ for th in themes:
         if sbt: add('sidebar-text / sidebar-bg', composite(sbt, sb), sb)
         sbd = resolve(th, 'sidebar-text-dim')
         if sbd: add('sidebar-text-dim / sidebar-bg', composite(sbd, sb), sb)
-        # nav-active — компонентный override (globals.css): washi красит активный
-        # пункт в светлый #E8E2D8 (P1 §2.4), fuji — в gold #C4AA78. Токен --accent
-        # тут не применяется (торий-красный остаётся только на скобках 「 」).
-        act = parse_color('#E8E2D8') if th=='t-washi' else parse_color('#C4AA78')
-        if act: add('nav-active / sidebar-bg', composite(act, sb) if act[3]<1 else act[:3], sb)
+
+    # ── Активный пункт навигации — ВСЕ ВОСЕМЬ ТЕМ ──────────────────────────
+    # До fix/audit-nav-contrast пара считалась только у washi/fuji, где цвет
+    # захардкожен здесь же. У остальных шести «0 FAIL» означало «не проверяли»:
+    # так лаймовая иконка на лаймовой пилюле (1.29:1) прошла аудит t-lime и
+    # нашлась глазами при визуальной приёмке PR #45.
+    #
+    # Фактический каскад (globals.css + TextNavSidebar.tsx):
+    #  · рельс — `bg-surface` на <aside data-app-nav>, темы перебивают (NAV_RAIL);
+    #  · пилюля — layered-дефолт `.nav-active { background: var(--accent-l) }`;
+    #    --sidebar-indicator компонент НЕ читает, его разворачивают собственные
+    #    unlayered-правила t-lime и t-minimal (там он непрозрачный);
+    #    washi/fuji гасят фон в `transparent !important` — пилюли нет вовсе;
+    #  · текст и иконка — утилита `text-[var(--sidebar-active-text)]` в разметке;
+    #    она из @layer utilities и бьёт layered `.nav-active { color: var(--accent) }`,
+    #    поэтому источник — токен, а не --accent. Исключение — washi/fuji: там
+    #    цвет задан КОМПОНЕНТНЫМ правилом с !important, токен не участвует.
+    NAV_RAIL = {
+        't-washi': 'sidebar-bg',   # sumi #2C2C2C
+        't-fuji': 'sidebar-bg',    # indigo #1A2744
+        't-minimal': 'surface2',   # .t-minimal aside{background:var(--surface2)}
+        't-lime': 'bg',            # .t-lime aside{background:transparent} → фон страницы
+    }
+    # Цвет активного пункта, заданный правилом, а не токеном (явное исключение).
+    NAV_INK_HARDCODE = {
+        't-washi': '#E8E2D8',      # P1 §2.4; торий-красный остаётся на скобках 「 」
+        't-fuji': '#C4AA78',       # gold
+    }
+    NAV_NO_PILL = {'t-washi', 't-fuji'}   # background: transparent !important
+    rail = opaque(th, NAV_RAIL.get(th, 'surface'), 'bg')
+    if rail is not None:
+        if th in NAV_NO_PILL:
+            pill = rail
+        else:
+            ind = resolve(th, 'sidebar-indicator')
+            if ind is not None and ind[3] >= 1:
+                pill = ind[:3]
+            else:
+                al = resolve(th, 'accent-l')
+                pill = composite(al, rail) if al is not None else rail
+        hard = NAV_INK_HARDCODE.get(th)
+        ink = parse_color(hard) if hard else (
+            resolve(th, 'sidebar-active-text') or resolve(th, 'accent'))
+        if ink is not None:
+            add('nav-active-text / nav-active-bg',
+                composite(ink, pill) if ink[3] < 1 else ink[:3], pill)
+        # Граница пилюли к рельсу. Порог 1.4.11 (3:1) применяется к тому, что
+        # «required to identify» состояние. Разметка одна на все восемь тем
+        # (TextNavSidebar.tsx:167-171): активный пункт несёт `font-medium` +
+        # `text-[var(--sidebar-active-text)]`, неактивный — `text-text-dim` без
+        # font-medium. Там, где эти два цвета РАЗЛИЧИМЫ, состояние опознаётся
+        # текстом, а подложка — избыточное усиление: пара info-only, как уже
+        # сделано для border/border2 выше.
+        # Предпосылка проверяется, а не принимается на веру: если актив и
+        # неактив по светлоте неразличимы (< 1.5:1), текст состояние не несёт,
+        # его несёт ОДНА подложка — и 3:1 к ней применяется всерьёз.
+        idle = resolve(th, 'sidebar-text' if th in NAV_NO_PILL else 'text-dim')
+        ink_o = composite(ink, pill) if (ink is not None and ink[3] < 1) else (
+            ink[:3] if ink is not None else None)
+        idle_o = composite(idle, rail) if (idle is not None and idle[3] < 1) else (
+            idle[:3] if idle is not None else None)
+        text_carries_state = (
+            ink_o is not None and idle_o is not None and wcag(ink_o, idle_o) >= 1.5)
+        # У washi/fuji пилюли нет вовсе (`background: transparent !important`):
+        # фон активного пункта РАВЕН рельсу, 3:1 применять не к чему — состояние
+        # там несут декоративные маркеры (скобки 「 」 у washi, уголки ↙↗ у fuji),
+        # цвет и вес. Их пара остаётся info-only при любом исходе проверки;
+        # у fuji предпосылка не выполнена (gold/сепия 1.09:1) — см. отчёт фикса.
+        add('nav-active-bg / sidebar-bg', pill, rail,
+            kind='decorative' if (th in NAV_NO_PILL or text_carries_state) else 'ui')
     T['pairs'] = pairs
     # OKLCH of key colors
     T['oklch'] = {}
