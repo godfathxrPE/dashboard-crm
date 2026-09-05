@@ -23,9 +23,10 @@ describe('describeEvent — project_updated с changes (087)', () => {
         changes: { budget: { from: '1000000000', to: '1200000000' } },
       }),
     );
-    // formatBudget(копейки) → «10.0M ₽» / «12.0M ₽»
-    expect(text).toContain('10.0M ₽');
-    expect(text).toContain('12.0M ₽');
+    // formatBudget(копейки) → «10 млн ₽» / «12 млн ₽» (S-FORMAT-1: русский формат,
+    // неразрывные пробелы внутри лексемы).
+    expect(text).toContain('10\u00A0млн\u00A0₽');
+    expect(text).toContain('12\u00A0млн\u00A0₽');
     expect(text).toContain('→');
     expect(text).not.toContain('1000000000');
   });
@@ -77,7 +78,7 @@ describe('describeEvent — project_updated с changes (087)', () => {
         },
       }),
     );
-    expect(text).toContain('10.0M ₽');
+    expect(text).toContain('10\u00A0млн\u00A0₽');
     expect(text).toContain('и ещё 2');
   });
 

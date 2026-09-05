@@ -62,7 +62,8 @@ describe('qualifyLead — заполненность пунктов', () => {
     const q = qualifyLead(FULL);
     const byKey = Object.fromEntries(q.items.map((i) => [i.key, i.value]));
     expect(byKey.role).toBe('Принимает решение (ЛПР)');
-    expect(byKey.value).toBe('1.5M ₽');
+    // S-FORMAT-1: суммы печатаются русским письмом, пробелы неразрывные.
+    expect(byKey.value).toBe('1,5\u00A0млн\u00A0₽');
     expect(byKey.deadline).toBe('31 августа 2026 г.');
     expect(byKey.budget).toBe('Оценён');
   });

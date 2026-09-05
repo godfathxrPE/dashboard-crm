@@ -272,13 +272,22 @@ function StageGuidance({
   // Пустая подсказка у owner — приглашение, а не блок: рамка во всю ширину ради
   // одной фразы была полосой-пустышкой на каждой ненастроенной стадии.
   // Заполненная подсказка остаётся прежним блоком — у неё есть содержание.
+  //
+  // S-FORMAT-1: приглашение больше не занимает строку в постоянном показе —
+  // `h-0` держит его вне высоты полосы, а проявляется оно по наведению на блок
+  // стадии (`group/cockpit` в PipelineCockpit). Меню «…» у карточки сделки нет,
+  // поэтому вариант с наведением. `display` НЕ используем: скрытая через `hidden`
+  // кнопка выпала бы из tab-порядка — здесь она остаётся фокусируемой и
+  // проявляется на `focus-visible`, то есть с клавиатуры подсказка доступна.
   if (!text && canEdit && !editing) {
     return (
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1.5 text-meta text-text-mute
-                   transition-colors hover:text-accent"
+        className="inline-flex h-0 items-center gap-1.5 overflow-hidden text-meta text-text-mute
+                   opacity-0 transition-opacity hover:text-accent
+                   focus-visible:h-auto focus-visible:opacity-100
+                   group-hover/cockpit:h-auto group-hover/cockpit:opacity-100"
       >
         <Lightbulb size={12} aria-hidden />
         Добавить подсказку для стадии «{stageName}»

@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/Badge';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { Combobox, type ComboboxOption } from '@/components/shared';
 import { cn } from '@/lib/utils/cn';
+import { formatContactName } from '@/lib/utils/contact-name';
 import { contactBelongsToCompany } from '@/lib/forms/derive-links';
 import type { StakeholderRole } from '@/types/database';
 
@@ -49,7 +50,7 @@ import type { StakeholderRole } from '@/types/database';
  * экране в двух форматах в сантиметре друг от друга.
  */
 const contactName = (c: { first_name: string; last_name: string } | null | undefined) =>
-  c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || '—' : '—';
+  c ? formatContactName(c.first_name, c.last_name) : '—';
 
 /** Ключ сортировки списка выбора — по фамилии: в пикере ищут именно так. */
 const contactSortKey = (c: { first_name: string; last_name: string }) =>
