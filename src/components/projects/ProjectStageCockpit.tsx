@@ -128,9 +128,14 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const unmetCount = gateItems.filter((i) => !i.met).length;
 
   const groupIndex = groups.findIndex((g) => currentIndex >= g.from && currentIndex <= g.to);
+  // S-DEAL-ZONES-1A (F-04): счётчик групп из подписи убран — «группа 1 из 4»
+  // пересказывал словами то, что мини-карта воронки показывает графически,
+  // а позицию стадии и вероятность уже несёт `metaRight` («K из N · вероятность
+  // P%»). Остаётся имя группы. Правится ПРОП, а не ряд `PipelineCockpit`:
+  // компонент общий с лидами, которые `groupLabel` не передают вовсе.
   const groupLabel =
     currentIndex >= 0 && groupIndex >= 0 && currentStage.phase_group
-      ? `${phaseLabel(currentStage.phase_group)} · группа ${groupIndex + 1} из ${groups.length}`
+      ? phaseLabel(currentStage.phase_group)
       : null;
 
   const restCount = currentIndex >= 0 ? stages.length - currentIndex - 1 : 0;

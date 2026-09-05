@@ -57,7 +57,9 @@ export function DealNextStep({
   return (
     // Якорь CTA сигнала `next_step`. В peek-панели (DealFocusPanel) id не ставится
     // вовсе: она монтируется поверх страницы, и дубль увёл бы getElementById.
-    <div id="deal-next-step" className="min-w-0">
+    // `data-next-step` — отдельный хук для замеров вертикали (S-DEAL-ZONES-1A):
+    // id занят якорем scrollToSignalAnchor и переиспользованию не подлежит.
+    <div id="deal-next-step" data-next-step className="min-w-0">
       <div
         data-card
         className={cn(
@@ -72,7 +74,9 @@ export function DealNextStep({
           <ChevronRight size={13} />
           Следующий шаг
         </div>
-        <div className="text-base leading-snug">
+        {/* S-DEAL-ZONES-1A (F-08): 72ch на теле шага — при широкой левой колонке
+            строка уходила за 100 знаков при норме 45–75. */}
+        <div className="max-w-[72ch] text-base leading-snug">
           <InlineEdit
             value={project.next_step ?? ''}
             placeholder="Какой следующий шаг?"

@@ -22,7 +22,137 @@ import { cn } from '@/lib/utils/cn';
 //
 // Ветвление по типу проекта живёт ТОЛЬКО в этом файле: размазав `isDelivery`
 // по карточкам, мы бы получили четыре места, где сделка и внедрение расходятся.
+//
+// S-DEAL-ZONES-1A: карточка СДЕЛКИ больше не рельса — её содержимое разошлось
+// по зонам «Риски» (DealRisksZone) и «Контекст» (DealContextZone). Сам
+// `DealContextRail` остался прежним путём для внедрения и internal, где зон
+// нет. Чтобы не держать две копии одних карточек, тела вынесены в общие
+// кусочки ниже — оба пути их только компонуют.
 // ═══════════════════════════════════════════════════════
+
+// ─── Общие карточки (используются и рельсой, и зонами) ───
+
+/** Здоровье СДЕЛКИ: список сигналов без вердикта — вердикт стоит под шагом (F-01). */
+function HealthDealCard({ signals }: { signals: DealSignalsResult }) {
+  if (signals.signals.length === 0) return null;
+  return (
+    <RailCard icon={Activity} title="Здоровье">
+      {/* Вердикт здесь НЕ показывается: он стоит под следующим шагом в
+          рабочей колонке. Два вердикта на экране — это F-01. */}
+      <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
+    </RailCard>
+  );
+}
+
+/** Здоровье ВНЕДРЕНИЯ: своя формула (getDeliveryHealth), не DealVerdict. */
+function HealthDeliveryCard({ health }: { health: DeliveryHealth }) {
+  return (
+    <RailCard icon={Activity} title="Здоровье">
+      <div className="flex flex-col gap-1.5">
+        <DeliveryHealthDot health={health} size="md" showLabel />
+        {health.reasons.length > 0 && (
+          <p className="text-xs text-text-mute">{health.reasons.join('; ')}</p>
+        )}
+      </div>
+    </RailCard>
+  );
+}
+
+/**
+ * Закреплённая заметка. Только у сделки: у delivery/internal заметка команды
+ * живёт в «Материалах проекта», и второе поле под ту же колонку `pinned_note`
+ * означало бы два редактора одного значения на одной странице.
+ */
+function PinnedNoteCard({ project }: { project: Project }) {
+  const updateProject = useUpdateProject();
+  return (
+    <RailCard icon={Pin} title="Закреплено">
+      {/* S-DEAL-ZONES-1A (F-08): мера строки на теле заметки, а не на карточке. */}
+      <div className="max-w-[72ch] text-body leading-relaxed">
+        <InlineEdit
+          as="textarea"
+          value={project.pinned_note ?? ''}
+          placeholder="Закрепить заметку…"
+          onSave={async (val) => {
+            updateProject.mutate({ id: project.id, pinned_note: val || null });
+          }}
+        />
+      </div>
+    </RailCard>
+  );
+}
+
+/** Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`. */
+function StakeholdersBlock({ project }: { project: Project }) {
+  return (
+    <div id="deal-stakeholders">
+      <DealStakeholders
+        projectId={project.id}
+        primaryContactId={project.contact_id}
+        primaryContact={project.contact ?? null}
+        companyId={project.company_id}
+      />
+    </div>
+  );
+}
+
+// ─── Зоны карточки сделки (S-DEAL-ZONES-1A) ───
+
+/**
+ * Тело зоны «Риски»: что может сорвать сделку. Заголовок и фон зоны рисует
+ * `ProjectDetail` — фон меняется с health, и класс `.h-*` обязан лежать на том
+ * же узле, что подложка.
+ *
+ * Пустой список сигналов — нормальное состояние: `HealthDealCard` вернёт null,
+ * остаётся «Закреплено» и спокойная заливка. Второго абзаца «всё в норме» тут
+ * НЕТ намеренно — уровень уже несёт цвет зоны.
+ */
+export function DealRisksZone({
+  project,
+  signals,
+}: {
+  project: Project;
+  signals: DealSignalsResult;
+}) {
+  return (
+    <>
+      <HealthDealCard signals={signals} />
+      <PinnedNoteCard project={project} />
+    </>
+  );
+}
+
+/** Тело зоны «Контекст»: кто, сколько, что собрано. */
+export function DealContextZone({
+  project,
+  parentDeal,
+  completenessBadge,
+  onEdit,
+  onOpenMaterials,
+}: {
+  project: Project;
+  parentDeal?: Project | null;
+  completenessBadge?: React.ReactNode;
+  onEdit?: () => void;
+  onOpenMaterials: () => void;
+}) {
+  return (
+    <>
+      {/* isDelivery={false} — зоны существуют только у сделки (type === 'client'). */}
+      <DealSummaryCard
+        project={project}
+        parentDeal={parentDeal}
+        isDelivery={false}
+        badge={completenessBadge}
+        onEdit={onEdit}
+      />
+      <StakeholdersBlock project={project} />
+      <DealMaterialsCard project={project} isDelivery={false} onOpen={onOpenMaterials} />
+    </>
+  );
+}
+
+// ─── Рельса: путь внедрения и internal ───
 
 export interface DealContextRailProps {
   project: Project;
@@ -51,8 +181,6 @@ export function DealContextRail({
   onOpenMaterials,
   className,
 }: DealContextRailProps) {
-  const updateProject = useUpdateProject();
-  const projectId = project.id;
   const isDeal = project.type === 'client';
 
   return (
@@ -63,23 +191,8 @@ export function DealContextRail({
       className={cn('flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:self-start', className)}
     >
       {/* ─── 1. Здоровье ─── */}
-      {isDeal && signals.signals.length > 0 && (
-        <RailCard icon={Activity} title="Здоровье">
-          {/* Вердикт здесь НЕ показывается: он стоит под следующим шагом в
-              рабочей колонке. Два вердикта на экране — это F-01. */}
-          <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
-        </RailCard>
-      )}
-      {isDelivery && deliveryHealth && (
-        <RailCard icon={Activity} title="Здоровье">
-          <div className="flex flex-col gap-1.5">
-            <DeliveryHealthDot health={deliveryHealth} size="md" showLabel />
-            {deliveryHealth.reasons.length > 0 && (
-              <p className="text-xs text-text-mute">{deliveryHealth.reasons.join('; ')}</p>
-            )}
-          </div>
-        </RailCard>
-      )}
+      {isDeal && <HealthDealCard signals={signals} />}
+      {isDelivery && deliveryHealth && <HealthDeliveryCard health={deliveryHealth} />}
 
       {/* ─── 2. Сводка ─── */}
       <DealSummaryCard
@@ -93,33 +206,10 @@ export function DealContextRail({
       {/* ─── 3. Стейкхолдеры ─── */}
       {/* Компонент не переписан, только переставлен: id — якорь CTA сигнала
           `single_threaded`, он и раньше жил на обёртке. */}
-      <div id="deal-stakeholders">
-        <DealStakeholders
-          projectId={projectId}
-          primaryContactId={project.contact_id}
-          primaryContact={project.contact ?? null}
-          companyId={project.company_id}
-        />
-      </div>
+      <StakeholdersBlock project={project} />
 
       {/* ─── 4. Закреплено ─── */}
-      {/* Только у сделки: у delivery/internal заметка команды живёт в
-          «Материалах проекта», и второе поле под ту же колонку `pinned_note`
-          означало бы два редактора одного значения на одной странице. */}
-      {isDeal && (
-        <RailCard icon={Pin} title="Закреплено">
-          <div className="text-body leading-relaxed">
-            <InlineEdit
-              as="textarea"
-              value={project.pinned_note ?? ''}
-              placeholder="Закрепить заметку…"
-              onSave={async (val) => {
-                updateProject.mutate({ id: project.id, pinned_note: val || null });
-              }}
-            />
-          </div>
-        </RailCard>
-      )}
+      {isDeal && <PinnedNoteCard project={project} />}
 
       {/* ─── 5. Материалы ─── */}
       {/* Последней: порядок карточек — по убыванию частоты обращения. Сигналы

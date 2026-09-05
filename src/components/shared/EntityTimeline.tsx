@@ -76,6 +76,14 @@ interface EntityTimelineProps {
   onFilterChange?: (value: TimelineFilterValue) => void;
   /** Скрыть встроенный ряд чипов — родитель рисует свой в другом месте макета. */
   showFilters?: boolean;
+  /**
+   * Мера строки тела события. Дефолт `max-w-[80ch]` — тот, что был до
+   * S-DEAL-ZONES-1A, и он остаётся у контакта, компании и треда: компонент
+   * общий, и молчаливая смена меры поменяла бы вид сразу четырёх хабов.
+   * Карточка сделки передаёт `max-w-[72ch]` (аудит 04.09, F-08: 110–150 знаков
+   * при норме 45–75) — там лента живёт в широкой зоне «Работа».
+   */
+  bodyMeasureClass?: string;
 }
 
 // Подписи чипов по kind. S-UI-CLARITY-1: `activity` больше не «Заметки» — это
@@ -165,6 +173,7 @@ function sameMonth(iso: string, ref: Date): boolean {
 export function EntityTimeline({
   entityType, entityId, onOpenEvent, renderAction, className,
   kindFilter, splitUpcoming = false, filter: filterProp, onFilterChange, showFilters = true,
+  bodyMeasureClass = 'max-w-[80ch]',
 }: EntityTimelineProps) {
   const [localFilter, setLocalFilter] = useState<TimelineFilterValue>('all');
 
@@ -301,7 +310,7 @@ export function EntityTimeline({
                       <button
                         type="button"
                         onClick={() => onOpenEvent?.(event)}
-                        className="min-w-0 flex-1 text-left max-w-[80ch]"
+                        className={cn('min-w-0 flex-1 text-left', bodyMeasureClass)}
                       >
                         <p className="text-sm text-text-main">
                           {event.title}
