@@ -57,12 +57,12 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`t-aura ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable} ${inter.variable}`}
+      className={`t-lime ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
       <body>
         {/* FOUC-гард (P1 §2.2): применяем сохранённую тему до гидрации, иначе
-            вспышка дефолтного t-aura (класс на <html>). Inline parser-blocking
+            вспышка дефолтного t-lime (класс на <html>). Inline parser-blocking
             <script> первым ребёнком <body> — выполняется до отрисовки контента
             (паттерн next-themes). НЕ next/script beforeInteractive: тот рендерится
             ребёнком <html> → React 19 hydration error «<script> cannot be a child
@@ -70,11 +70,11 @@ export default function RootLayout({
             (zustand-persist), второй раз НЕ добавляем. ThemeProvider ниже
             реконсилит реактивные переключения.
             AUDIT C: применяем ТОЛЬКО валидную тему; scandi/paper/sand и любое
-            неизвестное значение → остаёмся на дефолте t-aura (миграция persisted). */}
+            неизвестное значение → остаёмся на дефолте t-lime (миграция persisted). */}
         <script
           id="theme-init"
           dangerouslySetInnerHTML={{
-            __html: `try{var V=['t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal','t-minimal'];var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&V.indexOf(t)!==-1&&t!=='t-aura'){var d=document.documentElement;d.classList.remove('t-aura');d.classList.add(t);}}catch(e){}`,
+            __html: `try{var V=['t-lime','t-aura','t-washi','t-fuji','t-frost','t-aurora','t-tidal','t-minimal'];var s=JSON.parse(localStorage.getItem('dashboard-theme'));var t=s&&s.state&&s.state.theme;if(t&&V.indexOf(t)!==-1&&t!=='t-lime'){var d=document.documentElement;d.classList.remove('t-lime');d.classList.add(t);}}catch(e){}`,
           }}
         />
         <QueryProvider>

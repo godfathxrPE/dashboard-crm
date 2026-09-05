@@ -169,8 +169,8 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
           в сайдбаре они про выписку, в шапке — про то, с кем вообще имеем дело. */}
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-lg bg-accent-l">
-            <Building2 size={22} className="text-accent" />
+          <div className="entity-tile h-[46px] w-[46px] shrink-0">
+            <Building2 size={22} />
           </div>
           <div className="min-w-0">
             <h1 className="aura-page-title truncate text-text-main">{company.name}</h1>

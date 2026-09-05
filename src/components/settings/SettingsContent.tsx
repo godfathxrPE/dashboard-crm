@@ -30,6 +30,7 @@ const ORG_ROLE_LABEL: Record<OrgRole, string> = {
 // источника (до S-TOKENS-CONTRACT-1 frost/aurora/tidal были показаны здесь
 // НЕ теми цветами, которыми красят интерфейс).
 const THEMES = [
+  { id: 't-lime', label: 'Lime' },
   { id: 't-aura', label: 'Аура' },
   { id: 't-washi', label: '和紙 Washi' },
   { id: 't-fuji', label: '富士 Fuji' },

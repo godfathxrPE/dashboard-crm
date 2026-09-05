@@ -1,13 +1,27 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// AUDIT C: scandi/paper/sand удалены. Дефолт — aura. Порядок = порядок cycleTheme.
-const THEMES = ['t-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'] as const;
+// AUDIT C: scandi/paper/sand удалены. Дефолт — lime (S-LIME-TOKENS-1).
+// Порядок = порядок cycleTheme: t-lime стоит первой, поэтому цикл начинается с неё.
+const THEMES = ['t-lime', 't-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'] as const;
 export type Theme = (typeof THEMES)[number];
 
 // Устаревшие темы (AUDIT C4-6): persisted-значение → миграция на дефолт.
 const LEGACY_THEMES = ['t-scandi', 't-paper', 't-sand'];
-const DEFAULT_THEME: Theme = 't-aura';
+const DEFAULT_THEME: Theme = 't-lime';
+
+/**
+ * Сохранённое значение темы → валидная тема. Вынесено из `merge` ради теста:
+ * смена `DEFAULT_THEME` меняет поведение миграции, и ломается это молча.
+ * Устаревшая (LEGACY) ИЛИ неизвестная ИЛИ пустая тема → дефолт.
+ */
+function resolvePersistedTheme(t: unknown): Theme {
+  const valid =
+    typeof t === 'string' &&
+    (THEMES as readonly string[]).includes(t) &&
+    !LEGACY_THEMES.includes(t);
+  return valid ? (t as Theme) : DEFAULT_THEME;
+}
 
 interface ThemeState {
   theme: Theme;
@@ -29,15 +43,13 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'dashboard-theme',
-      // Миграция persisted: устаревшая ИЛИ неизвестная тема → дефолт aura.
+      // Миграция persisted: устаревшая ИЛИ неизвестная тема → дефолт lime.
       merge: (persisted, current) => {
         const p = persisted as Partial<ThemeState> | undefined;
-        const t = p?.theme;
-        const valid = t && (THEMES as readonly string[]).includes(t) && !LEGACY_THEMES.includes(t);
-        return { ...current, ...p, theme: valid ? (t as Theme) : DEFAULT_THEME };
+        return { ...current, ...p, theme: resolvePersistedTheme(p?.theme) };
       },
     },
   ),
 );
 
-export { THEMES, DEFAULT_THEME, LEGACY_THEMES };
+export { THEMES, DEFAULT_THEME, LEGACY_THEMES, resolvePersistedTheme };
