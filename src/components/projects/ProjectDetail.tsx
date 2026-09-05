@@ -458,7 +458,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
           посчитал бы deal-сигналы для карточки, где их смысла нет. Макет
           «Сделка v2» внедрение не описывает — оно остаётся на двухколоннике. */}
       {isDeal ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_356px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_356px]">
           {/* ─── Зона «Работа» ─── */}
           <section
             className="zone order-1 min-w-0 lg:col-start-1"
@@ -483,7 +483,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
               Sticky на ОБЁРТКЕ, а не на каждой зоне: иначе «Риски» уедут при
               скролле ленты. `self-start` не косметика — растянутый по строке
               грида элемент sticky не липнет. */}
-          <div className="order-2 flex min-w-0 flex-col gap-4 lg:col-start-2 lg:sticky lg:top-4 lg:self-start">
+          <div className="order-2 flex min-w-0 flex-col gap-5 lg:col-start-2 lg:sticky lg:top-4 lg:self-start">
             {/* Фон зоны динамический (F-10: уровень несёт заливка, а не ещё один
                 бейдж), подзаголовок — СТАТИЧЕСКИЙ: словами вердикт говорит
                 DealVerdictChip под шагом, и два словесных носителя одного факта —
