@@ -7,6 +7,8 @@ import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { RailCard, RailRow } from '@/components/shared/RailCard';
 import { formatBudget } from '@/lib/validators/project';
+import { formatContactName, formatContactNameShort } from '@/lib/utils/contact-name';
+import { formatDateNumeric } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils/cn';
 
 // ═══════════════════════════════════════════════════════
@@ -19,12 +21,6 @@ import { cn } from '@/lib/utils/cn';
 // Сюда же переехали из шапки страницы бейдж полноты (R-06: счётчик обязан стоять
 // над полями, которые считает) и «Создан …» (R-11/F-09).
 // ═══════════════════════════════════════════════════════
-
-/** «Иванов И.» — в рельсе 320px полное ФИО режется чаще, чем читается. */
-function shortName(first: string, last: string): string {
-  const initial = first.trim().charAt(0);
-  return initial ? `${last} ${initial}.` : last;
-}
 
 /**
  * Приглашение вместо прочерка (F-05): пустое поле выглядит пустым и зовёт
@@ -100,10 +96,10 @@ export function DealSummaryCard({
           {project.contact ? (
             <Link
               href={`/contacts/${project.contact_id}`}
-              title={`${project.contact.first_name} ${project.contact.last_name}`}
+              title={formatContactName(project.contact.first_name, project.contact.last_name)}
               className="text-accent transition-colors hover:underline"
             >
-              {shortName(project.contact.first_name, project.contact.last_name)}
+              {formatContactNameShort(project.contact.first_name, project.contact.last_name)}
             </Link>
           ) : (
             <>
@@ -128,7 +124,7 @@ export function DealSummaryCard({
           </RailRow>
         ) : (
           <RailRow label="Бюджет">
-            <span className="inline-flex items-center">
+            <span className="inline-flex items-center tabular-nums">
               <InlineEdit
                 value={project.budget ? String(project.budget) : ''}
                 type="number"
@@ -151,23 +147,23 @@ export function DealSummaryCard({
             value={project.deadline ?? ''}
             type="date"
             placeholder="+ Установить"
+            // F-02: соседние строки рельса печатали дату двумя форматами.
+            // Формат один на обе — числовой, из dates.ts.
             formatDisplay={(v) => {
               try {
-                return new Date(v).toLocaleDateString('ru-RU', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                });
+                return formatDateNumeric(v);
               } catch { return v; }
             }}
             onSave={async (val) => {
               updateProject.mutate({ id: project.id, deadline: val || null });
             }}
-            className={cn(!project.deadline && 'italic')}
+            className={cn('tabular-nums', !project.deadline && 'italic')}
           />
         </RailRow>
 
         <RailRow label="Создана">
-          <span className="text-text-dim">
-            {new Date(project.created_at).toLocaleDateString('ru-RU')}
+          <span className="tabular-nums text-text-dim">
+            {formatDateNumeric(project.created_at)}
           </span>
         </RailRow>
       </RailCard>

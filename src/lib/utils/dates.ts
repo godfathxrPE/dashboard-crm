@@ -32,6 +32,18 @@ export function formatDateShort(date: string | Date): string {
 }
 
 /**
+ * "04.09.2026" — числовой формат для рельса сделки.
+ *
+ * Заведён в S-FORMAT-1: в «Сводке» соседние строки печатали дату двумя разными
+ * форматами (F-02). Инлайн `toLocaleDateString` в компонентах не заводить —
+ * иначе форматы снова разъедутся.
+ */
+export function formatDateNumeric(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return format(d, 'dd.MM.yyyy', { locale: ru });
+}
+
+/**
  * "Пн, 15 мар" — с днём недели
  */
 export function formatDateWithDay(date: string | Date): string {

@@ -190,20 +190,49 @@ export type ProjectFormValues = z.infer<typeof projectFormSchema>;
 // Budget formatting helpers
 // ═══════════════════════════════════════════════════════
 
-/** Форматировать бюджет из копеек в рубли */
+/**
+ * Неразрывный пробел: «2,8 млн ₽» — одна лексема, переносить её нельзя.
+ */
+const NBSP = '\u00A0';
+
+/**
+ * Форматировать бюджет из копеек в рубли — русским письмом: «2,8 млн ₽».
+ * Латинские «M»/«K» и точка-разделитель читались как чужой формат (F-03).
+ */
 export function formatBudget(kopecks: number | null): string {
   if (kopecks == null) return '—';
   const rub = kopecks / 100;
-  if (rub >= 1_000_000) return `${(rub / 1_000_000).toFixed(1)}M ₽`;
-  if (rub >= 1_000) return `${(rub / 1_000).toFixed(0)}K ₽`;
-  return `${rub.toFixed(0)} ₽`;
+  if (rub >= 1_000_000) {
+    // Целое значение печатается без дробной части: «3 млн ₽», не «3,0 млн ₽».
+    const millions = (rub / 1_000_000).toFixed(1).replace(/\.0$/, '').replace('.', ',');
+    return `${millions}${NBSP}млн${NBSP}₽`;
+  }
+  if (rub >= 1_000) return `${(rub / 1_000).toFixed(0)}${NBSP}тыс.${NBSP}₽`;
+  return `${rub.toFixed(0)}${NBSP}₽`;
 }
 
-/** Парсить ввод пользователя в копейки */
+/**
+ * Парсить ввод пользователя в копейки.
+ *
+ * Понимает суффиксы, которые печатает `formatBudget`: без этого новый формат
+ * показа стал бы ловушкой на вводе — «2,8 млн» уходило в 280 копеек.
+ */
 export function parseBudgetInput(input: string): number | null {
-  const cleaned = input.replace(/[\s₽руб.rub]/gi, '').trim();
+  const cleaned = input
+    .replace(/[\s₽]/g, '')
+    .replace(/руб\.?|rub\.?/gi, '')
+    .toLowerCase();
   if (!cleaned) return null;
-  const num = parseFloat(cleaned.replace(',', '.'));
+
+  const suffix = cleaned.match(/(млн|тыс|m|м|k|к)\.?$/);
+  const multiplier = suffix
+    ? suffix[1] === 'млн' || suffix[1] === 'm' || suffix[1] === 'м'
+      ? 1_000_000
+      : 1_000
+    : 1;
+  const body = suffix ? cleaned.slice(0, suffix.index) : cleaned;
+
+  const num = parseFloat(body.replace(',', '.'));
   if (isNaN(num)) return null;
-  return Math.round(num * 100);
+  return Math.round(num * multiplier * 100);
 }

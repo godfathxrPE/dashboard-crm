@@ -111,7 +111,10 @@ export function PipelineCockpit({
   const showFill = !locked && gauge?.pct != null;
 
   return (
-    <div>
+    // `group/cockpit` — якорь наведения для слота `guidance`: пустое приглашение
+    // «Добавить подсказку» проявляется по наведению на блок стадии (S-FORMAT-1),
+    // а не занимает строку на каждой ненастроенной сделке.
+    <div className="group/cockpit">
       {groupLabel && (
         <div
           className="mb-1 text-meta font-semibold uppercase tracking-wider"
@@ -244,7 +247,9 @@ export function PipelineCockpit({
         {metaRight && <span className="ml-auto text-xs tabular-nums text-text-mute">{metaRight}</span>}
       </div>
 
-      {guidance && <div className="mt-2">{guidance}</div>}
+      {/* empty:mt-0 — слот отдан, но содержимое условно (не-owner без подсказки
+          не видит ничего): пустая обёртка не должна оставлять отступ. */}
+      {guidance && <div className="mt-2 empty:mt-0">{guidance}</div>}
 
       {mapOpen && <div className="mt-2">{map}</div>}
     </div>

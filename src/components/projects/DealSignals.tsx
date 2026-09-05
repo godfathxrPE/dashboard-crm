@@ -136,6 +136,8 @@ export interface DealSignalsProps {
 
 export function DealSignals({ result, onAction, className, showVerdict = true }: DealSignalsProps) {
   const [open, setOpen] = useState(false);
+  // Раскрытие свёрнутой нормы в рельсе — состояние экрана, не данных: не персистим.
+  const [normalOpen, setNormalOpen] = useState(false);
   const { verdict, signals, top } = result;
   const config = VERDICT_CONFIG[verdict];
   const styles = VERDICT_STYLES[verdict];
@@ -144,12 +146,53 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
   if (signals.length === 0) return null;
 
   if (!showVerdict) {
+    // «Здоровье» в рельсе — список помех, а не перепись всех сигналов: цветным
+    // маркером подсвеченная норма съедала две трети виджета (аудит 04.09).
+    // 'na' сюда не доходит — его отфильтровал getDealSignals.
+    const problems = signals.filter((s) => s.state !== 'ok');
+    const normal = signals.filter((s) => s.state === 'ok');
+
     return (
-      <ul className={cn('space-y-1.5', className)}>
-        {signals.map((s) => (
-          <SignalRow key={s.key} signal={s} onAction={onAction} />
-        ))}
-      </ul>
+      <div className={cn('min-w-0', className)}>
+        {problems.length > 0 ? (
+          <ul className="space-y-1.5">
+            {problems.map((s) => (
+              <SignalRow key={s.key} signal={s} onAction={onAction} />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-text-dim">Всё в норме</p>
+        )}
+
+        {normal.length > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setNormalOpen((v) => !v)}
+              aria-expanded={normalOpen}
+              className={cn(
+                'flex items-center gap-1 rounded-lg px-1 py-0.5 text-meta text-text-mute',
+                'transition-colors hover:text-text-dim',
+                problems.length > 0 && 'mt-1.5',
+              )}
+            >
+              {normal.length} в норме
+              <ChevronDown
+                size={12}
+                aria-hidden
+                className={cn('transition-transform', normalOpen && 'rotate-180')}
+              />
+            </button>
+            {normalOpen && (
+              <ul className="mt-1.5 space-y-1.5">
+                {normal.map((s) => (
+                  <SignalRow key={s.key} signal={s} onAction={onAction} />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
     );
   }
 
