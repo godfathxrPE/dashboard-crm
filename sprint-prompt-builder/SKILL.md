@@ -329,6 +329,19 @@ Run before delivering any prompt:
 
 ## Prompt Writing Rules
 
+### 0. Спринт, который трогает ПОКАЗ поля, разведует ДАННЫЕ, а не только код
+Форматтер пишется под то, что реально лежит в колонке. «Пустое» в импортированной базе
+почти никогда не `NULL`: в dashboard-crm пустая фамилия записана дефисом, и фикс F-01
+прошёл тесты, но не сработал на экране. В РАЗВЕДКУ такого спринта — запрос распределения:
+
+```sql
+select coalesce(<col>,'∅') as val, count(*) from <table>
+where <col> is null or length(trim(<col>)) <= 3 group by 1 order by 2 desc;
+```
+
+Он показывает и заполнители («-», «н/д»), и границу, за которую нельзя чистить по длине
+(настоящие короткие значения). Без него спецификация форматтера — предположение.
+
 ### 1. РАЗВЕДКА is mandatory
 Never skip. Even if you "know" the file structure, Claude Code might be
 running in a different state. 3-5 diagnostic commands cost nothing and
