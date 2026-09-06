@@ -28,6 +28,9 @@ function ctx(patch: Partial<DealSignalContext> = {}): DealSignalContext {
     gauge: OK_GAUGE,
     phaseGroup: 'attraction',
     stakeholderCount: 2,
+    // null — ожиданий у воронки нет: по умолчанию сигнал считает по количеству
+    // участников, как до S-DEAL-ROLES-1.
+    missingRequiredRoles: null,
     lastActivityAt: daysAgo(0),
     ...patch,
   };
@@ -240,6 +243,74 @@ describe('getDealSignals — single_threaded', () => {
       NOW,
     );
     expect(find(r.signals, 'single_threaded')).toBeUndefined();
+  });
+});
+
+// S-DEAL-ROLES-1: сигнал переходит с КОЛИЧЕСТВА участников на ПОКРЫТИЕ ролей —
+// но только там, где у воронки есть ожидания.
+//
+// ⚠️ Фазы берутся из MULTI_THREAD_PHASES: working / approval / closing. `execution` —
+// фаза DELIVERY-воронки (035), у сделки её нет: тест на ней ушёл бы в ветку `na` и
+// был бы зелёным, ничего не проверяя.
+describe('getDealSignals — single_threaded по покрытию ролей', () => {
+  const base = {
+    status: 'open' as const,
+    created_at: daysAgo(60),
+    next_step: 'Позвонить',
+    next_action_date: dateKey(5),
+  };
+
+  it('ожидания есть, ЛПР не закрыт, фаза working — warn (не bad: вердикт не уходит в rotting)', () => {
+    const r = getDealSignals(
+      base,
+      ctx({
+        phaseGroup: 'working',
+        stakeholderCount: 3,
+        missingRequiredRoles: ['decision_maker'],
+      }),
+      DEFAULT_SIGNAL_THRESHOLDS,
+      NOW,
+    );
+    const s = find(r.signals, 'single_threaded');
+    expect(s?.state).toBe('warn');
+    expect(s?.label).toBe('ЛПР не в контуре');
+    expect(r.verdict).not.toBe('rotting');
+  });
+
+  it('то же на attraction — na: фазовый гейт сохранён', () => {
+    const r = getDealSignals(
+      base,
+      ctx({
+        phaseGroup: 'attraction',
+        stakeholderCount: 3,
+        missingRequiredRoles: ['decision_maker'],
+      }),
+      DEFAULT_SIGNAL_THRESHOLDS,
+      NOW,
+    );
+    expect(find(r.signals, 'single_threaded')).toBeUndefined();
+  });
+
+  it('ожидания есть, всё закрыто — ok даже при одном участнике', () => {
+    const r = getDealSignals(
+      base,
+      ctx({ phaseGroup: 'closing', stakeholderCount: 1, missingRequiredRoles: [] }),
+      DEFAULT_SIGNAL_THRESHOLDS,
+      NOW,
+    );
+    expect(find(r.signals, 'single_threaded')?.state).toBe('ok');
+  });
+
+  it('ожиданий нет (null), один участник на closing — прежнее поведение по количеству', () => {
+    const r = getDealSignals(
+      base,
+      ctx({ phaseGroup: 'closing', stakeholderCount: 1, missingRequiredRoles: null }),
+      DEFAULT_SIGNAL_THRESHOLDS,
+      NOW,
+    );
+    const s = find(r.signals, 'single_threaded');
+    expect(s?.state).toBe('warn');
+    expect(s?.label).toBe('Вся работа на одном человеке');
   });
 });
 

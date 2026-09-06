@@ -3844,6 +3844,77 @@ where n.nspname = 'public' and c.relkind = 'r'
   `entity_type` к union `deal|lead|contact` на границе хука: в БД это `text` + CHECK,
   не enum-тип, и автогенерация отдаёт `string`.
 
+### pipeline_expected_roles (130, **НАПИСАНА, НЕ ПРИМЕНЕНА**) — ожидаемые роли контура сделки
+
+- **Назначение (S-DEAL-ROLES-1, виджет W10 спеки deal-v2).** Одна строка = «в этой воронке
+  ждём человека с такой ролью». Карта стейкхолдеров превращается из плоского списка в
+  СЛОТЫ: список отвечает «кто есть», слоты — «кого НЕ хватает», и второе есть работа
+  пресейла. Пустой слот ЛПР сам является сообщением.
+- **Колонки:** `id uuid pk` · `org_id uuid not null → organizations(id) cascade` ·
+  `pipeline_id uuid not null → pipelines(id) cascade` · `role text not null`
+  (CHECK `pipeline_expected_roles_role_chk` — зеркало `deal_stakeholders_role_chk`) ·
+  `is_required boolean not null default false` · `hint text` ·
+  `sort_order smallint not null default 0` ·
+  `created_by uuid default auth.uid() → profiles(id) set null` · `created_at`/`updated_at`.
+- **Ограничения и индексы:** `pipeline_expected_roles_uniq` UNIQUE `(org_id, pipeline_id,
+  role)` — два слота «ЛПР» в виджете это не «два ЛПР», а сломанный счётчик «N из M»;
+  `pipeline_expected_roles_org_pipeline_idx (org_id, pipeline_id)` под единственный
+  рабочий запрос «ожидания этой воронки».
+- **Триггеры:** `trg_aa_freeze_org_id` (BEFORE UPDATE OF org_id — **вручную**, автоцикл
+  054 покрыл только таблицы своего момента), `trg_set_updated_at` →
+  `public.update_updated_at()`. **`trg_set_org_id` НЕ вешается** — паттерн
+  `stage_requirements` (027): `org_id` приходит явно из UI настроек организации.
+- **RLS (4 раздельные политики, `to authenticated`):** `_select` —
+  `org_id = ( select public.current_org_id() )`, ВСЕ члены org (иначе виджет у
+  manager/viewer рисовал бы пустоту вместо контура); `_insert` / `_update` / `_delete` —
+  то же + `( select public.current_org_role() ) in ('owner','admin')`, у UPDATE
+  WITH CHECK повторяет USING (урок 054). **Уже, чем у `deal_stakeholders`** (092, где
+  пишет и manager) намеренно: там manager правит УЧАСТНИКОВ своей сделки, здесь —
+  НАСТРОЙКУ воронки, общую для всей организации.
+- **Гранты:** `revoke all … from anon` + явные `select, insert, update, delete` для
+  `authenticated`. `revoke truncate, references, trigger` не пишем — 082 сузил корень.
+- ⚠️ **Это НЕ словарь ролей.** Словарь — CHECK `deal_stakeholders_role_chk` (092), шесть
+  значений MEDDIC, он не меняется. Здесь ОЖИДАНИЕ ролей в конкретной воронке — другая
+  сущность с похожим именем. CHECK на `role` — **дословное зеркало**: сослаться на чужой
+  CHECK нельзя, а расхождение даёт 23514 уже на сиде. Меняются вместе, и вместе с
+  `STAKEHOLDER_ROLES` / `STAKEHOLDER_ROLE_ORDER` / `STAKEHOLDER_ROLE_CONFIG` и
+  `src/lib/validators/stakeholder.ts`.
+- ⚠️ **Таблица, а не колонка в `pipelines`:** `pipelines`/`pipeline_stages` — глобальные
+  словари, не org-scoped; org-специфичный атрибут заводится отдельной таблицей
+  `(org_id, …)`, как `stage_requirements` (027).
+- ⚠️ **«Основной контакт» из спеки сюда НЕ кладётся.** Primary — это
+  `projects.contact_id`, он вычисляется (092); строка `role = 'primary'` была бы вторым
+  источником истины поверх него (урок `companies.phone` ↔ `phones[]`). В UI primary —
+  **виртуальный слот**, всегда первый; счётчик «N из M» = 1 + число ожидаемых ролей.
+- ⚠️ **FK на `pipelines` ОСТАВЛЕН** — в отличие от 078, где FK у `stage_transitions` на
+  `pipeline_stages` сняли: там запись ИСТОРИЧЕСКАЯ и CASCADE при пересборке словаря вынес
+  бы историю переходов по всем org. Здесь запись КОНФИГУРАЦИОННАЯ — потеря настройки при
+  пересборке воронки меньшее зло, чем висячая ссылка.
+- ⚠️ **Воронка без строк = ПРЕЖНЕЕ поведение** (плоский список, сигнал `single_threaded`
+  по количеству участников). Обратная совместимость, а не заглушка: delivery-воронки и
+  любые новые не должны молча получить пустые слоты и красный сигнал.
+- **Сид (в миграции, идемпотентный, best-effort — паттерн 027):** дефолтная org
+  (`organizations ORDER BY created_at LIMIT 1`), воронки матчатся по
+  `entity_type = 'deal'` + `direction` (`iiot` / `erp`), **НЕ по имени**: имена правятся
+  из UI, а delivery-воронки уже пересобирались в 035 («IIoT Внедрение») — якорь на имя
+  разъехался бы молча. Воронка не нашлась — пропуск, не ошибка. Состав: IIoT —
+  `decision_maker` (required) + `expert`; ERP — `decision_maker` (required) +
+  `economic_buyer`. **Состав ERP — предположение**, спека описывает только IIoT;
+  подтверждается владельцем.
+- **Realtime НЕ включён** намеренно: настройка меняется раз в месяцы, у хука `staleTime`
+  5 минут. Бэкфилла нет — ожидаемых ролей до 130 не существовало.
+- **Потребители:** `src/lib/domain/role-slots.ts` (`resolveRoleSlots` — чистая сборка
+  слотов, ноль React), `src/lib/hooks/use-pipeline-expected-roles.ts`
+  (`usePipelineExpectedRoles`, только чтение — состав слотов правится из «Настроек
+  организации», экран отдельным спринтом), `DealStakeholders.tsx` (слоты и счётчик),
+  `DealSignals.tsx` → `deal-signals.ts` (сигнал `single_threaded` перешёл с КОЛИЧЕСТВА
+  участников на ПОКРЫТИЕ обязательных ролей; фазовый гейт `MULTI_THREAD_PHASES`
+  сохранён, severity осталась `warn` — `bad` поднял бы вердикт до `rotting` и покрасил
+  всю зону «Риски»).
+- ⚠️ **Стаб типов заведён** (`PipelineExpectedRolesStub` в `src/types/database.ts`):
+  таблицы в БД ещё нет, реген невозможен. **Снять ТЕМ ЖЕ заходом, что реген** после
+  apply — оставленный стаб переживает миграцию молча и продолжает врать про схему.
+
 ### Планировщик (pg_cron) — два ежедневных задания
 
 | Job | Расписание (UTC) | Команда | Введён |

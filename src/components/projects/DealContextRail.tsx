@@ -114,7 +114,14 @@ function PinnedNoteCard({ project }: { project: Project }) {
   );
 }
 
-/** Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`. */
+/**
+ * Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`.
+ *
+ * `pipelineId` идёт пропом отсюда, где `project` уже есть целиком: ожидания ролей
+ * висят на ВОРОНКЕ, а второй запрос проекта внутри виджета ради одного поля означал
+ * бы вторую истину о воронке сделки. У internal-проектов поле пусто — виджет обязан
+ * это переживать (рисует прежний плоский список).
+ */
 function StakeholdersBlock({ project }: { project: Project }) {
   return (
     <div id="deal-stakeholders">
@@ -123,6 +130,7 @@ function StakeholdersBlock({ project }: { project: Project }) {
         primaryContactId={project.contact_id}
         primaryContact={project.contact ?? null}
         companyId={project.company_id}
+        pipelineId={project.pipeline_id}
       />
     </div>
   );

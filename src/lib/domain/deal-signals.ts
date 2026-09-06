@@ -1,7 +1,8 @@
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import type { StageTimeGauge } from '@/lib/domain/stage-norm';
 import { diffDaysKey, localDateKey } from '@/lib/utils/date-helpers';
-import type { DealStatus } from '@/types/database';
+import { STAKEHOLDER_ROLE_CONFIG } from '@/lib/constants/stakeholders';
+import type { DealStatus, StakeholderRole } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-HEALTH-V2-1: здоровье сделки как набор ИМЕНОВАННЫХ сигналов.
@@ -49,6 +50,13 @@ export interface DealSignalContext {
   phaseGroup: string | null;
   /** Число стейкхолдеров сделки (включая основной контакт). */
   stakeholderCount: number | null;
+  /**
+   * S-DEAL-ROLES-1: незакрытые ОБЯЗАТЕЛЬНЫЕ роли контура (`resolveRoleSlots`).
+   * `null` — у воронки нет ожиданий (или они ещё не загрузились): тогда сигнал
+   * считает по количеству участников, как до спринта. Пустой массив — ожидания
+   * есть и все обязательные роли закрыты.
+   */
+  missingRequiredRoles: StakeholderRole[] | null;
   /** ISO последней записи activity_log по сделке; null — активности не было. */
   lastActivityAt: string | null;
 }
@@ -287,12 +295,66 @@ function silenceSignal(
   };
 }
 
+/** Короткий ярлык роли для текста сигнала («ЛПР», «Эксперт»). */
+function roleLabel(role: StakeholderRole): string {
+  return STAKEHOLDER_ROLE_CONFIG[role]?.label ?? role;
+}
+
+/**
+ * S-DEAL-ROLES-1: ветка «покрытие ролей». Работает, только когда у воронки ЕСТЬ
+ * ожидания (`pipeline_expected_roles`, 130); иначе сигнал остаётся на прежнем
+ * счёте участников — см. `singleThreadedSignal`.
+ *
+ * ⚠️ Severity — `warn`, а НЕ `bad`, и это решение, а не недосмотр. `bad` поднял бы
+ * вердикт сделки до `rotting` и покрасил всю зону «Риски»: незаполненный слот ЛПР
+ * на любой рабочей сделке делал бы её «под угрозой». Спека называет это «ключевым
+ * риском стадии», но подъём severity меняет продуктовое поведение виджета здоровья
+ * и должен решаться отдельно, а не приезжать прицепом к слотам. Пустой обязательный
+ * слот всё равно выделен в W10 своим цветом — носитель состояния на месте.
+ *
+ * ⚠️ Текст берётся из СЛОВАРЯ ролей, а не из `hint` строки ожиданий. Причина — форма
+ * контекста: домен получает роли (`missingRequiredRoles`), не тексты; тянуть сюда
+ * org-редактируемую подпись значило бы, что формулировка сигнала здоровья меняется
+ * из настроек. Формулировка при этом та же, что у дефолтного `hint` («ЛПР не в
+ * контуре»), — расхождения на экране нет.
+ */
+function roleCoverageSignal(missing: readonly StakeholderRole[]): DealSignal {
+  if (missing.length === 0) {
+    return {
+      key: 'single_threaded',
+      label: 'Контур ролей закрыт',
+      state: 'ok',
+      detail: 'Все ключевые роли на стороне клиента найдены.',
+      cta: null,
+    };
+  }
+  const names = missing.map(roleLabel).join(', ');
+  return {
+    key: 'single_threaded',
+    label: missing.length === 1 ? `${names} не в контуре` : `Не в контуре: ${names}`,
+    state: 'warn',
+    detail: 'Ключевой риск стадии: без этой роли решение по сделке некому принять.',
+    cta: 'К участникам',
+  };
+}
+
 function singleThreadedSignal(ctx: DealSignalContext): DealSignal {
   // null — «не загрузились», а не «ноль»: сигнал не должен загораться на
   // спиннере (тот же принцип, что у гейта кокпита — пустой ответ и «ещё не
   // спросили» неразличимы, поэтому не рендерим).
   if (ctx.stakeholderCount == null) {
     return { key: 'single_threaded', label: '', state: 'na', detail: '', cta: null };
+  }
+  // Ожидания воронки есть — сигнал считает ПОКРЫТИЕ ролей, а не количество людей:
+  // на стадии «Защита КП» сообщение «людей мало» не то, а «ЛПР не в контуре» — то.
+  // Фазовый гейт общий с прежней веткой и стоит ниже: контур собирают не на первом
+  // касании (по живой БД 8 из 10 открытых сделок имеют ≤1 стейкхолдера).
+  if (ctx.missingRequiredRoles != null) {
+    if (ctx.missingRequiredRoles.length === 0) return roleCoverageSignal([]);
+    if (!ctx.phaseGroup || !MULTI_THREAD_PHASES.has(ctx.phaseGroup)) {
+      return { key: 'single_threaded', label: '', state: 'na', detail: '', cta: null };
+    }
+    return roleCoverageSignal(ctx.missingRequiredRoles);
   }
   if (ctx.stakeholderCount > 1) {
     return {

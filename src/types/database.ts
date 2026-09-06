@@ -25,6 +25,53 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
+// ═══ S-DEAL-ROLES-1 (130, на гейте): pipeline_expected_roles ═══
+// ВРЕМЕННЫЙ СТАБ. Снять целиком после apply 130 + регенерации типов: таблица
+// приедет из автогенерации, а этот блок обязан уйти — оставленный стаб переживает
+// миграцию молча и продолжает врать про схему.
+//
+// `type`, а НЕ `interface`: postgrest требует от таблицы индексную сигнатуру,
+// interface её не получает, и `.update()` схлопывается в `never` (урок 123).
+type PipelineExpectedRolesStub = {
+  Row: {
+    id: string;
+    org_id: string;
+    pipeline_id: string;
+    role: string;
+    is_required: boolean;
+    hint: string | null;
+    sort_order: number;
+    created_by: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+  Insert: {
+    id?: string;
+    org_id: string;
+    pipeline_id: string;
+    role: string;
+    is_required?: boolean;
+    hint?: string | null;
+    sort_order?: number;
+    created_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Update: {
+    id?: string;
+    org_id?: string;
+    pipeline_id?: string;
+    role?: string;
+    is_required?: boolean;
+    hint?: string | null;
+    sort_order?: number;
+    created_by?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -36,7 +83,10 @@ export type Database = {
       > & {
         Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']>;
       };
-    };
+      // 130 на гейте: ключа нет в автогенерации, поэтому таблица дописывается
+      // отдельным членом, а не пересечением по K (пересечение умеет только
+      // ДОПОЛНЯТЬ существующий ключ — стаб 123 менял колонку в `companies`).
+    } & { pipeline_expected_roles: PipelineExpectedRolesStub };
   };
 };
 
@@ -835,6 +885,28 @@ export const STAKEHOLDER_ROLES = [
 ] as const;
 
 export type StakeholderRole = (typeof STAKEHOLDER_ROLES)[number];
+
+// ═══ S-DEAL-ROLES-1: ожидаемые роли контура по воронке (миграция 130 — на гейте) ═══
+// ОЖИДАНИЕ роли, а не сама роль: словарь ролей остаётся `StakeholderRole` выше.
+// Строк для воронки нет ⇒ виджет рисует прежний плоский список (обратная
+// совместимость с delivery-воронками, см. шапку 130).
+//
+// `role` сужен к `StakeholderRole`: в БД это `text` + CHECK
+// `pipeline_expected_roles_role_chk` (зеркало словаря), сужение — на границе хука,
+// тем же приёмом, что `DealStakeholder.role`.
+export interface PipelineExpectedRole {
+  id: string;
+  org_id: string;
+  pipeline_id: string;
+  role: StakeholderRole;
+  /** Пустой слот обязательной роли поднимает сигнал `single_threaded`. */
+  is_required: boolean;
+  /** Пояснение под названием слота; оно же — текст сигнала здоровья. */
+  hint: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
 // ═══ S-CHAT-HUB-1a: тип канала (миграция 094 — на гейте) ═══
 // В БД — `text` + CHECK conversations_kind (094); здесь union. В 1a создаются только
