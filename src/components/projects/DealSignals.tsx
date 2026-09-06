@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils/cn';
 import { useActivityLog } from '@/lib/hooks/use-activity-log';
 import { useDealStakeholders } from '@/lib/hooks/use-deal-stakeholders';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { usePipelineExpectedRoles } from '@/lib/hooks/use-pipeline-expected-roles';
+import { resolveRoleSlots } from '@/lib/domain/role-slots';
 import {
   useDealSignalThresholds,
   useDwellThresholds,
@@ -60,6 +62,9 @@ const STATE_STYLES: Record<Exclude<SignalState, 'na'>, { glyph: string; color: s
 export function useDealSignals(project: Project): DealSignalsResult {
   const { data: entries } = useActivityLog(project.id);
   const { data: stakeholders } = useDealStakeholders(project.id);
+  // Ожидания ролей воронки — ТОТ ЖЕ хук и ключ, что зовёт карта стейкхолдеров:
+  // React Query отдаёт из кеша, второго запроса не будет.
+  const { data: expectedRoles } = usePipelineExpectedRoles(project.pipeline_id);
   const allStages = useStagesForPipeline(project.pipeline_id);
   const targetDays = useStageTargetDays();
   const dwell = useDwellThresholds();
@@ -81,6 +86,15 @@ export function useDealSignals(project: Project): DealSignalsResult {
     [stage, project.stage_entered_at, targetDays, dwell],
   );
 
+  // Покрытие ролей считает ТОТ ЖЕ `resolveRoleSlots`, что рисует слоты в виджете:
+  // вторая формула «чего не хватает» разошлась бы с тем, что человек видит в карте.
+  // `null` — ожиданий у воронки нет (или ещё не приехали): сигнал остаётся на
+  // прежнем счёте участников.
+  const missingRequiredRoles = useMemo(() => {
+    if (!expectedRoles?.length || !stakeholders) return null;
+    return resolveRoleSlots(expectedRoles, stakeholders, project.contact_id).missingRequired;
+  }, [expectedRoles, stakeholders, project.contact_id]);
+
   return useMemo(
     () =>
       getDealSignals(
@@ -91,11 +105,12 @@ export function useDealSignals(project: Project): DealSignalsResult {
           // `?? null` — «ещё не загрузились», а не «ноль участников»:
           // сигнал не должен загораться на спиннере.
           stakeholderCount: stakeholders?.length ?? null,
+          missingRequiredRoles,
           lastActivityAt: entries?.[0]?.created_at ?? null,
         },
         thresholds,
       ),
-    [project, gauge, stage?.phase_group, stakeholders, entries, thresholds],
+    [project, gauge, stage?.phase_group, stakeholders, missingRequiredRoles, entries, thresholds],
   );
 }
 

@@ -91,9 +91,37 @@ describe('sortStakeholders — порядок карты', () => {
   });
 });
 
-describe('словарь ролей — согласованность с БД-CHECK (092)', () => {
+describe('словарь ролей — согласованность с БД-CHECK (092, 123, 130)', () => {
   test('ORDER и union совпадают по составу', () => {
     expect([...STAKEHOLDER_ROLE_ORDER].sort()).toEqual([...STAKEHOLDER_ROLES].sort());
+  });
+
+  // Совпадение по составу пропускает дубль: `['a','a','b']` и `['a','b']` после
+  // sort+uniq-сравнения разошлись бы только если сравнивать длины. А дубль в ORDER
+  // — не теория: `roleRank` берёт первое вхождение, и вторая копия роли молча
+  // получила бы чужой вес сортировки.
+  test('ORDER содержит каждое значение union ровно по разу', () => {
+    expect(STAKEHOLDER_ROLE_ORDER).toHaveLength(STAKEHOLDER_ROLES.length);
+    expect(new Set(STAKEHOLDER_ROLE_ORDER).size).toBe(STAKEHOLDER_ROLE_ORDER.length);
+    for (const role of STAKEHOLDER_ROLES) {
+      expect(STAKEHOLDER_ROLE_ORDER.filter((r) => r === role)).toHaveLength(1);
+    }
+  });
+
+  // Размер словаря — не деталь: он зеркалит ТРИ CHECK'а в БД. Падение этого теста
+  // означает «роль добавили/убрали в коде» и требует ответа, поехали ли CHECK'и
+  // (`deal_stakeholders_role_chk` 092, `leads_decision_role_check` 123,
+  // `pipeline_expected_roles_role_chk` 130) тем же заходом.
+  test('в словаре семь ролей — ЛВР (influencer) добавлен миграцией 130', () => {
+    expect(STAKEHOLDER_ROLES).toHaveLength(7);
+    expect(STAKEHOLDER_ROLES).toContain('influencer');
+  });
+
+  // Порядок = убывание влияния на сделку: ЛВР идёт сразу за ЛПР, до держателя
+  // бюджета. Это продуктовое решение, а не алфавит, — фиксируем.
+  test('ЛВР стоит вторым, сразу после ЛПР', () => {
+    expect(STAKEHOLDER_ROLE_ORDER[0]).toBe('decision_maker');
+    expect(STAKEHOLDER_ROLE_ORDER[1]).toBe('influencer');
   });
 
   test('у каждой роли есть ярлык и цвет', () => {

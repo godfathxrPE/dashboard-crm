@@ -114,8 +114,15 @@ function PinnedNoteCard({ project }: { project: Project }) {
   );
 }
 
-/** Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`. */
-function StakeholdersBlock({ project }: { project: Project }) {
+/**
+ * Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`.
+ *
+ * `pipelineId` идёт пропом отсюда, где `project` уже есть целиком: ожидания ролей
+ * висят на ВОРОНКЕ, а второй запрос проекта внутри виджета ради одного поля означал
+ * бы вторую истину о воронке сделки. У internal-проектов поле пусто — виджет обязан
+ * это переживать (рисует прежний плоский список).
+ */
+function StakeholdersBlock({ project, onEdit }: { project: Project; onEdit?: () => void }) {
   return (
     <div id="deal-stakeholders">
       <DealStakeholders
@@ -123,6 +130,8 @@ function StakeholdersBlock({ project }: { project: Project }) {
         primaryContactId={project.contact_id}
         primaryContact={project.contact ?? null}
         companyId={project.company_id}
+        pipelineId={project.pipeline_id}
+        onEditContact={onEdit}
       />
     </div>
   );
@@ -186,7 +195,7 @@ export function DealContextZone({
           (`ProjectDetail`, `type === 'client'`), у внедрения зон нет вовсе —
           проверка `type !== 'delivery'` внутри была бы мёртвой веткой. */}
       <DealChzCard project={project} />
-      <StakeholdersBlock project={project} />
+      <StakeholdersBlock project={project} onEdit={onEdit} />
       <DealMaterialsCard project={project} isDelivery={false} onOpen={onOpenMaterials} />
     </>
   );
@@ -246,7 +255,7 @@ export function DealContextRail({
       {/* ─── 3. Стейкхолдеры ─── */}
       {/* Компонент не переписан, только переставлен: id — якорь CTA сигнала
           `single_threaded`, он и раньше жил на обёртке. */}
-      <StakeholdersBlock project={project} />
+      <StakeholdersBlock project={project} onEdit={onEdit} />
 
       {/* ─── 4. Закреплено ─── */}
       {isDeal && <PinnedNoteCard project={project} />}
