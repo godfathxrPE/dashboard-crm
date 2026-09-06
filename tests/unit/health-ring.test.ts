@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { buildHealthRing, polarPoint, RING_RADIUS } from '@/lib/domain/health-ring';
+import { buildHealthRing, polarPoint, RING_RADIUS, STATE_STROKE } from '@/lib/domain/health-ring';
 import type { DealSignal, SignalKey, SignalState } from '@/lib/domain/deal-signals';
 
 // Кольцо — одна дуга по дорожке: доля помех от всех применимых сигналов.
@@ -117,5 +117,40 @@ describe('polarPoint', () => {
     const [x, y] = polarPoint(40, 40, 35, 90);
     expect(x).toBeCloseTo(75, 10);
     expect(y).toBeCloseTo(40, 10);
+  });
+});
+
+describe('buildHealthRing — полоса и счётчики', () => {
+  test('states повторяет порядок сигналов — полоса легенда к списку', () => {
+    const ring = buildHealthRing([
+      sig('next_step', 'bad'),
+      sig('deadline', 'warn'),
+      sig('silence', 'ok'),
+    ]);
+    expect(ring.states).toEqual(['bad', 'warn', 'ok']);
+  });
+
+  test('counts разбивает сигналы по состояниям', () => {
+    const ring = buildHealthRing([
+      sig('next_step', 'bad'),
+      sig('deadline', 'warn'),
+      sig('stage_dwell', 'warn'),
+      sig('silence', 'ok'),
+      sig('single_threaded', 'ok'),
+    ]);
+    expect(ring.counts).toEqual({ bad: 1, warn: 2, ok: 2 });
+    expect(ring.problems).toBe(3);
+  });
+
+  test('длина states равна total, сумма counts тоже', () => {
+    const ring = buildHealthRing([sig('next_step', 'bad'), sig('silence', 'ok')]);
+    expect(ring.states).toHaveLength(ring.total);
+    expect(ring.counts.bad + ring.counts.warn + ring.counts.ok).toBe(ring.total);
+  });
+
+  test('цвет дольки берётся из того же STATE_STROKE, что и дуга', () => {
+    const ring = buildHealthRing([sig('next_step', 'bad'), sig('silence', 'ok')]);
+    expect(STATE_STROKE[ring.states[0]]).toBe(ring.stroke);
+    expect(STATE_STROKE.ok).toBe('var(--success)');
   });
 });

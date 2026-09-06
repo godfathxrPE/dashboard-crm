@@ -24,6 +24,12 @@ export const RING_STROKE = 11;
 /** viewBox 104×104: r 45 + половина обводки 5.5 = 50.5 ≤ 52. */
 export const RING_BOX = 104;
 
+export interface HealthCounts {
+  bad: number;
+  warn: number;
+  ok: number;
+}
+
 export interface HealthRing {
   /** Сколько сигналов не в норме — большое число в центре. */
   problems: number;
@@ -37,7 +43,26 @@ export interface HealthRing {
   d: string | null;
   /** Полный круг цветом `stroke` вместо дуги: дуга в 0° и в 360° одним `A` не выражается. */
   full: boolean;
+  /**
+   * Состояния сигналов В ПОРЯДКЕ СПИСКА — под полосу справа от кольца.
+   *
+   * Полоса вернулась после того, как кольцо перестало быть сегментированным:
+   * Р7 резал её как дубль кольца, а теперь она единственный носитель
+   * посигнального разреза — кольцо показывает только долю и худшее состояние.
+   */
+  states: SegmentState[];
+  /** Тот же разрез числами — под подпись «1 критичный · 2 внимание · 2 в норме». */
+  counts: HealthCounts;
 }
+
+export type SegmentState = Exclude<SignalState, 'na'>;
+
+/** Цвет ступени состояния — один на полосу и на дугу. */
+export const STATE_STROKE: Record<SegmentState, string> = {
+  bad: 'var(--danger)',
+  warn: 'var(--warning)',
+  ok: 'var(--success)',
+};
 
 /** Точка на окружности; 0° — 12 часов, отсчёт по часовой стрелке. */
 export function polarPoint(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -55,9 +80,14 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
 /** Худшее состояние задаёт цвет всей дуги: одна помеха уровня bad красит кольцо. */
 function worstStroke(signals: DealSignal[]): string {
   const has = (s: SignalState) => signals.some((x) => x.state === s);
-  if (has('bad')) return 'var(--danger)';
-  if (has('warn')) return 'var(--warning)';
-  return 'var(--success)';
+  if (has('bad')) return STATE_STROKE.bad;
+  if (has('warn')) return STATE_STROKE.warn;
+  return STATE_STROKE.ok;
+}
+
+/** 'na' до сюда не доходит — его отфильтровал `getDealSignals`; сводим к 'ok'. */
+function segmentStates(signals: DealSignal[]): SegmentState[] {
+  return signals.map((s) => (s.state === 'na' ? 'ok' : s.state));
 }
 
 /**
@@ -68,16 +98,26 @@ function worstStroke(signals: DealSignal[]): string {
  */
 export function buildHealthRing(signals: DealSignal[]): HealthRing {
   const total = signals.length;
+  const states = segmentStates(signals);
+  const counts: HealthCounts = {
+    bad: states.filter((s) => s === 'bad').length,
+    warn: states.filter((s) => s === 'warn').length,
+    ok: states.filter((s) => s === 'ok').length,
+  };
+
   if (total === 0) {
-    return { problems: 0, total: 0, arcDeg: 0, stroke: 'var(--success)', d: null, full: false };
+    return {
+      problems: 0, total: 0, arcDeg: 0, stroke: STATE_STROKE.ok,
+      d: null, full: false, states, counts,
+    };
   }
 
-  const problems = signals.filter((s) => s.state !== 'ok').length;
+  const problems = counts.bad + counts.warn;
   const arcDeg = (problems / total) * 360;
-  const stroke = problems === 0 ? 'var(--success)' : worstStroke(signals);
+  const stroke = problems === 0 ? STATE_STROKE.ok : worstStroke(signals);
 
   if (problems === 0 || problems === total) {
-    return { problems, total, arcDeg, stroke, d: null, full: true };
+    return { problems, total, arcDeg, stroke, d: null, full: true, states, counts };
   }
 
   const c = RING_BOX / 2;
@@ -88,5 +128,7 @@ export function buildHealthRing(signals: DealSignal[]): HealthRing {
     stroke,
     d: arcPath(c, c, RING_RADIUS, 0, arcDeg),
     full: false,
+    states,
+    counts,
   };
 }
