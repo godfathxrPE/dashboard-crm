@@ -1,35 +1,22 @@
 'use client';
 
-import {
-  buildHealthRing,
-  RING_BOX,
-  RING_STROKE,
-  RING_HIT_STROKE,
-} from '@/lib/domain/health-ring';
-import type { DealSignal, SignalKey } from '@/lib/domain/deal-signals';
+import { buildHealthRing, RING_BOX, RING_RADIUS, RING_STROKE } from '@/lib/domain/health-ring';
+import type { DealSignal } from '@/lib/domain/deal-signals';
 
 // ═══════════════════════════════════════════════════════
-// S-DEAL-ZONES-1B (Р3). Кольцо здоровья сделки.
+// S-DEAL-ZONES-1B (Р3). Кольцо здоровья сделки — по макету «Сделка v2»:
+// серая дорожка, одна дуга помех цветом худшего состояния, счёт в центре.
 //
-// A11Y: кольцо — role="img" с полной подписью, сегменты НЕ являются focusable.
-// Клик по сегменту — мышиная надстройка над действием, которое с клавиатуры уже
-// доступно кнопкой CTA в строке сигнала под кольцом. Отдельные табстопы на
-// дугах дали бы второй набор точек остановки к тем же пяти действиям.
-//
-// Дуги — <path>, не окружности со stroke-dasharray: кликается ровно видимая
-// фигура, а не полный круг с невидимыми штрихами поверх соседей.
+// A11Y: кольцо — role="img" с полной подписью. Кликабельных зон в нём нет:
+// переход к сигналу делает кнопка CTA в его строке под кольцом, и дублировать
+// её мышиной мишенью на дуге незачем — дуга ведёт не к одному сигналу.
 // ═══════════════════════════════════════════════════════
 
-export function DealHealthRing({
-  signals,
-  onSegmentClick,
-}: {
-  signals: DealSignal[];
-  onSegmentClick?: (key: SignalKey) => void;
-}) {
+export function DealHealthRing({ signals }: { signals: DealSignal[] }) {
   const ring = buildHealthRing(signals);
   if (ring.total === 0) return null;
 
+  const c = RING_BOX / 2;
   const label =
     ring.problems === 0
       ? `Здоровье сделки: все ${ring.total} сигналов в норме`
@@ -44,36 +31,36 @@ export function DealHealthRing({
         role="img"
         aria-label={label}
       >
-        {ring.segments.map((seg) => (
-          <path
-            key={seg.key}
-            d={seg.d}
+        {/* Дорожка — полный круг под дугой: она даёт кольцу форму, когда дуга
+            короткая, и служит шкалой «сколько всего». */}
+        <circle
+          cx={c}
+          cy={c}
+          r={RING_RADIUS}
+          fill="none"
+          stroke="var(--border)"
+          strokeWidth={RING_STROKE}
+        />
+        {ring.full ? (
+          <circle
+            cx={c}
+            cy={c}
+            r={RING_RADIUS}
             fill="none"
-            stroke={seg.stroke}
+            stroke={ring.stroke}
             strokeWidth={RING_STROKE}
-            strokeLinecap="butt"
           />
-        ))}
-        {/* Прозрачные дуги-мишени поверх видимых: полоса в 6px — попадаемая, но
-            неприятная цель. Ширина 16 даёт нормальную мишень, не меняя рисунка.
-            Диапазоны углов те же, соседи не перекрываются. Клавиатуре они не
-            нужны — то же действие лежит на кнопке CTA в строке сигнала. */}
-        {onSegmentClick &&
-          ring.segments.map((seg) => (
+        ) : (
+          ring.d && (
             <path
-              key={`hit-${seg.key}`}
-              d={seg.d}
+              d={ring.d}
               fill="none"
-              stroke="transparent"
-              strokeWidth={RING_HIT_STROKE}
+              stroke={ring.stroke}
+              strokeWidth={RING_STROKE}
               strokeLinecap="butt"
-              pointerEvents="stroke"
-              onClick={() => onSegmentClick(seg.key)}
-              className="cursor-pointer"
-            >
-              <title>{seg.label}</title>
-            </path>
-          ))}
+            />
+          )
+        )}
       </svg>
       <div
         aria-hidden
@@ -82,7 +69,7 @@ export function DealHealthRing({
         <span className="text-2xl font-bold leading-none tabular-nums text-text-main">
           {ring.problems}
         </span>
-        <span className="mt-0.5 text-meta leading-none tabular-nums text-text-dim">
+        <span className="mt-1 text-meta leading-none tabular-nums text-text-dim">
           из {ring.total}
         </span>
       </div>
