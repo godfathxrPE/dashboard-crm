@@ -6,6 +6,8 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { DealVerdictChip } from './DealSignals';
 import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
+import { useFieldMoves } from '@/lib/hooks/use-stage-story';
+import { pluralRu } from '@/lib/utils/plural';
 import { cn } from '@/lib/utils/cn';
 
 // ═══════════════════════════════════════════════════════
@@ -42,6 +44,10 @@ export function DealNextStep({
   signals: DealSignalsResult;
 }) {
   const updateProject = useUpdateProject();
+  // S-DEAL-ZONES-1B (Р8): счёт из того же queryFn, что уже считал переносы
+  // дедлайна — второго ключа и второго запроса нет.
+  const { data: moves } = useFieldMoves(project.id);
+  const stepMoves = moves?.step.count ?? 0;
 
   const health = getDealHealth(project);
   const overdue = health === 'overdue-action';
@@ -107,6 +113,12 @@ export function DealNextStep({
           {overdue && (
             <span className="font-medium text-red">
               просрочен {overdueDays} дн.
+            </span>
+          )}
+          {/* Порог ≥2 из Р8: один перенос — работа, два и больше — диагноз. */}
+          {stepMoves >= 2 && (
+            <span className="text-warning-text">
+              перенесён {stepMoves} {pluralRu(stepMoves, 'раз', 'раза', 'раз')}
             </span>
           )}
           {project.next_step && (

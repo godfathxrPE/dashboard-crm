@@ -6,6 +6,7 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { RailCard } from '@/components/shared/RailCard';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { DealSignals, scrollToSignalAnchor } from './DealSignals';
+import { DealHealthRing } from './DealHealthRing';
 import { DealSummaryCard } from './DealSummaryCard';
 import { DealStakeholders } from './DealStakeholders';
 import { DealMaterialsCard } from './DealMaterialsCard';
@@ -32,14 +33,36 @@ import { cn } from '@/lib/utils/cn';
 
 // ─── Общие карточки (используются и рельсой, и зонами) ───
 
-/** Здоровье СДЕЛКИ: список сигналов без вердикта — вердикт стоит под шагом (F-01). */
-function HealthDealCard({ signals }: { signals: DealSignalsResult }) {
+/**
+ * Здоровье СДЕЛКИ: список сигналов без вердикта — вердикт стоит под шагом (F-01).
+ *
+ * S-DEAL-ZONES-1B: `withRing` — кольцо слева от списка. Проп нужен потому, что
+ * эта карточка одна на два пути: зону «Риски» клиентской сделки и рельсу
+ * внедрения/internal. Кольцо — только у зоны; на рельсе 320px оно съело бы
+ * ширину списка, а у delivery здоровье считает своя формула (`getDeliveryHealth`).
+ */
+function HealthDealCard({
+  signals,
+  withRing = false,
+}: {
+  signals: DealSignalsResult;
+  withRing?: boolean;
+}) {
   if (signals.signals.length === 0) return null;
   return (
     <RailCard icon={Activity} title="Здоровье">
       {/* Вердикт здесь НЕ показывается: он стоит под следующим шагом в
           рабочей колонке. Два вердикта на экране — это F-01. */}
-      <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
+      {withRing ? (
+        <div className="flex items-start gap-3">
+          <DealHealthRing signals={signals.signals} onSegmentClick={scrollToSignalAnchor} />
+          <div className="min-w-0 flex-1">
+            <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
+          </div>
+        </div>
+      ) : (
+        <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
+      )}
     </RailCard>
   );
 }
@@ -116,7 +139,9 @@ export function DealRisksZone({
 }) {
   return (
     <>
-      <HealthDealCard signals={signals} />
+      {/* S-DEAL-ZONES-1B: кольцо только здесь — оно несёт пропорцию, которой в
+          списке нет (норма свёрнута под «N в норме»). */}
+      <HealthDealCard signals={signals} withRing />
       <PinnedNoteCard project={project} />
     </>
   );
