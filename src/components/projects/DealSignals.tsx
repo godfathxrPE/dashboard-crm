@@ -155,7 +155,7 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
     return (
       <div className={cn('min-w-0', className)}>
         {problems.length > 0 ? (
-          <ul className="space-y-1.5">
+          <ul className="-mx-2 space-y-0.5">
             {problems.map((s) => (
               <SignalRow key={s.key} signal={s} onAction={onAction} />
             ))}
@@ -184,7 +184,7 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
               />
             </button>
             {normalOpen && (
-              <ul className="mt-1.5 space-y-1.5">
+              <ul className="-mx-2 mt-0.5 space-y-0.5">
                 {normal.map((s) => (
                   <SignalRow key={s.key} signal={s} onAction={onAction} />
                 ))}
@@ -232,7 +232,7 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
       </button>
 
       {open && (
-        <ul className="mt-2 space-y-1.5">
+        <ul className="-mx-2 mt-2 space-y-0.5">
           {signals.map((s) => (
             <SignalRow key={s.key} signal={s} onAction={onAction} />
           ))}
@@ -251,12 +251,22 @@ function SignalRow({
 }) {
   const state = STATE_STYLES[signal.state as Exclude<SignalState, 'na'>];
   return (
-    <li className="flex items-start gap-2">
-      <span aria-hidden className={cn('mt-0.5 w-3 shrink-0 text-center text-xs leading-none', state.color)}>
+    // Критичный сигнал лежит на подложке, остальные — на листе (макет «Сделка v2»).
+    // Отбивка `px-2` одинаковая у всех строк, иначе текст выделенной уезжал бы
+    // относительно соседних; наружу её компенсирует `-mx-2` на списке.
+    <li
+      className={cn(
+        'flex items-start gap-2 rounded-xl px-2 py-1.5',
+        signal.state === 'bad' && 'bg-danger-l',
+      )}
+    >
+      <span aria-hidden className={cn('mt-1 w-3 shrink-0 text-center text-xs leading-none', state.color)}>
         {state.glyph}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-xs text-text-main">{signal.label}</span>
+        {/* Заголовок на ступень крупнее и плотнее пояснения: до этого 12 и 11
+            стояли почти вровень, и строка читалась одним куском. */}
+        <span className="block text-body font-medium text-text-main">{signal.label}</span>
         <span className="block text-meta text-text-mute">{signal.detail}</span>
       </span>
       {signal.cta && onAction && (

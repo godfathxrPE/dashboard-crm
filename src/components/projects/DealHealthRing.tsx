@@ -104,11 +104,11 @@ export function DealHealthRing({ signals }: { signals: DealSignal[] }) {
 
       <div className="min-w-0 flex-1" aria-hidden>
         {/* Порядок долек = порядок строк списка ниже: полоса — легенда к нему. */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           {ring.states.map((state, i) => (
             <span
               key={i}
-              className="h-[5px] min-w-0 flex-1 rounded-full"
+              className="h-1.5 min-w-0 flex-1 rounded-full"
               style={{ background: STATE_STROKE[state] }}
             />
           ))}
