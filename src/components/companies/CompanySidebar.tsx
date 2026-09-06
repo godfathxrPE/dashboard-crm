@@ -6,7 +6,7 @@ import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { useUpdateCompany } from '@/lib/hooks/use-companies';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
-import { chzStatusLabel, type ChzGroup } from '@/lib/data/chz-groups';
+import { chzStatusLabel, CHZ_SNAPSHOT_DATE, type ChzGroup } from '@/lib/data/chz-groups';
 import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { ChzBadge } from '@/components/shared/ChzBadge';
 import { formatDateHuman } from '@/lib/utils/dates';
@@ -210,13 +210,13 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
           </div>
 
           {/* Сироты: имена из БД, которых нет в справочнике-снапшоте (группу
-              переименовали после 2026-08). Нейтральный тег, а НЕ `ChzBadge`:
+              переименовали после снимка). Нейтральный тег, а НЕ `ChzBadge`:
               статуса и даты обязательности у них нет, и зелёный/жёлтый бейдж
               соврал бы про обязательность. Молча проглотить их тоже нельзя —
               это данные, которые ввёл человек. */}
           {chzUnknown.length > 0 && (
             <div className="mt-3 border-t border-border pt-2">
-              <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике 2026-08</p>
+              <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике {CHZ_SNAPSHOT_DATE}</p>
               <div className="flex flex-wrap gap-1">
                 {chzUnknown.map((name) => (
                   <span key={name} data-tag

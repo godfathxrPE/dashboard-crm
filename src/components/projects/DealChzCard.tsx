@@ -6,7 +6,11 @@ import { RailCard } from '@/components/shared/RailCard';
 import { ChzBadge } from '@/components/shared/ChzBadge';
 import { useCompanyChz } from '@/lib/hooks/use-company-chz';
 import { resolveChzProfile } from '@/lib/domain/chz-profile';
-import { chzStatusLabel, CHZ_SNAPSHOT_DATE } from '@/lib/data/chz-groups';
+import {
+  chzStatusLabel,
+  CHZ_SNAPSHOT_DATE,
+  CHZ_SNAPSHOT_SOURCES,
+} from '@/lib/data/chz-groups';
 import type { Project } from '@/lib/hooks/use-projects';
 
 // ═══════════════════════════════════════════════════════
@@ -24,10 +28,27 @@ import type { Project } from '@/lib/hooks/use-projects';
 // сделке. Карточка только ссылается туда: второй ввод = второй источник истины.
 // ═══════════════════════════════════════════════════════
 
-/** Подпись мелким по низу карточки: откуда цифра и на какое число. */
+/**
+ * Подпись мелким по низу карточки: откуда цифра и на какое число.
+ *
+ * Дата — текстом, источники — в `title`. По этим данным называют сроки
+ * обязательной маркировки, и вопрос «откуда цифра» обязан иметь ответ на
+ * экране, а не только в исходнике. Списком источники не выводятся: два URL под
+ * каждой сделкой это шум, а спрашивают их редко и целенаправленно.
+ *
+ * ⚠️ `title` виден по наведению — то есть на десктопе и мимо скринридера.
+ * Дата, которая несёт смысл, поэтому стоит ТЕКСТОМ, а в подсказку уходит только
+ * дополнение. Понадобится доступный носитель — здесь нужен будет popover,
+ * а не второй `title`.
+ */
 function SnapshotNote() {
   return (
-    <p className="mt-3 text-xs text-text-dim">Справочник на {CHZ_SNAPSHOT_DATE}</p>
+    <p
+      className="mt-3 text-xs text-text-dim"
+      title={`Источники: ${CHZ_SNAPSHOT_SOURCES.join(' · ')}`}
+    >
+      Справочник на {CHZ_SNAPSHOT_DATE}
+    </p>
   );
 }
 
