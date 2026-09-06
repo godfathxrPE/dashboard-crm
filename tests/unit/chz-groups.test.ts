@@ -5,10 +5,18 @@
 // валить CI, а не всплывать в проде разными ответами кнопки и AI-брифа.
 
 import { describe, it, expect } from 'vitest';
-import { matchChzGroups, chzStatusLabel, CHZ_GROUPS } from '@/lib/data/chz-groups';
+import {
+  matchChzGroups,
+  chzStatusLabel,
+  CHZ_GROUPS,
+  CHZ_SNAPSHOT_DATE,
+  CHZ_SNAPSHOT_SOURCES,
+} from '@/lib/data/chz-groups';
 import {
   matchChzGroups as edgeMatch,
   CHZ_GROUPS as EDGE_CHZ_GROUPS,
+  CHZ_SNAPSHOT_DATE as EDGE_SNAPSHOT_DATE,
+  CHZ_SNAPSHOT_SOURCES as EDGE_SNAPSHOT_SOURCES,
 } from '../../supabase/functions/ai-run/chz-groups';
 
 describe('matchChzGroups', () => {
@@ -110,9 +118,35 @@ describe('matchChzGroups', () => {
   });
 });
 
+describe('версия справочника доезжает до кода', () => {
+  // S-DEAL-CHZ-1: дата снапшота была комментарием в шапке файла и на экран попасть
+  // не могла. По этим данным готовят КП со сроками обязательной маркировки —
+  // «откуда цифра и на какое число» обязано быть видно человеку, а не автору файла.
+  it('CHZ_SNAPSHOT_DATE — ISO-дата', () => {
+    expect(CHZ_SNAPSHOT_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Дата обязана разбираться в реальный день, а не только совпасть с маской:
+    // «2026-13-45» маску проходит.
+    expect(Number.isNaN(Date.parse(CHZ_SNAPSHOT_DATE))).toBe(false);
+  });
+
+  it('источники снапшота непусты — дата без источника непроверяема', () => {
+    expect(CHZ_SNAPSHOT_SOURCES.length).toBeGreaterThan(0);
+    for (const src of CHZ_SNAPSHOT_SOURCES) expect(src.trim()).not.toBe('');
+  });
+});
+
 describe('зеркала клиент ↔ edge синхронны', () => {
   it('таблица совпадает дословно', () => {
     expect(EDGE_CHZ_GROUPS).toEqual(CHZ_GROUPS);
+  });
+
+  // Страж таблицы — deepEqual по CHZ_GROUPS, и новые константы он бы не заметил:
+  // сравнивается одна переменная, а не весь модуль. Разъехавшаяся дата тише
+  // разъехавшейся таблицы и оттого опаснее — бриф и карточка назовут человеку
+  // РАЗНОЕ «на какое число», не уронив ни одного теста.
+  it('версия снапшота совпадает в зеркалах', () => {
+    expect(EDGE_SNAPSHOT_DATE).toBe(CHZ_SNAPSHOT_DATE);
+    expect(EDGE_SNAPSHOT_SOURCES).toEqual(CHZ_SNAPSHOT_SOURCES);
   });
 
   it('функция отвечает одинаково на каждом префиксе справочника и на мусоре', () => {
