@@ -10,6 +10,7 @@ import { DealHealthRing } from './DealHealthRing';
 import { DealSummaryCard } from './DealSummaryCard';
 import { DealStakeholders } from './DealStakeholders';
 import { DealMaterialsCard } from './DealMaterialsCard';
+import { DealChzCard } from './DealChzCard';
 import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import type { DeliveryHealth } from '@/lib/utils/delivery-health';
 import { cn } from '@/lib/utils/cn';
@@ -179,6 +180,12 @@ export function DealContextZone({
         badge={completenessBadge}
         onEdit={onEdit}
       />
+      {/* S-DEAL-CHZ-1: сразу за сводкой — там же стоит ссылка на компанию, а
+          профиль маркировки принадлежит именно ей. Гейта по типу здесь НЕТ и он
+          не нужен: `DealContextZone` монтируется только под `isDeal`
+          (`ProjectDetail`, `type === 'client'`), у внедрения зон нет вовсе —
+          проверка `type !== 'delivery'` внутри была бы мёртвой веткой. */}
+      <DealChzCard project={project} />
       <StakeholdersBlock project={project} />
       <DealMaterialsCard project={project} isDelivery={false} onOpen={onOpenMaterials} />
     </>

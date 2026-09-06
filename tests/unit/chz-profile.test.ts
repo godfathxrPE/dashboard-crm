@@ -61,6 +61,28 @@ describe('resolveChzProfile', () => {
     expect(resolveChzProfile(undefined, 'ИНН')).toEqual({ groups: [], source: 'none', unknown: [] });
   });
 
+  // S-DEAL-CHZ-1: единственный кейс таблицы Т2, которого здесь не было. Дубль
+  // приезжает не от кривых рук: пикер отдаёт группу, уже лежащую в профиле, и в
+  // `chz_groups` уникальности нет — это text[], а не связь. На экране сделки
+  // дубль стал бы вторым бейджем той же группы, а `key={g.group}` в списке —
+  // конфликтом ключей React.
+  it('дубль в declared схлопывается в одну группу', () => {
+    const p = resolveChzProfile(['Обувь', 'Обувь'], null);
+
+    expect(p.groups.map((g) => g.group)).toEqual(['Обувь']);
+    expect(p.source).toBe('declared');
+    expect(p.unknown).toEqual([]);
+  });
+
+  it('дубль среди сирот схлопывается тоже', () => {
+    // Сироты идут другой веткой (`unknown`), и общий `seen` обязан покрывать обе:
+    // иначе неизвестное имя задвоилось бы там, где известное уже нет.
+    const p = resolveChzProfile(['Ковры', 'Ковры'], null);
+
+    expect(p.unknown).toEqual(['Ковры']);
+    expect(p.groups).toEqual([]);
+  });
+
   it('порядок declared сохраняется — его выбирал человек', () => {
     // В `matchChzGroups` порядок задаёт STATUS_RANK (mandatory → starting →
     // experiment). Здесь сортировки быть не должно: «Кондитерские изделия»
