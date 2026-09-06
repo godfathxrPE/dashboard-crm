@@ -879,9 +879,16 @@ export interface OpenChecklistItem {
 // В БД — `text` + CHECK deal_stakeholders_role_chk (092); здесь union.
 // Зеркала: src/lib/constants/stakeholders.ts (ярлыки/цвета/порядок) и
 // src/lib/validators/stakeholder.ts (Zod) — держать синхронно.
+//
+// S-DEAL-ROLES-1 (130): седьмое значение `influencer` — ЛВР, лицо, влияющее на
+// решение. Не то же, что `champion`: чемпион АКТИВНО продаёт внутри, ЛВР влияет
+// ПО ДОЛЖНОСТИ и может быть нейтрален — записывать его чемпионом значит завышать
+// оценку сделки. В БД словарь держат ТРИ CHECK'а: `deal_stakeholders_role_chk` (092),
+// `leads_decision_role_check` (123, зеркало ради `convert_lead`) и
+// `pipeline_expected_roles_role_chk` (130). Меняются одним заходом.
 
 export const STAKEHOLDER_ROLES = [
-  'decision_maker', 'economic_buyer', 'champion', 'expert', 'end_user', 'blocker',
+  'decision_maker', 'influencer', 'economic_buyer', 'champion', 'expert', 'end_user', 'blocker',
 ] as const;
 
 export type StakeholderRole = (typeof STAKEHOLDER_ROLES)[number];

@@ -2183,7 +2183,7 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 | **temperature** _(117)_ | text | `CHECK null or in ('hot','warm','cold')` |
 | **estimated_value** _(117)_ | bigint | **КОПЕЙКИ** (как `projects.budget`/`quotes.amount`); `CHECK null or >= 0` |
 | **budget_status** _(117)_ | text | NOT NULL DEFAULT `unknown`; `CHECK in ('unknown','none','estimated','confirmed')` |
-| **decision_role** _(117, +123 CHECK applied 2026-08-12)_ | text | Роль контакта в решении. Словарь — `StakeholderRole` (092). ⚠️ **С 117 по 122 CHECK'а не было намеренно** («у лида это гипотеза»), и цена была нулевая, пока значение никуда не уезжало. **123 закрывает домен**: `leads_decision_role_check` — дословное зеркало `deal_stakeholders_role_chk`, потому что теперь роль едет в `deal_stakeholders` с закрытым CHECK, и чужое значение уронило бы КОНВЕРСИЮ ошибкой 23514. На 2026-08-11 строк с `decision_role is not null` — **ноль** ⇒ валидация мгновенна, `NOT VALID` не нужен |
+| **decision_role** _(117, +123 CHECK applied 2026-08-12)_ | text | Роль контакта в решении. Словарь — `StakeholderRole` (092). ⚠️ **С 117 по 122 CHECK'а не было намеренно** («у лида это гипотеза»), и цена была нулевая, пока значение никуда не уезжало. **123 закрывает домен**: `leads_decision_role_check` — дословное зеркало `deal_stakeholders_role_chk`, потому что теперь роль едет в `deal_stakeholders` с закрытым CHECK, и чужое значение уронило бы КОНВЕРСИЮ ошибкой 23514. **130 (НЕ применена) расширяет ОБА до семи значений** (`influencer`): селект «Роль контакта» в `LeadModal` строится из `STAKEHOLDER_ROLE_ORDER`, поэтому новое значение становится выбираемым у лида одновременно со сделкой — разъехавшись, CHECK лида ловил бы его 23514 прямо в форме. На 2026-08-11 строк с `decision_role is not null` — **ноль** ⇒ валидация мгновенна, `NOT VALID` не нужен |
 | **chz_groups** _(117)_ | text[] | Названия групп «Честного Знака» из `src/lib/data/chz-groups.ts` (снапшот справочника, не FK) |
 | **first_contacted_at / qualified_at** _(117)_ | timestamptz | Штампы; ставит `trg_zz_stamp_lead_status`, клиент их не пишет |
 | **lead_id у calls / tasks / activity_log** _(118)_ | uuid | См. ниже — лид в графе активностей |
@@ -2648,7 +2648,7 @@ Junction `projects`↔`contacts` с **ролью в сделке**. Аналог
 | org_id | uuid | NOT NULL → organizations CASCADE; ставит `trg_set_org_id`, замораживает `trg_aa_freeze_org_id` |
 | project_id | uuid | NOT NULL → projects CASCADE |
 | contact_id | uuid | NOT NULL → contacts CASCADE |
-| role | text | **nullable**; CHECK `deal_stakeholders_role_chk`: `decision_maker\|economic_buyer\|champion\|expert\|end_user\|blocker`. NULL = роль ещё не понята — легальное состояние, а не пропуск |
+| role | text | **nullable**; CHECK `deal_stakeholders_role_chk`: `decision_maker\|influencer\|economic_buyer\|champion\|expert\|end_user\|blocker` _(седьмое значение `influencer` — 130, **НЕ применена**)_. NULL = роль ещё не понята — легальное состояние, а не пропуск |
 | note | text | CHECK ≤ 500 символов (`deal_stakeholders_note_chk`) |
 | created_by | uuid | DEFAULT `auth.uid()` → profiles ON DELETE SET NULL |
 | created_at / updated_at | timestamptz | `updated_at` держит `trg_set_updated_at` → `update_updated_at()` |
@@ -3852,7 +3852,8 @@ where n.nspname = 'public' and c.relkind = 'r'
   пресейла. Пустой слот ЛПР сам является сообщением.
 - **Колонки:** `id uuid pk` · `org_id uuid not null → organizations(id) cascade` ·
   `pipeline_id uuid not null → pipelines(id) cascade` · `role text not null`
-  (CHECK `pipeline_expected_roles_role_chk` — зеркало `deal_stakeholders_role_chk`) ·
+  (CHECK `pipeline_expected_roles_role_chk` — зеркало `deal_stakeholders_role_chk`,
+  семь значений) ·
   `is_required boolean not null default false` · `hint text` ·
   `sort_order smallint not null default 0` ·
   `created_by uuid default auth.uid() → profiles(id) set null` · `created_at`/`updated_at`.
@@ -3873,12 +3874,26 @@ where n.nspname = 'public' and c.relkind = 'r'
   НАСТРОЙКУ воронки, общую для всей организации.
 - **Гранты:** `revoke all … from anon` + явные `select, insert, update, delete` для
   `authenticated`. `revoke truncate, references, trigger` не пишем — 082 сузил корень.
-- ⚠️ **Это НЕ словарь ролей.** Словарь — CHECK `deal_stakeholders_role_chk` (092), шесть
-  значений MEDDIC, он не меняется. Здесь ОЖИДАНИЕ ролей в конкретной воронке — другая
-  сущность с похожим именем. CHECK на `role` — **дословное зеркало**: сослаться на чужой
-  CHECK нельзя, а расхождение даёт 23514 уже на сиде. Меняются вместе, и вместе с
-  `STAKEHOLDER_ROLES` / `STAKEHOLDER_ROLE_ORDER` / `STAKEHOLDER_ROLE_CONFIG` и
-  `src/lib/validators/stakeholder.ts`.
+- ⚠️ **Это НЕ словарь ролей.** Словарь — CHECK `deal_stakeholders_role_chk` (092).
+  Здесь ОЖИДАНИЕ ролей в конкретной воронке — другая сущность с похожим именем.
+  CHECK на `role` — **дословное зеркало**: сослаться на чужой CHECK нельзя, а
+  расхождение даёт 23514 уже на сиде.
+- ⚠️ **130 расширяет сам словарь седьмым значением `influencer` (ЛВР)** — отдельной
+  миграции нет намеренно: 130 ещё не применена, и разносить это по двум файлам значило
+  бы завести порядок применения там, где его можно не заводить. Причина доменная: в
+  пресейле общение чаще идёт с ЛВР, и через него выходят на ЛПР; `champion` не годится —
+  он про АКТИВНУЮ поддержку внутри, а ЛВР влияет ПО ДОЛЖНОСТИ и может быть нейтрален,
+  и записывать его чемпионом значит завышать оценку сделки. Набор только расширяется,
+  старые значения валидны, `NOT VALID` не нужен.
+  **Точек синхронизации четыре, меняются одним заходом:** `deal_stakeholders_role_chk`
+  (092) · `leads_decision_role_check` (123 — зеркало ради `convert_lead`, иначе роль
+  лида падала бы 23514 при конверсии) · `pipeline_expected_roles_role_chk` (130) ·
+  константы `STAKEHOLDER_ROLES` / `STAKEHOLDER_ROLE_ORDER` / `STAKEHOLDER_ROLE_CONFIG`
+  (Zod `src/lib/validators/stakeholder.ts` выводится из первой и списка не дублирует).
+  В `STAKEHOLDER_ROLE_ORDER` ЛВР стоит **вторым**, сразу за ЛПР — порядок есть убывание
+  влияния на сделку. Цвет бейджа — `purple`, переиспользован: свободных `BadgeColor`
+  не осталось, `accent` в теме `t-washi` равен `--red` (ЛВР был бы неотличим от ЛПР),
+  `green` занят чемпионом — ровно той ролью, от которой ЛВР надо отличать.
 - ⚠️ **Таблица, а не колонка в `pipelines`:** `pipelines`/`pipeline_stages` — глобальные
   словари, не org-scoped; org-специфичный атрибут заводится отдельной таблицей
   `(org_id, …)`, как `stage_requirements` (027).
@@ -3899,8 +3914,11 @@ where n.nspname = 'public' and c.relkind = 'r'
   из UI, а delivery-воронки уже пересобирались в 035 («IIoT Внедрение») — якорь на имя
   разъехался бы молча. Воронка не нашлась — пропуск, не ошибка. Состав: IIoT —
   `decision_maker` (required) + `expert`; ERP — `decision_maker` (required) +
-  `economic_buyer`. **Состав ERP — предположение**, спека описывает только IIoT;
-  подтверждается владельцем.
+  `influencer` («с кем идёт работа сейчас»). **Состав ERP — предположение**, спека
+  описывает только IIoT; подтверждается владельцем. `economic_buyer` в сид ERP **не
+  кладётся намеренно**: держатель бюджета там — тендерная комиссия или ГД, до которых
+  доходят редко, и слот стоял бы вечно пустым, а вечно пустой слот перестают читать
+  вместе с соседними.
 - **Realtime НЕ включён** намеренно: настройка меняется раз в месяцы, у хука `staleTime`
   5 минут. Бэкфилла нет — ожидаемых ролей до 130 не существовало.
 - **Потребители:** `src/lib/domain/role-slots.ts` (`resolveRoleSlots` — чистая сборка

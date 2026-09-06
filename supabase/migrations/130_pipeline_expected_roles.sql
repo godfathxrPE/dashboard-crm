@@ -7,9 +7,10 @@
 -- с одним контактом рушится, когда контакт уходит в отпуск. Отсюда слоты: пустой
 -- слот ЛПР сам является сообщением.
 --
--- ⚠️ Это НЕ словарь ролей. Словарь — CHECK `deal_stakeholders_role_chk` (092), шесть
--- значений MEDDIC, он не меняется. Здесь описывается ОЖИДАНИЕ ролей в конкретной
--- воронке — другая сущность с похожим именем.
+-- ⚠️ Это НЕ словарь ролей. Словарь — CHECK `deal_stakeholders_role_chk` (092), семь
+-- значений после блока ниже. Здесь описывается ОЖИДАНИЕ ролей в конкретной воронке —
+-- другая сущность с похожим именем. Совпадение «оба про роли» не повод их слить:
+-- одна таблица отвечает «кто есть», другая — «кого ждём».
 --
 -- ⚠️ Таблица, а не колонка в `pipelines`. `pipelines`/`pipeline_stages` — ГЛОБАЛЬНЫЕ
 -- словари, не org-scoped (см. docs/schema.md); org-специфичный атрибут заводится
@@ -35,11 +36,69 @@
 -- Бэкфилла нет: до этой миграции ожидаемых ролей не существовало. Сид ниже — не
 -- бэкфилл, а стартовый состав контура для дефолтной org.
 --
+-- ⚠️ Эта же миграция РАСШИРЯЕТ СЛОВАРЬ РОЛЕЙ седьмым значением `influencer` (ЛВР) —
+-- см. блок «Словарь ролей» ниже. Отдельной миграции нет намеренно: 130 ещё не
+-- применена, и разносить по двум файлам изменение, которое иначе на гейте пришлось
+-- бы применять строго по порядку, значит завести порядок там, где его можно не
+-- заводить.
+--
 -- ⚠️ НЕ применена — применяет гейт (apply → gen-types → advisors → ролевые смоки).
 --
 -- Откат:
 --   drop table public.pipeline_expected_roles cascade;
+--   -- и возврат обоих CHECK к шести значениям — но только если строк с
+--   -- `influencer` ещё нет: иначе `add constraint` упадёт на валидации.
 -- ═══════════════════════════════════════════════════════
+
+-- ═══════════════════════════════════════════════════════
+-- Словарь ролей: седьмое значение `influencer` — ЛВР, лицо, влияющее на решение
+--
+-- Причина доменная, не «для полноты»: в пресейле общение чаще идёт с ЛВР, и через
+-- него выходят на ЛПР. `champion` для этого не годится — он про АКТИВНУЮ поддержку
+-- внутри («продаёт за нас»), а ЛВР влияет ПО ДОЛЖНОСТИ и может быть нейтрален.
+-- Записывать такого человека чемпионом значит завышать оценку сделки: карта
+-- показывала бы союзника там, где его нет.
+--
+-- ⚠️ Точек синхронизации словаря ТРИ CHECK'а и один набор констант:
+--   1. `deal_stakeholders_role_chk`      (092) — роль участника сделки;
+--   2. `leads_decision_role_check`       (123) — роль контакта лида; дословное
+--      зеркало первого, потому что `convert_lead` переносит значение в
+--      `deal_stakeholders`, и расхождение уронило бы КОНВЕРСИЮ ошибкой 23514;
+--   3. `pipeline_expected_roles_role_chk` (130, ниже) — ожидаемая роль контура;
+--   4. код: `STAKEHOLDER_ROLES` (`src/types/database.ts`), `STAKEHOLDER_ROLE_ORDER` /
+--      `STAKEHOLDER_ROLE_CONFIG` (`src/lib/constants/stakeholders.ts`),
+--      `src/lib/validators/stakeholder.ts`.
+-- Все четыре меняются ОДНИМ заходом. Пункт 2 — не теория: селект «Роль контакта» в
+-- `LeadModal` строится из `STAKEHOLDER_ROLE_ORDER`, так что новое значение становится
+-- выбираемым у лида в тот же момент, что и у сделки.
+--
+-- Данные не трогаются: набор только РАСШИРЯЕТСЯ, все прежние значения остаются
+-- валидными, существующие строки перевалидируются без изменений. `NOT VALID` не
+-- нужен — расширяющий CHECK проходит по любой строке, которая проходила прежний.
+-- ═══════════════════════════════════════════════════════
+
+-- Порядок и форма — из 092: `role is null` первым дизъюнктом (NULL = «роль ещё не
+-- понята», легальное состояние, а не пропуск).
+alter table public.deal_stakeholders
+  drop constraint if exists deal_stakeholders_role_chk;
+
+alter table public.deal_stakeholders
+  add constraint deal_stakeholders_role_chk check (
+    role is null or role in
+      ('decision_maker','influencer','economic_buyer','champion','expert','end_user','blocker')
+  );
+
+-- Форма — из 123 (`= any (array[…])`, а не `in`): сохранена дословно, чтобы диффом
+-- было видно ровно добавленное значение, а не переписанное ограничение.
+alter table public.leads
+  drop constraint if exists leads_decision_role_check;
+
+alter table public.leads
+  add constraint leads_decision_role_check check (
+    decision_role is null or decision_role = any (array[
+      'decision_maker','influencer','economic_buyer','champion','expert','end_user','blocker'
+    ])
+  );
 
 create table if not exists public.pipeline_expected_roles (
   id          uuid primary key default gen_random_uuid(),
@@ -60,12 +119,15 @@ create table if not exists public.pipeline_expected_roles (
   created_by  uuid default auth.uid() references public.profiles(id) on delete set null,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  -- ⚠️ ЗЕРКАЛО `deal_stakeholders_role_chk` (092). Сослаться на чужой CHECK нельзя,
-  -- а расхождение даст 23514 уже на сиде. Обе точки меняются ВМЕСТЕ, вместе с
+  -- ⚠️ ЗЕРКАЛО `deal_stakeholders_role_chk` (092) и `leads_decision_role_check` (123).
+  -- Сослаться на чужой CHECK нельзя, а расхождение даст 23514 уже на сиде. Точек
+  -- синхронизации ТРИ (эти два CHECK'а и вот этот) плюс константы в коде:
   -- `STAKEHOLDER_ROLES` / `STAKEHOLDER_ROLE_ORDER` / `STAKEHOLDER_ROLE_CONFIG`
-  -- и `src/lib/validators/stakeholder.ts`.
+  -- и `src/lib/validators/stakeholder.ts`. Все меняются ОДНИМ заходом —
+  -- см. блок «Словарь ролей» в шапке файла.
   constraint pipeline_expected_roles_role_chk
-    check (role in ('decision_maker','economic_buyer','champion','expert','end_user','blocker')),
+    check (role in
+      ('decision_maker','influencer','economic_buyer','champion','expert','end_user','blocker')),
   -- Одна и та же роль не ожидается дважды: два слота «ЛПР» в виджете — не
   -- «два ЛПР», а сломанный счётчик «N из M».
   constraint pipeline_expected_roles_uniq unique (org_id, pipeline_id, role)
@@ -155,8 +217,13 @@ grant select, insert, update, delete on public.pipeline_expected_roles to authen
 -- Ожидаемые имена на момент 130: «IIoT Продажи» / «ERP Продажи» — только как
 -- ориентир для чтения, в условии их нет.
 --
--- Состав IIoT — из спеки W10 (ЛПР + технический эксперт). Состав ERP —
--- ПРЕДПОЛОЖЕНИЕ: спека описывает только IIoT. Подтверждается владельцем.
+-- Состав IIoT — из спеки W10 (ЛПР + технический эксперт).
+--
+-- Состав ERP — ПРЕДПОЛОЖЕНИЕ (спека описывает только IIoT), подтверждается владельцем:
+-- ЛПР + ЛВР. `economic_buyer` в сид НЕ кладётся намеренно — держатель бюджета в
+-- ERP-сделках это тендерная комиссия или ГД, до которых доходят редко, и слот стоял бы
+-- вечно пустым. Вечно пустой слот перестают читать, а вместе с ним перестают читать
+-- и соседние: пустота обязана означать «здесь дыра», а не «так всегда».
 --
 -- created_by останется NULL: миграция идёт не от лица пользователя, auth.uid() пуст.
 do $seed$
@@ -176,7 +243,7 @@ begin
     ('iiot', 'decision_maker', true,  'ЛПР не в контуре — ключевой риск стадии', 1::smallint),
     ('iiot', 'expert',         false, 'кто подтвердит интеграцию',               2::smallint),
     ('erp',  'decision_maker', true,  'ЛПР не в контуре — ключевой риск стадии', 1::smallint),
-    ('erp',  'economic_buyer', false, 'кто держит бюджет',                       2::smallint)
+    ('erp',  'influencer',     false, 'с кем идёт работа сейчас',                2::smallint)
   ) as s(direction, role, is_required, hint, sort_order)
     on s.direction = p.direction::text
   where p.entity_type = 'deal'
