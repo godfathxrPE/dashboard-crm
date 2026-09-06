@@ -1,5 +1,12 @@
 import { describe, test, expect, vi } from 'vitest';
-import { formatDateHuman, formatDateShort, formatDateWithDay, getWeekStart } from '@/lib/utils/dates';
+import {
+  formatDateHuman,
+  formatDateShort,
+  formatDateWithDay,
+  formatCalendarDate,
+  formatDateNumeric,
+  getWeekStart,
+} from '@/lib/utils/dates';
 
 describe('formatDateHuman', () => {
   test('сегодня', () => {
@@ -60,5 +67,36 @@ describe('getWeekStart', () => {
   test('воскресенье → предыдущий понедельник', () => {
     const result = getWeekStart(new Date(2025, 2, 23));
     expect(result).toBe('2025-03-17');
+  });
+});
+
+describe('formatCalendarDate', () => {
+  // S-DEAL-CHZ-1: календарная дата ('YYYY-MM-DD') не имеет момента времени, и
+  // `new Date(строка)` парсит её как UTC-полночь. `format` печатает в локальной
+  // зоне — при отрицательном смещении выходят сутки назад.
+  test('числовой формат проекта', () => {
+    expect(formatCalendarDate('2026-08-03')).toBe('03.08.2026');
+  });
+
+  test('день не уезжает назад в зоне с отрицательным смещением', () => {
+    const tz = process.env.TZ;
+    try {
+      process.env.TZ = 'America/Los_Angeles';
+      expect(formatCalendarDate('2026-08-03')).toBe('03.08.2026');
+    } finally {
+      process.env.TZ = tz;
+    }
+  });
+
+  test('граница месяца — первое число не становится последним предыдущего', () => {
+    expect(formatCalendarDate('2026-01-01')).toBe('01.01.2026');
+  });
+
+  test('формат совпадает с formatDateNumeric — расходится только парсинг', () => {
+    // Один и тот же день, заданный моментом времени, печатается одинаково:
+    // хелпер не заводит второй формат, он чинит разбор входа.
+    expect(formatCalendarDate('2026-08-03')).toBe(
+      formatDateNumeric(new Date(2026, 7, 3, 12, 0, 0)),
+    );
   });
 });

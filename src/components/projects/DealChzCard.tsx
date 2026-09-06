@@ -11,6 +11,7 @@ import {
   CHZ_SNAPSHOT_DATE,
   CHZ_SNAPSHOT_SOURCES,
 } from '@/lib/data/chz-groups';
+import { formatCalendarDate } from '@/lib/utils/dates';
 import type { Project } from '@/lib/hooks/use-projects';
 
 // ═══════════════════════════════════════════════════════
@@ -47,7 +48,7 @@ function SnapshotNote() {
       className="mt-3 text-xs text-text-dim"
       title={`Источники: ${CHZ_SNAPSHOT_SOURCES.join(' · ')}`}
     >
-      Справочник на {CHZ_SNAPSHOT_DATE}
+      Справочник на {formatCalendarDate(CHZ_SNAPSHOT_DATE)}
     </p>
   );
 }
@@ -159,7 +160,9 @@ export function DealChzCard({ project }: { project: Project }) {
           тоже нельзя — это данные, которые ввёл человек. */}
       {profile.unknown.length > 0 && (
         <div className="mt-3 border-t border-border pt-2">
-          <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике {CHZ_SNAPSHOT_DATE}</p>
+          <p className="mb-1.5 text-xs text-text-mute">
+            Нет в справочнике {formatCalendarDate(CHZ_SNAPSHOT_DATE)}
+          </p>
           <div className="flex flex-wrap gap-1">
             {profile.unknown.map((name) => (
               <span

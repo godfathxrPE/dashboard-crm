@@ -9,7 +9,7 @@ import { okvedToIndustry } from '@/lib/data/okved';
 import { chzStatusLabel, CHZ_SNAPSHOT_DATE, type ChzGroup } from '@/lib/data/chz-groups';
 import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { ChzBadge } from '@/components/shared/ChzBadge';
-import { formatDateHuman } from '@/lib/utils/dates';
+import { formatDateHuman, formatCalendarDate } from '@/lib/utils/dates';
 import { PhoneList } from '@/components/shared/PhoneList';
 import { safeHref } from '@/lib/utils/safe-href';
 import { RailCard, RailRow } from '@/components/shared/RailCard';
@@ -216,7 +216,9 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
               это данные, которые ввёл человек. */}
           {chzUnknown.length > 0 && (
             <div className="mt-3 border-t border-border pt-2">
-              <p className="mb-1.5 text-xs text-text-mute">Нет в справочнике {CHZ_SNAPSHOT_DATE}</p>
+              <p className="mb-1.5 text-xs text-text-mute">
+                Нет в справочнике {formatCalendarDate(CHZ_SNAPSHOT_DATE)}
+              </p>
               <div className="flex flex-wrap gap-1">
                 {chzUnknown.map((name) => (
                   <span key={name} data-tag

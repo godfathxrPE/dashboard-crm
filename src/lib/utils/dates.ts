@@ -44,6 +44,24 @@ export function formatDateNumeric(date: string | Date): string {
 }
 
 /**
+ * "03.08.2026" — КАЛЕНДАРНАЯ дата: 'YYYY-MM-DD' без момента времени.
+ *
+ * Отдельно от `formatDateNumeric` из-за парсинга, а не формата — формат тот же.
+ * `new Date('2026-08-03')` по спеке ECMAScript — UTC-полночь, а `format` печатает
+ * в ЛОКАЛЬНОЙ зоне: при отрицательном смещении дата уезжает НА СУТКИ НАЗАД
+ * (замерено: America/New_York и America/Los_Angeles дают «02.08.2026», MSK и UTC —
+ * «03.08.2026»). Суффикс `T00:00:00` БЕЗ `Z` парсится как локальная полночь и
+ * стабилен в любой зоне.
+ *
+ * Звать для значений, у которых нет времени по построению: колонки `date`,
+ * ввод `<input type="date">`, датированные снапшоты справочников. Для
+ * `timestamptz` он не нужен — там момент есть, и сдвига по определению нет.
+ */
+export function formatCalendarDate(isoDate: string): string {
+  return formatDateNumeric(`${isoDate}T00:00:00`);
+}
+
+/**
  * "Пн, 15 мар" — с днём недели
  */
 export function formatDateWithDay(date: string | Date): string {
