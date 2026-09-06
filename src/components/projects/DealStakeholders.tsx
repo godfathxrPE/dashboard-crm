@@ -443,6 +443,13 @@ function VirtualPrimaryLine({
 }
 
 /**
+ * Подпись пустого слота primary. Слот закрывается ТОЛЬКО заданием
+ * `projects.contact_id`, поэтому и в клике, и в тексте он ведёт к полю «Контакт»
+ * сделки — тем же путём, что `Placeholder` в `DealSummaryCard` (модалка проекта).
+ */
+const PRIMARY_SLOT_HINT = 'задаётся полем «Контакт» сделки';
+
+/**
  * Пустой слот — носитель сообщения «этой роли в контуре нет», а не место под
  * будущую строку. Отсюда пунктир (форма отличает пустое от заполненного и без
  * цвета) и `--danger-text` на пояснении обязательной роли: цвет здесь несёт
@@ -450,16 +457,31 @@ function VirtualPrimaryLine({
  *
  * ⚠️ Рамка — существующий токен `border2` через `border-dashed`. Токена `--line-4`
  * из макета в проекте НЕТ: спека написана под свой лист переменных.
+ *
+ * ⚠️ Два разных действия по типу слота (cold review F1). Слот РОЛИ закрывается
+ * добавлением участника — клик открывает форму с предвыбранной ролью. Слот PRIMARY
+ * добавлением НЕ закрывается: `resolveRoleSlots` считает его закрытым по
+ * `projects.contact_id`, и после «добавить участника» он остался бы пустым — клик
+ * обещал бы действие, которого не совершает. Поэтому primary ведёт в модалку
+ * проекта (там же правится «Контакт» из сводки — третьего пути не заводим), а если
+ * дёрнуть её нельзя (нет прав, нет колбэка) — слот НЕ кликабелен, но подпись
+ * остаётся: она объясняет, где это поле, как подпись «основной» объясняет, почему
+ * у заполненного primary нет кнопки удаления.
  */
 function EmptySlotLine({
   slot,
   canManage,
   onAdd,
+  onEditContact,
 }: {
   slot: RoleSlot;
   canManage: boolean;
   onAdd: () => void;
+  onEditContact?: () => void;
 }) {
+  const isPrimary = slot.kind === 'primary';
+  const hint = isPrimary ? PRIMARY_SLOT_HINT : slot.hint;
+
   const body = (
     <>
       <span
@@ -471,14 +493,14 @@ function EmptySlotLine({
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm text-text-dim">{slot.label}</span>
-        {slot.hint && (
+        {hint && (
           <span
             className={cn(
               'block truncate text-meta',
               slot.isRequired ? 'text-danger-text' : 'text-text-mute',
             )}
           >
-            {slot.hint}
+            {hint}
           </span>
         )}
       </span>
@@ -487,20 +509,18 @@ function EmptySlotLine({
 
   const shell = 'flex w-full items-center gap-2 rounded-lg border border-dashed border-border2 px-2 py-1.5 text-left';
 
+  const action = isPrimary ? onEditContact : onAdd;
+
   // Без прав слот всё равно ВИДЕН: «кого не хватает» — сведение о сделке, а не
-  // действие. Кликабельным он становится только у тех, кто может добавить.
-  if (!canManage) {
-    return (
-      <div className={shell}>
-        {body}
-      </div>
-    );
+  // действие. Кликабельным он становится только у тех, кто может его закрыть.
+  if (!canManage || !action) {
+    return <div className={shell}>{body}</div>;
   }
 
   return (
     <button
       type="button"
-      onClick={onAdd}
+      onClick={action}
       className={cn(shell, 'transition-colors hover:border-border hover:bg-surface2')}
     >
       {body}
@@ -514,6 +534,7 @@ export function DealStakeholders({
   primaryContact,
   companyId,
   pipelineId,
+  onEditContact,
 }: {
   projectId: string;
   primaryContactId: string | null;
@@ -526,6 +547,13 @@ export function DealStakeholders({
    * карта рисуется прежним плоским списком.
    */
   pipelineId?: string | null;
+  /**
+   * Открыть редактирование СДЕЛКИ — тот же `onEdit`, что «+ Указать» у поля
+   * «Контакт» в сводке (`DealSummaryCard`). Пустой слот primary закрывается только
+   * `projects.contact_id`, и вести его больше некуда. Не передан — слот
+   * не кликабелен (см. `EmptySlotLine`).
+   */
+  onEditContact?: () => void;
 }) {
   const { data: stakeholders = [], isLoading, isError, error } = useDealStakeholders(projectId);
   const { data: expectedRoles = [] } = usePipelineExpectedRoles(pipelineId);
@@ -665,6 +693,7 @@ export function DealStakeholders({
                   slot={slot}
                   canManage={canManage}
                   onAdd={() => openAdd(slot.role)}
+                  onEditContact={onEditContact}
                 />
               );
             }
