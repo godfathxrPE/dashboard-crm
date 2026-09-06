@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { buildHealthRing, polarPoint, RING_GAP_DEG } from '@/lib/domain/health-ring';
+import { buildHealthRing, polarPoint, RING_GAP_DEG, RING_RADIUS } from '@/lib/domain/health-ring';
 import type { DealSignal, SignalKey, SignalState } from '@/lib/domain/deal-signals';
 
 function sig(key: SignalKey, state: SignalState, label = `сигнал ${key}`): DealSignal {
@@ -21,8 +21,8 @@ describe('buildHealthRing — геометрия', () => {
     const ring = buildHealthRing(five(['bad', 'warn', 'ok', 'ok', 'ok']));
     expect(ring.segments).toHaveLength(5);
     ring.segments.forEach((seg, i) => {
-      expect(seg.startDeg).toBeCloseTo(i * 72 + 1, 10);
-      expect(seg.endDeg).toBeCloseTo((i + 1) * 72 - 1, 10);
+      expect(seg.startDeg).toBeCloseTo(i * 72 + RING_GAP_DEG / 2, 10);
+      expect(seg.endDeg).toBeCloseTo((i + 1) * 72 - RING_GAP_DEG / 2, 10);
     });
   });
 
@@ -39,20 +39,20 @@ describe('buildHealthRing — геометрия', () => {
     expect(sum).toBeCloseTo(360 - 5 * RING_GAP_DEG, 10);
   });
 
-  test('один сигнал → 1°…359°, large-arc = 1', () => {
+  test('один сигнал → почти полный круг за вычетом зазора, large-arc = 1', () => {
     const ring = buildHealthRing([sig('next_step', 'bad')]);
     expect(ring.segments).toHaveLength(1);
-    expect(ring.segments[0].startDeg).toBeCloseTo(1, 10);
-    expect(ring.segments[0].endDeg).toBeCloseTo(359, 10);
+    expect(ring.segments[0].startDeg).toBeCloseTo(RING_GAP_DEG / 2, 10);
+    expect(ring.segments[0].endDeg).toBeCloseTo(360 - RING_GAP_DEG / 2, 10);
     // `A r r 0 <largeArc> 1` — пятый токен после A.
-    expect(ring.segments[0].d).toMatch(/A 35 35 0 1 1 /);
+    expect(ring.segments[0].d).toMatch(new RegExp(`A ${RING_RADIUS} ${RING_RADIUS} 0 1 1 `));
   });
 
   test('три сигнала → дуга 118°, large-arc = 0', () => {
     const ring = buildHealthRing([sig('next_step', 'bad'), sig('deadline', 'warn'), sig('silence', 'ok')]);
     ring.segments.forEach((seg) => {
       expect(seg.endDeg - seg.startDeg).toBeCloseTo(118, 10);
-      expect(seg.d).toMatch(/A 35 35 0 0 1 /);
+      expect(seg.d).toMatch(new RegExp(`A ${RING_RADIUS} ${RING_RADIUS} 0 0 1 `));
     });
   });
 
@@ -70,9 +70,9 @@ describe('buildHealthRing — цвет и счёт', () => {
       sig('deadline', 'warn'),
       sig('silence', 'ok'),
     ]);
-    expect(ring.segments[0].stroke).toBe('var(--danger-text)');
-    expect(ring.segments[1].stroke).toBe('var(--warning-text)');
-    expect(ring.segments[2].stroke).toBe('var(--success-text)');
+    expect(ring.segments[0].stroke).toBe('var(--danger)');
+    expect(ring.segments[1].stroke).toBe('var(--warning)');
+    expect(ring.segments[2].stroke).toBe('var(--success)');
   });
 
   test('problems считает только state !== ok', () => {

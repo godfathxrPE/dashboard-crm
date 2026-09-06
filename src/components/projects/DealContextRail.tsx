@@ -55,11 +55,14 @@ function HealthDealCard({
       {/* Вердикт здесь НЕ показывается: он стоит под следующим шагом в
           рабочей колонке. Два вердикта на экране — это F-01. */}
       {withRing ? (
-        <div className="flex items-start gap-3">
+        /* Кольцо НАД списком, а не слева от него. В колонке 356px кольцо сбоку
+           съедало у строк сигнала около 130px, и вместе с чипом действия
+           («К шагу», «К дедлайну») строка ломалась на два-три слова — список
+           переставал читаться ради циферблата. Вертикаль здесь дешевле ширины:
+           срезы Р7, под которые её экономили, оказались уже сделанными в 1A. */
+        <div className="flex flex-col gap-3">
           <DealHealthRing signals={signals.signals} onSegmentClick={scrollToSignalAnchor} />
-          <div className="min-w-0 flex-1">
-            <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
-          </div>
+          <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
         </div>
       ) : (
         <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
