@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { usePipelineStagesMap } from './use-pipelines';
 import { useTeamMembers } from './use-team-members';
 import { buildStageStory, type StageStory, type StageTransitionRow } from '@/lib/domain/stage-story';
+import { countDeadlineMoves, countStepMoves, type AuditRow, type FieldMoves } from '@/lib/domain/field-moves';
 
 // ═══════════════════════════════════════════════════════
 // S-STAGE-STORY-1: чтение траектории сделки.
@@ -51,27 +52,31 @@ export function useStageTransitions(projectId: string | null | undefined) {
   });
 }
 
-export interface DeadlineMoves {
-  count: number;
-  /** Дата последнего переноса (ISO) или null. */
-  lastAt: string | null;
+export interface ProjectFieldMoves {
+  deadline: FieldMoves;
+  step: FieldMoves;
 }
 
 /**
- * Переносы дедлайна из аудита полей (087, `trg_zy_log_field_audit` → `activity_log`).
+ * Переносы дат из аудита полей (087, `trg_zy_log_field_audit` → `activity_log`).
  *
- * ⚠️ Фильтр по наличию `changes.deadline` — на КЛИЕНТЕ: jsonb-оператор `?` через
- * PostgREST не выражается, а выборка мелкая (десятки строк на проект).
+ * ⚠️ Фильтр по наличию нужного ключа в `changes` — на КЛИЕНТЕ: jsonb-оператор `?`
+ * через PostgREST не выражается, а выборка мелкая (десятки строк на проект).
  *
  * ⚠️ `useActivityLog` для этого не годится: у него `limit(50)` и `select('*')` —
  * счётчик переносов на длинной сделке молча обрезался бы.
+ *
+ * ⚠️ S-DEAL-ZONES-1B: `deadline` и `next_action_date` лежат в одном и том же
+ * `payload.changes` — второй запрос и второй ключ не заводятся, оба счётчика
+ * считаются в одном проходе. Свежесть держит ОДНА инвалидация ключа
+ * `['field-moves']` в `useUpdateProject.onSettled`: realtime у хука нет намеренно.
  */
-export function useDeadlineMoves(projectId: string | null | undefined) {
+export function useFieldMoves(projectId: string | null | undefined) {
   return useQuery({
-    queryKey: ['deadline-moves', projectId],
+    queryKey: ['field-moves', projectId],
     enabled: !!projectId,
     staleTime: 1000 * 60,
-    queryFn: async (): Promise<DeadlineMoves> => {
+    queryFn: async (): Promise<ProjectFieldMoves> => {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('activity_log')
@@ -80,26 +85,15 @@ export function useDeadlineMoves(projectId: string | null | undefined) {
         .in('event_type', ['project_updated', 'stage_changed'])
         .order('created_at', { ascending: false });
       if (error) throw error;
-
-      let count = 0;
-      let lastAt: string | null = null;
-      for (const row of data ?? []) {
-        const payload = row.payload as Record<string, unknown> | null;
-        const changes = payload?.changes;
-        if (!changes || typeof changes !== 'object' || Array.isArray(changes)) continue;
-        if (!('deadline' in (changes as Record<string, unknown>))) continue;
-        count += 1;
-        // Строки идут по убыванию — первая подходящая и есть последний перенос.
-        if (lastAt === null) lastAt = row.created_at;
-      }
-      return { count, lastAt };
+      const rows = (data ?? []) as AuditRow[];
+      return { deadline: countDeadlineMoves(rows), step: countStepMoves(rows) };
     },
   });
 }
 
 export interface StageStoryResult {
   story: StageStory | null;
-  deadlineMoves: DeadlineMoves;
+  deadlineMoves: FieldMoves;
   /** Имя человека по id или null — акторов без профиля не выдумываем. */
   actorName: (id: string | null) => string | null;
   isLoading: boolean;
@@ -118,7 +112,7 @@ export function useStageStory(
 ): StageStoryResult {
   const projectId = project?.id ?? null;
   const { data: rows, isLoading: rowsLoading } = useStageTransitions(projectId);
-  const { data: moves } = useDeadlineMoves(projectId);
+  const { data: moves } = useFieldMoves(projectId);
   const stagesMap = usePipelineStagesMap();
   const { data: members } = useTeamMembers();
 
@@ -139,7 +133,7 @@ export function useStageStory(
 
   return {
     story,
-    deadlineMoves: moves ?? { count: 0, lastAt: null },
+    deadlineMoves: moves?.deadline ?? { count: 0, lastAt: null },
     actorName: (id) => (id ? namesById.get(id) ?? null : null),
     isLoading: rowsLoading || stagesMap.size === 0,
     isEmptyJournal: (rows?.length ?? 0) === 0,

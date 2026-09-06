@@ -476,7 +476,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             {/* Без условия «Какой следующий шаг?» появилось бы на выигранной
                 сделке. Зона «Работа» без шага (кокпит + вкладки) — нормальное
                 состояние. */}
-            {hasNextStep && <DealNextStep project={project} signals={signals} />}
+            {hasNextStep && <DealNextStep project={project} />}
             <div className="min-w-0">
               {workContent}
             </div>
