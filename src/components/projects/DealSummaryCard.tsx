@@ -8,7 +8,7 @@ import { InlineEdit } from '@/components/ui/InlineEdit';
 import { RailCard, RailRow } from '@/components/shared/RailCard';
 import { formatBudget } from '@/lib/validators/project';
 import { formatContactName, formatContactNameShort } from '@/lib/utils/contact-name';
-import { formatDateNumeric } from '@/lib/utils/dates';
+import { formatDateNumeric, formatCalendarDate } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils/cn';
 
 // ═══════════════════════════════════════════════════════
@@ -149,9 +149,16 @@ export function DealSummaryCard({
             placeholder="+ Установить"
             // F-02: соседние строки рельса печатали дату двумя форматами.
             // Формат один на обе — числовой, из dates.ts.
+            //
+            // `formatCalendarDate`, а не `formatDateNumeric`: сюда приходит
+            // значение `<input type="date">` — голая строка 'YYYY-MM-DD' без
+            // момента времени (колонка `deadline` тоже `date`). `new Date()` от
+            // такой строки — UTC-полночь, и при отрицательном смещении зоны
+            // дедлайн печатался на СУТКИ НАЗАД. `catch` от этого не спасал:
+            // исключения нет, дата просто неверная.
             formatDisplay={(v) => {
               try {
-                return formatDateNumeric(v);
+                return formatCalendarDate(v);
               } catch { return v; }
             }}
             onSave={async (val) => {
