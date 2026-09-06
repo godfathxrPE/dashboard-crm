@@ -901,7 +901,10 @@ export interface PipelineExpectedRole {
   role: StakeholderRole;
   /** Пустой слот обязательной роли поднимает сигнал `single_threaded`. */
   is_required: boolean;
-  /** Пояснение под названием слота; оно же — текст сигнала здоровья. */
+  /**
+   * Пояснение под названием слота — подпись В ВИДЖЕТЕ. В сигнал здоровья НЕ уходит:
+   * текст `single_threaded` строится из словаря ролей (см. `roleCoverageSignal`).
+   */
   hint: string | null;
   sort_order: number;
   created_at: string;

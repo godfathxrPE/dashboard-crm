@@ -50,8 +50,10 @@ create table if not exists public.pipeline_expected_roles (
   -- Пустой слот ОБЯЗАТЕЛЬНОЙ роли поднимает сигнал `single_threaded`; необязательной —
   -- просто рисуется пунктиром в виджете.
   is_required boolean not null default false,
-  -- Пояснение под названием слота («кто подтвердит интеграцию»). Оно же становится
-  -- текстом сигнала здоровья, поэтому формулировка — от лица риска, не от лица поля.
+  -- Пояснение под названием слота («кто подтвердит интеграцию») — подпись В ВИДЖЕТЕ.
+  -- В сигнал здоровья НЕ уходит: текст сигнала строится из словаря ролей
+  -- (STAKEHOLDER_ROLE_CONFIG), иначе формулировка риска менялась бы из настроек org.
+  -- Формулировать всё равно от лица риска, не от лица поля.
   hint        text,
   -- Порядок слотов в виджете. smallint: слотов в воронке единицы, не тысячи.
   sort_order  smallint not null default 0,
@@ -101,10 +103,12 @@ create trigger trg_set_updated_at
 -- построчно (advisor WARN). Раздельные политики на операцию, не FOR ALL (урок 036b).
 alter table public.pipeline_expected_roles enable row level security;
 
+drop policy if exists pipeline_expected_roles_select on public.pipeline_expected_roles;
 create policy pipeline_expected_roles_select on public.pipeline_expected_roles
   for select to authenticated
   using ( org_id = ( select public.current_org_id() ) );
 
+drop policy if exists pipeline_expected_roles_insert on public.pipeline_expected_roles;
 create policy pipeline_expected_roles_insert on public.pipeline_expected_roles
   for insert to authenticated
   with check (
@@ -114,6 +118,7 @@ create policy pipeline_expected_roles_insert on public.pipeline_expected_roles
 
 -- WITH CHECK повторяет USING — урок 054: без него строку можно перенести в чужую org
 -- (org_id прикрыт ещё и trg_aa_freeze_org_id).
+drop policy if exists pipeline_expected_roles_update on public.pipeline_expected_roles;
 create policy pipeline_expected_roles_update on public.pipeline_expected_roles
   for update to authenticated
   using (
@@ -125,6 +130,7 @@ create policy pipeline_expected_roles_update on public.pipeline_expected_roles
     and ( select public.current_org_role() ) in ('owner','admin')
   );
 
+drop policy if exists pipeline_expected_roles_delete on public.pipeline_expected_roles;
 create policy pipeline_expected_roles_delete on public.pipeline_expected_roles
   for delete to authenticated
   using (
@@ -195,5 +201,7 @@ comment on column public.pipeline_expected_roles.is_required is
   'необязательной не поднимает ничего, только рисуется пунктиром.';
 
 comment on column public.pipeline_expected_roles.hint is
-  'Пояснение под названием слота; оно же — текст сигнала здоровья. Формулировать '
+  'Пояснение под названием слота — подпись В ВИДЖЕТЕ. В сигнал здоровья НЕ уходит: '
+  'текст single_threaded строится из словаря ролей (STAKEHOLDER_ROLE_CONFIG), иначе '
+  'формулировка риска менялась бы из настроек организации. Формулировать всё равно '
   'от лица риска («ЛПР не в контуре — ключевой риск стадии»), не от лица поля.';
