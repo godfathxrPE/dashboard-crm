@@ -32,7 +32,16 @@
      Сверка с макетом «Сделка v2»: work #EFF4DC против #EDF1DC, ctx #E8E7E4
      против #ECE8E0 — расхождение 3-4 единицы на канал. */
   --zone-base:           color-mix(in srgb, var(--text) 2%, var(--bg));
-  --zone-work:           color-mix(in srgb, var(--accent) 14%, var(--zone-base));
+  /* Тон «Работы» — НЕ всегда акцент. Формула S-DEAL-ZONES-1A молча считала акцент
+     свободным тоном; это верно только в лайме. Замер ΔE по всем восьми темам:
+     washi (акцент === --red) сливался с «Рисками» в состоянии «киснет» — 2.8,
+     tidal и minimal (акцент в зелёном) — с «Рисками» в норме 1.8 и 4.9, аура
+     (графитовый акцент) — с «Контекстом» 3.3. Порог различимости плашек ≈5.
+     Поэтому тон вынесен в свой токен, а темы с занятым акцентом переопределяют
+     его ниже. `--zone-work-ink` — тот же выбор для eyebrow зоны. */
+  --zone-work-tint:      var(--accent);
+  --zone-work-ink:       var(--accent-text, var(--accent));
+  --zone-work:           color-mix(in srgb, var(--zone-work-tint) 14%, var(--zone-base));
   --zone-ctx:            color-mix(in srgb, var(--text)    6%, var(--zone-base));
   --zone-risk-ok:        color-mix(in srgb, var(--green)  12%, var(--zone-base));
   --zone-risk-attention: color-mix(in srgb, var(--yellow) 14%, var(--zone-base));
@@ -52,6 +61,20 @@
 
 .h-attention { --h-zone: var(--zone-risk-attention); --h-ring: var(--yellow); --h-chip-ink: var(--yellow-text, var(--yellow)); }
 .h-rotting   { --h-zone: var(--zone-risk-rotting);   --h-ring: var(--red);    --h-chip-ink: var(--red-text, var(--red)); }
+
+/* Темы, у которых акцент занят семантикой Рисков или неотличим от нейтрали:
+   тон «Работы» уходит в --purple — единственный палитровый тон без
+   семантического алиаса (danger/warning/success/info заняты red/yellow/green/blue).
+   Худший ΔE к соседним плашкам поднимается до 8.7 (аура) / 5.0 (washi) /
+   7.2 (tidal) / 8.8 (minimal).
+   Eyebrow при этом уходит в нейтраль: --purple-text на этой подложке даёт
+   4.13–4.73, а подпись 11px требует 4.5. --text-dim даёт 4.64–5.68.
+   t-fuji НЕ в списке: там акцент и синий — одно и то же, а purple опускает пару
+   «Работа ↔ Контекст» с 5.0 до 4.1. Тема остаётся слабой, это её известный долг. */
+.t-aura, .t-washi, .t-tidal, .t-minimal {
+  --zone-work-tint: var(--purple);
+  --zone-work-ink:  var(--text-dim);
+}
 
 /* ═══════════════════════════════════════════════════════
    THEMES — exact values from legacy index.html

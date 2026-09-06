@@ -464,9 +464,12 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             className="zone order-1 min-w-0 lg:col-start-1"
             style={{ ['--zone-surface']: 'var(--zone-work)' } as React.CSSProperties}
           >
-            {/* Фолбэк как в `.entity-tile`: `--accent-text` объявлен не во всех
-                темах (базовая, t-tidal, t-fuji его не задают). */}
-            <div className="zone-eyebrow" style={{ color: 'var(--accent-text, var(--accent))' }}>
+            {/* Цвет eyebrow идёт тем же токеном, что и тон подложки зоны:
+                в темах с занятым акцентом (washi/tidal/minimal/aura) он уходит
+                в нейтраль, иначе «РАБОТА» читалась бы как сообщение об ошибке.
+                Фолбэк на `--accent` внутри токена — акцентный текст объявлен
+                не во всех темах. */}
+            <div className="zone-eyebrow" style={{ color: 'var(--zone-work-ink)' }}>
               Работа <small className="text-text-dim">что делаем сейчас · где в воронке · задачи</small>
             </div>
             {cockpit}
