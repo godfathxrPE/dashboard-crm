@@ -1,0 +1,209 @@
+# Спринт S-DEAL-PULSE-1 — пульс активности сделки (W8)
+
+**Вход:** `main` = `a3d182d`. **Миграций НЕТ.** **Ветка:** `feat/deal-pulse-1`.
+**Baseline:** снять в разведке. **Спецификация:** `_analysis/deal-v2-spec.html`, W8.
+От развилки «вкладки против стопки» НЕ зависит — виджет живёт на правом рельсе.
+
+---
+
+## Зачем
+
+Единственный виджет спеки, которого в коде нет вовсе. Он отвечает на вопрос, который
+цифрой не отвечается: **как шла сделка**. «14 событий» — это число; провал в середине
+графика и три серых клетки подряд — это картина, по которой видно, что две недели
+назад сделка стояла.
+
+Спека W8 дословно:
+
+> **Спарклайн:** svg 100%×46, viewBox 300×46, `preserveAspectRatio none`. 16 точек =
+> 30 дней / 2. Линия green 2px, заливка градиент lime .7 → 0, конечная точка ink r3.5.
+> Подписи 9.5: начало · «тишина N дн.» (макс. разрыв) · «сегодня».
+>
+> **Тепловая полоса** (заголовок 10.5 «Дни без активности · 14 дн.»): grid 14 × 1fr
+> gap 3 · ячейка h14 r4. 0 событий — surface-2 · 1 — lime-soft · 2 — lime · 3+ — green.
+> `title` = «N событ. · дата».
+>
+> Шапка: «Пульс · 30 дней» ↔ «14 событий · последнее 10ч назад».
+> Данные: `eventsByDay[30]`.
+
+Плейсмент по спеке — последний в зоне «Риски», после «Закреплено».
+
+⚠️ Цвета читать по `decisions-lime-theme-2026-09-05`, а не по спеке: она написана под
+тему `minimal`. Ступени полосы — семантические токены проекта (`--green` и его
+разбавления), НЕ `--accent`: в `t-washi` акцент равен `--red`, и «активный день»
+покрасился бы как ошибка.
+
+---
+
+## РАЗВЕДКА
+
+```bash
+git log --oneline -1
+npm run lint 2>&1 | tail -3
+npx vitest run 2>&1 | tail -5
+
+sed -n '1,45p' src/lib/hooks/use-activity-log.ts
+grep -n 'useActivityLog' src/ -r --include='*.tsx' | head
+
+ls src/components/analytics src/components/widgets
+grep -rln 'polyline\|<path d=\|linearGradient' src/components/ --include='*.tsx'
+
+sed -n '/### activity_log/,/#### Аудит/p' docs/schema.md | head -25
+grep -n 'idx_activity_log' docs/schema.md | head
+```
+
+Ответить в отчёте:
+1. Есть ли в проекте готовый спарклайн (`analytics/`, `widgets/`, `dashboard/`) —
+   если да, переиспользовать, а не писать второй.
+2. Индекс `(project_id, created_at desc)` — подтвердить, что запрос за 30 дней по
+   сделке им покрывается.
+3. Считает ли кто-то уже «дней без активности» — в `deal-signals.ts` есть сигнал
+   `silence`, и его порог не должен разъехаться с подписью «тишина N дн.».
+
+---
+
+## ЗАДАЧА 1 — домен
+
+`src/lib/domain/deal-pulse.ts` — чистая функция, время аргументом.
+
+```ts
+export interface PulsePoint { day: string; count: number }   // day = 'YYYY-MM-DD'
+
+export interface DealPulse {
+  /** 30 дней от now−29 до now включительно, БЕЗ пропусков — дни без событий = 0. */
+  days: PulsePoint[];
+  /** 16 значений для спарклайна: пары дней, сумма. Спека: 16 точек = 30 дней / 2. */
+  points: number[];
+  total: number;
+  /** Максимальный разрыв подряд идущих нулей и его конец — для подписи «тишина N дн.». */
+  longestSilence: { days: number; endedOn: string | null };
+  lastEventAt: string | null;
+}
+
+export function buildDealPulse(
+  events: readonly { created_at: string }[],
+  now: Date,
+): DealPulse
+```
+
+Правила, которые обязаны быть в тестах:
+- дни без событий присутствуют в `days` как `count: 0` — иначе полоса схлопнется
+  и «тишина» перестанет быть видна, а она и есть смысл виджета;
+- `longestSilence` считается по ХВОСТУ тоже: если событий не было последние 9 дней,
+  это самый важный разрыв, а не «незавершённый»;
+- 30 дней — календарные, граница дня по МСК (в проекте вся календарная ось на
+  `mskMinutesOfDay`, см. `lib/domain/day-windows.ts`); **`Date.now()` внутри не звать**;
+- пустой вход ⇒ 30 нулей, `total: 0`, `lastEventAt: null` — не падать.
+
+---
+
+## ЗАДАЧА 2 — хук
+
+`src/lib/hooks/use-deal-pulse.ts`:
+
+```ts
+supabase.from('activity_log')
+  .select('created_at')
+  .eq('project_id', projectId)
+  .gte('created_at', <now − 30 дней, ISO>)
+  .order('created_at', { ascending: true })
+```
+
+**Не переиспользовать `useActivityLog`**: он берёт `select('*')` с `limit(50)` —
+за 30 дней активной сделки полсотни строк кончатся раньше, чем окно, и пульс молча
+покажет неправду. Здесь нужна одна колонка и без лимита.
+
+`staleTime` 60 секунд; realtime не подписывать — `activity_log` в publication есть
+(122), но пульс за 30 дней от одной новой строки не меняется заметно, а лишняя
+подписка на карточке дороже.
+
+---
+
+## ЗАДАЧА 3 — виджет
+
+`src/components/projects/DealPulseCard.tsx`, монтаж в `DealRisksZone`
+(`DealContextRail.tsx`) после `PinnedNoteCard`.
+
+**3.1.** Шапка через `RailCard`: «Пульс · 30 дней» ↔ «{total} событий · последнее
+{relativeTime}» (`relativeTime` уже есть в `lib/utils/activity-events.ts`).
+
+**3.2.** Спарклайн: inline `<svg viewBox="0 0 300 46" preserveAspectRatio="none">`,
+`polyline` по 16 точкам, заливка `linearGradient` от `--green` .7 к 0, конечная точка
+кружком. Высота фиксированная 46, ширина 100%.
+`aria-hidden` на svg + текстовая подпись рядом — график не носитель уникального смысла,
+и скринридеру нужны числа, а не путь.
+
+**3.3.** Подписи 9.5–10.5 под графиком: дата начала окна · «тишина N дн.» на месте
+максимального разрыва (если `longestSilence.days >= 3`, иначе не рисовать) · «сегодня».
+
+**3.4.** Тепловая полоса: 14 последних дней, `grid-template-columns: repeat(14, 1fr)`,
+ячейка h14 r4, `title="{N} событ. · {дата}"`. Четыре ступени — семантические токены,
+не акцент. Заголовок «Дни без активности · {N} дн.» — число из `longestSilence`
+в пределах этих 14 дней.
+
+**3.5.** Состояния: загрузка — скелет высотой виджета (не «…», иначе рельс прыгает);
+ошибка — текст; **пусто (сделка создана сегодня, событий нет)** — виджет НЕ рисуется
+вовсе, как `PinnedNoteCard` при пустой заметке. Пульс на однодневной сделке — шум.
+
+**3.6.** Ноль хардкод-цветов. `tabular-nums` на числах.
+
+### Verification
+
+```bash
+npx tsc --noEmit 2>&1 | head -10
+grep -rn '#[0-9a-fA-F]\{6\}' src/components/projects/DealPulseCard.tsx | wc -l
+grep -n 'DealPulseCard' src/components/projects/DealContextRail.tsx
+python3 scripts/audit-contrast.py 2>&1 | tail -5
+```
+
+---
+
+## ТЕСТЫ
+
+`tests/unit/deal-pulse.test.ts`, время передаётся аргументом:
+
+| Вход | Ожидание |
+|---|---|
+| пусто | 30 дней нулей, `total:0`, `lastEventAt:null` |
+| одно событие сегодня | `total:1`, `longestSilence.days` = 29 (хвост слева) |
+| события каждый день | `longestSilence.days` = 0 |
+| разрыв 9 дней в середине, 3 в конце | берётся 9, `endedOn` — правильная дата |
+| разрыв в ХВОСТЕ (последние 11 дней пусто) | берётся 11 — незавершённый разрыв считается |
+| события старше 30 дней | в окно не попадают, `total` их не считает |
+| два события в один день | `count: 2`, точка спарклайна суммирует пару дней |
+| граница дня 23:59 МСК | попадает в свой день, не в следующий |
+
+```bash
+npx vitest run tests/unit/deal-pulse.test.ts 2>&1 | tail -12
+```
+
+---
+
+## ФИНАЛЬНАЯ ПРОВЕРКА
+
+```bash
+npx tsc --noEmit 2>&1 | head -20
+npm run lint 2>&1 | tail -5
+npx vitest run 2>&1 | tail -10
+npm run build 2>&1 | tail -10
+```
+
+## КОММИТ
+
+```bash
+cat > /tmp/commit-pulse.txt <<'MSG'
+feat(deals): пульс активности сделки за 30 дней
+
+- deal-pulse.ts: 30 дней без пропусков, 16 точек спарклайна, максимальный разрыв
+  тишины с учётом хвоста; время аргументом
+- use-deal-pulse: отдельный запрос одной колонки без лимита (useActivityLog с
+  limit 50 показал бы неправду на активной сделке)
+- DealPulseCard в зоне «Риски»: спарклайн, тепловая полоса 14 дней, скрытие при
+  отсутствии событий
+MSG
+
+git add .
+git commit -F /tmp/commit-pulse.txt
+```
+
+**Не мержить.** Отчёт — на гейт. Cold review не требуется: миграций, RLS и денег нет.

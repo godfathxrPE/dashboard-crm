@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карточка сделки v2 — спецификация макета</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("5b9f0c37-369f-4d8a-b647-56da855bb1c3") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("e5d64d92-33cf-40e2-8ed7-7d557de5c942") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("b5ef85d3-7ea0-4804-8ae0-c725ad96af64") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("7e60247e-88d9-42db-ab2c-f017843ac535") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("970eaf02-59da-4ce0-9d40-ba557c24de84") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("86ad3cd4-31a0-4bfa-b0d2-28e58e4ba91d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("f4250fc4-5e9f-4a71-8983-30719abbcea6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("5b9f0c37-369f-4d8a-b647-56da855bb1c3") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("e5d64d92-33cf-40e2-8ed7-7d557de5c942") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("b5ef85d3-7ea0-4804-8ae0-c725ad96af64") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("7e60247e-88d9-42db-ab2c-f017843ac535") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("970eaf02-59da-4ce0-9d40-ba557c24de84") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("86ad3cd4-31a0-4bfa-b0d2-28e58e4ba91d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("f4250fc4-5e9f-4a71-8983-30719abbcea6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("5b9f0c37-369f-4d8a-b647-56da855bb1c3") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("e5d64d92-33cf-40e2-8ed7-7d557de5c942") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("b5ef85d3-7ea0-4804-8ae0-c725ad96af64") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("7e60247e-88d9-42db-ab2c-f017843ac535") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("970eaf02-59da-4ce0-9d40-ba557c24de84") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("86ad3cd4-31a0-4bfa-b0d2-28e58e4ba91d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("f4250fc4-5e9f-4a71-8983-30719abbcea6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("5b9f0c37-369f-4d8a-b647-56da855bb1c3") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("e5d64d92-33cf-40e2-8ed7-7d557de5c942") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("b5ef85d3-7ea0-4804-8ae0-c725ad96af64") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("7e60247e-88d9-42db-ab2c-f017843ac535") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("970eaf02-59da-4ce0-9d40-ba557c24de84") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("86ad3cd4-31a0-4bfa-b0d2-28e58e4ba91d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("f4250fc4-5e9f-4a71-8983-30719abbcea6") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<!--
+══════════════════════════════════════════════════════════════════════════════
+  КАРТОЧКА СДЕЛКИ v2 · СПЕЦИФИКАЦИЯ ДЛЯ РАЗРАБОТКИ
+  Проект: dashboard-crm · тема minimal (светлая) · fluid-раскладка (min 1380)
+  Файл самодостаточный: статичный HTML + CSS + 12 строк JS для сворачивания.
+  Все токены — в :root. Все размеры в комментариях перед каждым виджетом.
+  Hover-подсветка связей (showLinks) в макет НЕ включена намеренно.
+══════════════════════════════════════════════════════════════════════════════
+
+  СЕТКА СТРАНИЦЫ
+  ─────────────────────────────────────────────────────────────────────────────
+  Артборд ............ fluid: width 100% · min-width 1380 (ниже — горизонтальный скролл) · фон linear-gradient(180deg,#FFFFFF,#EFEBE8)
+  Отступы контента ... top 92 · right 36 · bottom 40 · left 104  → ширина контента = viewport − 140
+  Рельс иконок ....... position:absolute · left 22 · top/bottom 26 · width 52 (без разделителя)
+  Топбар ............. position:absolute · right 36 · top 26 · h 40
+  Шапка сделки ....... grid: minmax(0,1fr) 356px · gap 20 · margin-bottom 18
+  Тело ............... grid: minmax(0,1fr) 356px · gap 20 · align-items:start
+     ├ левая колонка 1fr (тянется; при 1440 = 924) → зона «Работа» (padding 16) → виджеты 1fr − 32
+     └ правая колонка 356 фикс → зоны «Риски» и «Контекст» (padding 16) → виджеты 324
+  Зона ............... radius 26 · padding 16 · gap 14 (Работа) / 12 (Риски, Контекст)
+  Карточка ........... radius 20 · bg #fff · тень --sh-card · padding 14–16 / 16–18
+  Базовый шрифт ...... Inter 13px / 1.45, font-feature-settings 'cv11'
+
+  ТИПОГРАФИКА (px / weight)
+  ─────────────────────────────────────────────────────────────────────────────
+  h1 сделки .......... 22 / 600 · letter-spacing −.02em
+  Сумма в шапке ...... 26 / 600 · ls −.03em · tabular-nums
+  Текст шага ......... 20 / 500 · ls −.015em · lh 1.3
+  Заголовок карточки . 12 / 700
+  Eyebrow ............ 10.5 / 700 · uppercase · ls .10–.12em
+  Основной текст ..... 12.5 / 400–600
+  Мета ............... 11 / 400 · цвет --ink-3
+  Микро-подписи ...... 9.5–10.5
+
+  ЛОГИКА ЗОН
+  ─────────────────────────────────────────────────────────────────────────────
+  Работа (лево) ...... «что делаем сейчас»: Кокпит → Следующий шаг → Доска задач → Орг. блок → Активность
+  Риски (право ↑) .... «что может сорвать»: Здоровье → Закреплено → Пульс. Фон зоны зависит от health
+  Контекст (право ↓) . «кто, сколько, что собрано»: Сводка → Стейкхолдеры → Честный Знак (только IIoT)
+  Порядок = частота обращения. Риски стоят вровень с Кокпитом: причина и следствие в одной строке взгляда.
+
+  СОСТОЯНИЕ health (enum) — управляет кольцом, чипом, фоном зоны «Риски» и подзаголовком
+  ─────────────────────────────────────────────────────────────────────────────
+  ok        score 86 · ring #4C8A0B · chipBg rgba(76,138,11,.12)  · chipText #3D7A0A · zone #E6F1D6 · «В порядке»   · «сигналов нет — сделка в норме»
+  attention score 64 · ring #B0680A · chipBg rgba(176,104,10,.12) · chipText #846300 · zone #F5EBDA · «Внимание»    · «есть что поправить»
+  rotting   score 48 · ring #CC3B2E · chipBg rgba(204,59,46,.10)  · chipText #B02A24 · zone #F6ECEA · «Под угрозой» · «что может сорвать сделку»
+  В макете отрисован rotting. Смена состояния — класс на <body>: .h-ok / .h-attention / .h-rotting
+-->
+<style>
+:root{
+  /* ── чернила ── */
+  --ink:#17171C; --ink-2:#4E4E59; --ink-3:#5F5F6A; --ink-4:#8A8A94; --ink-soft:#2E2E36;
+  /* ── линии ── */
+  --line:#ECECF0; --line-2:#E6E6EB; --line-3:#D9D9E0; --line-4:#C4C4CE; --line-5:#E7E7EB;
+  /* ── поверхности ── */
+  --surface:#fff; --surface-2:#F4F4F6; --surface-3:#F7F7F9; --page:#EDE9E1;
+  /* ── акцент: лайм = действие и «ок» ── */
+  --lime:#C9F25A; --lime-ink:#14210A; --lime-soft:#E4F5B8; --green:#4C8A0B; --green-ink:#3D7A0A;
+  /* ── сигналы: только для рисков ── */
+  --red:#CC3B2E; --red-ink:#B02A24; --amber:#B0680A; --amber-ink:#846300; --amber-soft:#F7EBD4; --amber-bg:#FBF3DC; --gold:#E7C25A;
+  /* ── служебные ── */
+  --blue:#2563C9; --blue-ink:#1D68BC; --blue-soft:#DFEAF9; --violet:#6F4BC8; --violet-soft:#E9D8F5; --teal:#0A6771; --teal-soft:#DDEEF0;
+  /* ── фоны зон ── */
+  --zone-work:#EDF1DC; --zone-ctx:#ECE8E0; --zone-risk:#F6ECEA;
+  /* ── радиусы ── */
+  --r-zone:26px; --r-card:20px; --r-glass:22px; --r-inner:14px; --r-ctl:12px; --r-ctl-s:10px; --r-btn-s:9px; --r-pill:999px;
+  /* ── тени ── */
+  --sh-card:0 1px 2px rgba(18,18,24,.06),0 2px 8px rgba(18,18,24,.05);
+  --sh-glass:0 1px 2px rgba(18,18,24,.04),0 16px 40px rgba(20,33,10,.10);
+  --sh-lime:0 6px 16px rgba(185,240,74,.4);
+  /* ── стекло (тёмное) ── */
+  --glass-bg:rgba(23,23,28,.72); --glass-border:rgba(255,255,255,.18);
+  --glass-inset:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(255,255,255,.06);
+  --glass-sheen:linear-gradient(160deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 45%,rgba(201,242,90,.08) 100%);
+  /* ── health: rotting по умолчанию ── */
+  --h-ring:#CC3B2E; --h-chip-bg:rgba(204,59,46,.10); --h-chip-ink:#B02A24; --h-zone:#F6ECEA;
+}
+body.h-ok{--h-ring:#4C8A0B;--h-chip-bg:rgba(76,138,11,.12);--h-chip-ink:#3D7A0A;--h-zone:#E6F1D6}
+body.h-attention{--h-ring:#B0680A;--h-chip-bg:rgba(176,104,10,.12);--h-chip-ink:#846300;--h-zone:#F5EBDA}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);font-family:Inter,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-feature-settings:'cv11';font-size:13px;line-height:1.45}
+a{color:var(--green);text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer}
+svg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ── примитивы ── */
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+.zone{border-radius:var(--r-zone);padding:16px;display:flex;flex-direction:column}
+.zone-head{display:flex;align-items:center;gap:8px;padding:0 4px}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.zone-head .eyebrow{letter-spacing:.12em}
+.card-title{font-size:12px;font-weight:700}
+.meta{font-size:11px;color:var(--ink-3)}
+.num{font-variant-numeric:tabular-nums}
+.hairline-t{border-top:1px solid var(--line)}
+.hairline-b{border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center}
+.gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}.gap14{gap:14px}
+.ml-auto{margin-left:auto}
+.nowrap{white-space:nowrap}
+
+/* кнопки: h34 (шапка) · h32 (стекло) · h30 (карточки) · h28 (вложенные) · h26 (сигналы) */
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:var(--r-ctl-s);border:1px solid var(--line-3);background:var(--surface);color:var(--ink);font-size:12px;font-weight:600;white-space:nowrap}
+.btn-34{height:34px;border-radius:var(--r-ctl);font-weight:500;color:var(--ink-2)}
+.btn-28{height:28px;padding:0 10px;border-radius:var(--r-btn-s);font-size:11.5px}
+.btn-26{height:26px;padding:0 9px;border-radius:var(--r-btn-s);font-size:11px}
+.btn-dark{background:var(--ink);color:#fff;border-color:transparent}
+.btn-lime{background:var(--lime);color:var(--lime-ink);border-color:transparent}
+.btn-ghost{border-color:transparent;color:var(--ink-2)}
+.icon-btn{width:34px;height:34px;padding:0;justify-content:center;color:var(--ink-3)}
+.pill{padding:5px 12px;border-radius:var(--r-pill);font-size:12px;color:var(--ink-3)}
+.pill.on{background:var(--ink);color:#fff;font-weight:600}
+.tag{padding:2px 8px;border-radius:var(--r-pill);font-size:10.5px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+
+/* тёмное liquid glass — единственный акцентный материал, 2 применения: Следующий шаг и текст события */
+.glass{position:relative;overflow:hidden;color:#fff;background:var(--glass-bg);backdrop-filter:blur(30px) saturate(1.3);-webkit-backdrop-filter:blur(30px) saturate(1.3);border:1px solid var(--glass-border);box-shadow:var(--glass-inset)}
+.glass::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--glass-sheen)}
+.glass::after{content:"";position:absolute;left:-40px;top:-60px;width:260px;height:180px;border-radius:50%;background:rgba(201,242,90,.22);filter:blur(40px);pointer-events:none}
+.glass>*{position:relative}
+
+/* спец-панель (не часть продукта) */
+.spec{max-width:1440px;margin:0 auto;padding:24px 36px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;font-size:12px;color:var(--ink-2)}
+.spec .card{padding:12px 14px}
+.spec b{color:var(--ink);font-weight:600}
+.spec .sw{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px;border:1px solid rgba(0,0,0,.06)}
+.spec dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px}
+.spec dt{color:var(--ink-3)}.spec dd{margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body class="h-rotting">
+
+<!-- SVG-спрайт иконок (lucide-подобные, stroke 2). В коде заменить на lucide-react. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"></path></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"></path></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></symbol>
+  <symbol id="i-chev-u" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"></path></symbol>
+  <symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></symbol>
+  <symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"></path></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"></path></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2z"></path></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M22 7l-10 7L2 7"></path></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2"></rect></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3z"></path></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"></path></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"></path></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"></path></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"></path></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></symbol>
+  <symbol id="i-deals" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"></path></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18zM6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"></path></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-6 4 3 5-8"></path></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></symbol>
+  <symbol id="i-chz" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M8 7v10M12 7v10M17 7v10"></path></symbol>
+</svg>
+
+<!-- ════════════════════════ СПЕЦ-ПАНЕЛЬ (не входит в продукт) ════════════════════════ -->
+<div class="spec">
+  <div class="card">
+    <b>Сетка</b>
+    <dl>
+      <dt>Экран</dt><dd>fluid · min 1380</dd>
+      <dt>Колонки</dt><dd>1fr + 356 · gap 20</dd>
+      <dt>Зона</dt><dd>r26 · p16 · gap 14/12</dd>
+      <dt>Карточка</dt><dd>r20 · p14–16 · тень card</dd>
+      <dt>Стекло</dt><dd>r22 · p18 20 16</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <b>Палитра</b>
+    <dl>
+      <dt><span class="sw" style="background:#17171C"></span>ink</dt><dd>#17171C · интерфейс</dd>
+      <dt><span class="sw" style="background:#C9F25A"></span>lime</dt><dd>#C9F25A · действие, «ок»</dd>
+      <dt><span class="sw" style="background:#4C8A0B"></span>green</dt><dd>#4C8A0B · текст на белом</dd>
+      <dt><span class="sw" style="background:#CC3B2E"></span>red</dt><dd>#CC3B2E · только сигналы</dd>
+      <dt><span class="sw" style="background:#B0680A"></span>amber</dt><dd>#B0680A · норма, ожидание</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <b>Фоны зон</b>
+    <dl>
+      <dt><span class="sw" style="background:#EDF1DC"></span>Работа</dt><dd>#EDF1DC</dd>
+      <dt><span class="sw" style="background:#F6ECEA"></span>Риски</dt><dd>#F6ECEA (rotting) · #F5EBDA · #E6F1D6</dd>
+      <dt><span class="sw" style="background:#ECE8E0"></span>Контекст</dt><dd>#ECE8E0</dd>
+      <dt>Смена</dt><dd>класс body: h-ok / h-attention / h-rotting</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <b>Высоты контролов</b>
+    <dl>
+      <dt>34</dt><dd>действия в шапке · r12</dd>
+      <dt>32</dt><dd>кнопки в стекле · r11</dd>
+      <dt>30</dt><dd>+Задача / Звонок / Встреча · r10</dd>
+      <dt>28</dt><dd>вложенные (КП, Новая версия) · r9</dd>
+      <dt>26</dt><dd>действия в сигналах · r9</dd>
+    </dl>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     АРТБОРД 1440
+     ════════════════════════════════════════════════════════════════════════ -->
+<div style="overflow-x:auto">
+<div id="artboard" style="width:100%;min-width:1380px;min-height:100vh;padding:92px 36px 40px 104px;border-radius:0;position:relative;overflow:hidden;background:linear-gradient(180deg,#FFFFFF,#EFEBE8)">
+
+  <!-- ── РЕЛЬС НАВИГАЦИИ ─────────────────────────────────────────────────────
+       Плейсмент: absolute · left 22 · top/bottom 26 · width 52. Без вертикального разделителя —
+       единое пространство с контентом. Логотип 44×44 r14 (ink/lime). Пункты 40×40 r13, иконка 18, stroke 1.8.
+       Активный пункт («Сделки») 44×44 r14 lime + тень --sh-lime. Точки-индикаторы 7px: red — просрочка, green — новое.
+       Низ рельса: Аналитика, Настройки (flex:1 spacer перед ними). ───────────────────────────────── -->
+  <nav style="position:absolute;left:22px;top:26px;bottom:26px;width:52px;display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div style="width:44px;height:44px;border-radius:14px;background:var(--ink);color:var(--lime);display:grid;place-items:center;font-weight:700;font-size:14px;letter-spacing:-.02em;margin-bottom:14px">ТС</div>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-sun"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-grid"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-chat"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3);position:relative"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-tasks"></use></svg><span style="position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3);position:relative"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-bolt"></use></svg><span style="position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--green)"></span></a>
+    <a href="#" aria-current="page" style="width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:var(--lime-ink);background:var(--lime);box-shadow:0 6px 16px rgba(185,240,74,.45)"><svg class="i" style="font-size:19px"><use href="#i-deals"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-folder"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-users"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-building"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3);position:relative"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-phone"></use></svg><span style="position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--green)"></span></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-cal"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-doc"></use></svg></a>
+    <div style="flex:1"></div>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-chart"></use></svg></a>
+    <a href="#" style="width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:18px;stroke-width:1.8"><use href="#i-gear"></use></svg></a>
+  </nav>
+
+  <!-- ── ТОПБАР ──────────────────────────────────────────────────────────────
+       absolute · right 36 · top 26 · gap 8. Поиск h40 r14 белый + ⌘K. Кнопки 40×40 r14.
+       Бейдж уведомлений lime 18h r9 (top −4, right −4). Аватар пользователя 40 r14 ink. ── -->
+  <div style="position:absolute;right:36px;top:26px;display:flex;align-items:center;gap:8px">
+    <div class="card" style="display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:14px;color:var(--ink-3)">
+      <svg class="i" style="font-size:15px"><use href="#i-search"></use></svg><span>Поиск</span>
+      <span style="font-size:11px;padding:1px 6px;border-radius:6px;border:1px solid var(--line-3)">⌘K</span>
+    </div>
+    <button class="card" style="width:40px;height:40px;border-radius:14px;border:none;display:grid;place-items:center;color:var(--ink-3);position:relative">
+      <svg class="i" style="font-size:16px"><use href="#i-bell"></use></svg>
+      <span style="position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--lime);color:var(--lime-ink);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 4px">3</span>
+    </button>
+    <button class="card" style="width:40px;height:40px;border-radius:14px;border:none;display:grid;place-items:center;color:var(--ink-3)"><svg class="i" style="font-size:16px"><use href="#i-sun"></use></svg></button>
+    <div style="width:40px;height:40px;border-radius:14px;background:var(--ink);display:grid;place-items:center;color:#fff;font-weight:600;font-size:12px">ОК</div>
+  </div>
+
+  <!-- ── КРОШКА ── 12px · ink-3 · стрелка 13 · margin-bottom 10 -->
+  <a href="#" style="display:flex;align-items:center;gap:6px;color:var(--ink-3);font-size:12px;margin-bottom:10px"><svg class="i" style="font-size:13px"><use href="#i-arrow-l"></use></svg>Воронка сделок</a>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ШАПКА СДЕЛКИ · grid 1fr / 356 · gap 20 · mb 18
+       Логика: левая карточка = идентичность (кто) + стоимость; правая группа = действия над сделкой.
+       Действия стоят над зоной «Риски», потому что Выиграна/Проиграна — это исход, а не работа.
+       Ширины совпадают с телом страницы → визуально шапка продолжает колонки.
+       ════════════════════════════════════════════════════════════════════════ -->
+  <header style="display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:20px;align-items:start;margin-bottom:18px">
+
+    <!-- Карточка сделки: r18 · padding 12 18. Аватар компании 44 r14 ink/lime, первая буква названия.
+         h1 22/600. Тег типа воронки (IIoT) 11/600 blue-soft. Подстрока 12 ink-3: компания · ИНН · ответственный.
+         Справа: сумма 26/600 tabular + подпись 11 «стоимость · по КП vN» (сумма берётся из активного КП, иначе из бюджета). -->
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:18px">
+      <div class="row gap14">
+        <span style="width:44px;height:44px;border-radius:14px;background:var(--ink);color:var(--lime);display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:-.02em;flex:none">П</span>
+        <div>
+          <div class="row gap10" style="margin-bottom:4px">
+            <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1">Перспектива</h1>
+            <span class="tag" style="padding:3px 9px;font-size:11px;background:var(--blue-soft);color:var(--blue-ink)">IIoT</span>
+          </div>
+          <div class="row gap8 meta nowrap" style="font-size:12px"><a href="#" style="color:var(--ink-2);font-weight:500">АО «ПЕРСПЕКТИВА»</a><span>·</span><span>ИНН 7714 385 210</span><span>·</span><span>Олег К.</span></div>
+        </div>
+      </div>
+      <div style="text-align:right;white-space:nowrap;flex:none">
+        <div class="num" style="font-size:26px;font-weight:600;letter-spacing:-.03em;line-height:1">2 800 000 <span style="font-size:17px;font-weight:500;color:var(--ink-3)">₽</span></div>
+        <div class="meta" style="margin-top:4px">стоимость · по КП v2</div>
+      </div>
+    </div>
+
+    <!-- Действия: h34 · gap 6 · выравнивание вправо, по центру карточки.
+         AI-бриф — primary (ink) с лаймовой иконкой 18×18 r6. Выиграна/Проиграна — вторичные (открывают модалку исхода).
+         Карандаш — редактирование полей; корзина — удаление с подтверждением. -->
+    <div style="display:flex;gap:6px;justify-content:flex-end;align-self:center">
+      <button class="btn btn-34 btn-dark" style="padding:0 12px 0 9px;font-weight:600;color:#fff"><span style="width:18px;height:18px;border-radius:6px;background:var(--lime);display:grid;place-items:center"><svg class="i" style="font-size:11px;stroke:var(--lime-ink);stroke-width:2.4"><use href="#i-sparkle"></use></svg></span>AI‑бриф</button>
+      <button class="btn btn-34">Выиграна</button>
+      <button class="btn btn-34">Проиграна</button>
+      <button class="btn btn-34 icon-btn" aria-label="Редактировать"><svg class="i" style="font-size:14px"><use href="#i-pencil"></use></svg></button>
+      <button class="btn btn-34 icon-btn" aria-label="Удалить"><svg class="i" style="font-size:14px"><use href="#i-trash"></use></svg></button>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ТЕЛО · grid 1fr / 356 · gap 20
+       ════════════════════════════════════════════════════════════════════════ -->
+  <main style="display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:20px;align-items:start">
+
+    <!-- ┌──────────────────────────────────────────────────────────────────────┐
+         │ ЗОНА «РАБОТА» · левая колонка 924 · bg --zone-work · r26 · p16 · gap14  │
+         │ Заголовок зоны: eyebrow green + пояснение 11 ink-3                      │
+         └──────────────────────────────────────────────────────────────────────┘ -->
+    <section class="zone" data-zone="work" style="background:var(--zone-work);gap:14px">
+      <div class="zone-head"><span class="eyebrow" style="color:var(--green)">Работа</span><span class="meta">что делаем сейчас · где в воронке · задачи</span></div>
+
+      <!-- ══ W1 · КОКПИТ СТАДИИ ══════════════════════════════════════════════
+           Плейсмент: 1-й в зоне — стадия определяет всё ниже. Ширина 892. padding 16 18 14.
+           Строка 1 (mb 12): eyebrow «Группа · N из 4» (green) ↔ «стадия K из 11 · вероятность P%» (12, ink-3).
+           Строка 2 — пайплайн-ряд, gap 10, align center:
+             · чип «✓ 8» пройдённых: h34 r12 surface-2, галка green
+             · коннектор 14×2 line-4
+             · ТЕКУЩАЯ СТАДИЯ: min-width 250 · r14 · border 1.5 amber (amber = норма на исходе; при запасе > 30% — line-3)
+                 заголовок 14/600 ↔ «21 дн. из 30 по норме» 11.5 amber-ink
+                 шкала времени h8 r4: заливка width = daysInStage/normDays (70%) градиент lime→gold;
+                 маркер «сегодня» 2×14 ink на 70%; маркер нормы 2×14 amber на 100%
+                 подписи 10: «вход {date}» ↔ «норма {date}»
+             · готовность к переходу: 2 точки 8px (lime + inset green) + подпись 10.5 «готовность 2/2» (чек-лист выхода стадии)
+             · коннектор 14×2 lime (готово к переходу → лайм; иначе line-4)
+             · CTA следующей стадии: h38 r13 lime + --sh-lime, 13/600, стрелка → (переводит стадию, открывает подтверждение)
+             · «+2» пунктир: остальные стадии до конца воронки
+             · МИНИ-КАРТА ВОРОНКИ (ml-auto): 4 группы × сегменты 16×6 r3 gap 3, между группами gap 10.
+                 пройденные — ink-soft; текущий — lime с кольцом 2 white + 1.5 amber; будущие — #E7E7EB.
+                 подписи 9.5 uppercase ls .04em, текущая группа — green 700
+           Блок 3 (mt 14, hairline-t): РАЗВЁРНУТАЯ КАРТА · 11 стадий в 4 группах, grid 3fr 3fr 2fr 3fr gap 10.
+             группа: r14 · p10 10 8 · bg surface-3 · eyebrow + сумма дней.
+             стадия: h28 r9 gap 8 · точка 14 · имя 12 · мета 10.5.
+               done — точка ink-soft «✓», текст ink-2 500 · current — фон ink, точка lime, текст white 600, мета lime
+               next — фон white + inset 1px line-3, точка с кольцом ink «→», 600 · todo — точка-контур line-4, текст ink-3 400
+             «Свернуть» — карта по умолчанию раскрыта только на стадиях группы «Закрытие»; иначе свёрнута.
+           Блок 4 (mt 12): подсказка стадии — r12 · p8 12 · surface-2 · иконка лампа amber · «На стадии: …» из справочника стадий.
+           Данные: stage{name, group, index, total, enteredAt, normDays, probability}, exitChecklist[], funnel[] ─── -->
+      <article class="card" data-widget="cockpit" style="padding:16px 18px 14px">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div class="eyebrow" style="color:var(--green)">Закрытие · группа 4 из 4</div>
+          <div class="num" style="font-size:12px;color:var(--ink-3)">9 из 11 · вероятность <b style="color:var(--ink);font-weight:600">80%</b></div>
+        </div>
+        <div class="row gap10">
+          <span class="row" style="gap:5px;height:34px;padding:0 12px;border-radius:12px;background:var(--surface-2);color:var(--ink-2);font-weight:600;font-size:12px"><svg class="i" style="font-size:12px;stroke:var(--green);stroke-width:3"><use href="#i-check"></use></svg>8</span>
+          <span style="width:14px;height:2px;border-radius:2px;background:var(--line-4)"></span>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:250px;padding:8px 14px 9px;border-radius:14px;border:1.5px solid var(--amber);background:#fff">
+            <div class="row" style="justify-content:space-between;align-items:baseline">
+              <span style="font-weight:600;font-size:14px">Защита КП</span>
+              <span class="num" style="font-size:11.5px;color:var(--amber-ink);font-weight:600">21 дн. <span style="color:var(--ink-3);font-weight:400">из 30 по норме</span></span>
+            </div>
+            <div style="position:relative;height:8px;border-radius:4px;background:var(--surface-2)">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:70%;border-radius:4px;background:linear-gradient(90deg,var(--lime) 0%,var(--gold) 100%)"></div>
+              <div style="position:absolute;left:70%;top:-3px;width:2px;height:14px;background:var(--ink);border-radius:1px"></div>
+              <div style="position:absolute;right:0;top:-3px;width:2px;height:14px;background:var(--amber);border-radius:1px"></div>
+            </div>
+            <div class="row" style="justify-content:space-between;font-size:10px;color:var(--ink-3)"><span>вход 15 авг</span><span>норма 14 сент</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 6px">
+            <div style="display:flex;gap:4px"><span class="dot" style="background:var(--lime);box-shadow:inset 0 0 0 1.5px var(--green)"></span><span class="dot" style="background:var(--lime);box-shadow:inset 0 0 0 1.5px var(--green)"></span></div>
+            <span style="font-size:10.5px;color:var(--ink-2)">готовность 2/2</span>
+          </div>
+          <span style="width:14px;height:2px;border-radius:2px;background:var(--lime)"></span>
+          <button class="btn btn-lime" style="height:38px;padding:0 16px;border-radius:13px;font-size:13px;gap:8px;box-shadow:var(--sh-lime)">Договор<svg class="i" style="font-size:14px;stroke-width:2.4"><use href="#i-arrow-r"></use></svg></button>
+          <span style="padding:3px 9px;border-radius:999px;border:1px dashed var(--line-4);font-size:11px;color:var(--ink-3)">+2</span>
+          <div class="ml-auto" style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+            <div style="display:flex;gap:10px">
+              <div style="display:flex;gap:3px"><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span></div>
+              <div style="display:flex;gap:3px"><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span></div>
+              <div style="display:flex;gap:3px"><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span><span style="width:16px;height:6px;border-radius:3px;background:var(--ink-soft)"></span></div>
+              <div style="display:flex;gap:3px"><span style="width:16px;height:6px;border-radius:3px;background:var(--lime);box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--amber)"></span><span style="width:16px;height:6px;border-radius:3px;background:#E7E7EB"></span><span style="width:16px;height:6px;border-radius:3px;background:#E7E7EB"></span></div>
+            </div>
+            <div style="display:flex;gap:10px;font-size:9.5px;color:var(--ink-3);letter-spacing:.04em;text-transform:uppercase"><span style="width:54px;text-align:center">Привлеч.</span><span style="width:54px;text-align:center">Квалиф.</span><span style="width:35px;text-align:center">Оценка</span><span style="width:54px;text-align:center;color:var(--green);font-weight:700">Закрытие</span></div>
+          </div>
+        </div>
+
+        <!-- Развёрнутая карта воронки -->
+        <div class="hairline-t" style="margin-top:14px;padding-top:14px">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <span class="eyebrow" style="color:var(--ink-3)">Карта воронки · IIoT</span>
+            <button class="btn btn-ghost btn-28" style="font-weight:400;color:var(--ink-3);padding:0 4px;gap:4px">Свернуть <svg class="i" style="font-size:12px;stroke-width:2.2"><use href="#i-chev-u"></use></svg></button>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,3fr) minmax(0,2fr) minmax(0,3fr);gap:10px">
+            <!-- группа: done -->
+            <div style="border-radius:14px;padding:10px 10px 8px;background:var(--surface-3)">
+              <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="eyebrow" style="letter-spacing:.08em;color:var(--ink-2)">Привлечение</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">4 дн.</span></div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Первый контакт</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">1 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Квалификация</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">2 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Потребность</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">1 дн.</span></div>
+              </div>
+            </div>
+            <div style="border-radius:14px;padding:10px 10px 8px;background:var(--surface-3)">
+              <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="eyebrow" style="letter-spacing:.08em;color:var(--ink-2)">Квалификация</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">9 дн.</span></div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Обследование</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">3 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Демо</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">2 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Техзадание</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">4 дн.</span></div>
+              </div>
+            </div>
+            <div style="border-radius:14px;padding:10px 10px 8px;background:var(--surface-3)">
+              <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="eyebrow" style="letter-spacing:.08em;color:var(--ink-2)">Оценка</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">5 дн.</span></div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Расчёт</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">2 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:var(--ink-soft);color:#fff;font-size:9px;font-weight:700">✓</span><span style="font-size:12px;font-weight:500;color:var(--ink-2);flex:1">Подготовка КП</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">5 дн.</span></div>
+              </div>
+            </div>
+            <!-- группа: current / next / todo -->
+            <div style="border-radius:14px;padding:10px 10px 8px;background:var(--surface-3)">
+              <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="eyebrow" style="letter-spacing:.08em;color:var(--ink)">Закрытие</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">21 дн. · идёт</span></div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px;background:var(--ink)"><span style="width:14px;height:14px;border-radius:50%;background:var(--lime)"></span><span style="font-size:12px;font-weight:600;color:#fff;flex:1">Защита КП</span><span class="num" style="font-size:10.5px;color:var(--lime)">21 / 30 дн.</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px;background:#fff;box-shadow:inset 0 0 0 1px var(--line-3)"><span style="width:14px;height:14px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--ink);font-size:9px;font-weight:700;box-shadow:inset 0 0 0 1.5px var(--ink)">→</span><span style="font-size:12px;font-weight:600;flex:1">Договор</span><span class="num" style="font-size:10.5px;color:var(--ink-3)">вер. 90%</span></div>
+                <div class="row gap8" style="height:28px;padding:0 10px;border-radius:9px"><span style="width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line-4)"></span><span style="font-size:12px;color:var(--ink-3);flex:1">Оплата</span><span class="num" style="font-size:10.5px;color:var(--ink-4)">вер. 100%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row gap8" style="margin-top:12px;padding:8px 12px;border-radius:12px;background:var(--surface-2);color:var(--ink-2);font-size:12px">
+          <svg class="i" style="font-size:13px;stroke:var(--amber-ink)"><use href="#i-bulb"></use></svg>
+          <span><b style="font-weight:600;color:var(--ink)">На стадии:</b> защищаем КП у ЛПР, а не у контакта. Цель — встреча с исполнительным директором до конца нормы.</span>
+        </div>
+      </article>
+
+      <!-- ══ W2 · СЛЕДУЮЩИЙ ШАГ (тёмное liquid glass) ═══════════════════════
+           Плейсмент: 2-й — то, ради чего открыли карточку. Единственный крупный glass-виджет на странице.
+           Материал: .glass — bg rgba(23,23,28,.72) · blur 30 sat 1.3 · border rgba(255,255,255,.18) ·
+             блик сверху inset 1px white .28 · sheen-градиент · лаймовое пятно 260×180 blur 40 слева сверху.
+           Габариты: r22 · padding 18 20 16 · тень --sh-glass.
+           Строка 1 (mb 10): иконка 22 r8 lime «›» + «Следующий шаг» 12/700 ↔ «обновлён {ago} · {author}» 11 white .62
+           Плашка текста: r16 16 16 4 («хвостик» слева снизу) · p14 18 · bg white .08 · border white .14
+             текст 20/500 ls −.015em lh 1.3 · max-width 760 · text-wrap pretty. Клик — inline-редактирование.
+           Строка 3 (mt 14, gap 10, wrap): чип даты h32 r11 white .10 (иконка календарь, «Дата: завтра»; клик — datepicker)
+             · «Шаг сделан» h32 r11 lime 600 (закрывает шаг → лог в Активность → запрос нового шага)
+             · «Перенести» h32 r11 border white .22 (сдвиг даты, причина — в лог)
+             · ml-auto: аватар 22 контакта + «ждём {name} · {N} дн. без ответа» 11.5 white .72 — считается от последнего исходящего касания.
+           Пустое состояние: плашка с текстом-подсказкой «Что делаем дальше?» и одной кнопкой «Задать шаг».
+           Данные: nextStep{text, dueDate, updatedAt, updatedBy, waitingOn{contact, sinceDays}} ───────────── -->
+      <article class="glass" data-widget="next-step" style="border-radius:var(--r-glass);padding:18px 20px 16px;box-shadow:var(--sh-glass),var(--glass-inset)">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <div class="row gap8">
+            <span style="width:22px;height:22px;border-radius:8px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center"><svg class="i" style="font-size:12px;stroke-width:3"><use href="#i-chev-r"></use></svg></span>
+            <span class="card-title" style="letter-spacing:.02em">Следующий шаг</span>
+          </div>
+          <span style="font-size:11px;color:rgba(255,255,255,.62)">обновлён 10ч назад · Олег</span>
+        </div>
+        <div style="border-radius:16px 16px 16px 4px;padding:14px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)">
+          <div style="font-size:20px;font-weight:500;letter-spacing:-.015em;line-height:1.3;max-width:760px;text-wrap:pretty">КП получили. Жду от Натальи контакт исп. директора для орг. встречи</div>
+        </div>
+        <div class="row gap10" style="margin-top:14px;flex-wrap:wrap">
+          <span class="row gap6" style="height:32px;padding:0 12px;border-radius:11px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);font-size:12.5px"><svg class="i" style="font-size:13px;stroke:rgba(255,255,255,.7)"><use href="#i-cal"></use></svg><span style="color:rgba(255,255,255,.7)">Дата:</span><b style="font-weight:600">завтра</b></span>
+          <button class="btn btn-lime" style="height:32px;padding:0 14px;border-radius:11px;font-size:12.5px"><svg class="i" style="font-size:13px;stroke-width:3"><use href="#i-check"></use></svg>Шаг сделан</button>
+          <button class="btn" style="height:32px;padding:0 14px;border-radius:11px;border-color:rgba(255,255,255,.22);background:transparent;color:#fff;font-size:12.5px;font-weight:400">Перенести</button>
+          <span class="ml-auto row gap6" style="font-size:11.5px;color:rgba(255,255,255,.72)"><span style="width:22px;height:22px;border-radius:50%;background:var(--violet-soft);color:var(--violet);display:grid;place-items:center;font-size:9.5px;font-weight:700">Н</span>ждём Наталью · 4 дн. без ответа</span>
+        </div>
+      </article>
+
+      <!-- ══ W3 · ДОСКА ЗАДАЧ ═══════════════════════════════════════════════
+           Плейсмент: 3-й. Таймлайн дедлайнов виден ВСЕГДА, колонки — по кнопке (по умолчанию свёрнуто):
+           отвечает на «что горит» до чтения списков. padding 14 18 16.
+           Шапка (mb 14, gap 8): «Доска задач» 12/700 · счётчик lime 18h r999 · сводка 11 «2 в работе · 1 ждёт · 2 готово»
+             · «Показать задачи ▾» btn-28 · ml-auto: «+ Задача / + Звонок / + Встреча» h30 r10 gap 6.
+           ТАЙМЛАЙН ДЕДЛАЙНОВ (hairline-t, p12 4 10): окно 14 дней от сегодня−2 до сегодня+12.
+             легенда 11: точка red «просрочена» · lime+кольцо ink «сегодня» · контур «впереди».
+             колонка «сегодня»: absolute · left = todayPct% · width 34 · r12 · lime .22 · на всю высоту дорожек+оси
+             норма стадии: пунктир 2px amber .7 на normPct% + подпись 9.5 amber-ink «норма стадии · {date}» (общая ось с Кокпитом)
+             дорожки задач (gap 4, padding-top 14): h18 · точка 12 на pct% · подпись 11 со сдвигом 12px вправо
+               просрочена — red + кольцо red .18, 600 · сегодня — lime + кольцо 2 ink + 6 lime .5, 600
+               впереди — white + inset 2 ink-2, 500 · ожидание — amber-soft + inset 2 amber, 500
+             ось дней (h22, hairline-t, mt 6): 15 меток 9.5 tabular в кругах 18; «сегодня» — lime 700 + свечение
+             pct(d) = d / 14 × 100. При > 6 задачах в окне — дорожки объединяются по дню (стек «+N»).
+           КОЛОНКИ (по клику; hairline-t, pt 14): grid 4 × 1fr · без подложек, разделены hairline слева (первая — без).
+             колонка: min-height 230 · p0 12 · заголовок: точка 8 (Бэклог line-4 · В работе green · Ожидание amber · Готово ink) + имя 12.5/600 + счётчик 11.
+             карточка задачи = одна фигура: border line-2 · r12 · p10 12 · gap 6
+               текст 12.5 lh 1.4 · строка 11: точка 6 + дедлайн (цвет по статусу) · «· важно» amber-ink · ml-auto автор
+               готово — opacity .6, line-through. DnD между колонками = смена status.
+             «+ Добавить» — 12 ink-3, прижат книзу колонки.
+           Данные: tasks[]{title, status, dueDate, priority, assignee, kind(task|call|meeting)} ─────────────── -->
+      <article class="card" data-widget="board" style="padding:14px 18px 16px">
+        <div class="row gap8" style="margin-bottom:14px">
+          <span class="card-title" style="margin-right:6px">Доска задач</span><span style="padding:0 7px;border-radius:999px;background:var(--lime);color:var(--lime-ink);font-size:10.5px;font-weight:700;line-height:18px">5</span>
+          <span class="meta" style="margin-left:4px">2 в работе · 1 ждёт · 2 готово</span>
+          <button class="btn btn-28" data-toggle="board-columns" style="margin-left:10px;gap:5px"><span data-label-open="Скрыть задачи" data-label-closed="Показать задачи">Показать задачи</span><svg class="i" style="font-size:11px;stroke-width:2.4;transition:transform .2s"><use href="#i-chev-d"></use></svg></button>
+          <div class="ml-auto row gap6">
+            <button class="btn"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Задача</button>
+            <button class="btn"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Звонок</button>
+            <button class="btn"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Встреча</button>
+          </div>
+        </div>
+
+        <!-- Таймлайн дедлайнов · окно 3–17 сент · сегодня = 5 сент (d=2 → 14.29%) · норма = 14 сент (d=11 → 78.57%) -->
+        <div class="hairline-t" style="padding:12px 4px 10px">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <span class="eyebrow" style="color:var(--ink-3)">Дедлайны · 2 недели</span>
+            <div class="row gap14" style="font-size:11px;color:var(--ink-2)">
+              <span class="row" style="gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--red)"></span>1 просрочена</span>
+              <span class="row" style="gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 1.5px var(--ink)"></span>1 сегодня</span>
+              <span class="row" style="gap:5px"><span style="width:7px;height:7px;border-radius:50%;border:1.5px solid var(--ink-2)"></span>3 впереди</span>
+            </div>
+          </div>
+          <div style="position:relative;padding:0 6px">
+            <div style="position:absolute;left:calc(6px + (100% - 12px) * .1429);top:-4px;bottom:-4px;width:34px;transform:translateX(-50%);border-radius:12px;background:rgba(201,242,90,.22)"></div>
+            <div style="position:absolute;left:calc(6px + (100% - 12px) * .7857);top:0;bottom:22px;border-left:2px dashed var(--amber);opacity:.7"></div>
+            <span style="position:absolute;left:calc(6px + (100% - 12px) * .7857);top:-2px;transform:translateX(8px);font-size:9.5px;font-weight:600;color:var(--amber-ink);white-space:nowrap">норма стадии · 14 сент</span>
+            <div style="position:relative;display:flex;flex-direction:column;gap:4px;padding-top:14px">
+              <div style="position:relative;height:18px"><span style="position:absolute;left:0%;top:3px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(204,59,46,.18)"></span><span style="position:absolute;left:0%;top:0;transform:translateX(12px);font-size:11px;line-height:18px;color:var(--red-ink);font-weight:600;white-space:nowrap">Согласовать дату защиты КП · просрочено</span></div>
+              <div style="position:relative;height:18px"><span style="position:absolute;left:14.29%;top:3px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 2px var(--ink),0 0 0 6px rgba(201,242,90,.5)"></span><span style="position:absolute;left:14.29%;top:0;transform:translateX(12px);font-size:11px;line-height:18px;color:var(--ink);font-weight:600;white-space:nowrap">Контакт исп. директора · сегодня</span></div>
+              <div style="position:relative;height:18px"><span style="position:absolute;left:42.86%;top:3px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px var(--ink-2)"></span><span style="position:absolute;left:42.86%;top:0;transform:translateX(12px);font-size:11px;line-height:18px;color:var(--ink-2);font-weight:500;white-space:nowrap">Видео процесса упаковки</span></div>
+              <div style="position:relative;height:18px"><span style="position:absolute;left:64.29%;top:3px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px var(--ink-2)"></span><span style="position:absolute;left:64.29%;top:0;transform:translateX(12px);font-size:11px;line-height:18px;color:var(--ink-2);font-weight:500;white-space:nowrap">Расчёт ROI для исп. директора</span></div>
+              <div style="position:relative;height:18px"><span style="position:absolute;left:85.71%;top:3px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--amber-soft);box-shadow:inset 0 0 0 2px var(--amber)"></span><span style="position:absolute;left:85.71%;top:0;transform:translateX(12px);font-size:11px;line-height:18px;color:var(--amber-ink);font-weight:500;white-space:nowrap">Ответ юристов</span></div>
+            </div>
+            <div class="hairline-t" style="position:relative;height:22px;margin-top:6px">
+              <span class="num" style="position:absolute;left:0%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">3</span>
+              <span class="num" style="position:absolute;left:7.14%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">4</span>
+              <span class="num" style="position:absolute;left:14.29%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--lime-ink);font-weight:700;background:var(--lime);box-shadow:0 0 0 3px rgba(201,242,90,.45),0 0 12px 4px rgba(201,242,90,.6)">5</span>
+              <span class="num" style="position:absolute;left:21.43%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">6</span>
+              <span class="num" style="position:absolute;left:28.57%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">7</span>
+              <span class="num" style="position:absolute;left:35.71%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">8</span>
+              <span class="num" style="position:absolute;left:42.86%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">9</span>
+              <span class="num" style="position:absolute;left:50%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">10</span>
+              <span class="num" style="position:absolute;left:57.14%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">11</span>
+              <span class="num" style="position:absolute;left:64.29%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">12</span>
+              <span class="num" style="position:absolute;left:71.43%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">13</span>
+              <span class="num" style="position:absolute;left:78.57%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">14</span>
+              <span class="num" style="position:absolute;left:85.71%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">15</span>
+              <span class="num" style="position:absolute;left:92.86%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">16</span>
+              <span class="num" style="position:absolute;left:100%;top:5px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9.5px;color:var(--ink-3)">17</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Колонки — скрыты по умолчанию -->
+        <div id="board-columns" class="hairline-t" hidden="" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding-top:14px">
+          <div style="display:flex;flex-direction:column;gap:8px;min-height:230px;padding:0 12px">
+            <div class="row" style="gap:7px;padding:2px 0 6px"><span class="dot" style="background:var(--line-4)"></span><span style="font-weight:600;font-size:12.5px">Бэклог</span><span class="meta num">2</span></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;line-height:1.4">Собрать видео процесса упаковки у клиента</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--ink-3)"><span style="width:6px;height:6px;border-radius:50%;background:var(--line-4)"></span>9 сент</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;line-height:1.4">Расчёт ROI для исп. директора</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--ink-3)"><span style="width:6px;height:6px;border-radius:50%;background:var(--line-4)"></span>12 сент</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div class="row gap6" style="margin-top:auto;padding:6px 0;color:var(--ink-3);font-size:12px"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Добавить</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-height:230px;padding:0 12px;border-left:1px solid var(--line)">
+            <div class="row" style="gap:7px;padding:2px 0 6px"><span class="dot" style="background:var(--green)"></span><span style="font-weight:600;font-size:12.5px">В работе</span><span class="meta num">2</span></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;line-height:1.4">Получить контакт исп. директора у Натальи</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--ink);font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:var(--green)"></span>сегодня</span><span style="color:var(--amber-ink);font-weight:600">· важно</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;line-height:1.4">Согласовать дату защиты КП</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--red-ink);font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:var(--red)"></span>просрочено · 3 сент</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div class="row gap6" style="margin-top:auto;padding:6px 0;color:var(--ink-3);font-size:12px"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Добавить</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-height:230px;padding:0 12px;border-left:1px solid var(--line)">
+            <div class="row" style="gap:7px;padding:2px 0 6px"><span class="dot" style="background:var(--amber)"></span><span style="font-weight:600;font-size:12.5px">Ожидание</span><span class="meta num">1</span></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px"><span style="font-size:12.5px;line-height:1.4">Ответ юристов клиента по рамочному договору</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--amber-ink);font-weight:500"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber)"></span>ждём до 15 сент</span><span class="ml-auto" style="color:var(--ink-3)">Н</span></div></div>
+            <div class="row gap6" style="margin-top:auto;padding:6px 0;color:var(--ink-3);font-size:12px"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Добавить</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-height:230px;padding:0 12px;border-left:1px solid var(--line)">
+            <div class="row" style="gap:7px;padding:2px 0 6px"><span class="dot" style="background:var(--ink)"></span><span style="font-weight:600;font-size:12.5px">Готово</span><span class="meta num">2</span></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;opacity:.6"><span style="font-size:12.5px;line-height:1.4;text-decoration:line-through;color:var(--ink-3)">КП v2 отправлено клиенту</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--ink-3)"><span style="width:6px;height:6px;border-radius:50%;background:var(--line-4)"></span>11 авг</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div style="border:1px solid var(--line-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;opacity:.6"><span style="font-size:12.5px;line-height:1.4;text-decoration:line-through;color:var(--ink-3)">Вводный звонок с Натальей</span><div class="row gap8" style="font-size:11px"><span class="row" style="gap:5px;color:var(--ink-3)"><span style="width:6px;height:6px;border-radius:50%;background:var(--line-4)"></span>8 авг</span><span class="ml-auto" style="color:var(--ink-3)">ОК</span></div></div>
+            <div class="row gap6" style="margin-top:auto;padding:6px 0;color:var(--ink-3);font-size:12px"><svg class="i" style="font-size:12px;stroke-width:2.4"><use href="#i-plus"></use></svg>Добавить</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ══ W4 · ОРГАНИЗАЦИОННЫЙ БЛОК (КП + Материалы) ══════════════════════
+           Плейсмент: 4-й — обращаются реже, чем к задачам; по умолчанию свёрнут в одну строку. padding 14 18.
+           Свёрнуто: «Организационный блок» 12/700 · сводка 11.5 «КП v2 · отправлено · 1 файл» (статус blue-ink 600) · ml-auto «Развернуть ▾» 11.5/600.
+           Развёрнуто (hairline-t, mt/pt 14): grid 1fr | 1fr, разделитель hairline слева у правой колонки, отступы 18.
+             КП: заголовок 12/700 ↔ «+ Новая версия» btn-28.
+               карточка активного КП: border line-2 · r14 · p12 14
+                 строка 11: точка 7 blue + «Отправлено {date}» blue-ink 600 · ml-auto «действует ещё N дн.» amber-ink 600 (N ≤ 3 → red-ink)
+                 сумма 22/700 ls −.03em tabular (= стоимость сделки в шапке)
+                 кнопки h28 r9: «Принято» dark → стадия Договор, «Отклонено» → причина · ml-auto «v1 · 3.0M · заменён» 11
+               статусы КП: draft (line-4) · sent (blue) · accepted (green) · rejected (red) · expired (amber)
+             Материалы: заголовок ↔ «+ Загрузить» btn-28; строки файлов r12 p10 12 border line-2 (иконка 15 · имя 12.5/600 · дата 11);
+               ожидаемый файл — пунктир 1.5 line-4, имя ink-3, статус amber-ink «ждём от клиента» (связан с задачей в доске).
+           Данные: quotes[]{version, amount, status, sentAt, validUntil, fileId}, files[]{name, size, createdAt, expected:boolean} ── -->
+      <article class="card" data-widget="org" style="padding:14px 18px">
+        <button class="row gap14" data-toggle="org-body" style="width:100%;background:none;border:none;padding:0;text-align:left;color:inherit">
+          <span class="card-title">Организационный блок</span>
+          <span class="meta nowrap" style="font-size:11.5px">КП v2 · <span style="color:var(--blue-ink);font-weight:600">отправлено</span> · 1 файл</span>
+          <span class="ml-auto row" style="gap:5px;font-size:11.5px;font-weight:600"><span data-label-open="Свернуть" data-label-closed="Развернуть">Развернуть</span><svg class="i" style="font-size:12px;stroke-width:2.4;transition:transform .2s"><use href="#i-chev-d"></use></svg></span>
+        </button>
+        <div id="org-body" class="hairline-t" hidden="" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:14px;padding-top:14px">
+          <div style="padding-right:18px">
+            <div class="row" style="margin-bottom:10px"><span class="card-title">КП</span><button class="btn btn-28 ml-auto" style="gap:5px"><svg class="i" style="font-size:11px;stroke-width:2.4"><use href="#i-plus"></use></svg>Новая версия</button></div>
+            <div style="border:1px solid var(--line-2);border-radius:14px;padding:12px 14px">
+              <div class="row gap8 nowrap" style="margin-bottom:6px;font-size:11px">
+                <span class="row" style="gap:5px;font-weight:600;color:var(--blue-ink)"><span style="width:7px;height:7px;border-radius:50%;background:var(--blue)"></span>Отправлено 5 сент</span>
+                <span class="ml-auto" style="color:var(--amber-ink);font-weight:600">действует ещё 9 дн.</span>
+              </div>
+              <div class="num" style="font-size:22px;font-weight:700;letter-spacing:-.03em">2 800 000 ₽</div>
+              <div class="row gap6" style="margin-top:12px">
+                <button class="btn btn-28 btn-dark" style="padding:0 11px">Принято</button>
+                <button class="btn btn-28" style="padding:0 11px;color:var(--ink-2)">Отклонено</button>
+                <span class="meta ml-auto">v1 · 3.0M · заменён</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding-left:18px;border-left:1px solid var(--line)">
+            <div class="row" style="margin-bottom:10px"><span class="card-title">Материалы</span><button class="btn btn-28 ml-auto" style="gap:5px"><svg class="i" style="font-size:11px;stroke-width:2.4"><use href="#i-plus"></use></svg>Загрузить</button></div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div class="row gap10" style="padding:10px 12px;border-radius:12px;border:1px solid var(--line-2)"><svg class="i" style="font-size:15px;stroke:var(--ink-2)"><use href="#i-file"></use></svg><span style="font-size:12.5px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">КП v2.pdf</span><span class="meta nowrap">5 сент</span></div>
+              <div class="row gap10" style="padding:10px 12px;border-radius:12px;border:1.5px dashed var(--line-4)"><svg class="i" style="font-size:15px;stroke:var(--ink-3)"><use href="#i-video"></use></svg><span style="font-size:12.5px;font-weight:600;color:var(--ink-3);flex:1">Видео процесса</span><span class="meta nowrap" style="color:var(--amber-ink)">ждём от клиента</span></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ══ W5 · АКТИВНОСТЬ ════════════════════════════════════════════════
+           Плейсмент: последний в зоне — лента длинная, читается прокруткой. padding 14 18 16.
+           Шапка (mb 14, gap 8): «Активность» 12/700 · фильтры-пилюли 12 p5 12 r999 (активная — ink/white 600):
+             Событие (последнее подробно) · Звонки · Встречи · Задачи · Поля · Все. ml-auto «Вся лента · 14» green 600 → полная история.
+           ПОСЛЕДНЕЕ СОБЫТИЕ (hairline сверху и снизу, p14 4): grid auto | 1fr | auto, gap 14.
+             иконка типа 40 r12 ink/lime · мета 11: тип 600 · дата-время 600 · длительность · контакт · автор
+             текст — тёмное стекло .glass · r14 14 14 4 · p12 16: заголовок 14/600, тело 12.5 white .78 lh 1.5 (пятно блика 220×150 blur 36)
+             следствия 11 green 600: «→ Следующий шаг обновлён» «→ Дата шага: завтра» — автосвязь события с изменёнными полями
+             кнопки: «Изменить» h30 r10, «Открыть» ghost
+           КОМПОЗЕР (margin 12 0): h40 r12 border line-3 · плейсхолдер 12.5 «Добавить комментарий… /задача, /звонок» (slash-команды) · кнопка 28 r9 ink/lime.
+           ЛЕНТА: grid auto | 1fr · точка 8 (green — деньги/КП, amber — касания, line-4 — поля) + линия 1px line-5 · текст 12.5 · мета 11 nowrap tabular.
+             показывать 10, далее «Показать ещё». Изменения полей группируются «и ещё N».
+           Данные: events[]{type, at, actor, title, body, duration, contactId, effects[]} ───────────────────── -->
+      <article class="card" data-widget="activity" style="padding:14px 18px 16px">
+        <div class="row gap8" style="margin-bottom:14px">
+          <span class="card-title" style="margin-right:6px">Активность</span>
+          <div style="display:flex;gap:2px"><span class="pill on">Событие</span><span class="pill">Звонки</span><span class="pill">Встречи</span><span class="pill">Задачи</span><span class="pill">Поля</span><span class="pill">Все</span></div>
+          <a href="#" class="ml-auto" style="font-size:12px;font-weight:600">Вся лента · 14</a>
+        </div>
+        <div class="hairline-t hairline-b" style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;padding:14px 4px">
+          <span style="width:40px;height:40px;border-radius:12px;background:var(--ink);color:var(--lime);display:grid;place-items:center"><svg class="i" style="font-size:17px"><use href="#i-phone"></use></svg></span>
+          <div style="min-width:0">
+            <div class="row gap8 meta num" style="margin-bottom:4px"><span style="color:var(--ink);font-weight:600">Звонок</span><span>·</span><span style="color:var(--ink);font-weight:600">5 сентября, 10:42</span><span>·</span><span>12 мин</span><span>·</span><span>Наталья Н.</span><span>·</span><span>Олег</span></div>
+            <div class="glass" style="border-radius:14px 14px 14px 4px;padding:12px 16px;margin-bottom:8px">
+              <div style="font-size:14px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px">Не ответила. Оставил голосовое про контакт исп. директора</div>
+              <div style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.5;text-wrap:pretty">Договорились в чате, что перезвонит после совещания. Если до завтра нет ответа — идём через секретаря директора напрямую. Дата шага сдвинута на завтра.</div>
+            </div>
+            <div class="row gap14" style="font-size:11px;color:var(--green);font-weight:600"><span>→ Следующий шаг обновлён</span><span>→ Дата шага: завтра</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn"><svg class="i" style="font-size:11px"><use href="#i-pencil"></use></svg>Изменить</button>
+            <button class="btn btn-ghost">Открыть</button>
+          </div>
+        </div>
+        <div class="row gap10" style="height:40px;padding:0 6px 0 14px;border-radius:12px;border:1px solid var(--line-3);margin:12px 0">
+          <span style="flex:1;font-size:12.5px;color:var(--ink-3)">Добавить комментарий… <span style="color:var(--line-4)">/задача, /звонок</span></span>
+          <button style="width:28px;height:28px;border-radius:9px;border:none;background:var(--ink);color:var(--lime);display:grid;place-items:center"><svg class="i" style="font-size:13px;stroke-width:2.4"><use href="#i-send"></use></svg></button>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;column-gap:14px;padding:0 4px">
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--green);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Бюджет: 3.0M ₽ → 2.8M ₽</span><span class="meta nowrap num">10ч назад · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Дата шага: 1 сент → 2 сент</span><span class="meta nowrap num">11ч назад · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Следующий шаг: ждём контакт исп. директора</span><span class="meta nowrap num">11ч назад · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--amber);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Звонок Наталье — не ответила</span><span class="meta nowrap num">4д назад · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Дата шага: не задан → 18 авг</span><span class="meta nowrap num">11 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Следующий шаг: организовать защиту КП</span><span class="meta nowrap num">11 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Дата шага: 11 авг → не задан и ещё 1</span><span class="meta nowrap num">11 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--green);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">КП v2 отправлено клиенту</span><span class="meta nowrap num">11 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Файл добавлен: КП v2.pdf</span><span class="meta nowrap num">11 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--amber);margin-top:7px"></span><span style="flex:1;width:1px;background:var(--line-5);margin-top:3px"></span></div><div class="row" style="padding-bottom:12px;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Вводный звонок с Натальей · 25 мин</span><span class="meta nowrap num">8 авг · Олег</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center"><span class="dot" style="background:var(--line-4);margin-top:7px"></span></div><div class="row" style="padding-bottom:0;align-items:baseline;gap:10px"><span style="flex:1;font-size:12.5px">Сделка создана из лида</span><span class="meta nowrap num">6 авг · Олег</span></div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ПРАВАЯ КОЛОНКА 356 · две зоны, gap 16 -->
+    <aside style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- ┌────────────────────────────────────────────────────────────────────┐
+           │ ЗОНА «РИСКИ» · bg var(--h-zone) — меняется с health · r26 · p16 · gap12 │
+           │ eyebrow цвета --h-chip-ink · подзаголовок по состоянию                  │
+           └────────────────────────────────────────────────────────────────────┘ -->
+      <section class="zone" data-zone="risk" style="background:var(--h-zone);gap:12px">
+        <div class="zone-head"><span class="eyebrow" style="color:var(--h-chip-ink)">Риски</span><span class="meta">что может сорвать сделку</span></div>
+
+        <!-- ══ W6 · ЗДОРОВЬЕ СДЕЛКИ ══════════════════════════════════════════
+             Плейсмент: вровень с Кокпитом — причина (стадия) и следствие (риск) в одной строке взгляда. padding 16.
+             Верх (gap 14, mb 14): КОЛЬЦО 84×84 · r 35 · stroke 9 · фон surface-2 · дуга --h-ring, linecap round, rotate −90
+               окружность C = 2π·35 = 219.9 · dasharray = C·score/100 → 48 → «105.6 219.9»
+               по центру: score 22/700 tabular + «из 100» 9.5
+             справа: «Здоровье сделки» 11 ink-3 · чип вердикта r999 p4 10 (--h-chip-bg / --h-chip-ink, точка 6 --h-ring) 12/700
+               шкала 5 сегментов 26×6 r3 — по одному на сигнал: red / gold / gold / lime / lime (сортировка: критичные первыми)
+               подпись 10.5 «1 критичный · 2 внимание · 2 в норме»
+             СИГНАЛЫ (gap 2): строка p8 10 r12, маркер 8px:
+               критичный — фон red .07, маркер-треугольник red, заголовок 12.5/600 + пояснение 11 + действие btn-26 (белая с тенью)
+               внимание — маркер полукруг amber/amber-soft, без фона; действие — btn-26 с рамкой
+               норма — одна строка 12 ink-2, точка green
+             Порядок сигналов: критичные → внимание → норма. Действие ведёт к виджету-источнику (дедлайн → Сводка, контакт → Стейкхолдеры).
+             Score = 100 − Σ весов сработавших сигналов (просрочка 30 · норма стадии 12 · один контакт 10 · нет шага 25 · тишина > 7 дн. 15).
+             Данные: signals[]{key, level(critical|warn|ok), title, hint, actionTarget} ─────────────────────────── -->
+        <article class="card" data-widget="health" style="padding:16px">
+          <div class="row gap14" style="margin-bottom:14px">
+            <div style="position:relative;width:84px;height:84px;flex:none">
+              <svg width="84" height="84" viewBox="0 0 84 84" style="transform:rotate(-90deg)"><circle cx="42" cy="42" r="35" fill="none" stroke="var(--surface-2)" stroke-width="9"></circle><circle cx="42" cy="42" r="35" fill="none" stroke="var(--h-ring)" stroke-width="9" stroke-linecap="round" stroke-dasharray="105.6 219.9"></circle></svg>
+              <div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center"><div><div class="num" style="font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1">48</div><div style="font-size:9.5px;color:var(--ink-3);margin-top:2px">из 100</div></div></div>
+            </div>
+            <div style="min-width:0">
+              <div class="meta" style="margin-bottom:4px">Здоровье сделки</div>
+              <div class="row gap6" style="display:inline-flex;padding:4px 10px;border-radius:999px;background:var(--h-chip-bg);color:var(--h-chip-ink);font-size:12px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:var(--h-ring)"></span>Под угрозой</div>
+              <div style="margin-top:8px;display:flex;gap:4px"><span style="width:26px;height:6px;border-radius:3px;background:var(--red)"></span><span style="width:26px;height:6px;border-radius:3px;background:var(--gold)"></span><span style="width:26px;height:6px;border-radius:3px;background:var(--gold)"></span><span style="width:26px;height:6px;border-radius:3px;background:var(--lime)"></span><span style="width:26px;height:6px;border-radius:3px;background:var(--lime)"></span></div>
+              <div style="font-size:10.5px;color:var(--ink-3);margin-top:4px">1 критичный · 2 внимание · 2 в норме</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:12px;background:rgba(204,59,46,.07)">
+              <span style="margin-top:4px;width:8px;height:8px;flex:none;background:var(--red);clip-path:polygon(50% 0,100% 100%,0 100%)"></span>
+              <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">Дедлайн просрочен на 18 дн.</div><div class="meta">Перенести дату или закрыть сделку.</div></div>
+              <button class="btn btn-26" style="border:none;box-shadow:0 1px 2px rgba(18,18,24,.1)">К дедлайну</button>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:12px">
+              <span style="margin-top:4px;width:8px;height:8px;flex:none;border-radius:50%;background:linear-gradient(90deg,var(--amber) 50%,var(--amber-soft) 50%)"></span>
+              <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">В стадии 21 дн. из 30</div><div class="meta">Норма стадии на исходе.</div></div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:12px">
+              <span style="margin-top:4px;width:8px;height:8px;flex:none;border-radius:50%;background:linear-gradient(90deg,var(--amber) 50%,var(--amber-soft) 50%)"></span>
+              <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">Вся работа на одном человеке</div><div class="meta">Один контакт — уйдёт он, уйдёт и сделка.</div></div>
+              <button class="btn btn-26">К участникам</button>
+            </div>
+            <div class="row" style="gap:9px;padding:6px 10px"><span class="dot" style="background:var(--green)"></span><span style="font-size:12px;color:var(--ink-2)">Следующий шаг назначен</span></div>
+            <div class="row" style="gap:9px;padding:6px 10px"><span class="dot" style="background:var(--green)"></span><span style="font-size:12px;color:var(--ink-2)">Активность сегодня</span></div>
+          </div>
+        </article>
+
+        <!-- ══ W7 · ЗАКРЕПЛЕНО ════════════════════════════════════════════════
+             Плейсмент: рядом с сигналами — закреплённый комментарий и есть ручной риск. padding 14 16.
+             Шапка (mb 6): иконка кнопка 13 amber-ink + «Закреплено» 12/700 ↔ «Изменить» btn-26.
+             Текст 13 lh 1.45. Пусто → виджет не показывается (не рисовать пустое состояние).
+             Данные: deal.pinnedNote{text, updatedAt, author} ───────────────────────────────────────────── -->
+        <article class="card" data-widget="pinned" style="padding:14px 16px">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px">
+            <div class="row gap6"><svg class="i" style="font-size:13px;stroke:var(--amber-ink)"><use href="#i-pin"></use></svg><span class="card-title">Закреплено</span></div>
+            <button class="btn btn-26">Изменить</button>
+          </div>
+          <div style="font-size:13px;line-height:1.45">Не достаёт видео процесса упаковки. Отправляем КП без него.</div>
+        </article>
+
+        <!-- ══ W8 · ПУЛЬС АКТИВНОСТИ ═══════════════════════════════════════════
+             Плейсмент: последний в Рисках — «тишина» видна формой, не цифрой. padding 14 16.
+             Шапка (mb 8): «Пульс · 30 дней» 12/700 ↔ «14 событий · последнее 10ч назад» 11.
+             СПАРКЛАЙН: svg 100%×46, viewBox 300×46, preserveAspectRatio none. 16 точек = 30 дней / 2.
+               линия green 2px, заливка градиент lime .7 → 0, конечная точка ink r3.5. Подписи 9.5: начало · «тишина N дн.» (макс. разрыв) · «сегодня».
+             ТЕПЛОВАЯ ПОЛОСА (заголовок 10.5 «Дни без активности · 14 дн.»): grid 14 × 1fr gap 3 · ячейка h14 r4
+               0 событий — surface-2 · 1 — lime-soft · 2 — lime · 3+ — green. title = «N событ. · дата».
+             Данные: eventsByDay[30] ─────────────────────────────────────────────────────────────────────── -->
+        <article class="card" data-widget="pulse" style="padding:14px 16px">
+          <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="card-title">Пульс · 30 дней</span><span class="meta">14 событий · последнее 10ч назад</span></div>
+          <svg width="100%" height="46" viewBox="0 0 300 46" preserveAspectRatio="none" style="display:block">
+            <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9F25A" stop-opacity=".7"></stop><stop offset="1" stop-color="#C9F25A" stop-opacity="0"></stop></linearGradient></defs>
+            <path d="M0 40 L20 36 L40 38 L60 22 L80 30 L100 12 L120 26 L140 34 L160 38 L180 40 L200 41 L220 41 L240 36 L260 42 L280 28 L300 18 L300 46 L0 46Z" fill="url(#spk)"></path>
+            <path d="M0 40 L20 36 L40 38 L60 22 L80 30 L100 12 L120 26 L140 34 L160 38 L180 40 L200 41 L220 41 L240 36 L260 42 L280 28 L300 18" fill="none" stroke="#4C8A0B" stroke-width="2" stroke-linejoin="round"></path>
+            <circle cx="300" cy="18" r="3.5" fill="#17171C"></circle>
+          </svg>
+          <div class="row" style="justify-content:space-between;font-size:9.5px;color:var(--ink-3);margin:2px 0 10px"><span>6 авг</span><span>тишина 11 дн.</span><span>сегодня</span></div>
+          <div style="font-size:10.5px;color:var(--ink-3);margin-bottom:5px">Дни без активности · 14 дн.</div>
+          <div style="display:grid;grid-template-columns:repeat(14,1fr);gap:3px">
+            <span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--lime-soft)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--lime)"></span><span style="height:14px;border-radius:4px;background:var(--surface-2)"></span><span style="height:14px;border-radius:4px;background:var(--green)"></span><span style="height:14px;border-radius:4px;background:var(--lime)"></span>
+          </div>
+        </article>
+      </section>
+
+      <!-- ┌────────────────────────────────────────────────────────────────────┐
+           │ ЗОНА «КОНТЕКСТ» · bg --zone-ctx #ECE8E0 · r26 · p16 · gap12             │
+           └────────────────────────────────────────────────────────────────────┘ -->
+      <section class="zone" data-zone="ctx" style="background:var(--zone-ctx);gap:12px">
+        <div class="zone-head"><span class="eyebrow" style="color:var(--ink-2)">Контекст</span><span class="meta">кто, сколько, что собрано</span></div>
+
+        <!-- ══ W9 · СВОДКА ══════════════════════════════════════════════════
+             Плейсмент: 1-й в Контексте — справочные поля сделки. padding 14 16.
+             Шапка (mb 10): «Сводка» 12/700 ↔ донат полноты 22×22 r8 stroke 4 (C = 50.3; 6/8 → «37.7 50.3») + «6/8 полнота» 11 green 600.
+             Таблица grid 86px | 1fr · row-gap 8 · 12.5: ключ ink-3 / значение.
+               ИНН — tabular + чип «копировать» 10 surface-2 (клик → clipboard, тост)
+               Дедлайн просрочен — red-ink 600 + чип «−N дн.» red .10
+               Пустое поле — курсив ink-3 «+ Указать»; если поле влияет на health (ЛПР) — точка 6 amber справа
+               Создана — дата + «N дн. в работе»
+             Полнота = заполненные / обязательные поля (8): компания, ИНН, контакт, бюджет, дедлайн, ЛПР, источник, тип воронки.
+             Данные: deal{companyId, inn, contactId, budget, deadline, decisionMakerId, source, createdAt} ────── -->
+        <article class="card" data-widget="summary" style="padding:14px 16px">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <span class="card-title">Сводка</span>
+            <div class="row gap6"><svg width="22" height="22" viewBox="0 0 22 22" style="transform:rotate(-90deg)"><circle cx="11" cy="11" r="8" fill="none" stroke="var(--surface-2)" stroke-width="4"></circle><circle cx="11" cy="11" r="8" fill="none" stroke="var(--green)" stroke-width="4" stroke-dasharray="37.7 50.3" stroke-linecap="round"></circle></svg><span style="font-size:11px;font-weight:600;color:var(--green)">6/8 полнота</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:86px 1fr;row-gap:8px;font-size:12.5px">
+            <span style="color:var(--ink-3)">Компания</span><a href="#" style="font-weight:500">АО «ПЕРСПЕКТИВА»</a>
+            <span style="color:var(--ink-3)">ИНН</span><span class="row gap6 num"><span style="font-weight:500">7714 385 210</span><button style="padding:1px 6px;border-radius:999px;border:none;background:var(--surface-2);color:var(--ink-3);font-size:10px">копировать</button></span>
+            <span style="color:var(--ink-3)">Контакт</span><a href="#" style="font-weight:500">Наталья Н.</a>
+            <span style="color:var(--ink-3)">Бюджет</span><span class="num" style="font-weight:600">2 800 000 ₽</span>
+            <span style="color:var(--ink-3)">Дедлайн</span><span class="row gap6"><span style="color:var(--red-ink);font-weight:600">14 авг 2026</span><span style="padding:1px 6px;border-radius:999px;background:rgba(204,59,46,.10);color:var(--red-ink);font-size:10px;font-weight:600">−18 дн.</span></span>
+            <span style="color:var(--ink-3)">ЛПР</span><span style="font-style:italic;color:var(--ink-3)">+ Указать <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);vertical-align:middle;margin-left:3px"></span></span>
+            <span style="color:var(--ink-3)">Источник</span><span style="font-style:italic;color:var(--ink-3)">+ Указать</span>
+            <span style="color:var(--ink-3)">Создана</span><span style="color:var(--ink-2)">06.08.2026 · 30 дн. в работе</span>
+          </div>
+        </article>
+
+        <!-- ══ W10 · СТЕЙКХОЛДЕРЫ ═══════════════════════════════════════════
+             Плейсмент: под Сводкой — люди сделки. Слоты ролей вместо списка: пустой слот ЛПР = сигнал «один человек». padding 14 16.
+             Шапка (mb 10): «Стейкхолдеры · 1 из 3 ролей» ↔ «+ Добавить» btn-26.
+             Заполненный слот: r14 · border line-2 · p8 10 · аватар 34 (violet-soft/violet) с кольцом 2 white + 1.5 lime (= основной контакт)
+               имя 12.5/600 · роль 11 ink-3 · телефон / email 11 с иконками 10 (клик — звонок / письмо) · тег «чемпион?» lime 10/700 (гипотеза роли)
+             Пустой слот: пунктир 1.5 line-4 · аватар-плюс 34 · название роли 12.5/600 ink-2 · пояснение 11
+               (ЛПР — red-ink «ЛПР не в контуре — ключевой риск стадии», т.к. стадия «Защита КП» требует ЛПР)
+             Роли по типу воронки (IIoT): ЛПР, Основной контакт, Технический эксперт.
+             Данные: stakeholders[]{contactId, role, isPrimary, phone, email}, funnel.roles[] ────────────────── -->
+        <article class="card" data-widget="stakeholders" style="padding:14px 16px">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="card-title">Стейкхолдеры <span style="color:var(--ink-3);font-weight:500">· 1 из 3 ролей</span></span><button class="btn btn-26" style="padding:0 10px">+ Добавить</button></div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:14px;border:1px solid var(--line-2)">
+              <span style="width:34px;height:34px;border-radius:50%;background:var(--violet-soft);color:var(--violet);display:grid;place-items:center;font-size:12px;font-weight:700;box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--lime)">Н</span>
+              <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">Наталья Н.</div><div class="meta">основной контакт · роль не указана</div><div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font-size:11px"><a href="#" class="row num" style="gap:4px;color:var(--ink)"><svg class="i" style="font-size:10px;stroke:var(--ink-3);stroke-width:2.2"><use href="#i-phone"></use></svg>+7 921 340-18-56</a><a href="#" class="row" style="gap:4px;color:var(--ink)"><svg class="i" style="font-size:10px;stroke:var(--ink-3);stroke-width:2.2"><use href="#i-mail"></use></svg>n.n@perspektiva.ru</a></div></div>
+              <span class="tag" style="padding:2px 7px;font-size:10px;font-weight:700;background:var(--lime);color:var(--lime-ink)">чемпион?</span>
+            </div>
+            <div class="row gap10" style="padding:8px 10px;border-radius:14px;border:1.5px dashed var(--line-4)">
+              <span style="width:34px;height:34px;border-radius:50%;border:1.5px dashed var(--line-4);display:grid;place-items:center;color:var(--ink-3);font-size:14px">+</span>
+              <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Исполнительный директор</div><div style="font-size:11px;color:var(--red-ink)">ЛПР не в контуре — ключевой риск стадии</div></div>
+            </div>
+            <div class="row gap10" style="padding:8px 10px;border-radius:14px;border:1.5px dashed var(--line-4)">
+              <span style="width:34px;height:34px;border-radius:50%;border:1.5px dashed var(--line-4);display:grid;place-items:center;color:var(--ink-3);font-size:14px">+</span>
+              <div style="flex:1"><div style="font-size:12.5px;font-weight:600;color:var(--ink-2)">Технический эксперт</div><div class="meta">кто подтвердит интеграцию</div></div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ══ W11 · ЧЕСТНЫЙ ЗНАК (только воронка IIoT) ════════════════════════
+             Плейсмент: последний — отраслевой контекст, повод сделки. Скрыт для других типов воронки. padding 14 16.
+             Шапка (mb 10): иконка штрихкод 14 + «Честный Знак» 12/700 ↔ тег статуса проверки 10.5 surface-2 («подтверждено» / «проверить»).
+             Товарные группы (gap 8): строка r14 p10 12
+               стартующая (обязанность наступает ≤ 6 мес.) — amber-bg + border amber .25 · тег «старт YYYY-MM» amber-soft/amber-ink · пояснение 11
+               действующая — surface-2 · тег «обязательна с YYYY» green .12 / green-ink
+             Подвал 10.5 (mt 10): «ОКВЭД … · …» ↔ «справочник YYYY-MM» (версия справочника ЧЗ).
+             Данные: company.okved[], chzGroups[]{name, mandatorySince, wave, status}, chzDictVersion ───────────── -->
+        <article class="card" data-widget="chz" style="padding:14px 16px">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px">
+            <div class="row" style="gap:7px"><svg class="i" style="font-size:14px"><use href="#i-chz"></use></svg><span class="card-title">Честный Знак</span></div>
+            <span class="tag" style="background:var(--surface-2);color:var(--ink-3)">подтверждено</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="padding:10px 12px;border-radius:14px;background:var(--amber-bg);border:1px solid rgba(176,104,10,.25)">
+              <div class="row gap8" style="justify-content:space-between"><span style="font-size:12.5px;font-weight:600">Медицинские изделия</span><span class="tag" style="font-weight:700;background:var(--amber-soft);color:var(--amber-ink)">старт 2026-09</span></div>
+              <div style="font-size:11px;color:var(--ink-2);margin-top:3px">волна 2.0 (шприцы, маски, салфетки) — обязанность наступает сейчас</div>
+            </div>
+            <div style="padding:10px 12px;border-radius:14px;background:var(--surface-2)">
+              <div class="row gap8" style="justify-content:space-between"><span style="font-size:12.5px;font-weight:600">Антисептики</span><span class="tag" style="font-weight:700;background:rgba(76,138,11,.12);color:var(--green-ink)">обязательна с 2023</span></div>
+            </div>
+          </div>
+          <div class="row" style="justify-content:space-between;font-size:10.5px;color:var(--ink-3);margin-top:10px"><span>ОКВЭД 32.50 · 20.20</span><span>справочник 2026-08</span></div>
+        </article>
+      </section>
+    </aside>
+  </main>
+</div>
+</div>
+
+<script>
+// Сворачивание: data-toggle="id" → toggles [hidden] на #id, меняет подпись и поворачивает шеврон.
+document.querySelectorAll('[data-toggle]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.toggle);
+    const open = el.hasAttribute('hidden');
+    el.toggleAttribute('hidden', !open);
+    const label = btn.querySelector('[data-label-open]');
+    if (label) label.textContent = open ? label.dataset.labelOpen : label.dataset.labelClosed;
+    const chev = btn.querySelector('svg');
+    if (chev) chev.style.transform = open ? 'rotate(180deg)' : 'none';
+  });
+});
+</script>
+
+
+</body></html>
