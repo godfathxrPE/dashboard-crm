@@ -77,7 +77,7 @@ crm-architect/ в репозитории (источник, git)
         │
         ├─ scripts/skill-deploy.sh ──► ~/.claude/skills/crm-architect/   (Claude Code)
         │                         └──► crm-architect.skill (zip)          → загрузить в аккаунт руками
-        └─ scripts/skill-verify.sh ──► diff: репо ↔ локальная копия
+        └─ scripts/skill-verify.sh ──► diff: репо ↔ локальная копия И репо ↔ пакет
 ```
 
 **Почему правило появилось.** 2026-08-05 аккаунтная копия замерла на `v2.0 · 2026-07-29`
