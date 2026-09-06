@@ -26,14 +26,14 @@ describe('buildHealthRing — геометрия', () => {
     });
   });
 
-  test('зазор между соседними сегментами ровно 2°', () => {
+  test('зазор между соседними сегментами равен RING_GAP_DEG', () => {
     const ring = buildHealthRing(five(['bad', 'warn', 'ok', 'ok', 'ok']));
     for (let i = 1; i < ring.segments.length; i++) {
       expect(ring.segments[i].startDeg - ring.segments[i - 1].endDeg).toBeCloseTo(RING_GAP_DEG, 10);
     }
   });
 
-  test('сумма длин дуг = 360 − N·2', () => {
+  test('сумма длин дуг = 360 − N·зазор', () => {
     const ring = buildHealthRing(five(['bad', 'warn', 'ok', 'ok', 'ok']));
     const sum = ring.segments.reduce((acc, s) => acc + (s.endDeg - s.startDeg), 0);
     expect(sum).toBeCloseTo(360 - 5 * RING_GAP_DEG, 10);
@@ -48,10 +48,10 @@ describe('buildHealthRing — геометрия', () => {
     expect(ring.segments[0].d).toMatch(new RegExp(`A ${RING_RADIUS} ${RING_RADIUS} 0 1 1 `));
   });
 
-  test('три сигнала → дуга 118°, large-arc = 0', () => {
+  test('три сигнала → дуга 120° минус зазор, large-arc = 0', () => {
     const ring = buildHealthRing([sig('next_step', 'bad'), sig('deadline', 'warn'), sig('silence', 'ok')]);
     ring.segments.forEach((seg) => {
-      expect(seg.endDeg - seg.startDeg).toBeCloseTo(118, 10);
+      expect(seg.endDeg - seg.startDeg).toBeCloseTo(120 - RING_GAP_DEG, 10);
       expect(seg.d).toMatch(new RegExp(`A ${RING_RADIUS} ${RING_RADIUS} 0 0 1 `));
     });
   });
