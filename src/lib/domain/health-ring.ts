@@ -1,71 +1,68 @@
-import type { DealSignal, SignalKey, SignalState } from '@/lib/domain/deal-signals';
+import type { DealSignal, SignalState } from '@/lib/domain/deal-signals';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-ZONES-1B: геометрия кольца здоровья сделки.
 //
-// Кольцо — НЕ score. Сегменты равные, по одному на применимый сигнал; смысл
-// несёт цвет сегмента и его позиция (та же, что у строки в списке). Взвешенная
-// версия из макета отклонена: весов у сигналов нет, а выдуманные 30/12/10
-// вернули бы непрозрачный балл, ради ухода от которого `calculateDealHealth`
-// (0–8) и был снят в S-HEALTH-V2-1.
+// Кольцо — ОДНА дуга по серой дорожке, как в макете «Сделка v2»: доля помех от
+// всех применимых сигналов, цветом худшего состояния. Первая реализация делила
+// дугу на цветные сегменты по сигналам — это была ошибка чтения макета: там
+// сегментация живёт в горизонтальной пятиполосной шкале, а Р3 её убрал как
+// дубль списка. Перенеся сегменты в кольцо, я вернул убранное и испортил вид.
 //
-// Цвет — ТОЛЬКО семантические токены (--danger/--warning/--success).
-// `--accent` для смысла не годится: в `t-washi` акцент === --red, и «в порядке»
-// стало бы красным. Правило унаследовано из шапки `DealSignals.tsx`.
+// Кольцо — НЕ score. Взвешенная версия макета (100 минус веса сигналов)
+// отклонена: весов у сигналов нет, а выдуманные вернули бы непрозрачный балл,
+// ради ухода от которого `calculateDealHealth` (0–8) и был снят в S-HEALTH-V2-1.
+// Здесь дуга считает сигналы, а не баллы: «4 из 5» проверяемо, «48 из 100» — нет.
 //
-// `--h-ring` из :root здесь НЕ используется: он один на всю зону, а сегменту
-// нужен свой цвет.
+// Цвет — семантические токены (--danger/--warning/--success). `--accent` для
+// смысла не годится: в `t-washi` акцент === --red, и «в порядке» стало бы
+// красным. Правило из шапки `DealSignals.tsx`.
 // ═══════════════════════════════════════════════════════
 
-export const RING_RADIUS = 41;
-export const RING_STROKE = 9;
-/** Ширина прозрачной дуги-мишени под клик. */
-export const RING_HIT_STROKE = 22;
-/** viewBox 96×96: r 41 + половина обводки 4.5 = 45.5 ≤ 48. */
-export const RING_BOX = 96;
-/** Зазор между сегментами, градусы. При обводке 9px 2° сливались в сплошное кольцо. */
-export const RING_GAP_DEG = 4;
+export const RING_RADIUS = 45;
+export const RING_STROKE = 11;
+/** viewBox 104×104: r 45 + половина обводки 5.5 = 50.5 ≤ 52. */
+export const RING_BOX = 104;
 
-/**
- * Палитровая ступень семантики, НЕ текстовая.
- *
- * На гейте сегменты были переведены в `*-text` ради 3:1 к подложке зоны, и это
- * было ошибкой в постановке задачи: 1.4.11 требует 3:1 от нетекстового элемента,
- * который «необходим для опознания состояния». Здесь он не необходим — каждая
- * строка списка под кольцом несёт то же состояние глифом (▲ ◐ ●) И семантическим
- * цветом текста, который аудит уже проверяет на 4.5:1. Кольцо избыточно по
- * построению: оно добавляет пропорцию, а не состояние.
- *
- * Тёмная ступень же стоила кольцу вида — владелец забраковал его на первом
- * взгляде («визуал удручающий»): бордовые и оливковые дуги вместо чистого
- * циферблата макета. Замер, ради которого это делалось, мерил не то требование.
- */
-const STATE_STROKE: Record<Exclude<SignalState, 'na'>, string> = {
-  bad:  'var(--danger)',
-  warn: 'var(--warning)',
-  ok:   'var(--success)',
-};
-
-export interface RingSegment {
-  key: SignalKey;
-  /** Подпись для нативного тултипа сегмента. */
-  label: string;
-  /** Готовое значение stroke — CSS-переменная, не hex. */
-  stroke: string;
-  /** Границы дуги в градусах: 0 — 12 часов, рост по часовой. */
-  startDeg: number;
-  endDeg: number;
-  /** Атрибут d для <path>. */
-  d: string;
+export interface HealthCounts {
+  bad: number;
+  warn: number;
+  ok: number;
 }
 
 export interface HealthRing {
-  segments: RingSegment[];
   /** Сколько сигналов не в норме — большое число в центре. */
   problems: number;
   /** Сколько сигналов всего — маленькое «из N». */
   total: number;
+  /** Градусы дуги помех: доля problems от total. */
+  arcDeg: number;
+  /** Цвет дуги: худшее состояние среди сигналов, либо success когда помех нет. */
+  stroke: string;
+  /** `d` дуги. null — рисуется полный круг (помех нет либо помеха в каждом сигнале). */
+  d: string | null;
+  /** Полный круг цветом `stroke` вместо дуги: дуга в 0° и в 360° одним `A` не выражается. */
+  full: boolean;
+  /**
+   * Состояния сигналов В ПОРЯДКЕ СПИСКА — под полосу справа от кольца.
+   *
+   * Полоса вернулась после того, как кольцо перестало быть сегментированным:
+   * Р7 резал её как дубль кольца, а теперь она единственный носитель
+   * посигнального разреза — кольцо показывает только долю и худшее состояние.
+   */
+  states: SegmentState[];
+  /** Тот же разрез числами — под подпись «1 критичный · 2 внимание · 2 в норме». */
+  counts: HealthCounts;
 }
+
+export type SegmentState = Exclude<SignalState, 'na'>;
+
+/** Цвет ступени состояния — один на полосу и на дугу. */
+export const STATE_STROKE: Record<SegmentState, string> = {
+  bad: 'var(--danger)',
+  warn: 'var(--warning)',
+  ok: 'var(--success)',
+};
 
 /** Точка на окружности; 0° — 12 часов, отсчёт по часовой стрелке. */
 export function polarPoint(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -80,35 +77,58 @@ function arcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: nu
   return `M ${x0.toFixed(3)} ${y0.toFixed(3)} A ${r} ${r} 0 ${largeArc} 1 ${x1.toFixed(3)} ${y1.toFixed(3)}`;
 }
 
+/** Худшее состояние задаёт цвет всей дуги: одна помеха уровня bad красит кольцо. */
+function worstStroke(signals: DealSignal[]): string {
+  const has = (s: SignalState) => signals.some((x) => x.state === s);
+  if (has('bad')) return STATE_STROKE.bad;
+  if (has('warn')) return STATE_STROKE.warn;
+  return STATE_STROKE.ok;
+}
+
+/** 'na' до сюда не доходит — его отфильтровал `getDealSignals`; сводим к 'ok'. */
+function segmentStates(signals: DealSignal[]): SegmentState[] {
+  return signals.map((s) => (s.state === 'na' ? 'ok' : s.state));
+}
+
 /**
- * `signals` приходит уже отсортированным (bad → warn → ok) и без 'na' — так его
- * отдаёт `getDealSignals`. Порядок здесь НЕ трогается: он обязан совпадать с
- * порядком строк списка, иначе кольцо перестаёт быть легендой.
+ * `signals` приходит без 'na' — так его отдаёт `getDealSignals`.
+ *
+ * Полный зелёный круг при нуле помех — сознательно, вместо пустой серой
+ * дорожки: «всё в норме» должно читаться состоянием, а не отсутствием дуги.
  */
 export function buildHealthRing(signals: DealSignal[]): HealthRing {
   const total = signals.length;
-  if (total === 0) return { segments: [], problems: 0, total: 0 };
+  const states = segmentStates(signals);
+  const counts: HealthCounts = {
+    bad: states.filter((s) => s === 'bad').length,
+    warn: states.filter((s) => s === 'warn').length,
+    ok: states.filter((s) => s === 'ok').length,
+  };
+
+  if (total === 0) {
+    return {
+      problems: 0, total: 0, arcDeg: 0, stroke: STATE_STROKE.ok,
+      d: null, full: false, states, counts,
+    };
+  }
+
+  const problems = counts.bad + counts.warn;
+  const arcDeg = (problems / total) * 360;
+  const stroke = problems === 0 ? STATE_STROKE.ok : worstStroke(signals);
+
+  if (problems === 0 || problems === total) {
+    return { problems, total, arcDeg, stroke, d: null, full: true, states, counts };
+  }
 
   const c = RING_BOX / 2;
-  const slotDeg = 360 / total;
-  const half = RING_GAP_DEG / 2;
-
-  const segments = signals.map((s, i) => {
-    const startDeg = i * slotDeg + half;
-    const endDeg = (i + 1) * slotDeg - half;
-    return {
-      key: s.key,
-      label: s.label,
-      stroke: STATE_STROKE[s.state === 'na' ? 'ok' : s.state],
-      startDeg,
-      endDeg,
-      d: arcPath(c, c, RING_RADIUS, startDeg, endDeg),
-    };
-  });
-
   return {
-    segments,
-    problems: signals.filter((s) => s.state !== 'ok').length,
+    problems,
     total,
+    arcDeg,
+    stroke,
+    d: arcPath(c, c, RING_RADIUS, 0, arcDeg),
+    full: false,
+    states,
+    counts,
   };
 }

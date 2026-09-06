@@ -34,13 +34,14 @@ import { cn } from '@/lib/utils/cn';
 // ─── Общие карточки (используются и рельсой, и зонами) ───
 
 /**
- * Здоровье СДЕЛКИ: список сигналов без вердикта — вердикт стоит под шагом (F-01).
+ * Здоровье СДЕЛКИ.
  *
- * S-DEAL-ZONES-1B: `withRing` — кольцо слева от списка, включается только из
- * `DealRisksZone`. Проп, а не безусловный рендер: карточка вызывается ещё и из
- * `DealContextRail` под `isDeal`, и хотя после 1A эта ветка недостижима (рельса
- * рисуется только когда `type !== 'client'`), она в коде осталась — включать
- * кольцо безусловно значило бы завязаться на её мёртвость.
+ * S-DEAL-ZONES-1B: `withRing` — полная версия по макету (кольцо, вердикт,
+ * посигнальная полоса), включается только из `DealRisksZone`. Проп, а не
+ * безусловный рендер: карточка вызывается ещё и из `DealContextRail` под
+ * `isDeal`, и хотя после 1A эта ветка недостижима (рельса рисуется только
+ * когда `type !== 'client'`), она в коде осталась — включать кольцо
+ * безусловно значило бы завязаться на её мёртвость.
  */
 function HealthDealCard({
   signals,
@@ -50,23 +51,26 @@ function HealthDealCard({
   withRing?: boolean;
 }) {
   if (signals.signals.length === 0) return null;
-  return (
-    <RailCard icon={Activity} title="Здоровье">
-      {/* Вердикт здесь НЕ показывается: он стоит под следующим шагом в
-          рабочей колонке. Два вердикта на экране — это F-01. */}
-      {withRing ? (
-        /* Кольцо НАД списком, а не слева от него. В колонке 356px кольцо сбоку
-           съедало у строк сигнала около 130px, и вместе с чипом действия
-           («К шагу», «К дедлайну») строка ломалась на два-три слова — список
-           переставал читаться ради циферблата. Вертикаль здесь дешевле ширины:
-           срезы Р7, под которые её экономили, оказались уже сделанными в 1A. */
-        <div className="flex flex-col gap-3">
-          <DealHealthRing signals={signals.signals} onSegmentClick={scrollToSignalAnchor} />
+
+  // Зона «Риски»: шапки `RailCard` нет намеренно — заголовок «Здоровье сделки»
+  // стоит справа от кольца, как в макете, и второй такой же в шапке карточки
+  // был бы дублем. На рельсе внедрения шапка остаётся: там кольца нет.
+  if (withRing) {
+    return (
+      <div data-card className="rounded-lg border border-border bg-surface p-4">
+        <DealHealthRing signals={signals.signals} verdict={signals.verdict} />
+        <div className="mt-3">
           <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
         </div>
-      ) : (
-        <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <RailCard icon={Activity} title="Здоровье">
+      {/* Вердикт здесь НЕ показывается: у рельсы внедрения его носит своя
+          формула, а у сделки он стоит в зоне «Риски» рядом с кольцом. */}
+      <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
     </RailCard>
   );
 }

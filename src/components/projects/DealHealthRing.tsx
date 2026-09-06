@@ -3,88 +3,132 @@
 import {
   buildHealthRing,
   RING_BOX,
+  RING_RADIUS,
   RING_STROKE,
-  RING_HIT_STROKE,
+  STATE_STROKE,
 } from '@/lib/domain/health-ring';
-import type { DealSignal, SignalKey } from '@/lib/domain/deal-signals';
+import { pluralRu } from '@/lib/utils/plural';
+import { DealVerdictChip } from './DealSignals';
+import { VERDICT_CONFIG, type DealSignal, type DealVerdict } from '@/lib/domain/deal-signals';
 
 // ═══════════════════════════════════════════════════════
-// S-DEAL-ZONES-1B (Р3). Кольцо здоровья сделки.
+// S-DEAL-ZONES-1B (Р3). Здоровье сделки — по макету «Сделка v2»:
+// слева кольцо (серая дорожка + одна дуга помех цветом худшего состояния),
+// справа посигнальная полоса и её расшифровка словами.
 //
-// A11Y: кольцо — role="img" с полной подписью, сегменты НЕ являются focusable.
-// Клик по сегменту — мышиная надстройка над действием, которое с клавиатуры уже
-// доступно кнопкой CTA в строке сигнала под кольцом. Отдельные табстопы на
-// дугах дали бы второй набор точек остановки к тем же пяти действиям.
+// Чип вердикта стоит ЗДЕСЬ, а не под следующим шагом. Это перенос, не добавка:
+// два словесных носителя уровня здоровья на одном экране — закрытая F-01.
+// Под шагом чип был обходным путём, пока виджета здоровья с кольцом не
+// существовало; теперь уровень живёт там же, где кольцо и разрез по сигналам.
 //
-// Дуги — <path>, не окружности со stroke-dasharray: кликается ровно видимая
-// фигура, а не полный круг с невидимыми штрихами поверх соседей.
+// Полоса вернулась после того, как кольцо перестало быть сегментированным:
+// Р7 резал её как дубль кольца, теперь она единственный носитель посигнального
+// разреза. Подпись под ней — тот же разрез словами: он читается без различения
+// цвета, то есть служит текстовой альтернативой полосе, а не её дублем.
+//
+// A11Y: кольцо и полоса — role="img" с подписью; кликабельных зон нет,
+// переход к сигналу делает кнопка CTA в его строке ниже.
 // ═══════════════════════════════════════════════════════
+
+/**
+ * Разрез ТОЛЬКО по помехам. «N в норме» из макета здесь нет намеренно: ровно
+ * это число стоит кнопкой-раскрывашкой на сорок пикселей ниже, в списке
+ * сигналов. Одни и те же слова дважды в одном виджете — младший брат F-01.
+ * Долю нормы при этом видно: она зелёная в полосе и в незакрашенной части дуги.
+ */
+function countsCaption(counts: { bad: number; warn: number; ok: number }): string {
+  const parts: string[] = [];
+  if (counts.bad > 0) {
+    parts.push(`${counts.bad} ${pluralRu(counts.bad, 'критичный', 'критичных', 'критичных')}`);
+  }
+  if (counts.warn > 0) parts.push(`${counts.warn} внимание`);
+  return parts.length > 0 ? parts.join(' · ') : 'все сигналы в норме';
+}
 
 export function DealHealthRing({
   signals,
-  onSegmentClick,
+  verdict,
 }: {
   signals: DealSignal[];
-  onSegmentClick?: (key: SignalKey) => void;
+  verdict?: DealVerdict;
 }) {
   const ring = buildHealthRing(signals);
   if (ring.total === 0) return null;
 
+  const c = RING_BOX / 2;
+  const caption = countsCaption(ring.counts);
+  const verdictLabel = verdict ? `${VERDICT_CONFIG[verdict].label}. ` : '';
   const label =
     ring.problems === 0
-      ? `Здоровье сделки: все ${ring.total} сигналов в норме`
-      : `Здоровье сделки: ${ring.problems} из ${ring.total} сигналов требуют внимания`;
+      ? `Здоровье сделки: ${verdictLabel}все ${ring.total} сигналов в норме`
+      : `Здоровье сделки: ${verdictLabel}${ring.problems} из ${ring.total} сигналов требуют внимания — ${caption}`;
 
   return (
-    <div className="relative mx-auto shrink-0" style={{ width: RING_BOX, height: RING_BOX }}>
-      <svg
-        width={RING_BOX}
-        height={RING_BOX}
-        viewBox={`0 0 ${RING_BOX} ${RING_BOX}`}
-        role="img"
-        aria-label={label}
-      >
-        {ring.segments.map((seg) => (
-          <path
-            key={seg.key}
-            d={seg.d}
+    <div className="flex items-center gap-4" role="img" aria-label={label}>
+      <div className="relative shrink-0" style={{ width: RING_BOX, height: RING_BOX }}>
+        <svg width={RING_BOX} height={RING_BOX} viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} aria-hidden>
+          {/* Дорожка — полный круг под дугой: даёт кольцу форму при короткой
+              дуге и служит шкалой «сколько всего сигналов». */}
+          <circle
+            cx={c}
+            cy={c}
+            r={RING_RADIUS}
             fill="none"
-            stroke={seg.stroke}
+            stroke="var(--border)"
             strokeWidth={RING_STROKE}
-            strokeLinecap="butt"
           />
-        ))}
-        {/* Прозрачные дуги-мишени поверх видимых: полоса в 6px — попадаемая, но
-            неприятная цель. Широкая прозрачная дуга даёт нормальную мишень.
-            Диапазоны углов те же, соседи не перекрываются. Клавиатуре они не
-            нужны — то же действие лежит на кнопке CTA в строке сигнала. */}
-        {onSegmentClick &&
-          ring.segments.map((seg) => (
-            <path
-              key={`hit-${seg.key}`}
-              d={seg.d}
+          {ring.full ? (
+            <circle
+              cx={c}
+              cy={c}
+              r={RING_RADIUS}
               fill="none"
-              stroke="transparent"
-              strokeWidth={RING_HIT_STROKE}
-              strokeLinecap="butt"
-              pointerEvents="stroke"
-              onClick={() => onSegmentClick(seg.key)}
-              className="cursor-pointer"
-            >
-              <title>{seg.label}</title>
-            </path>
+              stroke={ring.stroke}
+              strokeWidth={RING_STROKE}
+            />
+          ) : (
+            ring.d && (
+              <path
+                d={ring.d}
+                fill="none"
+                stroke={ring.stroke}
+                strokeWidth={RING_STROKE}
+                strokeLinecap="butt"
+              />
+            )
+          )}
+        </svg>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+        >
+          <span className="text-2xl font-bold leading-none tabular-nums text-text-main">
+            {ring.problems}
+          </span>
+          <span className="mt-1 text-meta leading-none tabular-nums text-text-dim">
+            из {ring.total}
+          </span>
+        </div>
+      </div>
+
+      <div className="min-w-0 flex-1" aria-hidden>
+        <p className="text-body text-text-dim">Здоровье сделки</p>
+        {verdict && (
+          <div className="mt-1.5">
+            <DealVerdictChip verdict={verdict} />
+          </div>
+        )}
+        {/* Порядок долек = порядок строк списка ниже: полоса — легенда к нему. */}
+        <div className="mt-2.5 flex items-center gap-1.5">
+          {ring.states.map((state, i) => (
+            <span
+              key={i}
+              className="h-1.5 min-w-0 flex-1 rounded-full"
+              style={{ background: STATE_STROKE[state] }}
+            />
           ))}
-      </svg>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
-      >
-        <span className="text-2xl font-bold leading-none tabular-nums text-text-main">
-          {ring.problems}
-        </span>
-        <span className="mt-0.5 text-meta leading-none tabular-nums text-text-dim">
-          из {ring.total}
-        </span>
+        </div>
+        <p className="mt-2 text-meta leading-snug text-text-dim">{caption}</p>
       </div>
     </div>
   );

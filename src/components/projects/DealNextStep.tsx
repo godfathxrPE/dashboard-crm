@@ -3,8 +3,6 @@
 import { ChevronRight, Check } from 'lucide-react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
 import { InlineEdit } from '@/components/ui/InlineEdit';
-import { DealVerdictChip } from './DealSignals';
-import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { pluralRu } from '@/lib/utils/plural';
@@ -35,14 +33,7 @@ function formatActionDate(value: string): string {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
-export function DealNextStep({
-  project,
-  signals,
-}: {
-  project: Project;
-  /** Контекст сигналов собирается один раз в `ProjectDetail` — второго запроса нет. */
-  signals: DealSignalsResult;
-}) {
+export function DealNextStep({ project }: { project: Project }) {
   const updateProject = useUpdateProject();
   // S-DEAL-ZONES-1B (Р8): счёт из того же queryFn, что уже считал переносы
   // дедлайна — второго ключа и второго запроса нет.
@@ -134,19 +125,12 @@ export function DealNextStep({
         </div>
       </div>
 
-      {/* Вердикт — строкой под карточкой, без рамки: он комментирует шаг, а не
-          спорит с ним за внимание. Пилюля «нет даты» рядом с полем даты НЕ
-          добавляется (R-10) — тот же факт уже несёт сигнал в рельсе. */}
-      {signals.signals.length > 0 && (
-        <div className="mt-1.5 flex items-center gap-2 px-1">
-          <DealVerdictChip verdict={signals.verdict} />
-          {signals.top && (
-            <span className="min-w-0 flex-1 truncate text-xs text-text-dim">
-              причина: {signals.top.label}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Вердикт отсюда УБРАН (S-DEAL-ZONES-1B): он переехал в зону «Риски», к
+          кольцу и посигнальной полосе. Держать его в обоих местах — это F-01,
+          два словесных носителя одного факта. Причина («Шаг просрочен на N
+          дн.») там же первой строкой списка сигналов, так что потерян дубль,
+          а не смысл. Пилюля «нет даты» рядом с полем даты по-прежнему не
+          добавляется (R-10). */}
     </div>
   );
 }
