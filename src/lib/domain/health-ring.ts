@@ -19,15 +19,31 @@ import type { DealSignal, SignalKey, SignalState } from '@/lib/domain/deal-signa
 
 export const RING_RADIUS = 35;
 export const RING_STROKE = 6;
+/** Ширина прозрачной дуги-мишени под клик: 6px — попадаемая, но неприятная цель. */
+export const RING_HIT_STROKE = 16;
 /** viewBox 80×80: r 35 + половина обводки 3 = 38 ≤ 40. */
 export const RING_BOX = 80;
 /** Зазор между сегментами, градусы (Р3). */
 export const RING_GAP_DEG = 2;
 
+/**
+ * Гейт S-DEAL-ZONES-1B: берём ТЕКСТОВУЮ ступень семантики, не заливочную.
+ *
+ * Сегмент лежит на подложке зоны «Риски», а она сама выведена из `--green` /
+ * `--yellow` / `--red` (`--zone-risk-*`). Заливочный `--warning` на такой
+ * подложке даёт 1.54 в `t-fuji`, 1.84 в `t-washi`, 2.57 в `t-aura` — ниже
+ * порога 3:1 для non-text. Текстовая ступень поднимает худший случай по всем
+ * восьми темам до 3.71 (`t-minimal`); в `t-frost`/`t-aurora`/`t-tidal` своей
+ * `*-text` нет, и `:root` отдаёт fallback на палитру — там и так 4.0–4.7.
+ *
+ * Здоровье зоны и состояние сигнала независимы: у «киснущей» сделки (красная
+ * подложка) бывают жёлтые сигналы, поэтому меряется худшая пара цвет × зона,
+ * а не только «свой цвет на своей зоне».
+ */
 const STATE_STROKE: Record<Exclude<SignalState, 'na'>, string> = {
-  bad:  'var(--danger)',
-  warn: 'var(--warning)',
-  ok:   'var(--success)',
+  bad:  'var(--danger-text)',
+  warn: 'var(--warning-text)',
+  ok:   'var(--success-text)',
 };
 
 export interface RingSegment {

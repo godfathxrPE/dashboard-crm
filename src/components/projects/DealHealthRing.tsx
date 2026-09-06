@@ -4,6 +4,7 @@ import {
   buildHealthRing,
   RING_BOX,
   RING_STROKE,
+  RING_HIT_STROKE,
 } from '@/lib/domain/health-ring';
 import type { DealSignal, SignalKey } from '@/lib/domain/deal-signals';
 
@@ -51,12 +52,28 @@ export function DealHealthRing({
             stroke={seg.stroke}
             strokeWidth={RING_STROKE}
             strokeLinecap="butt"
-            onClick={onSegmentClick ? () => onSegmentClick(seg.key) : undefined}
-            className={onSegmentClick ? 'cursor-pointer' : undefined}
-          >
-            <title>{seg.label}</title>
-          </path>
+          />
         ))}
+        {/* Прозрачные дуги-мишени поверх видимых: полоса в 6px — попадаемая, но
+            неприятная цель. Ширина 16 даёт нормальную мишень, не меняя рисунка.
+            Диапазоны углов те же, соседи не перекрываются. Клавиатуре они не
+            нужны — то же действие лежит на кнопке CTA в строке сигнала. */}
+        {onSegmentClick &&
+          ring.segments.map((seg) => (
+            <path
+              key={`hit-${seg.key}`}
+              d={seg.d}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={RING_HIT_STROKE}
+              strokeLinecap="butt"
+              pointerEvents="stroke"
+              onClick={() => onSegmentClick(seg.key)}
+              className="cursor-pointer"
+            >
+              <title>{seg.label}</title>
+            </path>
+          ))}
       </svg>
       <div
         aria-hidden

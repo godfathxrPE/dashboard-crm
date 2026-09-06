@@ -70,9 +70,9 @@ describe('buildHealthRing — цвет и счёт', () => {
       sig('deadline', 'warn'),
       sig('silence', 'ok'),
     ]);
-    expect(ring.segments[0].stroke).toBe('var(--danger)');
-    expect(ring.segments[1].stroke).toBe('var(--warning)');
-    expect(ring.segments[2].stroke).toBe('var(--success)');
+    expect(ring.segments[0].stroke).toBe('var(--danger-text)');
+    expect(ring.segments[1].stroke).toBe('var(--warning-text)');
+    expect(ring.segments[2].stroke).toBe('var(--success-text)');
   });
 
   test('problems считает только state !== ok', () => {
