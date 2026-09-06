@@ -1,7 +1,11 @@
 # Спринт S-DEAL-SUMMARY-1 — сводка сделки по спеке (W9)
 
-**Вход:** `main` = `a3d182d`. **Зависит от S-DEAL-ROLES-1** (поле «ЛПР» — это роль,
-а не колонка). **Ветка:** `feat/deal-summary-1`. От развилки «вкладки против стопки»
+**Вход:** `main` ПОСЛЕ мержа `feat/deal-chz-1` (S-DEAL-CHZ-1) И `feat/deal-roles-1`
+(S-DEAL-ROLES-1). Запускать раньше нельзя: задача 1 переименовывает
+`use-company-chz.ts`, которого на `a3d182d` нет — он живёт в невлитой ветке CHZ-1;
+поле «ЛПР» — роль из ROLES-1, а не колонка. Перед стартом сверить, что оба файла
+в дереве: `ls src/lib/hooks/use-company-chz.ts src/lib/domain/role-slots.ts`.
+**Ветка:** `feat/deal-summary-1`. От развилки «вкладки против стопки»
 не зависит. **Спецификация:** `_analysis/deal-v2-spec.html`, W9.
 
 ---
@@ -31,8 +35,9 @@
 `projects` не имеет колонки `source` (проверено по `docs/schema.md`). Источник живёт
 у **лида**, из которого сделка сконвертирована.
 
-Варианты: (а) читать источник лида по обратной связи `leads.converted_project_id`
-(разведать её наличие и индекс) и показывать только там, где лид был; (б) завести
+Варианты: (а) читать источник лида по обратной ссылке **`leads.converted_deal_id`**
+(именно так, `converted_project_id` не существует — `docs/schema.md:2175`; FK получил
+`ON DELETE SET NULL` в 025; индекс проверить) и показывать только там, где лид был; (б) завести
 `projects.source` миграцией; (в) не показывать поле вовсе.
 **Рекомендация — (а):** сделки заводятся и без лида, отдельная колонка сразу станет
 наполовину пустой и потребует ручного ввода того, что система уже знает.
@@ -57,12 +62,14 @@ sed -n '75,175p' src/components/projects/DealSummaryCard.tsx
 sed -n '80,145p' src/lib/domain/deal-completeness.ts
 cat src/lib/hooks/use-company-chz.ts
 
-grep -n 'converted_project_id\|converted_at\|source' docs/schema.md | grep -i lead | head
+grep -n 'converted_deal_id\|converted_at\|source' docs/schema.md | grep -i lead | head
+grep -n 'idx.*converted' docs/schema.md | head
 grep -n 'RailRow' src/components/shared/RailCard.tsx | head
 grep -rn 'copy\|clipboard' src/components/ --include='*.tsx' | head -5
 ```
 
-Ответить: есть ли `leads.converted_project_id` (или обратная ссылка) и индекс по ней;
+Ответить: есть ли ИНДЕКС по `leads.converted_deal_id` (колонка есть — 2175) — без него
+чтение источника даст seq scan по лидам на каждой карточке;
 как в проекте уже реализовано копирование в буфер (не заводить второй способ).
 
 ---
