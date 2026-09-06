@@ -8,16 +8,18 @@ import {
   STATE_STROKE,
 } from '@/lib/domain/health-ring';
 import { pluralRu } from '@/lib/utils/plural';
-import type { DealSignal } from '@/lib/domain/deal-signals';
+import { DealVerdictChip } from './DealSignals';
+import { VERDICT_CONFIG, type DealSignal, type DealVerdict } from '@/lib/domain/deal-signals';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-ZONES-1B (Р3). Здоровье сделки — по макету «Сделка v2»:
 // слева кольцо (серая дорожка + одна дуга помех цветом худшего состояния),
 // справа посигнальная полоса и её расшифровка словами.
 //
-// Чипа вердикта справа от кольца НЕТ, хотя в макете он есть: словами вердикт
-// говорит `DealVerdictChip` под следующим шагом, и второй словесный носитель
-// того же факта — закрытая F-01. Макет старше этого решения.
+// Чип вердикта стоит ЗДЕСЬ, а не под следующим шагом. Это перенос, не добавка:
+// два словесных носителя уровня здоровья на одном экране — закрытая F-01.
+// Под шагом чип был обходным путём, пока виджета здоровья с кольцом не
+// существовало; теперь уровень живёт там же, где кольцо и разрез по сигналам.
 //
 // Полоса вернулась после того, как кольцо перестало быть сегментированным:
 // Р7 резал её как дубль кольца, теперь она единственный носитель посигнального
@@ -43,16 +45,23 @@ function countsCaption(counts: { bad: number; warn: number; ok: number }): strin
   return parts.length > 0 ? parts.join(' · ') : 'все сигналы в норме';
 }
 
-export function DealHealthRing({ signals }: { signals: DealSignal[] }) {
+export function DealHealthRing({
+  signals,
+  verdict,
+}: {
+  signals: DealSignal[];
+  verdict?: DealVerdict;
+}) {
   const ring = buildHealthRing(signals);
   if (ring.total === 0) return null;
 
   const c = RING_BOX / 2;
   const caption = countsCaption(ring.counts);
+  const verdictLabel = verdict ? `${VERDICT_CONFIG[verdict].label}. ` : '';
   const label =
     ring.problems === 0
-      ? `Здоровье сделки: все ${ring.total} сигналов в норме`
-      : `Здоровье сделки: ${ring.problems} из ${ring.total} сигналов требуют внимания — ${caption}`;
+      ? `Здоровье сделки: ${verdictLabel}все ${ring.total} сигналов в норме`
+      : `Здоровье сделки: ${verdictLabel}${ring.problems} из ${ring.total} сигналов требуют внимания — ${caption}`;
 
   return (
     <div className="flex items-center gap-4" role="img" aria-label={label}>
@@ -103,8 +112,14 @@ export function DealHealthRing({ signals }: { signals: DealSignal[] }) {
       </div>
 
       <div className="min-w-0 flex-1" aria-hidden>
+        <p className="text-body text-text-dim">Здоровье сделки</p>
+        {verdict && (
+          <div className="mt-1.5">
+            <DealVerdictChip verdict={verdict} />
+          </div>
+        )}
         {/* Порядок долек = порядок строк списка ниже: полоса — легенда к нему. */}
-        <div className="flex items-center gap-1.5">
+        <div className="mt-2.5 flex items-center gap-1.5">
           {ring.states.map((state, i) => (
             <span
               key={i}
