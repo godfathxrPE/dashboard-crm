@@ -36,7 +36,7 @@ export function DealHealthRing({
       : `Здоровье сделки: ${ring.problems} из ${ring.total} сигналов требуют внимания`;
 
   return (
-    <div className="relative shrink-0" style={{ width: RING_BOX, height: RING_BOX }}>
+    <div className="relative mx-auto shrink-0" style={{ width: RING_BOX, height: RING_BOX }}>
       <svg
         width={RING_BOX}
         height={RING_BOX}
@@ -55,7 +55,7 @@ export function DealHealthRing({
           />
         ))}
         {/* Прозрачные дуги-мишени поверх видимых: полоса в 6px — попадаемая, но
-            неприятная цель. Ширина 16 даёт нормальную мишень, не меняя рисунка.
+            неприятная цель. Широкая прозрачная дуга даёт нормальную мишень.
             Диапазоны углов те же, соседи не перекрываются. Клавиатуре они не
             нужны — то же действие лежит на кнопке CTA в строке сигнала. */}
         {onSegmentClick &&
