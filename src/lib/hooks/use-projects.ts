@@ -509,9 +509,9 @@ export function useUpdateProject() {
       // (`useStageTransition.commitTransition` → `update.mutate`), а не в
       // вызывающих: иначе новый путь перехода смог бы забыть половину.
       qc.invalidateQueries({ queryKey: ['stage_transitions'] });
-      // Перенос дедлайна тоже виден на этой вкладке (аудит полей 087) и приезжает
-      // тем же UPDATE.
-      qc.invalidateQueries({ queryKey: ['deadline-moves'] });
+      // Перенос дедлайна и переносы даты шага видны на этой вкладке и на карточке
+      // (аудит полей 087) и приезжают тем же UPDATE.
+      qc.invalidateQueries({ queryKey: ['field-moves'] });
     },
   });
 }
