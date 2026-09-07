@@ -25,53 +25,6 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-// ═══ S-DEAL-ROLES-1 (130, на гейте): pipeline_expected_roles ═══
-// ВРЕМЕННЫЙ СТАБ. Снять целиком после apply 130 + регенерации типов: таблица
-// приедет из автогенерации, а этот блок обязан уйти — оставленный стаб переживает
-// миграцию молча и продолжает врать про схему.
-//
-// `type`, а НЕ `interface`: postgrest требует от таблицы индексную сигнатуру,
-// interface её не получает, и `.update()` схлопывается в `never` (урок 123).
-type PipelineExpectedRolesStub = {
-  Row: {
-    id: string;
-    org_id: string;
-    pipeline_id: string;
-    role: string;
-    is_required: boolean;
-    hint: string | null;
-    sort_order: number;
-    created_by: string | null;
-    created_at: string;
-    updated_at: string;
-  };
-  Insert: {
-    id?: string;
-    org_id: string;
-    pipeline_id: string;
-    role: string;
-    is_required?: boolean;
-    hint?: string | null;
-    sort_order?: number;
-    created_by?: string | null;
-    created_at?: string;
-    updated_at?: string;
-  };
-  Update: {
-    id?: string;
-    org_id?: string;
-    pipeline_id?: string;
-    role?: string;
-    is_required?: boolean;
-    hint?: string | null;
-    sort_order?: number;
-    created_by?: string | null;
-    created_at?: string;
-    updated_at?: string;
-  };
-  Relationships: [];
-};
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -83,10 +36,7 @@ export type Database = {
       > & {
         Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']>;
       };
-      // 130 на гейте: ключа нет в автогенерации, поэтому таблица дописывается
-      // отдельным членом, а не пересечением по K (пересечение умеет только
-      // ДОПОЛНЯТЬ существующий ключ — стаб 123 менял колонку в `companies`).
-    } & { pipeline_expected_roles: PipelineExpectedRolesStub };
+    };
   };
 };
 
