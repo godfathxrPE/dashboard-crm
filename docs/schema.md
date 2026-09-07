@@ -608,11 +608,16 @@
 > литерала-массива в теле, аргумент уходит только как `$1`. Лимит 50 000 строк на
 > таблицу — предохранитель, не пагинация (самая крупная `activity_log` — 1357 строк).
 > ⚠️ **Новых колонок, таблиц и политик нет ⇒ реген типов даст только новую функцию.**
-> Следующая свободная после применения — **127**.
 >
-> **127 — S-AI-OBS-1 `ai_runs_capture` (написана, НЕ применена).** Сверено запросом
-> к ledger: последняя применённая — `20260821211823 org_export` (126) ⇒ 127.
-> Следующая свободная после применения — **128**.
+> **⚠️ Абзацы ниже про «следующий свободный номер» УСТАРЕЛИ и оставлены как след.**
+> Актуальное состояние на 2026-09-07, сверено не по ledger, а по объектам в живой БД:
+> **126 applied** (`20260821211823`, `export_org_data` есть) · **127 applied**
+> (`20260821222625`, `ai_runs.entity_id` nullable и `ai_runs_entity_pair_or_capture` есть) ·
+> **128 applied** (`20260822100301`, `capture_set_outcome` и `telegram_capture_drafts.ai_run_id`
+> есть) · **129 applied** (`20260823182046`, `queue_snoozes` есть) · **130 applied**
+> (`20260907073548`). **Следующая свободная — 131**, и брать её всё равно запросом.
+> Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
+> а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
 > Следующая свободная — **126** (последняя применённая — 125, `20260821104527`). ⚠️ Номер брать запросом к
 > `supabase_migrations.schema_migrations`, а не отсюда: этот абзац устаревает;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
@@ -2183,7 +2188,7 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 | **temperature** _(117)_ | text | `CHECK null or in ('hot','warm','cold')` |
 | **estimated_value** _(117)_ | bigint | **КОПЕЙКИ** (как `projects.budget`/`quotes.amount`); `CHECK null or >= 0` |
 | **budget_status** _(117)_ | text | NOT NULL DEFAULT `unknown`; `CHECK in ('unknown','none','estimated','confirmed')` |
-| **decision_role** _(117, +123 CHECK applied 2026-08-12)_ | text | Роль контакта в решении. Словарь — `StakeholderRole` (092). ⚠️ **С 117 по 122 CHECK'а не было намеренно** («у лида это гипотеза»), и цена была нулевая, пока значение никуда не уезжало. **123 закрывает домен**: `leads_decision_role_check` — дословное зеркало `deal_stakeholders_role_chk`, потому что теперь роль едет в `deal_stakeholders` с закрытым CHECK, и чужое значение уронило бы КОНВЕРСИЮ ошибкой 23514. **130 (НЕ применена) расширяет ОБА до семи значений** (`influencer`): селект «Роль контакта» в `LeadModal` строится из `STAKEHOLDER_ROLE_ORDER`, поэтому новое значение становится выбираемым у лида одновременно со сделкой — разъехавшись, CHECK лида ловил бы его 23514 прямо в форме. На 2026-08-11 строк с `decision_role is not null` — **ноль** ⇒ валидация мгновенна, `NOT VALID` не нужен |
+| **decision_role** _(117, +123 CHECK applied 2026-08-12)_ | text | Роль контакта в решении. Словарь — `StakeholderRole` (092). ⚠️ **С 117 по 122 CHECK'а не было намеренно** («у лида это гипотеза»), и цена была нулевая, пока значение никуда не уезжало. **123 закрывает домен**: `leads_decision_role_check` — дословное зеркало `deal_stakeholders_role_chk`, потому что теперь роль едет в `deal_stakeholders` с закрытым CHECK, и чужое значение уронило бы КОНВЕРСИЮ ошибкой 23514. **130 (applied 2026-09-07) расширяет ОБА до семи значений** (`influencer`): селект «Роль контакта» в `LeadModal` строится из `STAKEHOLDER_ROLE_ORDER`, поэтому новое значение становится выбираемым у лида одновременно со сделкой — разъехавшись, CHECK лида ловил бы его 23514 прямо в форме. На 2026-08-11 строк с `decision_role is not null` — **ноль** ⇒ валидация мгновенна, `NOT VALID` не нужен |
 | **chz_groups** _(117)_ | text[] | Названия групп «Честного Знака» из `src/lib/data/chz-groups.ts` (снапшот справочника, не FK) |
 | **first_contacted_at / qualified_at** _(117)_ | timestamptz | Штампы; ставит `trg_zz_stamp_lead_status`, клиент их не пишет |
 | **lead_id у calls / tasks / activity_log** _(118)_ | uuid | См. ниже — лид в графе активностей |
@@ -2648,7 +2653,7 @@ Junction `projects`↔`contacts` с **ролью в сделке**. Аналог
 | org_id | uuid | NOT NULL → organizations CASCADE; ставит `trg_set_org_id`, замораживает `trg_aa_freeze_org_id` |
 | project_id | uuid | NOT NULL → projects CASCADE |
 | contact_id | uuid | NOT NULL → contacts CASCADE |
-| role | text | **nullable**; CHECK `deal_stakeholders_role_chk`: `decision_maker\|influencer\|economic_buyer\|champion\|expert\|end_user\|blocker` _(седьмое значение `influencer` — 130, **НЕ применена**)_. NULL = роль ещё не понята — легальное состояние, а не пропуск |
+| role | text | **nullable**; CHECK `deal_stakeholders_role_chk`: `decision_maker\|influencer\|economic_buyer\|champion\|expert\|end_user\|blocker` _(седьмое значение `influencer` — 130, **applied 2026-09-07**)_. NULL = роль ещё не понята — легальное состояние, а не пропуск |
 | note | text | CHECK ≤ 500 символов (`deal_stakeholders_note_chk`) |
 | created_by | uuid | DEFAULT `auth.uid()` → profiles ON DELETE SET NULL |
 | created_at / updated_at | timestamptz | `updated_at` держит `trg_set_updated_at` → `update_updated_at()` |
@@ -3752,7 +3757,7 @@ where n.nspname = 'public' and c.relkind = 'r'
   **сознательно не вошли**: на 2026-08-08 они дают 29 строк на всю организацию против
   пересборки таксономии `kind` — отдельным спринтом, когда появятся данные.
 
-### Экспорт организации (126, **НЕ применена**) — выгрузка в JSON одним вызовом
+### Экспорт организации (126, **applied 2026-08-21 `20260821211823`**) — выгрузка в JSON одним вызовом
 
 - **`public.export_org_data(p_org_id uuid) → jsonb`**. `language plpgsql`,
   **`security invoker`**, `set search_path = public`, `revoke all … from public, anon`
@@ -3844,7 +3849,7 @@ where n.nspname = 'public' and c.relkind = 'r'
   `entity_type` к union `deal|lead|contact` на границе хука: в БД это `text` + CHECK,
   не enum-тип, и автогенерация отдаёт `string`.
 
-### pipeline_expected_roles (130, **НАПИСАНА, НЕ ПРИМЕНЕНА**) — ожидаемые роли контура сделки
+### pipeline_expected_roles (130, **applied 2026-09-07 `20260907073548`**) — ожидаемые роли контура сделки
 
 - **Назначение (S-DEAL-ROLES-1, виджет W10 спеки deal-v2).** Одна строка = «в этой воронке
   ждём человека с такой ролью». Карта стейкхолдеров превращается из плоского списка в
@@ -3879,7 +3884,7 @@ where n.nspname = 'public' and c.relkind = 'r'
   CHECK на `role` — **дословное зеркало**: сослаться на чужой CHECK нельзя, а
   расхождение даёт 23514 уже на сиде.
 - ⚠️ **130 расширяет сам словарь седьмым значением `influencer` (ЛВР)** — отдельной
-  миграции нет намеренно: 130 ещё не применена, и разносить это по двум файлам значило
+  миграции нет намеренно: на момент написания 130 не была применена, и разносить это по двум файлам значило
   бы завести порядок применения там, где его можно не заводить. Причина доменная: в
   пресейле общение чаще идёт с ЛВР, и через него выходят на ЛПР; `champion` не годится —
   он про АКТИВНУЮ поддержку внутри, а ЛВР влияет ПО ДОЛЖНОСТИ и может быть нейтрален,
