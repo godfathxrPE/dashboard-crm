@@ -281,27 +281,69 @@ if [ "$base" != "main" ]; then
 fi
 
 # ── Шаг 7. Авто-мерж ──────────────────────────────────────────────────────────
-gh pr merge "$PR_NUM" --auto --squash --delete-branch \
-  || fail_after_checkout "gh pr merge --auto для PR #$PR_NUM не удался"
+# DOCS_PR_NO_AUTOMERGE=1 — не взводить --auto (позитивный путь без гонки со
+# сторожем branch protection и без ставки на то, что main не уедет вперёд, пока
+# ждём CI). PR остаётся открытым, ручной мерж — за вызывающим.
+automerge_armed=1
+if [ "${DOCS_PR_NO_AUTOMERGE:-}" = "1" ]; then
+  automerge_armed=0
+  echo "$prog: DOCS_PR_NO_AUTOMERGE=1 — авто-мерж не взводится, PR #$PR_NUM остаётся открытым"
+else
+  gh pr merge "$PR_NUM" --auto --squash --delete-branch \
+    || fail_after_checkout "gh pr merge --auto для PR #$PR_NUM не удался"
+fi
 
-# ── Шаг 8. Ожидание — раз в 10 секунд, максимум 5 минут ─────────────────────
+# ── Шаг 8. Ожидание — раз в 10 секунд, максимум 5 минут (только если авто-мерж взведён) ──
+# Опрашивается не только state, но и mergeStateStatus: авто-мерж взведён — не
+# значит "смержится сам", если ветка BEHIND main (например main уехал вперёд,
+# пока этот PR ждал CI) — branch protection требует актуальной ветки, и висящий
+# --auto без обновления ветки не смержит НИКОГДА (PR #74).
 merged=0
-i=1
-while [ "$i" -le 30 ]; do
-  state="$(gh pr view "$PR_NUM" --json state -q .state 2>/dev/null)"
-  if [ "$state" = "MERGED" ]; then
-    merged=1
-    break
-  fi
-  sleep 10
-  i=$((i + 1))
-done
+behind_stuck=0
+if [ "$automerge_armed" -eq 1 ]; then
+  i=1
+  update_branch_tried=0
+  while [ "$i" -le 30 ]; do
+    pair="$(gh pr view "$PR_NUM" --json state,mergeStateStatus \
+      -q '(.state // "") + "|" + (.mergeStateStatus // "")' 2>/dev/null)"
+    state="${pair%%|*}"
+    merge_state="${pair#*|}"
+    if [ "$state" = "MERGED" ]; then
+      merged=1
+      break
+    fi
+    if [ "$merge_state" = "BEHIND" ]; then
+      if [ "$update_branch_tried" -eq 0 ]; then
+        # Один раз — не зацикливаться на update-branch, если он сам по себе не
+        # помогает. Счётчик "$i" не сбрасываем: попытка расходует общий бюджет
+        # в 5 минут, а не открывает новый.
+        update_branch_tried=1
+        echo "$prog: PR #$PR_NUM отстал от main (mergeStateStatus=BEHIND) — пробую gh pr update-branch"
+        if ! gh pr update-branch "$PR_NUM" >/dev/null 2>&1; then
+          echo "$prog: gh pr update-branch для PR #$PR_NUM не удался"
+          behind_stuck=1
+          break
+        fi
+      else
+        # update-branch уже пробовали, BEHIND держится — дальше ждать бессмысленно.
+        behind_stuck=1
+        break
+      fi
+    fi
+    sleep 10
+    i=$((i + 1))
+  done
+fi
 
 # ── Шаг 9. Возврат на main в любом исходе, кроме отказа на шаге 1 ───────────
 git checkout main >/dev/null 2>&1
 if [ "$merged" -eq 1 ]; then
   git pull --ff-only >/dev/null 2>&1
   echo "$prog: PR #$PR_NUM смержен, main → $(git rev-parse --short HEAD)"
+elif [ "$automerge_armed" -eq 0 ]; then
+  echo "$prog: DOCS_PR_NO_AUTOMERGE=1 — авто-мерж не взводился, PR #$PR_NUM ждёт ручного мержа: gh pr merge $PR_NUM --squash --delete-branch"
+elif [ "$behind_stuck" -eq 1 ]; then
+  echo "$prog: PR #$PR_NUM отстал от main, авто-мерж не сработает — выполнить gh pr update-branch $PR_NUM руками, затем проверить мерж"
 else
   echo "$prog: не успел за 5 минут — не ошибка: авто-мерж взведён, PR #$PR_NUM смержится сам;"
   echo "$prog: вернуться на main: git checkout main && git pull --ff-only"
