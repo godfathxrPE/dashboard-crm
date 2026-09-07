@@ -11,6 +11,7 @@ import { DealSummaryCard } from './DealSummaryCard';
 import { DealStakeholders } from './DealStakeholders';
 import { DealMaterialsCard } from './DealMaterialsCard';
 import { DealChzCard } from './DealChzCard';
+import { DealPulseCard } from './DealPulseCard';
 import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import type { DeliveryHealth } from '@/lib/utils/delivery-health';
 import { cn } from '@/lib/utils/cn';
@@ -161,6 +162,9 @@ export function DealRisksZone({
           списке нет (норма свёрнута под «N в норме»). */}
       <HealthDealCard signals={signals} withRing />
       <PinnedNoteCard project={project} />
+      {/* S-DEAL-PULSE-1 (W8): последний в «Рисках» — тишина видна формой, не
+          цифрой, и это самое дальнее чтение при скролле рельсы. */}
+      <DealPulseCard project={project} />
     </>
   );
 }
