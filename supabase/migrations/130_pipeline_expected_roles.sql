@@ -42,7 +42,11 @@
 -- бы применять строго по порядку, значит завести порядок там, где его можно не
 -- заводить.
 --
--- ⚠️ НЕ применена — применяет гейт (apply → gen-types → advisors → ролевые смоки).
+-- ✅ ПРИМЕНЕНА гейтом 2026-09-07, версия `20260907073548`. Advisors: новых WARN нет
+--    (по таблице только типовой INFO-шум: unindexed FK на created_by/pipeline_id,
+--    unused_index — трафика ещё нет). Ролевые смоки пройдены: owner/admin пишут,
+--    manager/viewer только читают, не член org видит 0 строк, org_id заморожен,
+--    конверсия лида с `influencer` доходит до deal_stakeholders без 23514.
 --
 -- Откат:
 --   drop table public.pipeline_expected_roles cascade;
