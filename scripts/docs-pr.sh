@@ -108,21 +108,53 @@ fi
 
 # Список файлов для коммита: явный аргумент перекрывает автоопределение;
 # автоопределение — пересечение CHANGED с тремя документными каталогами
-# (без supabase/migrations/ — туда только явным списком).
+# (без supabase/migrations/ — туда только явным списком, см. ниже).
 FILES=()
-if [ ${#EXPLICIT_FILES[@]} -gt 0 ]; then
-  for f in "${EXPLICIT_FILES[@]}"; do
-    if printf '%s\n' "$CHANGED" | grep -Fxq -- "$f"; then
-      FILES+=("$f")
-    fi
-  done
-else
+if [ ${#EXPLICIT_FILES[@]} -eq 0 ]; then
+  # Автоопределение не заглядывает под supabase/migrations/ — только .md/.html
+  # каталоги. Молча пропустить правку, повисшую там, значит унести .sql мимо
+  # PR без единого слова: ровно так это и всплыло на гейте S-DOCS-PR-1.
+  # Явность тут и есть защита от случайного захвата правки схемы, а не повод
+  # добавить migrations/ в автоопределение.
+  sql_leftover=""
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    case "$f" in
+      supabase/migrations/*) sql_leftover="$sql_leftover$f
+" ;;
+    esac
+  done <<CHANGED_EOF_SQL
+$CHANGED
+CHANGED_EOF_SQL
+  if [ -n "$sql_leftover" ]; then
+    die "в рабочем дереве есть правки под supabase/migrations/, а список файлов не передан явно — автоопределение их не подхватывает молча:
+$sql_leftover
+передать явным списком: scripts/docs-pr.sh '$BRANCH' '...' <файл.md> supabase/migrations/<файл>.sql"
+  fi
+
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     under_any_prefix "$f" "_analysis/" "crm-architect/" "docs/" && FILES+=("$f")
   done <<CHANGED_EOF2
 $CHANGED
 CHANGED_EOF2
+else
+  # Опечатка в явном пути раньше пропускалась молча (файл просто не входил в
+  # коммит). Теперь — отказ с именем: тихий недобор файлов не отличить от
+  # намеренного сужения списка.
+  missing=""
+  for f in "${EXPLICIT_FILES[@]}"; do
+    if printf '%s\n' "$CHANGED" | grep -Fxq -- "$f"; then
+      FILES+=("$f")
+    else
+      missing="$missing$f
+"
+    fi
+  done
+  if [ -n "$missing" ]; then
+    die "в явном списке файл(ы), которых нет среди изменённых/untracked — опечатка в пути?:
+$missing"
+  fi
 fi
 
 # Комментарная правка .sql под supabase/migrations/: все добавленные и удалённые
@@ -200,9 +232,15 @@ git push -u origin "$BRANCH" || fail_after_checkout "git push не удался 
 # ── Шаг 5. PR ─────────────────────────────────────────────────────────────────
 TITLE="$(printf '%s\n' "$MESSAGE" | head -1)"
 BODY="$(printf '%s\n' "$MESSAGE" | tail -n +2)"
-pr_url="$(gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$BODY")" \
+pr_create_out="$(gh pr create --base main --head "$BRANCH" --title "$TITLE" --body "$BODY")" \
   || fail_after_checkout "gh pr create не удался — ветка '$BRANCH' запушена, коммит на месте, PR не создан"
+# Последняя строка вывода — URL PR; остальное (интерактивные подсказки, предупреждения)
+# в непроверенном виде уходило прямиком в PR_NUM, если бы хвост считался всей строкой.
+pr_url="$(printf '%s\n' "$pr_create_out" | tail -1)"
 PR_NUM="${pr_url##*/}"
+case "$PR_NUM" in
+  ''|*[!0-9]*) fail_after_checkout "не удалось разобрать номер PR из вывода gh: $pr_url" ;;
+esac
 echo "$prog: PR #$PR_NUM создан ($pr_url)"
 
 # ── Шаг 5б. Подстановка номера PR — литерал "| #PR |", БЕЗ регулярок по "#" ──
