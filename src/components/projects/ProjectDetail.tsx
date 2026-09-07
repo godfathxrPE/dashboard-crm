@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
@@ -26,8 +26,9 @@ import { ProjectStageCockpit } from './ProjectStageCockpit';
 import { ProjectChecklists } from './ProjectChecklists';
 import { ProjectMaterialsModal } from './ProjectMaterialsModal';
 import { ProjectChat } from './ProjectChat';
-import { QuotesTab } from './QuotesTab';
 import { DealStageStory } from './DealStageStory';
+import { ProjectBoardSection } from './ProjectBoardSection';
+import { DealOrgBlock } from './DealOrgBlock';
 import { ProjectModal } from './ProjectModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
@@ -73,8 +74,13 @@ const GanttTimeline = dynamic(
 // Main Detail View
 // ═══════════════════════════════════════════════════════
 
-// PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки
-type Tab = 'activity' | 'board' | 'timeline' | 'quotes' | 'story' | 'chat';
+// PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки. S-DEAL-LAYOUT-1:
+// 'quotes' упразднена (её содержимое — в орг. блоке зоны «Работа»); 'board'
+// остаётся значением ТОЛЬКО ради delivery/internal — у сделки доска ушла в
+// `ProjectBoardSection` зоны и вкладку-кнопку под 'board' `isDeal` больше не
+// рисует (см. tab-bar ниже), но сама ветка рендера контента не удалена — она
+// общий узел `workContent` для двух раскладок.
+type Tab = 'activity' | 'board' | 'timeline' | 'story' | 'chat';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -128,6 +134,7 @@ export function ProjectDetail({ projectId, context }: ProjectDetailProps) {
 
 function ProjectDetailBody({ project, projectId }: { project: Project; projectId: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   // Delivery P1: родительская сделка (для ссылки на карточке внедрения)
   const { data: parentDeal } = useProject(project.parent_deal_id ?? '');
@@ -163,6 +170,27 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
   useEffect(() => {
     if (aiParam === '1') setAiOpen(true);
   }, [aiParam]);
+
+  // S-DEAL-LAYOUT-1 (задача 4): вкладка «КП» упразднена, ?tab=quotes из старого
+  // уведомления/ленты не должна открывать пустоту — ведём на РАЗВЁРНУТЫЙ орг.
+  // блок и чистим параметр. `deepLinkOrg` читается СИНХРОННО на первом рендере
+  // (не в эффекте): `CollapsibleSection` инициализирует своё состояние из
+  // localStorage тоже в первом рендере, и если бы форс-открытие пришло позже
+  // (эффектом), гонка отдала бы свёрнутую секцию с уже отрисованным кадром.
+  const tabParam = searchParams.get('tab');
+  const deepLinkOrg = tabParam === 'quotes' && project.type === 'client';
+
+  useEffect(() => {
+    if (tabParam !== 'quotes') return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('tab');
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    if (project.type === 'client') {
+      document.getElementById('deal-org-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
 
   // S-R2-TRANSITION-1b: локальное состояние отказа гейта снято — его владелец
   // теперь модалка перехода (StageTransitionModal), см. комментарий у баннера ниже.
@@ -285,11 +313,16 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
       <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border">
         {([
           { value: 'activity' as const, label: 'Активность' },
-          // P2a: у delivery доска = фазовый план внедрения
-          { value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' },
+          // S-DEAL-LAYOUT-1 (задача 2/4): у сделки доска ушла в ProjectBoardSection
+          // зоны «Работа» — кнопка вкладки здесь для isDeal больше не рисуется.
+          // У delivery доска = фазовый план внедрения, у internal — обычная доска;
+          // оба остаются на вкладке, компоновка `workContent` для них не менялась.
+          ...(!isDeal
+            ? [{ value: 'board' as const, label: isDelivery ? 'План' : 'Доска задач' }]
+            : []),
           { value: 'timeline' as const, label: 'Гант' },
-          // S-QUOTE-1: вкладка «КП» — только для сделок (type='client')
-          ...(project.type === 'client' ? [{ value: 'quotes' as const, label: 'КП' }] : []),
+          // S-QUOTE-1 → S-DEAL-LAYOUT-1: вкладка «КП» упразднена — её содержимое
+          // переехало в DealOrgBlock зоны «Работа» (задача 3).
           // S-STAGE-STORY-1: траектория по стадиям — тоже только для сделок:
           // у внедрения фазы СДР, и «возвраты» там означают другое.
           ...(project.type === 'client' ? [{ value: 'story' as const, label: 'История' }] : []),
@@ -352,11 +385,6 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             onEditTask={(t) => { setEditingTask(t); setTaskModalOpen(true); }}
           />
         </div>
-      )}
-
-      {/* S-QUOTE-1: КП сделки — только client */}
-      {activeTab === 'quotes' && project.type === 'client' && (
-        <QuotesTab deal={project} />
       )}
 
       {/* S-STAGE-STORY-1: траектория сделки по стадиям — сводка, не пересказ ленты */}
@@ -462,7 +490,12 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
           {/* ─── Зона «Работа» ─── */}
           <section
             className="zone order-1 min-w-0 lg:col-start-1"
-            style={{ ['--zone-surface']: 'var(--zone-work)' } as React.CSSProperties}
+            style={{
+              ['--zone-surface']: 'var(--zone-work)',
+              // S-DEAL-LAYOUT-1 (задача 5): 14px по спеке — против 12px базовых
+              // у «Рисков»/«Контекста» (`.zone` gap не трогаем, только эта зона).
+              ['--zone-gap']: '0.875rem',
+            } as React.CSSProperties}
           >
             {/* Цвет eyebrow идёт тем же токеном, что и тон подложки зоны:
                 в темах с занятым акцентом (washi/tidal/minimal/aura) он уходит
@@ -477,6 +510,12 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
                 сделке. Зона «Работа» без шага (кокпит + вкладки) — нормальное
                 состояние. */}
             {hasNextStep && <DealNextStep project={project} />}
+            {/* S-DEAL-LAYOUT-1 (задачи 2-3): доска задач и орг. блок — стопкой
+                перед вкладками, свёрнуты по умолчанию. Только сделка: у
+                delivery/internal своей зоны нет, их доска остаётся вкладкой
+                внутри workContent (см. tab-bar выше). */}
+            <ProjectBoardSection projectId={projectId} canManage={canManage} />
+            <DealOrgBlock project={project} forceExpanded={deepLinkOrg} />
             <div className="min-w-0">
               {workContent}
             </div>
