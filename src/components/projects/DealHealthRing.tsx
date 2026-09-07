@@ -7,7 +7,7 @@ import {
   RING_STROKE,
   STATE_STROKE,
 } from '@/lib/domain/health-ring';
-import { pluralRu } from '@/lib/utils/plural';
+import { pluralRu, pluralProblems } from '@/lib/utils/plural';
 import { DealVerdictChip } from './DealSignals';
 import { VERDICT_CONFIG, type DealSignal, type DealVerdict } from '@/lib/domain/deal-signals';
 
@@ -98,16 +98,28 @@ export function DealHealthRing({
             )
           )}
         </svg>
+        {/* S-DEAL-LAYOUT-1 (задача 6): «1 из 5» читалось оценкой по пятибалльной
+            (числитель — здоровье, больше = лучше — унаследовано от отклонённого
+            score W2). Здесь числитель — ПОМЕХИ, знак противоположный: заменён
+            на число + слово по числу, «из {total}» (знаменатель) убран —
+            разрез по сигналам уже несёт пятиполосная шкала справа и строка
+            «N критичный · M внимание» под ней (`countsCaption`). */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
         >
-          <span className="text-2xl font-bold leading-none tabular-nums text-text-main">
-            {ring.problems}
-          </span>
-          <span className="mt-1 text-meta leading-none tabular-nums text-text-dim">
-            из {ring.total}
-          </span>
+          {ring.problems === 0 ? (
+            <span className="text-sm font-bold leading-none text-text-main">в норме</span>
+          ) : (
+            <>
+              <span className="text-2xl font-bold leading-none tabular-nums text-text-main">
+                {ring.problems}
+              </span>
+              <span className="mt-1 text-meta leading-none text-text-dim">
+                {pluralProblems(ring.problems)}
+              </span>
+            </>
+          )}
         </div>
       </div>
 

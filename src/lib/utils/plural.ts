@@ -19,3 +19,12 @@ export function pluralRu(n: number, one: string, few: string, many: string): str
   if (last >= 2 && last <= 4) return few;
   return many;
 }
+
+/**
+ * S-DEAL-LAYOUT-1 (задача 6): слово для числа помех в центре кольца здоровья.
+ * Вызывающий сам решает ветку «0 помех» (там кольцо целиком зелёное и слова
+ * не нужны) — эта функция склонения для n=0 не вызывается.
+ */
+export function pluralProblems(n: number): string {
+  return pluralRu(n, 'помеха', 'помехи', 'помех');
+}
