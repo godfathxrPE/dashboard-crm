@@ -222,7 +222,7 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className="flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left
-                   transition-colors hover:bg-surface-hover"
+                   transition-colors hover:bg-surface2"
       >
         <span
           role="img"
@@ -289,7 +289,7 @@ function SignalRow({
           type="button"
           onClick={() => onAction(signal.key)}
           className="shrink-0 rounded-lg border border-border px-2 py-0.5 text-meta text-text-dim
-                     transition-colors hover:bg-surface-hover hover:text-text-main"
+                     transition-colors hover:bg-surface2 hover:text-text-main"
         >
           {signal.cta}
         </button>

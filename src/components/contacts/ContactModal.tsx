@@ -151,7 +151,7 @@ export function ContactModal({ isOpen, onClose, editContact, defaultCompanyId = 
       footer={
         <>
           <button type="button" onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover">
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface2">
             Отмена
           </button>
           <button type="submit" form="contact-form" disabled={isSubmitting}

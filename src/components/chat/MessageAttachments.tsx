@@ -101,7 +101,7 @@ function FileRow({ attachment }: { attachment: MessageAttachment }) {
       onClick={onDownload}
       disabled={busy}
       className="flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface2 px-2 py-1.5
-                 text-left transition-colors hover:bg-surface-hover disabled:opacity-50"
+                 text-left transition-colors hover:bg-surface2 disabled:opacity-50"
     >
       {/* Картинка, для которой не вышло превью, честно показывает это иконкой. */}
       {isImage ? (

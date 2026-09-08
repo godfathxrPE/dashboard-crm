@@ -83,7 +83,7 @@ export function CompanyContactsCard({ companyId, contacts, canCreate, onCreate }
             const band = cs ? BAND_STYLE[cs.strength.band] : null;
             return (
               <button key={c.id} onClick={() => router.push(`/contacts/${c.id}`)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface2">
                 <span
                   aria-hidden
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"

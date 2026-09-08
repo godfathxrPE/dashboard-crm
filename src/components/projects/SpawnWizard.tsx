@@ -104,7 +104,7 @@ export function SpawnWizard({
             type="button"
             onClick={onClose}
             className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4 text-left
-                       transition-colors hover:border-border2 hover:bg-surface-hover
+                       transition-colors hover:border-border2 hover:bg-surface2
                        focus:outline-none focus:ring-2 focus:ring-accent"
           >
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface2 text-text-mute">
@@ -135,7 +135,7 @@ export function SpawnWizard({
             onClick={() => setStep('contour')}
             disabled={pending}
             className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm text-text-dim
-                       transition-colors hover:bg-surface-hover hover:text-text-main disabled:opacity-50"
+                       transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
           >
             <ChevronLeft size={14} /> Назад
           </button>

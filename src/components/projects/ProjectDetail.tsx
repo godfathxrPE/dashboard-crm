@@ -365,7 +365,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             <button
               key={a.label}
               onClick={a.open}
-              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
             >
               <Plus size={12} /> {a.label}
             </button>

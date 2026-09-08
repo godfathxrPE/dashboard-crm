@@ -68,7 +68,7 @@ export function VerificationPanel() {
         <Database size={14} className="text-accent" />
         <span className="text-xs font-semibold text-text-dim">Верификация данных</span>
         <button onClick={verify} disabled={loading}
-          className="ml-auto rounded p-1 text-text-mute hover:bg-surface-hover">
+          className="ml-auto rounded p-1 text-text-mute hover:bg-surface2">
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>

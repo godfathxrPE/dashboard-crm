@@ -34,7 +34,7 @@ export function AiSummaryPanel({
   const buttonDisabled = isPending || (!aiSummary && !hasNotes);
 
   return (
-    <div className="rounded-lg border border-border bg-surface-hover/40 p-3">
+    <div className="rounded-lg border border-border bg-surface2/40 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-xs font-medium text-text-dim">
           <Sparkles size={14} className="text-accent" />
@@ -44,7 +44,7 @@ export function AiSummaryPanel({
           type="button"
           onClick={handleGenerate}
           disabled={buttonDisabled}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
             <><Loader2 size={13} className="animate-spin" /> Генерирую…</>
@@ -103,7 +103,7 @@ export function AiSummaryPanel({
                 <button
                   type="button"
                   onClick={() => onApplyNextStep(aiSummary.suggested_next_step)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface-hover"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface2"
                 >
                   <Check size={12} /> Применить
                 </button>

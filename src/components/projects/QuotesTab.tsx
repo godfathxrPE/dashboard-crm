@@ -80,7 +80,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
         {canEditQuotes && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
           >
             <Plus size={12} /> КП
           </button>
@@ -131,7 +131,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
           {canEditQuotes && (
             <button
               onClick={openCreate}
-              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
             >
               <Plus size={12} /> КП
             </button>
@@ -197,7 +197,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                       <>
                         <button
                           onClick={() => openEdit(q)}
-                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
+                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface2 hover:text-text-main"
                           title="Редактировать"
                           aria-label="Редактировать КП"
                         >
@@ -205,7 +205,7 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                         </button>
                         <button
                           onClick={() => confirmDelete.ask(q.id)}
-                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-red"
+                          className="rounded p-1 text-text-mute transition-colors hover:bg-surface2 hover:text-red"
                           title="Удалить"
                           aria-label="Удалить КП"
                         >

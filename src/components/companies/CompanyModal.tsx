@@ -300,7 +300,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill, onCreated 
       footer={
         <>
           <button type="button" onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover">
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface2">
             Отмена
           </button>
           <button type="submit" form="company-form" disabled={isSubmitting}
@@ -331,7 +331,7 @@ export function CompanyModal({ isOpen, onClose, editCompany, prefill, onCreated 
                     disabled={!canLookup || lookup.isPending}
                     title={canLookup ? 'Подтянуть реквизиты из ЕГРЮЛ' : 'ИНН — 10 или 12 цифр'}
                     className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2
-                               text-sm text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main
+                               text-sm text-text-dim transition-colors hover:bg-surface2 hover:text-text-main
                                disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
                   >
                     {lookup.isPending

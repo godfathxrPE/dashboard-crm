@@ -89,7 +89,7 @@ export function PortfolioRiskWidget() {
           <Link
             key={r.id}
             href={projectHref(r.project)}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover"
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2"
           >
             <AlertTriangle size={12} className="shrink-0 text-red" />
             <span className="min-w-0 flex-1 truncate text-xs text-text-main">

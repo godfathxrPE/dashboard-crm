@@ -96,7 +96,16 @@ def srgb_to_oklch(rgb):
 # ---------- parse theme blocks ----------
 def extract_block(selector):
     # match `selector {` then capture until matching close at same nesting (blocks are flat)
-    m = re.search(re.escape(selector) + r'\s*\{(.*?)\n\}', CSS, re.S)
+    #
+    # ⚠️ ЯКОРЬ `(?m)^` ОБЯЗАТЕЛЕН. Без него `.t-minimal` первым совпадением ловил
+    # ГРУППОВОЙ селектор `.t-aura, .t-washi, .t-tidal, .t-minimal {` (globals.css:74):
+    # имя стоит в группе последним, и сразу за ним идёт `{`. Скрипт читал общий блок
+    # зональных подложек (--zone-work-tint/--zone-work-ink) как весь набор темы, до
+    # настоящего блока не доходил никогда и печатал девять фантомных FAIL из
+    # двенадцати — инструмент, которому перестали верить, хуже отсутствующего.
+    # Групповой селектор в файле сегодня ровно один, но якорь ставится общий:
+    # второй появится молча, и следующий отчёт снова соврёт.
+    m = re.search(r'(?m)^' + re.escape(selector) + r'\s*\{(.*?)\n\}', CSS, re.S)
     return m.group(1) if m else None
 
 def parse_vars(block):

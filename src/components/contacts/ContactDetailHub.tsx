@@ -490,7 +490,7 @@ export function ContactDetailHub({ contactId }: ContactDetailHubProps) {
                   <button
                     type="button"
                     onClick={() => { setEditingCall(upcomingCall); setCallModalOpen(true); }}
-                    className="-m-1 rounded-lg p-1 text-left transition-colors hover:bg-surface-hover"
+                    className="-m-1 rounded-lg p-1 text-left transition-colors hover:bg-surface2"
                   >
                     <p className="text-sm text-text-main">Звонок запланирован</p>
                     <div className="mt-1 flex items-center gap-2">

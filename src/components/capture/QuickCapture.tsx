@@ -228,7 +228,7 @@ export function QuickCapture() {
 
   const chipClass =
     'rounded-lg border border-border px-2.5 py-1 text-xs text-text-dim transition-colors ' +
-    'hover:bg-surface-hover hover:text-text-main';
+    'hover:bg-surface2 hover:text-text-main';
 
   return (
     <div className="relative" ref={popoverRef}>

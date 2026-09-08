@@ -53,7 +53,7 @@ export function ProtocolRenderer({
                   <button
                     type="button"
                     onClick={() => onCreateTask(item)}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface-hover"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-accent hover:bg-surface2"
                   >
                     <Plus size={12} /> Создать задачу
                   </button>

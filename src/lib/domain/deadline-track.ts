@@ -39,8 +39,6 @@ export interface DeadlineTrack {
   to: string; // границы окна, ключи дней
   days: { key: string; pct: number; isToday: boolean }[]; // 15 меток оси
   marks: TrackMark[];
-  /** Дни, где меток больше одной — рисуются стеком «+N». */
-  stacks: { dateKey: string; pct: number; count: number }[];
   todayPct: number;
   /** null, если норма стадии не определена — пунктир не рисуется. */
   normPct: number | null;
@@ -104,18 +102,6 @@ export function buildDeadlineTrack(
   // внутри одного дня сохраняется порядок задач с доски (sort_order).
   marks.sort((a, b) => (a.dateKey < b.dateKey ? -1 : a.dateKey > b.dateKey ? 1 : 0));
 
-  // `stacks` считается ВСЕГДА, даже когда дорожки рисуются по одной: решение
-  // «схлопывать или нет» принимает компонент, а домен отдаёт обе проекции.
-  const byDay = new Map<string, { pct: number; count: number }>();
-  for (const mark of marks) {
-    const cur = byDay.get(mark.dateKey);
-    if (cur) cur.count++;
-    else byDay.set(mark.dateKey, { pct: mark.pct, count: 1 });
-  }
-  const stacks = [...byDay.entries()]
-    .filter(([, v]) => v.count > 1)
-    .map(([dateKey, v]) => ({ dateKey, pct: v.pct, count: v.count }));
-
   // Норма вне окна ⇒ пунктира нет. К краю НЕ прижимаем: линия на границе
   // читается как «норма сегодня», то есть врёт про срок.
   const normIndex = normDateKey ? diffDaysKey(from, normDateKey) : null;
@@ -126,7 +112,6 @@ export function buildDeadlineTrack(
     to,
     days,
     marks,
-    stacks,
     todayPct: pctOfIndex(DAYS_BEFORE),
     normPct: normInWindow ? pctOfIndex(normIndex) : null,
     normDateKey: normInWindow ? normDateKey : null,

@@ -30,7 +30,7 @@ export function LostDeals({ projects, onRestore, onDelete, onEdit }: LostDealsPr
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left
-                   transition-colors hover:bg-surface-hover"
+                   transition-colors hover:bg-surface2"
       >
         {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <span className="text-sm font-medium text-text-dim">

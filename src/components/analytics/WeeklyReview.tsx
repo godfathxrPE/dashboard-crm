@@ -86,7 +86,7 @@ export function WeeklyReview({ isOpen, onClose }: WeeklyReviewProps) {
             <TrendingUp size={18} className="text-accent" />
             <h2 className="text-lg font-semibold text-text-main">Итоги недели</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-text-mute hover:bg-surface-hover">
+          <button onClick={onClose} className="rounded-lg p-1 text-text-mute hover:bg-surface2">
             <X size={18} />
           </button>
         </div>

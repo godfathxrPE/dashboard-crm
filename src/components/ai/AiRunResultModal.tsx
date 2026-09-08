@@ -62,7 +62,7 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
           <button
             onClick={onClose}
             aria-label="Закрыть"
-            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface-hover"
+            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface2"
           >
             <X size={18} />
           </button>
@@ -78,7 +78,7 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
         )}
 
         {(run.status === 'pending' || run.status === 'running') && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-hover/40 p-2.5 text-xs text-text-dim">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface2/40 p-2.5 text-xs text-text-dim">
             <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
             <span>Прогон ещё идёт — результат появится здесь, когда он закончится.</span>
           </div>
@@ -109,7 +109,7 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
                 onClick={handleCopy}
                 disabled={!hasText}
                 className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs
-                           font-medium text-text-dim hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                           font-medium text-text-dim hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {copied ? <Check size={13} className="text-green" /> : <Copy size={13} />}
                 Копировать

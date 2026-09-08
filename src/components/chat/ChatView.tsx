@@ -236,14 +236,14 @@ function GroupHeaderActions({
             type="button"
             onClick={onLeave}
             disabled={leave.isPending}
-            className="rounded border border-border px-2 py-0.5 text-meta text-red transition-colors hover:bg-surface-hover disabled:opacity-50"
+            className="rounded border border-border px-2 py-0.5 text-meta text-red transition-colors hover:bg-surface2 disabled:opacity-50"
           >
             Точно выйти?
           </button>
           <button
             type="button"
             onClick={() => setConfirmingLeave(false)}
-            className="rounded border border-border px-2 py-0.5 text-meta text-text-dim transition-colors hover:bg-surface-hover"
+            className="rounded border border-border px-2 py-0.5 text-meta text-text-dim transition-colors hover:bg-surface2"
           >
             Отмена
           </button>

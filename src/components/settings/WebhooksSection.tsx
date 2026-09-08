@@ -196,13 +196,13 @@ export function WebhooksSection() {
                     <button
                       onClick={() => onDelete(ep.id)}
                       disabled={remove.isPending}
-                      className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface-hover disabled:opacity-50"
+                      className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface2 disabled:opacity-50"
                     >
                       Удалить
                     </button>
                     <button
                       onClick={() => setConfirmingDelete(null)}
-                      className="rounded border border-border px-2.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface-hover"
+                      className="rounded border border-border px-2.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
                     >
                       Отмена
                     </button>

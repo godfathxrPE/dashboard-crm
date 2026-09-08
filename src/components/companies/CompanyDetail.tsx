@@ -204,7 +204,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
               блок реквизитов у 36 компаний из 260 не рендерится вовсе — вход в
               фичу был бы им недоступен. */}
           <button onClick={() => setAiModalOpen(true)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs text-text-mute transition-colors hover:bg-surface2 hover:text-text-main">
             <Sparkles size={13} className="text-accent" /> AI-бриф
           </button>
           {/* Primary в шапке: главное действие карточки компании — завести сделку.
@@ -216,7 +216,7 @@ export function CompanyDetail({ companyId }: CompanyDetailProps) {
             </button>
           )}
           <button onClick={() => setModalOpen(true)}
-            className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
+            className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface2 hover:text-text-main">
             <Pencil size={14} />
           </button>
           <button onClick={() => setConfirmingDelete(true)}

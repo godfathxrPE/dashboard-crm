@@ -77,7 +77,7 @@ export function ProjectVideos({ projectId, canManage }: ProjectVideosProps) {
           <button
             onClick={() => setAdding((v) => !v)}
             className="flex items-center gap-1 rounded-lg border border-border px-2 py-1
-                       text-meta text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                       text-meta text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
           >
             {adding ? <X size={12} /> : <Plus size={12} />}
             {adding ? 'Отмена' : 'Видео'}

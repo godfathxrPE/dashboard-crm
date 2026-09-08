@@ -199,7 +199,7 @@ export function DealHeader({
               });
             }}
             className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-text-dim
-                       transition-colors hover:bg-surface-hover hover:text-text-main"
+                       transition-colors hover:bg-surface2 hover:text-text-main"
           >
             Вернуть в работу
           </button>
@@ -239,7 +239,7 @@ export function DealHeader({
           onClick={onEdit}
           aria-label="Редактировать"
           className="rounded-lg border border-border p-1.5 text-text-mute
-                     transition-colors hover:bg-surface-hover hover:text-text-main"
+                     transition-colors hover:bg-surface2 hover:text-text-main"
         >
           <Pencil size={14} />
         </button>

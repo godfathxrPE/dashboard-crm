@@ -287,18 +287,18 @@ export function CallLog() {
                       <button onClick={() => { setAiFocus('progression'); setAiCall(call); }}
                         aria-label="Обновить сделку по разговору"
                         title="Обновить сделку по разговору"
-                        className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+                        className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-accent">
                         <Wand2 size={12} />
                       </button>
                     )}
                     <button onClick={() => { setAiFocus(undefined); setAiCall(call); }}
                       aria-label="AI-анализ"
-                      className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+                      className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-accent">
                       <Sparkles size={12} />
                     </button>
                     <button onClick={() => { setEditCall(call); setModalOpen(true); }}
                       aria-label="Редактировать"
-                      className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
+                      className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-text-main">
                       <Pencil size={12} />
                     </button>
                     {confirmDelete.isAsking(call.id) ? (

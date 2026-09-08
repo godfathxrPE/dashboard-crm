@@ -287,7 +287,7 @@ function TransitionModalBody({
             type="button"
             onClick={onClose}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-text-dim
-                       transition-colors hover:bg-surface-hover hover:text-text-main"
+                       transition-colors hover:bg-surface2 hover:text-text-main"
           >
             Отмена
           </button>

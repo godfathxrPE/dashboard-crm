@@ -39,7 +39,7 @@ export function AiCompanyModal({ isOpen, onClose, companyId, companyName }: AiCo
           <button
             onClick={onClose}
             aria-label="Закрыть"
-            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface-hover"
+            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface2"
           >
             <X size={18} />
           </button>

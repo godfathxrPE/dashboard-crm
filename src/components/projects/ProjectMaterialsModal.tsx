@@ -66,7 +66,7 @@ export function ProjectMaterialsModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Открыть в 1С:ДО"
-                className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-accent"
+                className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface2 hover:text-accent"
               >
                 <ExternalLink size={13} />
               </a>

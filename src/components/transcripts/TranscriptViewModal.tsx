@@ -85,13 +85,13 @@ export function TranscriptViewModal({
           <button
             onClick={onClose}
             aria-label="Закрыть"
-            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface-hover"
+            className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface2"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-surface-hover/40 p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-surface2/40 p-3">
           {isLoading ? (
             <p className="flex items-center gap-1.5 text-xs text-text-dim">
               <Loader2 size={13} className="animate-spin text-accent" /> Загружаю текст…
@@ -114,7 +114,7 @@ export function TranscriptViewModal({
               type="button"
               onClick={() => onOpenEntity(row)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs
-                         font-medium text-text-dim hover:bg-surface-hover"
+                         font-medium text-text-dim hover:bg-surface2"
             >
               <Sparkles size={13} className="text-accent" />
               {row.entityType === 'call' ? 'Открыть звонок' : 'Открыть встречу'}
@@ -125,7 +125,7 @@ export function TranscriptViewModal({
             onClick={handleCopy}
             disabled={!content}
             className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs
-                       font-medium text-text-dim hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+                       font-medium text-text-dim hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {copied ? <Check size={13} className="text-green" /> : <Copy size={13} />}
             Копировать

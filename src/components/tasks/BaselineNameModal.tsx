@@ -33,7 +33,7 @@ export function BaselineNameModal({ defaultName, pending, onSubmit, onClose }: B
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm text-text-mute transition-colors hover:bg-surface-hover"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm text-text-mute transition-colors hover:bg-surface2"
           >
             Отмена
           </button>

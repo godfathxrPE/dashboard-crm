@@ -345,14 +345,14 @@ export function DataTable<T>({
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover disabled:opacity-30"
+              className="rounded p-1 text-text-mute transition-colors hover:bg-surface2 disabled:opacity-30"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover disabled:opacity-30"
+              className="rounded p-1 text-text-mute transition-colors hover:bg-surface2 disabled:opacity-30"
             >
               <ChevronRight size={16} />
             </button>

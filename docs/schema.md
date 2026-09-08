@@ -616,10 +616,11 @@
 > **128 applied** (`20260822100301`, `capture_set_outcome` и `telegram_capture_drafts.ai_run_id`
 > есть) · **129 applied** (`20260823182046`, `queue_snoozes` есть) · **130 applied**
 > (`20260907073548`) · **131 applied** (`20260908061745`, `quotes.rejection_reason` есть;
-> S-DEAL-ORG-1, аддитивно, RLS/индексы не тронуты). Хвост за владельцем: реген типов
-> и снятие `QuoteRejectionPatch` из `lib/validators/quote.ts` + добавление колонки
-> в `QUOTE_COLS`.
-> **Следующая свободная — 132**, и брать её всё равно запросом.
+> S-DEAL-ORG-1, аддитивно, RLS/индексы не тронуты). Хвост 131 закрыт: `QuoteRejectionPatch`
+> снят, колонка в `QUOTE_COLS` есть.
+> **132 `quotes_rejected_needs_reason` — НАПИСАНА, НЕ ПРИМЕНЕНА** (S-DEAL-ORG-2, файл
+> `132_quotes_rejected_needs_reason.sql`) ⇒ **следующая свободная — 133**, и брать её
+> всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
 > Следующая свободная — **126** (последняя применённая — 125, `20260821104527`). ⚠️ Номер брать запросом к
@@ -2317,13 +2318,14 @@ performance-наборе ни одного упоминания `chz_groups`, `c
 | currency | text | default `'RUB'` (v1 фиксировано) |
 | document_url | text | ссылка на HTML/PDF из kp-master |
 | notes | text | ТЕКСТ САМОГО ПРЕДЛОЖЕНИЯ (правится в `QuoteModal`, видно в строке списка). ⚠️ **Не журнал решений** — причина отказа живёт в `rejection_reason`, а не здесь |
-| **rejection_reason** _(131, **applied 2026-09-08** `20260908061745`)_ | text | S-DEAL-ORG-1 (W4): причина отклонения КП, пишет кнопка «Отклонено» в `ActiveQuoteCard`. NULL — легальное состояние (решения до 131 причины не имели), бэкфилла нет. RLS не трогается: политики 053 табличные, `quotes_update` уже пускает owner/admin/manager. Индекса нет — самостоятельных выборок по полю сегодня нет. ⚠️ **До apply колонка НЕ добавлена в `QUOTE_COLS`** (`use-quotes.ts`): SELECT с ней уронил бы 400-м все запросы списка КП |
+| **rejection_reason** _(131, **applied 2026-09-08** `20260908061745`)_ | text | S-DEAL-ORG-1 (W4): причина отклонения КП, пишет кнопка «Отклонено» в `ActiveQuoteCard`. NULL — легальное состояние (решения до 131 причины не имели), бэкфилла нет. RLS не трогается: политики 053 табличные, `quotes_update` уже пускает owner/admin/manager. Индекса нет — самостоятельных выборок по полю сегодня нет. Колонка в `QUOTE_COLS` (`use-quotes.ts`) есть с момента apply. С **132** обязательна при `status='rejected'` (см. CHECK ниже) |
 | valid_until | date | срок действия |
 | sent_at / accepted_at | timestamptz | проставляет `stamp_quote_status` при смене статуса (в т.ч. на INSERT) |
 | created_by | uuid | → profiles ON DELETE SET NULL, DEFAULT `auth.uid()` |
 | created_at / updated_at | timestamptz | `updated_at` — триггер `update_updated_at` |
 
 Индексы: `(org_id)`, `(project_id)`, `(status)`, **partial-uniq `quotes_one_accepted_per_project (project_id) WHERE status='accepted'`** (W4 — не более одной accepted-квоты на сделку; второй accept падает).
+CHECK: `amount is null or amount >= 0`; **`quotes_rejected_needs_reason`** _(132, **НАПИСАНА, НЕ ПРИМЕНЕНА** — S-DEAL-ORG-2)_ — `status <> 'rejected' OR (rejection_reason is not null AND btrim(rejection_reason) <> '')`. Без `NOT VALID`: нарушителей на проде ноль (сверено 2026-09-08), отложенная валидация только спрятала бы будущие. ⚠️ Выкатывается ПОСЛЕ клиента: `rejected` убран из селекта `QuoteModal`, а выход из `rejected` чистит причину тем же апдейтом — иначе форма ловит 23514, как `leads_decision_role_check` (#70).
 Триггеры: `trg_set_org_id` (before insert), `set_updated_at` (before update), **`trg_zz_stamp_quote_status`** (before insert or update of status; DEFINER + search_path; стемпит sent_at/accepted_at, null-safe для INSERT).
 **RLS (паттерн 048):** `quotes_select` — org-wide (`org_id=current_org_id()`); `quotes_insert/update/delete` — `org_id=current_org_id()` **AND** `current_org_role() in ('owner','admin','manager')`. viewer — read-only. **Hard-delete через CASCADE** (soft-delete в проекте нет). UI-гейт `canEditQuotes` (owner/admin/manager) совпадает с RLS; accept→budget под `canUpdateDealBudget` (owner/admin или `deal.owner_id`).
 

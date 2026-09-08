@@ -615,10 +615,10 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
         <div className="flex items-center gap-2">
           {onSwitchView && (
             <>
-              <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+              <button onClick={onSwitchView} className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface2">
                 Доска
               </button>
-              <Link href="/deals?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface-hover">
+              <Link href="/deals?view=table" className="rounded border border-border px-3 py-1.5 text-xs text-text-dim hover:bg-surface2">
                 Таблица
               </Link>
             </>

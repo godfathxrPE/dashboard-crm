@@ -210,7 +210,7 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
           {offeredFields.map((f) => (
             <label
               key={f.key}
-              className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2 hover:bg-surface-hover"
+              className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2 hover:bg-surface2"
             >
               <input
                 type="checkbox"
@@ -240,7 +240,7 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
           {proposal.tasks.map((t, i) => (
             <label
               key={`${i}-${t.text}`}
-              className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2 hover:bg-surface-hover"
+              className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-surface p-2 hover:bg-surface2"
             >
               <input
                 type="checkbox"
@@ -327,7 +327,7 @@ export function AiProgressionPanel({ run, defaultProjectId }: AiProgressionPanel
               <button
                 type="button"
                 onClick={() => setStaleWarning(false)}
-                className="rounded-lg border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface-hover"
+                className="rounded-lg border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface2"
               >
                 Отмена
               </button>

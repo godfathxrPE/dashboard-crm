@@ -284,7 +284,7 @@ export function TranscriptsView() {
           }}
           aria-label="Скачать расшифровку"
           title="Скачать .md"
-          className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent"
+          className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-accent"
         >
           <Download size={13} />
         </button>

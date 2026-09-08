@@ -450,7 +450,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
           <button
             onClick={onSwitchView}
             className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim
-                       transition-colors hover:bg-surface-hover"
+                       transition-colors hover:bg-surface2"
           >
             Воронка
           </button>

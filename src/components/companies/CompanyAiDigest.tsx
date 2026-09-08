@@ -120,7 +120,7 @@ export function CompanyAiDigest({ companyId }: { companyId: string }) {
                     <button
                       type="button"
                       onClick={() => setViewingTranscript(t)}
-                      className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface-hover"
+                      className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface2"
                     >
                       <FileText size={12} className="mt-0.5 shrink-0 text-accent" />
                       <span className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ export function CompanyAiDigest({ companyId }: { companyId: string }) {
                     <button
                       type="button"
                       onClick={() => void openRun(r.id, setViewingRun)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface-hover"
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface2"
                     >
                       <Sparkles size={12} className="shrink-0 text-accent" />
                       <span className="min-w-0 flex-1 truncate text-xs text-text-main">

@@ -100,7 +100,7 @@ export function Modal({
             type="button"
             onClick={requestClose}
             aria-label="Закрыть"
-            className="-mr-1 shrink-0 rounded-lg p-1 text-text-mute transition-colors hover:bg-surface-hover"
+            className="-mr-1 shrink-0 rounded-lg p-1 text-text-mute transition-colors hover:bg-surface2"
           >
             <X size={18} />
           </button>
@@ -148,7 +148,7 @@ export function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-lg border border-border px-4 py-2 text-sm text-red transition-colors hover:bg-surface-hover"
+                  className="rounded-lg border border-border px-4 py-2 text-sm text-red transition-colors hover:bg-surface2"
                 >
                   Закрыть без сохранения
                 </button>

@@ -157,7 +157,7 @@ export function ChecklistTemplateEditorModal({
               onClick={destroy}
               disabled={busy}
               className="mr-auto rounded-lg border border-border px-3 py-2 text-sm text-red
-                transition-colors hover:bg-surface-hover disabled:opacity-40"
+                transition-colors hover:bg-surface2 disabled:opacity-40"
             >
               Удалить
             </button>
@@ -167,7 +167,7 @@ export function ChecklistTemplateEditorModal({
             onClick={onClose}
             disabled={busy}
             className="rounded-lg border border-border px-3 py-2 text-sm text-text-dim
-              transition-colors hover:bg-surface-hover disabled:opacity-40"
+              transition-colors hover:bg-surface2 disabled:opacity-40"
           >
             Отмена
           </button>

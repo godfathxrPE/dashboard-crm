@@ -278,14 +278,14 @@ function MeetingCard({
         {meeting.project_id && (
           <button onClick={onProgression} aria-label="Обновить сделку по встрече"
             title="Обновить сделку по встрече"
-            className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+            className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-accent">
             <Wand2 size={12} />
           </button>
         )}
-        <button onClick={onAi} aria-label="AI-анализ" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-accent">
+        <button onClick={onAi} aria-label="AI-анализ" className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-accent">
           <Sparkles size={12} />
         </button>
-        <button onClick={onEdit} aria-label="Редактировать" className="rounded p-1 text-text-mute hover:bg-surface-hover hover:text-text-main">
+        <button onClick={onEdit} aria-label="Редактировать" className="rounded p-1 text-text-mute hover:bg-surface2 hover:text-text-main">
           <Pencil size={12} />
         </button>
         {confirmingDelete ? (

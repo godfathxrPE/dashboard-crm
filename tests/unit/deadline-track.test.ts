@@ -112,21 +112,11 @@ describe('buildDeadlineTrack — границы окна', () => {
   });
 });
 
-describe('buildDeadlineTrack — стеки по дню', () => {
-  it('три задачи в один день ⇒ stacks содержит запись count: 3', () => {
-    const t = buildDeadlineTrack([task('a', 4), task('b', 4), task('c', 4)], null, NOW);
-    expect(t.stacks).toHaveLength(1);
-    expect(t.stacks[0]).toMatchObject({ dateKey: '2026-09-12', count: 3 });
-    expect(t.stacks[0].pct).toBe(t.marks[0].pct);
-    // Из marks метки НЕ убираются — что рисовать, решает компонент.
-    expect(t.marks).toHaveLength(3);
-  });
-
-  it('день с единственной меткой в stacks не попадает', () => {
-    const t = buildDeadlineTrack([task('a', 4), task('b', 5)], null, NOW);
-    expect(t.stacks).toHaveLength(0);
-  });
-
+// S-DEAL-ORG-2 (задача 6): тесты на `stacks` удалены вместе с самим полем — его
+// не читал никто, схлопывание по дню `DealDeadlineTrack` считает сам. Мёртвый
+// экспорт С тестами хуже мёртвого без них: тесты создают впечатление живого
+// контракта, и следующий читатель ищет несуществующего потребителя.
+describe('buildDeadlineTrack — порядок меток', () => {
   it('marks отсортированы хронологически независимо от порядка входа', () => {
     const t = buildDeadlineTrack([task('a', 5), task('b', -1), task('c', 2)], null, NOW);
     expect(t.marks.map((m) => m.taskId)).toEqual(['b', 'c', 'a']);
