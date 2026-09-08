@@ -72,11 +72,18 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
   // намеренно, иначе граница суток МСК была бы непроверяема.
   const validity = quoteValidity(active.valid_until, new Date());
 
-  // Дата под статусом: у отправленного — когда отправили, у принятого — когда приняли.
+  // Штамп показываем ТОЛЬКО там, где он есть в схеме: `stamp_quote_status` (053)
+  // пишет `accepted_at` и `sent_at`, и больше ничего. Момент отклонения в базе не
+  // хранится, а `updated_at` им не является — он сдвинется на любой следующей правке
+  // КП. У `rejected`/`draft`/`expired` даты под статусом нет вовсе: пусто честнее,
+  // чем чужая дата под чужой подписью.
+  //
   // `sent_at`/`accepted_at` — timestamptz, поэтому formatDateNumeric; `valid_until` —
   // колонка `date`, и ей нужен formatCalendarDate (иначе сутки назад в минусовых зонах).
   const stampedAt =
-    active.status === 'accepted' ? active.accepted_at : active.sent_at;
+    active.status === 'accepted' ? active.accepted_at
+    : active.status === 'sent' ? active.sent_at
+    : null;
 
   const allowed = QUOTE_STATUS_TRANSITIONS[active.status];
   const canAccept = canEditQuotes && allowed.includes('accepted');
