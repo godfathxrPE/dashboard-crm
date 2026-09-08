@@ -615,10 +615,10 @@
 > (`20260821222625`, `ai_runs.entity_id` nullable и `ai_runs_entity_pair_or_capture` есть) ·
 > **128 applied** (`20260822100301`, `capture_set_outcome` и `telegram_capture_drafts.ai_run_id`
 > есть) · **129 applied** (`20260823182046`, `queue_snoozes` есть) · **130 applied**
-> (`20260907073548`) · **131 `quote_rejection_reason` — НАПИСАНА, НЕ ПРИМЕНЕНА**
-> (S-DEAL-ORG-1; `quotes.rejection_reason text`, аддитивно, RLS/индексы не тронуты;
-> статус на `applied` переводит гейт после apply, следом реген типов и снятие
-> `QuoteRejectionPatch` из `lib/validators/quote.ts`).
+> (`20260907073548`) · **131 applied** (`20260908061745`, `quotes.rejection_reason` есть;
+> S-DEAL-ORG-1, аддитивно, RLS/индексы не тронуты). Хвост за владельцем: реген типов
+> и снятие `QuoteRejectionPatch` из `lib/validators/quote.ts` + добавление колонки
+> в `QUOTE_COLS`.
 > **Следующая свободная — 132**, и брать её всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
@@ -2317,7 +2317,7 @@ performance-наборе ни одного упоминания `chz_groups`, `c
 | currency | text | default `'RUB'` (v1 фиксировано) |
 | document_url | text | ссылка на HTML/PDF из kp-master |
 | notes | text | ТЕКСТ САМОГО ПРЕДЛОЖЕНИЯ (правится в `QuoteModal`, видно в строке списка). ⚠️ **Не журнал решений** — причина отказа живёт в `rejection_reason`, а не здесь |
-| **rejection_reason** _(131, **НАПИСАНА, НЕ ПРИМЕНЕНА**)_ | text | S-DEAL-ORG-1 (W4): причина отклонения КП, пишет кнопка «Отклонено» в `ActiveQuoteCard`. NULL — легальное состояние (решения до 131 причины не имели), бэкфилла нет. RLS не трогается: политики 053 табличные, `quotes_update` уже пускает owner/admin/manager. Индекса нет — самостоятельных выборок по полю сегодня нет. ⚠️ **До apply колонка НЕ добавлена в `QUOTE_COLS`** (`use-quotes.ts`): SELECT с ней уронил бы 400-м все запросы списка КП |
+| **rejection_reason** _(131, **applied 2026-09-08** `20260908061745`)_ | text | S-DEAL-ORG-1 (W4): причина отклонения КП, пишет кнопка «Отклонено» в `ActiveQuoteCard`. NULL — легальное состояние (решения до 131 причины не имели), бэкфилла нет. RLS не трогается: политики 053 табличные, `quotes_update` уже пускает owner/admin/manager. Индекса нет — самостоятельных выборок по полю сегодня нет. ⚠️ **До apply колонка НЕ добавлена в `QUOTE_COLS`** (`use-quotes.ts`): SELECT с ней уронил бы 400-м все запросы списка КП |
 | valid_until | date | срок действия |
 | sent_at / accepted_at | timestamptz | проставляет `stamp_quote_status` при смене статуса (в т.ч. на INSERT) |
 | created_by | uuid | → profiles ON DELETE SET NULL, DEFAULT `auth.uid()` |
