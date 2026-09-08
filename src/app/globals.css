@@ -1798,6 +1798,35 @@ table { font-variant-numeric: tabular-nums; }
   }
   .zone-eyebrow small { font-weight: 400; letter-spacing: 0; text-transform: none; }
 
+  /* Организационный блок сделки — две колонки (S-DEAL-ORG-1, W4): КП слева,
+     материалы и «Ждём» справа, разделитель hairline.
+
+     ⚠️ ЛОМАЕТСЯ ПО ШИРИНЕ БЛОКА, А НЕ ЭКРАНА, и это не педантизм. Зона «Работа»
+     делит строку с рельсой 356px, поэтому на ноутбуке блок получает ~600px, а две
+     колонки по 1fr дают в нём ~250px на каждую — сумма КП переносится, имя файла
+     превращается в многоточие. Viewport-брейкпоинт (`lg:`) этого не видит: ширина
+     ЭКРАНА там большая, а ширина БЛОКА маленькая. Отсюда @container.
+
+     Правило написано «мобайл-ферст»: одна колонка по умолчанию, две — начиная с
+     40rem. Так у браузера без поддержки @container (или при выключенных стилях)
+     остаётся рабочая одноколоночная раскладка, а не две сплющенные.
+
+     Разделитель ставится ТОЛЬКО в двухколоночном режиме: в одноколоночном
+     border-left у второй колонки был бы вертикальной чертой посреди стопки. */
+  .deal-org-split { container-type: inline-size; }
+  .deal-org-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+  @container (min-width: 40rem) {
+    .deal-org-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .deal-org-cols > :nth-child(2) {
+      border-left: 1px solid var(--border);
+      padding-left: 1rem;
+    }
+  }
+
   /* Sidebar active */
   .nav-active { border-left: 3px solid var(--accent); background: var(--accent-l); font-weight: 600; color: var(--accent); }
   .nav-active .lucide { color: var(--accent); }
