@@ -1,4 +1,5 @@
 import { resolveDwellThreshold, type DwellThresholds } from '@/lib/utils/deal-health';
+import { mskDateKey, shiftDateKeyByBuckets } from '@/lib/utils/date-helpers';
 
 // ═══════════════════════════════════════════════════════
 // S-PIPELINE-COCKPIT-1: норма дней на стадии и тайм-датчик ячейки кокпита.
@@ -61,4 +62,26 @@ export function stageTimeGauge(
   const raw = (days / norm) * 100;
   const state: StageTimeState = days > norm ? 'over' : raw >= 70 ? 'warn' : 'ok';
   return { days, norm, pct: Math.min(100, Math.round(raw)), state };
+}
+
+/**
+ * Календарный день (МСК), на который приходится норма текущей стадии:
+ * `stage_entered_at` + норма дней. Нужен таймлайну дедлайнов
+ * (S-DEAL-DEADLINES-1) как позиция пунктира «норма стадии».
+ *
+ * ⚠️ Живёт ЗДЕСЬ, рядом с `resolveStageNorm`, а не в модуле таймлайна: норма —
+ * одна величина на проект (она же порог «залипла», она же заливка ячейки
+ * кокпита), и вторая её формула развела бы пунктир с заливкой.
+ *
+ * Сдвиг дня — `shiftDateKeyByBuckets` (UTC-полдень), тот же, что строит ось
+ * таймлайна: иначе пунктир и метка дня разъехались бы на границе суток.
+ */
+export function stageNormDateKey(
+  stageEnteredAt: string | null | undefined,
+  norm: number | null,
+): string | null {
+  if (!stageEnteredAt || !norm || norm <= 0) return null;
+  const t = new Date(stageEnteredAt);
+  if (Number.isNaN(t.getTime())) return null;
+  return shiftDateKeyByBuckets(mskDateKey(t), 'day', Math.round(norm));
 }
