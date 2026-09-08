@@ -59,6 +59,11 @@ const noBrowserDialogs = {
 const buildArtifacts = {
   ignores: [
     '.next/**',
+    // Вложенные сборки брошенных worktree: '.next/**' якорится от корня и
+    // '.worktrees/*/.next/**' под него не попадает — локальный `eslint .` краснел
+    // на артефактах чужого спринта (07.09 — 1261 «ошибка», 08.09 — 2). CI зелёный:
+    // он делает свежий чекаут и этих папок не видит.
+    '**/.next/**',
     'next-env.d.ts',   // генерится Next при каждом билде, содержит triple-slash-reference
     'out/**',
     'build/**',

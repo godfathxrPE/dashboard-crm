@@ -1,6 +1,7 @@
 # Спринт S-DEAL-DEADLINES-1 — таймлайн дедлайнов (W3)
 
-**Вход:** после мержа S-DEAL-LAYOUT-1 (доска задач должна уже стоять секцией в стопке).
+**Вход:** `main` = `cc231c0` (PR #86), STATUS ревизия 44. S-DEAL-LAYOUT-1 влит (#80):
+доска задач стоит `ProjectBoardSection` → `CollapsibleSection`, свёрнута по умолчанию.
 **Миграций НЕТ.** **Ветка:** `feat/deal-deadlines-1`. **Спека:** W3.
 
 ---
@@ -8,10 +9,7 @@
 ## Зачем
 
 Смысл виджета — ответить «что горит» **до** того, как человек открыл списки. Поэтому
-спека держит таймлайн видимым ВСЕГДА, а колонки задач прячет за кнопку. После
-LAYOUT-1 доска свёрнута в строку; таймлайн встаёт НАД её содержимым и остаётся
-видимым в свёрнутом состоянии — то есть свёрнутая секция «Доска задач» показывает
-строку-сводку и полосу таймлайна, а колонки появляются по развороту.
+спека держит таймлайн видимым ВСЕГДА, а колонки задач прячет за кнопку.
 
 Спека W3, дословно по геометрии:
 
@@ -25,34 +23,70 @@ LAYOUT-1 доска свёрнута в строку; таймлайн вста�
 > Ось дней: h22, 15 меток 9.5 tabular в кругах 18; «сегодня» — lime 700 + свечение.
 > `pct(d) = d / 14 × 100`. При > 6 задачах в окне дорожки объединяются по дню («+N»).
 
-Цвета — по `decisions-lime-theme` и токенам проекта, не по hex спеки (она под `minimal`).
-Семантика состояний — `--danger` / `--warning` / нейтраль; **лайм только у колонки
-«сегодня»**: это один из пяти разрешённых лайм-пятен на экран (лайм-бюджет, Р2).
+Цвета — по токенам проекта, не по hex спеки (она под `minimal`). Семантика состояний —
+`--danger` / `--warning` / нейтраль; **лайм только у колонки «сегодня»** (лайм-бюджет, Р2).
 
 ---
 
-## РАЗВЕДКА
+## Разведка УЖЕ СДЕЛАНА (08.09, сверено с `cc231c0`) — не переоткрывать
+
+Расхождение с этим списком — сигнал, что `main` уехал: остановиться и сказать.
+
+**Колонки `due_date` НЕ СУЩЕСТВУЕТ.** Срок задачи — `tasks.deadline`, и это
+**`timestamptz`**, а не `date` (004; ось обязательства, отдельная от `scheduled_start`/
+`scheduled_end` — оси расписания, 070). Прежняя редакция спринта грепала несуществующее
+имя и называла неверный тип. Урок про `mskDateKey` от этого не отменяется, а
+переворачивается: ключ дня нужен именно потому, что это МОМЕНТ ВРЕМЕНИ — его приводят к
+календарному дню МСК, иначе вечерний дедлайн уедет на сутки.
+
+**У задач нет поля `status`.** Есть `lane` (`now`/`next`/`wait`/`done`), и для задач с
+`project_id` он **деривативен** от `column_id` (пишет `trg_aa_resolve_board`, 032;
+биекция категорий backlog↔next, started↔now, paused↔wait, done↔done). Значит:
+`waiting` ⇔ `lane === 'wait'`, «готова» ⇔ `lane === 'done'`.
+
+**Хук.** `useProjectBoard(projectId)` (`lib/hooks/use-tasks.ts:95`) отдаёт `tasks` и
+`tasksByColumn` одним запросом со `select('*')` — `deadline` там уже есть, доп. запроса
+не нужно. Ключ кэша общий с `ProjectBoard` и `ProjectBoardSection`.
+
+**Норма стадии.** `lib/domain/stage-norm.ts` экспортирует `resolveStageNorm` (:33) и
+`stageTimeGauge` (:51) плюс типы `StageTimeGauge`/`StageTimeState`. Задача 3 выполнима.
+
+**`lib/domain/lane-packing.ts` НЕ ГОДИТСЯ — ответ на прежний вопрос разведки.** Его ось
+в МИНУТАХ (`chipSpanMinutes`, `startMin`/`endMin`), а рядов жёстко два
+(`rowEnds: [number, number]`, `laneRows` возвращает `0 | 1 | 2`). У таймлайна ось в днях
+и объединение стеком «+N» по дню, а не укладка в ряды. Натянуть дни на минуты — значит
+завести вторую семантику внутри чужого модуля календаря.
+
+---
+
+## ЗАДАЧА 0 — слот «видно и в свёрнутом виде» у `CollapsibleSection`
+
+**Без неё спринт невыполним, и это главное расхождение с прежней редакцией.** Спека
+требует, чтобы таймлайн был виден при свёрнутой доске. `CollapsibleSection`
+(`components/shared/CollapsibleSection.tsx`, S-DEAL-LAYOUT-1) устроен так, что:
+
+- `children` не монтируются вовсе до первого раскрытия (`hasBeenExpanded`) и прячутся
+  `hidden` при сворачивании — то есть в `children` таймлайн жить НЕ МОЖЕТ;
+- `summary` рендерится ВНУТРИ `<button>`-шапки — а метки таймлайна по задаче 2 сами
+  `<button>` с `aria-label`. Кнопка внутри кнопки — невалидный HTML и реальный дефект
+  доступности, не придирка.
+
+Завести проп `alwaysVisible?: ReactNode`, который рендерится **после** кнопки-шапки и
+**вне** `hidden`-контейнера, до `hasBeenExpanded`-гейта. Один потребитель — доска задач;
+мёртвого пропа не заводим (урок `locked`, гейт #80).
+
+⚠️ `container-type: inline-size` на `.deal-org-split` (S-DEAL-ORG-1) — соседний блок,
+его не трогать.
+
+## РАЗВЕДКА (короткая, только состояние дерева)
 
 ```bash
-git log --oneline -1 && ls src/components/projects/ | grep -i 'board\|cockpit'
-npm run lint 2>&1 | tail -3 && npx vitest run 2>&1 | tail -5
-
-grep -n 'due_date\|dueDate' src/lib/hooks/use-tasks.ts | head -10
-grep -n 'export function useTasks\|projectId' src/lib/hooks/use-tasks.ts | head -8
-grep -n 'stageTimeGauge\|resolveStageNorm\|normDate\|norm' src/lib/domain/stage-norm.ts | head -12
-sed -n '105,125p' src/components/projects/ProjectStageCockpit.tsx
-grep -rn 'mskDateKey\|shiftDateKeyByBuckets' src/lib/utils/date-helpers.ts | head
-grep -n 'lane-packing' -r src/lib/domain/lane-packing.ts | head -3
+git log --oneline -1 && npm run lint 2>&1 | tail -3 && npx vitest run 2>&1 | tail -5
+sed -n '1,80p' src/components/shared/CollapsibleSection.tsx
+sed -n '1,60p' src/components/projects/ProjectBoardSection.tsx
+sed -n '30,70p' src/lib/domain/stage-norm.ts
+grep -n 'stageTimeGauge\|resolveStageNorm' -r src/components/projects/ProjectStageCockpit.tsx
 ```
-
-Ответить:
-1. Какой хук отдаёт задачи сделки и есть ли в нём `due_date` без доп. запроса.
-2. Что именно `stageTimeGauge` уже посчитал — дата нормы стадии обязана быть ОДНА
-   на кокпит и таймлайн, второй расчёт разъедется.
-3. Годится ли `lib/domain/lane-packing.ts` (S-CAL-LANES-1) для укладки дорожек, или
-   там своя семантика недель.
-
----
 
 ## ЗАДАЧА 1 — домен
 
@@ -84,7 +118,7 @@ export interface DeadlineTrack {
 }
 
 export function buildDeadlineTrack(
-  tasks: readonly { id: string; title: string; due_date: string | null; status: string }[],
+  tasks: readonly { id: string; text: string; deadline: string | null; lane: string }[],
   normDateKey: string | null,
   now: Date,
 ): DeadlineTrack
@@ -92,25 +126,25 @@ export function buildDeadlineTrack(
 
 Правила:
 - ключи дней — **`mskDateKey`** (`lib/utils/date-helpers.ts:102`), не `new Date(...)`:
-  `due_date` — колонка `date`, и в отрицательных зонах день уедет (урок
-  `formatCalendarDate`, S-DEAL-CHZ-1);
+  `deadline` — `timestamptz`, то есть МОМЕНТ, и вечерний дедлайн без приведения к
+  календарному дню МСК уедет на сутки (тот же класс, что в PULSE-1);
 - окно ровно 15 дней: `now−2 … now+12`; `pct(d) = d / 14 × 100`, где `d` — индекс дня;
 - состояние метки: `dateKey < сегодня` и задача не готова ⇒ `overdue`;
-  `== сегодня` ⇒ `today`; статус ожидания ⇒ `waiting` (сверить имя статуса в разведке);
-  иначе `ahead`. **Готовые задачи в таймлайн не попадают вовсе** — он про то, что
+  `== сегодня` ⇒ `today`; `lane === 'wait'` ⇒ `waiting`; иначе `ahead`.
+  **Готовые (`lane === 'done'`) в таймлайн не попадают вовсе** — он про то, что
   впереди, а не про архив;
 - `normPct` считается из `normDateKey`, пришедшего АРГУМЕНТОМ: сам таймлайн норму
   стадии не вычисляет, иначе появится вторая формула рядом с кокпитом;
 - норма вне окна ⇒ `normPct: null`, пунктир не рисуется (не прижимать к краю: линия
   на границе читается как «норма сегодня»);
-- задачи без `due_date` игнорируются молча, задачи за окном — только в `outsideCount`;
+- задачи без `deadline` игнорируются молча, задачи за окном — только в `outsideCount`;
 - > 1 метки в один день ⇒ строка уходит в `stacks`, из `marks` эти метки НЕ убираются
   (компонент решает, что рисовать) — но `stacks` считается всегда.
 
 ## ЗАДАЧА 2 — компонент
 
-`src/components/projects/DealDeadlineTrack.tsx`, встаёт внутрь секции «Доска задач»
-НАД её содержимым, видим и в свёрнутом состоянии.
+`src/components/projects/DealDeadlineTrack.tsx`, передаётся в `ProjectBoardSection`
+пропом `alwaysVisible` (задача 0) — виден и в свёрнутом состоянии.
 
 Разметка: контейнер `relative`, колонка «сегодня» абсолютом по `todayPct`, дорожки,
 ось дней. Числа — `tabular-nums`. Ноль хардкод-цветов.
@@ -139,13 +173,13 @@ a11y: таймлайн — картинка данных, продублиров
 | Вход | Ожидание |
 |---|---|
 | задача вчера, не готова | `overdue`, `pct` < `todayPct` |
-| задача вчера, готова | в `marks` НЕТ |
+| задача вчера, `lane: 'done'` | в `marks` НЕТ |
 | задача сегодня | `today`, `pct === todayPct` |
 | дедлайн `now+12` | попадает, `pct === 100` |
 | дедлайн `now+13` | не попадает, `outsideCount` +1 |
 | дедлайн `now−3` | не попадает, `outsideCount` +1 |
 | три задачи в один день | `stacks` содержит запись `count: 3` |
-| `due_date: null` | игнорируется, счётчики не растут |
+| `deadline: null` | игнорируется, счётчики не растут |
 | норма стадии вне окна | `normPct: null` |
 | граница дня 23:59 МСК | день не уезжает (тот же класс, что в PULSE-1) |
 
@@ -167,7 +201,7 @@ feat(deals): таймлайн дедлайнов на две недели
 
 - deadline-track.ts: окно now−2…now+12, состояния меток, стеки по дню, норма
   стадии аргументом (общая ось с кокпитом, второй формулы нет)
-- DealDeadlineTrack виден и при свёрнутой доске: «что горит» до открытия списков
+- CollapsibleSection получил слот alwaysVisible: таймлайн виден и при свёрнутой доске: «что горит» до открытия списков
 - готовые задачи в таймлайн не попадают; дедлайны за окном — счётчиком
 ```
 
