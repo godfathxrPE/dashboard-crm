@@ -4,6 +4,8 @@ import { CollapsibleSection } from '@/components/shared/CollapsibleSection';
 import { useProjectColumns } from '@/lib/hooks/use-project-columns';
 import { useProjectBoard } from '@/lib/hooks/use-tasks';
 import { ProjectBoard } from '@/components/tasks/ProjectBoard';
+import { DealDeadlineTrack } from './DealDeadlineTrack';
+import type { Project } from '@/lib/hooks/use-projects';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-LAYOUT-1 (задача 2): доска задач сделки — из вкладки в стопку зоны
@@ -17,11 +19,13 @@ import { ProjectBoard } from '@/components/tasks/ProjectBoard';
 // ═══════════════════════════════════════════════════════
 
 export interface ProjectBoardSectionProps {
-  projectId: string;
+  /** Сделка целиком: таймлайну нужны `stage_id`/`stage_entered_at` для нормы стадии. */
+  project: Project;
   canManage: boolean;
 }
 
-export function ProjectBoardSection({ projectId, canManage }: ProjectBoardSectionProps) {
+export function ProjectBoardSection({ project, canManage }: ProjectBoardSectionProps) {
+  const projectId = project.id;
   const { data: columns = [] } = useProjectColumns(projectId);
   const { tasks, tasksByColumn } = useProjectBoard(projectId);
 
@@ -50,6 +54,9 @@ export function ProjectBoardSection({ projectId, canManage }: ProjectBoardSectio
       }
       summary={`${started} в работе · ${paused} ждёт · ${done} готово`}
       defaultExpanded={false}
+      // S-DEAL-DEADLINES-1: таймлайн виден и при свёрнутой доске — «что горит»
+      // до открытия списков. `tasks` идут пропом из уже сделанного запроса.
+      alwaysVisible={<DealDeadlineTrack project={project} tasks={tasks} />}
     >
       <ProjectBoard projectId={projectId} canManageColumns={canManage} />
     </CollapsibleSection>

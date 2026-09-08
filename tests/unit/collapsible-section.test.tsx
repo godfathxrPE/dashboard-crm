@@ -92,3 +92,60 @@ describe('CollapsibleSection — ленивое монтирование', () =>
     expect(screen.queryByText(CONTENT)).toBeNull();
   });
 });
+
+// ═══════════════════════════════════════════════════════
+// S-DEAL-DEADLINES-1 (задача 0): слот `alwaysVisible` — обратная сторона
+// ленивого монтирования. Таймлайн дедлайнов обязан отвечать «что горит» ДО
+// раскрытия доски, а в `children` он не смонтирован и в `summary` не помещается
+// (там он оказался бы кнопкой внутри кнопки-шапки).
+// ═══════════════════════════════════════════════════════
+
+const ALWAYS = 'таймлайн дедлайнов';
+
+describe('CollapsibleSection — слот alwaysVisible', () => {
+  function renderWithSlot() {
+    return render(
+      <CollapsibleSection
+        projectId="p1"
+        sectionId="board"
+        title="Доска задач"
+        alwaysVisible={<button type="button">{ALWAYS}</button>}
+      >
+        <div>{CONTENT}</div>
+      </CollapsibleSection>,
+    );
+  }
+
+  test('виден при свёрнутой секции, когда children ещё нет в DOM', () => {
+    renderWithSlot();
+    expect(screen.getByText(ALWAYS)).toBeVisible();
+    expect(screen.queryByText(CONTENT)).toBeNull();
+  });
+
+  test('остаётся видимым и после раскрытия, и после обратного сворачивания', () => {
+    renderWithSlot();
+    const button = screen.getByRole('button', { name: /Доска задач/ });
+    fireEvent.click(button);
+    expect(screen.getByText(ALWAYS)).toBeVisible();
+    fireEvent.click(button);
+    expect(screen.getByText(ALWAYS)).toBeVisible();
+    // ...в отличие от содержимого, которое ушло под hidden.
+    expect(screen.getByText(CONTENT)).not.toBeVisible();
+  });
+
+  test('лежит ВНЕ кнопки-шапки — своя кнопка внутри слота остаётся отдельной', () => {
+    renderWithSlot();
+    const header = screen.getByRole('button', { name: /Доска задач/ });
+    const inner = screen.getByRole('button', { name: ALWAYS });
+    expect(header.contains(inner)).toBe(false);
+  });
+
+  test('без пропа лишнего контейнера не появляется', () => {
+    render(
+      <CollapsibleSection projectId="p1" sectionId="board" title="Доска задач">
+        <div>{CONTENT}</div>
+      </CollapsibleSection>,
+    );
+    expect(screen.queryByText(ALWAYS)).toBeNull();
+  });
+});

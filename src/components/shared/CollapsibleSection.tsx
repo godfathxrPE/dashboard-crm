@@ -19,6 +19,14 @@ import { readSectionExpanded, writeSectionExpanded } from '@/lib/utils/section-s
 // и сворачивание прячет содержимое `hidden`, а не размонтированием: иначе доска
 // заново запрашивала бы данные на каждый разворот.
 //
+// `alwaysVisible` (S-DEAL-DEADLINES-1, задача 0) — слот ПОД шапкой, живущий вне
+// обоих механизмов выше: он не под `hasBeenExpanded`-гейтом и не под `hidden`.
+// Нужен таймлайну дедлайнов, который обязан отвечать «что горит» ДО того, как
+// доску раскрыли. В `children` он жить не может (не смонтирован до первого
+// раскрытия), в `summary` — тоже: `summary` рендерится ВНУТРИ кнопки-шапки, а
+// метки таймлайна сами `<button>`, и кнопка в кнопке — невалидный HTML с
+// реальной поломкой клавиатурной навигации, а не придирка линтера.
+//
 // `forceExpanded` — синхронный деплинк (S-DEAL-LAYOUT-1, задача 4): читается
 // на первом рендере, ДО того как `useState`-инициализатор дойдёт до
 // localStorage, поэтому гонки с обычным чтением состояния нет. Значение НЕ
@@ -36,6 +44,12 @@ export interface CollapsibleSectionProps {
   badge?: ReactNode;
   /** Сводка мелким текстом — видна и в свёрнутом, и в развёрнутом виде. */
   summary?: ReactNode;
+  /**
+   * Содержимое под шапкой, видимое в ЛЮБОМ состоянии секции: монтируется сразу
+   * и не прячется при сворачивании. В отличие от `summary` лежит вне кнопки —
+   * поэтому может содержать собственные интерактивные элементы.
+   */
+  alwaysVisible?: ReactNode;
   defaultExpanded?: boolean;
   /** Деплинк на эту секцию (`?tab=quotes` → орг. блок) — открыть при монтировании. */
   forceExpanded?: boolean;
@@ -50,6 +64,7 @@ export function CollapsibleSection({
   title,
   badge,
   summary,
+  alwaysVisible,
   defaultExpanded = false,
   forceExpanded = false,
   id,
@@ -87,6 +102,9 @@ export function CollapsibleSection({
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </span>
       </button>
+      {alwaysVisible && (
+        <div className="border-t border-border px-4 py-3">{alwaysVisible}</div>
+      )}
       {hasBeenExpanded && (
         <div hidden={!expanded} className="border-t border-border p-4">
           {children}
