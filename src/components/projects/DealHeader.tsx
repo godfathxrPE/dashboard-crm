@@ -321,7 +321,7 @@ function DealIdentityCard({
   typeBadge: React.ReactNode;
 }) {
   const { data: legal } = useCompanyLegal(project.company_id);
-  const { data: quotes } = useQuotes(project.id);
+  const { data: quotes, isPending: quotesPending } = useQuotes(project.id);
   const { data: members } = useTeamMembers();
 
   const money = dealHeaderAmount(quotes, project.budget);
@@ -421,8 +421,14 @@ function DealIdentityCard({
 
       {/* Сумма не рисуется вовсе, когда её нет: прочерк на месте цены читался бы
           как «ноль рублей». Источник называется подписью — по КП с версией или
-          по бюджету, чтобы не гадать, откуда взялась цифра. */}
-      {money.source !== 'none' && (
+          по бюджету, чтобы не гадать, откуда взялась цифра.
+
+          ⚠️ Пока `useQuotes` не ответил, блок НЕ рисуется совсем (гейт). Иначе
+          на холодной загрузке шапка сначала печатает бюджет, а потом подменяет
+          его суммой КП — на живых данных это «3,0 млн» → «2,8 млн», то есть
+          СТАРАЯ цена, показанная как текущая. Появление блока — честнее подмены
+          числа; левая колонка при этом не двигается, она прижата влево. */}
+      {money.source !== 'none' && !quotesPending && (
         <div className="shrink-0 whitespace-nowrap text-right">
           <div className="text-[1.625rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-text-main">
             {(() => {
