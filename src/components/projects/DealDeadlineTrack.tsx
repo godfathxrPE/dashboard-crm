@@ -199,8 +199,11 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             оторванная, она читается как примечание ко всему блоку, и связь с
             вертикальной линией теряется. Правее 60% уходит влево от линии —
             тот же приём, что у меток. */}
+        {/* Строка под подпись нормы резервируется ТОЛЬКО когда норма в окне:
+            иначе у сделки без нормы стадии сверху висели бы пустые 14px. */}
+        {track.normPct !== null && track.normDateKey && (
         <div className="relative h-[0.875rem]">
-          {track.normPct !== null && track.normDateKey && (
+          {(
             <span
               className="absolute bottom-0 whitespace-nowrap text-[0.59375rem] text-warning-text"
               style={
@@ -213,6 +216,7 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             </span>
           )}
         </div>
+        )}
 
         <div className="relative">
           {rows.map((row) => {
@@ -258,20 +262,26 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
                       держится на этой разнице, сравнять их нельзя. */}
                   <span
                     className={cn(
-                      'truncate whitespace-nowrap text-[0.625rem]',
+                      'flex min-w-0 items-baseline whitespace-nowrap text-[0.625rem]',
                       STATE_TEXT[row.state],
-                      flip ? 'mr-3 text-right' : 'ml-3 text-left',
+                      flip ? 'mr-3' : 'ml-3',
                     )}
                   >
-                    {row.mark.title}
-                    {row.extra > 0 && (
-                      <span className="ml-1 text-text-mute tabular-nums">+{row.extra}</span>
-                    )}
+                    {/* Обрезается ТОЛЬКО название. Гейт FIX-VISUAL: когда
+                        `truncate` стоял на всей подписи, многоточие съедало
+                        хвост — то есть ровно слово состояния, ради которого
+                        пункт 5 и делался. На коротких именах («тест») это не
+                        видно, на длинных смысл терялся первым. */}
+                    <span className="truncate">{row.mark.title}</span>
                     {/* Состояние словом: цвет как ЕДИНСТВЕННЫЙ носитель смысла —
                         a11y-дефект, и в `t-aura` (графитовый акцент) он виден
                         глазами. В `aria-label` состояние уже есть, и label
                         заменяет содержимое кнопки целиком — повтора не будет. */}
-                    <span className="text-text-mute"> · {STATE_LABEL[row.state]}</span>
+                    <span className="shrink-0 text-text-mute">
+                      {row.extra > 0 && <span className="tabular-nums"> +{row.extra}</span>}
+                      {' · '}
+                      {STATE_LABEL[row.state]}
+                    </span>
                   </span>
                 </button>
               </div>
