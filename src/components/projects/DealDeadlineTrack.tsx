@@ -21,8 +21,18 @@ import type { Task } from '@/types/entities';
 // а тем восемь. Семантика состояний — `--danger`/`--warning`/нейтраль;
 // `--accent` («лайм») тратится ТОЛЬКО на колонку «сегодня» — лайм-бюджет Р2.
 //
-// Таймлайн — картинка данных, поэтому под ним строка-сводка: она же легенда
-// (цвет + подпись состояния), она же текстовая альтернатива для скрин-ридера.
+// Таймлайн — картинка данных, поэтому рядом со строкой-заголовком идёт сводка:
+// она же легенда (цвет + подпись состояния), она же текстовая альтернатива для
+// скрин-ридера.
+//
+// FIX-DEADLINES-1-VISUAL (приёмка владельца против макета W3): имя блока и
+// легенда стоят НАД картинкой, у оси есть базовая линия, подпись нормы держится
+// у своего пунктира, состояние задачи несёт слово и тон, а не только цвет точки.
+//
+// FIX-DEADLINES-1-AXIS: «развести маркеры» относилось к ГРАФИКУ, а не к списку.
+// Крупная здесь ось — число дня 12px в кружке 24px, ряд 32px, колонка «сегодня»
+// 44px (шире кружка, иначе «08» вылезает за свою подложку). Строка задачи
+// вернулась к 18px спеки W3, подпись осталась 10px: она подпись под шкалой.
 // ═══════════════════════════════════════════════════════
 
 /** Свыше этого числа меток дорожки схлопываются по дню (спека W3). */
@@ -54,6 +64,21 @@ const STATE_LABEL: Record<MarkState, string> = {
   today: 'сегодня',
   ahead: 'впереди',
   waiting: 'ожидание',
+};
+
+/**
+ * Тон подписи задачи. Состояние обязано читаться не только цветом точки —
+ * поэтому подпись несёт и слово (см. JSX), и тон.
+ *
+ * ⚠️ `today` идёт `--text-main`, а НЕ акцентом: на подписи акцент в `t-washi`
+ * стал бы красным и совпал с просрочкой — то есть цвет соврал бы о состоянии.
+ * Акцент остаётся у колонки и точки, где рядом нет конкурирующей семантики.
+ */
+const STATE_TEXT: Record<MarkState, string> = {
+  overdue: 'text-danger-text',
+  today: 'text-text-main',
+  ahead: 'text-text-dim',
+  waiting: 'text-warning-text',
 };
 
 /** Порядок тяжести для схлопнутой дорожки: у дня состояние худшей задачи. */
@@ -135,13 +160,30 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
 
   return (
     <div>
+      {/* Имя блока и легенда — ОДНОЙ строкой и ДО картинки: легенда это ключ к
+          шкале, её читают перед тем, как разбирать точки, а не после.
+          Eyebrow не берёт класс `.zone-eyebrow`: тот задаёт уровень ЗОНЫ
+          («Работа», «Риски»), а здесь заголовок виджета внутри секции. */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-meta font-bold uppercase tracking-[0.06em] text-text-dim">
+          Дедлайны · 2 недели
+        </span>
+        <span className="ml-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-text-mute">
+          <Legend count={counts.overdue} state="overdue" word="просрочено" />
+          <Legend count={counts.today} state="today" word="сегодня" />
+          <Legend count={counts.ahead} state="ahead" word="впереди" />
+          {counts.waiting > 0 && <Legend count={counts.waiting} state="waiting" word="ждёт" />}
+          {outsideNote && <span>· {outsideNote}</span>}
+        </span>
+      </div>
+
       <div className="relative">
         {/* Колонка «сегодня» — на всю высоту дорожек и оси, под ними по z.
             `-translate-x-1/2` центрирует её по todayPct, иначе полоса уходит
             вправо от своей же метки на оси. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 bottom-0 w-[2.125rem] -translate-x-1/2 rounded-xl bg-accent/20"
+          className="pointer-events-none absolute top-0 bottom-0 w-[2.75rem] -translate-x-1/2 rounded-xl bg-accent/20"
           style={{ left: `${track.todayPct}%` }}
         />
 
@@ -150,9 +192,33 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             «норма сегодня». */}
         {track.normPct !== null && (
           <div
+            aria-hidden="true"
             className="pointer-events-none absolute top-0 bottom-0 border-l-2 border-dashed border-warning/70"
             style={{ left: `${track.normPct}%` }}
           />
+        )}
+
+        {/* Подпись нормы стоит У САМОГО пунктира, а не сноской под виджетом:
+            оторванная, она читается как примечание ко всему блоку, и связь с
+            вертикальной линией теряется. Правее 60% уходит влево от линии —
+            тот же приём, что у меток. */}
+        {/* Строка под подпись нормы резервируется ТОЛЬКО когда норма в окне:
+            иначе у сделки без нормы стадии сверху висели бы пустые 14px. */}
+        {track.normPct !== null && track.normDateKey && (
+        <div className="relative h-[0.875rem]">
+          {(
+            <span
+              className="absolute bottom-0 whitespace-nowrap text-[0.59375rem] text-warning-text"
+              style={
+                track.normPct > 60
+                  ? { right: `${100 - track.normPct}%`, paddingRight: '0.25rem' }
+                  : { left: `${track.normPct}%`, paddingLeft: '0.25rem' }
+              }
+            >
+              норма стадии · {mskDayCaption(mskEndOfDayIso(track.normDateKey))}
+            </span>
+          )}
+        </div>
         )}
 
         <div className="relative">
@@ -162,6 +228,10 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             // рисуется за границей контейнера и обрезается.
             const flip = row.mark.pct > 55;
             return (
+              // 18px спеки W3. Промежуточная правка поднимала строку до 26px,
+              // читая «развести маркеры» как «дать воздух списку» — прочтение
+              // неверное: расти должен ГРАФИК (ось ниже), а строка задачи это
+              // список, и её рост только удлиняет виджет.
               <div key={row.key} className="relative h-[1.125rem]">
                 {/* Кнопка — сама метка (точка + подпись), а не строка целиком:
                     дорожка тянется во всю ширину, и клик по её пустому концу,
@@ -190,18 +260,32 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
                   <span
                     className={cn('block size-3 shrink-0 rounded-full', STATE_DOT[row.state])}
                   />
-                  {/* Подпись сдвинута на 12px от точки и не переносится:
-                      дорожка высотой 18px не переживёт вторую строку. */}
+                  {/* Подпись сдвинута на 12px от точки и не переносится: дорожка
+                      одну строку и рассчитана. 10px — мельче спеки W3 (11px) и
+                      мельче числа дня (12px) СОЗНАТЕЛЬНО: главное здесь шкала,
+                      а подписи задач идут под неё подписями, а не наоборот. */}
                   <span
                     className={cn(
-                      'truncate whitespace-nowrap text-meta text-text-dim hover:text-text-main',
-                      flip ? 'mr-3 text-right' : 'ml-3 text-left',
+                      'flex min-w-0 items-baseline whitespace-nowrap text-[0.625rem]',
+                      STATE_TEXT[row.state],
+                      flip ? 'mr-3' : 'ml-3',
                     )}
                   >
-                    {row.mark.title}
-                    {row.extra > 0 && (
-                      <span className="ml-1 text-text-mute tabular-nums">+{row.extra}</span>
-                    )}
+                    {/* Обрезается ТОЛЬКО название. Гейт FIX-VISUAL: когда
+                        `truncate` стоял на всей подписи, многоточие съедало
+                        хвост — то есть ровно слово состояния, ради которого
+                        пункт 5 и делался. На коротких именах («тест») это не
+                        видно, на длинных смысл терялся первым. */}
+                    <span className="truncate">{row.mark.title}</span>
+                    {/* Состояние словом: цвет как ЕДИНСТВЕННЫЙ носитель смысла —
+                        a11y-дефект, и в `t-aura` (графитовый акцент) он виден
+                        глазами. В `aria-label` состояние уже есть, и label
+                        заменяет содержимое кнопки целиком — повтора не будет. */}
+                    <span className="shrink-0 text-text-mute">
+                      {row.extra > 0 && <span className="tabular-nums"> +{row.extra}</span>}
+                      {' · '}
+                      {STATE_LABEL[row.state]}
+                    </span>
                   </span>
                 </button>
               </div>
@@ -209,45 +293,34 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
           })}
         </div>
 
-        {/* Ось дней: 15 меток в кругах. Числа tabular — иначе метки «11» и «18»
-            разной ширины дёргают центровку кругов. */}
-        <div className="relative h-[1.375rem]" aria-hidden="true">
-          {track.days.map((day) => (
-            <span
-              key={day.key}
-              className={cn(
-                'absolute top-1/2 flex size-[1.125rem] -translate-x-1/2 -translate-y-1/2',
-                'items-center justify-center rounded-full text-[0.59375rem] tabular-nums',
-                day.isToday
-                  ? 'bg-accent font-bold shadow-[0_0_0_0.25rem_var(--accent-l2)]'
-                  : 'text-text-mute',
-              )}
-              // `--on-accent` — единственный токен «контраст к акценту»; в
-              // Tailwind он не объявлен, поэтому инлайном, как в MonthGrid и
-              // WeekLanes. На лайме `text-white` дало бы 1.29:1.
-              style={{ left: `${day.pct}%`, ...(day.isToday && { color: 'var(--on-accent)' }) }}
-            >
-              {day.key.slice(8, 10)}
-            </span>
-          ))}
+        {/* Базовая линия отделяет дорожки от чисел — без неё ряд дней висит
+            вплотную под последней подписью, и ось не читается как ось.
+            Отступ над числами даёт её `padding`, отдельного не заводим. */}
+        <div className="relative border-t border-border pt-1" aria-hidden="true">
+          {/* Ось дней: 15 меток в кругах. Числа tabular — иначе метки «11» и «18»
+              разной ширины дёргают центровку кругов. */}
+          <div className="relative h-[2rem]">
+            {track.days.map((day) => (
+              <span
+                key={day.key}
+                className={cn(
+                  'absolute top-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2',
+                  'items-center justify-center rounded-full text-[0.75rem] tabular-nums',
+                  day.isToday
+                    ? 'bg-accent font-bold shadow-[0_0_0_0.25rem_var(--accent-l2)]'
+                    : 'text-text-mute',
+                )}
+                // `--on-accent` — единственный токен «контраст к акценту»; в
+                // Tailwind он не объявлен, поэтому инлайном, как в MonthGrid и
+                // WeekLanes. На лайме `text-white` дало бы 1.29:1.
+                style={{ left: `${day.pct}%`, ...(day.isToday && { color: 'var(--on-accent)' }) }}
+              >
+                {day.key.slice(8, 10)}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-
-      {track.normDateKey && (
-        <p className="mt-1 text-[0.59375rem] text-text-mute">
-          норма стадии · {mskDayCaption(mskEndOfDayIso(track.normDateKey))}
-        </p>
-      )}
-
-      {/* Строка-сводка: текстовая альтернатива картинке и одновременно легенда —
-          глиф каждого пункта окрашен тем же токеном, что точка на дорожке. */}
-      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-text-mute">
-        <Legend count={counts.overdue} state="overdue" word="просрочено" />
-        <Legend count={counts.today} state="today" word="сегодня" />
-        <Legend count={counts.ahead} state="ahead" word="впереди" />
-        {counts.waiting > 0 && <Legend count={counts.waiting} state="waiting" word="ждёт" />}
-        {outsideNote && <span>· {outsideNote}</span>}
-      </p>
 
       {/* Локальный инстанс модалки — тот же приём, что у `ProjectBoard`:
           `GlobalModals` умеет только СОЗДАНИЕ задачи (`editTask={null}`), а
