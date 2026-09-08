@@ -77,6 +77,13 @@ export type TimelineEvent = {
    */
   refType?: 'task';
   /**
+   * S-DEAL-EVENT-1: разобранный `payload.changes` аудита 087 — только у событий
+   * `kind='activity'`, у которых он есть. Нужен для следствий: `title` к этому
+   * моменту уже готовая строка, из неё поля не достать.
+   * Отсутствует у всех записей журнала до 087 — это законно, не дефект.
+   */
+  changes?: Record<string, Record<string, unknown>>;
+  /**
    * S-UI-CLARITY-1: сырой `activity_log.event_type` для событий `kind='activity'`.
    * Нужен, чтобы отделить человеческую заметку (`comment_added`) от системной
    * записи (смена стадии, аудит полей) — на уровне `kind` они неразличимы.

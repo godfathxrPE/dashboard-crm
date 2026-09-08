@@ -120,6 +120,30 @@ function nested(p: Record<string, unknown>, key: string): Record<string, unknown
 }
 
 /**
+ * S-DEAL-EVENT-1. `payload.changes` аудита 087 — «было → стало» по полям сделки.
+ *
+ * Сужение и только сужение: значения внутри не разбираются и не форматируются —
+ * это дело `describeChange`. Ключи со значением НЕ-объектом отбрасываются ровно
+ * так же, как их отбрасывает `describeChanges` в ленте: иначе `changes` разъехался
+ * бы с тем, что по тем же данным печатает заголовок события.
+ *
+ * `undefined` при пустом результате, а не `{}`: «изменений нет» и «поля нет вовсе»
+ * (все записи журнала до 087) для потребителя — одно и то же, и две формы пустоты
+ * заставили бы его проверять обе.
+ */
+function changesOf(p: Record<string, unknown>): Record<string, Record<string, unknown>> | undefined {
+  const raw = p.changes;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      out[k] = v as Record<string, unknown>;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/**
  * `id` строки RPC — уже `${kind}:${uuid}` (его собирает SQL, чтобы ключ был уникален
  * между источниками). Адаптеры собирают тот же префикс сами, поэтому им нужен голый
  * uuid. Правило одно на все шесть видов — ветвлений здесь нет.
@@ -216,11 +240,18 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
       // поле не завели сразу: бэкфилл невозможен — заголовки задач не уникальны
       // (у шаблонов внедрения они повторяются буквально), связать событие с задачей
       // задним числом не по чему.
-      const taskId = text(nested(p, 'payload'), 'task_id');
+      const inner = nested(p, 'payload');
+      const taskId = text(inner, 'task_id');
+      // S-DEAL-EVENT-1: `changes` доносится до события СЫРЫМ. `title` к этому
+      // моменту — уже готовая строка `describeEvent`, полей из неё не достать,
+      // а второй запрос к `activity_log` разошёлся бы с лентой при первой же
+      // правке RPC. Второго источника нет — тот же payload, что уже приехал.
+      const changes = changesOf(inner);
       return {
         id: row.id,
         sourceId: taskId ?? sourceId,
         ...(taskId ? { refType: 'task' as const } : {}),
+        ...(changes ? { changes } : {}),
         kind: 'activity',
         // payload источника лежит ВНУТРИ `row.payload`, рядом с `event_type` —
         // ровно та форма, которую `describeEvent` читает у строки `activity_log`.

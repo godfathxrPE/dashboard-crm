@@ -113,8 +113,15 @@ function formatFieldValue(field: string, raw: unknown): string {
   return String(raw);
 }
 
-/** Одно изменение: «Бюджет: 10.0M ₽ → 12.0M ₽», «Ответственный: Олег → Иван». */
-function describeChange(field: string, ch: Record<string, unknown>): string {
+/**
+ * Одно изменение: «Бюджет: 10.0M ₽ → 12.0M ₽», «Ответственный: Олег → Иван».
+ *
+ * S-DEAL-EVENT-1: экспортируется ради следствий (`lib/domain/event-effects.ts`).
+ * Строка следствия обязана совпадать со строкой ленты БУКВАЛЬНО — второй рендер
+ * тех же данных разошёлся бы с этим при первой правке форматтера (класс дефекта
+ * «дедуп ОПФ в трёх копиях», S-TG-3). Поведение функции не менялось.
+ */
+export function describeChange(field: string, ch: Record<string, unknown>): string {
   const label = capitalize(fieldLabel(field));
   // Класс «факт»: значение не хранится (длинные тексты и заметки в лог не тащим).
   if (!('from' in ch) && !('to' in ch)) return label;
