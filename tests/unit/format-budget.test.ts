@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { formatBudget, parseBudgetInput } from '@/lib/validators/project';
+import { formatBudget, formatBudgetFull, parseBudgetInput } from '@/lib/validators/project';
 
 /**
  * S-FORMAT-1 (F-03): бюджет печатается русским письмом — «2,8 млн ₽».
@@ -38,6 +38,30 @@ describe('formatBudget — русский формат', () => {
   test('латинских M/K и точки-разделителя в выводе нет', () => {
     expect(formatBudget(280_000_000)).not.toMatch(/[MK]/);
     expect(formatBudget(280_000_000)).not.toContain('.');
+  });
+});
+
+describe('formatBudgetFull — полные разряды, только для шапки сделки', () => {
+  test('миллионы: разряды неразрывным пробелом, без «млн»', () => {
+    expect(formatBudgetFull(280_000_000)).toBe(`2${NBSP}800${NBSP}000${NBSP}₽`);
+  });
+
+  test('тысячи: разряд один', () => {
+    expect(formatBudgetFull(45_000_000)).toBe(`450${NBSP}000${NBSP}₽`);
+  });
+
+  test('ноль — это ноль, а не «не указано»', () => {
+    expect(formatBudgetFull(0)).toBe(`0${NBSP}₽`);
+  });
+
+  test('null — прочерк «не указано»', () => {
+    expect(formatBudgetFull(null)).toBe('—');
+  });
+
+  test('инвариант: показанное значение читается обратно', () => {
+    for (const kopecks of [280_000_000, 45_000_000, 84_000]) {
+      expect(parseBudgetInput(formatBudgetFull(kopecks))).toBe(kopecks);
+    }
   });
 });
 
