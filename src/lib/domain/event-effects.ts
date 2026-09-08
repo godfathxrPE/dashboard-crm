@@ -17,8 +17,9 @@
 // (триггеры, cron) следствий не получают вовсе — приписать чужую правку системе
 // хуже, чем не показать связь.
 //
-// `now` — аргумент, не `Date.now()` внутри (урок S-LEAD-HUB-2b: `leadStaleness`
-// читала часы мимо переданного времени, и тест этого не поймал).
+// Часы функция не читает ВООБЩЕ: и окно, и порядок считаются относительно якоря.
+// Отсев событий из будущего — не здесь, а в выборе якоря (`DealLastEvent`): лента
+// содержит будущие даты штатно, у задачи дата события это `deadline ?? created_at`.
 
 import { describeChange } from '@/lib/utils/activity-events';
 
@@ -51,17 +52,18 @@ export interface Effect {
 /**
  * Изменения полей, случившиеся ПОСЛЕ события в пределах окна, тем же актором.
  *
- * `now` ограничивает кандидатов сверху: запись, датированная дальше окна вперёд
- * от текущего момента, — сбой часов или данных, а не следствие. Допуск ровно в
- * окно, а не «строго не позже now», потому что рассинхрон часов браузера и БД в
- * несколько секунд — обычное дело, и жёсткая граница съедала бы настоящие
- * следствия, записанные только что.
+ * ⚠️ `now` СЮДА НЕ ПЕРЕДАЁТСЯ, и это не упущение. Функция целиком относительна
+ * якоря: кандидат берётся по `at − anchor.at`, текущее время в сравнениях не
+ * участвует. Правило проекта «`now` аргументом» защищает функции, которые ЧИТАЮТ
+ * часы; функция, которая их не читает, в нём не нуждается, а придуманная
+ * параметру работа стоила бы данных — верхняя отсечка `at > now + windowMs`
+ * при отстающих на минуты часах браузера молча съедала бы настоящие следствия.
+ * Отсев будущего живёт там, где ему место: в выборе ЯКОРЯ (`DealLastEvent`).
  */
 export function resolveEventEffects(
   anchor: EffectSource,
   candidates: readonly EffectSource[],
   windowMs: number,
-  now: number = Date.now(),
 ): { effects: Effect[]; more: number } {
   const anchorAt = Date.parse(anchor.at);
   // Актор обязателен С ОБЕИХ сторон: у события без актора следствий не бывает,
@@ -69,7 +71,6 @@ export function resolveEventEffects(
   // побочный результат сравнения `null === null` (которое иначе прошло бы).
   if (!anchor.actorId || Number.isNaN(anchorAt)) return { effects: [], more: 0 };
 
-  const limit = now + windowMs;
   const matched = candidates
     .filter((c) => {
       // Сам якорь — по `id`, а не по времени: два события одной секунды бывают,
@@ -79,7 +80,6 @@ export function resolveEventEffects(
       if (!c.changes) return false;
       const at = Date.parse(c.at);
       if (Number.isNaN(at)) return false;
-      if (at > limit) return false;
       return at > anchorAt && at - anchorAt <= windowMs;
     })
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));

@@ -13,9 +13,8 @@ import {
 const ACTOR = 'actor-1';
 const OTHER_ACTOR = 'actor-2';
 
-/** Момент якоря и «сейчас» фиксированы: окно — функция времени. */
+/** Момент якоря фиксирован: окно считается ОТ НЕГО, текущее время в правило не входит. */
 const ANCHOR_AT = '2026-09-08T10:00:00.000Z';
-const NOW = Date.parse('2026-09-08T10:30:00.000Z');
 
 function at(offsetMs: number): string {
   return new Date(Date.parse(ANCHOR_AT) + offsetMs).toISOString();
@@ -44,7 +43,7 @@ function change(over: Partial<EffectSource> = {}): EffectSource {
 
 describe('resolveEventEffects', () => {
   it('изменение через 30 сек тем же актором — одно следствие', () => {
-    const r = resolveEventEffects(anchor(), [change()], EVENT_EFFECT_WINDOW_MS, NOW);
+    const r = resolveEventEffects(anchor(), [change()], EVENT_EFFECT_WINDOW_MS);
 
     expect(r.effects).toHaveLength(1);
     expect(r.effects[0].field).toBe('next_step');
@@ -58,7 +57,6 @@ describe('resolveEventEffects', () => {
       anchor(),
       [change({ actorId: OTHER_ACTOR })],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects).toEqual([]);
@@ -70,7 +68,6 @@ describe('resolveEventEffects', () => {
       anchor(),
       [change({ actorId: null })],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects).toEqual([]);
@@ -82,7 +79,6 @@ describe('resolveEventEffects', () => {
       anchor({ actorId: null }),
       [change({ actorId: null })],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects).toEqual([]);
@@ -93,7 +89,6 @@ describe('resolveEventEffects', () => {
       anchor(),
       [change({ at: at(10 * 60_000) })],
       EVENT_EFFECT_WINDOW_MS,
-      Date.parse(ANCHOR_AT) + 20 * 60_000,
     );
 
     expect(r.effects).toEqual([]);
@@ -104,7 +99,6 @@ describe('resolveEventEffects', () => {
       anchor(),
       [change({ at: at(-30_000) })],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects).toEqual([]);
@@ -119,7 +113,7 @@ describe('resolveEventEffects', () => {
       { ...change(), id: 'c5', at: at(50_000), changes: { priority: { from: '1', to: '2' } } },
     ];
 
-    const r = resolveEventEffects(anchor(), many, EVENT_EFFECT_WINDOW_MS, NOW);
+    const r = resolveEventEffects(anchor(), many, EVENT_EFFECT_WINDOW_MS);
 
     expect(r.effects).toHaveLength(3);
     // Между записями порядок — по времени, а не по порядку в массиве.
@@ -132,7 +126,6 @@ describe('resolveEventEffects', () => {
       anchor(),
       [change({ changes: undefined })],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects).toEqual([]);
@@ -151,7 +144,6 @@ describe('resolveEventEffects', () => {
         }),
       ],
       EVENT_EFFECT_WINDOW_MS,
-      NOW,
     );
 
     expect(r.effects.map((e) => e.field)).toEqual(['next_step', 'next_action_date']);
@@ -166,22 +158,9 @@ describe('resolveEventEffects', () => {
       changes: { next_step: { from: 'a', to: 'b' } },
     };
 
-    const r = resolveEventEffects(anchor(), [self], EVENT_EFFECT_WINDOW_MS, NOW);
+    const r = resolveEventEffects(anchor(), [self], EVENT_EFFECT_WINDOW_MS);
 
     expect(r.effects).toEqual([]);
   });
 
-  it('запись, датированная дальше окна вперёд от now, — сбой часов, не следствие', () => {
-    // Допуск ровно в окно: рассинхрон часов браузера и БД в секунды не должен
-    // съедать настоящее следствие, а запись «через сутки» следствием не бывает.
-    const r = resolveEventEffects(
-      anchor(),
-      [change({ at: at(60_000) })],
-      EVENT_EFFECT_WINDOW_MS,
-      // now задолго ДО кандидата: его `at` дальше, чем now + окно.
-      Date.parse(ANCHOR_AT) - 60 * 60_000,
-    );
-
-    expect(r.effects).toEqual([]);
-  });
 });

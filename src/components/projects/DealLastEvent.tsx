@@ -97,19 +97,27 @@ export function DealLastEvent({
   // (`kindsKey = 'all'`), то есть второго запроса нет вовсе.
   const { events, isLoading, error } = useEntityTimeline('project', projectId);
 
-  const anchor = useMemo(
-    () =>
-      events.find(
-        (e) =>
-          // `project_updated` якорем быть не может: такая запись сама по себе
-          // следствие, и заголовком виджета она показала бы «Дата шага: 1 → 2
-          // сент» как главное событие сделки, а её соседей — как её следствия.
-          // `stage_changed` якорем быть МОЖЕТ: у смены стадии есть собственный
-          // смысл, и следствия у неё осмысленные.
-          !(e.kind === 'activity' && e.eventType === 'project_updated'),
-      ) ?? null,
-    [events],
-  );
+  const anchor = useMemo(() => {
+    // ⚠️ ЛЕНТА СОДЕРЖИТ БУДУЩЕЕ. У задачи дата события — `deadline ?? created_at`
+    // (`taskToEvent`, adapters.ts:87), поэтому задача со сроком на следующей
+    // неделе стоит в ленте ПЕРВОЙ и без этой отсечки становилась бы «последним
+    // событием». Замер на проде 08.09: из 24 сделок у 2 верхнее событие ленты
+    // датировано будущим, и обе — задачи с дедлайном. Виджет с таким якорем
+    // врёт собственным названием.
+    const now = Date.now();
+    return (
+      events.find((e) => {
+        const at = Date.parse(e.date);
+        if (Number.isNaN(at) || at > now) return false;
+        // `project_updated` якорем быть не может: такая запись сама по себе
+        // следствие, и заголовком виджета она показала бы «Дата шага: 1 → 2
+        // сент» как главное событие сделки, а её соседей — как её следствия.
+        // `stage_changed` якорем быть МОЖЕТ: у смены стадии есть собственный
+        // смысл, и следствия у неё осмысленные.
+        return !(e.kind === 'activity' && e.eventType === 'project_updated');
+      }) ?? null
+    );
+  }, [events]);
 
   const { effects, more } = useMemo(() => {
     if (!anchor) return { effects: [], more: 0 };
@@ -174,7 +182,7 @@ export function DealLastEvent({
           type="button"
           onClick={() => onOpenEvent?.(anchor)}
           className="shrink-0 rounded-lg border border-border px-2 py-1 text-meta text-text-dim
-                     transition-colors hover:bg-surface-hover hover:text-text-main"
+                     transition-colors hover:bg-surface2 hover:text-text-main"
         >
           {action}
         </button>
