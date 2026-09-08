@@ -37,26 +37,6 @@ export const QUOTE_STATUS_CONFIG: Record<
   expired: { label: 'Истекло', text: 'text-yellow', glyph: '◐' },
 };
 
-/**
- * S-DEAL-ORG-1 (W4): патч отклонения КП — статус плюс причина.
- *
- * ⚠️ TODO(S-DEAL-ORG-1): СНЯТЬ ПОСЛЕ РЕГЕНА ТИПОВ НА 131. Миграция 131 добавляет
- * `quotes.rejection_reason text`, но `src/types/supabase.gen.ts` про колонку ещё не
- * знает (реген — операция гейта, после apply). Узкий тип здесь вместо `any`: он
- * структурно совместим с `QuoteUpdate`, поэтому `useUpdateQuote` принимает его без
- * приведения, а лишнее поле уезжает в PATCH как обычная колонка.
- *
- * ⚠️ `rejection_reason` НАМЕРЕННО НЕ ДОБАВЛЕН в `QUOTE_COLS` (`use-quotes.ts`):
- * до применения 131 колонки в проде нет, и SELECT с ней уронил бы 400-й ВСЕ запросы
- * списка КП, а не только отклонение. Читать причину станет тот PR, что придёт после
- * регена.
- */
-export interface QuoteRejectionPatch {
-  id: string;
-  status: Extract<QuoteStatus, 'rejected'>;
-  rejection_reason: string;
-}
-
 /** Разрешённые переходы статуса (для кнопок в строке/модалке). */
 export const QUOTE_STATUS_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   draft: ['sent', 'rejected'],
