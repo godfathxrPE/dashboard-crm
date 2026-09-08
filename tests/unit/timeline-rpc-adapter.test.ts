@@ -201,6 +201,56 @@ describe('rpcRowToEvent', () => {
     expect(e.title).toBe('Задача: Приёмка отчёта');
   });
 
+  // ═══ S-DEAL-EVENT-1: `changes` аудита 087 доезжает до события ═══
+
+  it('activity: payload.payload.changes доносится до события сырым', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: {
+          event_type: 'project_updated',
+          payload: {
+            fields_changed: ['next_step'],
+            changes: { next_step: { from: 'Позвонить', to: 'Прислать КП' } },
+          },
+        },
+      }),
+      NOW,
+    );
+
+    // Значения НЕ разобраны и не отформатированы — это дело `describeChange`.
+    expect(e.changes).toEqual({ next_step: { from: 'Позвонить', to: 'Прислать КП' } });
+    // Заголовок спринт не трогает: он по-прежнему собран `describeEvent`.
+    expect(e.title).toBe('Следующий шаг: Позвонить → Прислать КП');
+  });
+
+  it('activity: строка без changes — поле остаётся undefined', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'project_updated', payload: { fields_changed: ['next_step'] } },
+      }),
+      NOW,
+    );
+
+    expect(e.changes).toBeUndefined();
+    expect(e.title).toBe('Обновлено: следующий шаг');
+  });
+
+  it('activity: changes с не-объектом внутри — ключ отброшен, как и в ленте', () => {
+    // Пустой результат отдаётся как `undefined`, а не `{}`: двух форм пустоты у
+    // потребителя быть не должно.
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'project_updated', payload: { changes: { next_step: 'строка' } } },
+      }),
+      NOW,
+    );
+
+    expect(e.changes).toBeUndefined();
+  });
+
   it('activity: task_id не строка — как будто его нет (payload пишет клиент, не БД)', () => {
     const e = rpcRowToEvent(
       row({

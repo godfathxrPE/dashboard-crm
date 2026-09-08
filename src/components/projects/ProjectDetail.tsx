@@ -20,6 +20,7 @@ import { DealDeliveryHub } from './DealDeliveryHub';
 import { CompletenessBadge } from './CompletenessBadge';
 import { DealHeader } from './DealHeader';
 import { DealNextStep } from './DealNextStep';
+import { DealLastEvent } from './DealLastEvent';
 import { DealContextRail, DealRisksZone, DealContextZone } from './DealContextRail';
 import { useDealSignals } from './DealSignals';
 import { ProjectStageCockpit } from './ProjectStageCockpit';
@@ -42,7 +43,7 @@ import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
 import type { AiRunRow } from '@/types/database';
-import type { TimelineEvent } from '@/types/timeline';
+import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-health';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { SpawnWizard } from './SpawnWizard';
@@ -73,6 +74,20 @@ const GanttTimeline = dynamic(
 // ═══════════════════════════════════════════════════════
 // Main Detail View
 // ═══════════════════════════════════════════════════════
+
+/**
+ * S-DEAL-EVENT-1: виды событий ленты сделки. До спринта карточка не передавала
+ * `kindFilter` вовсе, и чипов было четыре (`DEFAULT_KINDS`) — при том, что лента
+ * показывала все шесть видов: события «Заметки», «Система» и «AI» были, а
+ * фильтра под них не было.
+ *
+ * ⚠️ Набор ПОЛНЫЙ — зеркало `COMPANY_TIMELINE_KINDS`. Любой более узкий включил
+ * бы клиентский срез `<EntityTimeline>` по этому набору и вернул бы дефект
+ * S-TL-2: «Все» показывало бы объявленные виды только из ЗАГРУЖЕННЫХ страниц.
+ * При полном наборе срез — no-op, и долг остаётся ровно таким же теоретическим,
+ * каким был.
+ */
+const DEAL_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'activity', 'project', 'ai_run'];
 
 // PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки. S-DEAL-LAYOUT-1:
 // 'quotes' упразднена (её содержимое — в орг. блоке зоны «Работа»); 'board'
@@ -403,6 +418,10 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
           <Clock size={14} className="text-text-dim" />
           <span className="text-xs font-semibold text-text-main">Активность</span>
         </div>
+        {/* S-DEAL-EVENT-1 (W5): последнее событие и его следствия — НАД композером
+            и над лентой. Своего запроса не заводит: при чипе «Все» ключ React
+            Query совпадает с ключом ленты. */}
+        <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
         <ActivityComposer entityType="project" entityId={projectId} />
         {/* S-DEAL-ZONES-1A (F-08): 72ch — только на СДЕЛКЕ. `EntityTimeline`
             общий с контактом, компанией и тредом, и глобальная смена меры
@@ -411,6 +430,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
           entityType="project"
           entityId={projectId}
           onOpenEvent={handleOpenEvent}
+          kindFilter={DEAL_TIMELINE_KINDS}
           bodyMeasureClass={isDeal ? 'max-w-[72ch]' : undefined}
         />
       </div>
