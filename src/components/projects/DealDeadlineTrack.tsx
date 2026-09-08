@@ -28,8 +28,11 @@ import type { Task } from '@/types/entities';
 // FIX-DEADLINES-1-VISUAL (приёмка владельца против макета W3): имя блока и
 // легенда стоят НАД картинкой, у оси есть базовая линия, подпись нормы держится
 // у своего пунктира, состояние задачи несёт слово и тон, а не только цвет точки.
-// Дорожка 26px и подпись 10px — решение владельца поверх спеки W3 (18px/11px):
-// на живом экране маркеры слипались и липли к ряду чисел.
+//
+// FIX-DEADLINES-1-AXIS: «развести маркеры» относилось к ГРАФИКУ, а не к списку.
+// Крупная здесь ось — число дня 12px в кружке 24px, ряд 32px, колонка «сегодня»
+// 44px (шире кружка, иначе «08» вылезает за свою подложку). Строка задачи
+// вернулась к 18px спеки W3, подпись осталась 10px: она подпись под шкалой.
 // ═══════════════════════════════════════════════════════
 
 /** Свыше этого числа меток дорожки схлопываются по дню (спека W3). */
@@ -180,7 +183,7 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             вправо от своей же метки на оси. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 bottom-0 w-[2.125rem] -translate-x-1/2 rounded-xl bg-accent/20"
+          className="pointer-events-none absolute top-0 bottom-0 w-[2.75rem] -translate-x-1/2 rounded-xl bg-accent/20"
           style={{ left: `${track.todayPct}%` }}
         />
 
@@ -225,10 +228,11 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
             // рисуется за границей контейнера и обрезается.
             const flip = row.mark.pct > 55;
             return (
-              // 26px вместо 18px спеки — решение владельца на приёмке: при 18px
-              // маркеры слипались между собой и липли к ряду чисел. Рост дорожки
-              // разом даёт воздух между метками и поднимает стопку над осью.
-              <div key={row.key} className="relative h-[1.625rem]">
+              // 18px спеки W3. Промежуточная правка поднимала строку до 26px,
+              // читая «развести маркеры» как «дать воздух списку» — прочтение
+              // неверное: расти должен ГРАФИК (ось ниже), а строка задачи это
+              // список, и её рост только удлиняет виджет.
+              <div key={row.key} className="relative h-[1.125rem]">
                 {/* Кнопка — сама метка (точка + подпись), а не строка целиком:
                     дорожка тянется во всю ширину, и клик по её пустому концу,
                     открывающий задачу, был бы сюрпризом. */}
@@ -257,9 +261,9 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
                     className={cn('block size-3 shrink-0 rounded-full', STATE_DOT[row.state])}
                   />
                   {/* Подпись сдвинута на 12px от точки и не переносится: дорожка
-                      одну строку и рассчитана. 10px — мельче спеки (11px), но
-                      КРУПНЕЕ оси (9.5px): иерархия «задача важнее числа дня»
-                      держится на этой разнице, сравнять их нельзя. */}
+                      одну строку и рассчитана. 10px — мельче спеки W3 (11px) и
+                      мельче числа дня (12px) СОЗНАТЕЛЬНО: главное здесь шкала,
+                      а подписи задач идут под неё подписями, а не наоборот. */}
                   <span
                     className={cn(
                       'flex min-w-0 items-baseline whitespace-nowrap text-[0.625rem]',
@@ -295,13 +299,13 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
         <div className="relative border-t border-border pt-1" aria-hidden="true">
           {/* Ось дней: 15 меток в кругах. Числа tabular — иначе метки «11» и «18»
               разной ширины дёргают центровку кругов. */}
-          <div className="relative h-[1.375rem]">
+          <div className="relative h-[2rem]">
             {track.days.map((day) => (
               <span
                 key={day.key}
                 className={cn(
-                  'absolute top-1/2 flex size-[1.125rem] -translate-x-1/2 -translate-y-1/2',
-                  'items-center justify-center rounded-full text-[0.59375rem] tabular-nums',
+                  'absolute top-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2',
+                  'items-center justify-center rounded-full text-[0.75rem] tabular-nums',
                   day.isToday
                     ? 'bg-accent font-bold shadow-[0_0_0_0.25rem_var(--accent-l2)]'
                     : 'text-text-mute',
