@@ -677,21 +677,27 @@
 .t-fuji [data-activity-tabs] > button:nth-child(5) {
   display: none;
 }
-/* Activity items — hide icon circles, add separators */
-.t-fuji .hover\:bg-surface-hover .rounded-full.bg-bg {
+/* Activity items — hide icon circles, add separators.
+   ⚠️ Селектор переехал с `.hover\:bg-surface-hover` на `.hover\:bg-surface2`
+   вместе с разметкой (S-DEAL-ORG-2, задача 7): вариантов для не-палитровых имён
+   Tailwind не генерирует, класс `hover:bg-surface-hover` не существовал вовсе и
+   ховера не давал ни в одном из 134 мест. Правила ниже цепляются за ИМЯ КЛАССА, а
+   не за его эффект, поэтому переименование обязано было пройти тем же коммитом —
+   иначе Fuji потеряла бы свои точечные правки молча. */
+.t-fuji .hover\:bg-surface2 .rounded-full.bg-bg {
   display: none;
 }
-.t-fuji .hover\:bg-surface-hover .text-xs.text-text-dim {
+.t-fuji .hover\:bg-surface2 .text-xs.text-text-dim {
   font-size: 13px;
   color: var(--text);
 }
-.t-fuji .space-y-1 > .hover\:bg-surface-hover {
+.t-fuji .space-y-1 > .hover\:bg-surface2 {
   border-bottom: 1px solid rgba(221,213,197,0.3);
   border-radius: 0;
   padding-top: 10px;
   padding-bottom: 10px;
 }
-.t-fuji .space-y-1 > .hover\:bg-surface-hover:last-child {
+.t-fuji .space-y-1 > .hover\:bg-surface2:last-child {
   border-bottom: none;
 }
 
@@ -1725,6 +1731,12 @@ table { font-variant-numeric: tabular-nums; }
     -webkit-backdrop-filter: var(--glass-blur, none);
   }
 
+  /* ⚠️ ОСТАЁТСЯ, хотя `hover:bg-surface-hover` из разметки убран (S-DEAL-ORG-2,
+     задача 7). Базовый класс БЕЗ `hover:` живой в двух местах — SpinReviewRenderer
+     и TranscribeDropzone, — и удаление правила сломало бы их. Ручное правило и есть
+     причина дефекта: `surface-hover` нет в палитре tailwind.config, поэтому вариантов
+     (`hover:`, `focus:`, `disabled:`) и модификатора прозрачности (`/40`) для него
+     Tailwind не порождает — только этот один класс. */
   .bg-surface-hover { background: var(--surface2); }
 
   /* Hover строк очереди «Сегодня» (QueueRow): полупрозрачный, как zebra таблиц —
@@ -2388,4 +2400,28 @@ table tbody tr[data-kbd-focused] {
   --time-ok-fill:   color-mix(in srgb, var(--bg) 84%, var(--accent));
   --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
   --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
+
+  /* S-DEAL-ORG-2: отметка «СЕГОДНЯ» на таймлайне дедлайнов (DealDeadlineTrack —
+     точка дорожки, глиф легенды, колонка дня). По умолчанию это акцент: в t-lime
+     «сегодня» — единственное место лаймового бюджета Р2, и оно работает.
+
+     ⚠️ Заведено ПАРОЙ ТОКЕНОВ, а не правкой темы. В t-washi --accent и --red — один
+     и тот же торий-красный #C23B3B, поэтому «сегодня» заливалось РОВНО цветом
+     «просрочено»: в легенде эти глифы стоят соседями, и два состояния из трёх были
+     неразличимы. Править --accent в washi нельзя (торий-красный — идентичность
+     темы), а увести «сегодня» из акцента во всех темах значило бы убить лаймовую
+     точку t-lime. Тот же довод, по которому STATE_TEXT.today уже держит --text-main:
+     дефект был известен и закрыт наполовину — вылечили подпись, оставили глиф. */
+  --mark-today:    var(--accent);
+  --mark-today-l2: var(--accent-l2);
+}
+
+/* ⚠️ Переопределение washi стоит ЗДЕСЬ, ПОСЛЕ :root, а не в блоке `.t-washi` выше.
+   Тема-класс висит на том же <html>, что и `:root` (ThemeProvider → documentElement),
+   специфичность у `:root` и `.t-washi` одинаковая (0,1,0) — решает порядок в файле.
+   Объявление внутри блока темы проиграло бы этому `:root` молча, и дефект вернулся бы
+   невидимым. Тот же класс, что у --danger, который жил только в .t-fuji. */
+.t-washi {
+  --mark-today:    var(--text);
+  --mark-today-l2: color-mix(in srgb, var(--text) 22%, transparent);
 }

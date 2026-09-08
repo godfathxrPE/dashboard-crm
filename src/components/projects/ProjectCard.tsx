@@ -282,7 +282,7 @@ export function ProjectCard({
                 <button
                   onClick={() => onEdit(project)}
                   aria-label="Редактировать"
-                  className="rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main"
+                  className="rounded p-1 text-text-mute transition-colors hover:bg-surface2 hover:text-text-main"
                 >
                   <Pencil size={12} />
                 </button>

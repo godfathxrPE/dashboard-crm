@@ -104,7 +104,7 @@ export function PomodoroWidget() {
         {/* Controls */}
         <div className="flex items-center gap-2">
           <button onClick={handleReset}
-            className="rounded-lg border border-border p-2 text-text-mute transition-colors hover:bg-surface-hover">
+            className="rounded-lg border border-border p-2 text-text-mute transition-colors hover:bg-surface2">
             <RotateCcw size={14} />
           </button>
           <button onClick={handleToggle}

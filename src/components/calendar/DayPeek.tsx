@@ -129,7 +129,7 @@ function EventCard({ ev, onOpen, onAi }: { ev: CalEvent; onOpen: () => void; onA
         e.preventDefault();
         onOpen();
       }}
-      className="cursor-pointer rounded-lg border border-border px-3 py-2 transition-colors hover:bg-surface-hover"
+      className="cursor-pointer rounded-lg border border-border px-3 py-2 transition-colors hover:bg-surface2"
     >
       <div className="mb-1 flex items-center gap-1.5">
         {/* Цвет вида несёт иконка, не текст — тот же уговор, что на чипах. */}

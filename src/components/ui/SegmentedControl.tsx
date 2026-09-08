@@ -56,7 +56,7 @@ export function SegmentedControl<T extends string>({
             'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent',
             value === v
               ? 'bg-accent-l text-accent'
-              : 'text-text-dim hover:bg-surface-hover hover:text-text-main',
+              : 'text-text-dim hover:bg-surface2 hover:text-text-main',
           )}
         >
           {Icon ? <Icon size={13} /> : null}

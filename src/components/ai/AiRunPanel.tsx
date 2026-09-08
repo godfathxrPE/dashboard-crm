@@ -189,7 +189,7 @@ export function AiRunPanel({
     (Date.now() - new Date(run.created_at).getTime()) / 60_000 > STALE_MIN;
 
   return (
-    <div className="rounded-lg border border-border bg-surface-hover/40 p-3">
+    <div className="rounded-lg border border-border bg-surface2/40 p-3">
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-text-dim">
         <Sparkles size={14} className="text-accent" />
         <span>AI-анализ по транскрипту</span>
@@ -245,7 +245,7 @@ export function AiRunPanel({
               onClick={() => handleRun(preset.key)}
               disabled={!canRun(preset) || start.isPending}
               title={runHint(preset)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 ${
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50 ${
                 isProgression && focusProgression
                   ? 'border-accent bg-accent-l text-accent'
                   : 'border-border bg-surface text-text-main'
@@ -308,7 +308,7 @@ export function AiRunPanel({
                         type="button"
                         onClick={() => handleRun(run.preset_key)}
                         disabled={!preset || !canRun(preset) || start.isPending}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface2 disabled:opacity-50"
                       >
                         <RotateCw size={12} /> Повторить
                       </button>
@@ -323,7 +323,7 @@ export function AiRunPanel({
                       type="button"
                       onClick={() => handleRun(run.preset_key)}
                       disabled={!preset || !canRun(preset) || start.isPending}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface-hover disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim hover:bg-surface2 disabled:opacity-50"
                     >
                       <RotateCw size={12} /> Повторить
                     </button>
@@ -351,7 +351,7 @@ export function AiRunPanel({
                       <button
                         type="button"
                         onClick={() => rating.mutate({ runId: run.id, rating: 1 })}
-                        className={`rounded p-1 hover:bg-surface-hover ${run.rating === 1 ? 'text-green' : 'text-text-mute'}`}
+                        className={`rounded p-1 hover:bg-surface2 ${run.rating === 1 ? 'text-green' : 'text-text-mute'}`}
                         aria-label="Полезно"
                       >
                         <ThumbsUp size={13} />
@@ -359,7 +359,7 @@ export function AiRunPanel({
                       <button
                         type="button"
                         onClick={() => { setNoteFor(run.id); setNoteText(run.feedback_note ?? ''); }}
-                        className={`rounded p-1 hover:bg-surface-hover ${run.rating === -1 ? 'text-red' : 'text-text-mute'}`}
+                        className={`rounded p-1 hover:bg-surface2 ${run.rating === -1 ? 'text-red' : 'text-text-mute'}`}
                         aria-label="Не полезно"
                       >
                         <ThumbsDown size={13} />
@@ -367,7 +367,7 @@ export function AiRunPanel({
                       <button
                         type="button"
                         onClick={() => handleCopy(run)}
-                        className="ml-auto inline-flex items-center gap-1 rounded p-1 text-text-mute hover:bg-surface-hover"
+                        className="ml-auto inline-flex items-center gap-1 rounded p-1 text-text-mute hover:bg-surface2"
                         aria-label="Копировать"
                       >
                         {copiedId === run.id ? <Check size={13} className="text-green" /> : <Copy size={13} />}

@@ -60,10 +60,36 @@ export function QuoteModal({ dealId, editQuote, onClose }: QuoteModalProps) {
     }
   }, [editQuote, reset]);
 
+  // S-DEAL-ORG-2 (задача 1): `rejected` НЕ предлагается в форме. Режется именно
+  // здесь, при рендере списка, а НЕ в `quoteStatuses`: тип статуса остаётся полным
+  // (`QUOTE_STATUS_CONFIG`, `QUOTE_STATUS_TRANSITIONS`, бейджи списка читают все
+  // пять значений), а отклонение — это решение С ПРИЧИНОЙ, и у него свой поток в
+  // `ActiveQuoteCard`. Ставить статус руками, минуя причину, значит нарушить CHECK
+  // `quotes_rejected_needs_reason` (132) прямо в форме — 23514 без поля, куда его
+  // показать.
+  //
+  // ⚠️ Уже отклонённое КП свой статус в списке СОХРАНЯЕТ: выбранное значение обязано
+  // лежать в `options`, иначе `<select>` теряет привязку и отдаёт чужой статус первым
+  // же сабмитом (тот же дефект, что чинили в FIX S-CHAT-TASK-1-BIND). Для такого КП
+  // «Отклонено» означает «оставить как есть» — причина у строки уже записана.
+  const statusOptions = quoteStatuses.filter(
+    (s) => s !== 'rejected' || editQuote?.status === 'rejected',
+  );
+
   const onSubmit = async (values: QuoteFormValues) => {
     try {
       if (editQuote) {
-        await updateQuote.mutateAsync({ id: editQuote.id, ...values });
+        // Выход из `rejected` уносит причину тем же апдейтом: оставшаяся на
+        // черновике, она соврёт в следующей версии КП («отклонено из-за цены» под
+        // статусом «Отправлено»). CHECK 132 такую строку пропускает — он требует
+        // причину У ОТКЛОНЁННОГО, а не запрещает её у остальных; чистить обязан UI.
+        const leavesRejected =
+          editQuote.status === 'rejected' && values.status !== 'rejected';
+        await updateQuote.mutateAsync({
+          id: editQuote.id,
+          ...values,
+          ...(leavesRejected ? { rejection_reason: null } : {}),
+        });
       } else {
         await createQuote.mutateAsync(values);
       }
@@ -145,7 +171,7 @@ export function QuoteModal({ dealId, editQuote, onClose }: QuoteModalProps) {
                        text-sm text-text-main
                        focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           >
-            {quoteStatuses.map((s) => (
+            {statusOptions.map((s) => (
               <option key={s} value={s}>
                 {QUOTE_STATUS_CONFIG[s].label}
               </option>

@@ -135,7 +135,7 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
       footer={
         <>
           <button type="button" onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2">
             Отмена
           </button>
           <button type="submit" form="meeting-form" disabled={isSubmitting}

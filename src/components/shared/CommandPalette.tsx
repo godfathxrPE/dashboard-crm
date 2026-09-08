@@ -420,7 +420,7 @@ export function CommandPalette() {
                     data-cmd-idx={i}
                     onClick={() => handleSelect(item)}
                     className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors
-                      ${i === selectedIdx ? 'bg-accent-l text-accent' : 'text-text-main hover:bg-surface-hover'}`}
+                      ${i === selectedIdx ? 'bg-accent-l text-accent' : 'text-text-main hover:bg-surface2'}`}
                   >
                     <item.icon size={14} className={i === selectedIdx ? 'text-accent' : 'text-text-mute'} />
                     <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>

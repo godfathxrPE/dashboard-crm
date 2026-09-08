@@ -301,7 +301,7 @@ export function TranscriptCreateModal({ isOpen, onClose, onCreated }: Transcript
         step === 1 ? (
           <>
             <button type="button" onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
+              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2">
               Отмена
             </button>
             <button type="button" onClick={() => void goToText()}
@@ -312,7 +312,7 @@ export function TranscriptCreateModal({ isOpen, onClose, onCreated }: Transcript
         ) : (
           <>
             <button type="button" onClick={() => setStep(1)}
-              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface-hover">
+              className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim hover:bg-surface2">
               Назад
             </button>
             <button type="submit" form="transcript-create-form" disabled={!hasText || isSubmitting}

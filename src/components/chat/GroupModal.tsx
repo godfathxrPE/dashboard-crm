@@ -180,7 +180,7 @@ export function GroupModal({ conversation, onClose, onCreated, onDeleted }: Grou
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover"
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface2"
           >
             Отмена
           </button>
@@ -274,14 +274,14 @@ export function GroupModal({ conversation, onClose, onCreated, onDeleted }: Grou
                     type="button"
                     onClick={onDelete}
                     disabled={deleteGroup.isPending}
-                    className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface-hover disabled:opacity-50"
+                    className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface2 disabled:opacity-50"
                   >
                     Точно удалить?
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmingDelete(false)}
-                    className="rounded border border-border px-2.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface-hover"
+                    className="rounded border border-border px-2.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
                   >
                     Отмена
                   </button>
@@ -291,7 +291,7 @@ export function GroupModal({ conversation, onClose, onCreated, onDeleted }: Grou
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
-                className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface-hover"
+                className="rounded border border-border px-2.5 py-1 text-xs text-red transition-colors hover:bg-surface2"
               >
                 Удалить группу
               </button>

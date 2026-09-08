@@ -110,7 +110,7 @@ export function DealDeliveryHub({ dealId, dealStatus, onCreateDelivery }: DealDe
             <button
               onClick={onCreateDelivery}
               className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs
-                         font-medium text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                         font-medium text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
             >
               <Plus size={12} /> Создать внедрение
             </button>
@@ -179,7 +179,7 @@ function DeliveryRow({ delivery: d, phase, health }: { delivery: ChildDelivery; 
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Открыть в 1С:ДО"
-          className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface-hover hover:text-accent"
+          className="shrink-0 rounded p-1 text-text-mute transition-colors hover:bg-surface2 hover:text-accent"
         >
           <ExternalLink size={13} />
         </a>

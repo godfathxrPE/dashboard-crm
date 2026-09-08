@@ -102,7 +102,7 @@ export function ProjectTeam({
           <button
             onClick={() => { setErrorText(null); setAdding(true); }}
             className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim
-                       transition-colors hover:bg-surface-hover hover:text-text-main"
+                       transition-colors hover:bg-surface2 hover:text-text-main"
           >
             <Plus size={12} /> Добавить
           </button>

@@ -73,7 +73,7 @@ export function AiWorkspaceModal({
               AI-анализ · {typeLabel}{subject ? ` · ${subject}` : ''}
             </span>
           </h2>
-          <button onClick={onClose} aria-label="Закрыть" className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface-hover"><X size={18} /></button>
+          <button onClick={onClose} aria-label="Закрыть" className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface2"><X size={18} /></button>
         </div>
 
         <div className="space-y-3">

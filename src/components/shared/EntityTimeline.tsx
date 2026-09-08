@@ -302,7 +302,7 @@ export function EntityTimeline({
                   return (
                     <div
                       key={event.id}
-                      className="group/row relative -ml-1 flex items-start gap-3 rounded-lg py-2 pl-1 pr-2 transition-colors hover:bg-surface-hover"
+                      className="group/row relative -ml-1 flex items-start gap-3 rounded-lg py-2 pl-1 pr-2 transition-colors hover:bg-surface2"
                     >
                       <div className={cn('absolute -left-[23px] top-[10px] flex h-[14px] w-[14px] items-center justify-center rounded-full', meta.dot)}>
                         <Icon size={8} className={meta.fg} />
@@ -353,7 +353,7 @@ export function EntityTimeline({
           onClick={() => loadMore()}
           disabled={isLoadingMore}
           className="mt-3 w-full rounded-lg border border-border py-2 text-xs text-text-dim
-                     transition-colors hover:bg-surface-hover hover:text-text-main disabled:opacity-50"
+                     transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
         >
           {isLoadingMore ? 'Загружаем…' : 'Показать раньше'}
         </button>

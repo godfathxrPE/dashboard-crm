@@ -19,7 +19,9 @@ import type { Task } from '@/types/entities';
 //
 // Геометрия — из спеки W3, но в rem и токенах: hex спеки снят под `minimal`,
 // а тем восемь. Семантика состояний — `--danger`/`--warning`/нейтраль;
-// `--accent` («лайм») тратится ТОЛЬКО на колонку «сегодня» — лайм-бюджет Р2.
+// акцент тратится ТОЛЬКО на «сегодня» — лайм-бюджет Р2. Берётся он через
+// `--mark-today` (S-DEAL-ORG-2): в `t-washi` акцент равен `--red`, и прямой
+// `--accent` там красил «сегодня» цветом «просрочено».
 //
 // Таймлайн — картинка данных, поэтому рядом со строкой-заголовком идёт сводка:
 // она же легенда (цвет + подпись состояния), она же текстовая альтернатива для
@@ -51,9 +53,13 @@ const STATE_DOT: Record<MarkState, string> = {
   // Просрочено — заливка danger и широкое кольцо: самая тяжёлая точка на оси.
   overdue: 'bg-danger ring-4 ring-danger/25',
   // «Сегодня» — единственное место лаймового бюджета. Двойное кольцо (контур
-  // цветом текста + свечение акцентом) отделяет точку от лаймовой колонки, на
+  // цветом текста + свечение --mark-today-l2) отделяет точку от колонки, на
   // которой она стоит: одноцветная точка на своей же заливке исчезает.
-  today: 'bg-accent ring-2 ring-text-main shadow-[0_0_0_0.375rem_var(--accent-l2)]',
+  //
+  // ⚠️ Цвет идёт через --mark-today, а НЕ через --accent: в t-washi акцент равен
+  // --red, и «сегодня» заливалось ровно цветом «просрочено». Пара токенов живёт в
+  // :root в конце globals.css, переопределена только в .t-washi.
+  today: 'bg-mark-today ring-2 ring-text-main shadow-[0_0_0_0.375rem_var(--mark-today-l2)]',
   // Впереди — нейтраль: поверхность плюс контур. Цвета у «нормально» нет.
   ahead: 'bg-surface ring-2 ring-border2',
   // Ожидание — warning приглушённо: это не проблема, а «мяч не у нас».
@@ -63,7 +69,10 @@ const STATE_DOT: Record<MarkState, string> = {
 /** Тот же цвет без колец — для глифов легенды и чипов, где кольцо съело бы точку. */
 const STATE_CHIP: Record<MarkState, string> = {
   overdue: 'bg-danger',
-  today: 'bg-accent',
+  // Глиф «сегодня» стоит в легенде СОСЕДОМ с глифом «просрочено» — именно здесь
+  // равенство --accent и --red в t-washi делало два состояния из трёх
+  // неразличимыми. См. --mark-today.
+  today: 'bg-mark-today',
   ahead: 'bg-surface ring-1 ring-border2',
   waiting: 'bg-warning',
 };
@@ -81,7 +90,12 @@ const STATE_LABEL: Record<MarkState, string> = {
  *
  * ⚠️ `today` идёт `--text-main`, а НЕ акцентом: на подписи акцент в `t-washi`
  * стал бы красным и совпал с просрочкой — то есть цвет соврал бы о состоянии.
- * Акцент остаётся у колонки и точки, где рядом нет конкурирующей семантики.
+ *
+ * ⚠️ Прежняя редакция добавляла «акцент остаётся у колонки и точки, где рядом нет
+ * конкурирующей семантики» — посылка НЕВЕРНА, и дефект был закрыт наполовину: в
+ * легенде глиф «сегодня» стоит соседом глифа «просрочено», то есть конкурирующая
+ * семантика там ровно рядом. Лечится не отказом от акцента, а токеном
+ * `--mark-today` (S-DEAL-ORG-2), который в `t-washi` уходит в нейтраль текста.
  */
 const STATE_TEXT: Record<MarkState, string> = {
   overdue: 'text-danger-text',
@@ -179,10 +193,12 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
       <div className="relative">
         {/* Колонка «сегодня» — на всю высоту дорожек и оси, под ними по z.
             `-translate-x-1/2` центрирует её по todayPct, иначе полоса уходит
-            вправо от своей же метки на оси. */}
+            вправо от своей же метки на оси.
+            Заливка — --mark-today (а не --accent): в t-washi акцентная полоса под
+            сегодняшним днём была розовой и читалась как просрочка. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute top-0 bottom-0 w-[2.75rem] -translate-x-1/2 rounded-xl bg-accent/20"
+          className="pointer-events-none absolute top-0 bottom-0 w-[2.75rem] -translate-x-1/2 rounded-xl bg-mark-today/20"
           style={{ left: `${track.todayPct}%` }}
         />
 
@@ -328,12 +344,20 @@ export function DealDeadlineTrack({ project, tasks }: DealDeadlineTrackProps) {
                   'absolute top-1/2 flex size-6 -translate-x-1/2 -translate-y-1/2',
                   'items-center justify-center rounded-full text-[0.75rem] tabular-nums',
                   day.isToday
-                    ? 'bg-accent font-bold shadow-[0_0_0_0.25rem_var(--accent-l2)]'
+                    ? 'bg-mark-today font-bold shadow-[0_0_0_0.25rem_var(--mark-today-l2)]'
                     : 'text-text-mute',
                 )}
                 // `--on-accent` — единственный токен «контраст к акценту»; в
                 // Tailwind он не объявлен, поэтому инлайном, как в MonthGrid и
                 // WeekLanes. На лайме `text-white` дало бы 1.29:1.
+                //
+                // ⚠️ Кружок дня тоже идёт `--mark-today`, а не `--accent`: найдено
+                // прогоном по темам (S-DEAL-ORG-2). В `t-washi` красное «08» стояло
+                // ровно под красными точками просрочки — тот же дефект, что в
+                // легенде, строкой ниже. `--on-accent` остаётся верным: в семи темах
+                // `--mark-today` РАВЕН акценту, а в washi даёт белое на #2C2C2C
+                // (12.6:1). Переопределяя `--mark-today` в новой теме, проверь и эту
+                // пару.
                 style={{ left: `${day.pct}%`, ...(day.isToday && { color: 'var(--on-accent)' }) }}
               >
                 {day.key.slice(8, 10)}

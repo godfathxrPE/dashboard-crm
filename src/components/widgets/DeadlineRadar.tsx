@@ -87,7 +87,7 @@ export function DeadlineRadar() {
             const urgency = getUrgency(item.date);
             return (
               <a key={item.id} href={item.href}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover">
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2">
                 {item.type === 'task'
                   ? <CheckSquare size={11} className="shrink-0 text-blue" />
                   : <FolderKanban size={11} className="shrink-0 text-accent" />

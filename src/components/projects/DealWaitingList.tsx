@@ -20,9 +20,13 @@ import type { Task } from '@/types/entities';
 // ответственный. Интент спеки (видно, чего не хватает) выполнен, задача осталась
 // задачей — отдельным списком ПОД материалами, а не строкой среди файлов.
 //
-// ⚠️ ВТОРОГО ЗАПРОСА НЕТ. `useProjectBoard`/`useProjectColumns` зовутся теми же
-// ключами кэша, что и в `ProjectBoardSection`/`ProjectBoard` — React Query
-// дедуплицирует и отдаёт общие данные (тот же приём, что описан там).
+// ⚠️ ЗАПРОС ОДИН НА ПАРУ ВИДЖЕТОВ — КОГДА ОТКРЫТЫ ОБА. `useProjectBoard`/
+// `useProjectColumns` зовутся теми же ключами кэша, что и в `ProjectBoardSection`/
+// `ProjectBoard`, и React Query их дедуплицирует. Но виджеты живут в РАЗНЫХ
+// `CollapsibleSection` (этот — в орг. блоке, доска — в своей), а секции независимы:
+// при раскрытом орг. блоке и свёрнутой доске `DealWaitingList` остаётся
+// единственным потребителем ключа и запрос инициирует сам. Это не дефект — запрос
+// законный и дешевле, чем монтировать всю доску ради общего кэша.
 //
 // Пусто → блока нет вовсе: заголовок «Ждём» над пустотой сообщает ровно ничего.
 // ═══════════════════════════════════════════════════════
@@ -61,7 +65,7 @@ export function DealWaitingList({ projectId }: DealWaitingListProps) {
             <button
               onClick={() => setEditTask(t)}
               className="flex w-full items-center gap-3 rounded-lg border border-dashed border-border
-                         px-3 py-2 text-left transition-colors hover:bg-surface-hover"
+                         px-3 py-2 text-left transition-colors hover:bg-surface2"
               style={{ borderWidth: '1.5px' }}
             >
               <span className="min-w-0 flex-1 truncate text-xs text-text-dim">{t.text}</span>

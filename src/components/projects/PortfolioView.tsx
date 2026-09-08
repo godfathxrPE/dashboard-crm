@@ -236,7 +236,7 @@ export function PortfolioView() {
         className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
           activeChip
             ? 'border-accent bg-accent-l text-text-main'
-            : 'border-border text-text-dim hover:bg-surface-hover'
+            : 'border-border text-text-dim hover:bg-surface2'
         }`}
       >
         <span aria-hidden className={`${m.text} leading-none`}>
@@ -302,7 +302,7 @@ export function PortfolioView() {
             className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
               filter === seg.value
                 ? 'bg-accent text-white'
-                : 'text-text-mute hover:bg-surface-hover hover:text-text-main'
+                : 'text-text-mute hover:bg-surface2 hover:text-text-main'
             }`}
           >
             {seg.glyph && (

@@ -162,7 +162,7 @@ export function Combobox({
               <span
                 role="button"
                 onClick={(e) => { e.stopPropagation(); onChange(null); }}
-                className="rounded p-0.5 hover:bg-surface-hover"
+                className="rounded p-0.5 hover:bg-surface2"
               >
                 <X size={14} className="text-text-mute" />
               </span>

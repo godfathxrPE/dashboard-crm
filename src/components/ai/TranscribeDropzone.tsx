@@ -233,7 +233,7 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
               }}
               disabled={busy}
               aria-label="Убрать файл"
-              className="rounded p-1 text-text-mute hover:bg-surface-hover disabled:opacity-40"
+              className="rounded p-1 text-text-mute hover:bg-surface2 disabled:opacity-40"
             >
               <X size={14} />
             </button>
@@ -244,7 +244,7 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
               type="button"
               disabled={busy || recording}
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2 text-xs font-medium text-text-main hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <Upload size={13} /> Выбрать файл
             </button>
@@ -255,7 +255,7 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
               className={`inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${
                 recording
                   ? 'border-red bg-red-l text-red'
-                  : 'border-border bg-surface text-text-main hover:bg-surface-hover'
+                  : 'border-border bg-surface text-text-main hover:bg-surface2'
               }`}
             >
               {recording ? (
@@ -382,7 +382,7 @@ export function TranscribeDropzone({ onResult }: TranscribeDropzoneProps) {
               type="button"
               onClick={() => accept(bestText, false)}
               disabled={busy || !bestText}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface-hover disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-main hover:bg-surface2 disabled:opacity-50"
             >
               Взять текст как есть
             </button>

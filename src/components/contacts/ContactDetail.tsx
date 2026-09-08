@@ -104,7 +104,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setModalOpen(true)}
-            className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-text-main">
+            className="rounded-lg border border-border p-1.5 text-text-mute transition-colors hover:bg-surface2 hover:text-text-main">
             <Pencil size={14} />
           </button>
           <button onClick={() => setConfirmingDelete(true)}
@@ -191,7 +191,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
                   {linkCompany.isPending ? 'Сохраняю...' : 'Привязать'}
                 </button>
                 <button onClick={() => setLinkOpen(false)}
-                  className="rounded border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface-hover">
+                  className="rounded border border-border px-2.5 py-1 text-xs text-text-dim hover:bg-surface2">
                   Отмена
                 </button>
               </div>
@@ -205,7 +205,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
             <div className="space-y-1.5">
               {(contact.companies ?? []).map((cc) => (
                 <div key={cc.company_id}
-                  className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-hover">
+                  className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2">
                   <button onClick={() => router.push(`/companies/${cc.company_id}`)}
                     className="flex-1 text-left text-sm text-text-main hover:text-accent">
                     {cc.company?.name ?? 'N/A'}
@@ -243,7 +243,7 @@ export function ContactDetail({ contactId }: ContactDetailProps) {
             <div className="space-y-1.5">
               {linkedProjects.map((p) => (
                 <button key={p.id} onClick={() => router.push(projectHref(p))}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface2">
                   <span className="text-sm text-text-main">{p.name}</span>
                   <span data-tag className="rounded bg-accent-l px-1.5 py-0.5 text-xs text-accent">
                     {(p.stage_id ? stagesMap.get(p.stage_id)?.name : null) ?? '—'}

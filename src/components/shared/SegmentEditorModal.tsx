@@ -172,7 +172,7 @@ export function SegmentEditorModal({ entity, segment, onClose, onDeleted }: Segm
               onClick={destroy}
               disabled={busy}
               className="mr-auto rounded-lg border border-border px-3 py-2 text-sm text-red
-                transition-colors hover:bg-surface-hover disabled:opacity-40"
+                transition-colors hover:bg-surface2 disabled:opacity-40"
             >
               Удалить
             </button>
@@ -181,7 +181,7 @@ export function SegmentEditorModal({ entity, segment, onClose, onDeleted }: Segm
             type="button"
             onClick={onClose}
             className="rounded-lg border border-border px-3 py-2 text-sm text-text-dim
-              transition-colors hover:bg-surface-hover"
+              transition-colors hover:bg-surface2"
           >
             Отмена
           </button>
@@ -353,7 +353,7 @@ export function SegmentEditorModal({ entity, segment, onClose, onDeleted }: Segm
                       type="button"
                       onClick={() => setClauses((prev) => prev.filter((_, idx) => idx !== i))}
                       aria-label="Удалить условие"
-                      className="ml-auto rounded p-1.5 text-text-mute transition-colors hover:bg-surface-hover hover:text-red"
+                      className="ml-auto rounded p-1.5 text-text-mute transition-colors hover:bg-surface2 hover:text-red"
                     >
                       <Trash2 size={13} />
                     </button>

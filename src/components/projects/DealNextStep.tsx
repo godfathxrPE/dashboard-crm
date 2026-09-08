@@ -116,7 +116,7 @@ export function DealNextStep({ project }: { project: Project }) {
             <button
               onClick={markStepDone}
               className="flex items-center gap-1 rounded-lg border border-border px-2 py-0.5
-                         text-xs text-text-dim transition-colors hover:bg-surface-hover hover:text-green"
+                         text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-green"
             >
               <Check size={12} />
               Шаг сделан

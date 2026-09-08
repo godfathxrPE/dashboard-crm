@@ -75,7 +75,7 @@ export function CompanyDeliveriesCard({
           });
           return (
             <button key={p.id} onClick={() => router.push(projectHref(p))}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-hover">
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface2">
               <DeliveryHealthDot health={health} />
               <span className="truncate text-sm text-text-main">{p.name}</span>
               {/* Внутренний проект (stage_id=null, вне воронки) — называем вещи
@@ -112,7 +112,7 @@ export function CompanyDeliveriesCard({
           </span>
           <button
             onClick={() => setSpawnDeal(d)}
-            className="ml-auto shrink-0 rounded-lg border border-border px-2 py-1 text-xs text-text-main transition-colors hover:bg-surface-hover"
+            className="ml-auto shrink-0 rounded-lg border border-border px-2 py-1 text-xs text-text-main transition-colors hover:bg-surface2"
           >
             Запустить внедрение
           </button>

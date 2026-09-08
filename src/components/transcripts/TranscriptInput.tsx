@@ -179,7 +179,7 @@ export function TranscriptInput({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="mt-3 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-main hover:bg-surface-hover"
+            className="mt-3 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-main hover:bg-surface2"
           >
             Выбрать файл
           </button>

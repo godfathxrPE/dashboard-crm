@@ -67,7 +67,7 @@ export function WebhookCreateModal({ onClose }: WebhookCreateModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface-hover"
+            className="rounded-lg border border-border px-4 py-2 text-sm text-text-dim transition-colors hover:bg-surface2"
           >
             Отмена
           </button>

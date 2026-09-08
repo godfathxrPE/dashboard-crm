@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useUpdateQuote } from '@/lib/hooks/use-quotes';
-import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { useStagesForPipeline, useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useTransitionStore } from '@/lib/stores/transition-store';
 import { formatBudget } from '@/lib/validators/project';
 import { formatCalendarDate, formatDateNumeric } from '@/lib/utils/dates';
@@ -55,6 +55,11 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
   const updateQuote = useUpdateQuote(deal.id);
   const openTransition = useTransitionStore((s) => s.open);
   const stages = useStagesForPipeline(deal.pipeline_id);
+  // Терминальность сделки живёт в ВОРОНКЕ (`is_won`/`is_lost` стадии), а не в двух
+  // литералах статуса: появление третьего терминального состояния литералы пропустят
+  // молча, и карточка предложит перевести стадию у мёртвой сделки. Хук уже несёт и
+  // ветку internal-проекта (stage_id = null → решает `status`).
+  const isProjectActive = useIsProjectActive();
 
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -106,10 +111,7 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
         s.order_index > currentIndex,
     ) ?? null;
   const showContractNudge =
-    active.status === 'accepted' &&
-    contractStage != null &&
-    deal.status !== 'won' &&
-    deal.status !== 'lost';
+    active.status === 'accepted' && contractStage != null && isProjectActive(deal);
 
   // Спека W4: срок печатается тревожным жёлтым, а на пороге ≤ 3 дней — красным.
   // Порог живёт в `quoteValidity` (уровень `soon`), а не вторым числом здесь.
@@ -194,7 +196,7 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
                 onClick={submitReject}
                 disabled={!reason.trim() || updateQuote.isPending}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-danger-text
-                           transition-colors hover:bg-surface-hover disabled:opacity-50"
+                           transition-colors hover:bg-surface2 disabled:opacity-50"
               >
                 Отклонить
               </button>
@@ -230,7 +232,7 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
                   onClick={() => setRejecting(true)}
                   disabled={updateQuote.isPending}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-dim
-                             transition-colors hover:bg-surface-hover hover:text-text-main disabled:opacity-50"
+                             transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
                 >
                   Отклонено
                 </button>
@@ -256,7 +258,7 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
         <button
           onClick={() => openTransition({ project: deal, toStageId: contractStage.id })}
           className="mt-3 flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5
-                     text-xs text-text-dim transition-colors hover:bg-surface-hover hover:text-text-main"
+                     text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
         >
           Перевести на «{contractStage.name}»
           <ArrowRight size={13} />

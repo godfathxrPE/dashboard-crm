@@ -118,7 +118,7 @@ export function RecentActivityList() {
                 key={event.id}
                 {...(href ? { href } : {})}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5
-                           transition-colors hover:bg-surface-hover"
+                           transition-colors hover:bg-surface2"
               >
                 <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-bg ${meta.fg}`}>
                   <Icon size={10} />

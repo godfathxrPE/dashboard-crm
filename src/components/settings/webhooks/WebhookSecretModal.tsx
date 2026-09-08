@@ -65,7 +65,7 @@ export function WebhookSecretModal({ title, secret, onClose }: WebhookSecretModa
               onClick={copy}
               aria-label="Скопировать секрет"
               title="Скопировать секрет"
-              className="flex shrink-0 items-center gap-1 rounded border border-border px-3 text-xs font-medium text-text-dim transition-colors hover:bg-surface-hover"
+              className="flex shrink-0 items-center gap-1 rounded border border-border px-3 text-xs font-medium text-text-dim transition-colors hover:bg-surface2"
             >
               <Copy size={13} /> Копировать
             </button>

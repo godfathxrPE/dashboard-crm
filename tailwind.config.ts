@@ -47,6 +47,11 @@ const config: Config = {
         accent: v('--accent'),
         'accent-l': v('--accent-l'),
         'accent-l2': v('--accent-l2'),
+        // S-DEAL-ORG-2: «сегодня» на таймлайне дедлайнов. Алиас на --accent во всех
+        // темах, кроме t-washi (там акцент равен --red). Через палитру, а не
+        // произвольным bg-[var(--mark-today)], — ради модификатора прозрачности:
+        // колонке дня нужен /20, и хелпер v() даёт его color-mix'ом.
+        'mark-today': v('--mark-today'),
         'text-main': v('--text'),
         'text-dim': v('--text-dim'),
         'text-mute': v('--text-mute'),
