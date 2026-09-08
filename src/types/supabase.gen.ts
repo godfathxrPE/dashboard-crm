@@ -2638,6 +2638,7 @@ export type Database = {
           notes: string | null
           org_id: string
           project_id: string
+          rejection_reason: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["quote_status"]
           updated_at: string
@@ -2654,6 +2655,7 @@ export type Database = {
           notes?: string | null
           org_id: string
           project_id: string
+          rejection_reason?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           updated_at?: string
@@ -2670,6 +2672,7 @@ export type Database = {
           notes?: string | null
           org_id?: string
           project_id?: string
+          rejection_reason?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["quote_status"]
           updated_at?: string

@@ -12,7 +12,7 @@ import type { Quote, QuoteInsert, QuoteUpdate } from '@/types/entities';
 // ═══════════════════════════════════════════════════════
 
 const QUOTE_COLS =
-  'id, org_id, project_id, status, amount, currency, document_url, notes, valid_until, sent_at, accepted_at, created_by, created_at, updated_at';
+  'id, org_id, project_id, status, amount, currency, document_url, notes, valid_until, sent_at, accepted_at, rejection_reason, created_by, created_at, updated_at';
 
 const quotesKey = (projectId: string) => ['quotes', projectId] as const;
 

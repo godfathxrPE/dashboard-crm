@@ -10,7 +10,6 @@ import { formatCalendarDate, formatDateNumeric } from '@/lib/utils/dates';
 import {
   QUOTE_STATUS_CONFIG,
   QUOTE_STATUS_TRANSITIONS,
-  type QuoteRejectionPatch,
 } from '@/lib/validators/quote';
 import { quoteValidity } from '@/lib/domain/quote-validity';
 import { quoteVersionMap, pickActiveQuote, pickPreviousQuote } from '@/lib/domain/quote-version';
@@ -119,14 +118,7 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
   function submitReject() {
     const trimmed = reason.trim();
     if (!trimmed || !active) return;
-    // TODO(S-DEAL-ORG-1): узкий тип уйдёт после регена типов на 131 — тогда
-    // `rejection_reason` придёт из `QuoteUpdate` сам.
-    const patch: QuoteRejectionPatch = {
-      id: active.id,
-      status: 'rejected',
-      rejection_reason: trimmed,
-    };
-    updateQuote.mutate(patch, {
+    updateQuote.mutate({ id: active.id, status: 'rejected', rejection_reason: trimmed }, {
       onSuccess: () => {
         setRejecting(false);
         setReason('');
