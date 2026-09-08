@@ -618,12 +618,14 @@
 > (`20260907073548`) · **131 applied** (`20260908061745`, `quotes.rejection_reason` есть;
 > S-DEAL-ORG-1, аддитивно, RLS/индексы не тронуты). Хвост 131 закрыт: `QuoteRejectionPatch`
 > снят, колонка в `QUOTE_COLS` есть.
-> **132 `quotes_rejected_needs_reason` — НАПИСАНА, НЕ ПРИМЕНЕНА** (S-DEAL-ORG-2, файл
-> `132_quotes_rejected_needs_reason.sql`) ⇒ **следующая свободная — 133**, и брать её
-> всё равно запросом.
+> **132 applied** (`20260908194106`, `quotes_rejected_needs_reason` — S-DEAL-ORG-2;
+> табличный CHECK, RLS/индексы/гранты не тронуты, advisors до и после совпали, новых
+> WARN нет). Клиент выкачен ПЕРВЫМ (PR #100, деплой `29377aa` в READY), CHECK — вторым.
+> Реген типов не нужен: ограничение схему типов не меняет, стаба нет.
+> ⇒ **следующая свободная — 133**, и брать её всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
-> Следующая свободная — **126** (последняя применённая — 125, `20260821104527`). ⚠️ Номер брать запросом к
+> ⚠️ Номер брать запросом к
 > `supabase_migrations.schema_migrations`, а не отсюда: этот абзац устаревает;
 > **062–075 — ledger «Дельты 062–075» ниже, сверены с живой БД 2026-07-26, спринт `S-DOCS-SCHEMA-SYNC`**;
 > **047** есть в `schema_migrations` (`20260716102034`), но файла в репо нет — применялась через MCP;
@@ -2325,7 +2327,7 @@ performance-наборе ни одного упоминания `chz_groups`, `c
 | created_at / updated_at | timestamptz | `updated_at` — триггер `update_updated_at` |
 
 Индексы: `(org_id)`, `(project_id)`, `(status)`, **partial-uniq `quotes_one_accepted_per_project (project_id) WHERE status='accepted'`** (W4 — не более одной accepted-квоты на сделку; второй accept падает).
-CHECK: `amount is null or amount >= 0`; **`quotes_rejected_needs_reason`** _(132, **НАПИСАНА, НЕ ПРИМЕНЕНА** — S-DEAL-ORG-2)_ — `status <> 'rejected' OR (rejection_reason is not null AND btrim(rejection_reason) <> '')`. Без `NOT VALID`: нарушителей на проде ноль (сверено 2026-09-08), отложенная валидация только спрятала бы будущие. ⚠️ Выкатывается ПОСЛЕ клиента: `rejected` убран из селекта `QuoteModal`, а выход из `rejected` чистит причину тем же апдейтом — иначе форма ловит 23514, как `leads_decision_role_check` (#70).
+CHECK: `amount is null or amount >= 0`; **`quotes_rejected_needs_reason`** _(132, **applied 2026-09-08** `20260908194106` — S-DEAL-ORG-2)_ — `status <> 'rejected' OR (rejection_reason is not null AND btrim(rejection_reason) <> '')`. Без `NOT VALID`: нарушителей на проде ноль (сверено 2026-09-08), отложенная валидация только спрятала бы будущие. ⚠️ Выкатывается ПОСЛЕ клиента: `rejected` убран из селекта `QuoteModal`, а выход из `rejected` чистит причину тем же апдейтом — иначе форма ловит 23514, как `leads_decision_role_check` (#70).
 Триггеры: `trg_set_org_id` (before insert), `set_updated_at` (before update), **`trg_zz_stamp_quote_status`** (before insert or update of status; DEFINER + search_path; стемпит sent_at/accepted_at, null-safe для INSERT).
 **RLS (паттерн 048):** `quotes_select` — org-wide (`org_id=current_org_id()`); `quotes_insert/update/delete` — `org_id=current_org_id()` **AND** `current_org_role() in ('owner','admin','manager')`. viewer — read-only. **Hard-delete через CASCADE** (soft-delete в проекте нет). UI-гейт `canEditQuotes` (owner/admin/manager) совпадает с RLS; accept→budget под `canUpdateDealBudget` (owner/admin или `deal.owner_id`).
 
