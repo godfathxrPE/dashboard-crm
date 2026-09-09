@@ -2027,19 +2027,32 @@ table { font-variant-numeric: tabular-nums; }
    таблица — в отчёте спринта. */
 .glass-sheet {
   background-color: color-mix(in srgb, var(--sheet-ink) 92%, transparent);
-  /* Пятно акцента слева сверху ПОВЕРХ блика (первый слой = верхний), затем sheen. */
+  /* Пятно акцента слева сверху ПОВЕРХ блика (первый слой = верхний), затем sheen.
+     Берёт ЗАЛИВОЧНЫЙ акцент: на текстовом токене (16% акцента, 84% белого) пятно было
+     белым, а не акцентным. Порога у декоративного слоя нет, но он входит в композит
+     под eyebrow — после замены тот стал темнее, и eyebrow только выиграл. */
   background-image:
     radial-gradient(260px 180px at 0% 0%,
-                    color-mix(in srgb, var(--on-glass-accent) 10%, transparent) 0%,
+                    color-mix(in srgb, var(--sheet-accent) 10%, transparent) 0%,
                     transparent 70%),
     var(--glass-sheen);
   /* Символический, не 30px: позади плоская заливка зоны, размывать нечего — эффект
      дают полупрозрачность и градиенты. */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-card),
+  /* Оправа и гало — во ВСЕХ восьми темах, не только в стеклянных тёмных (гейт 09.09).
+     Кольцо смотрит НАРУЖУ, на светлую подложку зоны, и мерится к ней: именно здесь
+     тёмные акценты светлых тем наконец получают бюджет, которого им не хватало внутри
+     плашки. Механика та же, что у двухцветного канта ниже — каждая грань берёт токен,
+     который на ней работает. Замер кольца к `--zone-work`: aura 6.02 · washi 3.82 ·
+     fuji 5.35 · minimal 3.42 · lime 5.94 · frost 4.68 · aurora 4.25 · tidal 6.56. */
+  box-shadow: 0 0 0 1.5px var(--sheet-accent),
+              0 0 0 5px color-mix(in srgb, var(--sheet-accent) 20%, transparent),
+              var(--shadow-card),
               inset 0 1px 0 rgba(255, 255, 255, 0.28),
               inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  /* Граница смотрит ВНУТРЬ, на плашку, и остаётся белой ниткой: акцент на ней
+     дублировал бы кольцо и съел бы контраст с тёмной подложкой. */
   border-color: color-mix(in srgb, var(--on-glass) 18%, transparent);
 
   /* Утилиты Tailwind компилируются в `color: var(--<токен>)` (`tailwind.config.ts`,
@@ -2051,12 +2064,11 @@ table { font-variant-numeric: tabular-nums; }
   --red:          var(--on-glass-red);
   --warning-text: var(--on-glass-warning);
   --green:        var(--on-glass-green);
-  /* И `--accent`, и `--accent-text`: eyebrow идёт через `.text-accent`, который
-     глобально объявлен как `var(--accent-text, var(--accent))` (A11Y TEXT TOKENS
-     ниже) и вдобавок форсирован `.t-lime .text-accent !important`; квадрат идёт
-     через `bg-accent`, а он в aura ремапнут в `--accent-text`, в minimal — в
-     `--accent`. Одного из двух токенов не хватило бы ни там, ни там. */
-  --accent:       var(--on-glass-accent);
+  /* Акцент разведён по назначению: `--accent` — заливка (её потребитель `bg-accent`),
+     `--accent-text` — текст (eyebrow через `.text-accent`, объявленный глобально как
+     `var(--accent-text, var(--accent))`). Одного токена на оба не хватает: у них
+     разные пороги, 3:1 и 4.5:1. */
+  --accent:       var(--on-glass-accent-fill);
   --accent-text:  var(--on-glass-accent);
   --border:       color-mix(in srgb, var(--on-glass) 35%, transparent);
   --surface2:     color-mix(in srgb, var(--on-glass) 10%, transparent);
@@ -2080,9 +2092,6 @@ table { font-variant-numeric: tabular-nums; }
   background-image: none;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border-color: var(--accent);
-  box-shadow: var(--shadow-card),
-              0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   --border: var(--glass-border);
 }
 
@@ -2093,12 +2102,17 @@ table { font-variant-numeric: tabular-nums; }
    весь theme-слой живёт здесь. */
 .glass-sheet .text-accent { color: var(--on-glass-accent); }
 
-/* Квадрат иконки: заливка стала СВЕТЛЫМ тоном акцента (иначе в aura её `--accent-text`
-   #343840 исчезал бы на плашке #26252D), значит белый глиф из разметки на ней больше
-   не читается. Чернила глифа — `--on-glass-accent-ink`: в шести светлых это ink темы,
-   в трёх тёмных и в лайме — `--on-accent`. В лайме поверх лежит
-   `.t-lime .bg-accent.text-white { color: var(--on-accent) !important }` — значение то
-   же, конфликта нет. */
+/* Квадрат иконки. Заливку приходится ставить ПРАВИЛОМ, а не только токеном: aura
+   ремапит `.t-aura .bg-accent` в `var(--accent-text) !important`, а после расщепления
+   акцента `--accent-text` на контейнере — это ТЕКСТОВЫЙ токен (16%), то есть квадрат
+   в aura взял бы почти белый тон вместо заливочного. Специфичность равна фудзиному
+   и аурному правилам (0,2,0), `!important` — тоже, решает порядок в файле. minimal
+   ремапит в `--accent`, и туда же приземляется это правило — расхождения нет.
+
+   Глиф на квадрате — `--on-glass-accent-ink`: в светлых темах ink темы, в тёмных и в
+   лайме `--on-accent`. В лайме поверх лежит `.t-lime .bg-accent.text-white
+   { color: var(--on-accent) !important }` — значение то же, конфликта нет. */
+.glass-sheet .bg-accent { background-color: var(--on-glass-accent-fill) !important; }
 .glass-sheet .bg-accent.text-white { color: var(--on-glass-accent-ink); }
 
 
@@ -2139,9 +2153,10 @@ table { font-variant-numeric: tabular-nums; }
    каждой из шести стало бы светлым на светлой подложке зоны. `--yellow-text` внутри
    зоны не переопределяется — это и делает его безопасным.
 
-   ⚠️ Тени перечислены заново, а не добавлены: правило перекрывает `box-shadow` и общего
-   материала, и оправы тёмных тем — в пустом состоянии акцентное гало уступает жёлтому,
-   иначе сигнал «шага нет» проиграл бы оформлению.
+   ⚠️ Тени перечислены заново, а не добавлены: правило перекрывает `box-shadow` общего
+   материала целиком — в пустом состоянии акцентное кольцо и гало уступают жёлтому,
+   иначе сигнал «шага нет» проиграл бы оформлению. Приём сохранён с прошлой редакции;
+   изменилась только толщина кольца (1.5px, вровень с акцентным).
 
    Заливки у пустого состояния НЕТ намеренно. Замер: `bg-yellow-l` (rgba(176,104,10,.12))
    на стекле lime даёт композит rgb(41,33,26) — 1.13:1 к самому стеклу. Заодно
@@ -2149,8 +2164,8 @@ table { font-variant-numeric: tabular-nums; }
    НИКОГДА не нёсся заливкой — его нёс кант, а заливка была атмосферой. */
 .glass-sheet[data-empty="true"] {
   border-color: var(--yellow);
-  box-shadow: var(--shadow-card),
-              0 0 0 1px var(--yellow-text, var(--yellow)),
+  box-shadow: 0 0 0 1.5px var(--yellow-text, var(--yellow)),
+              var(--shadow-card),
               inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
@@ -2641,6 +2656,13 @@ table tbody tr[data-kbd-focused] {
      `var()` в значении кастомного свойства подставляется на элементе ОБЪЯВЛЕНИЯ, то есть
      здесь, на `:root` — вниз донаследуется уже вычисленный цвет. */
   --sheet-ink: var(--text);
+  /* Заливочный акцент темы, недосягаемый для переопределений на контейнере.
+     ⚠️ Прямой `var(--accent)` в правилах материала БЕСПОЛЕЗЕН: то же правило
+     переопределяет `--accent` на том же элементе, и `box-shadow: … var(--accent)`
+     прочитал бы уже подменённое значение. Именно так в c74ab42 оправа трёх тёмных
+     тем рисовалась не заливочным акцентом, а `--accent-text`. Тот же механизм и та
+     же причина, что у `--sheet-ink`. */
+  --sheet-accent: var(--accent);
 
   /* ─── Семейство «цвета НА стекле» ───────────────────────────────────────────
      Раньше это была пара алиасов `var(--text)`/`var(--text-dim)`. После инверсии
@@ -2659,10 +2681,24 @@ table tbody tr[data-kbd-focused] {
   --on-glass-red:     color-mix(in srgb, var(--red)    45%, #FFFFFF);
   --on-glass-warning: color-mix(in srgb, var(--yellow) 60%, #FFFFFF);
   --on-glass-green:   color-mix(in srgb, var(--green)  28%, #FFFFFF);
-  --on-glass-accent:  color-mix(in srgb, var(--accent) 16%, #FFFFFF);
-  /* Чернила ГЛИФА на акцентном квадрате: заливка квадрата — светлый тон акцента,
-     поэтому глиф обязан быть тёмным. В светлых темах это ink темы; в тёмных и в
-     лайме акцент яркий сам по себе, и там правильный ответ — `--on-accent`. */
+  /* ⚠️ У акцента ДВА токена с разными порогами — это правка по гейту 09.09.
+     До неё оба потребителя шли через один, подобранный по строгому текстовому порогу
+     (16%, то есть 84% белого), и в пяти светлых темах квадрат выходил почти белым:
+     акцент стоял там, где у него нет бюджета, и не стоял там, где бюджет есть.
+
+     --on-glass-accent      ТЕКСТ (eyebrow, `.text-accent`) — порог 4.5:1 к композиту
+                            плашки в точке, где eyebrow нарисован. Остаётся 16%.
+     --on-glass-accent-fill ЗАЛИВКА квадрата — порог 3:1 к плашке И глиф на ней 4.5:1.
+                            Два условия тянут в одну сторону (насыщеннее = темнее),
+                            поэтому максимум конечен. Замер максимумов: aura 60% ·
+                            washi 52% · fuji 52% · minimal 70%. В `:root` стоит 48% —
+                            пол, который держат все четыре и любая будущая светлая
+                            тема; aura и minimal берут своё ниже. */
+  --on-glass-accent:      color-mix(in srgb, var(--accent) 16%, #FFFFFF);
+  --on-glass-accent-fill: color-mix(in srgb, var(--accent) 48%, #FFFFFF);
+  /* Чернила ГЛИФА на акцентном квадрате: заливка квадрата — тон акцента, поэтому глиф
+     обязан быть тёмным. В светлых темах это ink темы; в тёмных и в лайме акцент яркий
+     сам по себе, и там правильный ответ — `--on-accent`. */
   --on-glass-accent-ink: var(--sheet-ink);
 }
 
@@ -2679,9 +2715,16 @@ table tbody tr[data-kbd-focused] {
   --on-glass-red:        var(--red-text, var(--red));
   --on-glass-warning:    var(--yellow-text, var(--yellow));
   --on-glass-green:      var(--green-text, var(--green));
-  --on-glass-accent:     var(--accent-text, var(--accent));
-  --on-glass-accent-ink: var(--on-accent);
+  --on-glass-accent:      var(--accent-text, var(--accent));
+  --on-glass-accent-fill: var(--accent-text, var(--accent));
+  --on-glass-accent-ink:  var(--on-accent);
 }
+
+/* Светлые темы, у которых заливка квадрата может быть насыщеннее общего пола 48%:
+   максимум держат aura 60% и minimal 70%, берём с запасом. washi и fuji остаются на
+   `:root` — у них максимум 52%, и 48% это он же минус запас. */
+.t-aura    { --on-glass-accent-fill: color-mix(in srgb, var(--accent) 56%, #FFFFFF); }
+.t-minimal { --on-glass-accent-fill: color-mix(in srgb, var(--accent) 64%, #FFFFFF); }
 
 /* ⚠️ Переопределение washi стоит ЗДЕСЬ, ПОСЛЕ :root, а не в блоке `.t-washi` выше.
    Тема-класс висит на том же <html>, что и `:root` (ThemeProvider → documentElement),
@@ -2709,6 +2752,14 @@ table tbody tr[data-kbd-focused] {
   --on-glass-red:        #FFA294;
   --on-glass-warning:    #EFBE5E;
   --on-glass-green:      #7FD79B;
-  --on-glass-accent:     var(--accent);
-  --on-glass-accent-ink: var(--on-accent);
+  --on-glass-accent:      var(--accent);
+  --on-glass-accent-fill: var(--accent);
+  --on-glass-accent-ink:  var(--on-accent);
+  /* ⚠️ ЕДИНСТВЕННАЯ замена в кольце. Заливочный акцент лайма светлый (#C9F25A), и к
+     своей подложке зоны #EFF3DC он даёт 1.14:1 при пороге 3:1 — кольца просто не
+     видно. `--accent-text` #336809 на той же подложке — 5.94:1. Тот же приём и та же
+     причина, что у `--zone-work-tint: var(--purple)` для тем, где акцент занят
+     семантикой: тон выносится в свой токен, а тема с непригодным значением его
+     переопределяет. */
+  --sheet-accent: var(--accent-text);
 }
