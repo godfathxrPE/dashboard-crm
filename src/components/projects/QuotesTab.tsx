@@ -144,6 +144,23 @@ export function QuotesTab({ deal }: QuotesTabProps) {
           {quotes.map((q) => {
             const cfg = QUOTE_STATUS_CONFIG[q.status];
             const docHref = safeHref(q.document_url); // фильтр схемы для ссылки на документ КП
+
+            // Правая часть строки: срок → причина отклонения → заметка. Причина важнее
+            // заметки: заметка — текст самого предложения, причина — исход.
+            //
+            // ⚠️ Куски склеиваются МАССИВОМ, а не цепочкой `a && b && <span> · </span>`:
+            // у трёх опциональных полей семь комбинаций, и ручной разделитель на «нет
+            // даты, есть причина и заметка» склеил бы их в «дорогодо 12 сен».
+            //
+            // Дату оставляем `formatDateShort` нейтральным тоном — это реквизит КП, а не
+            // заявление «действует» (врал именно янтарный счётчик в карточке).
+            const rowParts: string[] = [];
+            if (q.valid_until) rowParts.push(`до ${formatDateShort(q.valid_until)}`);
+            if (q.status === 'rejected' && q.rejection_reason) {
+              rowParts.push(`Причина: ${q.rejection_reason}`);
+            }
+            if (q.notes) rowParts.push(q.notes);
+            const rowText = rowParts.join(' · ');
             return (
               <li
                 key={q.id}
@@ -161,10 +178,13 @@ export function QuotesTab({ deal }: QuotesTabProps) {
                   {formatBudget(q.amount)}
                 </span>
 
-                <div className="flex-1 truncate text-meta text-text-mute">
-                  {q.valid_until && <span>до {formatDateShort(q.valid_until)}</span>}
-                  {q.valid_until && q.notes && <span> · </span>}
-                  {q.notes && <span className="truncate">{q.notes}</span>}
+                {/* Обрезается по ширине — это нормально: полный текст причины читают
+                    в карточке активного КП, здесь он лежит в `title`. */}
+                <div
+                  className="flex-1 truncate text-meta text-text-mute"
+                  title={rowText || undefined}
+                >
+                  {rowText}
                 </div>
 
                 {docHref && (

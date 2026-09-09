@@ -117,6 +117,20 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
   // Порог живёт в `quoteValidity` (уровень `soon`), а не вторым числом здесь.
   const validityTone = validity.level === 'soon' ? 'text-danger-text' : 'text-warning-text';
 
+  // Срок действия печатаем ТОЛЬКО у КП, по которому решения ещё нет: `draft` и `sent`.
+  // У `rejected` янтарное «действует ещё N дн.» — прямое враньё: отклонённое
+  // предложение не действует. У `accepted`/`expired` срок тоже уже ничего не решает,
+  // а дата остаётся в строке списка (`QuotesTab`) нейтральным реквизитом.
+  //
+  // ⚠️ Условие ПОЛОЖИТЕЛЬНОЕ, а не перечисление терминальных статусов: шестой
+  // статус КП провалился бы в ветку «показываем» молча — ровно так два литерала
+  // `won`/`lost` в этом файле дожили до долга ORG-2.
+  //
+  // ⚠️ `quoteValidity` при этом НЕ трогаем: она считает срок и про статус не знает,
+  // и это верно — `expired` из неё в БД не пишется намеренно. Гард живёт в рендере,
+  // домен остаётся чистым.
+  const showValidity = active.status === 'draft' || active.status === 'sent';
+
   function submitReject() {
     const trimmed = reason.trim();
     if (!trimmed || !active) return;
@@ -141,17 +155,19 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
             {formatDateNumeric(stampedAt)}
           </span>
         )}
-        <span className="ml-auto text-xs font-medium tabular-nums">
-          {validity.level === 'expired' && active.valid_until ? (
-            <span className="text-danger-text">
-              истекло {formatCalendarDate(active.valid_until)}
-            </span>
-          ) : validity.daysLeft != null ? (
-            <span className={validityTone}>действует ещё {validity.daysLeft} дн.</span>
-          ) : (
-            <span className="text-text-mute">срок не задан</span>
-          )}
-        </span>
+        {showValidity && (
+          <span className="ml-auto text-xs font-medium tabular-nums">
+            {validity.level === 'expired' && active.valid_until ? (
+              <span className="text-danger-text">
+                истекло {formatCalendarDate(active.valid_until)}
+              </span>
+            ) : validity.daysLeft != null ? (
+              <span className={validityTone}>действует ещё {validity.daysLeft} дн.</span>
+            ) : (
+              <span className="text-text-mute">срок не задан</span>
+            )}
+          </span>
+        )}
       </div>
 
       {/* Сумма — крупно, версия слева, «заменён» справа. */}
@@ -168,6 +184,30 @@ export function ActiveQuoteCard({ deal, quotes, canEditQuotes }: ActiveQuoteCard
           </span>
         )}
       </div>
+
+      {/* Причина отклонения. Поле обязательно при `rejected` (CHECK 132), но до этого
+          спринта не рендерилось НИГДЕ: пользователь вводил его в поле с плейсхолдером
+          «обязательно» и больше никогда не видел — срез «почему проигрываем»
+          собирался только SQL'ем.
+
+          Тон нейтральный (`text-text-dim`), а НЕ `text-danger-text`: статус слева
+          вверху уже красный со своим глифом, и вторая красная строка под ним удвоила бы
+          сигнал там, где сообщается факт, а не тревога. Подпись «Причина:» нужна —
+          без неё строка читается как продолжение суммы.
+
+          ⚠️ `rejection_reason = null` у отклонённого КП — ЛЕГАЛЬНОЕ состояние для строк
+          старше 131 (бэкфилла не было, CHECK 132 их не ломает, потому что на проде их
+          ноль). Тогда блок не рисуем вовсе: подпись над пустотой сообщает ровно ничего
+          — то же правило, что у «Ждём» в `DealWaitingList`.
+
+          Длинную причину переносим (`break-words`), а не обрезаем: карточка —
+          единственное место, где её читают целиком (в строке списка она усечена). */}
+      {active.status === 'rejected' && active.rejection_reason && (
+        <div className="mt-2 break-words text-xs text-text-dim">
+          <span className="text-text-mute">Причина: </span>
+          {active.rejection_reason}
+        </div>
+      )}
 
       {/* Решение по КП. Инлайн-поле причины, а не модалка: решение принимают на
           месте, а модалка поверх развёрнутого блока прячет то, из-за чего его
