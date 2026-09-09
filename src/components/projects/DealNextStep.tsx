@@ -86,9 +86,10 @@ export function DealNextStep({ project }: { project: Project }) {
     <div id="deal-next-step" data-next-step className="min-w-0">
       <div
         data-card
-        // Полоса слева и жёлтый кант пустого состояния живут в CSS материала, а не
-        // в утилитах: safety-net тёмных тем (`.t-frost *`) глушил `border-l-accent`
-        // при равной специфичности. Отсюда `data-empty` вместо `border-*`-классов.
+        // Жёлтый кант пустого состояния живёт в CSS материала, а не в утилитах:
+        // safety-net тёмных тем (`.t-frost *`) глушит любую `border-*`-утилиту при
+        // равной специфичности. Отсюда `data-empty` вместо классов рамки.
+        // Акцентной полосы слева нет — снята по визуальной приёмке 09.09.
         data-empty={noAction ? 'true' : undefined}
         className="glass-sheet px-5 pb-4 pt-[1.125rem]"
       >
