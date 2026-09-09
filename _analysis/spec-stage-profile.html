@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>S-STAGE-PROFILE-1 · Карта воронки «Профиль времени» — спека для Claude Code</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #EDE9E1; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    #__bundler_loading { position: fixed; bottom: 20px; right: 20px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; color: #666; background: #fff; padding: 8px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); z-index: 10000; }
+    #__bundler_thumbnail { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #EDE9E1; z-index: 9999; }
+    #__bundler_thumbnail svg { width: 100%; height: 100%; object-fit: contain; }
+    #__bundler_placeholder { color: #999; font-size: 14px; }
+  </style>
+  <noscript>
+    <style>#__bundler_loading { display: none; }</style>
+    <div style="position:fixed;bottom:12px;left:12px;font:13px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;color:#999;background:rgba(255,255,255,0.9);padding:6px 12px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);z-index:10000;">
+      This page requires JavaScript to display.
+    </div>
+  </noscript>
+</head>
+<body>
+  <div id="__bundler_thumbnail">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect x="200" y="560" width="800" height="4" fill="#D5D0C6"></rect>
+    <rect x="240" y="500" width="60" height="60" rx="6" fill="#17171C"></rect>
+    <rect x="340" y="470" width="60" height="90" rx="6" fill="#17171C"></rect>
+    <rect x="440" y="520" width="60" height="40" rx="6" fill="#17171C"></rect>
+    <rect x="540" y="440" width="60" height="120" rx="6" fill="#17171C"></rect>
+    <rect x="640" y="240" width="60" height="320" rx="6" fill="none" stroke="#B0680A" stroke-width="6"></rect>
+    <rect x="640" y="340" width="60" height="220" rx="6" fill="#C9F25A"></rect>
+    <rect x="628" y="336" width="84" height="8" fill="#17171C"></rect>
+    <rect x="740" y="380" width="60" height="180" rx="6" fill="none" stroke="#17171C" stroke-width="6"></rect>
+    <rect x="840" y="440" width="60" height="120" rx="6" fill="none" stroke="#D5D0C6" stroke-width="6" stroke-dasharray="14 10"></rect>
+  </svg>
+</div>
+  <div id="__bundler_loading">Unpacking...</div>
+
+  <script>
+    
+document.addEventListener('DOMContentLoaded', async function() {
+  const loading = document.getElementById('__bundler_loading');
+  function setStatus(msg) { if (loading) loading.textContent = msg; }
+
+  const FONT_MIME = /^(font[/]|application[/](x-)?font-|application[/]vnd\.ms-fontobject)/i;
+  const MIME_TOKEN = /^[\w.+-]+[/][\w.+-]+$/;
+  function toBase64(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  // Error sink persists across replaceWith since it's on window, not the DOM.
+  window.addEventListener('error', function(e) {
+    // Failed resource loads (CSP-blocked links, scripts, images) fire plain
+    // events at the element — warn only; real JS errors carry message/error.
+    if (!e.message && !e.error && e.target && e.target !== window) {
+      console.warn('[bundle] resource failed to load:',
+        e.target.tagName, String(e.target.src || e.target.href || ''));
+      return;
+    }
+    var p = document.body || document.documentElement;
+    var d = document.getElementById('__bundler_err') || p.appendChild(document.createElement('div'));
+    d.id = '__bundler_err';
+    d.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;font:12px/1.4 ui-monospace,monospace;background:#2a1215;color:#ff8a80;padding:10px 14px;border-radius:8px;border:1px solid #5c2b2e;z-index:99999;white-space:pre-wrap;max-height:40vh;overflow:auto';
+    d.textContent = (d.textContent ? d.textContent + String.fromCharCode(10) : '') +
+      '[bundle] ' + (e.message || e.type) +
+      (e.filename ? ' (' + e.filename.slice(0, 60) + ':' + e.lineno + ')' : '');
+  }, true);
+
+  try {
+    const manifestEl = document.querySelector('script[type="__bundler/manifest"]');
+    const templateEl = document.querySelector('script[type="__bundler/template"]');
+    if (!manifestEl || !templateEl) {
+      setStatus('Error: missing bundle data');
+      console.error('[bundler] Missing script tags — manifestEl:', !!manifestEl, 'templateEl:', !!templateEl);
+      return;
+    }
+
+    const manifest = JSON.parse(manifestEl.textContent);
+    let template = JSON.parse(templateEl.textContent);
+
+    // Nested page bundles (iframe targets). Each ships ONCE, in the ROOT
+    // document's manifest; frame srcs carry an about:blank#<uuid> marker
+    // instead of a substitutable uuid. Every document mints the blobs for
+    // its OWN frames — from local text at the root, or text obtained from
+    // its DIRECT parent over the relay protocol below — so each frame
+    // navigation stays same-origin with its initiator and a deduped page
+    // loads at any depth on any host, including a file:// download's
+    // opaque origins (where a blob minted by one document cannot be
+    // navigated to by another).
+    const pageOrderEl = document.querySelector('script[type="__bundler/page_order"]');
+    const pageOrder = pageOrderEl ? JSON.parse(pageOrderEl.textContent) : [];
+    const pageSet = new Set(pageOrder);
+    const pageTexts = {};
+
+    // ── Nested-page text protocol (parent-chain relay) ──
+    // Page bundles ship once, in the ROOT document's manifest. Every
+    // document mints the blobs for its OWN frames, obtaining page text
+    // through a strict parent-chain relay: a document only ever SENDS to
+    // its direct parent (which, for every document the publisher's own
+    // runtime minted, is another publisher document) and only ACCEPTS
+    // text from that direct parent; requests from below are honored only
+    // for the document's own child frames, and the ROOT never sends
+    // upward at all. That last rule is load-bearing: the artifact host's
+    // frame-ancestors allows claude.ai (and friends) to frame an
+    // artifact, so window.top can be a FOREIGN document — a top-addressed
+    // protocol would hand page uuids to that ancestor and accept forged
+    // "page text" from it, minting attacker HTML as an artifact-origin
+    // blob document. The chain never touches the ancestor: requests stop
+    // at the root, replies are origin-addressed per hop (never '*' when
+    // an origin exists), and both directions are origin-gated (on https
+    // a foreign sender's origin can never equal this document's; in
+    // opaque contexts — file:// — everything serializes as 'null', where
+    // an embedded EXTERNAL frame still fails the gate by carrying its
+    // own real origin, and a sandboxed child of such a frame is excluded
+    // by the own-child-frames check plus uuid unguessability). Shape is
+    // deny-by-default: one request form, one reply form, no error
+    // replies.
+    // window.origin is the SERIALIZED SECURITY origin ('null' in opaque
+    // contexts such as a sandboxed preview iframe) — location.origin is
+    // computed from the URL and stays 'https://…' even when the document
+    // is sandboxed, which would misgate every opaque chain.
+    const OWN_TARGET = /^https?:[/][/]/.test(window.origin || '')
+      ? window.origin
+      : '*';
+    function trustedOrigin(e) {
+      if (e.origin === window.origin) return true; // https chains; opaque==opaque
+      // file:// trees: Chrome serializes the file document's origin as
+      // 'file://' while the blob: documents it mints serialize as 'null',
+      // so the two legitimate shapes can never string-match — accept the
+      // pair in both directions. https origins never serialize as either,
+      // and sender identity (own child frame / direct parent) is checked
+      // separately.
+      return (
+        (e.origin === 'null' &&
+          (window.origin === 'file://' ||
+            window.location.protocol === 'file:')) ||
+        (/^file:/.test(e.origin) && window.origin === 'null')
+      );
+    }
+    // Non-empty only in the root document (nested bundles ship an empty
+    // island), so it doubles as the root marker: the root answers from
+    // local text and treats a miss as authoritative — never relaying to
+    // its (possibly foreign) parent.
+    const isPageRoot = pageOrder.length > 0;
+    const blobUrls = {};
+    const resourceBlobs = {};
+    const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const pendingFrames = {}; // uuid -> [{el, frag}] awaiting text for own frames
+    const pendingRelays = {}; // uuid -> [childWindow] awaiting text to pass down
+    function mountPage(el, frag, text) {
+      const pageBlob = new Blob([text], { type: 'text/html' });
+      const u = URL.createObjectURL(pageBlob);
+      resourceBlobs[u] = pageBlob;
+      el.src = u + frag;
+    }
+    function deliverPage(uuid, text) {
+      const frames = pendingFrames[uuid];
+      delete pendingFrames[uuid];
+      if (frames) for (const f of frames) mountPage(f.el, f.frag, text);
+      const relays = pendingRelays[uuid];
+      delete pendingRelays[uuid];
+      if (relays) {
+        for (const cw of relays) {
+          try { cw.postMessage({ __bundler_page: uuid, __bundler_text: text }, OWN_TARGET); } catch (err) { /* gone */ }
+        }
+      }
+    }
+    function ownFrameWindows() {
+      const out = [];
+      for (const f of Array.from(document.querySelectorAll('iframe'))) {
+        try { if (f.contentWindow) out.push(f.contentWindow); } catch (err) { /* detached */ }
+      }
+      return out;
+    }
+    window.addEventListener('message', function (e) {
+      const d = e.data;
+      if (!d || typeof d !== 'object' || !e.source) return;
+      // Origin gate first; the structural checks below (own-child-frames
+      // for requests, direct-parent + solicited-uuid for replies, the
+      // root's never-relay rule) are what hold in fully opaque chains
+      // where origin strings can't discriminate — a sandboxed root's
+      // FOREIGN wrapper still fails all three even though both serialize
+      // as real-vs-'null' rather than matching.
+      if (!trustedOrigin(e)) return;
+      if (typeof d.__bundler_need === 'string' && UUID_SHAPE.test(d.__bundler_need)) {
+        // Requests are honored only for this document's own child frames.
+        if (ownFrameWindows().indexOf(e.source) < 0) return;
+        const uuid = d.__bundler_need;
+        const text = pageTexts[uuid];
+        if (typeof text === 'string') {
+          try { e.source.postMessage({ __bundler_page: uuid, __bundler_text: text }, OWN_TARGET); } catch (err) { /* gone */ }
+          return;
+        }
+        if (isPageRoot || window.parent === window) return; // authoritative miss
+        const waiting = pendingRelays[uuid];
+        if (waiting) {
+          if (waiting.indexOf(e.source) < 0) waiting.push(e.source);
+          return;
+        }
+        // Never-answered uuids would otherwise accumulate forever under a
+        // request spray; past the cap (far above any real page count) new
+        // relays are dropped rather than remembered.
+        if (Object.keys(pendingRelays).length >= 128) return;
+        pendingRelays[uuid] = [e.source];
+        window.parent.postMessage({ __bundler_need: uuid }, OWN_TARGET);
+      } else if (
+        typeof d.__bundler_page === 'string' &&
+        UUID_SHAPE.test(d.__bundler_page) &&
+        typeof d.__bundler_text === 'string'
+      ) {
+        // The shape test is load-bearing beyond tidiness: the solicited
+        // check below uses the in operator, which matches prototype keys
+        // ('__proto__', 'constructor') — an unshaped key would reach
+        // deliverPage and throw, painting the error banner.
+        // Text is accepted only from the direct parent — the document
+        // that minted this one.
+        if (e.source !== window.parent || window.parent === window) return;
+        if (!(d.__bundler_page in pendingFrames) && !(d.__bundler_page in pendingRelays)) return;
+        deliverPage(d.__bundler_page, d.__bundler_text);
+      }
+    });
+
+    const uuids = Object.keys(manifest);
+    setStatus('Unpacking ' + uuids.length + ' assets...');
+
+    await Promise.all(uuids.map(async (uuid) => {
+      const entry = manifest[uuid];
+      try {
+        const binaryStr = atob(entry.data);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+        let finalBytes = bytes;
+        if (entry.compressed) {
+          if (typeof DecompressionStream !== 'undefined') {
+            const ds = new DecompressionStream('gzip');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(bytes);
+            writer.close();
+            const chunks = [];
+            let totalLen = 0;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              totalLen += value.length;
+            }
+            finalBytes = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const chunk of chunks) { finalBytes.set(chunk, offset); offset += chunk.length; }
+          } else {
+            console.warn('DecompressionStream not available, asset ' + uuid + ' may not render');
+          }
+        }
+
+        if (pageSet.has(uuid)) {
+          pageTexts[uuid] = new TextDecoder().decode(finalBytes);
+          return;
+        }
+        if (FONT_MIME.test(entry.mime) && MIME_TOKEN.test(entry.mime)) {
+          // Strict artifact hosts allow font-src data: but not blob:.
+          blobUrls[uuid] = 'data:' + entry.mime + ';base64,' +
+            (entry.compressed ? toBase64(finalBytes) : entry.data);
+        } else {
+          const blob = new Blob([finalBytes], { type: entry.mime });
+          blobUrls[uuid] = URL.createObjectURL(blob);
+          resourceBlobs[blobUrls[uuid]] = blob;
+        }
+      } catch (err) {
+        console.error('Failed to decode asset ' + uuid + ':', err);
+        const blob = new Blob([], { type: entry.mime });
+        blobUrls[uuid] = URL.createObjectURL(blob);
+        resourceBlobs[blobUrls[uuid]] = blob;
+      }
+    }));
+
+    const extResEl = document.querySelector('script[type="__bundler/ext_resources"]');
+    const extResources = extResEl ? JSON.parse(extResEl.textContent) : [];
+    const resourceMap = {};
+    for (const entry of extResources) {
+      if (blobUrls[entry.uuid]) resourceMap[entry.id] = blobUrls[entry.uuid];
+    }
+
+    // Artifact-host CSP (connect-src 'self') refuses fetch() of blob: URLs —
+    // consumers read these Blobs directly. Survives the swap like the error sink.
+    window.__resourceBlobs = resourceBlobs;
+
+    setStatus('Rendering...');
+    // Page uuids have no blob here — they ride inside about:blank#<uuid>
+    // frame markers the pass below resolves after the swap.
+    for (const uuid of uuids) {
+      if (pageSet.has(uuid)) continue;
+      template = template.split(uuid).join(blobUrls[uuid]);
+    }
+
+    // Strip integrity + crossorigin — blob URLs from a file:// document inherit
+    // a null origin, so crossorigin forces a CORS fetch that SRI then rejects.
+    // The manifest bytes are ours; SRI protects against CDN compromise, not this.
+    template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
+
+    const resourceScript = '<script>window.__resources = ' +
+      JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
+      ';</' + 'script>';
+    // Inject after <head> so the DOCTYPE stays first; prepending the script
+    // would push the parser into quirks mode. DOMParser always emits a <head>
+    // (synthesizing one if the source HTML omitted it) but may carry
+    // attributes through, so match the full opening tag. slice() rather than
+    // replace() keeps us clear of $-pattern substitution in resourceScript.
+    const headOpen = template.match(/<head[^>]*>/i);
+    if (headOpen) {
+      const i = headOpen.index + headOpen[0].length;
+      template = template.slice(0, i) + resourceScript + template.slice(i);
+    }
+
+    // Parse the template and swap the root element. Scripts inserted via
+    // DOMParser/replaceWith are inert per spec — re-create each with
+    // createElement so they execute, awaiting onload for src scripts to
+    // preserve ordering (React before ReactDOM before Babel before text/babel).
+    const doc = new DOMParser().parseFromString(template, 'text/html');
+    document.documentElement.replaceWith(doc.documentElement);
+
+    // Resolve page-frame markers: mint this document's own blob for each
+    // framed page — from local text when this is the root, otherwise by
+    // asking the direct parent over the relay protocol above. An
+    // unanswered request leaves the frame on about:blank, the same
+    // degraded state as a refused embed.
+    {
+      const MARKER = /^about:blank#([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(#.*)?$/;
+      const needed = [];
+      for (const el of Array.from(document.querySelectorAll('iframe'))) {
+        const m = MARKER.exec(el.getAttribute('src') || '');
+        if (!m) continue;
+        const text = pageTexts[m[1]];
+        if (typeof text === 'string') {
+          mountPage(el, m[2] || '', text);
+        } else if (window.parent !== window && !isPageRoot) {
+          const had = pendingFrames[m[1]];
+          (pendingFrames[m[1]] = had || []).push({ el: el, frag: m[2] || '' });
+          if (!had) needed.push(m[1]);
+        }
+      }
+      for (const uuid of needed) {
+        window.parent.postMessage({ __bundler_need: uuid }, OWN_TARGET);
+      }
+    }
+
+    const dead = Array.from(document.scripts);
+    for (const old of dead) {
+      const s = document.createElement('script');
+      for (const a of old.attributes) s.setAttribute(a.name, a.value);
+      s.textContent = old.textContent;
+      // text/babel scripts with a src: read and inline. transformScriptTags
+      // does XHR against the src, but blob:null/ from a file:// origin is
+      // silently dropped. Inlining makes it a plain inline babel script,
+      // which transformScriptTags handles unconditionally.
+      if ((s.type === 'text/babel' || s.type === 'text/jsx') && s.src) {
+        const pre = resourceBlobs[s.src.split('#')[0]];
+        s.textContent = pre ? await pre.text() : await (await fetch(s.src)).text();
+        s.removeAttribute('src');
+      }
+      const p = s.src ? new Promise(function(r) { s.onload = s.onerror = r; }) : null;
+      old.replaceWith(s);
+      if (p) await p;
+    }
+    // Babel standalone auto-transforms type=text/babel on DOMContentLoaded,
+    // which fired before we swapped the document. Trigger manually if present.
+    if (window.Babel && typeof window.Babel.transformScriptTags === 'function') {
+      window.Babel.transformScriptTags();
+    }
+  } catch (err) {
+    setStatus('Error unpacking: ' + err.message);
+    console.error('Bundle unpack error:', err);
+  }
+});
+
+  </script>
+
+  <script type="__bundler/manifest">
+
+  </script>
+
+  <script type="__bundler/ext_resources">
+[]
+  </script>
+
+  <script type="__bundler/page_order">
+[]
+  </script>
+
+  <script type="__bundler/template">
+"<!DOCTYPE html>\n<html lang=\"ru\"><head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>S-STAGE-PROFILE-1 · Карта воронки «Профиль времени» — спека для Claude Code</title>\n\n<style>/* cyrillic-ext */\n\n/* cyrillic */\n\n/* greek-ext */\n\n/* greek */\n\n/* vietnamese */\n\n/* latin-ext */\n\n/* latin */\n\n/* cyrillic-ext */\n\n/* cyrillic */\n\n/* greek-ext */\n\n/* greek */\n\n/* vietnamese */\n\n/* latin-ext */\n\n/* latin */\n\n/* cyrillic-ext */\n\n/* cyrillic */\n\n/* greek-ext */\n\n/* greek */\n\n/* vietnamese */\n\n/* latin-ext */\n\n/* latin */\n\n/* cyrillic-ext */\n\n/* cyrillic */\n\n/* greek-ext */\n\n/* greek */\n\n/* vietnamese */\n\n/* latin-ext */\n\n/* latin */\n\n</style>\n<style>\n/* ══════════════════════════════════════════════════════════════════════════\n   Токены = .t-lime из globals.css (строки 820–870). Имена совпадают 1:1,\n   чтобы CC переносил без словаря. Значения продублированы ТОЛЬКО для превью.\n   ⚠️ В теме нет четвёртой ступени чернил (#8A8A94) — намеренно, контраст на зонах\n   2.65–3.07:1. Все микроподписи 9.5–11px печатаются --text-dim.\n   ══════════════════════════════════════════════════════════════════════════ */\n:root{\n  --bg:#FAF8F5;--surface:#FFFFFF;--surface2:#F2EFE9;--surface3:#E9E5DE;\n  --border:#E6E2DA;--border2:#D5D0C6;\n  --text:#17171C;--text-dim:#5F5F6A;\n  --accent:#C9F25A;--accent-text:#336809;--on-accent:#14210A;\n  --yellow:#B0680A;--yellow-text:#7A5C00;--red:#CC3B2E;--red-text:#A02620;\n  --shadow-sm:0 1px 2px rgba(18,18,24,.06),0 2px 8px rgba(18,18,24,.05);\n  --shadow-accent:0 6px 16px rgba(185,240,74,.40);\n  --radius-l:20px;\n  /* зона «Работа» карточки сделки (deal-v2-spec.html, W1) */\n  --zone-work:#EDF1DC;\n}\n*{box-sizing:border-box}\nbody{margin:0;background:#EDE9E1;font:13px/1.45 Inter,system-ui,sans-serif;color:var(--text);-webkit-font-smoothing:antialiased;font-feature-settings:'cv11'}\n.num{font-variant-numeric:tabular-nums}\nsvg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}\n.row{display:flex;align-items:center}\n.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}\n.wrap{max-width:1100px;margin:0 auto;padding:36px 32px 80px;display:grid;gap:28px}\nh1{font-size:22px;font-weight:600;letter-spacing:-.015em;margin:0 0 6px}\nh2{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px}\n.spec{background:var(--surface);border-radius:16px;padding:18px 22px;box-shadow:var(--shadow-sm);font-size:12.5px;line-height:1.55}\n.spec p{margin:0 0 8px}.spec ul{margin:0;padding-left:18px}.spec li{margin:0 0 5px}\n.spec code{font:11.5px ui-monospace,Menlo,monospace;background:var(--surface2);padding:1px 5px;border-radius:4px}\n.spec table{border-collapse:collapse;width:100%;font-size:12px}.spec td,.spec th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}.spec th{font-weight:600;color:var(--text-dim);font-size:11px;letter-spacing:.04em;text-transform:uppercase}\n.sw{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:4px}\n.warn{color:var(--yellow-text);font-weight:600}\n\n/* ── зона + карточка ─────────────────────────────────────────────────────── */\n.zone{border-radius:26px;padding:16px;background:var(--zone-work);display:grid;gap:14px}\n.card{background:var(--surface);border-radius:var(--radius-l);box-shadow:var(--shadow-sm);padding:16px 18px 14px}\n\n/* ── S-STAGE-PROFILE-1 · карта ───────────────────────────────────────────── */\n.profile{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}\n.profile-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}\n.legend{display:flex;align-items:center;gap:14px;font-size:10.5px;color:var(--text-dim)}\n.legend span{display:flex;align-items:center;gap:5px}\n.profile-scroll{overflow-x:auto;padding-bottom:2px}\n.profile-grid{min-width:calc(var(--n) * 64px)}\n.groups{display:grid;grid-template-columns:var(--cols);margin-bottom:8px}\n.group{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 8px;font-size:10px;white-space:nowrap}\n.group+.group{border-left:1px solid var(--border2)}\n.group:first-child{padding-left:4px}.group:last-child{padding-right:4px}\n.group b{font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}\n.group.is-current b{color:var(--text)}\n.group .norm{color:var(--text-dim)}\n.bars{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));border-bottom:1.5px solid var(--border2)}\n.col{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:110px;padding:0 6px;border:0;background:none;font:inherit;color:inherit;cursor:pointer;border-radius:8px 8px 0 0}\n.col:hover{background:var(--surface2)}\n.col:focus-visible{outline:2px solid var(--accent-text);outline-offset:-2px}\n.col[disabled]{cursor:default}.col[disabled]:hover{background:none}\n.col .v{font-size:10px;color:var(--text-dim);margin-bottom:3px;white-space:nowrap}\n.col .v.is-over{color:var(--yellow-text);font-weight:600}.col .v.is-over i{font-style:normal;font-weight:400}\n.col .v.is-cur{color:var(--yellow-text);font-weight:600}.col .v.is-cur i{font-style:normal;font-weight:400;color:var(--text-dim)}\n.bar{position:relative;width:100%;display:flex;align-items:flex-end}\n.contour{position:absolute;left:0;right:0;bottom:0;border-radius:3px 3px 0 0;border:1.5px dashed var(--border2);border-bottom:none}\n.fill{position:relative;width:100%;border-radius:3px 3px 0 0;background:var(--text)}\n.today{position:absolute;left:-4px;right:-4px;height:2px;background:var(--text)}\n.labels{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));margin-top:8px}\n.lbl{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 3px;font-size:10.5px;font-weight:500;color:var(--text-dim);text-align:center;line-height:1.2;text-wrap:balance}\n.lbl.is-cur,.lbl.is-next{font-weight:600;color:var(--text)}\n.lbl.is-todo{font-weight:400}\n.node{width:12px;height:12px;border-radius:50%;display:grid;place-items:center;flex:none}\n.node.done{background:var(--text);color:#fff}\n.node.cur{background:var(--accent);box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--yellow)}\n.node.next{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--text);color:var(--text)}\n.node.todo{box-shadow:inset 0 0 0 1.5px var(--border2)}\n.foot{display:flex;justify-content:space-between;gap:12px;margin-top:10px;font-size:10px;color:var(--text-dim);white-space:nowrap}\n.foot b{color:var(--text);font-weight:600}\n.revisit{position:absolute;top:-2px;right:2px;font-size:8.5px;font-weight:700;padding:0 4px;border-radius:999px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--border2);color:var(--text-dim)}\n@media (prefers-reduced-motion:no-preference){.fill{animation:grow .5s cubic-bezier(.16,1,.3,1) both;transform-origin:bottom}@keyframes grow{from{transform:scaleY(0)}}}\n.seg{display:block;width:16px;height:6px;border-radius:3px;background:var(--text)}.seg.is-cur{background:var(--accent);box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--yellow)}.seg.is-todo{background:var(--border)}\n.badge{display:inline-block;font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;border-radius:4px;background:var(--text);color:#fff;margin-right:8px}\n</style></head>\n<body><div class=\"wrap\">\n\n<header>\n  <h1><span class=\"badge\">S-STAGE-PROFILE-1</span>Кокпит стадии + карта «Профиль времени»</h1>\n  <div style=\"font-size:12.5px;color:var(--text-dim);max-width:820px;line-height:1.55\">Два блока одного виджета W1 карточки сделки (ProjectDetail): <b>строка кокпита</b> — рестайл существующего <code>PipelineCockpit</code> под lime-макет (пропсы и логика остаются), и <b>карта воронки</b> — новый <code>StageProfile</code> вместо <code>StageRail</code>: стадия — столбик, высота = дни; пунктир — норма, заливка — факт. Оба ещё не в проде — спека покрывает оба.</div>\n</header>\n\n<!-- ══════════════════════════════════════════════════════════════════════════\n     МАКЕТ · состояние по умолчанию: 11 стадий · 4 группы · текущая 9-я, warn (21/30)\n     Демо-данные: факты 1·2·1 / 3·2·4 / 2·3 · нормы прошлых 2·3·2 / 5·3·5 / 3·5 — ДЕМО.\n     В проде норма стадии = resolveStageNorm() → порог phase_group (14/21/21/30),\n     см. блок «Данные». Масштаб от этого только выигрывает (см. «Математика»).\n     ══════════════════════════════════════════════════════════════════════════ -->\n<section>\n<h2>Макет · default (warn 21/30)</h2>\n<div class=\"zone\">\n  <div class=\"row\" style=\"gap:8px;padding:0 4px\"><span class=\"eyebrow\" style=\"color:var(--accent-text);letter-spacing:.12em\">Работа</span><span style=\"font-size:11px;color:var(--text-dim)\">что делаем сейчас · где в воронке · задачи</span></div>\n  <article class=\"card\">\n    <!-- ══ СТРОКА КОКПИТА · PipelineCockpit (рестайл) ═══════════════════════════\n         Строка 1 (mb 12): eyebrow «{группа} · группа {g} из {G}» 10.5/700 accent-text ↔ metaRight «{k} из {n} · вероятность {p}%» 12 text-dim, число 600 text.\n         Строка 2 — gap 10, align center, flex-wrap:\n           · чип «✓ {pastCount}»: h34 r12 bg surface2 · 12/600 text-dim · галка 12 accent-text sw3 · title = pastNames · клик = toggleMap\n           · коннектор 14×2 r2 border2\n           · ЯЧЕЙКА ТЕКУЩЕЙ: min-width 250 · r14 · border 1.5 цвета состояния (ok accent · warn yellow · over red; locked — border) · p 8 14 9 · gap 6\n               строка: имя 14/600 ↔ «{days} дн.» 11.5/600 цвета состояния-текста + «из {norm} по норме» 400 text-dim\n               шкала h8 r4 bg surface2: заливка width = gauge.pct% · ok accent · warn градиент accent→#E7C25A · over red\n                   маркер «сегодня» 2×14 text на pct% · маркер нормы 2×14 цвета состояния на 100%\n               подписи 10 text-dim: «вход {stage_entered_at}» ↔ «норма {stageNormDateKey}»\n               gauge.norm == null → шкалы и правой подписи нет, ячейка h34 · gauge == null (лид) → как сейчас в проде\n           · ГОТОВНОСТЬ (GateChip): точки 8 (met — accent + inset 1.5 accent-text; не met — surface3 + border border2) · «готовность {met}/{n}» 10.5 text-dim · поповер без изменений\n           · коннектор 14×2: gatePassed → accent, иначе border2\n           · CTA следующей: h38 r13 · 13/600 · стрелка 14 sw2.4 · gatePassed — bg accent, on-accent, --shadow-accent · next.locked — bg surface2, text-dim, иконка Lock 12, тени нет, клик работает (истина на сервере)\n           · «+{restCount}» пилюля: border 1 dashed border2 · 11 text-dim · клик = toggleMap\n           · МИНИ-КАРТА (ml-auto): группы gap 10, сегменты 16×6 r3 gap 3 · done — text · current — accent + кольцо 2 surface + 3.5 цвета состояния · todo — border\n               подписи 9.5 uppercase ls .04em text-dim, текущая группа — accent-text 700. Скрыта при ширине строки < 720 (flex-wrap не даёт ей уехать на новую строку).\n           · шеврон ⌄/⌃ 24×24 — уходит в шапку карты («Свернуть»); в свёрнутом состоянии живёт после «+N».\n         ══════════════════════════════════════════════════════════════════════ -->\n    <div class=\"row\" style=\"justify-content:space-between;margin-bottom:12px\"><span class=\"eyebrow\" style=\"color:var(--accent-text)\">Закрытие · группа 4 из 4</span><span class=\"num\" style=\"font-size:12px;color:var(--text-dim)\">9 из 11 · вероятность <b style=\"color:var(--text);font-weight:600\">80%</b></span></div>\n    <div class=\"row\" style=\"gap:10px\">\n      <span class=\"row\" style=\"gap:5px;height:34px;padding:0 12px;border-radius:12px;background:var(--surface2);color:var(--text-dim);font-weight:600;font-size:12px\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:12px;stroke:var(--accent-text);stroke-width:3\"><path d=\"M20 6 9 17l-5-5\"></path></svg>8</span>\n      <span style=\"width:14px;height:2px;border-radius:2px;background:var(--border2)\"></span>\n      <div style=\"display:grid;gap:6px;min-width:250px;padding:8px 14px 9px;border-radius:14px;border:1.5px solid var(--yellow);background:var(--surface)\">\n        <div class=\"row\" style=\"justify-content:space-between;gap:12px\"><span style=\"font-weight:600;font-size:14px\">Защита КП</span><span class=\"num\" style=\"font-size:11.5px;color:var(--yellow-text);font-weight:600\">21 дн. <span style=\"color:var(--text-dim);font-weight:400\">из 30 по норме</span></span></div>\n        <div style=\"position:relative;height:8px;border-radius:4px;background:var(--surface2)\"><div style=\"position:absolute;inset:0 30% 0 0;border-radius:4px;background:linear-gradient(90deg,var(--accent),#E7C25A)\"></div><div style=\"position:absolute;left:70%;top:-3px;width:2px;height:14px;background:var(--text);border-radius:1px\"></div><div style=\"position:absolute;right:0;top:-3px;width:2px;height:14px;background:var(--yellow);border-radius:1px\"></div></div>\n        <div class=\"row\" style=\"justify-content:space-between;font-size:10px;color:var(--text-dim)\"><span>вход 15 авг</span><span>норма 14 сент</span></div>\n      </div>\n      <div style=\"display:grid;justify-items:center;gap:4px;padding:0 6px\"><div class=\"row\" style=\"gap:4px\"><span style=\"width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent-text)\"></span><span style=\"width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent-text)\"></span></div><span style=\"font-size:10.5px;color:var(--text-dim)\">готовность 2/2</span></div>\n      <span style=\"width:14px;height:2px;border-radius:2px;background:var(--accent)\"></span>\n      <button style=\"display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:13px;border:0;background:var(--accent);color:var(--on-accent);font:inherit;font-size:13px;font-weight:600;box-shadow:var(--shadow-accent);cursor:pointer\">Договор<svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:14px;stroke-width:2.4\"><path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path></svg></button>\n      <span style=\"padding:3px 9px;border-radius:999px;border:1px dashed var(--border2);font-size:11px;color:var(--text-dim)\">+2</span>\n      <div style=\"margin-left:auto;display:grid;gap:5px;justify-items:end\">\n        <div class=\"row\" style=\"gap:10px\">\n          <div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i><i class=\"seg\"></i></div>\n          <div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i><i class=\"seg\"></i></div>\n          <div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i></div>\n          <div class=\"row\" style=\"gap:3px\"><i class=\"seg is-cur\"></i><i class=\"seg is-todo\"></i><i class=\"seg is-todo\"></i></div>\n        </div>\n        <div class=\"row\" style=\"gap:10px;font-size:9.5px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase\"><span style=\"width:54px;text-align:center\">Привлеч.</span><span style=\"width:54px;text-align:center\">Квалиф.</span><span style=\"width:35px;text-align:center\">Оценка</span><span style=\"width:54px;text-align:center;color:var(--accent-text);font-weight:700\">Закрытие</span></div>\n      </div>\n    </div>\n\n    <!-- ══ КАРТА · S-STAGE-PROFILE-1 ══════════════════════════════════════════\n         Геометрия (px):\n           .profile: mt 14 · pt 14 · hairline-t --border\n           head (mb 12): eyebrow «Карта воронки · {pipeline}» + «· {pxPerDay} px = 1 день» 10.5/400 text-dim\n                         ↔ легенда 10.5 (факт · норма · сверх нормы) + «Свернуть ⌃»\n           groups (mb 8): grid, колонки = число стадий группы во fr (3fr 3fr 2fr 3fr) — ТА ЖЕ геометрия,\n                          что у bars, поэтому группы и столбики выровнены при любой длине имён.\n                          разделитель между группами 1px --border2 слева; padding 0 8 (крайние 4)\n                          подпись: имя 10/700 uppercase ls .08em ↔ «{факт} / {норма}» 10 tabular\n           bars: grid repeat(n, minmax(0,1fr)) · ось снизу 1.5px --border2 · колонка h 110 · p 0 6\n                 столбик: число 10 tabular (mb 3) над столбиком · контур dashed 1.5 --border2 r 3 3 0 0 без нижней грани\n                 заливка --text r 3 3 0 0 · пересвет над нормой окрашен (см. состояния)\n                 текущая: контур СПЛОШНОЙ 1.5 цвета состояния, r 4 4 0 0 · заливка цвета состояния ·\n                          линия «сегодня» 2px --text на высоте факта, выступает по 4px за столбик\n                 следующая: контур сплошной 1.5 --text · пустая · число «≈ {норма}»\n                 будущие: контур dashed --border2 · пустые · «≈ {норма}» text-dim\n           labels (mt 8): grid как bars · узел 12 + имя 10.5 lh 1.2 balance (max 2 строки — ширина колонки ≥ 64)\n                 узлы: done — --text с галкой 8px white sw 3.5 · current — --accent + кольцо 2 surface + 3.5 цвет состояния\n                       next — контур 1.5 --text + стрелка 7px · todo — контур 1.5 --border2\n           foot (mt 10): 10 tabular ↔ «прошло {ageDone} дн. при норме {normDone} · {±diff}» / «впереди ≈ {ahead} дн. по нормам · финиш ≈ {date}»\n         Скролл: .profile-scroll overflow-x auto · min-width = n × 64px (как StageRail: shrink-0, контейнер скроллится).\n         ══════════════════════════════════════════════════════════════════════ -->\n    <div class=\"profile\" data-part=\"stage-profile\" style=\"--n:11;--cols:3fr 3fr 2fr 3fr\">\n      <div class=\"profile-head\">\n        <span class=\"eyebrow\" style=\"color:var(--text-dim)\">Карта воронки · IIoT <span style=\"font-weight:400;letter-spacing:0;text-transform:none\">· 3 px = 1 день</span></span>\n        <div class=\"legend\"><span><i class=\"sw\" style=\"background:var(--text)\"></i>факт</span><span><i class=\"sw\" style=\"border:1.5px dashed var(--border2)\"></i>норма</span><span><i class=\"sw\" style=\"background:var(--yellow)\"></i>сверх нормы</span><span style=\"font-size:11.5px\">Свернуть<svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:12px;stroke-width:2.2\"><path d=\"m18 15-6-6-6 6\"></path></svg></span></div>\n      </div>\n      <div class=\"profile-scroll\"><div class=\"profile-grid\">\n        <div class=\"groups\">\n          <div class=\"group\"><b>Привлечение</b><span class=\"num norm\">4 <span style=\"opacity:.7\">/ 7</span></span></div>\n          <div class=\"group\"><b>Квалификация</b><span class=\"num norm\">9 <span style=\"opacity:.7\">/ 13</span></span></div>\n          <div class=\"group\"><b>Оценка</b><span class=\"num norm\">5 <span style=\"opacity:.7\">/ 8</span></span></div>\n          <div class=\"group is-current\"><b>Закрытие</b><span class=\"num\" style=\"color:var(--yellow-text);font-weight:600\">21 <span style=\"color:var(--text-dim);font-weight:400\">/ 54</span></span></div>\n        </div>\n        <div class=\"bars\">\n          <!-- done: высота = дни × 3px; контур = норма -->\n          <button class=\"col\" aria-label=\"Первый контакт · 1 дн. при норме 2 · вернуть на стадию\"><span class=\"v num\">1</span><span class=\"bar\" style=\"height:6px\"><span class=\"contour\" style=\"height:6px\"></span><span class=\"fill\" style=\"height:3px\"></span></span></button>\n          <button class=\"col\" aria-label=\"Квалификация · 2 дн. при норме 3 · вернуть на стадию\"><span class=\"v num\">2</span><span class=\"bar\" style=\"height:9px\"><span class=\"contour\" style=\"height:9px\"></span><span class=\"fill\" style=\"height:6px\"></span></span></button>\n          <button class=\"col\" aria-label=\"Потребность · 1 дн. при норме 2 · вернуть на стадию\"><span class=\"v num\">1</span><span class=\"bar\" style=\"height:6px\"><span class=\"contour\" style=\"height:6px\"></span><span class=\"fill\" style=\"height:3px\"></span></span></button>\n          <button class=\"col\" aria-label=\"Обследование · 3 дн. при норме 5 · вернуть на стадию\"><span class=\"v num\">3</span><span class=\"bar\" style=\"height:15px\"><span class=\"contour\" style=\"height:15px\"></span><span class=\"fill\" style=\"height:9px\"></span></span></button>\n          <button class=\"col\" aria-label=\"Демо · 2 дн. при норме 3 · вернуть на стадию\"><span class=\"v num\">2</span><span class=\"bar\" style=\"height:9px\"><span class=\"contour\" style=\"height:9px\"></span><span class=\"fill\" style=\"height:6px\"></span></span></button>\n          <!-- done + пересвет: факт 4 > норма 3 → контур становится линией нормы (dashed --yellow), верх заливки над ней --yellow -->\n          <button class=\"col\" aria-label=\"Техзадание · 4 дн. при норме 3, сверх нормы 1 · вернуть на стадию\"><span class=\"v num is-over\">4 <i>/ 3</i></span><span class=\"bar\" style=\"height:12px\"><span class=\"contour\" style=\"height:9px;border-color:var(--yellow);border-left:0;border-right:0;border-radius:0\"></span><span class=\"fill\" style=\"height:12px;background:linear-gradient(180deg,var(--yellow) 0 3px,var(--text) 3px)\"></span></span></button>\n          <button class=\"col\" aria-label=\"Расчёт · 2 дн. при норме 3 · вернуть на стадию\"><span class=\"v num\">2</span><span class=\"bar\" style=\"height:9px\"><span class=\"contour\" style=\"height:9px\"></span><span class=\"fill\" style=\"height:6px\"></span></span></button>\n          <button class=\"col\" aria-label=\"Подготовка КП · 3 дн. при норме 5 · вернуть на стадию\"><span class=\"v num\">3</span><span class=\"bar\" style=\"height:15px\"><span class=\"contour\" style=\"height:15px\"></span><span class=\"fill\" style=\"height:9px\"></span></span></button>\n          <!-- current (warn): контур сплошной --yellow, заливка --yellow→--accent, линия «сегодня» -->\n          <button class=\"col\" disabled=\"\" aria-current=\"step\" aria-label=\"Защита КП · текущая · 21 дн. из 30 по норме\"><span class=\"v num is-cur\">21 <i>/ 30</i></span><span class=\"bar\" style=\"height:90px\"><span class=\"contour\" style=\"height:90px;border-style:solid;border-color:var(--yellow);border-radius:4px 4px 0 0\"></span><span class=\"fill\" style=\"height:63px;border-radius:0;background:linear-gradient(180deg,#E7C25A,var(--accent))\"></span><span class=\"today\" style=\"bottom:63px\"></span></span></button>\n          <!-- next -->\n          <button class=\"col\" aria-label=\"Договор · следующая · норма 14 дн. · перейти\"><span class=\"v num\">≈ 14</span><span class=\"bar\" style=\"height:42px\"><span class=\"contour\" style=\"height:42px;border-style:solid;border-color:var(--text);border-radius:4px 4px 0 0;background:var(--surface)\"></span></span></button>\n          <!-- todo -->\n          <button class=\"col\" aria-label=\"Оплата · норма 10 дн. · перейти\"><span class=\"v num\">≈ 10</span><span class=\"bar\" style=\"height:30px\"><span class=\"contour\" style=\"height:30px;border-radius:4px 4px 0 0\"></span></span></button>\n        </div>\n        <div class=\"labels\">\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Первый контакт</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Квалификация</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Потребность</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Обследование</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Демо</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Техзадание</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Расчёт</div>\n          <div class=\"lbl\"><span class=\"node done\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:8px;stroke-width:3.5\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span>Подготовка КП</div>\n          <div class=\"lbl is-cur\"><span class=\"node cur\"></span>Защита КП</div>\n          <div class=\"lbl is-next\"><span class=\"node next\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:7px;stroke-width:3.5\"><path d=\"M5 12h14\"></path><path d=\"m12 5 7 7-7 7\"></path></svg></span>Договор</div>\n          <div class=\"lbl is-todo\"><span class=\"node todo\"></span>Оплата</div>\n        </div>\n      </div></div>\n      <div class=\"foot num\"><span>прошло <b>39 дн.</b> при норме 34 · <span class=\"warn\">+5 дн.</span></span><span>впереди ≈ <b>33 дн.</b> по нормам · финиш ≈ 12 окт</span></div>\n    </div>\n\n    <div class=\"row\" style=\"gap:8px;margin-top:12px;padding:8px 12px;border-radius:12px;background:var(--surface2);color:var(--text-dim);font-size:12px\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:13px;stroke:var(--yellow-text)\"><path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"></path><path d=\"M9 18h6\"></path><path d=\"M10 22h4\"></path></svg><span><b style=\"font-weight:600;color:var(--text)\">На стадии:</b> защищаем КП у ЛПР, а не у контакта. Цель — встреча с исполнительным директором до конца нормы.</span></div>\n  </article>\n</div>\n</section>\n\n<!-- ══════════════════════════════════════════════════════════════════════════\n     СОСТОЯНИЯ · только карта, 6 стадий для компактности\n     ══════════════════════════════════════════════════════════════════════════ -->\n<section>\n<h2>Состояния</h2>\n<!-- строка кокпита: over + гейт не закрыт -->\n<article class=\"card\" style=\"padding-top:12px;margin-bottom:16px\">\n  <div style=\"font-size:11px;color:var(--text-dim);margin-bottom:10px\"><b style=\"color:var(--text)\">кокпит · over + gate 1/2</b> · рамка и маркер нормы red · CTA приглушён (Lock), но кликабелен · коннектор border2</div>\n  <div class=\"row\" style=\"gap:10px;flex-wrap:wrap\">\n    <span class=\"row\" style=\"gap:5px;height:34px;padding:0 12px;border-radius:12px;background:var(--surface2);color:var(--text-dim);font-weight:600;font-size:12px\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:12px;stroke:var(--accent-text);stroke-width:3\"><path d=\"M20 6 9 17l-5-5\"></path></svg>8</span>\n    <span style=\"width:14px;height:2px;border-radius:2px;background:var(--border2)\"></span>\n    <div style=\"display:grid;gap:6px;min-width:250px;padding:8px 14px 9px;border-radius:14px;border:1.5px solid var(--red);background:var(--surface)\">\n      <div class=\"row\" style=\"justify-content:space-between;gap:12px\"><span style=\"font-weight:600;font-size:14px\">Защита КП</span><span class=\"num\" style=\"font-size:11.5px;color:var(--red-text);font-weight:600\">34 дн. <span style=\"color:var(--text-dim);font-weight:400\">из 30 по норме</span></span></div>\n      <div style=\"position:relative;height:8px;border-radius:4px;background:var(--surface2)\"><div style=\"position:absolute;inset:0;border-radius:4px;background:var(--red)\"></div><div style=\"position:absolute;right:0;top:-3px;width:2px;height:14px;background:var(--red);border-radius:1px\"></div></div>\n      <div class=\"row\" style=\"justify-content:space-between;font-size:10px;color:var(--text-dim)\"><span>вход 2 авг</span><span style=\"color:var(--red-text);font-weight:600\">норма 1 сент · +4 дн.</span></div>\n    </div>\n    <div style=\"display:grid;justify-items:center;gap:4px;padding:0 6px\"><div class=\"row\" style=\"gap:4px\"><span style=\"width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent-text)\"></span><span style=\"width:8px;height:8px;border-radius:50%;background:var(--surface3);box-shadow:inset 0 0 0 1px var(--border2)\"></span></div><span style=\"font-size:10.5px;color:var(--text-dim)\">готовность 1/2</span></div>\n    <span style=\"width:14px;height:2px;border-radius:2px;background:var(--border2)\"></span>\n    <button style=\"display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:13px;border:0;background:var(--surface2);color:var(--text-dim);font:inherit;font-size:13px;font-weight:600;cursor:pointer\"><svg class=\"i\" viewBox=\"0 0 24 24\" style=\"font-size:12px\"><rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"></rect><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"></path></svg>Договор</button>\n    <span style=\"padding:3px 9px;border-radius:999px;border:1px dashed var(--border2);font-size:11px;color:var(--text-dim)\">+2</span>\n    <div style=\"margin-left:auto;display:grid;gap:5px;justify-items:end\">\n      <div class=\"row\" style=\"gap:10px\"><div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i><i class=\"seg\"></i></div><div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i><i class=\"seg\"></i></div><div class=\"row\" style=\"gap:3px\"><i class=\"seg\"></i><i class=\"seg\"></i></div><div class=\"row\" style=\"gap:3px\"><i class=\"seg is-cur\" style=\"box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--red)\"></i><i class=\"seg is-todo\"></i><i class=\"seg is-todo\"></i></div></div>\n      <div class=\"row\" style=\"gap:10px;font-size:9.5px;color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase\"><span style=\"width:54px;text-align:center\">Привлеч.</span><span style=\"width:54px;text-align:center\">Квалиф.</span><span style=\"width:35px;text-align:center\">Оценка</span><span style=\"width:54px;text-align:center;color:var(--accent-text);font-weight:700\">Закрытие</span></div>\n    </div>\n  </div>\n</article>\n<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:16px\">\n\n  <article class=\"card\" style=\"padding-top:12px\">\n    <div style=\"font-size:11px;color:var(--text-dim);margin-bottom:6px\"><b style=\"color:var(--text)\">over</b> · текущая 34 / 30 · возврат на «Демо» (2 захода)</div>\n    <div class=\"profile\" data-part=\"stage-profile\" style=\"--n:6;--cols:3fr 3fr;margin-top:8px\">\n      <div class=\"profile-scroll\"><div class=\"profile-grid\" style=\"min-width:0\">\n        <div class=\"groups\"><div class=\"group\"><b>Квалиф.</b><span class=\"num norm\">11 <span style=\"opacity:.7\">/ 9</span></span></div><div class=\"group is-current\"><b>Закрытие</b><span class=\"num\" style=\"color:var(--red-text);font-weight:600\">34 <span style=\"color:var(--text-dim);font-weight:400\">/ 54</span></span></div></div>\n        <div class=\"bars\">\n          <button class=\"col\"><span class=\"v num\">3</span><span class=\"bar\" style=\"height:13px\"><span class=\"contour\" style=\"height:13px\"></span><span class=\"fill\" style=\"height:8px\"></span></span></button>\n          <!-- revisit: суммарно 5 дн. за 2 захода → бейдж ×2 -->\n          <button class=\"col\" aria-label=\"Демо · 5 дн. за 2 захода при норме 3 · вернуть\"><span class=\"revisit\">×2</span><span class=\"v num is-over\">5 <i>/ 3</i></span><span class=\"bar\" style=\"height:13px\"><span class=\"contour\" style=\"height:8px;border-color:var(--yellow);border-left:0;border-right:0;border-radius:0\"></span><span class=\"fill\" style=\"height:13px;background:linear-gradient(180deg,var(--yellow) 0 5px,var(--text) 5px)\"></span></span></button>\n          <button class=\"col\"><span class=\"v num\">3</span><span class=\"bar\" style=\"height:8px\"><span class=\"contour\" style=\"height:8px\"></span><span class=\"fill\" style=\"height:8px\"></span></span></button>\n          <!-- current over: контур red сплошной на высоте нормы; заливка red выше контура -->\n          <button class=\"col\" disabled=\"\" aria-current=\"step\"><span class=\"v num\" style=\"color:var(--red-text);font-weight:600\">34 <i style=\"font-style:normal;font-weight:400;color:var(--text-dim)\">/ 30</i></span><span class=\"bar\" style=\"height:90px\"><span class=\"contour\" style=\"height:79px;border-style:solid;border-color:var(--red);border-left:0;border-right:0;border-radius:0\"></span><span class=\"fill\" style=\"height:90px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--red) 0 11px,var(--accent) 11px)\"></span><span class=\"today\" style=\"bottom:90px\"></span></span></button>\n          <button class=\"col\"><span class=\"v num\">≈ 14</span><span class=\"bar\" style=\"height:37px\"><span class=\"contour\" style=\"height:37px;border-style:solid;border-color:var(--text);border-radius:4px 4px 0 0\"></span></span></button>\n          <button class=\"col\"><span class=\"v num\">≈ 10</span><span class=\"bar\" style=\"height:26px\"><span class=\"contour\" style=\"height:26px;border-radius:4px 4px 0 0\"></span></span></button>\n        </div>\n        <div class=\"labels\">\n          <div class=\"lbl\"><span class=\"node done\"></span>Обследов.</div><div class=\"lbl\"><span class=\"node done\"></span>Демо</div><div class=\"lbl\"><span class=\"node done\"></span>Техзадание</div>\n          <div class=\"lbl is-cur\"><span class=\"node cur\" style=\"box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--red)\"></span>Защита КП</div><div class=\"lbl is-next\"><span class=\"node next\"></span>Договор</div><div class=\"lbl is-todo\"><span class=\"node todo\"></span>Оплата</div>\n        </div>\n      </div></div>\n      <div class=\"foot num\"><span>прошло <b>45 дн.</b> при норме 39 · <span style=\"color:var(--red-text);font-weight:600\">+6 дн.</span></span><span>впереди ≈ <b>24 дн.</b> · норма текущей исчерпана 4 дн. назад</span></div>\n    </div>\n  </article>\n\n  <article class=\"card\" style=\"padding-top:12px\">\n    <div style=\"font-size:11px;color:var(--text-dim);margin-bottom:6px\"><b style=\"color:var(--text)\">won / allDone</b> · locked: узлы некликабельны, hover нет, «сегодня» нет</div>\n    <div class=\"profile\" data-part=\"stage-profile\" style=\"--n:6;--cols:3fr 3fr;margin-top:8px\">\n      <div class=\"profile-scroll\"><div class=\"profile-grid\" style=\"min-width:0\">\n        <div class=\"groups\"><div class=\"group\"><b>Квалиф.</b><span class=\"num norm\">9 <span style=\"opacity:.7\">/ 9</span></span></div><div class=\"group\"><b>Закрытие</b><span class=\"num norm\">41 <span style=\"opacity:.7\">/ 54</span></span></div></div>\n        <div class=\"bars\">\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">3</span><span class=\"bar\" style=\"height:13px\"><span class=\"contour\" style=\"height:13px\"></span><span class=\"fill\" style=\"height:8px\"></span></span></button>\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">2</span><span class=\"bar\" style=\"height:8px\"><span class=\"contour\" style=\"height:8px\"></span><span class=\"fill\" style=\"height:5px\"></span></span></button>\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">4</span><span class=\"bar\" style=\"height:13px\"><span class=\"contour\" style=\"height:8px;border-color:var(--yellow);border-left:0;border-right:0;border-radius:0\"></span><span class=\"fill\" style=\"height:10px;background:linear-gradient(180deg,var(--yellow) 0 2px,var(--text) 2px)\"></span></span></button>\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">26</span><span class=\"bar\" style=\"height:79px\"><span class=\"contour\" style=\"height:79px\"></span><span class=\"fill\" style=\"height:68px\"></span></span></button>\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">9</span><span class=\"bar\" style=\"height:37px\"><span class=\"contour\" style=\"height:37px\"></span><span class=\"fill\" style=\"height:24px\"></span></span></button>\n          <button class=\"col\" disabled=\"\"><span class=\"v num\">6</span><span class=\"bar\" style=\"height:26px\"><span class=\"contour\" style=\"height:26px\"></span><span class=\"fill\" style=\"height:16px\"></span></span></button>\n        </div>\n        <div class=\"labels\">\n          <div class=\"lbl\"><span class=\"node done\"></span>Обследов.</div><div class=\"lbl\"><span class=\"node done\"></span>Демо</div><div class=\"lbl\"><span class=\"node done\"></span>Техзадание</div><div class=\"lbl\"><span class=\"node done\"></span>Защита КП</div><div class=\"lbl\"><span class=\"node done\"></span>Договор</div><div class=\"lbl\"><span class=\"node done\" style=\"background:var(--accent);color:var(--on-accent)\"></span>Оплата</div>\n        </div>\n      </div></div>\n      <div class=\"foot num\"><span>воронка пройдена за <b>50 дн.</b> при норме 63 · <span style=\"color:var(--accent-text);font-weight:600\">−13 дн.</span></span><span>выиграна 28 авг</span></div>\n    </div>\n  </article>\n</div>\n</section>\n\n<!-- ══════════════════════════════════════════════════════════════════════════\n     СПЕКА\n     ══════════════════════════════════════════════════════════════════════════ -->\n<section style=\"display:grid;gap:16px\">\n<h2 style=\"margin:0\">Спека · A — строка кокпита (PipelineCockpit, рестайл)</h2>\n\n<div class=\"spec\">\n<p><b>A1 · Что меняется относительно текущего <code>PipelineCockpit.tsx</code></b></p>\n<p>Пропсы, GateChip, поповер, <code>toggleMap</code>, <code>groupsWord</code> — без изменений. Меняется только разметка строки 2 и добавляется мини-карта. Компонент остаётся общим для лидов: всё новое включается наличием <code>gauge</code> / <code>miniMap</code>.</p>\n<table>\n<tbody><tr><th>Элемент</th><th>Сейчас в проде</th><th>Макет lime</th></tr>\n<tr><td>Чип «✓ N»</td><td>pill <code>bg-accent-l</code>, текст accent-text</td><td>h34 r12 <code>bg-surface2</code>, текст <code>text-dim</code> 12/600, галка <code>accent-text</code>. Лайм из фона уходит — он зарезервирован за «действием» (CTA) и «идёт» (заливка).</td></tr>\n<tr><td>Ячейка текущей</td><td>r10, заливка на всю ячейку <code>FILL_BY_STATE</code> (бледный color-mix), «N дн.» в строке</td><td>r14, min-width 250, три строки: имя ↔ «N дн. из M по норме»; отдельная шкала h8 с маркерами «сегодня»/«норма»; подписи дат. Бледная заливка ячейки убирается — её роль берёт шкала. <code>BORDER_BY_STATE</code> остаётся.</td></tr>\n<tr><td>Готовность</td><td>точки 7px accent / border2</td><td>точки 8px: met — accent + inset 1.5 accent-text (лайм на белом без обводки 1.29:1 — не читается); не met — surface3 + border2</td></tr>\n<tr><td>CTA следующей</td><td>outline accent, текст accent-text, «· 90%»</td><td>h38 r13 сплошной accent + on-accent + <code>--shadow-accent</code>; вероятность из кнопки убрана (уже в metaRight и в карте). <code>next.locked</code> — surface2/text-dim + Lock, без тени.</td></tr>\n<tr><td>Хвост «+N»</td><td>dashed pill, «+2 · 1 группа»</td><td>тот же, суффикс групп остаётся при <code>restGroupsCount</code></td></tr>\n<tr><td>Мини-карта</td><td>нет</td><td>новый слот <code>miniMap?: { groups: { key, label, segments: ('done'|'current'|'todo')[] }[] }</code>, ml-auto; строит вызывающий из <code>stages</code>+<code>currentIndex</code>. Скрывается при ширине строки &lt; 720 (ResizeObserver или container query <code>@container (max-width: 719px)</code>).</td></tr>\n<tr><td>Шеврон</td><td>кнопка 24×24 после хвоста</td><td>в раскрытом состоянии переезжает в шапку карты как «Свернуть ⌃» (текст 11.5 text-dim); в свёрнутом — остаётся кнопкой после «+N»</td></tr>\n<tr><td>Раскрытие карты</td><td><code>useState(false)</code></td><td>дефолт = <code>stages[currentIndex].phase_group === 'closing'</code> (карта важнее всего на финише); ручной выбор пользователя запоминать в <code>localStorage['cockpit-map:'+pipelineId]</code></td></tr>\n<tr><td>groupLabel</td><td>mb-1</td><td>строка 1 = groupLabel ↔ metaRight на одной линии (justify space-between), mb 12; metaRight уходит из строки 2</td></tr>\n</tbody></table>\n</div>\n\n<div class=\"spec\">\n<p><b>A2 · Данные строки кокпита (ProjectDetail собирает, кокпит рисует)</b></p>\n<table>\n<tbody><tr><th>Проп</th><th>Источник</th><th>Примечание</th></tr>\n<tr><td><code>groupLabel</code></td><td><code>phaseLabel(stage.phase_group)</code> + индекс группы среди уникальных phase_group активных стадий</td><td>«Закрытие · группа 4 из 4». Словарь — <code>lib/constants/phase-labels.ts</code>: attraction Привлечение · working Проработка · approval Согласование · closing Закрытие. <span class=\"warn\">В макете группа «Квалификация/Оценка» — демо; в проде подписи из словаря.</span></td></tr>\n<tr><td><code>pastCount / pastNames</code></td><td><code>stages.slice(0, currentIndex)</code></td><td>stages — активные (не is_won/is_lost), сортировка <code>order_index</code></td></tr>\n<tr><td><code>current.name</code></td><td><code>stages[currentIndex].name</code></td><td></td></tr>\n<tr><td><code>gauge</code></td><td><code>stageTimeGauge(project.stage_entered_at, resolveStageNorm(stage, org.settings.stage_target_days, org.settings.stage_dwell_defaults), now)</code></td><td>Тот же объект уходит в <code>StageProfile.gauge</code>. Дата нормы — <code>stageNormDateKey</code>.</td></tr>\n<tr><td><code>gate</code></td><td><code>useStageRequirements(pipelineId)</code> → требования стадии <code>next</code> + результат RPC <code>check_stage_requirements</code> → <code>items[{label, met}]</code>, <code>title</code> «Для перехода на «Договор»»</td><td>Пусто → GateChip скрыт, коннектор accent. Whitelist полей — <code>GATE_FIELD_COLUMNS</code>.</td></tr>\n<tr><td><code>next</code></td><td><code>stages[currentIndex+1]</code> → <code>{label: name, probability, locked: !gatePassed, onClick}</code></td><td>onClick открывает подтверждение перехода (как сейчас). Последняя активная стадия → next = won-стадия с label «Выиграна».</td></tr>\n<tr><td><code>restCount / restGroupsCount</code></td><td><code>stages.length − currentIndex − 1</code>; уникальные phase_group после текущей, не равные текущей</td><td></td></tr>\n<tr><td><code>metaRight</code></td><td>«{currentIndex+1} из {stages.length} · вероятность {stage.probability}%»</td><td>probability null → без второй части</td></tr>\n<tr><td><code>miniMap</code></td><td>группы по phase_group подряд (та же группировка, что в StageRail.useMemo) → сегменты по индексу: &lt; current done · = current · &gt; todo</td><td>Цвет кольца current = <code>BORDER_BY_STATE[gauge.state]</code></td></tr>\n<tr><td><code>locked</code></td><td><code>currentIndex === -1</code> (стадия is_won / is_lost)</td><td>Гейт, CTA, шкала и мини-кольцо скрыты; рамка ячейки <code>--border</code>; текст «Выиграна 28 авг» вместо счётчика дней</td></tr>\n<tr><td><code>guidance</code></td><td>S-STAGE-STORY-1 / S-FORMAT-1, без изменений</td><td>блок «На стадии: …» под картой</td></tr>\n</tbody></table>\n</div>\n\n<div class=\"spec\">\n<p><b>A3 · Состояния строки</b></p>\n<ul>\n<li><b>ok</b> (&lt;70%): рамка и маркер нормы <code>--accent</code>, заливка шкалы accent, счётчик text-dim.</li>\n<li><b>warn</b> (≥70%, days ≤ norm): рамка/маркер <code>--yellow</code>, заливка градиент accent→#E7C25A, счётчик <code>--yellow-text</code> 600.</li>\n<li><b>over</b> (days &gt; norm): рамка/маркер <code>--red</code>, шкала заполнена red целиком (pct зажат в 100), маркер «сегодня» не рисуется (совпал бы с маркером нормы), правая подпись «норма {date} · +N дн.» red-text 600, иконка Clock перед счётчиком как сейчас.</li>\n<li><b>gauge.norm == null</b>: шкалы нет, «N дн.» без «из M», рамка accent.</li>\n<li><b>gauge == null</b> (лид): ячейка как в проде сейчас — одна строка, без шкалы; мини-карта не передаётся.</li>\n<li><b>next.locked</b>: CTA surface2 + Lock, коннектор border2, title «Перейти — требования ещё не закрыты»; клик работает, отказ приходит с сервера.</li>\n<li><b>locked</b> (терминал): см. A2. allDone — все сегменты мини-карты done, последний accent.</li>\n<li><b>Узко</b> (&lt; 720): мини-карта скрыта; &lt; 560: ячейка текущей min-width 100% и строка переносится (flex-wrap) — CTA и «+N» уходят на вторую строку.</li>\n</ul>\n</div>\n\n<h2 style=\"margin:8px 0 0\">Спека · B — карта воронки (StageProfile)</h2>\n\n<div class=\"spec\">\n<p><b>1 · Место в коде и контракт</b></p>\n<ul>\n<li>Новый презентационный компонент <code>src/components/shared/StageProfile.tsx</code>. Передаётся в <code>PipelineCockpit</code> через существующий проп <code>map</code> вместо <code>StageRail</code> — кокпит не трогаем. <code>StageRail</code> остаётся для лидов (у лида нет <code>stage_entered_at</code> и норм — профиль времени там нарисовать нечем).</li>\n<li>Ноль запросов и знания о сущностях (как StageRail/Cockpit): все данные собирает <code>ProjectDetail</code>.</li>\n<li>Пропсы — расширение <code>StageRailProps</code>, чтобы обработчики переехали без изменений:\n<pre style=\"margin:6px 0 0;font:11.5px/1.5 ui-monospace,Menlo,monospace;background:var(--surface2);padding:10px 12px;border-radius:8px;white-space:pre-wrap\">interface StageProfileStage extends StageRailStage { probability?: number | null }\ninterface StageProfileProps extends StageRailProps {\n  stages: StageProfileStage[];\n  /** stageId → суммарно дней за все заходы (StageStory.totalByStage). Нет ключа — стадия не посещалась. */\n  factDays: Record&lt;string, number&gt;;\n  /** stageId → число заходов (из StageStory.segments); ≥2 — бейдж «×N». */\n  visits?: Record&lt;string, number&gt;;\n  /** stageId → норма дней (resolveStageNorm по каждой стадии). Пустой объект — контуры не рисуются. */\n  normDays: Record&lt;string, number&gt;;\n  /** Датчик текущей стадии — ТОТ ЖЕ объект, что уходит в PipelineCockpit.gauge. */\n  gauge: StageTimeGauge | null;\n  /** Возраст сделки (StageStory.ageDays) — для футера. */\n  ageDays?: number | null;\n  pipelineName?: string;\n  /** Прогноз финиша считается вызывающим: today + остаток нормы текущей + нормы будущих. */\n  forecastFinish?: string | null;\n}</pre></li>\n</ul>\n</div>\n\n<div class=\"spec\">\n<p><b>2 · Источники данных (что реально есть в проекте)</b></p>\n<table>\n<tbody><tr><th>Что на экране</th><th>Откуда</th><th>Примечание</th></tr>\n<tr><td>Факт дней прошлых стадий</td><td><code>useStageStory → StageStory.totalByStage</code></td><td>Суммарно за все заходы (cumulative). Первый сегмент открыт <code>projects.created_at</code>, а не журналом — уже учтено в <code>buildStageStory</code>.</td></tr>\n<tr><td>Число заходов</td><td><code>StageStory.segments</code>, группировка по <code>stageId</code></td><td><code>isRevisit</code> на сегменте. Бейдж «×N» при N ≥ 2.</td></tr>\n<tr><td>Факт текущей стадии</td><td><code>gauge.days</code> (stageTimeGauge)</td><td class=\"warn\">Это ТЕКУЩИЙ заход, а totalByStage — все заходы. В столбике — gauge.days (согласовано с ячейкой кокпита по построению); в тултипе — «всего N за K заходов».</td></tr>\n<tr><td>Норма стадии</td><td><code>resolveStageNorm(stage, targetDays, dwell)</code></td><td class=\"warn\">В проде норма = порог phase_group: attraction 14 · working 21 · approval 21 · closing 30 (или org-оверрайд). Отдельных норм на стадию нет и колонки <code>target_days</code> не будет (S-R2-DWELL-CFG). Значит контуры внутри группы одинаковой высоты, а факты 1–4 дн. на фоне нормы 14 — короткие. Это ок: карта и должна показывать «запас», а не рисовать красиво.</td></tr>\n<tr><td>Состояние текущей</td><td><code>gauge.state</code>: ok &lt;70% · warn ≥70% · over days&gt;norm</td><td>Та же логика, что ячейка кокпита. Ровно на норме — ещё warn.</td></tr>\n<tr><td>Вероятность будущих</td><td><code>pipeline_stages.probability</code></td><td>Только в тултипе/aria — под столбиком место занято «≈ норма».</td></tr>\n<tr><td>Возраст сделки</td><td><code>StageStory.ageDays</code></td><td>Сумма сегментов может быть меньше на число границ (floor) — показывать ageDays, не сумму.</td></tr>\n<tr><td>Дата нормы / финиша</td><td><code>stageNormDateKey</code> (stage-norm.ts) + суммирование норм будущих</td><td>МСК-ключ дня, как у пунктира на таймлайне дедлайнов — одна ось.</td></tr>\n</tbody></table>\n</div>\n\n<div class=\"spec\">\n<p><b>3 · Математика масштаба</b></p>\n<ul>\n<li><code>H = 90px</code> — рабочая высота столбика (колонка 110 минус число сверху).</li>\n<li><code>maxDays = max(stage → max(fact ?? 0, norm ?? 0))</code> по всем стадиям; <code>pxPerDay = H / maxDays</code>. Подпись в шапке: «{round(pxPerDay,1)} px = 1 день». При нормах 14/21/30 → maxDays ≥ 30, pxPerDay = 3.</li>\n<li>Высота заливки <code>max(3, fact × pxPerDay)</code> при fact &gt; 0; fact = 0 (стадия пройдена в тот же день) — заглушка 2px и число «0».</li>\n<li>Пересвет (fact &gt; norm): заливка выше контура; контур превращается в горизонтальную dashed-линию нормы (без боковых граней). Цвет пересвета: прошлые — <code class=\"sw\" style=\"background:var(--yellow)\"></code><code>--yellow</code> (история, сигнал приглушён); текущая over — <code class=\"sw\" style=\"background:var(--red)\"></code><code>--red</code> (actionable, как рамка ячейки кокпита).</li>\n<li>Текущая: заливка цвета состояния (<code>ok → --accent · warn → градиент #E7C25A→--accent · over → --red над нормой, --accent под</code>). Контур сплошной цвета состояния (<code>BORDER_BY_STATE</code> из PipelineCockpit: accent / yellow / red).</li>\n<li>Линия «сегодня» — 2px <code>--text</code> на высоте факта текущей, выступает на 4px за столбик. Единственный элемент, который «двигается» день ко дню.</li>\n<li>Заголовок группы: «{Σ факт} / {Σ норма}» по стадиям группы; для группы с текущей — Σ факт включает gauge.days, цвет числа = цвет состояния (yellow-text / red-text). Будущие группы — «— / {Σ норма}».</li>\n<li>Футер слева: <code>ageDone = Σ факт прошлых</code> vs <code>normDone = Σ норма прошлых</code>, разница со знаком: «+N» yellow-text (текущая over — red-text), «−N» accent-text. Справа: «впереди ≈ {max(0, norm−days) + Σ норм будущих} дн. · финиш ≈ {date}»; при over — «норма текущей исчерпана N дн. назад».</li>\n</ul>\n</div>\n\n<div class=\"spec\">\n<p><b>4 · Токены (t-lime) — маппинг из макета</b></p>\n<table>\n<tbody><tr><th>Роль</th><th>Токен</th><th>Где</th></tr>\n<tr><td>Заливка факта, узел done, линия «сегодня», контур next</td><td><code>--text</code> #17171C</td><td>.fill · .node.done · .today</td></tr>\n<tr><td>Контур нормы, ось, узел todo, разделители групп</td><td><code>--border2</code> #D5D0C6</td><td>.contour · .bars border-bottom · .group+.group</td></tr>\n<tr><td>Hairline над картой</td><td><code>--border</code></td><td>.profile border-top</td></tr>\n<tr><td>Все микроподписи 10–10.5px</td><td><code>--text-dim</code></td><td class=\"warn\">НЕ #8A8A94 — в lime его нет намеренно (контраст на зонах &lt; 3:1). Второстепенность делать opacity .7 внутри text-dim-строки или весом 400.</td></tr>\n<tr><td>Текущая ok · узел current · «−N» в футере</td><td><code>--accent</code> заливка · <code>--accent-text</code> текст</td><td>лайм — только как заливка, текстом лайм не печатать</td></tr>\n<tr><td>warn / пересвет прошлых</td><td><code>--yellow</code> заливка · <code>--yellow-text</code> текст</td><td></td></tr>\n<tr><td>over текущей</td><td><code>--red</code> · <code>--red-text</code></td><td></td></tr>\n<tr><td>Hover колонки</td><td><code>--surface2</code></td><td>r 8 8 0 0; при locked — нет</td></tr>\n<tr><td>Focus-ring</td><td><code>--tw-ring-color</code> (= --accent-text в lime)</td><td>outline 2px offset −2, как у кнопок StageRail</td></tr>\n<tr><td>Радиусы</td><td>3 3 0 0 (прошлые/контуры), 4 4 0 0 (текущая/next/todo)</td><td>крупнее у пустых — иначе пунктир «рвётся» на углах</td></tr>\n</tbody></table>\n<p style=\"margin-top:8px\">Шрифт: Inter (<code>--font-app</code>), <code>font-feature-settings:'cv11'</code>, все числа <code>tabular-nums</code>. Другие темы: цвета берутся из тех же токенов автоматически, специальных веток не нужно; проверить только frost/aurora — там <code>--border2</code> может быть слишком светлым для пунктира, тогда <code>color-mix(in srgb, var(--border2) 70%, var(--text))</code> (прецедент — <code>--cal-line</code>).</p>\n</div>\n\n<div class=\"spec\">\n<p><b>5 · Интеракции</b></p>\n<ul>\n<li>Колонка — <code>&lt;button&gt;</code> целиком (число + столбик), как узел StageRail. Клик по done → <code>onStageClick(id)</code> (откат, подтверждение — у вызывающего, как сейчас); по next/todo → переход вперёд. Текущая — <code>disabled</code> + <code>aria-current=\"step\"</code>. Нет <code>onStageClick</code> ⇒ карта read-only (все disabled, cursor default).</li>\n<li>Tooltip (Radix, delay 300): «{имя} · {факт} дн. при норме {норма}» + список заходов «15 авг → 18 авг · 3 дн. · Олег» из <code>segments</code>; для будущих — «норма {N} дн. · вероятность {p}%». <code>aria-label</code> кнопки = первая строка тултипа + действие («вернуть на стадию» / «перейти»).</li>\n<li>Клавиатура: Tab по колонкам слева направо; Enter/Space = клик. Порядок табуляции = порядок стадий, группы не перехватывают фокус.</li>\n<li>Свернуть/развернуть — уже есть у PipelineCockpit; карта не хранит своё состояние.</li>\n<li>Анимация появления: <code>.fill</code> scaleY 0→1, 500 ms, <code>cubic-bezier(.16,1,.3,1)</code>, transform-origin bottom, только при маунте и только под <code>prefers-reduced-motion: no-preference</code>. Смена стадии — без анимации (перерисовка мгновенная, чтобы не «прыгало» вместе с кокпитом).</li>\n</ul>\n</div>\n\n<div class=\"spec\">\n<p><b>6 · Состояния и краевые случаи</b></p>\n<table>\n<tbody><tr><th>Случай</th><th>Поведение</th></tr>\n<tr><td><code>gauge === null</code> или <code>normDays</code> пуст</td><td>Контуры и легенда «норма» скрыты, шапка без «px = 1 день», масштаб только по фактам; футер — только «прошло N дн.». (У сделок так не бывает; защита от неполных данных.)</td></tr>\n<tr><td><code>gauge.days === null</code> (stage_entered_at пуст)</td><td>Текущая — пустой контур цвета accent, число «—», линии «сегодня» нет.</td></tr>\n<tr><td>Стадия пропущена (перескок вперёд)</td><td>Ключа в factDays нет → столбика нет, узел done с пустым центром (кольцо --text), число «—», тултип «пройдена без захода».</td></tr>\n<tr><td>Возврат (visits ≥ 2)</td><td>Бейдж «×N» 8.5/700 в правом верхнем углу колонки; факт = сумма заходов.</td></tr>\n<tr><td><code>locked</code> (won/lost/converted)</td><td>Все кнопки disabled, hover нет, «сегодня» нет. <code>allDone</code> (won): все узлы done, последний — accent с галкой on-accent; футер «воронка пройдена за N при норме M · ±diff» + «выиграна {date}». lost: текущая остаётся с фактом до момента проигрыша, контур --border2, футер «закрыта {date}».</td></tr>\n<tr><td>currentIndex = −1 без allDone</td><td>Как lost.</td></tr>\n<tr><td>&gt; 14 стадий / узкий контейнер</td><td><code>.profile-scroll overflow-x:auto</code>, <code>min-width = n × 64px</code>. Имена — max 2 строки (line-clamp 2), полное имя в тултипе. Группы и bars в одном скролл-контейнере — рассинхрон невозможен.</td></tr>\n<tr><td>Одна группа / нет phase_group</td><td>Строка групп не рендерится (как <code>hasGroupLabels</code> в StageRail).</td></tr>\n<tr><td>Очень длинная стадия (факт ≫ норм)</td><td>Она задаёт maxDays, остальные схлопываются до 3px-минимума — допустимо; при <code>pxPerDay &lt; 1</code> подпись шапки «1 px = {N} дн.».</td></tr>\n</tbody></table>\n</div>\n\n<div class=\"spec\">\n<p><b>7 · Чек-лист приёмки</b></p>\n<ul>\n<li>Кокпит: ok/warn/over дают рамку accent/yellow/red и совпадают с бейджем «залипла» на ProjectCard (общий порог). Гейт 1/2 → CTA с Lock, но клик открывает подтверждение. Лид (gauge null) рендерится без регрессий — снапшот LeadDetail не меняется по смыслу.</li>\n<li>Мини-карта: число сегментов = числу активных стадий, группы = порядок phase_group; исчезает при ширине &lt; 720 без переноса строки.</li>\n<li>Столбик текущей и ячейка кокпита показывают одно число дней и одно состояние (общий <code>gauge</code>).</li>\n<li>Заголовок группы «Σ факт» = сумме чисел над столбиками группы; футер «прошло» = <code>ageDays − gauge.days</code> ± границы floor (см. комментарий к ageDays в stage-story.ts).</li>\n<li>Пунктир нормы у всех стадий одной группы на одной высоте (пока нет org-оверрайда по stage_id).</li>\n<li>Tab проходит все стадии, focus-ring виден на лайме и на белом; текущая пропускается (disabled).</li>\n<li>Reduced-motion: заливка появляется без анимации.</li>\n<li>Скрин при 11 стадиях на ширине карточки 900 и 640 — без переносов чисел, группы выровнены со столбиками.</li>\n<li>Юнит-тесты на чистую функцию раскладки <code>buildStageProfile(stages, factDays, normDays, gauge)</code> → <code>{ pxPerDay, columns[], groups[], footer }</code>: пересвет прошлой, over текущей, пропущенная стадия, revisit, отсутствие норм.</li>\n</ul>\n</div>\n</section>\n\n</div>\n</body></html>"
+  </script>
+</body>
+</html>
