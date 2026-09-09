@@ -1,10 +1,13 @@
 'use client';
 
+import { useMemo } from 'react';
 import { ChevronRight, Check } from 'lucide-react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
+import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
+import { touchGapDays, TOUCH_GAP_MIN_DAYS } from '@/lib/domain/touch-gap';
 import { pluralRu } from '@/lib/utils/plural';
 import { cn } from '@/lib/utils/cn';
 
@@ -18,6 +21,22 @@ import { cn } from '@/lib/utils/cn';
 //
 // Вердикт здесь ЕДИНСТВЕННЫЙ на экране: в рельсе панель сигналов рисуется без
 // него (`showVerdict={false}`). Два вердикта — воспроизведение F-01.
+//
+// S-DEAL-NEXTSTEP-1 (W2): материал зоны — СТЕКЛО (`.glass-sheet`), а не лист.
+// Развилка Р-Г закрыта владельцем 09.09. Прежнее «стекло не вводится» (08.09,
+// `DealLastEvent`) распространялось на «последнее событие» — контекст; материал
+// зоны «Работа» спека отдавала именно этому спринту, и здесь он решается.
+// Класс `.glass` из спеки не заводится: контракт стекла уже живёт в `--glass-*`
+// во всех восьми темах, и в светлых он сам собой вырождается в лист.
+//
+// Из спеки W2 НЕ берётся:
+//  · «обновлён {ago} · {author}» — штампа «кто правил шаг» в схеме нет, вытащить
+//    его можно только разбором аудита 087, а это другой спринт;
+//  · кнопка «Перенести» — дата уже редактируется на месте, а переносы уже
+//    считаются и печатаются ниже; отдельная кнопка была бы вторым путём к тому
+//    же полю, то есть F-01;
+//  · аватар контакта и «ждём {имя}» — «кого ждём» в схеме нет (см. строку
+//    ожидания ниже).
 // ═══════════════════════════════════════════════════════
 
 // ─── Дата следующего шага: «сегодня/завтра/вчера» вблизи, иначе «7 июля» ───
@@ -40,6 +59,14 @@ export function DealNextStep({ project }: { project: Project }) {
   const { data: moves } = useFieldMoves(project.id);
   const stepMoves = moves?.step.count ?? 0;
 
+  // Строка ожидания. Вызов БЕЗ `kinds` — тот же, что у `DealLastEvent`, поэтому
+  // ключ React Query (`['timeline','project',id,'all',50]`) у них общий и второго
+  // запроса нет. ⚠️ Дедупликация именно с `DealLastEvent`, а НЕ с виджетом ленты:
+  // у ленты `kindFilter={DEAL_TIMELINE_KINDS}`, и её ключ другой даже при полном
+  // наборе видов ('all' ≠ отсортированный массив).
+  const { events } = useEntityTimeline('project', project.id);
+  const gapDays = useMemo(() => touchGapDays(events, new Date()), [events]);
+
   const health = getDealHealth(project);
   const overdue = health === 'overdue-action';
   const noAction = health === 'no-action';
@@ -59,34 +86,47 @@ export function DealNextStep({ project }: { project: Project }) {
     <div id="deal-next-step" data-next-step className="min-w-0">
       <div
         data-card
-        className={cn(
-          // Нормальное состояние — лист с акцентной левой границей: шаг обязан
-          // читаться как рабочая зона, но не кричать. Заливка `bg-yellow-l`
-          // остаётся ровно за одним состоянием — шага нет вовсе.
-          'sheet border-l-[3px] border-l-accent px-4 py-3',
-          noAction && 'border-yellow/40 border-l-yellow bg-yellow-l',
-        )}
+        // Полоса слева и жёлтый кант пустого состояния живут в CSS материала, а не
+        // в утилитах: safety-net тёмных тем (`.t-frost *`) глушил `border-l-accent`
+        // при равной специфичности. Отсюда `data-empty` вместо `border-*`-классов.
+        data-empty={noAction ? 'true' : undefined}
+        className="glass-sheet px-5 pb-4 pt-[1.125rem]"
       >
-        <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-accent">
-          <ChevronRight size={13} />
-          Следующий шаг
+        <div className="mb-2.5 flex items-center gap-2">
+          {/* Иконка в акцентном квадрате 22px r8 — из макета W2. `bg-accent text-white`
+              — та же пара, что в 82 местах разметки: у лайма её перекрывает
+              `.t-lime .bg-accent.text-white { color: var(--on-accent) }` (globals.css),
+              потому что белый на #C9F25A = 1.29:1. `rounded-sm` = --radius-s (2…9px),
+              а не `rounded-lg`: в палитре проекта lg — это --radius-l (16…20px), и
+              квадрат 22px им превратился бы в кружок. */}
+          <span className="grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center rounded-sm bg-accent text-white">
+            <ChevronRight size={13} strokeWidth={3} />
+          </span>
+          <span className="text-xs font-bold tracking-[0.02em] text-accent">
+            Следующий шаг
+          </span>
         </div>
+
         {/* S-DEAL-ZONES-1A (F-08): 72ch на теле шага — при широкой левой колонке
-            строка уходила за 100 знаков при норме 45–75. */}
-        <div className="max-w-[72ch] text-base leading-snug">
-          <InlineEdit
-            value={project.next_step ?? ''}
-            placeholder="Какой следующий шаг?"
-            // S-UI-CLARITY-1: пустое состояние выглядит пустым. Цвет (text-text-mute)
-            // InlineEdit даёт сам, курсив — здесь: приглашение того же начертания,
-            // что реальный шаг, пролистывалось как заполненное поле.
-            className={cn(!project.next_step && 'italic')}
-            onSave={async (val) => {
-              updateProject.mutate({ id: project.id, next_step: val || null });
-            }}
-          />
+            строка уходила за 100 знаков при норме 45–75. Спека даёт 760px; ch
+            держит ту же меру в знаках при любом кегле темы. */}
+        <div className="glass-plate max-w-[72ch] px-[1.125rem] py-3.5">
+          <div className="text-xl font-medium leading-[1.3] tracking-[-0.015em] text-pretty">
+            <InlineEdit
+              value={project.next_step ?? ''}
+              placeholder="Какой следующий шаг?"
+              // S-UI-CLARITY-1: пустое состояние выглядит пустым. Цвет (text-text-mute)
+              // InlineEdit даёт сам, курсив — здесь: приглашение того же начертания,
+              // что реальный шаг, пролистывалось как заполненное поле.
+              className={cn(!project.next_step && 'italic')}
+              onSave={async (val) => {
+                updateProject.mutate({ id: project.id, next_step: val || null });
+              }}
+            />
+          </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
+
+        <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
           <span className="flex items-center gap-1">
             <span className="text-text-dim">Дата:</span>
             <InlineEdit
@@ -121,6 +161,17 @@ export function DealNextStep({ project }: { project: Project }) {
               <Check size={12} />
               Шаг сделан
             </button>
+          )}
+          {/* ⚠️ «БЕЗ КАСАНИЯ», а не «без ответа» из спеки. Направления у касания в
+              схеме нет, поля «кого ждём» нет, входящих событий система не знает
+              вовсе — печатать «N дн. без ответа» по числу дней с НАШЕГО последнего
+              действия значило бы соврать (разбор — `lib/domain/touch-gap.ts`).
+              Имя не печатаем по той же причине. Строка справа: это не действие, а
+              фон работы. */}
+          {gapDays !== null && gapDays >= TOUCH_GAP_MIN_DAYS && (
+            <span className="ml-auto text-meta text-text-dim">
+              {gapDays} {pluralRu(gapDays, 'день', 'дня', 'дней')} без касания
+            </span>
           )}
         </div>
       </div>

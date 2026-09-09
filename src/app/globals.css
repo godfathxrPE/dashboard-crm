@@ -1899,6 +1899,50 @@ table { font-variant-numeric: tabular-nums; }
     box-shadow: var(--shadow-card);
   }
 
+  /* S-DEAL-NEXTSTEP-1 (W2): материал зоны «Работа» — стекло вместе с его текстом
+     одним объявлением.
+
+     ⚠️ Класса `.glass` из спеки НЕ заводим: контракт стекла уже живёт в токенах
+     `--glass-*` во всех восьми темах, и третий материал рядом с `.sheet` и `.card`
+     был бы дублем. В пяти светлых темах `--glass-bg: var(--surface)` и
+     `--glass-blur: none` — стекло само собой вырождается в лист; в t-lime это
+     тёмная плашка макета; в frost/aurora/tidal — полупрозрачная плёнка с блюром.
+     Ломать нечего: контракт спроектирован именно так.
+
+     ⚠️ Почему отдельный класс, а не `.card`: `.card` несёт `:hover` с подъёмом на
+     1px и `--elevation-2`. Для кликабельной карточки списка это верно, для рабочей
+     зоны, ВНУТРИ которой редактируют текст, подъём под курсором лишний.
+
+     ⚠️ `box-shadow: var(--shadow-card)`, а не `var(--glass-inset)`. В пяти светлых
+     темах `--glass-inset: none`, и зона осталась бы площе листа — то есть НЕ «листом»,
+     как обещает контракт. У frost и aurora `--shadow-card` уже содержит ровно тот
+     inset, что лежит в `--glass-inset` (`inset 0 1px 0 rgba(255,255,255,.12/.08)`),
+     так что для них это одно и то же. Единственная тема, где кромку нужно вернуть
+     руками, — lime: правило ниже, вне слоя. Склеить `var(--shadow-card),
+     var(--glass-inset)` нельзя — `none` внутри списка теней делает декларацию
+     невалидной целиком. */
+  .glass-sheet {
+    background: var(--glass-bg, var(--surface));
+    border: 1px solid var(--glass-border, var(--border));
+    border-radius: var(--radius-l);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: var(--glass-blur, none);
+    -webkit-backdrop-filter: var(--glass-blur, none);
+    color: var(--on-glass);
+  }
+
+  /* Плашка текста шага из макета W2: «хвостик» слева снизу (r16 16 16 4).
+     Подложка выведена из `--on-glass`, а НЕ из `--surface2`: в t-lime `--surface2`
+     это #F2EFE9 — опаковый светлый бежевый, и на тёмном стекле он дал бы светлую
+     плашку с белым текстом на ней. `--on-glass` 8% — то же rgba(255,255,255,.08),
+     что в макете (композит rgb(42,42,46), белый на нём 14.37:1), а в светлых темах
+     это 8% чернил на листе, то есть привычный тон `--surface2`. */
+  .glass-plate {
+    background: color-mix(in srgb, var(--on-glass) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--on-glass) 14%, transparent);
+    border-radius: var(--radius-l) var(--radius-l) var(--radius-l) var(--radius-s);
+  }
+
   /* Полотно детальной страницы. Ставится на КОРЕНЬ содержимого страницы,
      не на main: ContentHeader и хлебные крошки живут в layout и центрируются
      вместе с ним. */
@@ -1926,7 +1970,53 @@ table { font-variant-numeric: tabular-nums; }
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-color: var(--glass-border);
-}/* ═══ DARK THEME BORDER SAFETY NET ═══
+}
+
+/* ═══ S-DEAL-NEXTSTEP-1: t-lime — стекло как ПЕРЕВЁРНУТАЯ поверхность ═══
+   Единственная тема, где `.glass-sheet` инвертирует подложку: белый лист → #17171C.
+   `color: var(--on-glass)` на классе спасает только тот текст, который цвет
+   НАСЛЕДУЕТ. Утилиты Tailwind в этом проекте компилируются в `color: var(--<токен>)`
+   (`tailwind.config.ts`, функция-значение `v()`), поэтому `text-text-dim`, `text-red`
+   и `text-warning-text` внутри зоны продолжали бы печатать светлотемные значения на
+   тёмном — замер на #17171C: --text-dim 2.83:1, --red 3.60:1, --warning-text 2.86:1,
+   --green 4.07:1. Все четыре ниже 4.5:1.
+
+   Поэтому переопределяются САМИ ТОКЕНЫ на контейнере: одно правило переадресует все
+   утилиты потомков разом, и разметке не нужен ни один theme-if. Значения посчитаны на
+   трёх подложках зоны — стекло rgb(23,23,28) · плашка rgb(42,42,46) · hover rgb(51,51,55):
+
+     --text        #FFFFFF  17.86 / 14.37 / 12.60   (= --on-glass)
+     --text-dim    #BEBEC6   9.67 /  7.78 /  6.82   (= --on-glass-dim)
+     --red         #F58170   7.02 /  5.65 /  4.96   «просрочен N дн.»
+     --warning-text #D9A036  7.68 /  6.18 /  5.42   «перенесён N раз»
+     --green       #5BC77E   8.43 /  6.79 /  5.95   hover «Шаг сделан»
+     --accent      #C9F25A  13.89 / 11.18 /  9.80   не трогаем, уже проходит
+
+   ⚠️ Переопределяется `--warning-text`, а НЕ `--yellow-text`. В `:root` он объявлен
+   как `var(--yellow-text, var(--yellow))`, и var() в значении кастомного свойства
+   подставляется на ТОМ элементе, где свойство объявлено: правка `--yellow-text` ниже
+   по дереву до уже вычисленного `--warning-text` не дошла бы.
+
+   Правило вне `@layer components` намеренно: директива Tailwind поднимает такой блок
+   к `@tailwind components` (строка 2), а обычный CSS файла идёт ПОСЛЕ `@tailwind
+   utilities` — то есть перекрывает и класс, и утилиты. Тот же приём, что у
+   `.t-frost .sheet` выше и у `.t-lime .entity-tile`. */
+.t-lime .glass-sheet {
+  /* Кромка тёмной плашки из макета. У lime `--shadow-card` — это `--shadow-sm`, insetа
+     в нём нет (в отличие от frost/aurora), поэтому склейка тут валидна и нужна. */
+  box-shadow: var(--shadow-card), var(--glass-inset);
+
+  --text:          var(--on-glass);
+  --text-dim:      var(--on-glass-dim);
+  --text-mute:     var(--on-glass-dim);
+  --red:           #F58170;
+  --warning-text:  #D9A036;
+  --green:         #5BC77E;
+  --border:        var(--glass-border);
+  --surface2:      color-mix(in srgb, var(--on-glass) 12%, transparent);
+}
+
+/* ═══ DARK THEME BORDER SAFETY NET ═══
    Force all borders to use theme variables.
    Catches any Tailwind `border` without explicit color. */
 .t-frost *,
@@ -1949,6 +2039,28 @@ table { font-variant-numeric: tabular-nums; }
 .t-aurora .border-input,
 .t-tidal .border-input {
   border-color: var(--border-input);
+}
+
+/* ═══ S-DEAL-NEXTSTEP-1 (W3): акцентная полоса зоны «Работа» ═══
+   Полоса — часть МАТЕРИАЛА, а не утилита разметки, ровно по причине из P2.1 §1.4.11
+   выше: `border-l-[3px] border-l-accent` — специфичность (0,1,0), а safety-net
+   `.t-frost *` — та же (0,1,0) и стоит ПОЗЖЕ (обычный CSS после `@tailwind
+   utilities`). В трёх стеклянных тёмных темах полоса красилась в `--border`, то есть
+   её не было вовсе — и это верно и для `.sheet` сегодня, спринт лишь вскрыл дефект.
+   Правило после safety-net возвращает её во всех восьми темах одинаково.
+
+   Заливки у пустого состояния НЕТ намеренно. Замер: `bg-yellow-l` (rgba(176,104,10,.12))
+   на стекле lime даёт композит rgb(41,33,26) — 1.13:1 к самому стеклу, при пороге 3:1
+   для нетекстового сигнала. Заодно выяснилось, что и на сегодняшнем белом листе та же
+   заливка даёт 1.16:1: сигнал «шага нет» НИКОГДА не нёсся заливкой — его нёс жёлтый
+   кант, а заливка была атмосферой. Поэтому «оставить рамку» ничего не теряет.
+   Жёлтая рамка при этом остаётся ровно за ОДНИМ состоянием — `noAction`. */
+.glass-sheet {
+  border-left: 3px solid var(--accent);
+}
+.glass-sheet[data-empty="true"] {
+  border-color: color-mix(in srgb, var(--yellow) 40%, transparent);
+  border-left-color: var(--yellow);
 }
 
 /* ═══ P2.2: НЕПРОЗРАЧНЫЕ МОДАЛКИ В ТЁМНЫХ СТЕКЛЯННЫХ ТЕМАХ ═══
@@ -2414,6 +2526,25 @@ table tbody tr[data-kbd-focused] {
      дефект был известен и закрыт наполовину — вылечили подпись, оставили глиф. */
   --mark-today:    var(--accent);
   --mark-today-l2: var(--accent-l2);
+
+  /* S-DEAL-NEXTSTEP-1 (W2): контраст к СТЕКЛУ. Материал `--glass-*` объявлен во всех
+     восьми темах и был потребляем (`.card`, `.glass-card`, `.t-lime .entity-tile`), а
+     токена «каким цветом писать НА нём» не существовало (`grep -c -- "--on-glass"` → 0),
+     поэтому каждый потребитель решал вопрос сам: `.card` полагался на наследование,
+     `.entity-tile` задавала `color: var(--accent)` руками. Пара закрывает дыру.
+
+     Здесь это АЛИАС, и он покрывает семь тем из восьми. В пяти светлых (`:root`, aura,
+     washi, fuji, minimal) `--glass-bg: var(--surface)` — стекло вырождается в лист, и
+     цвет текста обязан остаться прежним. В трёх стеклянных тёмных (frost, aurora, tidal)
+     `--glass-bg` — полупрозрачная плёнка поверх тёмного `--bg`, и `--text` там уже
+     светлый: своего значения не нужно, отдельное объявление было бы дублем.
+     Замер на эффективной подложке стекла: frost rgb(30,33,48) — text 14.32:1, dim 6.50:1;
+     aurora rgb(23,27,39) — 14.97:1 / 7.19:1; tidal rgb(11,22,18) — 12.20:1 / 6.34:1.
+
+     Исключение ровно одно — t-lime, где стекло тёмное на светлом UI. Его переопределение
+     стоит НИЖЕ, после `:root`. */
+  --on-glass:     var(--text);
+  --on-glass-dim: var(--text-dim);
 }
 
 /* ⚠️ Переопределение washi стоит ЗДЕСЬ, ПОСЛЕ :root, а не в блоке `.t-washi` выше.
@@ -2424,4 +2555,21 @@ table tbody tr[data-kbd-focused] {
 .t-washi {
   --mark-today:    var(--text);
   --mark-today-l2: color-mix(in srgb, var(--text) 22%, transparent);
+}
+
+/* ⚠️ Переопределение lime стоит ЗДЕСЬ, ПОСЛЕ :root, по той же причине, что и washi
+   выше: у `:root` и `.t-lime` одинаковая специфичность (0,1,0), решает порядок в файле,
+   и объявление внутри блока `.t-lime` (строка ~820) проиграло бы молча.
+
+   Единственная тема, где стекло НЕ вырождается ни в лист, ни в плёнку: `--glass-bg:
+   #17171C` — тёмная плашка макета на почти белом UI. Алиас `var(--text)` дал бы здесь
+   #17171C на #17171C, то есть 1:1.
+
+   Значения посчитаны, а не подобраны на глаз (тот же приём, что у --on-accent):
+     #FFFFFF на #17171C = 17.86:1 (число уже стояло в комментарии --glass-bg)
+     #BEBEC6 на #17171C =  9.67:1 — композит rgba(255,255,255,.72) из макета,
+       сведённый к непрозрачному значению: считать контраст можно только по нему. */
+.t-lime {
+  --on-glass:     #FFFFFF;   /* 17.86:1 на --glass-bg #17171C */
+  --on-glass-dim: #BEBEC6;   /*  9.67:1 на --glass-bg #17171C */
 }
