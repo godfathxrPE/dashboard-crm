@@ -160,7 +160,7 @@ export function StageProfile({
           )}
         </span>
         <div className="flex items-center gap-3.5 text-[0.65625rem] text-text-dim">
-          <LegendItem swatch={<i className="h-2 w-2.5 rounded-sm bg-text-main" />}>факт</LegendItem>
+          <LegendItem swatch={<i className="h-2 w-2.5 rounded-sm" style={{ background: 'var(--profile-fact)' }} />}>факт</LegendItem>
           {layout.hasNorms && (
             <>
               <LegendItem
@@ -173,7 +173,7 @@ export function StageProfile({
               >
                 норма
               </LegendItem>
-              <LegendItem swatch={<i className="h-2 w-2.5 rounded-sm bg-yellow" />}>сверх нормы</LegendItem>
+              <LegendItem swatch={<i className="h-2 w-2.5 rounded-sm" style={{ background: 'var(--profile-over-past)' }} />}>сверх нормы</LegendItem>
             </>
           )}
         </div>
@@ -412,17 +412,17 @@ function Column({
       const t = tone ?? 'ok';
       const background =
         t === 'over'
-          ? `linear-gradient(180deg, var(--red) 0 ${top}, var(--mark-today) ${top})`
+          ? `linear-gradient(180deg, var(--profile-over-now) 0 ${top}, var(--mark-today) ${top})`
           : t === 'warn'
-            ? 'linear-gradient(180deg, var(--yellow), var(--mark-today))'
+            ? 'linear-gradient(180deg, var(--profile-over-past), var(--mark-today))'
             : t === 'muted'
               ? 'var(--text-dim)'
               : 'var(--mark-today)';
       fill = { height: h, background, borderRadius: col.over ? '0.25rem 0.25rem 0 0' : 0 };
     } else if (col.over) {
-      fill = { height: h, background: `linear-gradient(180deg, var(--yellow) 0 ${top}, var(--text) ${top})` };
+      fill = { height: h, background: `linear-gradient(180deg, var(--profile-over-past) 0 ${top}, var(--profile-fact) ${top})` };
     } else {
-      fill = { height: h, background: 'var(--text)' };
+      fill = { height: h, background: 'var(--profile-fact)' };
     }
   }
 
@@ -469,7 +469,7 @@ function Column({
           <span
             aria-hidden
             className="absolute inset-x-0 bottom-0 rounded-t-[0.1875rem] border-[1.5px] border-b-0 border-dashed"
-            style={{ ...contour, background: col.kind === 'next' ? 'var(--surface)' : undefined }}
+            style={contour}
           />
         )}
         {fill && (

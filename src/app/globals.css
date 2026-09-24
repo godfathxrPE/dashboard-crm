@@ -2663,6 +2663,27 @@ table tbody tr[data-kbd-focused] {
 .t-washi,
 .t-tidal   { --profile-norm: color-mix(in srgb, var(--border2) 70%, var(--text)); }
 
+/* Fix S-STAGE-PROFILE-1: заливки карты воронки. Насыщенный цвет — только на тонкой
+   разметке (норма, «сегодня», числа); площадь приглушена альфой поверх зоны.
+   Замер к --zone-work: прошлый факт ≥3:1 во всех 8 темах; пересвет текущей
+   заметнее пересвета прошлой; текущая «в норме» (--mark-today) не тронута. */
+:root {
+  --profile-fact:      color-mix(in srgb, var(--text)   55%, transparent);
+  --profile-over-past: color-mix(in srgb, var(--yellow) 55%, transparent);
+  --profile-over-now:  color-mix(in srgb, var(--red)    70%, transparent);
+}
+/* Тёмные темы: --text почти белый, --yellow яркий — та же роль при меньшей альфе. */
+.t-tidal, .t-frost, .t-aurora {
+  --profile-fact:      color-mix(in srgb, var(--text)   42%, transparent);
+  --profile-over-past: color-mix(in srgb, var(--yellow) 42%, transparent);
+  --profile-over-now:  color-mix(in srgb, var(--red)    60%, transparent);
+}
+/* washi/fuji: --yellow бледный (#D4993A / #C4AA78), тинт 55% к зоне 1.22–1.38:1 —
+   не виден. База — --yellow-text: 1.9–2.1:1. */
+.t-washi, .t-fuji {
+  --profile-over-past: color-mix(in srgb, var(--yellow-text) 55%, transparent);
+}
+
 /* ⚠️ Блоки тем стоят ПОСЛЕ `:root`: тема-класс висит на том же <html>, специфичность
    у `:root` и `.t-*` одинаковая (0,1,0) — решает порядок в файле. Прецеденты —
    `--mark-today` washi ниже и вся история `--on-glass`. Объявление внутри блока темы
