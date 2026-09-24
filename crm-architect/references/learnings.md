@@ -674,13 +674,16 @@ Tailwind генерирует `.text-accent` / `.bg-accent` из `colors.accent 
 
 ---
 
-### ⛔ `cn()` выкидывает проектные кегли `text-meta`/`text-body` — считает их цветом
+### ✅ `cn()` знает проектные кегли — новый кегль в `tailwind.config` регистрируется и в `cn.ts`
 `cn` — голый `twMerge` без `extendTailwindMerge`, а кегли `meta`/`body` из `tailwind.config`
 ему не известны: `text-meta` рядом с `text-text-dim` (или `text-danger-text`) — конфликт
 «двух цветов», и один класс молча выпадает. Кегль или цвет теряется в зависимости от порядка.
 Пока `cn.ts` не расширен группой `font-size: [{ text: ['meta','body'] }]` — кегль склеивать
 строкой ВНЕ `cn`. Скан `main` 24.09: десять мест, включая счётчик дней `PipelineCockpit`.
-Журнал: «2026-09-24 · S-DEAL-CONTACT-1».
+**Закрыто #113:** `cn.ts` на `extendTailwindMerge`, тест `tests/unit/cn.test.ts`. Правило
+осталось: добавил ключ в `theme.extend.fontSize` — добавь его в `classGroups['font-size']`
+в `cn.ts` и случай в тест, иначе дефект вернётся молча.
+Журнал: «2026-09-24 · S-DEAL-CONTACT-1», «2026-09-24 · S-DEAL-BOARD-1».
 
 ## Z-Index
 
@@ -1017,6 +1020,12 @@ Allowlist ради гейта не трогать (правка безопасн
 
 ---
 
+### ℹ️ DnD на dnd-kit в смоке через браузер — пошаговые `PointerEvent`, не `left_click_drag`
+Синтетический drag инструмента браузера приходит одним прыжком, и `PointerSensor` не
+активируется. Работает: `pointerdown` на элементе `[aria-roledescription=sortable]`, затем
+~20 `pointermove` по `document` с паузой 30 мс, `pointerup`. Проверять туда-обратно на
+тестовой записи и сверять порядок колонки после возврата. Журнал: «2026-09-24 · S-DEAL-BOARD-1».
+
 ## CSV Export
 
 ### ✅ Always add BOM prefix for Cyrillic
@@ -1135,6 +1144,10 @@ DB changes first (migration), then types, then hooks, then components.
 CC работает в worktree, worktree собирается из коммита, неотслеживаемые файлы в него не
 попадают. Порядок: docs-PR со спекой и спринт-файлом → мерж → запуск (#106, #110). Журнал:
 «2026-09-24 · S-DEAL-CONTACT-1».
+**Строка запуска — тоже запуск.** Артефакт спринта НЕ несёт строку «прочитай
+`_analysis/sprint-…` и выполни», пока docs-PR с файлом не влит: CC возьмёт саму страницу
+артефакта как вход, а она короче файла (#113 пропустил ЗАДАЧУ 0 и решения О3/О4).
+Журнал: «2026-09-24 · S-DEAL-BOARD-1».
 
 ### ✅ Migration → Types → Validator → Hook → Component
 This is the dependency order. Always follow it.
