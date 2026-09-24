@@ -173,9 +173,10 @@ export function DealNextStep({ project }: { project: Project }) {
       >
         <div className="mb-2.5 flex items-center gap-2">
           {/* Иконка в акцентном квадрате 22px r8 — из макета W2. `bg-accent text-white`
-              — та же пара, что в 82 местах разметки: у лайма её перекрывает
-              `.t-lime .bg-accent.text-white { color: var(--on-accent) }` (globals.css),
-              потому что белый на #C9F25A = 1.29:1. `rounded-sm` = --radius-s (2…9px),
+              — та же пара, что в 82 местах разметки; на стекле её перекрашивает
+              `.glass-sheet .bg-accent.text-white { color: var(--sheet-mark-ink) }`
+              (globals.css): заливка здесь — светлая метка темы, а не акцент.
+              `rounded-sm` = --radius-s (2…9px),
               а не `rounded-lg`: в палитре проекта lg — это --radius-l (16…20px), и
               квадрат 22px им превратился бы в кружок. */}
           <span className="grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center rounded-sm bg-accent text-white">

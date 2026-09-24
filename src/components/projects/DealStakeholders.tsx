@@ -293,7 +293,7 @@ function StakeholderAddForm({
 
 /**
  * Фокус-контур карточки (спека 2.4): цветом ТЕКСТА, не акцентом — на светлой
- * подложке лайм не читается.
+ * подложке акцент читается хуже чернил (кобальт к --bg 5.24, до 24.09 лайм — 1.29).
  */
 const FOCUS_RING =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-main';

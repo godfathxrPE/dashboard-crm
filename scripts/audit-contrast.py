@@ -123,7 +123,7 @@ themes = {}
 # AUDIT C: scandi/paper/sand удалены. Дефолт-тема aura живёт в .t-aura,
 # базовые токены (Claude/light) — в :root (cascade-fallback ниже).
 theme_selectors = {
-    't-lime': '.t-lime',
+    't-cobalt': '.t-cobalt',
     't-aura': '.t-aura', 't-washi': '.t-washi', 't-fuji': '.t-fuji',
     't-frost': '.t-frost', 't-aurora': '.t-aurora', 't-tidal': '.t-tidal',
     't-minimal': '.t-minimal',
@@ -222,7 +222,7 @@ for th in themes:
     # bg-yellow как solid-кнопка (PomodoroWidget «Пауза») существует во всех темах.
     # Светлые темы, где white-on-bright-yellow < 4.5:1, затемняют fill до
     # --yellow-text (белый текст остаётся) — AUDIT A1.0.
-    YELLOW_DARKEN_FILL = {'t-aura', 't-fuji', 't-washi', 't-lime'}
+    YELLOW_DARKEN_FILL = {'t-aura', 't-fuji', 't-washi', 't-cobalt'}
     for c in ['accent','green','red','blue','purple','yellow']:
         btn_text = DARK_BTN_TEXT.get(th, (255,255,255))
         if c == 'yellow' and th in YELLOW_DARKEN_FILL:
@@ -233,20 +233,11 @@ for th in themes:
         elif th == 't-minimal':
             # accent-кнопка перекрашена в --text (чёрный), остальные — в *-text
             fill = resolve(th, 'text') if c == 'accent' else text_token(th, c)
-        elif th == 't-lime':
-            # lime: заливка акцента ОСТАЁТСЯ лаймовой, тёмным делается ТЕКСТ —
-            # .t-lime button.bg-accent → color: var(--on-accent) (globals.css).
-            # bg-green затемнён до --green-text: белый на #1B8A4C = 4.39:1.
-            # bg-yellow ушёл веткой YELLOW_DARKEN_FILL выше.
-            if c == 'accent':
-                fill = resolve(th, 'accent')
-                oa = resolve(th, 'on-accent')
-                if oa is not None:
-                    btn_text = tuple(oa[:3])
-            elif c == 'green':
-                fill = text_token(th, c)
-            else:
-                fill = resolve(th, c)
+        elif th == 't-cobalt' and c == 'green':
+            # cobalt: .t-cobalt .bg-green затемнён до --green-text (белый на
+            # #1B8A4C = 4.39:1). Остальные заливки — общим путём «белый на fill»:
+            # кобальт держит белый текст сам (5.55:1), костыль on-accent снят.
+            fill = text_token(th, c)
         else:
             fill = resolve(th, c if c != 'accent' else 'accent')
         if fill is not None:
@@ -260,12 +251,9 @@ for th in themes:
     # порога нет. Инфо-only, выведены из FAIL-счётчика (P2 §5).
     add('border / surface (decorative, info-only)', border, surface, kind='decorative')
     add('border2 / surface (decorative, info-only)', border2, surface, kind='decorative')
-    # t-lime: --accent — цвет ЗАЛИВКИ, не линии. Focus ring темы задан
-    # `--tw-ring-color: var(--accent-text)`, иконки акцентом идут через
-    # .text-accent → --accent-text. Лайм #C9F25A на светлом фоне даёт 1.06:1,
-    # но им ничего не обводится и не пишется — считаем по accent-text.
-    accent_ui = opaque(th, 'accent-text', 'bg') if th == 't-lime' else accent
-    add('accent / bg (ui: focus ring, icons)', accent_ui, bg, kind='ui')
+    # До S-THEME-COBALT-1 лайм считался здесь по accent-text (как заливка он
+    # к фону 1.06:1). Кобальтом обводят и пишут — общий путь для всех тем.
+    add('accent / bg (ui: focus ring, icons)', accent, bg, kind='ui')
     # WARN (не FAIL): в светлых темах border-input не должен быть темнее text-mute
     # (иначе рамка читается как заполненный текст/ошибка) — P2 §5.
     if border_input is not None and tmute is not None and surface is not None:
@@ -283,14 +271,14 @@ for th in themes:
     # ── Активный пункт навигации — ВСЕ ВОСЕМЬ ТЕМ ──────────────────────────
     # До fix/audit-nav-contrast пара считалась только у washi/fuji, где цвет
     # захардкожен здесь же. У остальных шести «0 FAIL» означало «не проверяли»:
-    # так лаймовая иконка на лаймовой пилюле (1.29:1) прошла аудит t-lime и
+    # так лаймовая иконка на лаймовой пилюле (1.29:1) прошла аудит тогдашнего t-lime и
     # нашлась глазами при визуальной приёмке PR #45.
     #
     # Фактический каскад (globals.css + TextNavSidebar.tsx):
     #  · рельс — `bg-surface` на <aside data-app-nav>, темы перебивают (NAV_RAIL);
     #  · пилюля — layered-дефолт `.nav-active { background: var(--accent-l) }`;
     #    --sidebar-indicator компонент НЕ читает, его разворачивают собственные
-    #    unlayered-правила t-lime и t-minimal (там он непрозрачный);
+    #    unlayered-правила t-cobalt и t-minimal (там он непрозрачный);
     #    washi/fuji гасят фон в `transparent !important` — пилюли нет вовсе;
     #  · текст и иконка — утилита `text-[var(--sidebar-active-text)]` в разметке;
     #    она из @layer utilities и бьёт layered `.nav-active { color: var(--accent) }`,
@@ -300,7 +288,7 @@ for th in themes:
         't-washi': 'sidebar-bg',   # sumi #2C2C2C
         't-fuji': 'sidebar-bg',    # indigo #1A2744
         't-minimal': 'surface2',   # .t-minimal aside{background:var(--surface2)}
-        't-lime': 'bg',            # .t-lime aside{background:transparent} → фон страницы
+        't-cobalt': 'bg',          # .t-cobalt aside{background:transparent} → фон страницы
     }
     # Цвет активного пункта, заданный правилом, а не токеном (явное исключение).
     NAV_INK_HARDCODE = {
