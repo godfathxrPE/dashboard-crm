@@ -534,7 +534,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
                 перед вкладками, свёрнуты по умолчанию. Только сделка: у
                 delivery/internal своей зоны нет, их доска остаётся вкладкой
                 внутри workContent (см. tab-bar выше). */}
-            <ProjectBoardSection project={project} canManage={canManage} />
+            <ProjectBoardSection project={project} />
             <DealOrgBlock project={project} forceExpanded={deepLinkOrg} />
             <div className="min-w-0">
               {workContent}

@@ -3,8 +3,8 @@
 import { CollapsibleSection } from '@/components/shared/CollapsibleSection';
 import { useProjectColumns } from '@/lib/hooks/use-project-columns';
 import { useProjectBoard } from '@/lib/hooks/use-tasks';
-import { ProjectBoard } from '@/components/tasks/ProjectBoard';
 import { DealDeadlineTrack } from './DealDeadlineTrack';
+import { DealBoardColumns } from './DealBoardColumns';
 import type { Project } from '@/lib/hooks/use-projects';
 
 // ═══════════════════════════════════════════════════════
@@ -16,15 +16,18 @@ import type { Project } from '@/lib/hooks/use-projects';
 // `useProjectColumns`/`useProjectBoard` вызваны здесь ВТОРОЙ раз (те же, что
 // внутри `ProjectBoard`) — не второй запрос: одинаковый ключ кэша React Query
 // дедуплицирует конкурентные вызовы в одном рендере и отдаёт общие данные.
+//
+// S-DEAL-BOARD-1: колонки сделки — `DealBoardColumns` по спеке W3 вместо общего
+// `ProjectBoard` (он остаётся у внедрения). CRUD колонок у сделки снят вместе с
+// ним, поэтому проп `canManage` секции больше не нужен.
 // ═══════════════════════════════════════════════════════
 
 export interface ProjectBoardSectionProps {
   /** Сделка целиком: таймлайну нужны `stage_id`/`stage_entered_at` для нормы стадии. */
   project: Project;
-  canManage: boolean;
 }
 
-export function ProjectBoardSection({ project, canManage }: ProjectBoardSectionProps) {
+export function ProjectBoardSection({ project }: ProjectBoardSectionProps) {
   const projectId = project.id;
   const { data: columns = [] } = useProjectColumns(projectId);
   const { tasks, tasksByColumn } = useProjectBoard(projectId);
@@ -58,7 +61,7 @@ export function ProjectBoardSection({ project, canManage }: ProjectBoardSectionP
       // до открытия списков. `tasks` идут пропом из уже сделанного запроса.
       alwaysVisible={<DealDeadlineTrack project={project} tasks={tasks} />}
     >
-      <ProjectBoard projectId={projectId} canManageColumns={canManage} />
+      <DealBoardColumns projectId={projectId} />
     </CollapsibleSection>
   );
 }
