@@ -2638,6 +2638,31 @@ table tbody tr[data-kbd-focused] {
   --sheet-empty-out:    var(--yellow-text, var(--yellow));
 }
 
+/* ⚠️ Переопределение washi стоит ЗДЕСЬ, ПОСЛЕ :root, а не в блоке `.t-washi` выше.
+   Тема-класс висит на том же <html>, что и `:root` (ThemeProvider → documentElement),
+   специфичность у `:root` и `.t-washi` одинаковая (0,1,0) — решает порядок в файле.
+   Объявление внутри блока темы проиграло бы этому `:root` молча, и дефект вернулся бы
+   невидимым. Тот же класс, что у --danger, который жил только в .t-fuji.
+
+   S-STAGE-PROFILE-1: блок восстановлен. Его снёс #108 (S-DEAL-NEXTSTEP-1) вместе с
+   закрывающей скобкой `:root`, когда вписывал материал стекла, — комментарий выше
+   («`--mark-today` washi ниже») пережил удаление и ссылался в пустоту. С 09.09 в washi
+   «сегодня» на таймлайне дедлайнов снова было цветом «просрочено». Второй потребитель
+   токена — заливка `ok` в карте воронки. */
+.t-washi {
+  --mark-today:    var(--text);
+  --mark-today-l2: color-mix(in srgb, var(--text) 22%, transparent);
+}
+
+/* S-STAGE-PROFILE-1: пунктир нормы в карте воронки. База — `--border2`, как в макете
+   t-lime (1.54:1 к surface — согласованная владельцем тишина контура). Темы, где
+   `--border2` к surface ЕЩЁ тише базы, поднимаются смесью с текстом — прецедент
+   `--cal-line`. Замер 1.5px-пунктира к surface: washi 1.29 → 2.27, tidal 1.47 → 3.04;
+   frost (2.05) и aurora (1.77), которые спека велела проверить, базы не ниже. */
+:root      { --profile-norm: var(--border2); }
+.t-washi,
+.t-tidal   { --profile-norm: color-mix(in srgb, var(--border2) 70%, var(--text)); }
+
 /* ⚠️ Блоки тем стоят ПОСЛЕ `:root`: тема-класс висит на том же <html>, специфичность
    у `:root` и `.t-*` одинаковая (0,1,0) — решает порядок в файле. Прецеденты —
    `--mark-today` washi ниже и вся история `--on-glass`. Объявление внутри блока темы
@@ -2693,3 +2718,13 @@ table tbody tr[data-kbd-focused] {
             --sheet-mark: #66449E; --sheet-mark-fill: #8362BE; }
 .t-tidal  { --sheet-glass: rgba(204, 243, 221, .88); --sheet-text: #001D0E; --sheet-dim: #3F5248;
             --sheet-mark: #006641; --sheet-mark-fill: #008758; }
+
+/* S-STAGE-PROFILE-1: рост заливки столбика карты воронки — только при маунте
+   (класс снимает сам компонент) и только без reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .stage-profile-grow {
+    animation: stage-profile-grow 500ms cubic-bezier(.16, 1, .3, 1) both;
+    transform-origin: bottom;
+  }
+}
+@keyframes stage-profile-grow { from { transform: scaleY(0); } }
