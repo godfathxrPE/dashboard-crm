@@ -26,3 +26,19 @@ export function phaseLabel(key: string | null | undefined): string {
   if (!key) return '—';
   return PHASE_LABELS[key] ?? key;
 }
+
+/**
+ * S-COCKPIT-ROW-1: сокращённые подписи для мини-карты строки кокпита — там на
+ * группу 16px × число стадий, полное «СОГЛАСОВАНИЕ» капсом не помещается.
+ * Полное имя уходит в title. Ключа нет — подпись берётся полной (`phaseLabel`).
+ */
+export const PHASE_SHORT_LABELS: Record<string, string> = {
+  attraction: 'Привлеч.',
+  working: 'Прораб.',
+  approval: 'Соглас.',
+  closing: 'Закрытие',
+  initiated: 'Иниц.',
+  planning: 'План',
+  execution: 'Исполн.',
+  completed: 'Заверш.',
+};

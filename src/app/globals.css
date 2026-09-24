@@ -106,6 +106,12 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
   --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
+  /* S-COCKPIT-ROW-1 (П5): свечение CTA — от акцента АКТИВНОЙ темы. До спринта токен
+     жил только в .t-cobalt, и в остальных семи темах `var(--shadow-accent)` был
+     invalid. Стоит в базовом :root ДО блоков тем — .t-cobalt ниже по файлу держит
+     своё значение (одинаковая специфичность, решает порядок). rgba кобальта в
+     другие темы не копируется: в washi акцент красный. */
+  --shadow-accent: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
   --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --elevation-0: none;
   --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
@@ -329,6 +335,10 @@
   --shadow-md: 0 4px 12px rgba(44,44,44,0.06), 0 1px 3px rgba(44,44,44,0.03);
   --shadow-lg: 0 10px 32px rgba(44,44,44,0.08), 0 2px 8px rgba(44,44,44,0.04);
   --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
+  /* S-COCKPIT-ROW-1 (П5): CTA в washi — контурная кнопка темы (`button.bg-accent` ниже),
+     и торий-красное свечение под ней рядом с красной рамкой «просрочено» читалось
+     пятном ошибки, а не действием. Проверено глазами на сделке в over. */
+  --shadow-accent: var(--shadow-sm);
   --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
   --elevation-0: none;
   --elevation-1: 0 1px 3px rgba(44,44,44,0.06), 0 1px 2px rgba(44,44,44,0.03);
@@ -1806,6 +1816,26 @@ table { font-variant-numeric: tabular-nums; }
 
      Разделитель ставится ТОЛЬКО в двухколоночном режиме: в одноколоночном
      border-left у второй колонки был бы вертикальной чертой посреди стопки. */
+  /* S-COCKPIT-ROW-1: узкие ширины строки кокпита — по ширине СТРОКИ, а не экрана
+     (тот же довод, что у .deal-org-split выше: зона «Работа» делит ряд с рельсой,
+     и на ноутбуке строка уже экрана вдвое). Container query, не ResizeObserver:
+     ни состояния в React, ни подписки, ни рендера на каждый ресайз (П2 спринта).
+     «Мобайл-ферст»: мини-карта скрыта по умолчанию и появляется с 45rem (720px) —
+     без поддержки @container строка остаётся рабочей, просто без мини-карты.
+     < 35rem (560px): ячейка текущей во всю ширину, CTA и «+N» переносятся (A3). */
+  .cockpit-row { container-type: inline-size; }
+  .cockpit-minimap { display: none; }
+  .cockpit-cell { min-width: 15.625rem; }
+  @container (min-width: 45rem) {
+    .cockpit-minimap { display: flex; }
+  }
+  @container (max-width: 34.9375rem) {
+    .cockpit-cell { min-width: 100%; }
+    /* Коннекторы связывают соседей по линии; при переносе ячейки на свою строку
+       они висели бы чёрточкой в конце строки. */
+    .cockpit-conn { display: none; }
+  }
+
   .deal-org-split { container-type: inline-size; }
   .deal-org-cols {
     display: grid;

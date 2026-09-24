@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useState } from 'react';
-import { ArrowRight, Check, RotateCcw } from 'lucide-react';
+import { ArrowRight, Check, ChevronUp, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatDateShort } from '@/lib/utils/dates';
 import { Button } from '@/components/ui/Button';
@@ -65,6 +65,11 @@ export interface StageProfileProps extends StageRailProps {
   closed?: { label: string; at: string | null } | null;
   /** «Сейчас» для прогноза финиша; по умолчанию — момент рендера. */
   now?: Date;
+  /**
+   * S-COCKPIT-ROW-1: «Свернуть ⌃» в шапке карты. Шеврон строки кокпита в раскрытом
+   * состоянии переезжает сюда (спека A1); не задан — кнопки нет.
+   */
+  onCollapse?: () => void;
 }
 
 /** Цвет состояния текущей колонки: заливка/контур. `ok` — --mark-today (П4). */
@@ -99,6 +104,7 @@ export function StageProfile({
   pipelineName,
   closed,
   now,
+  onCollapse,
 }: StageProfileProps) {
   const detailId = useId();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -175,6 +181,19 @@ export function StageProfile({
               </LegendItem>
               <LegendItem swatch={<i className="h-2 w-2.5 rounded-sm" style={{ background: 'var(--profile-over-past)' }} />}>сверх нормы</LegendItem>
             </>
+          )}
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              aria-expanded
+              title="Свернуть карту воронки"
+              className="inline-flex items-center gap-1 rounded-md px-1 text-[0.71875rem] text-text-dim
+                         transition-colors hover:text-text-main"
+            >
+              Свернуть
+              <ChevronUp size={12} strokeWidth={2.2} aria-hidden />
+            </button>
           )}
         </div>
       </div>

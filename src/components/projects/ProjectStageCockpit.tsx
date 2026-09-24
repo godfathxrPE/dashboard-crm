@@ -3,7 +3,11 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Lightbulb } from 'lucide-react';
-import { PipelineCockpit, type CockpitGateItem } from '@/components/shared/PipelineCockpit';
+import {
+  PipelineCockpit,
+  type CockpitGateItem,
+  type CockpitMiniGroup,
+} from '@/components/shared/PipelineCockpit';
 import { StageProfile, type StageProfileVisit } from '@/components/shared/StageProfile';
 import { usePipelines, useStagesForPipeline } from '@/lib/hooks/use-pipelines';
 import { useStageStory } from '@/lib/hooks/use-stage-story';
@@ -20,8 +24,10 @@ import { buildStageGuidancePatch, STAGE_GUIDANCE_MAX } from '@/lib/validators/or
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import { useTransitionStore } from '@/lib/stores/transition-store';
-import { resolveStageNorm, stageTimeGauge } from '@/lib/domain/stage-norm';
-import { PHASE_LABELS, phaseLabel } from '@/lib/constants/phase-labels';
+import { resolveStageNorm, stageNormDateKey, stageTimeGauge } from '@/lib/domain/stage-norm';
+import { PHASE_LABELS, PHASE_SHORT_LABELS, phaseLabel } from '@/lib/constants/phase-labels';
+import { formatDateShort } from '@/lib/utils/dates';
+import { mskDateKey } from '@/lib/utils/date-helpers';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { OrgSettings, PipelineStage, StageRequirementConfig } from '@/types/database';
 
@@ -206,6 +212,30 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
     else openTransition({ project, toStageId: newStageId });
   }
 
+  // S-COCKPIT-ROW-1: мини-карта строки — те же группы `groups` (подряд идущие
+  // phase_group, нарезка StageRail), сегменты по индексу относительно текущей.
+  // Терминал: выигранная — все пройдены, последняя подсвечена; проигранная —
+  // «текущей» остаётся стадия на момент выхода, как у столбика карты (спека B п.6).
+  const miniCurrent =
+    currentIndex >= 0 ? currentIndex : isWon ? stages.length - 1 : profileData.lastActiveIndex;
+  const miniGroups: CockpitMiniGroup[] = groups.map((g) => ({
+    key: g.key,
+    label: PHASE_SHORT_LABELS[g.key] ?? phaseLabel(g.key),
+    title: phaseLabel(g.key),
+    segments: stages
+      .slice(g.from, g.to + 1)
+      .map((_, i) => {
+        const idx = g.from + i;
+        return idx < miniCurrent ? 'done' : idx === miniCurrent ? 'current' : 'todo';
+      }),
+  }));
+
+  // Подписи шкалы — календарный день МСК, как у пунктира нормы на таймлайне
+  // дедлайнов: ключ дня → UTC-полдень, иначе off-by-one на границе суток.
+  const dayCaption = (key: string | null) => (key ? formatDateShort(`${key}T12:00:00Z`) : null);
+  const enteredKey = project.stage_entered_at ? mskDateKey(new Date(project.stage_entered_at)) : null;
+  const closedAt = project.actual_close_date ?? profileData.terminalAt;
+
   const next = nextStage
     ? {
         label: nextStage.name,
@@ -226,88 +256,116 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
       }
     : null;
 
+  // П6: лист `.sheet`, как в макете — кокпит и карта лежат на белой карточке
+  // внутри зоны «Работа», а не прямо на её тоне. Обёртка здесь, а не в
+  // PipelineCockpit: строка лида остаётся как есть (П4). Лист приезжает и на
+  // карточку внедрения — ProjectStageCockpit там тот же.
   return (
-    <PipelineCockpit
-      pastCount={currentIndex >= 0 ? currentIndex : isWon ? stages.length : 0}
-      pastNames={(currentIndex >= 0 ? stages.slice(0, currentIndex) : isWon ? stages : []).map((s) => s.name)}
-      current={{ name: currentStage.name }}
-      gauge={gauge}
-      groupLabel={groupLabel}
-      gate={gateItems.length > 0 ? { items: gateItems, title: `Готовность к стадии «${nextStage?.name ?? ''}»` } : null}
-      next={next}
-      restCount={restCount}
-      restGroupsCount={restGroupsCount}
-      metaRight={
-        // Гейт-фикс S-PIPELINE-COCKPIT-1: вероятность ТЕКУЩЕЙ стадии ушла из шапки
-        // вместе с пилюлей (F5) и не жила больше нигде — кнопка next несёт вероятность
-        // СЛЕДУЮЩЕЙ. Возвращена сюда; подписана словом (S-UI-CLARITY-1).
-        currentIndex >= 0
-          ? `${currentIndex + 1} из ${stages.length}` +
-            (!isDelivery && currentStage.probability != null
-              ? ` · вероятность ${currentStage.probability}%`
-              : '')
-          : null
-      }
-      locked={locked}
-      guidance={
-        // Подсказка привязана к ТЕКУЩЕЙ стадии и меняется вместе с ней. У лидов
-        // слота нет — блок собирает вызывающий, не общий кокпит.
-        <StageGuidance
-          stageId={currentStage.id}
-          stageName={currentStage.name}
-          text={guidance?.[currentStage.id] ?? ''}
-          canEdit={orgRole === 'owner'}
-          onSave={async (value) => {
-            try {
-              await updateSettings.mutateAsync({
-                stage_guidance: buildStageGuidancePatch(guidance, currentStage.id, value),
-              } as unknown as OrgSettings);
-            } catch (err) {
-              // 42501 у не-owner: политика org_update_owner. Кнопку мы уже скрыли,
-              // но истина на сервере — молча терять текст нельзя.
-              toast.error(err instanceof Error ? err.message : 'Не удалось сохранить подсказку');
-            }
-          }}
-        />
-      }
-      map={
-        // S-STAGE-PROFILE-1: профиль времени вместо StageRail — в тот же слот, кокпит
-        // не тронут. Откат больше не клик по узлу: клик раскрывает детали стадии,
-        // а `handleStageClick` зовёт кнопка внутри раскрытой строки.
-        //
-        // Пока журнал грузится, карту НЕ рисуем: пустой factDays неотличим от «ни
-        // одного захода», и пройденные стадии на секунду показались бы пропущенными.
-        !story ? (
-          <div className="border-t border-border pt-3.5 text-meta text-text-mute">Загружаем историю стадий…</div>
-        ) : (
-          <StageProfile
-            stages={stages}
-            currentIndex={
-              // Терминал без победы: «текущей» считается стадия, где сделка была на
-              // момент выхода — её столбик остаётся с фактом (спека B п.6, lost).
-              currentIndex >= 0 ? currentIndex : isWon ? -1 : profileData.lastActiveIndex
-            }
-            locked={locked}
-            allDone={isWon}
-            groupLabels={PHASE_LABELS}
-            onStageClick={locked ? undefined : handleStageClick}
-            factDays={profileData.factDays}
-            stageVisits={profileData.stageVisits}
-            normDays={profileData.normDays}
-            gauge={gauge}
-            pipelineName={pipelines?.find((p) => p.id === project.pipeline_id)?.name ?? null}
-            closed={
-              locked
-                ? {
-                    label: isWon ? 'выиграна' : isDelivery ? 'завершено' : 'закрыта',
-                    at: project.actual_close_date ?? profileData.terminalAt,
-                  }
-                : null
-            }
+    <div className="sheet rounded-[1.25rem] p-4">
+      <PipelineCockpit
+        pastCount={currentIndex >= 0 ? currentIndex : isWon ? stages.length : 0}
+        pastNames={(currentIndex >= 0 ? stages.slice(0, currentIndex) : isWon ? stages : []).map((s) => s.name)}
+        current={{ name: currentStage.name }}
+        gauge={gauge}
+        groupLabel={groupLabel}
+        gate={gateItems.length > 0 ? { items: gateItems, title: `Готовность к стадии «${nextStage?.name ?? ''}»` } : null}
+        next={next}
+        restCount={restCount}
+        restGroupsCount={restGroupsCount}
+        metaRight={
+          // Гейт-фикс S-PIPELINE-COCKPIT-1: вероятность ТЕКУЩЕЙ стадии ушла из шапки
+          // вместе с пилюлей (F5) и не жила больше нигде — кнопка next несёт вероятность
+          // СЛЕДУЮЩЕЙ. Возвращена сюда; подписана словом (S-UI-CLARITY-1).
+          // S-COCKPIT-ROW-1: число вероятности — цветом текста, как в макете.
+          currentIndex >= 0 ? (
+            <>
+              {currentIndex + 1} из {stages.length}
+              {!isDelivery && currentStage.probability != null && (
+                <>
+                  {' · вероятность '}
+                  <b className="font-semibold text-text-main">{currentStage.probability}%</b>
+                </>
+              )}
+            </>
+          ) : null
+        }
+        locked={locked}
+        dates={{
+          entered: dayCaption(enteredKey),
+          norm: dayCaption(stageNormDateKey(project.stage_entered_at, gauge.norm)),
+          closed: locked && closedAt ? formatDateShort(closedAt) : null,
+        }}
+        miniMap={{ groups: miniGroups }}
+        // Карта раскрыта по умолчанию на финише воронки — там она важнее всего (A1).
+        // Ручной выбор запоминается по воронке, не по сделке.
+        mapDefaultOpen={currentIndex >= 0 && currentStage.phase_group === 'closing'}
+        mapStorageKey={`cockpit-map:${project.pipeline_id}`}
+        guidance={
+          // Подсказка привязана к ТЕКУЩЕЙ стадии и меняется вместе с ней. У лидов
+          // слота нет — блок собирает вызывающий, не общий кокпит.
+          <StageGuidance
+            stageId={currentStage.id}
+            stageName={currentStage.name}
+            text={guidance?.[currentStage.id] ?? ''}
+            canEdit={orgRole === 'owner'}
+            onSave={async (value) => {
+              try {
+                await updateSettings.mutateAsync({
+                  stage_guidance: buildStageGuidancePatch(guidance, currentStage.id, value),
+                } as unknown as OrgSettings);
+              } catch (err) {
+                // 42501 у не-owner: политика org_update_owner. Кнопку мы уже скрыли,
+                // но истина на сервере — молча терять текст нельзя.
+                toast.error(err instanceof Error ? err.message : 'Не удалось сохранить подсказку');
+              }
+            }}
           />
-        )
-      }
-    />
+        }
+        map={({ collapse }) =>
+          // S-STAGE-PROFILE-1: профиль времени вместо StageRail — в тот же слот, кокпит
+          // не тронут. Откат больше не клик по узлу: клик раскрывает детали стадии,
+          // а `handleStageClick` зовёт кнопка внутри раскрытой строки.
+          //
+          // Пока журнал грузится, карту НЕ рисуем: пустой factDays неотличим от «ни
+          // одного захода», и пройденные стадии на секунду показались бы пропущенными.
+          !story ? (
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-3.5 text-meta text-text-mute">
+              Загружаем историю стадий…
+              <button type="button" onClick={collapse} className="text-text-dim hover:text-text-main">
+                Свернуть
+              </button>
+            </div>
+          ) : (
+            <StageProfile
+              stages={stages}
+              currentIndex={
+                // Терминал без победы: «текущей» считается стадия, где сделка была на
+                // момент выхода — её столбик остаётся с фактом (спека B п.6, lost).
+                currentIndex >= 0 ? currentIndex : isWon ? -1 : profileData.lastActiveIndex
+              }
+              locked={locked}
+              allDone={isWon}
+              groupLabels={PHASE_LABELS}
+              onStageClick={locked ? undefined : handleStageClick}
+              factDays={profileData.factDays}
+              stageVisits={profileData.stageVisits}
+              normDays={profileData.normDays}
+              gauge={gauge}
+              pipelineName={pipelines?.find((p) => p.id === project.pipeline_id)?.name ?? null}
+              closed={
+                locked
+                  ? {
+                      label: isWon ? 'выиграна' : isDelivery ? 'завершено' : 'закрыта',
+                      at: project.actual_close_date ?? profileData.terminalAt,
+                    }
+                  : null
+              }
+              onCollapse={collapse}
+            />
+          )
+        }
+      />
+    </div>
   );
 }
 
