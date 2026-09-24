@@ -20,3 +20,8 @@ export function formatPhone(raw: string | null | undefined): string {
   }
   return raw;
 }
+
+/** `href` для `<a>` звонка: только цифры и `+` — тот же способ, что в `LeadPeekContent`. */
+export function telHref(raw: string): string {
+  return `tel:${raw.replace(/[^\d+]/g, '')}`;
+}

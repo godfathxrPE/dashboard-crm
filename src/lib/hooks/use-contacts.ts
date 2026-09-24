@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { PhoneEntry } from '@/types/database';
 import { phoneEntrySchema } from '@/lib/validators/phone';
 import { useRealtimeSync } from './use-realtime';
+import { contactBriefKey } from './use-contact-brief';
 
 // 041: phones приходит из БД как jsonb (codegen типизирует Json) — парсим на
 // границе хука доменным phoneEntrySchema. Битую запись глотаем в [] (catch),
@@ -205,6 +206,8 @@ export function useUpdateContact() {
     onSettled: (_d, _e, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
       qc.invalidateQueries({ queryKey: [...QUERY_KEY, vars.id] });
+      // S-DEAL-CONTACT-1: визитка в карточке сделки живёт под своим ключом.
+      qc.invalidateQueries({ queryKey: contactBriefKey(vars.id) });
     },
   });
 }
