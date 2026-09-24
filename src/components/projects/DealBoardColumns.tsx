@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { useProjectColumns } from '@/lib/hooks/use-project-columns';
@@ -96,6 +96,7 @@ function join(...parts: (string | false | null | undefined)[]): string {
 interface CardBodyProps {
   task: Task;
   category: ColumnCategory;
+  /** Исполнитель задачи (`assigned_to`); null — инициалов нет. */
   author: { initials: string; name: string } | null;
   now: Date;
 }
@@ -190,10 +191,14 @@ function BoardTaskCard({ task, category, author, now, canEdit, onOpen, onDelete 
 
       {canEdit && (
         // ⚠️ Карточка — draggable: без stopPropagation на pointerdown нажатие на
-        // корзину начинало бы перетаскивание, а клик — открывал бы задачу.
+        // кнопки действий начинало бы перетаскивание, а клик по ним всплывал бы
+        // в обработчик карточки.
+        //
+        // Карандаш дублирует клик по карточке НАМЕРЕННО: действие, спрятанное
+        // только в клик по фигуре, не находится (приёмка владельца, F-2).
         <span
           className={join(
-            'absolute right-1.5 top-1.5 rounded-md bg-surface',
+            'absolute right-1.5 top-1.5 flex items-center rounded-md bg-surface',
             confirming ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
           )}
           onPointerDown={(e) => e.stopPropagation()}
@@ -207,14 +212,24 @@ function BoardTaskCard({ task, category, author, now, canEdit, onOpen, onDelete 
               onCancel={() => setConfirming(false)}
             />
           ) : (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              aria-label="Удалить задачу"
-              className="rounded-md p-1 text-text-mute transition-colors hover:text-danger"
-            >
-              <Trash2 size={12} />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => onOpen(task)}
+                aria-label="Редактировать задачу"
+                className="rounded-md p-1 text-text-mute transition-colors hover:text-text-main"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                aria-label="Удалить задачу"
+                className="rounded-md p-1 text-text-mute transition-colors hover:text-danger"
+              >
+                <Trash2 size={12} />
+              </button>
+            </>
           )}
         </span>
       )}
@@ -299,11 +314,12 @@ function Column({ projectId, column, tasks, first, canEdit, authorOf, now, onOpe
     <section
       ref={setNodeRef}
       aria-label={`${column.name}: ${tasks.length}`}
+      // ⚠️ У колонки НЕТ скругления: её `border-l` — разделитель, и на скруглённом
+      // блоке линия огибала углы «скобками» (приёмка владельца, F-1). Подсветка
+      // броска со своим скруглением живёт на внутреннем списке ниже.
       className={join(
-        'flex flex-col gap-2 rounded-lg py-3 transition-colors md:min-h-[14.375rem] md:px-3 md:py-0',
+        'flex flex-col py-3 md:min-h-[14.375rem] md:px-3 md:py-0',
         !first && 'border-t border-border md:border-l md:border-t-0',
-        // Подложки у колонок нет (спека) — тон появляется только под брошенной карточкой.
-        isOver && 'bg-surface2',
       )}
     >
       <div className="flex items-center gap-[0.4375rem] pb-1.5 pt-0.5">
@@ -312,22 +328,30 @@ function Column({ projectId, column, tasks, first, canEdit, authorOf, now, onOpe
         <span className="text-meta tabular-nums text-text-mute">{tasks.length}</span>
       </div>
 
-      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        {tasks.map((task) => (
-          <BoardTaskCard
-            key={task.id}
-            task={task}
-            category={column.category}
-            author={authorOf(task)}
-            now={now}
-            canEdit={canEdit}
-            onOpen={onOpen}
-            onDelete={onDelete}
-          />
-        ))}
-      </SortableContext>
+      {/* Подложки у колонок нет (спека) — тон появляется только под брошенной карточкой. */}
+      <div
+        className={join(
+          'mt-2 flex flex-1 flex-col gap-2 rounded-lg transition-colors',
+          isOver && 'bg-surface2',
+        )}
+      >
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <BoardTaskCard
+              key={task.id}
+              task={task}
+              category={column.category}
+              author={authorOf(task)}
+              now={now}
+              canEdit={canEdit}
+              onOpen={onOpen}
+              onDelete={onDelete}
+            />
+          ))}
+        </SortableContext>
 
-      {canEdit && <ColumnAdd projectId={projectId} column={column} />}
+        {canEdit && <ColumnAdd projectId={projectId} column={column} />}
+      </div>
     </section>
   );
 }
@@ -361,9 +385,11 @@ export function DealBoardColumns({ projectId }: { projectId: string }) {
   );
 
   const nameById = useMemo(() => new Map(members.map((m) => [m.id, m.full_name])), [members]);
+  // Только исполнитель, без фолбэка на автора: автор у задач сделки почти всегда
+  // один, и одинаковые инициалы на каждой карточке ничего не различают (F-3).
+  // Нет исполнителя — нет инициалов.
   const authorOf = (task: Task) => {
-    const id = task.assigned_to ?? task.created_by;
-    const name = id ? nameById.get(id) : undefined;
+    const name = task.assigned_to ? nameById.get(task.assigned_to) : undefined;
     return name ? { initials: getInitialsFromFullName(name), name } : null;
   };
 
