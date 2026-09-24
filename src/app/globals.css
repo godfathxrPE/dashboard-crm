@@ -2073,6 +2073,21 @@ table { font-variant-numeric: tabular-nums; }
    tidal #080f0d (4.25), lime #14210A. */
 .glass-sheet .bg-accent.text-white { color: var(--sheet-mark-ink) !important; }
 
+/* S-DEAL-CONTACT-1: кнопка звонка в чипе основного контакта (спека A1-a, 1.3/1.4).
+   Акцент — РАМКОЙ и иконкой, не заливкой: заливка в виджете одна, у метки.
+   Рамка — правилом, а не утилитой `border-accent`: безслойный safety-net
+   `.t-frost *` выигрывает у любой `border-*`-утилиты из @layer utilities, и в трёх
+   тёмных темах рамка упала бы в `--border`. Стоит после safety-net по той же
+   причине, что правила материала выше. Цвет — заливка метки, приглушённая в покое
+   (спека: .6 → .9 на наведении), чтобы контур не спорил с текстом шага. */
+.glass-sheet .glass-call {
+  border-color: color-mix(in srgb, var(--sheet-mark-fill) 60%, transparent);
+}
+.glass-sheet .glass-call:hover {
+  border-color: color-mix(in srgb, var(--sheet-mark-fill) 90%, transparent);
+  background-color: color-mix(in srgb, var(--sheet-mark-fill) 8%, transparent);
+}
+
 
 /* ═══ S-DEAL-NEXTSTEP-1: пустое состояние виджета «Следующий шаг» ═══
    Ни полосы слева, ни заливки: сигнал «шага нет» несёт кант ЦЕЛИКОМ.
