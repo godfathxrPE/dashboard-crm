@@ -674,6 +674,14 @@ Tailwind генерирует `.text-accent` / `.bg-accent` из `colors.accent 
 
 ---
 
+### ⛔ `cn()` выкидывает проектные кегли `text-meta`/`text-body` — считает их цветом
+`cn` — голый `twMerge` без `extendTailwindMerge`, а кегли `meta`/`body` из `tailwind.config`
+ему не известны: `text-meta` рядом с `text-text-dim` (или `text-danger-text`) — конфликт
+«двух цветов», и один класс молча выпадает. Кегль или цвет теряется в зависимости от порядка.
+Пока `cn.ts` не расширен группой `font-size: [{ text: ['meta','body'] }]` — кегль склеивать
+строкой ВНЕ `cn`. Скан `main` 24.09: десять мест, включая счётчик дней `PipelineCockpit`.
+Журнал: «2026-09-24 · S-DEAL-CONTACT-1».
+
 ## Z-Index
 
 ### ❌ Never set overlay z-index below sticky headers
@@ -990,6 +998,12 @@ set local role authenticated; set local request.jwt.claims '{"sub":"…"}'; <п�
 конверсию лида с новым значением до строки в `deal_stakeholders`. `convert_lead` требует
 `status='qualified'` — иначе P0001 ещё до проверки роли. Журнал: «гейт apply 130», 2026-09-07.
 
+### ⚠️ Живой экран на превью упирается во вход — проверять на проде с откатом наготове
+Vercel Deployment Protection снимается share-ссылкой, но вход в CRM — magic link, а Supabase
+ведёт только на адреса из Redirect URLs: превью-домена там нет, ссылка уводит на прод.
+Allowlist ради гейта не трогать (правка безопасности). Проверка — на проде после мержа, если
+предыдущая сборка — rollback candidate. Журнал: «2026-09-24 · S-DEAL-CONTACT-1».
+
 ### ✅ Однострочники смока (детали — по ссылке)
 - Тест вне `tests/unit/**` молча не запускается — «зелёный прогон» ничего не значит, пока не видно, что файл в него вошёл. Журнал: «Уроки 2026-08-04/05».
 - CSS-дефекты тем не ловятся ни tsc, ни lint, ни JSDOM — визуальный смок хотя бы раз в теме, отличной от той, где писался код. Журнал: «S-UI-SEMANTIC-1».
@@ -1116,6 +1130,11 @@ DB changes first (migration), then types, then hooks, then components.
 (129 → `20260823182046`). Требовать timestamp в ИМЕНИ файла — значит путать носитель
 порядка с версией и готовить следующий ложный вывод «миграция не применена».
 Журнал: «S-QUEUE-1».
+
+### ⛔ Спринт-файл и спека — в `main` ДО запуска, иначе Claude Code их не увидит
+CC работает в worktree, worktree собирается из коммита, неотслеживаемые файлы в него не
+попадают. Порядок: docs-PR со спекой и спринт-файлом → мерж → запуск (#106, #110). Журнал:
+«2026-09-24 · S-DEAL-CONTACT-1».
 
 ### ✅ Migration → Types → Validator → Hook → Component
 This is the dependency order. Always follow it.
