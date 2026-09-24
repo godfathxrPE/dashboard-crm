@@ -380,10 +380,10 @@ function DealIdentityCard({
         <span
           aria-hidden="true"
           // Квадрат — `--text`, буква — `--bg`. Спека рисует букву АКЦЕНТОМ, но
-          // расчёт контраста акцента на `--text` даёт 1.6–3.6:1 в семи темах из
-          // восьми (t-aura 2.12, t-fuji 1.78, t-tidal 1.63, t-washi 2.65,
-          // t-frost 2.88, t-aurora 3.27, t-minimal 3.61) — проходит только
-          // t-lime (13.89), в котором макет и рисовался. `--bg` даёт 12.1–16.9:1
+          // расчёт контраста акцента на `--text` даёт 1.6–3.6:1 во всех восьми
+          // темах (t-aura 2.12, t-fuji 1.78, t-tidal 1.63, t-washi 2.65,
+          // t-frost 2.88, t-aurora 3.27, t-minimal 3.61, t-cobalt 3.22). Проходил
+          // только лайм (13.89), в котором макет и рисовался. `--bg` даёт 12.1–16.9:1
           // во ВСЕХ восьми и в тёмных темах инвертируется сам собой.
           className="grid size-11 shrink-0 place-items-center rounded-[0.875rem] bg-text-main
                      text-[0.9375rem] font-bold tracking-[-0.02em] text-bg"

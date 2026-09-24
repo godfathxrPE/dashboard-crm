@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// AUDIT C: scandi/paper/sand удалены. Дефолт — lime (S-LIME-TOKENS-1).
-// Порядок = порядок cycleTheme: t-lime стоит первой, поэтому цикл начинается с неё.
-const THEMES = ['t-lime', 't-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'] as const;
+// AUDIT C: scandi/paper/sand удалены. Дефолт — cobalt (S-THEME-COBALT-1, до него lime).
+// Порядок = порядок cycleTheme: t-cobalt стоит первой, поэтому цикл начинается с неё.
+const THEMES = ['t-cobalt', 't-aura', 't-washi', 't-fuji', 't-frost', 't-aurora', 't-tidal', 't-minimal'] as const;
 export type Theme = (typeof THEMES)[number];
 
 // Устаревшие темы (AUDIT C4-6): persisted-значение → миграция на дефолт.
 const LEGACY_THEMES = ['t-scandi', 't-paper', 't-sand'];
-const DEFAULT_THEME: Theme = 't-lime';
+const DEFAULT_THEME: Theme = 't-cobalt';
 
 /**
  * Сохранённое значение темы → валидная тема. Вынесено из `merge` ради теста:
@@ -43,7 +43,7 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'dashboard-theme',
-      // Миграция persisted: устаревшая ИЛИ неизвестная тема → дефолт lime.
+      // Миграция persisted: устаревшая ИЛИ неизвестная тема → дефолт cobalt.
       merge: (persisted, current) => {
         const p = persisted as Partial<ThemeState> | undefined;
         return { ...current, ...p, theme: resolvePersistedTheme(p?.theme) };
