@@ -4,8 +4,9 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Lightbulb } from 'lucide-react';
 import { PipelineCockpit, type CockpitGateItem } from '@/components/shared/PipelineCockpit';
-import { StageRail } from '@/components/shared/StageRail';
-import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { StageProfile, type StageProfileVisit } from '@/components/shared/StageProfile';
+import { usePipelines, useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { useStageStory } from '@/lib/hooks/use-stage-story';
 import { useStageRequirements } from '@/lib/hooks/use-stage-requirements';
 import { useStageGate } from '@/lib/hooks/use-stage-gate';
 import {
@@ -55,6 +56,11 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const { data: orgRole } = useOrgRole();
   const updateSettings = useUpdateOrgSettings();
   const { data: requirements } = useStageRequirements(project.pipeline_id);
+  // S-STAGE-PROFILE-1: траектория для карты. Второго запроса нет — тот же ключ,
+  // что у вкладки «История», React Query дедуплицирует. Вкладка не смонтирована —
+  // запрос инициирует карта, и это законно (тот же случай, что в DealWaitingList).
+  const { story, actorName } = useStageStory(project);
+  const { data: pipelines } = usePipelines();
 
   // Хук НЕ сортирует и НЕ фильтрует — то же, что делал StackedPipeline на месте.
   const stages = useMemo(
@@ -94,6 +100,41 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
     });
     return out;
   }, [stages]);
+
+  // Данные карты «Профиль времени»: факт по стадиям, заходы с акторами, нормы.
+  const profileData = useMemo(() => {
+    const factDays: Record<string, number> = {};
+    const stageVisits: Record<string, StageProfileVisit[]> = {};
+    for (const seg of story?.segments ?? []) {
+      (stageVisits[seg.stageId] ??= []).push({
+        enteredAt: seg.enteredAt,
+        leftAt: seg.leftAt,
+        days: seg.days,
+        actor: actorName(seg.actorId),
+      });
+    }
+    for (const [id, days] of Object.entries(story?.totalByStage ?? {})) factDays[id] = days;
+    // Норма — по КАЖДОЙ стадии той же функцией, что у ячейки кокпита: контур
+    // текущей и заливка ячейки согласованы по построению.
+    const normDays: Record<string, number> = {};
+    for (const s of stages) normDays[s.id] = resolveStageNorm(s, targetDays, dwell);
+    // Последняя активная стадия до выхода в терминал (lost/converted): её столбик
+    // остаётся с фактом, как «текущая» на момент закрытия.
+    const activeIds = new Set(stages.map((s) => s.id));
+    const lastActive = [...(story?.segments ?? [])].reverse().find((seg) => activeIds.has(seg.stageId));
+    // Дата выхода в терминал — вход в последний сегмент (он и есть терминальная стадия).
+    const lastSeg = story?.segments[story.segments.length - 1];
+    return {
+      factDays,
+      stageVisits,
+      normDays,
+      lastActiveIndex: lastActive ? stages.findIndex((s) => s.id === lastActive.stageId) : -1,
+      terminalAt: lastSeg && lastSeg.stageId === project.stage_id ? lastSeg.enteredAt : null,
+    };
+    // `actorName` хук отдаёт новой функцией на каждый рендер — мемо пересчитывается
+    // вместе с ним. Это дёшево (десятки сегментов), а зато имя участника, догрузившееся
+    // позже журнала, не застрянет пустым.
+  }, [story, stages, targetDays, dwell, project.stage_id, actorName]);
 
   if (!project.pipeline_id || !project.stage_id || stages.length === 0) return null;
 
@@ -230,14 +271,41 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
         />
       }
       map={
-        <StageRail
-          stages={stages}
-          currentIndex={currentIndex}
-          locked={locked}
-          allDone={isWon}
-          groupLabels={PHASE_LABELS}
-          onStageClick={locked ? undefined : handleStageClick}
-        />
+        // S-STAGE-PROFILE-1: профиль времени вместо StageRail — в тот же слот, кокпит
+        // не тронут. Откат больше не клик по узлу: клик раскрывает детали стадии,
+        // а `handleStageClick` зовёт кнопка внутри раскрытой строки.
+        //
+        // Пока журнал грузится, карту НЕ рисуем: пустой factDays неотличим от «ни
+        // одного захода», и пройденные стадии на секунду показались бы пропущенными.
+        !story ? (
+          <div className="border-t border-border pt-3.5 text-meta text-text-mute">Загружаем историю стадий…</div>
+        ) : (
+          <StageProfile
+            stages={stages}
+            currentIndex={
+              // Терминал без победы: «текущей» считается стадия, где сделка была на
+              // момент выхода — её столбик остаётся с фактом (спека B п.6, lost).
+              currentIndex >= 0 ? currentIndex : isWon ? -1 : profileData.lastActiveIndex
+            }
+            locked={locked}
+            allDone={isWon}
+            groupLabels={PHASE_LABELS}
+            onStageClick={locked ? undefined : handleStageClick}
+            factDays={profileData.factDays}
+            stageVisits={profileData.stageVisits}
+            normDays={profileData.normDays}
+            gauge={gauge}
+            pipelineName={pipelines?.find((p) => p.id === project.pipeline_id)?.name ?? null}
+            closed={
+              locked
+                ? {
+                    label: isWon ? 'выиграна' : isDelivery ? 'завершено' : 'закрыта',
+                    at: project.actual_close_date ?? profileData.terminalAt,
+                  }
+                : null
+            }
+          />
+        )
       }
     />
   );
