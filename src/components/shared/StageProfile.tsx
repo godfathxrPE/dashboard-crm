@@ -72,7 +72,11 @@ export interface StageProfileProps extends StageRailProps {
   onCollapse?: () => void;
 }
 
-/** Цвет состояния текущей колонки: заливка/контур. `ok` — --mark-today (П4). */
+/**
+ * Цвет состояния текущей колонки: контур и кольцо узла. `ok` — --mark-today (П4).
+ * Заливка текущей — `--profile-now` (fix-S-STAGE-PROFILE-2): в washi --mark-today
+ * равен --text, и площадь столбика была чёрной плитой.
+ */
 const TONE_COLOR: Record<ProfileTone, string> = {
   ok: 'var(--mark-today)',
   warn: 'var(--yellow)',
@@ -337,7 +341,8 @@ function describeColumn(col: ProfileColumn): string {
       ? `${col.name} · текущая · ${col.fact} дн. из ${col.norm} по норме`
       : `${col.name} · текущая · ${col.fact} дн.`;
   }
-  return `${col.name} · ${col.fact} дн.${visits}${norm}${over}`;
+  const clipped = col.clipped ? ' — столбик обрезан' : '';
+  return `${col.name} · ${col.fact} дн.${visits}${norm}${over}${clipped}`;
 }
 
 function visitsWord(n: number): string {
@@ -431,12 +436,12 @@ function Column({
       const t = tone ?? 'ok';
       const background =
         t === 'over'
-          ? `linear-gradient(180deg, var(--profile-over-now) 0 ${top}, var(--mark-today) ${top})`
+          ? `linear-gradient(180deg, var(--profile-over-now) 0 ${top}, var(--profile-now) ${top})`
           : t === 'warn'
-            ? 'linear-gradient(180deg, var(--profile-over-past), var(--mark-today))'
+            ? 'linear-gradient(180deg, var(--profile-over-past), var(--profile-now))'
             : t === 'muted'
               ? 'var(--text-dim)'
-              : 'var(--mark-today)';
+              : 'var(--profile-now)';
       fill = { height: h, background, borderRadius: col.over ? '0.25rem 0.25rem 0 0' : 0 };
     } else if (col.over) {
       fill = { height: h, background: `linear-gradient(180deg, var(--profile-over-past) 0 ${top}, var(--profile-fact) ${top})` };
@@ -456,7 +461,11 @@ function Column({
       aria-expanded={disabled ? undefined : expanded}
       aria-controls={!disabled && expanded ? detailId : undefined}
       aria-label={label}
-      title={col.name}
+      title={
+        col.clipped
+          ? `${col.name} · ${col.fact} дн.${col.norm != null ? ` при норме ${col.norm}` : ''} — столбик обрезан`
+          : col.name
+      }
       className={cn(
         'relative flex h-[6.875rem] flex-col items-center justify-end rounded-t-lg px-1.5 transition-colors',
         'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2',
@@ -500,7 +509,13 @@ function Column({
               grow && 'stage-profile-grow',
             )}
             style={fill}
-          />
+          >
+            {/* P-5: метка разрыва — щель цвета листа на 6px ниже верха заливки:
+                факт выше масштаба карты, столбик обрезан (число сверху — честное). */}
+            {col.clipped && (
+              <span aria-hidden className="absolute inset-x-0 top-[0.375rem] h-[2px] bg-surface" />
+            )}
+          </span>
         )}
         {col.todayPx != null && (
           <span

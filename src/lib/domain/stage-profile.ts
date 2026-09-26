@@ -60,6 +60,11 @@ export interface ProfileColumn {
   overPx: number;
   /** Будущая колонка с прошлыми днями (сделку откатывали): заливка приглушена. */
   historic: boolean;
+  /**
+   * Факт не влез в масштаб и заливка обрезана по высоте столбика (P-5): выброс
+   * прошлой стадии не задаёт масштаб карты. Число над столбиком — честный факт.
+   */
+  clipped?: boolean;
   /** Только у текущей. */
   tone: ProfileTone | null;
   /** Линия «сегодня» на высоте факта текущей; null — не рисуется. */
@@ -184,7 +189,16 @@ export function buildStageProfile(
   });
 
   // ── 2. Масштаб ──
-  const maxDays = Math.max(0, ...raw.map((c) => Math.max(c.fact ?? 0, c.norm ?? 0)));
+  // fix-S-STAGE-PROFILE-2 (P-5): масштаб — по нормам и факту текущей. Прошлые факты
+  // в него не входят: «Лид» 62 дн. при норме 2 сжимал карту до 1.5 px/день, и
+  // текущая стадия становилась полоской в 13 px — главным элементом было прошлое.
+  // Выброс обрезается по высоте столбика (`clipped`). Исключения — масштаб по всем
+  // фактам, как раньше: нет текущей (won) и нет норм — иначе карта пустеет.
+  const current = raw.find((c) => c.kind === 'current') ?? null;
+  const byAllFacts = !hasNorms || current === null;
+  const maxDays = byAllFacts
+    ? Math.max(0, ...raw.map((c) => Math.max(c.fact ?? 0, c.norm ?? 0)))
+    : Math.max(0, current.fact ?? 0, ...raw.map((c) => c.norm ?? 0));
   const pxPerDay = maxDays > 0 ? PROFILE_BAR_H / maxDays : PROFILE_BAR_H;
   const scaleLabel = !hasNorms
     ? null
@@ -197,7 +211,11 @@ export function buildStageProfile(
   // ── 3. Колонки ──
   const columns: ProfileColumn[] = raw.map(({ stage, index, kind, fact, norm }) => {
     const future = kind === 'next' || kind === 'todo';
-    const fillPx = fillHeight(fact, pxPerDay);
+    // Обрезается любой не-текущий факт выше столбика: прошлая стадия и история
+    // будущей колонки (откат) — масштаб их больше не вмещает по построению.
+    const rawFill = fillHeight(fact, pxPerDay);
+    const clipped = kind !== 'current' && kind !== 'skipped' && rawFill > PROFILE_BAR_H;
+    const fillPx = clipped ? PROFILE_BAR_H : rawFill;
     const contourPx = norm != null && norm > 0 ? Math.max(PROFILE_MIN_FILL, norm * pxPerDay) : 0;
     // Пересвет — только у фактических заходов (не у истории будущей колонки:
     // её контур — прогноз, а не мерка для прошлого).
@@ -215,6 +233,7 @@ export function buildStageProfile(
       over,
       overPx: over ? Math.max(0, fillPx - contourPx) : 0,
       historic: future && fact != null,
+      ...(clipped ? { clipped: true } : {}),
       tone: kind === 'current' ? tone : null,
       todayPx: kind === 'current' && !locked && fact != null ? fillPx : null,
     };

@@ -2693,6 +2693,14 @@ table tbody tr[data-kbd-focused] {
   --profile-over-past: color-mix(in srgb, var(--yellow-text) 55%, transparent);
 }
 
+/* fix-S-STAGE-PROFILE-2: заливка текущей «в норме» (и низ warn/over). База — прежний
+   `--mark-today`; в washi он равен `--text`, и текущая становилась чёрной плитой —
+   самым тяжёлым элементом карты. 78%, а не 55%: прошлый факт в washi — `--text` 55%,
+   текущая обязана остаться темнее прошлого. Контур, узел, линия «сегодня» и шкала
+   кокпита остаются на `--mark-today`. Порядок — после `:root` (см. ниже). */
+:root    { --profile-now: var(--mark-today); }
+.t-washi { --profile-now: color-mix(in srgb, var(--text) 78%, transparent); }
+
 /* ⚠️ Блоки тем стоят ПОСЛЕ `:root`: тема-класс висит на том же <html>, специфичность
    у `:root` и `.t-*` одинаковая (0,1,0) — решает порядок в файле. Прецеденты —
    `--mark-today` washi ниже и вся история `--on-glass`. Объявление внутри блока темы
