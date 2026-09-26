@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Network, Plus, X, Loader2, Star, Phone, StickyNote } from 'lucide-react';
+import { Plus, X, Loader2, Phone, Mail, StickyNote } from 'lucide-react';
 import {
   useDealStakeholders,
   useAddStakeholder,
@@ -17,6 +17,8 @@ import { useContacts } from '@/lib/hooks/use-contacts';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
 import { usePipelineExpectedRoles } from '@/lib/hooks/use-pipeline-expected-roles';
 import { resolveRoleSlots, type RoleSlot } from '@/lib/domain/role-slots';
+import { ROLE_MISSING_DETAIL } from '@/lib/domain/deal-signals';
+import { getAvatarTone, getInitials, type AvatarTone } from '@/lib/utils/avatar';
 import {
   STAKEHOLDER_ROLE_CONFIG,
   STAKEHOLDER_ROLE_ORDER,
@@ -299,116 +301,192 @@ const FOCUS_RING =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-main';
 
 /**
- * Сетка строки участника (спека 2.2): звезда / контент / роль + действия.
+ * Сетка карточки (макет W10): аватар / тело / роль + действия. Общая у человека и
+ * пустого слота — колонка аватара одной ширины, левые края имён совпадают.
  *
- * ⚠️ Grid, а не прежний `flex flex-wrap` — это лечение, а не косметика: во flex-wrap
- * имя + тег роли + крестик не помещались в 356px, и крестик падал на свою строку,
- * читаясь как поломка вёрстки. В сетке третья колонка `auto` держит роль и
- * действия справа при любой длине имени — длинное имя переносится в средней.
- *
- * `focus-within` повторяет `hover`: иначе группа действий с клавиатуры невидима.
+ * ⚠️ Grid, а не `flex flex-wrap` (урок спеки 2.2): во flex-wrap имя + тег роли +
+ * крестик не помещались в рельсу, и крестик падал на свою строку. Третья колонка
+ * `auto` держит роль и действия справа при любой длине имени.
  */
-const ROW_GRID =
-  'group grid grid-cols-[0.875rem_minmax(0,1fr)_auto] items-start gap-2 rounded-lg px-1.5 py-2 ' +
-  'transition-colors duration-100 hover:bg-surface2 focus-within:bg-surface2';
+const CARD_GRID = 'grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-2.5 rounded-[0.875rem] px-2.5 py-2';
 
-function PrimaryStar({ show }: { show: boolean }) {
-  // Звезда декоративна: смысл несёт слово «основной» рядом. Колонка есть у всех
-  // строк — иначе имена основного и прочих не стояли бы на одной вертикали.
+/**
+ * Тинт + текст аватара по оттенку из `avatar.ts` — та же пара, что у `Badge`
+ * (`bg-X-l text-X`): её меряет audit-contrast, и темы, перекрашивающие `.text-X`
+ * в `--X-text`, достают и аватар. Литералами — JIT не видит склеенных имён.
+ */
+const AVATAR_TONE_CLASS: Record<AvatarTone, string> = {
+  accent: 'bg-accent-l text-accent',
+  green: 'bg-green-l text-green',
+  blue: 'bg-blue-l text-blue',
+  purple: 'bg-purple-l text-purple',
+  red: 'bg-red-l text-red',
+  yellow: 'bg-yellow-l text-yellow',
+};
+
+/**
+ * Кольцо основного контакта (макет: зазор 2 + акцент 1.5). `outline` с отступом, а
+ * НЕ `box-shadow`: тема minimal вешает на `.bg-X-l` свой inset-`box-shadow`, и
+ * кольцо тенью там молча пропадало. Зазор у outline прозрачный — он же цвета
+ * карточки и в покое, и на hover.
+ */
+const PRIMARY_RING = 'outline outline-[1.5px] outline-offset-2 outline-accent';
+
+function PersonAvatar({ name, initials, isPrimary }: { name: string; initials: string; isPrimary: boolean }) {
   return (
-    <span className="flex h-[1.1rem] items-center" aria-hidden>
-      {show && <Star size={12} className="fill-current text-text-main" />}
+    <span
+      aria-hidden
+      className={cn(
+        'flex size-[2.125rem] shrink-0 items-center justify-center rounded-full text-xs font-bold',
+        AVATAR_TONE_CLASS[getAvatarTone(name)],
+        isPrimary && PRIMARY_RING,
+      )}
+    >
+      {initials || '?'}
     </span>
   );
 }
 
-function PrimaryTag() {
+/** Адрес с точкой переноса перед «@»: узкая рельса рвёт почту по домену, а не посреди слова. */
+function EmailText({ email }: { email: string }) {
+  const at = email.indexOf('@');
+  if (at <= 0) return <>{email}</>;
   return (
-    <span
-      className="shrink-0 rounded-sm bg-surface2 px-1 text-[0.625rem] font-semibold text-text-dim
-                 group-hover:bg-surface group-focus-within:bg-surface"
-      title="Основной контакт сделки — меняется в поле «Контакт»"
-    >
-      основной
-    </span>
+    <>
+      {email.slice(0, at)}
+      <wbr />
+      {email.slice(at)}
+    </>
   );
 }
 
 /**
- * Имя, должность и ОДИН способ связи (спека 2.2): телефон есть — кнопка `tel:` с
- * номером целиком; нет телефона, есть почта — почта и «копировать»; нет ничего —
- * ничего. Никаких «добавить телефон»: в реальной базе это большинство строк, и
- * приглашения забили бы карточку.
+ * Карточка человека (макет W10) — ОДНА разметка для строки слота, «Ещё в контуре»
+ * и виртуальной строки primary: три копии разошлись бы на первой же правке.
+ *
+ * Признак primary — кольцо у аватара и «основной контакт» в подстроке (звезда и тег
+ * «основной» ушли в S-DEAL-STAKE-VIEW-1). Телефон и почта — ОБЕ, строками: макет
+ * рисует строки, кнопка-чип телефона (PR 111) снята. Нет контакта — нет строки,
+ * никаких «добавить телефон».
  */
-function PersonBody({
+function StakeholderCard({
   contactId,
   name,
+  initials,
   isPrimary,
   contact,
+  role,
+  actions,
   children,
 }: {
   contactId: string | null;
   name: string;
+  initials: string;
   isPrimary: boolean;
   contact: Pick<StakeholderContact, 'position' | 'phone' | 'email'> | null | undefined;
+  /** Правый верх: тег роли или «указать роль». */
+  role: React.ReactNode;
+  /** Правый низ: группа действий на наведении. */
+  actions?: React.ReactNode;
+  /** Под контактами: заметка и подтверждение удаления. */
   children?: React.ReactNode;
 }) {
+  const sub = [isPrimary ? 'основной контакт' : null, contact?.position || null].filter(Boolean);
+
   return (
-    <div className="min-w-0">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+    <div
+      className={cn(
+        'group border border-border transition-colors duration-100 hover:bg-surface2 focus-within:bg-surface2',
+        CARD_GRID,
+      )}
+    >
+      <div className="row-span-2">
+        <PersonAvatar name={name} initials={initials} isPrimary={isPrimary} />
+      </div>
+
+      <div className="min-w-0">
         {contactId ? (
           <Link
             href={`/contacts/${contactId}`}
-            // ⚠️ Кегль `text-body`/`text-meta` — ВНЕ `cn`: tailwind-merge не знает
-            // этих имён размера, принимает их за цвет и выкидывает рядом с `text-text-*`.
-            className={`text-body ${cn(
-              'min-w-0 break-words rounded-sm font-semibold leading-snug text-text-main',
-              'hover:underline group-hover:underline',
+            className={cn(
+              'text-body min-w-0 break-words rounded-sm font-semibold leading-snug text-text-main',
+              'hover:underline',
               FOCUS_RING,
-            )}`}
+            )}
           >
             {name}
           </Link>
         ) : (
           <span className="text-body font-semibold leading-snug text-text-main">{name}</span>
         )}
-        {isPrimary && <PrimaryTag />}
-      </div>
-      {contact?.position && (
-        <div className="text-meta leading-snug text-text-dim">{contact.position}</div>
-      )}
-      {contact?.phone ? (
-        <a
-          href={telHref(contact.phone)}
-          title={`Позвонить: ${name}`}
-          className={cn(
-            'mt-1.5 inline-flex h-[1.625rem] items-center gap-1.5 whitespace-nowrap rounded-sm border border-border bg-surface px-2',
-            'text-[0.71875rem] font-semibold tabular-nums text-text-main transition-colors hover:border-text-dim',
-            FOCUS_RING,
-          )}
-        >
-          <Phone size={11} className="text-text-dim" aria-hidden />
-          {formatPhone(contact.phone)}
-        </a>
-      ) : (
-        contact?.email && (
-          // flex-wrap: в узкой колонке «копировать» уходит под адрес, а не сжимает
-          // его до столбика по три буквы.
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-text-dim">
-            <span className="min-w-0 [overflow-wrap:anywhere]">{contact.email}</span>
-            <CopyButton
-              value={contact.email}
-              title="Скопировать почту"
-              className={cn(
-                'h-5 rounded-sm bg-surface2 px-1 text-[0.65625rem] text-text-dim hover:text-text-main',
-                'group-hover:bg-surface group-focus-within:bg-surface',
-                FOCUS_RING,
-              )}
-            />
+
+        {sub.length > 0 && (
+          <div className="text-meta leading-snug text-text-mute">
+            {isPrimary && (
+              // Причина, почему у основного нет «убрать», — здесь, а не молчаливым запретом.
+              <span title="Основной контакт сделки — меняется в поле «Контакт»">основной контакт</span>
+            )}
+            {isPrimary && contact?.position && ' · '}
+            {contact?.position}
           </div>
-        )
-      )}
-      {children}
+        )}
+      </div>
+
+      <div className="shrink-0 whitespace-nowrap">{role}</div>
+
+      {/* Вторая строка сетки — на две колонки: контакты уходят под тег роли и не
+          делят ширину рельсы с ним (иначе почта в 320px рвалась на три строки). */}
+      <div className="col-span-2 flex min-w-0 items-end gap-2">
+        <div className="min-w-0 flex-1">
+          {(contact?.phone || contact?.email) && (
+            <div className="mt-1 flex flex-col gap-0.5">
+              {contact?.phone && (
+                <a
+                  href={telHref(contact.phone)}
+                  title={`Позвонить: ${name}`}
+                  className={cn(
+                    'text-meta inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-sm tabular-nums',
+                    'text-text-main hover:underline',
+                    FOCUS_RING,
+                  )}
+                >
+                  <Phone size={11} className="shrink-0 text-text-mute" aria-hidden />
+                  {formatPhone(contact.phone)}
+                </a>
+              )}
+              {contact?.email && (
+                <div className="flex min-w-0 items-start gap-1">
+                  <a
+                    href={`mailto:${contact.email}`}
+                    title={`Написать: ${name}`}
+                    className={cn(
+                      'text-meta inline-flex min-w-0 items-start gap-1.5 rounded-sm text-text-main hover:underline',
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Mail size={11} className="mt-[0.1875rem] shrink-0 text-text-mute" aria-hidden />
+                    {/* anywhere: длинный адрес в рельсе рвётся по символам, а не
+                        распирает карточку и не сталкивает тег роли вниз. */}
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      <EmailText email={contact.email} />
+                    </span>
+                  </a>
+                  <CopyButton
+                    value={contact.email}
+                    iconOnly
+                    iconSize={11}
+                    title="Скопировать почту"
+                    className={cn('mt-px size-4 rounded-sm text-text-mute hover:text-text-main', FOCUS_RING)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {children}
+        </div>
+        {actions}
+      </div>
     </div>
   );
 }
@@ -421,35 +499,21 @@ const ACTION_BTN = cn(
 );
 
 /**
- * Действия на наведении (спека 2.3 с поправкой владельца П5): почта · заметка ·
- * удалить. Иконки телефона НЕТ — кнопка с номером уже стоит в строке, два способа
- * позвонить рядом не нужны. Почта — только когда строка показывает телефон: без
- * телефона почта и «копировать» уже на виду, дубль в группе был бы вторым путём.
+ * Действия на наведении (спека 2.3 с поправкой владельца П5): заметка · удалить.
+ * Почты в группе больше нет — «копировать» стоит у строки почты в теле карточки.
  *
  * Видимость — `opacity`, не `hidden`: кнопки остаются в табе всегда, а
- * `group-focus-within` проявляет группу, как только фокус в строке.
+ * `group-focus-within` проявляет группу, как только фокус в карточке.
+ * G-3: на таче наведения нет, и невидимые кнопки нажимались вслепую — при
+ * `hover: none` группа видна всегда.
  */
-function RowActions({
-  email,
-  showEmail,
-  onNote,
-  onRemove,
-}: {
-  email: string | null | undefined;
-  showEmail: boolean;
-  onNote?: () => void;
-  onRemove?: () => void;
-}) {
-  const mail = showEmail && email;
-  if (!mail && !onNote && !onRemove) return null;
+function RowActions({ onNote, onRemove }: { onNote?: () => void; onRemove?: () => void }) {
+  if (!onNote && !onRemove) return null;
   return (
     <div
-      className="mt-1.5 flex justify-end gap-1 opacity-0 transition-opacity duration-100
-                 group-hover:opacity-100 group-focus-within:opacity-100"
+      className="flex justify-end gap-1 opacity-0 transition-opacity duration-100
+                 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
     >
-      {mail && (
-        <CopyButton value={mail} iconOnly iconSize={12} title="Скопировать почту" className={ACTION_BTN} />
-      )}
       {onNote && (
         <button type="button" onClick={onNote} title="Заметка" aria-label="Заметка" className={ACTION_BTN}>
           <StickyNote size={12} aria-hidden />
@@ -463,7 +527,7 @@ function RowActions({
           onClick={onRemove}
           title="Убрать из карты стейкхолдеров"
           aria-label="Убрать из карты стейкхолдеров"
-          className={cn(ACTION_BTN, (mail || onNote) && 'ml-1.5', 'hover:text-red')}
+          className={cn(ACTION_BTN, onNote && 'ml-1.5', 'hover:text-red')}
         >
           <X size={12} aria-hidden />
         </button>
@@ -473,9 +537,9 @@ function RowActions({
 }
 
 /**
- * Строка заполненного слота и строка хвоста — ОДНА разметка. Вынесена в компонент
- * не ради красоты: слоты и «Ещё в контуре» рисуют одно и то же, а две копии этой
- * разметки разошлись бы на первой же правке.
+ * Человек из карты (заполненный слот или «Ещё в контуре») — карточка с заметкой
+ * и удалением. Строку primary удалить нельзя: она следует за полем «Контакт»
+ * сделки, причина — в подсказке на «основной контакт».
  */
 function StakeholderLine({
   row,
@@ -497,81 +561,70 @@ function StakeholderLine({
   onSaveNote: (note: string | null) => void;
 }) {
   // Редактор заметки открывает кнопка группы действий; пустую заметку в покое не
-  // рисуем вовсе — «+ заметка» в каждой строке был бы шумом.
+  // рисуем вовсе — «+ заметка» в каждой карточке был бы шумом.
   const [editingNote, setEditingNote] = useState(false);
   const showNote = !!row.note || editingNote;
 
   return (
-    <div className={ROW_GRID}>
-      <PrimaryStar show={row.isPrimary} />
-
-      <PersonBody
-        contactId={row.contact_id}
-        name={contactName(row.contact)}
-        isPrimary={row.isPrimary}
-        contact={row.contact}
-      >
-        {showNote && (
-          <div className="mt-1.5 text-meta italic text-text-dim">
-            Заметка:{' '}
-            {canManage ? (
-              <InlineEdit
-                // Кнопка «Заметка» пересобирает редактор уже открытым.
-                key={editingNote ? 'editing' : 'view'}
-                value={row.note ?? ''}
-                placeholder="текст заметки"
-                startEditing={editingNote}
-                className="text-meta"
-                onCancel={() => setEditingNote(false)}
-                onSave={async (val) => {
-                  setEditingNote(false);
-                  onSaveNote(val.trim().slice(0, 500) || null);
-                }}
-              />
-            ) : (
-              <span>{row.note}</span>
-            )}
-          </div>
-        )}
-      </PersonBody>
-
-      <div className="flex flex-col items-end">
+    <StakeholderCard
+      contactId={row.contact_id}
+      name={contactName(row.contact)}
+      initials={row.contact ? getInitials(row.contact.first_name, row.contact.last_name) : '?'}
+      isPrimary={row.isPrimary}
+      contact={row.contact}
+      role={
         <RoleCell
           role={row.role}
           canManage={canManage}
           emptyLabel={STAKEHOLDER_ROLE_EMPTY_LABEL}
           onChange={onChangeRole}
         />
-        {/* У primary кнопки удаления нет: строка следует за полем «Контакт»
-            сделки. Причина — в подсказке на «основной». */}
-        {confirming ? (
-          <InlineConfirm
-            question="Убрать?"
-            onConfirm={onRemove}
-            onCancel={onCancelConfirm}
-            className="mt-1.5"
-          />
-        ) : (
+      }
+      actions={
+        confirming ? null : (
           <RowActions
-            email={row.contact?.email}
-            showEmail={!!row.contact?.phone}
             onNote={canManage ? () => setEditingNote(true) : undefined}
             onRemove={canManage && !row.isPrimary ? onConfirm : undefined}
           />
-        )}
-      </div>
-    </div>
+        )
+      }
+    >
+      {showNote && (
+        <div className="text-meta mt-1.5 italic text-text-dim">
+          Заметка:{' '}
+          {canManage ? (
+            <InlineEdit
+              // Кнопка «Заметка» пересобирает редактор уже открытым.
+              key={editingNote ? 'editing' : 'view'}
+              value={row.note ?? ''}
+              placeholder="текст заметки"
+              startEditing={editingNote}
+              className="text-meta"
+              onCancel={() => setEditingNote(false)}
+              onSave={async (val) => {
+                setEditingNote(false);
+                onSaveNote(val.trim().slice(0, 500) || null);
+              }}
+            />
+          ) : (
+            <span>{row.note}</span>
+          )}
+        </div>
+      )}
+      {confirming && (
+        <InlineConfirm question="Убрать?" onConfirm={onRemove} onCancel={onCancelConfirm} className="mt-1.5" />
+      )}
+    </StakeholderCard>
   );
 }
 
 /**
- * Строка основного контакта, у которого ещё НЕТ записи в карте. Легальное состояние
- * 092: primary вычисляется из `projects.contact_id`, дублировать его нечем.
+ * Карточка основного контакта, у которого ещё НЕТ записи в карте. Легальное
+ * состояние 092: primary вычисляется из `projects.contact_id`, дублировать его нечем.
  *
  * S-DEAL-CONTACT-1: должность и контакты — из `useContactBrief`, того же запроса,
  * что у чипа в «Следующем шаге». Пропс `primaryContact` приходит из запроса сделки
- * урезанным до имени, и до спринта это была единственная строка карты без
- * единого поля, кроме имени. Имя из пропса — запасное, пока визитка грузится.
+ * урезанным до имени. Имя из пропса — запасное, пока визитка грузится.
  */
 function VirtualPrimaryLine({
   primaryContactId,
@@ -587,21 +640,16 @@ function VirtualPrimaryLine({
   const { data: brief } = useContactBrief(primaryContactId);
   const person = brief ?? primaryContact ?? null;
 
+  // Заметки и удаления нет: строки в карте ещё нет, писать их некуда.
   return (
-    <div className={ROW_GRID}>
-      <PrimaryStar show />
-      <PersonBody
-        contactId={person?.id ?? null}
-        name={person ? contactName(person) : 'Основной контакт'}
-        isPrimary
-        contact={brief}
-      />
-      <div className="flex flex-col items-end">
-        <RoleCell role={null} canManage={canManage} emptyLabel="указать роль" onChange={onPickRole} />
-        {/* Заметки и удаления нет: строки в карте ещё нет, писать их некуда. */}
-        <RowActions email={brief?.email} showEmail={!!brief?.phone} />
-      </div>
-    </div>
+    <StakeholderCard
+      contactId={person?.id ?? null}
+      name={person ? contactName(person) : 'Основной контакт'}
+      initials={person ? getInitials(person.first_name, person.last_name) : '?'}
+      isPrimary
+      contact={brief}
+      role={<RoleCell role={null} canManage={canManage} emptyLabel="указать роль" onChange={onPickRole} />}
+    />
   );
 }
 
@@ -616,22 +664,19 @@ const PRIMARY_SLOT_HINT = 'задаётся полем «Контакт» сде
  * Пустой слот — носитель сообщения «этой роли в контуре нет», а не место под
  * будущую строку.
  *
- * S-DEAL-CONTACT-1 (решение владельца П1): слот обязан быть ТИШЕ строки с
- * человеком — до спринта незакрытые роли занимали две трети карточки. Поэтому:
- * одна строка (`slot.label`), пунктирной рамки вокруг блока нет — маркер «не
- * закрыто» несёт кружок с плюсом; подсказка не печатается строкой, а уходит в
- * `title` (заодно ушло обрезанное «задаётся полем „Контакт“ сде…»). Обязательность
- * — `--danger-text` на самой метке: цвет несёт состояние, не украшает.
+ * S-DEAL-STAKE-VIEW-1 (решение владельца 26.09, отменяет П1 от 13.09): слот —
+ * пунктирная карточка по макету, подсказка ТЕКСТОМ, а не в `title`. Инвариант П1
+ * остаётся: карточка человека тяжелее любого слота — у слота нет аватара,
+ * контактов и сплошной рамки. Тега роли у слота нет: роль названа заголовком.
+ * Обязательная роль — подсказка `--danger-text` фразой сигнала `single_threaded`
+ * (`ROLE_MISSING_DETAIL`): «Сводка» и «Стейкхолдеры» не спорят.
  * Слоты НЕ удаляются: `missingRequired` кормит сигнал `single_threaded`.
  *
  * ⚠️ Два разных действия по типу слота (cold review F1). Слот РОЛИ закрывается
  * добавлением участника — клик открывает форму с предвыбранной ролью. Слот PRIMARY
  * добавлением НЕ закрывается: `resolveRoleSlots` считает его закрытым по
- * `projects.contact_id`, и после «добавить участника» он остался бы пустым — клик
- * обещал бы действие, которого не совершает. Поэтому primary ведёт в модалку
- * проекта (там же правится «Контакт» из сводки — третьего пути не заводим), а если
- * дёрнуть её нельзя (нет прав, нет колбэка) — слот НЕ кликабелен, но подсказка
- * в `title` остаётся: она объясняет, где это поле.
+ * `projects.contact_id`, поэтому primary ведёт в модалку проекта, а если дёрнуть её
+ * нельзя (нет прав, нет колбэка) — слот НЕ кликабелен, подсказка остаётся.
  */
 function EmptySlotLine({
   slot,
@@ -645,49 +690,52 @@ function EmptySlotLine({
   onEditContact?: () => void;
 }) {
   const isPrimary = slot.kind === 'primary';
-  const hint = isPrimary ? PRIMARY_SLOT_HINT : slot.hint;
+  const hint = slot.isRequired ? ROLE_MISSING_DETAIL : isPrimary ? PRIMARY_SLOT_HINT : slot.hint;
 
   const body = (
     <>
       <span
-        className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed
-                   border-border2 text-text-mute"
+        className="flex size-[2.125rem] shrink-0 items-center justify-center rounded-full border-[1.5px]
+                   border-dashed border-border2 text-text-mute"
         aria-hidden
       >
-        <Plus size={10} />
+        <Plus size={14} />
       </span>
-      <span
-        // Метка — `text-meta`, мельче имени участника: слот тише строки с
-        // человеком (П1). Кегль вне `cn` — см. ⚠️ у ссылки имени в `PersonBody`.
-        className={`text-meta ${cn('min-w-0 flex-1', slot.isRequired ? 'text-danger-text' : 'text-text-dim')}`}
-      >
-        {slot.label}
+      <span className="min-w-0">
+        <span className="text-body block font-semibold leading-snug text-text-dim">{slot.label}</span>
+        {hint && (
+          <span
+            className={cn(
+              'text-meta block leading-snug',
+              slot.isRequired ? 'text-danger-text' : 'text-text-mute',
+            )}
+          >
+            {hint}
+          </span>
+        )}
       </span>
-      {/* Тег роли — тот же примитив, что у заполненных строк. У слота primary
-          роли нет: его закрывает поле «Контакт», а не роль. */}
-      {slot.kind === 'role' && slot.role && <RoleBadge role={slot.role} />}
     </>
   );
 
-  const shell = 'flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left';
+  const shell = cn(
+    'w-full items-center border-[1.5px] border-dashed border-border2 text-left',
+    CARD_GRID,
+    // Третья колонка сетки пуста — тело тянется до правого края.
+    'grid-cols-[auto_minmax(0,1fr)]',
+  );
 
   const action = isPrimary ? onEditContact : onAdd;
 
   // Без прав слот всё равно ВИДЕН: «кого не хватает» — сведение о сделке, а не
   // действие. Кликабельным он становится только у тех, кто может его закрыть.
   if (!canManage || !action) {
-    return (
-      <div className={shell} title={hint ?? undefined}>
-        {body}
-      </div>
-    );
+    return <div className={shell}>{body}</div>;
   }
 
   return (
     <button
       type="button"
       onClick={action}
-      title={hint ?? undefined}
       className={cn(shell, 'transition-colors hover:bg-surface2', FOCUS_RING)}
     >
       {body}
@@ -817,15 +865,15 @@ export function DealStakeholders({
   }
 
   return (
-    <div className="mb-6 rounded-lg border border-border bg-surface px-3 py-2.5">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-1 text-body text-text-dim">
-          <Network size={11} /> Стейкхолдеры
+    <div className="mb-6 rounded-xl border border-border bg-surface px-4 py-3.5">
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <div className="text-body min-w-0 font-bold text-text-main">
+          Стейкхолдеры
           {/* Счётчик считает СЛОТЫ, не головы: один человек закрывает и «основной
               контакт», и свою роль. Без ожиданий счётчика нет — считать нечего. */}
           {hasExpectations && (
-            <span className="text-meta text-text-mute">
-              · {filledCount} из {totalCount} ролей
+            <span className="font-medium text-text-mute">
+              {' '}· {filledCount} из {totalCount} ролей
             </span>
           )}
         </div>
@@ -833,10 +881,13 @@ export function DealStakeholders({
           <button
             type="button"
             onClick={() => openAdd(null)}
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-meta text-text-dim
-                       transition-colors hover:bg-surface2 hover:text-text-main"
+            className={cn(
+              'text-meta flex h-[1.625rem] shrink-0 items-center gap-1 rounded-lg border border-border px-2.5',
+              'font-semibold text-text-dim transition-colors hover:bg-surface2 hover:text-text-main',
+              FOCUS_RING,
+            )}
           >
-            <Plus size={12} /> Добавить
+            <Plus size={12} aria-hidden /> Добавить
           </button>
         )}
       </div>
@@ -850,9 +901,9 @@ export function DealStakeholders({
           Не удалось загрузить карту участников: {parseStakeholderError(error)}
         </p>
       ) : hasExpectations ? (
-        // Разделители вместо промежутков (спека 2.1): строки с контактами разной
-        // высоты, и без линии соседние люди слипались в один блок.
-        <div className="divide-y divide-border2">
+        // P-1: карточки стопкой с промежутком вместо разделителей — у каждой своя
+        // рамка, и линия дугой по скруглённым углам ушла вместе с разделителями.
+        <div className="flex flex-col gap-2">
           {slots.map((slot) => {
             const key = slot.kind === 'primary' ? 'slot-primary' : `slot-${slot.role}`;
             if (!slot.isFilled) {
@@ -883,13 +934,11 @@ export function DealStakeholders({
 
           {/* Люди без роли и сверх слотов не теряются: контур — не весь список. */}
           {rest.length > 0 && (
-            <div className="pt-1.5">
-              <div className="px-1 pb-0.5 text-meta text-text-mute">Ещё в контуре</div>
-              <div className="divide-y divide-border2">
-                {rest.map((row) => (
-                  <div key={row.id}>{line(row)}</div>
-                ))}
-              </div>
+            <div className="mt-1 flex flex-col gap-2">
+              <div className="text-meta text-text-mute">Ещё в контуре</div>
+              {rest.map((row) => (
+                <div key={row.id}>{line(row)}</div>
+              ))}
             </div>
           )}
         </div>
@@ -899,7 +948,7 @@ export function DealStakeholders({
           {canManage && ' — добавь тех, кто решает, платит и подписывает'}
         </p>
       ) : (
-        <div className="divide-y divide-border2">
+        <div className="flex flex-col gap-2">
           {/* Виртуальная строка основного контакта — записи в карте ещё нет */}
           {primaryMissing && (
             <VirtualPrimaryLine
