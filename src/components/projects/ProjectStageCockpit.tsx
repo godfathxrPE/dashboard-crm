@@ -15,6 +15,7 @@ import { useStageRequirements } from '@/lib/hooks/use-stage-requirements';
 import { useStageGate } from '@/lib/hooks/use-stage-gate';
 import {
   useDwellThresholds,
+  useOrgSettingsReady,
   useStageGuidance,
   useStageTargetDays,
   useUpdateOrgSettings,
@@ -58,6 +59,7 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   const allStages = useStagesForPipeline(project.pipeline_id);
   const dwell = useDwellThresholds();
   const targetDays = useStageTargetDays();
+  const settingsReady = useOrgSettingsReady();
   const guidance = useStageGuidance();
   const { data: orgRole } = useOrgRole();
   const updateSettings = useUpdateOrgSettings();
@@ -260,6 +262,21 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   // внутри зоны «Работа», а не прямо на её тоне. Обёртка здесь, а не в
   // PipelineCockpit: строка лида остаётся как есть (П4). Лист приезжает и на
   // карточку внедрения — ProjectStageCockpit там тот же.
+  // fix-S-STAGE-PROFILE-2 (P-4): пока настройки организации не ответили, нормы —
+  // дефолты групп (14/21/30), и ячейка «Подготовка КП · 10 дн.» при реальной норме 5
+  // рисовалась «в норме». Ложное «в норме» хуже, чем ничего: вместо строки и карты —
+  // заглушка высотой со строку (116px замером, без прыжка раскладки), тот же приём, что у карты
+  // при `!story`. Лидов это не касается: их строка — LegacyRow без норм.
+  if (!settingsReady) {
+    return (
+      <div className="sheet rounded-[1.25rem] p-4">
+        <div className="flex min-h-[7.25rem] items-center text-meta text-text-mute">
+          Загружаем нормы стадий…
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sheet rounded-[1.25rem] p-4">
       <PipelineCockpit

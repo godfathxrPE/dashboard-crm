@@ -28,18 +28,57 @@ function gauge(days: number | null, norm: number | null): StageTimeGauge {
 }
 
 describe('buildStageProfile — масштаб', () => {
-  it('pxPerDay = H / max(факт, норма) по всем стадиям', () => {
+  it('pxPerDay = H / max(нормы, факт текущей)', () => {
     const p = buildStageProfile(STAGES, { a: 1, b: 2, c: 4 }, NORMS, gauge(3, 10), NOW, { currentIndex: 3 });
     expect(p.pxPerDay).toBe(PROFILE_BAR_H / 10);
     expect(p.scaleLabel).toBe('9 px = 1 день');
   });
 
   it('pxPerDay < 1 — подпись «1 px = N дн.»', () => {
-    const p = buildStageProfile(STAGES, { a: 180 }, NORMS, gauge(3, 10), NOW, { currentIndex: 1 });
+    // fix-S-STAGE-PROFILE-2: масштаб задаёт текущая (180), а не выброс прошлой.
+    const p = buildStageProfile(STAGES, { a: 1 }, NORMS, gauge(180, 3), NOW, { currentIndex: 1 });
     expect(p.pxPerDay).toBe(0.5);
     expect(p.scaleLabel).toBe('1 px = 2 дн.');
     // короткий факт схлопывается до минимума, а не исчезает
-    expect(p.columns[1].fillPx).toBe(3);
+    expect(p.columns[0].fillPx).toBe(3);
+  });
+
+  it('выброс прошлой не задаёт масштаб: обрезан до столбика с флагом clipped', () => {
+    // «ЭЙЧ ЭНД ЭН»: «Лид» 62 при норме 2, текущая «Квалификация» 9 при норме 3.
+    const norms = { a: 2, b: 3, c: 5, d: 7, e: 7 };
+    const p = buildStageProfile(STAGES, { a: 62 }, norms, gauge(9, 3), NOW, { currentIndex: 1 });
+    expect(p.pxPerDay).toBe(PROFILE_BAR_H / 9);
+    const [lead, cur] = p.columns;
+    expect(lead.clipped).toBe(true);
+    expect(lead.fillPx).toBe(PROFILE_BAR_H);
+    expect(lead.fact).toBe(62); // число над столбиком — честный факт
+    expect(lead.overPx).toBeCloseTo(PROFILE_BAR_H - lead.contourPx); // от обрезанной высоты
+    expect(cur.fillPx).toBe(PROFILE_BAR_H);
+    expect(cur.clipped).toBeFalsy();
+  });
+
+  it('прошлая в пределах масштаба — не clipped', () => {
+    const p = buildStageProfile(STAGES, { a: 1, b: 2 }, NORMS, gauge(4, 5), NOW, { currentIndex: 2 });
+    expect(p.columns[0].clipped).toBeFalsy();
+    expect(p.columns[1].clipped).toBeFalsy();
+  });
+
+  it('allDone — масштаб по всем фактам, как до фикса, clipped ни у кого', () => {
+    const facts = { a: 62, b: 3, c: 4, d: 5, e: 6 };
+    const p = buildStageProfile(STAGES, facts, NORMS, gauge(0, null), NOW, {
+      currentIndex: -1,
+      allDone: true,
+      locked: true,
+    });
+    expect(p.pxPerDay).toBe(PROFILE_BAR_H / 62);
+    expect(p.columns.some((c) => c.clipped)).toBe(false);
+  });
+
+  it('нет норм — масштаб по фактам, как до фикса', () => {
+    const p = buildStageProfile(STAGES, { a: 62 }, {}, gauge(9, null), NOW, { currentIndex: 1 });
+    expect(p.hasNorms).toBe(false);
+    expect(p.pxPerDay).toBe(PROFILE_BAR_H / 62);
+    expect(p.columns[0].clipped).toBeFalsy();
   });
 
   it('факт 0 — заглушка 2px, а не пустота', () => {
