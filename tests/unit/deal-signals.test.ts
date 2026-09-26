@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   getDealSignals,
+  roleCoverageSignal,
+  ROLE_MISSING_DETAIL,
   DEFAULT_SIGNAL_THRESHOLDS,
   type DealSignal,
   type DealSignalContext,
@@ -413,5 +415,17 @@ describe('getDealSignals — стадия', () => {
       NOW,
     );
     expect(find(r.signals, 'stage_dwell')).toBeUndefined();
+  });
+});
+
+// S-DEAL-STAKE-VIEW-1: пустой обязательный слот в «Стейкхолдерах» печатает
+// ROLE_MISSING_DETAIL, «Сводка» — текст сигнала. Страж от расхождения двух
+// виджетов одного экрана: сигнал обязан говорить той же константой.
+describe('roleCoverageSignal — текст незакрытой роли', () => {
+  it('detail сигнала равен экспортированной константе', () => {
+    const s = roleCoverageSignal(['decision_maker']);
+    expect(s.state).toBe('warn');
+    expect(s.detail).toBe(ROLE_MISSING_DETAIL);
+    expect(roleCoverageSignal(['decision_maker', 'expert']).detail).toBe(ROLE_MISSING_DETAIL);
   });
 });

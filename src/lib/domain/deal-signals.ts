@@ -301,6 +301,15 @@ function roleLabel(role: StakeholderRole): string {
 }
 
 /**
+ * Последствие незакрытой обязательной роли — текст сигнала `single_threaded` в
+ * ветке покрытия ролей. Вынесено константой (S-DEAL-STAKE-VIEW-1): ту же фразу
+ * печатает пустой обязательный слот в «Стейкхолдерах», и два виджета одного
+ * экрана не должны объяснять один факт разными словами. Страж —
+ * `tests/unit/deal-signals.test.ts`.
+ */
+export const ROLE_MISSING_DETAIL = 'Ключевой риск стадии: без этой роли решение по сделке некому принять.';
+
+/**
  * S-DEAL-ROLES-1: ветка «покрытие ролей». Работает, только когда у воронки ЕСТЬ
  * ожидания (`pipeline_expected_roles`, 130); иначе сигнал остаётся на прежнем
  * счёте участников — см. `singleThreadedSignal`.
@@ -333,7 +342,7 @@ export function roleCoverageSignal(missing: readonly StakeholderRole[]): DealSig
     key: 'single_threaded',
     label: missing.length === 1 ? `${names} не в контуре` : `Не в контуре: ${names}`,
     state: 'warn',
-    detail: 'Ключевой риск стадии: без этой роли решение по сделке некому принять.',
+    detail: ROLE_MISSING_DETAIL,
     cta: 'К участникам',
   };
 }
