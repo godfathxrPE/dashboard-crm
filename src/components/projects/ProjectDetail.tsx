@@ -39,7 +39,8 @@ import { CallModal } from '@/components/calls/CallModal';
 import { MeetingModal } from '@/components/meetings/MeetingModal';
 import { AiDealModal } from '@/components/ai/AiDealModal';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
-import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { EntityTimeline, TimelineFilterChips, type TimelineFilterValue } from '@/components/shared/EntityTimeline';
+import { DealActivityFeed, useDealActivity, DEAL_CHIP_KINDS, DEAL_CHIP_LABELS } from './DealActivityFeed';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { AiRunResultModal } from '@/components/ai/AiRunResultModal';
 import type { AiRunRow } from '@/types/database';
@@ -226,6 +227,13 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
   // S-IA-DELIVERY-1 (M2): null = «пользователь ещё не выбирал» → эффективный таб
   // деривируется от типа проекта ниже (delivery стартует на Плане, не на ленте).
   const [tab, setTab] = useState<Tab | null>(null);
+  // S-DEAL-ACTIVITY-VIEW-1 (W5): чип ленты сделки живёт здесь — чипы стоят в шапке
+  // блока, лента ниже (`DealActivityFeed`, управляемый режим). «Вся лента» снимает
+  // лимит 10; смена чипа его возвращает.
+  const [activityFilter, setActivityFilter] = useState<TimelineFilterValue>('all');
+  const [activityExpanded, setActivityExpanded] = useState(false);
+  // Тот же ключ React Query, что у ленты, — второго запроса нет.
+  const { emptyEntity: activityEmpty } = useDealActivity(projectId, activityFilter);
   // S-R2-TRANSITION-1b: состояние двухшагового выбора причины (winning/losing/winDetail)
   // снято — причину собирает модалка перехода.
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -417,25 +425,63 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
       <div id="deal-activity" className={`mb-4 rounded-xl border border-border bg-surface p-4 ${activeTab === 'activity' ? '' : 'hidden'}`}>
         {/* R-07: кнопки уехали на полосу вкладок — внутри ленты они пропадали
             на Доске, Ганте, КП, Истории и в Чате. Разводить нечего. */}
-        <div className="mb-3 flex items-center gap-2">
-          <Clock size={14} className="text-text-dim" />
-          <span className="text-xs font-semibold text-text-main">Активность</span>
-        </div>
-        {/* S-DEAL-EVENT-1 (W5): последнее событие и его следствия — НАД композером
-            и над лентой. Своего запроса не заводит: при чипе «Все» ключ React
-            Query совпадает с ключом ленты. */}
-        <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
-        <ActivityComposer entityType="project" entityId={projectId} />
-        {/* S-DEAL-ZONES-1A (F-08): 72ch — только на СДЕЛКЕ. `EntityTimeline`
-            общий с контактом, компанией и тредом, и глобальная смена меры
-            переставила бы вёрстку четырёх хабов ради одного. */}
-        <EntityTimeline
-          entityType="project"
-          entityId={projectId}
-          onOpenEvent={handleOpenEvent}
-          kindFilter={DEAL_TIMELINE_KINDS}
-          bodyMeasureClass={isDeal ? 'max-w-[72ch]' : undefined}
-        />
+        {isDeal ? (
+          <>
+            {/* S-DEAL-ACTIVITY-VIEW-1 (W5): шапка одной строкой — заголовок, чипы-пилюли,
+                «Вся лента». У сделки без событий чипов и ссылки нет (S-HEALTH-V2-1). */}
+            <div className="mb-3.5 flex flex-wrap items-center gap-2">
+              <span className="mr-1.5 text-xs font-bold text-text-main">Активность</span>
+              {!activityEmpty && (
+                <>
+                  <TimelineFilterChips
+                    variant="pill"
+                    kinds={DEAL_CHIP_KINDS}
+                    labels={DEAL_CHIP_LABELS}
+                    value={activityFilter}
+                    onChange={(v) => { setActivityFilter(v); setActivityExpanded(false); }}
+                  />
+                  {/* Без числа: RPC отдаёт ленту keyset-страницами, общего счёта нет,
+                      и число загруженных строк выдавалось бы за «всего». */}
+                  {!activityExpanded && (
+                    <button
+                      type="button"
+                      onClick={() => setActivityExpanded(true)}
+                      className="ml-auto text-xs font-semibold text-success-text hover:underline"
+                    >
+                      Вся лента
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            {/* S-DEAL-EVENT-1: последнее событие и его следствия — НАД композером
+                и над лентой. Своего запроса не заводит: ключ совпадает с чипом «Все». */}
+            <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
+            <ActivityComposer entityType="project" entityId={projectId} variant="deal" />
+            <DealActivityFeed
+              projectId={projectId}
+              filter={activityFilter}
+              expanded={activityExpanded}
+              onOpenEvent={handleOpenEvent}
+            />
+          </>
+        ) : (
+          <>
+            {/* Внедрение и внутренний проект — прежний вид ленты: макет W5 про сделку. */}
+            <div className="mb-3 flex items-center gap-2">
+              <Clock size={14} className="text-text-dim" />
+              <span className="text-xs font-semibold text-text-main">Активность</span>
+            </div>
+            <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
+            <ActivityComposer entityType="project" entityId={projectId} />
+            <EntityTimeline
+              entityType="project"
+              entityId={projectId}
+              onOpenEvent={handleOpenEvent}
+              kindFilter={DEAL_TIMELINE_KINDS}
+            />
+          </>
+        )}
       </div>
     </>
   );

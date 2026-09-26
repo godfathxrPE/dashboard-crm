@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { describeEvent, isNoteEvent } from '@/lib/utils/activity-events';
+import { describeEvent, fieldLabel, isNoteEvent } from '@/lib/utils/activity-events';
 import type { ActivityLog } from '@/types/entities';
 
 function entry(event_type: string, payload: unknown): ActivityLog {
@@ -11,9 +11,8 @@ describe('describeEvent — project_updated', () => {
     const text = describeEvent(
       entry('project_updated', { fields_changed: ['stage_id', 'won_reason', 'budget'] }),
     );
-    expect(text).toContain('стадия');
-    expect(text).toContain('причина выигрыша');
-    expect(text).toContain('бюджет');
+    // S-DEAL-ACTIVITY-VIEW-1: первая подпись + «и ещё N», а не список всех полей.
+    expect(text).toBe('Обновлено: стадия и ещё 2');
     // ни одного сырого имени колонки
     expect(text).not.toContain('stage_id');
     expect(text).not.toContain('won_reason');
@@ -39,6 +38,30 @@ describe('describeEvent — project_updated', () => {
     );
     // «причина выигрыша» ровно один раз, а не «…, причина выигрыша»
     expect(text).toBe('Обновлено: причина выигрыша');
+  });
+});
+
+// S-DEAL-ACTIVITY-VIEW-1 (W5): легаси-записи до 087 — «поле и ещё N».
+describe('describeEvent — project_updated без changes: «и ещё N»', () => {
+  test('type, name, stage, stage_id → «Обновлено: тип и ещё 2» (stage отсеян)', () => {
+    expect(
+      describeEvent(entry('project_updated', { fields_changed: ['type', 'name', 'stage', 'stage_id'] })),
+    ).toBe('Обновлено: тип и ещё 2');
+  });
+
+  test('одно поле — без «и ещё»', () => {
+    expect(describeEvent(entry('project_updated', { fields_changed: ['type'] }))).toBe('Обновлено: тип');
+  });
+
+  test('won_reason + won_detail — одна подпись, «и ещё» нет', () => {
+    const text = describeEvent(entry('project_updated', { fields_changed: ['won_reason', 'won_detail'] }));
+    expect(text).toBe('Обновлено: причина выигрыша');
+    expect(text).not.toContain('и ещё');
+  });
+
+  test('подписи type и parent_deal_id', () => {
+    expect(fieldLabel('parent_deal_id')).toBe('родительская сделка');
+    expect(fieldLabel('type')).toBe('тип');
   });
 });
 

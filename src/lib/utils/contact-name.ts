@@ -45,3 +45,22 @@ export function formatContactNameShort(
   if (f && l) return `${l} ${f.charAt(0)}.`;
   return f || l || '—';
 }
+
+/**
+ * S-DEAL-ACTIVITY-VIEW-1 (W5): «Имя Ф.» для строки меты — «Наталья Н.».
+ *
+ * Порядок обратный `formatContactNameShort` («Трубачев Д.») намеренно: в мете
+ * события контакт — собеседник, к нему обращаются по имени, а рельс 320px — список,
+ * где ищут по фамилии. Правило пустых значений то же (`clean`).
+ *
+ * Показать нечего — `null`, а не «—»: сегмент меты тогда просто не рисуется.
+ */
+export function formatPersonShort(
+  first: string | null | undefined,
+  last: string | null | undefined,
+): string | null {
+  const f = clean(first);
+  const l = clean(last);
+  if (f && l) return `${f} ${l.charAt(0)}.`;
+  return f || l || null;
+}

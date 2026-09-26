@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/cn';
 // S-TL-4: иконка и цвет вида — из общего модуля. Вторая такая карта жила на
 // дашборде (по `event_type`) и после переезда виджета на org-ленту стала копией.
 import { KIND_META } from '@/lib/timeline/kind-meta';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/timeline';
 
@@ -110,17 +111,25 @@ const DEFAULT_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'project'];
  * Второго определения стиля чипа при этом не появляется.
  */
 export function TimelineFilterChips({
-  kinds, value, onChange, className,
+  kinds, value, onChange, className, variant = 'default', labels,
 }: {
   kinds: TimelineKind[];
   value: TimelineFilterValue;
   onChange: (v: TimelineFilterValue) => void;
   className?: string;
+  /**
+   * S-DEAL-ACTIVITY-VIEW-1 (W5): `pill` — пилюли шапки «Активности» сделки
+   * (активная — тёмная заливка). Дефолт `default` — прежний вид у лида, компании
+   * и контакта; аддитивный проп, их разметка не меняется.
+   */
+  variant?: 'default' | 'pill';
+  /** Переименование чипов под место (сделка: `activity` → «Поля»). */
+  labels?: Partial<Record<TimelineFilterValue, string>>;
 }) {
   // `activity` разворачивается в ДВА чипа на своём месте в порядке: «Заметки»
   // (производный срез) и «Система» (весь activity_log). Родителям для этого
   // ничего передавать не нужно — набор kinds у них прежний.
-  const items: { key: TimelineFilterValue; label: string }[] = [
+  const base: { key: TimelineFilterValue; label: string }[] = [
     { key: 'all', label: 'Все' },
     ...kinds.flatMap((k) =>
       k === 'activity'
@@ -131,17 +140,30 @@ export function TimelineFilterChips({
         : [{ key: k as TimelineFilterValue, label: KIND_LABEL[k] }],
     ),
   ];
+  const items = labels ? base.map((f) => ({ ...f, label: labels[f.key] ?? f.label })) : base;
+  const pill = variant === 'pill';
   return (
-    <div className={cn('flex flex-wrap gap-1', className)}>
+    <div className={cn('flex flex-wrap', pill ? 'gap-0.5' : 'gap-1', className)}>
       {items.map((f) => (
         <button
           key={f.key}
+          type="button"
           onClick={() => onChange(f.key)}
+          aria-pressed={value === f.key}
           className={cn(
-            'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
-            value === f.key
-              ? 'bg-accent-l text-accent'
-              : 'text-text-mute hover:bg-surface2 hover:text-text-main',
+            'rounded-full transition-colors',
+            pill ? 'px-3 py-1 text-xs' : 'px-2.5 py-1 text-xs font-medium',
+            pill
+              // ⚠️ `text-bg`, а не `text-surface` из файла спринта: в frost/aurora/tidal
+              // `--surface` полупрозрачный белый (rgba .05–.07), и на заливке
+              // `--text` (светлой в тёмных темах) подпись исчезала бы. `--bg` —
+              // непрозрачная пара к `--text` во всех восьми темах.
+              ? value === f.key
+                ? 'bg-text-main font-semibold text-bg'
+                : 'font-medium text-text-dim hover:text-text-main'
+              : value === f.key
+                ? 'bg-accent-l text-accent'
+                : 'text-text-mute hover:bg-surface2 hover:text-text-main',
           )}
         >
           {f.label}
@@ -149,20 +171,6 @@ export function TimelineFilterChips({
       ))}
     </div>
   );
-}
-
-function relativeTime(date: string): string {
-  const diff = Date.now() - new Date(date).getTime();
-  const abs = Math.abs(diff);
-  const mins = Math.floor(abs / 60000);
-  const suffix = diff >= 0 ? 'назад' : 'вперёд';
-  if (mins < 1) return 'только что';
-  if (mins < 60) return `${mins}м ${suffix}`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}ч ${suffix}`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}д ${suffix}`;
-  return new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
 function sameMonth(iso: string, ref: Date): boolean {
