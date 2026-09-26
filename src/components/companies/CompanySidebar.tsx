@@ -6,7 +6,7 @@ import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { useUpdateCompany } from '@/lib/hooks/use-companies';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
-import { chzStatusLabel, CHZ_SNAPSHOT_DATE, type ChzGroup } from '@/lib/data/chz-groups';
+import { phaseChzGroups, CHZ_SNAPSHOT_DATE, type ChzGroup } from '@/lib/data/chz-groups';
 import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { ChzBadge } from '@/components/shared/ChzBadge';
 import { formatDateHuman, formatCalendarDate } from '@/lib/utils/dates';
@@ -180,7 +180,7 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
           и выбирает сколько угодно групп.
 
           Правило теперь про РАЗДЕЛЕНИЕ ТРУДА с highlight-виджетом, а не про
-          справочник: виджет показывает ровно одну группу (`chzGroups[0]`), и при
+          справочник: виджет показывает ровно одну группу (первую по фазе), и при
           одной группе эта карточка дословно его повторяла бы — та же строка, тот же
           бейдж, тот же note. Карточка появляется, когда есть что добавить сверх
           виджета: групп больше одной ЛИБО среди подтверждённых имён есть сироты —
@@ -198,11 +198,11 @@ export function CompanySidebar({ company, chzGroups, chzSource, chzUnknown }: Co
           )}
         >
           <div className="space-y-2">
-            {chzGroups.map((g) => (
+            {phaseChzGroups(chzGroups, new Date()).map((g) => (
               <div key={g.group}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-text-main">{g.group}</span>
-                  <ChzBadge status={g.status} label={chzStatusLabel(g)} />
+                  <ChzBadge status={g.phase} label={g.label} />
                 </div>
                 {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
               </div>

@@ -7,7 +7,7 @@ import { ChzBadge } from '@/components/shared/ChzBadge';
 import { useCompanyChz } from '@/lib/hooks/use-company-chz';
 import { resolveChzProfile } from '@/lib/domain/chz-profile';
 import {
-  chzStatusLabel,
+  phaseChzGroups,
   CHZ_SNAPSHOT_DATE,
   CHZ_SNAPSHOT_SOURCES,
 } from '@/lib/data/chz-groups';
@@ -30,28 +30,44 @@ import type { Project } from '@/lib/hooks/use-projects';
 // ═══════════════════════════════════════════════════════
 
 /**
- * Подпись мелким по низу карточки: откуда цифра и на какое число.
+ * Подвал «ОКВЭД ↔ справочник» (спека W11): по какому коду посчитана гипотеза
+ * и на какую версию справочника. Код — только если он есть; пустой `<span />`
+ * держит версию справочника прижатой вправо.
  *
- * Дата — текстом, источники — в `title`. По этим данным называют сроки
- * обязательной маркировки, и вопрос «откуда цифра» обязан иметь ответ на
- * экране, а не только в исходнике. Списком источники не выводятся: два URL под
- * каждой сделкой это шум, а спрашивают их редко и целенаправленно.
+ * Версия (YYYY-MM) — текстом, полная дата снапшота и источники — в `title`.
+ * По этим данным называют сроки обязательной маркировки, и вопрос «откуда
+ * цифра» обязан иметь ответ на экране, а не только в исходнике. Списком
+ * источники не выводятся: два URL под каждой сделкой это шум, а спрашивают их
+ * редко и целенаправленно.
  *
  * ⚠️ `title` виден по наведению — то есть на десктопе и мимо скринридера.
  * Дата, которая несёт смысл, поэтому стоит ТЕКСТОМ, а в подсказку уходит только
  * дополнение. Понадобится доступный носитель — здесь нужен будет popover,
  * а не второй `title`.
  */
-function SnapshotNote() {
+function ChzFooter({ okved }: { okved: string | null }) {
+  const code = okved?.trim() ?? '';
   return (
-    <p
-      className="mt-3 text-xs text-text-dim"
-      title={`Источники: ${CHZ_SNAPSHOT_SOURCES.join(' · ')}`}
-    >
-      Справочник на {formatCalendarDate(CHZ_SNAPSHOT_DATE)}
+    <p className="mt-3 flex items-baseline justify-between gap-2 text-xs text-text-dim">
+      {code ? <span>ОКВЭД {code}</span> : <span />}
+      <span
+        title={`Снапшот ${formatCalendarDate(CHZ_SNAPSHOT_DATE)} · Источники: ${CHZ_SNAPSHOT_SOURCES.join(' · ')}`}
+      >
+        справочник {CHZ_SNAPSHOT_DATE.slice(0, 7)}
+      </span>
     </p>
   );
 }
+
+/**
+ * Тёплая плашка стартующей группы (спека W11). Смесь от `--bg`, твёрдого во всех
+ * темах, — не от `transparent` и не rgba: на стеклянных темах иначе подложка
+ * просвечивает и теряет тон. Одно место, одно применение — своей переменной нет.
+ */
+const STARTING_ROW_STYLE = {
+  background: 'color-mix(in srgb, var(--warning) 8%, var(--bg))',
+  border: '1px solid color-mix(in srgb, var(--warning) 25%, var(--bg))',
+} as const;
 
 function ClarifyLink({ companyId }: { companyId: string }) {
   return (
@@ -118,7 +134,7 @@ export function DealChzCard({ project }: { project: Project }) {
             </div>
           </>
         )}
-        <SnapshotNote />
+        <ChzFooter okved={data.okved} />
       </RailCard>
     );
   }
@@ -141,16 +157,27 @@ export function DealChzCard({ project }: { project: Project }) {
         )
       }
     >
+      {/* Строки-плашки по фазе на сегодня: «начнётся в этом месяце» и «действует
+          пять лет» — разные разговоры с клиентом, и строка это показывает. */}
       <div className="space-y-2">
-        {profile.groups.map((g) => (
-          <div key={g.group}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-text-main">{g.group}</span>
-              <ChzBadge status={g.status} label={chzStatusLabel(g)} />
+        {phaseChzGroups(profile.groups, new Date()).map((g) => {
+          const starting = g.phase === 'starting';
+          return (
+            <div
+              key={g.group}
+              className={`rounded-lg px-3 py-2.5${starting ? '' : ' bg-surface2'}`}
+              style={starting ? STARTING_ROW_STYLE : undefined}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="min-w-0 text-sm font-medium text-text-main">{g.group}</span>
+                <span className="shrink-0 whitespace-nowrap">
+                  <ChzBadge status={g.phase} label={g.label} />
+                </span>
+              </div>
+              {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
             </div>
-            {g.note && <p className="mt-0.5 text-xs text-text-mute">{g.note}</p>}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Сироты: имена из БД, которых нет в справочнике-снапшоте (группу
@@ -177,7 +204,7 @@ export function DealChzCard({ project }: { project: Project }) {
         </div>
       )}
 
-      <SnapshotNote />
+      <ChzFooter okved={data.okved} />
       <div className="mt-1.5">
         <ClarifyLink companyId={companyId} />
       </div>

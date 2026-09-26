@@ -15,7 +15,18 @@
 // Файл ЧИСТЫЙ (ни одного импорта, ни обращений к рантайму) — как `okved.ts`: так он
 // покрывается юнит-тестами и одинаково пригоден на клиенте и в Deno. Не добавлять импортов.
 
+// `status` — снапшот на дату справочника; на экран идёт `chzPhase`.
 export type ChzStatus = 'mandatory' | 'starting' | 'experiment';
+
+/**
+ * Фаза группы на дату `now`. «Стартует» — функция времени, а не свойство записи:
+ * статичный `starting` из снапшота через полгода врёт «стартует 2026-03» про
+ * обязанность, которая уже действует. `planned` — старт дальше горизонта.
+ */
+export type ChzPhase = 'mandatory' | 'starting' | 'planned' | 'experiment';
+
+/** Горизонт «горячего» старта: обязанность наступает не позже чем через N месяцев. */
+export const CHZ_START_HORIZON_MONTHS = 6;
 
 /**
  * Дата снапшота справочника (ISO). Значение, а не комментарий: по этим данным
@@ -226,9 +237,53 @@ export function matchChzGroups(okved: string | null | undefined): ChzGroup[] {
     .map((x) => x.g);
 }
 
-/** Подпись статуса для UI: «обязательна с 2021» / «стартует 2026-08» / «эксперимент». */
-export function chzStatusLabel(g: ChzGroup): string {
-  if (g.status === 'mandatory') return `обязательна с ${g.since}`;
-  if (g.status === 'starting') return `стартует ${g.since}`;
+const SINCE_MONTH_RE = /^(\d{4})-(\d{2})$/;
+
+/**
+ * Фаза группы на дату `now` (время — аргументом, не `Date.now()` внутри).
+ *
+ * `experiment` — как есть, дата не участвует. `since` без месяца («2019») — статус
+ * снапшота как есть: это давно действующие группы. Иначе считаем календарные месяцы
+ * от месяца `now` (локальная дата) до месяца `since`: прошлое — `mandatory`,
+ * текущий месяц … горизонт включительно — `starting`, дальше — `planned`.
+ * Мусор в `since` — `g.status`, без исключения.
+ */
+export function chzPhase(g: ChzGroup, now: Date): ChzPhase {
+  if (g.status === 'experiment') return 'experiment';
+  const m = SINCE_MONTH_RE.exec(g.since);
+  if (!m) return g.status;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return g.status;
+  const d = (year - now.getFullYear()) * 12 + (month - 1 - now.getMonth());
+  if (d < 0) return 'mandatory';
+  if (d <= CHZ_START_HORIZON_MONTHS) return 'starting';
+  return 'planned';
+}
+
+export interface PhasedChzGroup extends ChzGroup {
+  phase: ChzPhase;
+  label: string;
+}
+
+/** Порядок вывода по фазе: стартующие первыми — это повод для разговора сейчас. */
+const PHASE_RANK: Record<ChzPhase, number> = { starting: 0, mandatory: 1, planned: 2, experiment: 3 };
+
+/** Группы с фазой и подписью на `now`; стабильно по фазе, внутри фазы — входной порядок. */
+export function phaseChzGroups(groups: ChzGroup[], now: Date): PhasedChzGroup[] {
+  return groups
+    .map((g, i) => ({ g: { ...g, phase: chzPhase(g, now), label: chzStatusLabel(g, now) }, i }))
+    .sort((a, b) => PHASE_RANK[a.g.phase] - PHASE_RANK[b.g.phase] || a.i - b.i)
+    .map((x) => x.g);
+}
+
+/**
+ * Подпись фазы для UI: «обязательна с 2021» / «старт 2026-09» / «эксперимент 2026».
+ * `now` обязателен: забытый вызов иначе молча остался бы статичным.
+ */
+export function chzStatusLabel(g: ChzGroup, now: Date): string {
+  const phase = chzPhase(g, now);
+  if (phase === 'mandatory') return `обязательна с ${g.since}`;
+  if (phase === 'starting' || phase === 'planned') return `старт ${g.since}`;
   return `эксперимент ${g.since}`;
 }

@@ -8,12 +8,17 @@ import { describe, it, expect } from 'vitest';
 import {
   matchChzGroups,
   chzStatusLabel,
+  chzPhase,
+  phaseChzGroups,
   CHZ_GROUPS,
+  type ChzGroup,
   CHZ_SNAPSHOT_DATE,
   CHZ_SNAPSHOT_SOURCES,
 } from '@/lib/data/chz-groups';
 import {
   matchChzGroups as edgeMatch,
+  chzPhase as edgePhase,
+  chzStatusLabel as edgeLabel,
   CHZ_GROUPS as EDGE_CHZ_GROUPS,
   CHZ_SNAPSHOT_DATE as EDGE_SNAPSHOT_DATE,
   CHZ_SNAPSHOT_SOURCES as EDGE_SNAPSHOT_SOURCES,
@@ -99,14 +104,6 @@ describe('matchChzGroups', () => {
     expect(order.map((g) => g.status)).toEqual(['experiment', 'starting']);
   });
 
-  it('chzStatusLabel называет статус словами человека', () => {
-    expect(chzStatusLabel({ okvedPrefixes: ['12'], group: 'x', status: 'mandatory', since: '2019' }))
-      .toBe('обязательна с 2019');
-    expect(chzStatusLabel({ okvedPrefixes: ['10.82'], group: 'x', status: 'starting', since: '2026-03' }))
-      .toBe('стартует 2026-03');
-    expect(chzStatusLabel({ okvedPrefixes: ['20.15'], group: 'x', status: 'experiment', since: '2026' }))
-      .toBe('эксперимент 2026');
-  });
 
   it('в справочнике нет дублей групп и пустых префиксов', () => {
     const names = CHZ_GROUPS.map((g) => g.group);
@@ -115,6 +112,75 @@ describe('matchChzGroups', () => {
       expect(g.okvedPrefixes.length).toBeGreaterThan(0);
       for (const p of g.okvedPrefixes) expect(p).toMatch(/^\d{2}(\.\d{1,2})?$/);
     }
+  });
+});
+
+// S-DEAL-CHZ-2: «стартует» — функция времени. Даты — локальные (`new Date(y, m, d)`),
+// как и разбор `now` внутри `chzPhase`: день месяца в тестах далёк от границы суток.
+describe('chzPhase: фаза группы из since и now', () => {
+  const g = (status: ChzGroup['status'], since: string, group = 'x'): ChzGroup =>
+    ({ okvedPrefixes: ['99'], group, status, since });
+  const SEP26 = new Date(2026, 8, 26);
+
+  it('текущий месяц — уже «старт», а не обязанность', () => {
+    expect(chzPhase(g('starting', '2026-09'), SEP26)).toBe('starting');
+    expect(chzStatusLabel(g('starting', '2026-09'), SEP26)).toBe('старт 2026-09');
+  });
+
+  it('старт в прошлом — обязанность действует, статус снапшота не важен', () => {
+    expect(chzPhase(g('starting', '2026-03'), SEP26)).toBe('mandatory');
+    expect(chzStatusLabel(g('starting', '2026-03'), SEP26)).toBe('обязательна с 2026-03');
+  });
+
+  it('ровно шесть месяцев — граница горизонта включительно', () => {
+    expect(chzPhase(g('starting', '2027-03'), SEP26)).toBe('starting');
+  });
+
+  it('дальше горизонта — planned, подпись та же «старт»', () => {
+    expect(chzPhase(g('starting', '2027-04'), SEP26)).toBe('planned');
+    expect(chzStatusLabel(g('starting', '2027-04'), SEP26)).toBe('старт 2027-04');
+  });
+
+  it('переход года считается календарно', () => {
+    expect(chzPhase(g('starting', '2027-01'), new Date(2026, 11, 15))).toBe('starting');
+  });
+
+  it('год без месяца — статус снапшота как есть', () => {
+    expect(chzPhase(g('mandatory', '2019'), SEP26)).toBe('mandatory');
+    expect(chzStatusLabel(g('mandatory', '2019'), SEP26)).toBe('обязательна с 2019');
+  });
+
+  it('эксперимент не зависит от даты', () => {
+    for (const now of [new Date(2020, 0, 1), SEP26, new Date(2035, 5, 1)]) {
+      expect(chzPhase(g('experiment', '2026'), now)).toBe('experiment');
+      expect(chzStatusLabel(g('experiment', '2026'), now)).toBe('эксперимент 2026');
+    }
+  });
+
+  it('мусор в since — фаза равна статусу снапшота, без исключения', () => {
+    for (const since of ['2026-13', '', '2026-9', '2026-00']) {
+      expect(chzPhase(g('starting', since), SEP26)).toBe('starting');
+      expect(chzPhase(g('mandatory', since), SEP26)).toBe('mandatory');
+    }
+  });
+
+  it('phaseChzGroups: стартующие первыми, внутри фазы — входной порядок', () => {
+    const out = phaseChzGroups([
+      g('mandatory', '2019', 'm1'),
+      g('experiment', '2026', 'e'),
+      g('starting', '2026-10', 's'),
+      g('mandatory', '2020', 'm2'),
+    ], SEP26);
+    expect(out.map((x) => x.group)).toEqual(['s', 'm1', 'm2', 'e']);
+    expect(out.map((x) => x.phase)).toEqual(['starting', 'mandatory', 'mandatory', 'experiment']);
+    expect(out[0].label).toBe('старт 2026-10');
+  });
+
+  // Фиксирует сегодняшнюю картину справочника: правка снапшота обязана быть
+  // видна в диффе этого теста, а не только в таблице.
+  it('на 2026-09-26 справочник подсвечивает ровно одну группу', () => {
+    const starting = phaseChzGroups(CHZ_GROUPS, SEP26).filter((x) => x.phase === 'starting');
+    expect(starting.map((x) => x.group)).toEqual(['Мука, макароны, мёд']);
   });
 });
 
@@ -147,6 +213,15 @@ describe('зеркала клиент ↔ edge синхронны', () => {
   it('версия снапшота совпадает в зеркалах', () => {
     expect(EDGE_SNAPSHOT_DATE).toBe(CHZ_SNAPSHOT_DATE);
     expect(EDGE_SNAPSHOT_SOURCES).toEqual(CHZ_SNAPSHOT_SOURCES);
+  });
+
+  it('фаза и подпись совпадают в зеркалах на трёх датах', () => {
+    for (const now of [new Date(2026, 2, 15), new Date(2026, 8, 26), new Date(2027, 5, 1)]) {
+      for (const g of CHZ_GROUPS) {
+        expect(edgePhase(g, now), `фаза «${g.group}»`).toBe(chzPhase(g, now));
+        expect(edgeLabel(g, now), `подпись «${g.group}»`).toBe(chzStatusLabel(g, now));
+      }
+    }
   });
 
   it('функция отвечает одинаково на каждом префиксе справочника и на мусоре', () => {
