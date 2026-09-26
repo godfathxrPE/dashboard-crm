@@ -17,7 +17,7 @@ import { exportToCSV } from '@/lib/utils/export-csv';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
-import { useCompletenessRules, useDwellThresholds, useStageTargetDays } from '@/lib/hooks/use-org-settings';
+import { useCompletenessRules, useStageNormInputs } from '@/lib/hooks/use-org-settings';
 import { resolveStageNorm, stageTimeGauge, type StageTimeGauge } from '@/lib/domain/stage-norm';
 import { StageTimeRing } from '@/components/shared/StageTimeRing';
 import { projectHref } from '@/lib/utils/project-href';
@@ -66,8 +66,9 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
   }, [allStages]);
 
   const completenessRules = useCompletenessRules();
-  const dwell = useDwellThresholds();
-  const targetDays = useStageTargetDays();
+  // P-6: `null` — настройки организации ещё не ответили; колец нет, а не кольца
+  // по дефолтному порогу группы.
+  const normInputs = useStageNormInputs();
 
   // ⚠️ Один `now` на рендер таблицы, а не `new Date()` в ячейке: в ячейке-функции
   // хук звать нельзя (`useStageTimeGauge` тут не годится), а свежая дата на строку
@@ -76,10 +77,11 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
 
   /** Датчик времени стадии строки; терминал и пустой stage_entered_at ⇒ кольца нет. */
   const rowGauge = (p: Project): StageTimeGauge | null => {
+    if (!normInputs) return null;
     const st = p.stage_id ? stagesMap.get(p.stage_id) : undefined;
     if (!st || st.is_won || st.is_lost) return null;
     if (p.status === 'won' || p.status === 'lost' || !p.stage_entered_at) return null;
-    return stageTimeGauge(p.stage_entered_at, resolveStageNorm(st, targetDays, dwell), now);
+    return stageTimeGauge(p.stage_entered_at, resolveStageNorm(st, normInputs.targetDays, normInputs.dwell), now);
   };
 
   const projects = useMemo(
@@ -144,6 +146,10 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
       key: 'stage',
       label: 'Стадия',
       sortable: true,
+      // P-6: ширина зарезервирована под кольцо + самое длинное имя стадии сделки
+      // («Демо / Презентация»). Без неё колонка сужалась на ширину кольца, пока
+      // нормы не загружены (155→136px), и таблица прыгала при появлении колец.
+      width: '12.5rem',
       render: (p) => (
         // S-PIPELINE-RING-2: кольцо перед именем стадии; дни — в title кольца,
         // отдельной колонки под них в таблице нет.

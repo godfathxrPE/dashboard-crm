@@ -8,11 +8,7 @@ import { useDealStakeholders } from '@/lib/hooks/use-deal-stakeholders';
 import { useStagesForPipeline } from '@/lib/hooks/use-pipelines';
 import { usePipelineExpectedRoles } from '@/lib/hooks/use-pipeline-expected-roles';
 import { resolveRoleSlots } from '@/lib/domain/role-slots';
-import {
-  useDealSignalThresholds,
-  useDwellThresholds,
-  useStageTargetDays,
-} from '@/lib/hooks/use-org-settings';
+import { useDealSignalThresholds, useStageNormInputs } from '@/lib/hooks/use-org-settings';
 import { resolveStageNorm, stageTimeGauge } from '@/lib/domain/stage-norm';
 import {
   getDealSignals,
@@ -52,6 +48,20 @@ const STATE_STYLES: Record<Exclude<SignalState, 'na'>, { glyph: string; color: s
 };
 
 /**
+ * Сигналы сделки + состояние загрузки норм (fix-S-STAGE-PROFILE-3, P-6).
+ *
+ * `pending` — настройки организации ещё не ответили, нормы стадии нет. Вердикт в
+ * этом состоянии НЕ показывается (ни чип, ни цвет зоны «Риски»): вердикт — сводка
+ * worst-wins, и без нормы стадии он систематически оптимистичен, а оптимистичная
+ * сводка и есть ложное «в норме». Отдельные сигналы без нормы честны — каждый про
+ * своё, поэтому список рисуется (без `stage_dwell`: при `gauge: null` он 'na').
+ *
+ * Свойство загрузки, а не сделки — поэтому живёт здесь, а не в доменном
+ * `DealSignalsResult`: `getDealSignals` остаётся чистой функцией.
+ */
+export type DealSignalsView = DealSignalsResult & { pending: boolean };
+
+/**
  * Контекст сигналов собирается ОДИН раз — здесь, и передаётся в панель пропом.
  * Второй сборщик в соседнем компоненте означал бы вторую формулу нормы стадии и
  * второй запрос стейкхолдеров.
@@ -59,15 +69,15 @@ const STATE_STYLES: Record<Exclude<SignalState, 'na'>, { glyph: string; color: s
  * `useActivityLog` — ТОТ ЖЕ хук и тот же ключ, что уже зовёт `DealFocusPanel`:
  * React Query отдаёт из кеша, второго запроса не будет.
  */
-export function useDealSignals(project: Project): DealSignalsResult {
+export function useDealSignals(project: Project): DealSignalsView {
   const { data: entries } = useActivityLog(project.id);
   const { data: stakeholders } = useDealStakeholders(project.id);
   // Ожидания ролей воронки — ТОТ ЖЕ хук и ключ, что зовёт карта стейкхолдеров:
   // React Query отдаёт из кеша, второго запроса не будет.
   const { data: expectedRoles } = usePipelineExpectedRoles(project.pipeline_id);
   const allStages = useStagesForPipeline(project.pipeline_id);
-  const targetDays = useStageTargetDays();
-  const dwell = useDwellThresholds();
+  // P-6: `null` до ответа настроек организации — см. `DealSignalsView`.
+  const normInputs = useStageNormInputs();
   const thresholds = useDealSignalThresholds();
 
   const stage = allStages.find((s) => s.id === project.stage_id) ?? null;
@@ -76,14 +86,14 @@ export function useDealSignals(project: Project): DealSignalsResult {
   // `stageTimeGauge`): вторая формула нормы разошлась бы с заливкой ячейки.
   const gauge = useMemo(
     () =>
-      stage
+      stage && normInputs
         ? stageTimeGauge(
             project.stage_entered_at,
-            resolveStageNorm(stage, targetDays, dwell),
+            resolveStageNorm(stage, normInputs.targetDays, normInputs.dwell),
             new Date(),
           )
         : null,
-    [stage, project.stage_entered_at, targetDays, dwell],
+    [stage, project.stage_entered_at, normInputs],
   );
 
   // Покрытие ролей считает ТОТ ЖЕ `resolveRoleSlots`, что рисует слоты в виджете:
@@ -95,9 +105,11 @@ export function useDealSignals(project: Project): DealSignalsResult {
     return resolveRoleSlots(expectedRoles, stakeholders, project.contact_id).missingRequired;
   }, [expectedRoles, stakeholders, project.contact_id]);
 
+  const pending = normInputs === null;
+
   return useMemo(
-    () =>
-      getDealSignals(
+    () => ({
+      ...getDealSignals(
         project,
         {
           gauge,
@@ -110,7 +122,9 @@ export function useDealSignals(project: Project): DealSignalsResult {
         },
         thresholds,
       ),
-    [project, gauge, stage?.phase_group, stakeholders, missingRequiredRoles, entries, thresholds],
+      pending,
+    }),
+    [project, gauge, stage?.phase_group, stakeholders, missingRequiredRoles, entries, thresholds, pending],
   );
 }
 
@@ -137,7 +151,8 @@ export function DealVerdictChip({ verdict }: { verdict: DealSignalsResult['verdi
 }
 
 export interface DealSignalsProps {
-  result: DealSignalsResult;
+  /** `pending` — нормы ещё не загружены: вердикт не показывается (P-6). */
+  result: DealSignalsView;
   /** Хост решает, что делать по CTA: навигации внутри компонента нет. */
   onAction?: (key: SignalKey) => void;
   className?: string;
@@ -153,7 +168,7 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
   const [open, setOpen] = useState(false);
   // Раскрытие свёрнутой нормы в рельсе — состояние экрана, не данных: не персистим.
   const [normalOpen, setNormalOpen] = useState(false);
-  const { verdict, signals, top } = result;
+  const { verdict, signals, top, pending } = result;
   const config = VERDICT_CONFIG[verdict];
   const styles = VERDICT_STYLES[verdict];
 
@@ -224,18 +239,23 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
         className="flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left
                    transition-colors hover:bg-surface2"
       >
-        <span
-          role="img"
-          aria-label={ariaLabel}
-          title={ariaLabel}
-          className={cn(
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
-            styles.chip,
-          )}
-        >
-          <span aria-hidden className={cn('leading-none', styles.glyph)}>{config.glyph}</span>
-          {config.label}
-        </span>
+        {/* P-6: без нормы стадии вердикт оптимистичен — чипа нет вовсе (не
+            «В норме», не скелетон), как нет и кольца. Топ-причина остаётся:
+            отдельный сигнал без нормы честен. */}
+        {!pending && (
+          <span
+            role="img"
+            aria-label={ariaLabel}
+            title={ariaLabel}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
+              styles.chip,
+            )}
+          >
+            <span aria-hidden className={cn('leading-none', styles.glyph)}>{config.glyph}</span>
+            {config.label}
+          </span>
+        )}
         {top && (
           <span className="min-w-0 flex-1 truncate text-xs text-text-dim">{top.label}</span>
         )}

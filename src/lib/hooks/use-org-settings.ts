@@ -64,6 +64,37 @@ export function useOrgSettingsReady(): boolean {
   return !isPending;
 }
 
+/** Входы нормы стадии — то, что `resolveStageNorm` берёт из настроек организации. */
+export interface StageNormInputs {
+  targetDays: Record<string, number> | undefined;
+  dwell: DwellThresholds;
+}
+
+/**
+ * Единая точка норм стадии для ОТОБРАЖЕНИЯ (fix-S-STAGE-PROFILE-3, P-6; продолжение
+ * P-4). `null` — «не знаем»: настройки организации ещё не ответили, и дефолты
+ * ридеров превратили бы норму стадии 5 в порог группы 14 — просроченная стадия
+ * выглядела бы «в норме». Это НЕ «норм нет»: ненастроенная org получает объект с
+ * `targetDays: undefined` и пустыми порогами, как и прежде.
+ *
+ * Потребитель, который берёт нормы отсюда, не может забыть проверку готовности —
+ * её не нужно помнить. При ошибке запроса хук отдаёт дефолты (как
+ * `useOrgSettingsReady` — `!isPending`): честный фолбэк, а не вечная заглушка.
+ *
+ * `useMemo` — стабильная ссылка для зависимостей потребителей (грабля
+ * `useDwellThresholds`, см. `org-settings.ts`).
+ */
+export function useStageNormInputs(): StageNormInputs | null {
+  // Все три хука — ДО раннего выхода: порядок хуков обязан быть стабилен.
+  const ready = useOrgSettingsReady();
+  const targetDays = useStageTargetDays();
+  const dwell = useDwellThresholds();
+  return useMemo(
+    () => (ready ? { targetDays, dwell } : null),
+    [ready, targetDays, dwell],
+  );
+}
+
 /**
  * Правка настроек — MERGE, не перезапись. Литерал целиком писать нельзя: параллельная
  * правка другого ключа (другая вкладка, другой owner) была бы затёрта. Текущее значение

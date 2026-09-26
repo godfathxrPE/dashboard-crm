@@ -5,14 +5,13 @@ import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { RailCard } from '@/components/shared/RailCard';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
-import { DealSignals, scrollToSignalAnchor } from './DealSignals';
+import { DealSignals, scrollToSignalAnchor, type DealSignalsView } from './DealSignals';
 import { DealHealthRing } from './DealHealthRing';
 import { DealSummaryCard } from './DealSummaryCard';
 import { DealStakeholders } from './DealStakeholders';
 import { DealMaterialsCard } from './DealMaterialsCard';
 import { DealChzCard } from './DealChzCard';
 import { DealPulseCard } from './DealPulseCard';
-import type { DealSignalsResult } from '@/lib/domain/deal-signals';
 import type { DeliveryHealth } from '@/lib/utils/delivery-health';
 import { cn } from '@/lib/utils/cn';
 
@@ -49,7 +48,7 @@ function HealthDealCard({
   signals,
   withRing = false,
 }: {
-  signals: DealSignalsResult;
+  signals: DealSignalsView;
   withRing?: boolean;
 }) {
   if (signals.signals.length === 0) return null;
@@ -60,7 +59,11 @@ function HealthDealCard({
   if (withRing) {
     return (
       <div data-card className="rounded-lg border border-border bg-surface p-4">
-        <DealHealthRing signals={signals.signals} verdict={signals.verdict} />
+        {/* P-6: до загрузки норм вердикта нет — кольцо рисует только сигналы. */}
+        <DealHealthRing
+          signals={signals.signals}
+          verdict={signals.pending ? undefined : signals.verdict}
+        />
         <div className="mt-3">
           <DealSignals result={signals} onAction={scrollToSignalAnchor} showVerdict={false} />
         </div>
@@ -154,7 +157,7 @@ export function DealRisksZone({
   signals,
 }: {
   project: Project;
-  signals: DealSignalsResult;
+  signals: DealSignalsView;
 }) {
   return (
     <>
@@ -211,7 +214,7 @@ export interface DealContextRailProps {
   project: Project;
   isDelivery: boolean;
   /** Собран один раз в `ProjectDetail`: второй сборщик = второй запрос. */
-  signals: DealSignalsResult;
+  signals: DealSignalsView;
   /** У delivery вердикта сделки нет — есть health внедрения из project-полей. */
   deliveryHealth: DeliveryHealth | null;
   parentDeal?: Project | null;
