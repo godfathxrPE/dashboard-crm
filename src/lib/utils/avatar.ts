@@ -10,25 +10,36 @@
 // цвет по имени человека. Сводить в одно не стоит: разные сущности, разная палитра.
 // ═══════════════════════════════════════════════════════
 
-const AVATAR_COLORS = [
-  'var(--accent)',
-  'var(--green)',
-  'var(--blue)',
-  'var(--purple)',
-  'var(--red)',
-  'var(--yellow)',
-] as const;
+/** Оттенки аватара — имена цветовых токенов темы, порядок фиксирован (хеш → индекс). */
+const AVATAR_TONES = ['accent', 'green', 'blue', 'purple', 'red', 'yellow'] as const;
 
-/**
- * Стабильный цвет аватара по имени. Одно имя → всегда один цвет, между
- * перезагрузками и устройствами (обычный строковый хеш, без рандома).
- */
-export function getAvatarColor(name: string): string {
+export type AvatarTone = (typeof AVATAR_TONES)[number];
+
+function avatarIndex(name: string): number {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  return Math.abs(hash) % AVATAR_TONES.length;
+}
+
+/**
+ * Стабильный цвет аватара по имени. Одно имя → всегда один цвет, между
+ * перезагрузками и устройствами (обычный строковый хеш, без рандома).
+ * Сплошная заливка под белые инициалы.
+ */
+export function getAvatarColor(name: string): string {
+  return `var(--${AVATAR_TONES[avatarIndex(name)]})`;
+}
+
+/**
+ * Тот же оттенок, что `getAvatarColor`, но ИМЕНЕМ токена — для мягкого аватара
+ * (тинт `--X-l` + текст цвета X, пара бейджа, которую меряет audit-contrast).
+ * S-DEAL-STAKE-VIEW-1: один человек в «Стейкхолдерах» и на карточке компании
+ * покрашен одним оттенком, различается только плотность заливки.
+ */
+export function getAvatarTone(name: string): AvatarTone {
+  return AVATAR_TONES[avatarIndex(name)];
 }
 
 /** Инициалы: первая буква имени + первая фамилии. Фамилии нет → одна буква. */
