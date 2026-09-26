@@ -1330,6 +1330,21 @@ cat-file); пишущих команд гейт в репо владельца �
 дефект латентный, в очередь не ставится, записывается с условием оживания.
 Журнал: «SUMMARY-1 переписан, 26.09».
 
+### Разведка спринт-файла ищет существующий хук по ПОЛЮ, а не по имени
+26.09 спринт SUMMARY-1 велел переименовать `use-company-chz` → `use-company-card` и добавить
+туда `inn`. Гейт искал «хук компании для карточки» по именам (`use-company-*chz*`) и не увидел
+`useCompanyLegal`, который уже грузил ИНН для шапки той же карточки. План дал бы второй запрос
+за тем же полем; нашёл исполнитель. Правило: прежде чем добавлять колонку в хук, grep по самой
+колонке в `select(` — `grep -rn "select(.*inn" src/lib/hooks` — а не по имени хука.
+Журнал: «S-DEAL-SUMMARY-1».
+
+### Превью Vercel упало на `next/font` — сначала redeploy, потом диагноз
+`Cannot read properties of null (reading '1')` в `next/font/google/loader.js` — ответ Google
+Fonts не распарсился; код ни при чём, CI зелёный. Лечение — redeploy того же коммита
+(Vercel MCP `create_deployment` с `deploymentId`, `forceNew: 1`), чек GitHub обновляется сам.
+Повторится часто — тогда `next/font/local` с файлами шрифтов в репо.
+Журнал: «S-DEAL-SUMMARY-1».
+
 ### Empty state pattern
 When a list/table has no items, show a centered illustration + message +
 CTA button. Never show an empty table with just headers.
