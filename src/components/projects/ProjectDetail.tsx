@@ -285,8 +285,11 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
   // Уровень здоровья несёт ЗАЛИВКА зоны «Риски», а не ещё один бейдж (F-10).
   // Вердиктов четыре: `new` — льготный период (graceDays), это НЕ «внимание»,
   // и фон у него тот же дефолтный --zone-risk-ok, что у `ok`.
+  // P-6: пока нормы стадии не загружены (`pending`), вердикт оптимистичен —
+  // зона остаётся нейтральной, а не «спокойной» по неполным данным.
   const healthClass =
-    signals.verdict === 'rotting' ? 'h-rotting'
+    signals.pending ? ''
+    : signals.verdict === 'rotting' ? 'h-rotting'
     : signals.verdict === 'attention' ? 'h-attention'
     : '';
   // Кокпит один, а мест два: у сделки он первый элемент зоны «Работа»,
