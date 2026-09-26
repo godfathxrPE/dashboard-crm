@@ -366,7 +366,7 @@ function DealIdentityCard({
     // носителем смысла — a11y-дефект, и в `t-aura` жёлтый рядом с графитом
     // отличается слабо.
     metaParts.push(
-      <span key="inn" className={innRisky ? 'shrink-0 text-yellow-text' : 'shrink-0'}>
+      <span key="inn" className={innRisky ? 'shrink-0 text-warning-text' : 'shrink-0'}>
         ИНН {inn}
         {innRisky && innStatus ? ` · ${innStatus}` : ''}
       </span>,

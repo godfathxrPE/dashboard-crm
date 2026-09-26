@@ -5,6 +5,7 @@ import { Info } from 'lucide-react';
 import { useMemo } from 'react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
 import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
+import { useIsProjectActive } from '@/lib/hooks/use-pipelines';
 import { useCompanyLegal } from '@/lib/hooks/use-company-legal';
 import { useDealStakeholders } from '@/lib/hooks/use-deal-stakeholders';
 import { usePipelineExpectedRoles } from '@/lib/hooks/use-pipeline-expected-roles';
@@ -102,9 +103,16 @@ export function DealSummaryCard({
   const { data: legal, isPending: legalPending } = useCompanyLegal(project.company_id);
   const inn = legal?.inn?.trim() || null;
 
-  // Хуки зовутся безусловно (правила хуков), у внедрения результат просто не
-  // рисуется. Ключи общие с виджетом стейкхолдеров — React Query отдаёт из кеша.
-  const { data: stakeholders, isPending: stakeholdersPending } = useDealStakeholders(project.id);
+  // Закрытая сделка (won/lost) — без тревог: тот же принцип, что у `getDealSignals`.
+  const isActive = useIsProjectActive()(project);
+
+  // Хуки зовутся безусловно (правила хуков), запрос — нет: у внедрения строки ЛПР
+  // нет, пустой id гасит его через `enabled`. Сетевой экономии это не даёт —
+  // виджет стейкхолдеров на карточке внедрения грузит тот же ключ сам, — но
+  // сводка не зависит от данных, которые не рисует.
+  const { data: stakeholders, isPending: stakeholdersPending } = useDealStakeholders(
+    isDelivery ? '' : project.id,
+  );
   const { data: expectedRoles } = usePipelineExpectedRoles(project.pipeline_id);
   const decisionMaker = useMemo(
     () => (stakeholders ? pickDecisionMaker(stakeholders) : null),
@@ -118,7 +126,7 @@ export function DealSummaryCard({
     return resolveRoleSlots(expectedRoles, stakeholders, project.contact_id)
       .missingRequired.includes('decision_maker');
   }, [expectedRoles, stakeholders, project.contact_id]);
-  const dmCost = dmRequiredMissing
+  const dmCost = isActive && dmRequiredMissing
     ? (() => {
         const s = roleCoverageSignal(['decision_maker']);
         return `${s.label}. ${s.detail}`;
@@ -128,7 +136,7 @@ export function DealSummaryCard({
   // «Сейчас» берётся на рендер: сводка перерисовывается на любом изменении
   // сделки, а суточная точность счётчиков не требует таймера.
   const now = new Date();
-  const overdue = deadlineOverdueDays(project.deadline, now);
+  const overdue = isActive ? deadlineOverdueDays(project.deadline, now) : 0;
   const inWork = daysInWork(project.created_at, now);
 
   return (
@@ -316,8 +324,16 @@ export function DealSummaryCard({
             по «·» — обе половины неразрывные. */}
         <RailRow label="Создана" wrap>
           <span className="tabular-nums text-text-dim">
-            <span className="whitespace-nowrap">{formatDateNumeric(project.created_at)} ·</span>{' '}
-            <span className="whitespace-nowrap">{inWork} дн. в работе</span>
+            <span className="whitespace-nowrap">
+              {formatDateNumeric(project.created_at)}
+              {isActive && ' ·'}
+            </span>
+            {isActive && (
+              <>
+                {' '}
+                <span className="whitespace-nowrap">{inWork} дн. в работе</span>
+              </>
+            )}
           </span>
         </RailRow>
       </RailCard>
