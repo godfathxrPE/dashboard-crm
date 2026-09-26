@@ -1359,6 +1359,13 @@ Fonts не распарсился; код ни при чём, CI зелёный.
 относительно фона контейнера в светлой И тёмной теме; «твёрдость» базы — необходимое условие,
 не достаточное. Журнал: «S-DEAL-CHZ-2».
 
+### Tailwind не сканирует `src/lib` — классы оттуда не генерируются
+`tailwind.config.ts` → `content`: только `src/components` и `src/app`. Класс, написанный строкой в
+`src/lib` (карта «тон → `bg-success`»), в CSS не попадает, и элемент рисуется прозрачным — без
+ошибки. 26.09 так пропали точки ленты сделки (#138). Правило: `lib` возвращает смысл (`'money'`),
+карта «смысл → класс» живёт в компоненте. Расширять `content` на `src/lib` — только осознанно.
+Журнал: «S-DEAL-STAKE-VIEW-1 и S-DEAL-ACTIVITY-VIEW-1».
+
 ### Empty state pattern
 When a list/table has no items, show a centered illustration + message +
 CTA button. Never show an empty table with just headers.
