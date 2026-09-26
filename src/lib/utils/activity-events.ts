@@ -54,6 +54,10 @@ export const FIELD_LABELS: Record<string, string> = {
   delivery_kind: 'шаблон внедрения',
   lost_reason: 'причина проигрыша',
   do_url: 'ссылка 1С:ДО',
+  // S-DEAL-ACTIVITY-VIEW-1: ключи легаси-записей `project_updated` (до 087), которые
+  // печатались в ленту сырыми («Обновлено: type, …, parent_deal_id»).
+  type: 'тип',
+  parent_deal_id: 'родительская сделка',
 };
 
 /** Тип триггера автоматизации → человеческий текст (payload.trigger). */
@@ -64,7 +68,7 @@ const AUTOMATION_TRIGGER_LABEL: Record<string, string> = {
   task_overdue: 'просроченная задача',
 };
 
-function fieldLabel(key: string): string {
+export function fieldLabel(key: string): string {
   return FIELD_LABELS[key] ?? key;
 }
 
@@ -237,7 +241,14 @@ export function describeEvent(entry: ActivityLog): string {
       // W2-дедуп: разные колонки дают один лейбл (won_reason/won_detail →
       // «причина выигрыша») — сворачиваем одинаковые подписи через Set.
       const labels = [...new Set(fields.map(fieldLabel))];
-      return `Обновлено: ${labels.join(', ')}`;
+      if (labels.length === 0) return 'Сделка обновлена';
+      // S-DEAL-ACTIVITY-VIEW-1 (W5): «и ещё N», как у ветки с `changes`. Значений у
+      // легаси-записи нет, поэтому префикс «Обновлено:» остаётся — он единственный
+      // признак, что это правка полей. N считается ПОСЛЕ дедупа и отсева `stage`.
+      const rest = labels.length - 1;
+      return rest > 0
+        ? `Обновлено: ${labels[0]} и ещё ${rest}`
+        : `Обновлено: ${labels[0]}`;
     }
     case 'comment_added':
       return (p.text as string) ?? 'Комментарий';

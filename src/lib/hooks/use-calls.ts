@@ -178,6 +178,8 @@ export function useCreateCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-DEAL-ACTIVITY-VIEW-1: мета «Последнего события» (длительность, контакт).
+      qc.invalidateQueries({ queryKey: ['call-brief'] });
       // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
       // strength контактов) считаются из calls/meetings своими запросами. Без этих
       // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —
@@ -210,6 +212,8 @@ export function useUpdateCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-DEAL-ACTIVITY-VIEW-1: мета «Последнего события» (длительность, контакт).
+      qc.invalidateQueries({ queryKey: ['call-brief'] });
       // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
       // strength контактов) считаются из calls/meetings своими запросами. Без этих
       // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —
@@ -238,6 +242,8 @@ export function useDeleteCall() {
       // AUDIT 2.9: звонок влияет на KPI дашборда и ленты сущностей (EntityTimeline)
       qc.invalidateQueries({ queryKey: ['dashboard-stats'] });
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      // S-DEAL-ACTIVITY-VIEW-1: мета «Последнего события» (длительность, контакт).
+      qc.invalidateQueries({ queryKey: ['call-brief'] });
       // S-FIX-CO360-1: виджеты карточки компании («Последний контакт», «кто знает»,
       // strength контактов) считаются из calls/meetings своими запросами. Без этих
       // двух строк лента внизу обновлялась, а виджеты сверху показывали старое —

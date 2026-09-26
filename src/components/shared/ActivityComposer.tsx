@@ -25,9 +25,14 @@ const FK_KEY: Record<Entity, 'project_id' | 'contact_id' | 'company_id' | 'lead_
 interface ActivityComposerProps {
   entityType: Entity;
   entityId: string;
+  /**
+   * S-DEAL-ACTIVITY-VIEW-1 (W5): `deal` — поле h-10 и тёмная кнопка из макета
+   * «Активности» сделки. Дефолт `default` — прежний вид у лида, контакта и компании.
+   */
+  variant?: 'default' | 'deal';
 }
 
-export function ActivityComposer({ entityType, entityId }: ActivityComposerProps) {
+export function ActivityComposer({ entityType, entityId, variant = 'default' }: ActivityComposerProps) {
   const logMutation = useLogActivity();
   const [comment, setComment] = useState('');
 
@@ -37,6 +42,43 @@ export function ActivityComposer({ entityType, entityId }: ActivityComposerProps
     logMutation.mutate(
       { [FK_KEY[entityType]]: entityId, event_type: 'comment_added', payload: { text } },
       { onSuccess: () => setComment('') },
+    );
+  }
+
+  if (variant === 'deal') {
+    return (
+      <div
+        className="my-3 flex h-10 items-center gap-2.5 rounded-xl border border-border2 pl-3.5 pr-1.5
+                   focus-within:border-accent"
+      >
+        {/* Slash-команд нет, поэтому и в плейсхолдере их нет (решение спринта). */}
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Добавить комментарий…"
+          aria-label="Добавить комментарий"
+          rows={1}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
+          }}
+          className="min-w-0 flex-1 resize-none bg-transparent py-[0.5625rem] text-body leading-5
+                     text-text-main placeholder:text-text-mute focus:outline-none"
+        />
+        {/* Материал кнопки — тот же, что у плитки последнего события (`.glass-sheet`
+            + `text-accent` → `--sheet-mark`): «тёмное с акцентом» из макета, которое
+            держит контраст во всех восьми темах (в aura акцент — графит, и пара
+            `bg-text-main text-accent` там слипалась). */}
+        <button
+          type="button"
+          onClick={handleAddComment}
+          disabled={!comment.trim() || logMutation.isPending}
+          aria-label="Отправить"
+          className="glass-sheet grid size-7 shrink-0 place-items-center rounded-[0.5625rem]
+                     transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          <Send size={13} strokeWidth={2.4} className="text-accent" />
+        </button>
+      </div>
     );
   }
 

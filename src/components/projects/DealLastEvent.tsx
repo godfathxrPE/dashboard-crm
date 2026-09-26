@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ArrowRight } from 'lucide-react';
 import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
 import { KIND_META } from '@/lib/timeline/kind-meta';
 import {
@@ -11,6 +10,9 @@ import {
 } from '@/lib/domain/event-effects';
 import { formatDateShort } from '@/lib/utils/dates';
 import { mskTime } from '@/lib/utils/date-helpers';
+import { useCallBrief } from '@/lib/hooks/use-call-brief';
+import { formatCallDuration } from '@/lib/utils/call-brief';
+import { formatPersonShort } from '@/lib/utils/contact-name';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
 // ═══════════════════════════════════════════════════════
@@ -21,11 +23,12 @@ import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 // 1 сент → 2 сент» стоит в ленте отдельной строкой, и связь с событием читатель
 // достраивает сам.
 //
-// Материал — `.sheet`, тот же, что у «Следующего шага». Тёмное стекло из спеки
-// НЕ вводится намеренно: «Следующий шаг» — работа, «Последнее событие» —
-// контекст, и более тяжёлый материал на менее важном блоке перевернул бы
-// иерархию зоны. Материал зоны «Работа» целиком — предмет W2, и W5 не заводит
-// то, что W2 может отменить через спринт.
+// S-DEAL-ACTIVITY-VIEW-1 (W5 по макету): тело события — на стекле `.glass-sheet`,
+// материале «Следующего шага». Прежнее решение «без стекла» (08.09) снято
+// владельцем 26.09: его причина — «Следующий шаг» был светлым листом — исчезла
+// с PR 108. Контейнер больше не `.sheet`: блок разделён hairline сверху и снизу,
+// стекло — только у тела. Цвета внутри стекла идут через переопределённые им
+// токены (`--sheet-*`), theme-if в разметке нет.
 // ═══════════════════════════════════════════════════════
 
 /**
@@ -125,6 +128,8 @@ export function DealLastEvent({
     return resolveEventEffects(toSource(anchor), candidates, EVENT_EFFECT_WINDOW_MS);
   }, [anchor, events]);
 
+  const { data: brief } = useCallBrief(anchor?.kind === 'call' ? anchor.sourceId : null);
+
   // Подходящего события на первой странице нет ⇒ блока нет вовсе. Пустая рамка
   // здесь несёт ноль: в отличие от оси задач (FIX-DEADLINES-1-EMPTY), где сама
   // ось — смысл, тут без события не остаётся ничего.
@@ -134,45 +139,66 @@ export function DealLastEvent({
   const Icon = meta.icon;
   const action = actionLabel(anchor);
   const time = mskTime(anchor.date);
+  // Длительность и собеседник есть только у звонка и только отдельным запросом
+  // (`useCallBrief`); нет данных — сегмента нет, без «—».
+  const duration = formatCallDuration(brief?.duration_s ?? null);
+  const contact = brief?.contact
+    ? formatPersonShort(brief.contact.first_name, brief.contact.last_name)
+    : null;
+  const metaTail = [duration, contact, anchor.actorName].filter(
+    (v): v is string => typeof v === 'string' && v.length > 0,
+  );
 
   return (
-    <div className="sheet mb-3 grid grid-cols-[auto_1fr_auto] items-start gap-3 px-4 py-3">
+    <div className="mb-1 grid grid-cols-[auto_1fr_auto] items-start gap-3.5 border-y border-border px-1 py-3.5">
+      {/* Плитка вида: «тёмное с акцентом» из макета. Материал — `.glass-sheet`, а не
+          пара `bg-text-main text-accent`: в aura акцент — графит, и на тёмной
+          заливке глиф пропадал; `.glass-sheet .text-accent` даёт `--sheet-mark`,
+          подобранную под стекло во всех восьми темах (тот же ход, что метка
+          `DealNextStep`). */}
       <div
-        className={`flex h-6 w-6 items-center justify-center rounded-full ${meta.dot}`}
+        className="glass-sheet grid size-10 shrink-0 place-items-center rounded-xl"
         aria-hidden
       >
-        <Icon size={12} className={meta.fg} />
+        <Icon size={18} className="text-accent" />
       </div>
 
       <div className="min-w-0">
-        <div className="text-meta text-text-mute">
-          {KIND_TITLE[anchor.kind]}
-          {' · '}
-          {formatDateShort(anchor.date)}
-          {time && `, ${time}`}
-          {anchor.actorName && ` · ${anchor.actorName}`}
+        <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-meta tabular-nums text-text-mute">
+          <span className="font-semibold text-text-main">{KIND_TITLE[anchor.kind]}</span>
+          <span aria-hidden>·</span>
+          <span className="font-semibold text-text-main">
+            {formatDateShort(anchor.date)}
+            {time && `, ${time}`}
+          </span>
+          {metaTail.map((part, i) => (
+            <span key={i} className="contents">
+              <span aria-hidden>·</span>
+              <span>{part}</span>
+            </span>
+          ))}
         </div>
-        {/* 72ch — мера зоны «Работа», та же, что у тела шага и строк ленты сделки. */}
-        <p className="mt-0.5 max-w-[72ch] text-sm leading-snug text-text-main">{anchor.title}</p>
 
-        {/* Следствий нет ⇒ блока следствий нет: подпись «изменений не было»
-            была бы шумом — их отсутствие и так видно по отсутствию строк. */}
+        {/* 72ch — мера зоны «Работа», та же, что у тела шага. Хвостик слева снизу —
+            форма плашки из макета (r14 14 14 4). */}
+        <div className="glass-sheet max-w-[72ch] rounded-[0.875rem] rounded-bl-sm px-4 py-3">
+          <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{anchor.title}</p>
+          {anchor.detail && (
+            <p className="mt-1 text-pretty text-body leading-relaxed text-text-dim">{anchor.detail}</p>
+          )}
+        </div>
+
+        {/* Следствий нет ⇒ строки нет: «изменений не было» было бы шумом. */}
         {effects.length > 0 && (
-          <ul className="mt-1.5 space-y-0.5">
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta font-semibold">
             {/* Ключ с индексом: одно и то же поле может смениться дважды подряд
                 (шаг переставили и тут же переписали), и `field` не уникален. */}
             {effects.map((eff, i) => (
-              <li
-                key={`${eff.field}-${i}`}
-                className="flex items-start gap-1 text-meta text-success-text"
-              >
-                <ArrowRight size={11} className="mt-0.5 shrink-0" aria-hidden />
-                <span className="min-w-0">{eff.text}</span>
+              <li key={`${eff.field}-${i}`} className="min-w-0 text-success-text">
+                → {eff.text}
               </li>
             ))}
-            {more > 0 && (
-              <li className="pl-4 text-meta text-text-mute">и ещё {more}</li>
-            )}
+            {more > 0 && <li className="text-text-mute">и ещё {more}</li>}
           </ul>
         )}
       </div>
@@ -181,8 +207,11 @@ export function DealLastEvent({
         <button
           type="button"
           onClick={() => onOpenEvent?.(anchor)}
-          className="shrink-0 rounded-lg border border-border px-2 py-1 text-meta text-text-dim
-                     transition-colors hover:bg-surface2 hover:text-text-main"
+          className={
+            action === 'Изменить'
+              ? 'h-[1.875rem] shrink-0 rounded-[0.625rem] border border-border px-3 text-xs font-semibold text-text-main transition-colors hover:bg-surface2'
+              : 'h-[1.875rem] shrink-0 rounded-[0.625rem] px-3 text-xs font-semibold text-text-dim transition-colors hover:bg-surface2 hover:text-text-main'
+          }
         >
           {action}
         </button>
