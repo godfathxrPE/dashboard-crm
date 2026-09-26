@@ -9,7 +9,7 @@ import { getDeliveryHealth, isDeliveryTerminal } from '@/lib/utils/delivery-heal
 import { DealHealthDot } from '@/components/shared/DealHealthDot';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { ChzBadge } from '@/components/shared/ChzBadge';
-import { chzStatusLabel, type ChzGroup } from '@/lib/data/chz-groups';
+import { phaseChzGroups, type ChzGroup } from '@/lib/data/chz-groups';
 import type { ChzProfile } from '@/lib/domain/chz-profile';
 import { isTerminalDeal, ruPlural } from '@/lib/utils/company-360';
 import { useCompanyTeamTouch } from '@/lib/hooks/use-company-team-touch';
@@ -90,7 +90,9 @@ export function CompanyHighlights({
   const deliveryIsInternal = delivery?.type === 'internal';
 
   // ─── 4. Маркировка ЧЗ ───
-  const chz = chzGroups[0];
+  // Первая по ФАЗЕ, а не по статусу снапшота: при смешанном профиле стартующая
+  // группа обязана попасть в полосу, а статичный ранг ставил действующую первой.
+  const chz = phaseChzGroups(chzGroups, new Date())[0];
 
   const widgets = 2 + (delivery ? 1 : 0) + (chz ? 1 : 0);
 
@@ -163,17 +165,17 @@ export function CompanyHighlights({
       </Widget>
 
       {/* ─── Маркировка ЧЗ ───
-          Единственный подсвеченный виджет полосы, и только при `starting`:
+          Единственный подсвеченный виджет полосы, и только при фазе `starting`:
           обязанность, которая ЕЩЁ НЕ наступила, — горячий пресейл-сигнал, а
           действующая (`mandatory`) уже никого не торопит. Детали групп — в
           сайдбаре: полоса показывает сигнал, не справочник. */}
       {chz && (
-        <Widget icon={ScanBarcode} label="Маркировка ЧЗ" hot={chz.status === 'starting'}>
+        <Widget icon={ScanBarcode} label="Маркировка ЧЗ" hot={chz.phase === 'starting'}>
           <div className="mt-0.5 truncate text-base font-semibold leading-tight text-text-main" title={chz.group}>
             {chz.group}
           </div>
           <Meta>
-            <ChzBadge status={chz.status} label={chzStatusLabel(chz)} />
+            <ChzBadge status={chz.phase} label={chz.label} />
             {chz.note && <span className="truncate" title={chz.note}>{chz.note}</span>}
           </Meta>
           {/* Честность источника живёт при самом сигнале, а не в отдельной карточке:

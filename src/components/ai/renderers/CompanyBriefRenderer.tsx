@@ -83,7 +83,7 @@ export function CompanyBriefRenderer({
                   aria-hidden="true"
                 />
                 <span>
-                  {g.group} — {chzStatusLabel(g)}
+                  {g.group} — {chzStatusLabel(g, new Date())}
                   <span className="text-xs text-text-mute">
                     {' '}· по ОКВЭД {okved}, справочник CRM
                   </span>

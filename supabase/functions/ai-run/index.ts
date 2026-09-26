@@ -68,7 +68,7 @@ import {
 } from './shape.ts';
 // S-COMPANY-AI-1: маркировочный профиль по ОКВЭД. Копия src/lib/data/chz-groups.ts —
 // зеркало, править синхронно (страж — tests/unit/chz-groups.test.ts).
-import { matchChzGroups, chzStatusLabel } from './chz-groups.ts';
+import { matchChzGroups, phaseChzGroups } from './chz-groups.ts';
 import {
   callLlmSearch,
   callLlmTool,
@@ -905,8 +905,10 @@ async function loadCompanyBlock(supabase: SupabaseClient, companyId: string): Pr
       `<data kind="chz_profile">\n` +
         `Товарные группы маркировки «Честный Знак» по основному ОКВЭД ${c.okved} ` +
         `(вычислено справочником CRM, не результат поиска):\n` +
-        chz
-          .map((g) => `${g.group} — ${chzStatusLabel(g)}${g.note ? ` (${g.note})` : ''}`)
+        // Фаза на дату прогона: статичный статус снапшота подал бы модели
+        // «стартует 2026-03» как факт спустя полгода после старта.
+        phaseChzGroups(chz, new Date())
+          .map((g) => `${g.group} — ${g.label}${g.note ? ` (${g.note})` : ''}`)
           .join('\n') +
         `\n</data>`,
     );
