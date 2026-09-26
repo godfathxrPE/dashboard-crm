@@ -1731,7 +1731,7 @@ _(**обе** ветки `{contact, company}`, иначе на `unclear` втор
   (050) / `run_dwell_automations` (079).
 - `telegram_send_tick()` → void _(DEFINER, `service_role`)_ — форма дословно повторяет
   `dispatch_webhooks_tick()` (089): дешёвый выход по partial-индексу, секреты из Vault,
-  `net.http_post` fire-and-forget, глушитель исключений. Cron **`tg-send` `* * * * *`** —
+  `net.http_post` fire-and-forget, глушитель исключений. Cron **`tg-send` `* * * * *`** (с 133 — `1-59/5`) —
   **вторая минутная джоба проекта**; при пустой очереди это один индексный скан и выход.
 
 **Добавлено 108 (S-TG-2):**
@@ -3953,18 +3953,35 @@ where n.nspname = 'public' and c.relkind = 'r'
   таблицы в БД ещё нет, реген невозможен. **Снять ТЕМ ЖЕ заходом, что реген** после
   apply — оставленный стаб переживает миграцию молча и продолжает врать про схему.
 
-### Планировщик (pg_cron) — два ежедневных задания
+### Планировщик (pg_cron) — девять заданий (сверено 2026-09-26, после 133)
 
 | Job | Расписание (UTC) | Команда | Введён |
 |---|---|---|---|
 | `wf-overdue-daily` | `0 6 * * *` (09:00 MSK) | `select public.run_overdue_automations();` | 051, S-WF-2C-A |
 | `recurring-daily` | `5 6 * * *` (09:05 MSK) | `select public.spawn_recurring_tasks();` | 069, S-RECUR-1 |
+| `wf-dwell-daily` | `10 6 * * *` | `select public.run_dwell_automations();` | 079 |
+| `webhook-retry` | **`*/15 * * * *`** (было `* * * * *`, 133) | `select public.dispatch_webhooks_tick();` | 089 |
+| `webhook-cleanup` | `15 6 * * *` | `select public.cleanup_webhook_deliveries();` | 091 |
+| `tg-send` | **`1-59/5 * * * *`** (было `* * * * *`, 133) | `select public.telegram_send_tick();` | 107 |
+| `tg-reminders` | `*/5 * * * *` | `select public.enqueue_task_reminders();` | 108 |
+| `tg-cleanup` | `20 6 * * *` | `select public.cleanup_telegram_transport();` | 107 |
+| `cron-history-cleanup` | `25 6 * * *` | `delete from cron.job_run_details where end_time < now() - interval '3 days'` | **133** |
 
-Оба — `active=true` в `cron.job` (сверено 2026-07-26). `recurring-daily` намеренно идёт **через 5
-минут после** overdue-скана. Обе функции — DEFINER с `grant execute` **только `service_role`**:
-клиент их не зовёт. Обе глотают исключения наружу (`EXCEPTION WHEN OTHERS → RETURN`) — упавший
-проход не оставляет cron-job в ошибке, ценой тихого пропуска; расширение — `create extension if not
-exists pg_cron` (включено в 051).
+Все `active=true`. Суточные уборки идут цепочкой 06:00–06:25 UTC. `recurring-daily` намеренно
+идёт **через 5 минут после** overdue-скана. Функции тиков — DEFINER с `grant execute` **только
+`service_role`**: клиент их не зовёт. Все глотают исключения наружу (`EXCEPTION WHEN OTHERS →
+RETURN`) — упавший проход не оставляет cron-job в ошибке, ценой тихого пропуска.
+
+⚠️ **`tg-send` — основной путь доставки Telegram, не ретрай:** `telegram_outbox.next_retry_at`
+по умолчанию `now()`, мгновенной отправки при вставке нет. С 133 задержка уведомлений — до 5 мин;
+сдвиг `1-59/5` ставит отправку через минуту после `tg-reminders`, так что напоминания приходят
+как раньше (~1 мин). Мгновенность, если понадобится, — statement-триггер AFTER INSERT на outbox,
+зовущий `telegram_send_tick()`, крон остаётся ретраем.
+
+⚠️ **Каждый запуск пишет строку в `cron.job_run_details`** (insert + update + WAL) даже при
+пустой очереди. До 133 две минутные джобы давали ~2 900 запусков в сутки, таблица не чистилась
+с 18.07 и занимала больше половины базы (28 MB из 51) — вклад в выбор бюджета Disk IO (I-1).
+Новая частая джоба = та же проблема: частоту обосновывать объёмом работы, а не «чтобы было».
 
 ## Порядок применения
 
@@ -4345,7 +4362,7 @@ exists pg_cron` (включено в 051).
   Vault, откатом не удаляются — снимать вручную по имени `webhook_%`.
 
 - **089** _(S-R2-WEBHOOK-TRANSPORT — **ПРИМЕНЕНА `20260730192415`**, после деплоя edge)_ —
-  `dispatch_webhooks_tick()` (DEFINER, `service_role`) + cron **`webhook-retry` `* * * * *`**.
+  `dispatch_webhooks_tick()` (DEFINER, `service_role`) + cron **`webhook-retry` `* * * * *`** (с 133 — `*/15`).
   **Первая минутная джоба в проекте**; остальные три суточные и разведены по минутам
   (06:00 / 06:05 / 06:10). Цена частоты оплачена телом: при пустой очереди это один
   индексный скан по partial-индексу и выход — без обращения к Vault и без HTTP.
@@ -4401,6 +4418,15 @@ exists pg_cron` (включено в 051).
   **Откат:** `cron.unschedule('webhook-cleanup')` + `drop function
   public.cleanup_webhook_deliveries()` + `drop function public.retry_webhook_delivery(uuid)`.
   Строки, созданные повтором, остаются — это обычные доставки, отличить их нечем и не нужно.
+
+- **133** _(I-1 шаг 1 — **ПРИМЕНЕНА гейтом 2026-09-26 `20260926102002`** по «да» владельца)_ —
+  бюджет Disk IO: реже холостые тики и чистка истории запусков. Только схема `cron`, `public`
+  не трогается, реген типов не нужен. **(1)** `webhook-retry` → `*/15` (доставок за всё время —
+  0). **(2)** `tg-send` → `1-59/5` (6 сообщений за 30 дней; см. «Планировщик»). **(3)** разово
+  `delete` из `cron.job_run_details` старше 3 дней: 167 707 → 9 520 строк. **(4)** джоба
+  `cron-history-cleanup` `25 6 * * *`. Эффект по числу запусков: ~3 170 → ~680 в сутки.
+  **Откат:** `cron.alter_job(...)` обратно на `* * * * *` для обеих + `cron.unschedule('cron-history-cleanup')`;
+  удалённая история не восстанавливается (журнал запусков, бизнес-данных нет).
 
 ## Edge Functions
 
