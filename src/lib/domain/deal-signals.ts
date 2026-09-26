@@ -318,7 +318,7 @@ function roleLabel(role: StakeholderRole): string {
  * из настроек. Формулировка при этом та же, что у дефолтного `hint` («ЛПР не в
  * контуре»), — расхождения на экране нет.
  */
-function roleCoverageSignal(missing: readonly StakeholderRole[]): DealSignal {
+export function roleCoverageSignal(missing: readonly StakeholderRole[]): DealSignal {
   if (missing.length === 0) {
     return {
       key: 'single_threaded',

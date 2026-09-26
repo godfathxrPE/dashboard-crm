@@ -213,6 +213,11 @@ export function useUpdateCompany() {
     onSettled: (_d, _e, vars) => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
       qc.invalidateQueries({ queryKey: [...QUERY_KEY, vars.id] });
+      // Узкие запросы карточки сделки (реквизиты шапки и «Сводки», профиль ЧЗ)
+      // живут под своими ключами со staleTime 5 мин — без этого ИНН, поправленный
+      // в карточке компании, в сделке держался бы старым до перезагрузки.
+      qc.invalidateQueries({ queryKey: ['company-legal', vars.id] });
+      qc.invalidateQueries({ queryKey: ['company-chz', vars.id] });
     },
   });
 }
