@@ -208,15 +208,6 @@ export const CHZ_GROUPS: ChzGroup[] = [
   { okvedPrefixes: ['58.11'], group: 'Учебная литература', status: 'experiment', since: '2026' },
 ];
 
-/**
- * Названия групп без дублей (одна группа приходит из нескольких префиксов ОКВЭД),
- * по алфавиту по-русски. Один список на все пикеры групп: `LeadModal`,
- * `CompanyModal` и поповер квалификации лида (S-LEAD-V2-WORK-1).
- */
-export const CHZ_GROUP_NAMES: string[] = [...new Set(CHZ_GROUPS.map((g) => g.group))].sort((a, b) =>
-  a.localeCompare(b, 'ru'),
-);
-
 /** Порядок вывода: сначала действующая обязанность, потом старты, потом эксперименты. */
 const STATUS_RANK: Record<ChzStatus, number> = { mandatory: 0, starting: 1, experiment: 2 };
 

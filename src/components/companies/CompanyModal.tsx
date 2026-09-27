@@ -11,7 +11,7 @@ import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
-import { CHZ_GROUP_NAMES } from '@/lib/data/chz-groups';
+import { CHZ_GROUP_NAMES } from '@/lib/constants/chz';
 import { cn } from '@/lib/utils/cn';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';

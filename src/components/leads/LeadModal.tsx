@@ -15,7 +15,7 @@ import {
 } from '@/lib/validators/lead';
 import { formatBudget, parseBudgetInput } from '@/lib/validators/project';
 import { STAKEHOLDER_ROLE_CONFIG, STAKEHOLDER_ROLE_ORDER } from '@/lib/constants/stakeholders';
-import { CHZ_GROUP_NAMES } from '@/lib/data/chz-groups';
+import { CHZ_GROUP_NAMES } from '@/lib/constants/chz';
 import { useCreateLead, useUpdateLead } from '@/lib/hooks/use-leads';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { Modal } from '@/components/shared/Modal';

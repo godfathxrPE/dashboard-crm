@@ -7,7 +7,7 @@ import { useUpdateLead } from '@/lib/hooks/use-leads';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { LEAD_BUDGET_STATUS_CONFIG } from '@/lib/validators/lead';
 import { STAKEHOLDER_ROLE_CONFIG, STAKEHOLDER_ROLE_ORDER } from '@/lib/constants/stakeholders';
-import { CHZ_GROUP_NAMES } from '@/lib/data/chz-groups';
+import { CHZ_GROUP_NAMES } from '@/lib/constants/chz';
 import { parseBudgetInput } from '@/lib/validators/project';
 import type { LeadQualItem } from '@/lib/domain/lead-qualification';
 import type { Lead, LeadBudgetStatus, StakeholderRole } from '@/types/database';
