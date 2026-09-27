@@ -11,7 +11,7 @@ import type { Lead } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-LEAD-V2-LAYOUT-1 (спека §4, W2): «Следующий шаг» лида — копия разметки
-// `DealNextStep` (стекло, плашка, `data-empty`, 72ch), мутации — `useUpdateLead`.
+// `DealNextStep` (стекло, плашка, 72ch; без жёлтого канта `data-empty`), мутации — `useUpdateLead`.
 //
 // От сделки НЕ берётся:
 //  · переносы шага (`useFieldMoves`) — у лида нет аудита полей 087;
@@ -48,9 +48,9 @@ export function LeadNextStep({ lead }: { lead: Lead }) {
     <div id="lead-next-step" className="min-w-0">
       <div
         data-card
-        // Жёлтый кант пустого состояния — в CSS материала (`data-empty`), не в
-        // утилитах рамки: safety-net тёмных тем глушит `border-*` (см. DealNextStep).
-        data-empty={empty ? 'true' : undefined}
+        // Без `data-empty` намеренно (приёмка владельца 27.09): жёлтый кант пустого
+        // шага у лида — лишний носитель. Пустое состояние видно курсивом «Какой
+        // следующий шаг?», а риск «шага нет» пишет зона «Риски» (F-01).
         className="glass-sheet px-5 pb-4 pt-[1.125rem]"
       >
         <div className="mb-2.5 flex items-center gap-2">
