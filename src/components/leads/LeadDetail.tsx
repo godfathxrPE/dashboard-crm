@@ -5,16 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertTriangle,
-  ArrowRight,
   Clock,
   Loader2,
   Lock,
-  Phone,
   Plus,
+  RotateCcw,
   Target,
-  Building2,
-  User,
-  Mail,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useLead, useLeadStatusChange, useUpdateLead } from '@/lib/hooks/use-leads';
@@ -22,8 +19,7 @@ import { useProject } from '@/lib/hooks/use-projects';
 import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useUiStore } from '@/lib/stores/ui-store';
-import { daysSince } from '@/lib/utils/date-helpers';
-import { getLeadHealth, getLeadActionOverdueDays } from '@/lib/utils/lead-health';
+import { getLeadHealth } from '@/lib/utils/lead-health';
 import {
   qualifyLead,
   formatDateKeyRu,
@@ -31,19 +27,17 @@ import {
   type LeadQualification,
 } from '@/lib/domain/lead-qualification';
 import { LeadHealthMark } from './LeadHealthMark';
+import { LeadHeader } from './LeadHeader';
+import { LeadNextStep } from './LeadNextStep';
+import { LeadContextZone } from './LeadContextZone';
 import { PipelineCockpit } from '@/components/shared/PipelineCockpit';
 import { StageRail } from '@/components/shared/StageRail';
 import { formatBudget } from '@/lib/validators/project';
-import { formatPhone } from '@/lib/utils/phone';
 import {
-  LEAD_SOURCE_CONFIG,
   LEAD_STATUS_CONFIG,
-  LEAD_TEMPERATURE_CONFIG,
   DISQUALIFY_REASON_CONFIG,
-  disqualifyReasons,
   type DisqualifyReason,
 } from '@/lib/validators/lead';
-import { Badge } from '@/components/ui/Badge';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { EntityTimeline } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
@@ -65,10 +59,14 @@ import type { LeadStatus } from '@/types/database';
 // Мутации свои НЕ заводятся: статус — `useLeadStatusChange` (одна с канбаном),
 // поля — `useUpdateLead`, конверсия — `LeadConversionModal`.
 //
-// Порядок блоков (согласованный макет): кокпит → пара «Следующий шаг / Сигналы»
-// → квалификация во всю ширину → заметки → активность. Правой колонки больше нет:
-// квалификация в 20rem сжималась в столбик подписей, где закрытое с галками
-// кричало громче незакрытого.
+// S-LEAD-V2-LAYOUT-1 (спека `_analysis/lead-v2-spec.md` §1, §9): карточка
+// говорит языком сделки v2 — шапка-идентичность (`LeadHeader`) и три зоны,
+// разметка которых взята дословно из ProjectDetail:
+//  · «Работа» — кокпит (или плашка «Отклонён») → стекло шага (или «Сделка
+//    создана») → квалификация → активность;
+//  · «Риски» — временная карточка прежних сигналов, заменит HEALTH-1;
+//  · «Контекст» — «Сводка» и «Заметки» (`LeadContextZone`).
+// Состав беднее сделки намеренно: лид живёт дни — ни кольца, ни пульса, ни доски.
 // ═══════════════════════════════════════════════════════
 
 /** Колонки степпера. `disqualified` сюда НЕ входит — это терминальная ветка, а не шаг. */
@@ -85,18 +83,6 @@ const STEPPER: { status: LeadStatus; label: string }[] = [
  */
 const REG_WARNING_MONTHS = 3;
 
-function formatActionDate(value: string): string {
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  const today = new Date(new Date().toDateString());
-  const target = new Date(new Date(d).toDateString());
-  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
-  if (diffDays === 0) return 'сегодня';
-  if (diffDays === 1) return 'завтра';
-  if (diffDays === -1) return 'вчера';
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-}
-
 /** Месяцев до обязательности маркировки; null — дальше года или дата в прошлом. */
 function regulatoryMonths(deadline: string | null): number | null {
   const d = deadline ? new Date(deadline) : null;
@@ -106,25 +92,17 @@ function regulatoryMonths(deadline: string | null): number | null {
   return Math.max(0, Math.round(days / 30));
 }
 
-/** Заголовок зоны/карточки — один стиль на «ОСТАЛОСЬ ВЫЯСНИТЬ», «ИЗВЕСТНО», «СИГНАЛЫ». */
-function ZoneTitle({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn('text-meta font-semibold uppercase tracking-wider text-text-mute', className)}>
-      {children}
-    </div>
-  );
-}
-
 export function LeadDetail({ leadId }: { leadId: string }) {
   const router = useRouter();
   const { data: lead, isLoading, error } = useLead(leadId);
   const updateLead = useUpdateLead();
   const status = useLeadStatusChange();
   const openModal = useUiStore((s) => s.openModal);
+  // Имя ответственного для «Сводки»: общий кэш команды, шапка берёт его же.
+  const { data: members } = useTeamMembers();
 
   const [editOpen, setEditOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
-  const [rejecting, setRejecting] = useState(false);
   // Локальные модалки — только для РЕДАКТИРОВАНИЯ события, открытого из ленты.
   // Создание идёт через ui-store (`openModal`), как просит спринт: у карточки лида
   // те же «+Звонок»/«+Задача», что у палитры, и один префилл-контекст на оба пути.
@@ -165,7 +143,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   // «не найден» — это удалённый или чужой лид, а не сбой запроса.
   if (!lead || !qual) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-8 text-center">
+      <div className="sheet rounded-[1.25rem] p-8 text-center">
         <Target size={28} className="mx-auto mb-2 text-text-mute" />
         <p className="text-sm text-text-dim">Лид не найден</p>
         <Link href="/leads" className="mt-3 inline-block text-sm text-accent hover:underline">
@@ -178,9 +156,13 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const isConverted = lead.status === 'converted';
   const isDisqualified = lead.status === 'disqualified';
   const readOnly = isConverted;
+  const isOpen = !isConverted && !isDisqualified;
   const stepIndex = STEPPER.findIndex((s) => s.status === lead.status);
   const currentStepLabel =
     LEAD_STATUS_CONFIG[lead.status]?.label ?? STEPPER[stepIndex]?.label ?? lead.status;
+  const ownerName = lead.owner_id
+    ? (members?.find((m) => m.id === lead.owner_id)?.full_name ?? null)
+    : null;
 
   // Следующий шаг статуса — ТЕ ЖЕ мутации, что были у кнопок степпера (одна
   // мутация с канбаном), просто собраны в один объект для кокпита.
@@ -216,309 +198,200 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         }
       : null;
 
-  const overdueDays = lead.next_action_date ? getLeadActionOverdueDays(lead.next_action_date) : 0;
   const regMonths = regulatoryMonths(lead.regulatory_deadline);
-  const contactedDays = lead.first_contacted_at ? daysSince(lead.first_contacted_at) : null;
 
-  // ═══ Сигналы — только исключения, и только те, которых НЕТ в фокус-панели ═══
+  // ═══ Временная зона «Риски» (S-LEAD-V2-LAYOUT-1 → заменит HEALTH-1) ═══
   //
-  // `overdue-action` не показываем: фокус-панель уже пишет «шаг просрочен N дн.»
-  // теми же словами, а метка в кокпите повторяет это третий раз.
-  // `stale` не показываем: жёлтая метка стоит вплотную к шагу, а это ранний
-  // порог — не исключение. `cold` показываем: удвоенный порог молчания, и голая
-  // метка «N дн.» смысл не передаёт (он спрятан в title).
-  const showRegWarning = !isConverted && regMonths !== null && regMonths <= REG_WARNING_MONTHS;
-  const showColdSignal = !isConverted && health?.level === 'cold';
+  // Логика сигналов ПРЕЖНЯЯ, переехала только разметка: зона вместо карточки
+  // рядом с шагом. `overdue-action` и `stale` по-прежнему не показываются —
+  // просрочку пишет стекло шага, ранний порог молчания не исключение. Зона
+  // рисуется только у открытого лида и только при хоть одном сигнале.
+  const showRegWarning = isOpen && regMonths !== null && regMonths <= REG_WARNING_MONTHS;
+  const showColdSignal = isOpen && health?.level === 'cold';
   const hasSignals = showRegWarning || showColdSignal;
 
   return (
     <>
-      {/* ═══ Шапка ═══ */}
-      <div className="mb-4">
-        <Link href="/leads" className="text-xs text-text-mute transition-colors hover:text-text-main">
-          ← Лиды
-        </Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="aura-page-title text-text-main">{lead.title}</h1>
-              {lead.source && (
-                <Badge color="accent" size="sm">
-                  {LEAD_SOURCE_CONFIG[lead.source]?.label ?? lead.source}
-                </Badge>
-              )}
-              {lead.temperature && (
-                <Badge color={LEAD_TEMPERATURE_CONFIG[lead.temperature].color} size="sm">
-                  {LEAD_TEMPERATURE_CONFIG[lead.temperature].label}
-                </Badge>
-              )}
-              {lead.direction && (
-                <Badge color={lead.direction === 'erp' ? 'purple' : 'blue'} size="sm">
-                  {lead.direction === 'iiot' ? 'IIoT' : 'ERP'}
-                </Badge>
-              )}
-              {regMonths !== null && (
-                <Badge color="yellow" size="sm">
-                  {regMonths === 0 ? 'ЧЗ: срок наступил' : `ЧЗ через ${regMonths} мес.`}
-                </Badge>
-              )}
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-dim">
-              {lead.company_name_raw && (
-                <span className="flex items-center gap-1"><Building2 size={11} />{lead.company_name_raw}</span>
-              )}
-              {lead.contact_name_raw && (
-                <span className="flex items-center gap-1"><User size={11} />{lead.contact_name_raw}</span>
-              )}
-              {lead.phone && (
-                <span className="flex items-center gap-1"><Phone size={11} />{formatPhone(lead.phone)}</span>
-              )}
-              {lead.email && (
-                <span className="flex items-center gap-1"><Mail size={11} />{lead.email}</span>
-              )}
-            </div>
+      <Link
+        href="/leads"
+        className="mb-2.5 inline-block text-xs text-text-mute transition-colors hover:text-text-main"
+      >
+        ← Лиды
+      </Link>
+
+      <LeadHeader
+        lead={lead}
+        onEdit={() => setEditOpen(true)}
+        onReject={(reason) => status.change(lead.id, 'disqualified', reason)}
+      />
+
+      {/* ═══ Зоны — разметка дословно с ProjectDetail (S-DEAL-ZONES-1A) ═══
+          Ниже `lg` колонки стекаются: Работа → Риски → Контекст. */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_356px]">
+        {/* ─── Зона «Работа» ─── */}
+        <section
+          className="zone order-1 min-w-0 lg:col-start-1"
+          style={{
+            ['--zone-surface']: 'var(--zone-work)',
+            ['--zone-gap']: '0.875rem',
+          } as React.CSSProperties}
+        >
+          <div className="zone-eyebrow" style={{ color: 'var(--zone-work-ink)' }}>
+            Работа <small className="text-text-dim">что делаем сейчас · статус · квалификация</small>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            {isConverted && lead.converted_deal_id ? (
-              <button
-                onClick={() => router.push(`/deals/${lead.converted_deal_id}`)}
-                className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-              >
-                К сделке <ArrowRight size={12} />
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-dim transition-colors hover:bg-surface2"
-                >
-                  Ред.
-                </button>
-                {/* Гейт S-PIPELINE-COCKPIT-1: «Конвертировать» здесь снята — действие воронки
-                    живёт ТОЛЬКО в кокпите (кнопка next у qualified). Дубль CTA в шапке и в
-                    строке кокпита предлагал одно действие дважды. «К сделке» выше — навигация,
-                    она остаётся. */}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ Кокпит статусов ═══ */}
-      <div className="mb-4 rounded-xl border border-border bg-surface p-3">
-        {isDisqualified ? (
-          // Терминальная ветка — отдельной меткой, а не колонкой степпера:
-          // дисквалификация это не «шаг назад по воронке», а выход из неё.
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge color="red" size="sm">Дисквалифицирован</Badge>
-            {lead.disqualify_reason && (
-              <span className="text-sm text-text-dim">
-                {DISQUALIFY_REASON_CONFIG[lead.disqualify_reason as DisqualifyReason]?.label
-                  ?? lead.disqualify_reason}
+          {isDisqualified ? (
+            // W1-D: терминальная плашка ВМЕСТО кокпита — дисквалификация не
+            // «шаг назад по воронке», а выход из неё.
+            <div className="sheet flex flex-wrap items-center gap-3 rounded-[1.25rem] px-[1.125rem] py-4">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-danger-l px-2.5 py-1 text-xs font-semibold text-danger-text">
+                <X size={12} strokeWidth={2.5} aria-hidden /> Отклонён
               </span>
-            )}
-            <button
-              onClick={() => status.change(lead.id, 'new')}
-              className="ml-auto rounded-lg border border-border px-2.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
-            >
-              Восстановить
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* S-PIPELINE-COCKPIT-1: тот же кокпит, что у сделки и проекта внедрения.
-                Тайм-часть ячейки НЕ выдумывается (`gauge={null}`): у лида нет ни
-                stage_entered_at, ни норм стадий — сигнал времени несут LeadHealthMark
-                в ячейке и строка фокус-панели, и второй источник тут врал бы. */}
-            <PipelineCockpit
-              pastCount={stepIndex > 0 ? stepIndex : 0}
-              pastNames={STEPPER.slice(0, Math.max(0, stepIndex)).map(
-                (s) => LEAD_STATUS_CONFIG[s.status]?.label ?? s.label,
-              )}
-              current={{ name: currentStepLabel }}
-              gauge={null}
-              currentExtra={<LeadHealthMark lead={lead} />}
-              gate={gate}
-              next={nextStep}
-              extraActions={
-                lead.status === 'contacted' && !rejecting ? (
-                  <button
-                    onClick={() => setRejecting(true)}
-                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-red transition-colors hover:bg-red-l"
-                  >
-                    Отклонить
-                  </button>
-                ) : null
-              }
-              restCount={stepIndex >= 0 ? STEPPER.length - stepIndex - 1 : 0}
-              metaRight={stepIndex >= 0 ? `${stepIndex + 1} из ${STEPPER.length}` : null}
-              locked={isConverted}
-              map={
-                // Карта лида read-only: откат статуса из карты — отдельное продуктовое
-                // решение (у лида нет ни модалки перехода, ни подтверждения отката).
-                <StageRail
-                  stages={STEPPER.map((step) => ({
-                    id: step.status,
-                    name: LEAD_STATUS_CONFIG[step.status]?.label ?? step.label,
-                  }))}
-                  currentIndex={stepIndex}
-                  locked
-                />
-              }
-            />
-
-            {rejecting && (
-              <div className="mt-2 flex w-full flex-wrap items-center gap-1 border-t border-border pt-2">
-                <span className="w-full text-xs text-text-mute">Причина отказа:</span>
-                {disqualifyReasons.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => { status.change(lead.id, 'disqualified', r); setRejecting(false); }}
-                    className="rounded border border-border px-1.5 py-0.5 text-xs text-text-dim
-                               transition-colors hover:border-red hover:bg-red-l hover:text-red"
-                  >
-                    {DISQUALIFY_REASON_CONFIG[r].label}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setRejecting(false)}
-                  className="rounded px-1.5 py-0.5 text-xs text-text-mute hover:text-text-main"
-                >
-                  Отмена
-                </button>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text-main">
+                  {lead.disqualify_reason
+                    ? (DISQUALIFY_REASON_CONFIG[lead.disqualify_reason as DisqualifyReason]?.label
+                      ?? lead.disqualify_reason)
+                    : 'Причина не указана'}
+                </div>
+                <div className="text-meta text-text-mute">лид убран из очередей</div>
               </div>
-            )}
-          </>
-        )}
-      </div>
+              <button
+                onClick={() => status.change(lead.id, 'new')}
+                className="ml-auto flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs
+                           font-medium text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+              >
+                <RotateCcw size={12} /> Восстановить
+              </button>
+            </div>
+          ) : (
+            // Лист `.sheet` с паддингом кокпита сделки (ProjectStageCockpit).
+            <div className="sheet rounded-[1.25rem] p-4">
+              {/* S-PIPELINE-COCKPIT-1: тот же кокпит, что у сделки и проекта внедрения.
+                  Тайм-часть ячейки НЕ выдумывается (`gauge={null}`) — шкала лида
+                  приходит в HEALTH-1. доп. действий у кокпита нет: «Отклонить…» в шапке (R-08). */}
+              <PipelineCockpit
+                pastCount={stepIndex > 0 ? stepIndex : 0}
+                pastNames={STEPPER.slice(0, Math.max(0, stepIndex)).map(
+                  (s) => LEAD_STATUS_CONFIG[s.status]?.label ?? s.label,
+                )}
+                current={{ name: currentStepLabel }}
+                gauge={null}
+                currentExtra={<LeadHealthMark lead={lead} />}
+                gate={gate}
+                next={nextStep}
+                restCount={stepIndex >= 0 ? STEPPER.length - stepIndex - 1 : 0}
+                metaRight={stepIndex >= 0 ? `${stepIndex + 1} из ${STEPPER.length}` : null}
+                locked={isConverted}
+                map={
+                  // Карта лида read-only: откат статуса из карты — отдельное продуктовое
+                  // решение (у лида нет ни модалки перехода, ни подтверждения отката).
+                  <StageRail
+                    stages={STEPPER.map((step) => ({
+                      id: step.status,
+                      name: LEAD_STATUS_CONFIG[step.status]?.label ?? step.label,
+                    }))}
+                    currentIndex={stepIndex}
+                    locked
+                  />
+                }
+              />
+            </div>
+          )}
 
-      {/* ═══ Пара «Следующий шаг / Сигналы» — либо карточка созданной сделки ═══ */}
-      {isConverted && lead.converted_deal_id ? (
-        <ConvertedDealCard dealId={lead.converted_deal_id} convertedAt={lead.converted_at} />
-      ) : (
-        <div className={cn('mb-4 grid gap-4', hasSignals && 'lg:grid-cols-[minmax(0,1fr)_22rem]')}>
-          {/* Фокус-панель — язык DealFocusPanel */}
-          <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="flex items-start gap-2">
-              <ArrowRight size={14} className="mt-0.5 shrink-0 text-text-mute" />
-              <div className="min-w-0 flex-1">
-                <InlineEdit
-                  value={lead.next_step ?? ''}
-                  placeholder={readOnly ? '—' : 'назначить следующий шаг'}
-                  className={cn('text-sm', !lead.next_step && 'italic')}
-                  onSave={async (val) => {
-                    updateLead.mutate({ id: lead.id, next_step: val || null });
-                  }}
-                />
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span className="flex items-center gap-1">
-                    <span className="text-text-dim">Дата:</span>
-                    <InlineEdit
-                      value={lead.next_action_date ?? ''}
-                      type="date"
-                      placeholder="назначить"
-                      formatDisplay={formatActionDate}
-                      className={cn(
-                        lead.next_action_date ? 'font-medium' : 'italic',
-                        overdueDays > 0 && 'text-red',
-                      )}
-                      onSave={async (val) => {
-                        updateLead.mutate({ id: lead.id, next_action_date: val || null });
-                      }}
-                    />
-                  </span>
-                  {overdueDays > 0 && (
-                    <span className="font-medium text-red">шаг просрочен {overdueDays} дн.</span>
+          {isOpen && <LeadNextStep lead={lead} />}
+          {isConverted && lead.converted_deal_id && (
+            <ConvertedDealCard dealId={lead.converted_deal_id} convertedAt={lead.converted_at} />
+          )}
+
+          <LeadQualificationBlock
+            qual={qual}
+            readOnly={readOnly}
+            painValue={lead.pain ?? ''}
+            onSavePain={async (val) => {
+              updateLead.mutate({ id: lead.id, pain: val.trim() || null });
+            }}
+            onFill={() => setEditOpen(true)}
+          />
+
+          {/* ═══ Активность ═══ */}
+          <div className="sheet rounded-[1.25rem] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text-main">Активность</h2>
+              {!readOnly && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openModal('call', undefined, { leadId: lead.id })}
+                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
+                  >
+                    <Plus size={11} /> Звонок
+                  </button>
+                  <button
+                    onClick={() => openModal('task', undefined, { leadId: lead.id })}
+                    className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
+                  >
+                    <Plus size={11} /> Задача
+                  </button>
+                </div>
+              )}
+            </div>
+            <ActivityComposer entityType="lead" entityId={lead.id} />
+            <EntityTimeline
+              entityType="lead"
+              entityId={lead.id}
+              onOpenEvent={handleOpenEvent}
+            />
+          </div>
+        </section>
+
+        {/* ─── Правая колонка: «Риски» + «Контекст» ───
+            Sticky на ОБЁРТКЕ, а не на каждой зоне; `self-start` обязателен —
+            растянутый по строке грида элемент sticky не липнет. */}
+        <div className="order-2 flex min-w-0 flex-col gap-5 lg:col-start-2 lg:sticky lg:top-4 lg:self-start">
+          {hasSignals && (
+            <section
+              className={cn('zone', showColdSignal ? 'h-rotting' : 'h-attention')}
+              style={{ ['--zone-surface']: 'var(--h-zone)' } as React.CSSProperties}
+            >
+              <div className="zone-eyebrow" style={{ color: 'var(--h-chip-ink)' }}>
+                Риски <small className="text-text-dim">что может сорвать лид</small>
+              </div>
+              <div data-card className="rounded-lg border border-border bg-surface p-4">
+                <div className="space-y-2">
+                  {showRegWarning && lead.regulatory_deadline && (
+                    <div
+                      className="flex items-start gap-2 rounded-[var(--radius)] bg-yellow-l p-2 text-xs"
+                      style={{ color: 'var(--yellow-text, var(--yellow))' }}
+                    >
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <span>
+                        {regMonths === 0
+                          ? `Срок маркировки наступил ${formatDateKeyRu(lead.regulatory_deadline)} — пилот уже не успевает`
+                          : `Дедлайн маркировки через ${regMonths} мес. — окно на пилот закрывается ${formatDateKeyRu(lead.regulatory_deadline)}`}
+                      </span>
+                    </div>
                   )}
-                  {/* Метка общая с канбаном и peek; при просроченном шаге она
-                      дублировала бы строку слева, поэтому показываем только молчание. */}
-                  {health?.reason === 'idle' && <LeadHealthMark lead={lead} />}
-                  {contactedDays !== null && (
-                    <span className="text-text-dim">
-                      первое касание {contactedDays === 0 ? 'сегодня' : `${contactedDays} дн. назад`}
-                    </span>
+                  {showColdSignal && health && (
+                    <div className="flex items-start gap-2 text-xs text-text-dim">
+                      <Clock size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--red-text, var(--red))' }} />
+                      <span>Молчание {health.days} дн. — лид остывает</span>
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Сигналы — карточки нет вовсе, когда исключений нет (не «пустое состояние») */}
-          {hasSignals && (
-            <div className="rounded-xl border border-border bg-surface p-3">
-              <ZoneTitle className="mb-2">Сигналы</ZoneTitle>
-              <div className="space-y-2">
-                {showRegWarning && lead.regulatory_deadline && (
-                  <div
-                    className="flex items-start gap-2 rounded-[var(--radius)] bg-yellow-l p-2 text-xs"
-                    style={{ color: 'var(--yellow-text, var(--yellow))' }}
-                  >
-                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                    <span>
-                      {regMonths === 0
-                        ? `Срок маркировки наступил ${formatDateKeyRu(lead.regulatory_deadline)} — пилот уже не успевает`
-                        : `Дедлайн маркировки через ${regMonths} мес. — окно на пилот закрывается ${formatDateKeyRu(lead.regulatory_deadline)}`}
-                    </span>
-                  </div>
-                )}
-                {showColdSignal && health && (
-                  <div className="flex items-start gap-2 text-xs text-text-dim">
-                    <Clock size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--red-text, var(--red))' }} />
-                    <span>Молчание {health.days} дн. — лид остывает</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            </section>
           )}
-        </div>
-      )}
 
-      {/* ═══ Квалификация ═══ */}
-      <LeadQualificationBlock
-        qual={qual}
-        readOnly={readOnly}
-        painValue={lead.pain ?? ''}
-        onSavePain={async (val) => {
-          updateLead.mutate({ id: lead.id, pain: val.trim() || null });
-        }}
-        onFill={() => setEditOpen(true)}
-      />
-
-      {lead.notes && (
-        <div className="mt-4 rounded-xl border border-border bg-surface p-4">
-          <ZoneTitle className="mb-2">Заметки</ZoneTitle>
-          <p className="whitespace-pre-wrap text-sm text-text-main">{lead.notes}</p>
-        </div>
-      )}
-
-      {/* ═══ Активность ═══ */}
-      <div className="mt-4 rounded-xl border border-border bg-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-main">Активность</h2>
-          {!readOnly && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => openModal('call', undefined, { leadId: lead.id })}
-                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
-              >
-                <Plus size={11} /> Звонок
-              </button>
-              <button
-                onClick={() => openModal('task', undefined, { leadId: lead.id })}
-                className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
-              >
-                <Plus size={11} /> Задача
-              </button>
+          <section
+            className="zone"
+            style={{ ['--zone-surface']: 'var(--zone-ctx)' } as React.CSSProperties}
+          >
+            <div className="zone-eyebrow text-text-dim">
+              Контекст <small>кто, откуда, что известно</small>
             </div>
-          )}
+            <LeadContextZone lead={lead} ownerName={ownerName} />
+          </section>
         </div>
-        <ActivityComposer entityType="lead" entityId={lead.id} />
-        <EntityTimeline
-          entityType="lead"
-          entityId={lead.id}
-          onOpenEvent={handleOpenEvent}
-        />
       </div>
 
       {/* ═══ Модалки ═══ */}
@@ -548,7 +421,14 @@ export function LeadDetail({ leadId }: { leadId: string }) {
 // «ОБЯЗ.») давали дыры в сетке и инверсию веса: закрытое с зелёными галками
 // кричало громче незакрытого. Поэтому в зоне «Известно» галок нет вовсе —
 // это плотная справка, а не список достижений.
+//
+// S-LEAD-V2-LAYOUT-1: блок переехал в зону «Работа» как есть — сменилась только
+// обёртка (рамка → лист `.sheet`). Подписи зон держат прежний стиль бывшего
+// заголовка зон; разметку строк переделывает WORK-1 (спека §5).
 // ═══════════════════════════════════════════════════════
+
+/** Подпись зоны блока — «ОСТАЛОСЬ ВЫЯСНИТЬ», «ИЗВЕСТНО». */
+const QUAL_LABEL = 'text-meta font-semibold uppercase tracking-wider text-text-mute';
 
 function LeadQualificationBlock({
   qual,
@@ -569,9 +449,9 @@ function LeadQualificationBlock({
   const showKnown = qual.known.length > 0;
 
   return (
-    <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+    <div className="sheet rounded-[1.25rem] p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <ZoneTitle>Квалификация{readOnly && ' · только чтение'}</ZoneTitle>
+        <div className={QUAL_LABEL}>Квалификация{readOnly && ' · только чтение'}</div>
         <span className="text-sm font-semibold tabular-nums text-text-main">
           {qual.filledCount} из {qual.total}
         </span>
@@ -590,7 +470,7 @@ function LeadQualificationBlock({
             <div className="rounded-[var(--radius)] bg-surface2 p-4">
               {/* Заголовок нейтральный, НЕ жёлтый: жёлтый на экране только у реальной
                   блокировки — иначе «держит конверсию» перестаёт читаться как замок. */}
-              <ZoneTitle className="mb-2">Осталось выяснить</ZoneTitle>
+              <div className={cn(QUAL_LABEL, 'mb-2')}>Осталось выяснить</div>
               <div className={cn('grid gap-3', !showKnown && 'sm:grid-cols-2')}>
                 {qual.missing.map((item) => (
                   <MissingRow
@@ -618,7 +498,7 @@ function LeadQualificationBlock({
 
           {showKnown && (
             <div className={cn(!showMissing && 'w-full')}>
-              <ZoneTitle className="mb-2">Известно</ZoneTitle>
+              <div className={cn(QUAL_LABEL, 'mb-2')}>Известно</div>
               <div
                 className={cn(
                   'grid gap-x-8 gap-y-2',
@@ -732,11 +612,25 @@ function ConvertedDealCard({ dealId, convertedAt }: { dealId: string; convertedA
     ? members?.find((m) => m.id === deal.owner_id)?.full_name ?? null
     : null;
 
+  // S-LEAD-V2-LAYOUT-1 (W2-C): дата конверсии — в eyebrow, поэтому факта
+  // «Конверсия» в сетке больше нет; четвёртый факт не выдумывается.
+  const convertedLabel = convertedAt
+    ? new Date(convertedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
   return (
-    <div className="mb-4 rounded-xl border border-border bg-surface p-4">
-      <ZoneTitle className="mb-2">
-        <span style={{ color: 'var(--green-text, var(--green))' }}>Сделка создана</span>
-      </ZoneTitle>
+    <div className="sheet rounded-[1.25rem] px-[1.125rem] py-4">
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="text-meta font-semibold uppercase tracking-wider text-success-text">
+          Сделка создана
+          {convertedLabel && (
+            <small className="ml-2 font-normal normal-case tracking-normal text-text-mute">{convertedLabel}</small>
+          )}
+        </div>
+        {/* Гейт LAYOUT-1: ссылки «Открыть сделку →» здесь нет — путь в сделку уже
+            дважды на экране (кнопка шапки и имя сделки ниже); третий носитель
+            одного действия — F-01. */}
+      </div>
 
       {isLoading ? (
         <div className="h-4 w-40 animate-pulse rounded bg-surface2" />
@@ -752,23 +646,10 @@ function ConvertedDealCard({ dealId, convertedAt }: { dealId: string; convertedA
           >
             {deal.name}
           </Link>
-          <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
             <DealFact label="Стадия" value={stageName} />
             <DealFact label="Сумма" value={deal.budget != null ? formatBudget(deal.budget) : null} numeric />
             <DealFact label="Ответственный" value={ownerName} />
-            <DealFact
-              label="Конверсия"
-              numeric
-              value={
-                convertedAt
-                  ? new Date(convertedAt).toLocaleDateString('ru-RU', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })
-                  : null
-              }
-            />
           </div>
         </>
       )}
