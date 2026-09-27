@@ -470,30 +470,37 @@ function LeadQualificationBlock({ lead, qual }: { lead: Lead; qual: LeadQualific
             )}
 
             {showKnown && (
-              <div className="min-w-0">
-                <div className={cn(QUAL_LABEL, 'mb-2')}>Известно</div>
-                <div className="lead-qual-known">
+              // Приёмка владельца 27.09 (вариант 1): «Известно» — список свойств в одну
+              // колонку, анатомия «Сводки»: ключ фиксированной ширины, значение, hairline
+              // между строками. Прежняя сетка 2×2 «ключ | значение | ключ | значение»
+              // висела текстом на фоне без структуры строк.
+              <div className="lead-qual-known-col min-w-0">
+                <div className={cn(QUAL_LABEL, 'mb-1')}>Известно</div>
+                <dl className="lead-qual-known">
                   {qual.known.map((item) => (
-                    // min-h держит строки на общей сетке: без него длинное значение
-                    // роли распирало бы свою ячейку и ломало базовые линии соседей.
-                    <div key={item.key} className="flex min-h-[1.625rem] items-baseline gap-3">
-                      <span className="w-28 shrink-0 text-meta text-text-mute">{item.label}</span>
-                      {item.key === 'chz' ? (
-                        <KnownChzGroups groups={lead.chz_groups ?? []} now={now} />
-                      ) : (
-                        <span
-                          className={cn(
-                            'min-w-0 text-body text-text-main',
-                            (item.key === 'value' || item.key === 'deadline') && 'tabular-nums',
-                          )}
-                          title={item.key === 'pain' ? undefined : item.value ?? undefined}
-                        >
-                          {item.value}
-                        </span>
-                      )}
+                    <div
+                      key={item.key}
+                      className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-baseline gap-x-3 border-b border-border py-2 last:border-b-0"
+                    >
+                      <dt className="text-meta text-text-mute">{item.label}</dt>
+                      <dd className="m-0 min-w-0">
+                        {item.key === 'chz' ? (
+                          <KnownChzGroups groups={lead.chz_groups ?? []} now={now} />
+                        ) : (
+                          <span
+                            className={cn(
+                              'text-body text-text-main',
+                              (item.key === 'value' || item.key === 'deadline') && 'tabular-nums',
+                            )}
+                            title={item.key === 'pain' ? undefined : item.value ?? undefined}
+                          >
+                            {item.value}
+                          </span>
+                        )}
+                      </dd>
                     </div>
                   ))}
-                </div>
+                </dl>
               </div>
             )}
           </div>
@@ -504,10 +511,14 @@ function LeadQualificationBlock({ lead, qual }: { lead: Lead; qual: LeadQualific
 }
 
 /**
- * «Группы ЧЗ» в «Известно»: у группы из справочника — тег фазы (`chzStatusLabel`,
- * тот же `ChzBadge`, что у `DealChzCard`); группы вне справочника (переименовали
- * после снимка) — одно имя, без выдуманной фазы. Дата старта для лида не
- * подставляется — это отступление спринта, см. `_analysis/sprint-S-LEAD-V2-WORK-1.md`.
+ * «Группы ЧЗ» в «Известно»: у группы из справочника — фаза (`chzStatusLabel`);
+ * группы вне справочника (переименовали после снимка) — одно имя, без выдуманной
+ * фазы. Дата старта для лида не подставляется — отступление спринта WORK-1.
+ *
+ * Цветной тег (`ChzBadge`) — ТОЛЬКО у стартующей группы (`starting`, обязанность
+ * наступает в ближайшие 6 мес.): это исключение, ради которого лиду звонят.
+ * «Обязательна с 2020» — норма, не событие: зелёный чип на ней был цветным маркером
+ * нормального состояния (приёмка 27.09) — печатается тихим суффиксом.
  */
 function KnownChzGroups({ groups, now }: { groups: string[]; now: Date }) {
   return (
@@ -517,11 +528,14 @@ function KnownChzGroups({ groups, now }: { groups: string[]; now: Date }) {
         return (
           <li key={name} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="text-body text-text-main">{name}</span>
-            {/* Тег неразрывный: в узкой ячейке «старт 2026-03» ломался по дефису. */}
-            {g && (
+            {/* Неразрывно: в узкой ячейке «старт 2026-03» ломался по дефису. */}
+            {g && chzPhase(g, now) === 'starting' && (
               <span className="whitespace-nowrap">
-                <ChzBadge status={chzPhase(g, now)} label={chzStatusLabel(g, now)} />
+                <ChzBadge status="starting" label={chzStatusLabel(g, now)} />
               </span>
+            )}
+            {g && chzPhase(g, now) !== 'starting' && (
+              <span className="whitespace-nowrap text-meta text-text-mute">· {chzStatusLabel(g, now)}</span>
             )}
           </li>
         );

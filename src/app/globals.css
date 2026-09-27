@@ -1856,9 +1856,11 @@ table { font-variant-numeric: tabular-nums; }
      `data-layout` на обёртке:
        both    — «Осталось выяснить» / «Известно» рядом 2fr / 3fr с 44rem;
        missing — только открытые: пункты в две колонки внутри подложки с 44rem;
-       known   — только известные: две колонки, с 44rem — три.
-     Справка «Известно» уже 28rem (телефон) — в одну колонку: ключ 7rem и значение
-     в половине 21rem не помещаются. Без поддержки @container — одна колонка везде. */
+       known   — только известные: список свойств на всю ширину, мера строки 40rem.
+     «Известно» — СПИСОК СВОЙСТВ в одну колонку (приёмка владельца 27.09, вариант 1):
+     строки «ключ | значение» с hairline, анатомия «Сводки» (`RailRow`). Прежняя сетка
+     «ключ | значение | ключ | значение» не давала ритма строк и читалась текстом на фоне.
+     Без поддержки @container — одна колонка везде. */
   .lead-qual { container-type: inline-size; }
   .lead-qual-cols,
   .lead-qual-missing {
@@ -1867,24 +1869,17 @@ table { font-variant-numeric: tabular-nums; }
   }
   .lead-qual-cols { gap: 1rem; }
   .lead-qual-missing { gap: 1rem; }
-  .lead-qual-known {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    column-gap: 2rem;
-    row-gap: 0.5rem;
-  }
-  @container (min-width: 28rem) {
-    .lead-qual-known { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  }
+  .lead-qual-known { display: flex; flex-direction: column; margin: 0; }
+  .lead-qual[data-layout='known'] .lead-qual-known { max-width: 40rem; }
   @container (min-width: 44rem) {
+    /* Подпись «Известно» — на одной линии с «Осталось выяснить», у которой отступ
+       подложки (p-4). Только когда зоны стоят рядом: стопкой отступ был бы лишним. */
+    .lead-qual[data-layout='both'] .lead-qual-known-col { padding-top: 1rem; }
     .lead-qual[data-layout='both'] .lead-qual-cols {
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     }
     .lead-qual[data-layout='missing'] .lead-qual-missing {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-    .lead-qual[data-layout='known'] .lead-qual-known {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
