@@ -13,7 +13,6 @@ import { resolveStageNorm, stageTimeGauge } from '@/lib/domain/stage-norm';
 import {
   getDealSignals,
   VERDICT_CONFIG,
-  type DealSignal,
   type DealSignalsResult,
   type SignalKey,
   type SignalState,
@@ -30,7 +29,7 @@ import type { Project } from '@/lib/hooks/use-projects';
 // заливка на тёмных темах просвечивает подложку).
 // ═══════════════════════════════════════════════════════
 
-const VERDICT_STYLES: Record<
+export const VERDICT_STYLES: Record<
   keyof typeof VERDICT_CONFIG,
   { chip: string; glyph: string }
 > = {
@@ -41,7 +40,7 @@ const VERDICT_STYLES: Record<
 };
 
 // Глиф состояния сигнала — форма + цвет (CVD-safe), как у вердикта.
-const STATE_STYLES: Record<Exclude<SignalState, 'na'>, { glyph: string; color: string }> = {
+export const STATE_STYLES: Record<Exclude<SignalState, 'na'>, { glyph: string; color: string }> = {
   bad:  { glyph: '▲', color: 'text-danger-text' },
   warn: { glyph: '◐', color: 'text-warning-text' },
   ok:   { glyph: '●', color: 'text-success-text' },
@@ -277,12 +276,16 @@ export function DealSignals({ result, onAction, className, showVerdict = true }:
   );
 }
 
-function SignalRow({
+/**
+ * Строка сигнала. Дженерик по ключу (S-LEAD-V2-HEALTH-1): её же рисует зона
+ * «Риски» лида (`LeadRisksCard`) — разметка одна на две сущности.
+ */
+export function SignalRow<K extends string = SignalKey>({
   signal,
   onAction,
 }: {
-  signal: DealSignal;
-  onAction?: (key: SignalKey) => void;
+  signal: { key: K; state: SignalState; label: string; detail: string; cta: string | null };
+  onAction?: (key: K) => void;
 }) {
   const state = STATE_STYLES[signal.state as Exclude<SignalState, 'na'>];
   return (
@@ -302,7 +305,8 @@ function SignalRow({
         {/* Заголовок на ступень крупнее и плотнее пояснения: до этого 12 и 11
             стояли почти вровень, и строка читалась одним куском. */}
         <span className="block text-body font-medium text-text-main">{signal.label}</span>
-        <span className="block text-meta text-text-mute">{signal.detail}</span>
+        {/* Пустое пояснение (норма лида) — без пустой строки под заголовком. */}
+        {signal.detail && <span className="block text-meta text-text-mute">{signal.detail}</span>}
       </span>
       {signal.cta && onAction && (
         <button

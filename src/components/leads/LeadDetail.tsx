@@ -4,8 +4,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  AlertTriangle,
-  Clock,
   Loader2,
   Lock,
   Plus,
@@ -19,19 +17,18 @@ import { useProject } from '@/lib/hooks/use-projects';
 import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useUiStore } from '@/lib/stores/ui-store';
-import { getLeadHealth } from '@/lib/utils/lead-health';
+import { leadStatusGauge } from '@/lib/domain/lead-status-gauge';
+import { getLeadSignals } from '@/lib/domain/lead-signals';
 import {
   qualifyLead,
-  formatDateKeyRu,
   type LeadQualItem,
   type LeadQualification,
 } from '@/lib/domain/lead-qualification';
-import { LeadHealthMark } from './LeadHealthMark';
 import { LeadHeader } from './LeadHeader';
 import { LeadNextStep } from './LeadNextStep';
 import { LeadContextZone } from './LeadContextZone';
+import { LeadRisksCard } from './LeadRisksCard';
 import { PipelineCockpit } from '@/components/shared/PipelineCockpit';
-import { StageRail } from '@/components/shared/StageRail';
 import { formatBudget } from '@/lib/validators/project';
 import {
   LEAD_STATUS_CONFIG,
@@ -64,7 +61,7 @@ import type { LeadStatus } from '@/types/database';
 // разметка которых взята дословно из ProjectDetail:
 //  · «Работа» — кокпит (или плашка «Отклонён») → стекло шага (или «Сделка
 //    создана») → квалификация → активность;
-//  · «Риски» — временная карточка прежних сигналов, заменит HEALTH-1;
+//  · «Риски» — `LeadRisksCard` поверх `getLeadSignals` (S-LEAD-V2-HEALTH-1);
 //  · «Контекст» — «Сводка» и «Заметки» (`LeadContextZone`).
 // Состав беднее сделки намеренно: лид живёт дни — ни кольца, ни пульса, ни доски.
 // ═══════════════════════════════════════════════════════
@@ -76,21 +73,6 @@ const STEPPER: { status: LeadStatus; label: string }[] = [
   { status: 'qualified', label: 'Квалифицирован' },
   { status: 'converted', label: 'Конвертирован' },
 ];
-
-/**
- * Порог регуляторного сигнала. Три месяца — не круглое число, а длина пилота:
- * ближе этого срока внедрение до обязательной маркировки уже не помещается.
- */
-const REG_WARNING_MONTHS = 3;
-
-/** Месяцев до обязательности маркировки; null — дальше года или дата в прошлом. */
-function regulatoryMonths(deadline: string | null): number | null {
-  const d = deadline ? new Date(deadline) : null;
-  if (!d || isNaN(d.getTime())) return null;
-  const days = Math.round((d.getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
-  if (days < 0 || days > 366) return null;
-  return Math.max(0, Math.round(days / 30));
-}
 
 export function LeadDetail({ leadId }: { leadId: string }) {
   const router = useRouter();
@@ -120,7 +102,9 @@ export function LeadDetail({ leadId }: { leadId: string }) {
     [router],
   );
 
-  const health = useMemo(() => (lead ? getLeadHealth(lead) : null), [lead]);
+  // «Сейчас» фиксируется на рендер данных лида: шкала и сигналы считаются от одного момента.
+  const signals = useMemo(() => (lead ? getLeadSignals(lead, new Date()) : null), [lead]);
+  const statusGauge = useMemo(() => (lead ? leadStatusGauge(lead, new Date()) : null), [lead]);
   const qual = useMemo(() => (lead ? qualifyLead(lead) : null), [lead]);
 
   if (isLoading) {
@@ -198,17 +182,11 @@ export function LeadDetail({ leadId }: { leadId: string }) {
         }
       : null;
 
-  const regMonths = regulatoryMonths(lead.regulatory_deadline);
-
-  // ═══ Временная зона «Риски» (S-LEAD-V2-LAYOUT-1 → заменит HEALTH-1) ═══
-  //
-  // Логика сигналов ПРЕЖНЯЯ, переехала только разметка: зона вместо карточки
-  // рядом с шагом. `overdue-action` и `stale` по-прежнему не показываются —
-  // просрочку пишет стекло шага, ранний порог молчания не исключение. Зона
-  // рисуется только у открытого лида и только при хоть одном сигнале.
-  const showRegWarning = isOpen && regMonths !== null && regMonths <= REG_WARNING_MONTHS;
-  const showColdSignal = isOpen && health?.level === 'cold';
-  const hasSignals = showRegWarning || showColdSignal;
+  // Зона «Риски» — только при сигналах: у закрытого лида список пуст, и зоны нет
+  // целиком. ok — дефолтный фон зоны (как у сделки), тревога — по вердикту.
+  const hasSignals = !!signals && signals.signals.length > 0;
+  const riskClass =
+    signals?.verdict === 'rotting' ? 'h-rotting' : signals?.verdict === 'attention' ? 'h-attention' : '';
 
   return (
     <>
@@ -267,34 +245,30 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           ) : (
             // Лист `.sheet` с паддингом кокпита сделки (ProjectStageCockpit).
             <div className="sheet rounded-[1.25rem] p-4">
-              {/* S-PIPELINE-COCKPIT-1: тот же кокпит, что у сделки и проекта внедрения.
-                  Тайм-часть ячейки НЕ выдумывается (`gauge={null}`) — шкала лида
-                  приходит в HEALTH-1. доп. действий у кокпита нет: «Отклонить…» в шапке (R-08). */}
+              {/* S-LEAD-V2-HEALTH-1 (спека §3): ветка `CockpitRow` сделки — шкала
+                  времени в статусе из `leadStatusGauge`. Карты нет (`map={null}`):
+                  4 статуса помещаются в строку именами. Слова риска здесь не пишутся —
+                  они в «Рисках» (F-01). «Отклонить…» — в шапке (R-08). */}
               <PipelineCockpit
+                groupLabel="Статус лида"
                 pastCount={stepIndex > 0 ? stepIndex : 0}
                 pastNames={STEPPER.slice(0, Math.max(0, stepIndex)).map(
                   (s) => LEAD_STATUS_CONFIG[s.status]?.label ?? s.label,
                 )}
                 current={{ name: currentStepLabel }}
-                gauge={null}
-                currentExtra={<LeadHealthMark lead={lead} />}
+                gauge={statusGauge?.gauge ?? { days: null, norm: null, pct: null, state: 'ok' }}
+                counterLabel={statusGauge?.counterLabel ?? undefined}
+                dates={statusGauge?.dates ?? null}
                 gate={gate}
                 next={nextStep}
                 restCount={stepIndex >= 0 ? STEPPER.length - stepIndex - 1 : 0}
+                inlineNames
+                restNames={STEPPER.slice(stepIndex + 1).map(
+                  (s) => LEAD_STATUS_CONFIG[s.status]?.label ?? s.label,
+                )}
                 metaRight={stepIndex >= 0 ? `${stepIndex + 1} из ${STEPPER.length}` : null}
                 locked={isConverted}
-                map={
-                  // Карта лида read-only: откат статуса из карты — отдельное продуктовое
-                  // решение (у лида нет ни модалки перехода, ни подтверждения отката).
-                  <StageRail
-                    stages={STEPPER.map((step) => ({
-                      id: step.status,
-                      name: LEAD_STATUS_CONFIG[step.status]?.label ?? step.label,
-                    }))}
-                    currentIndex={stepIndex}
-                    locked
-                  />
-                }
+                map={null}
               />
             </div>
           )}
@@ -348,37 +322,15 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             Sticky на ОБЁРТКЕ, а не на каждой зоне; `self-start` обязателен —
             растянутый по строке грида элемент sticky не липнет. */}
         <div className="order-2 flex min-w-0 flex-col gap-5 lg:col-start-2 lg:sticky lg:top-4 lg:self-start">
-          {hasSignals && (
+          {hasSignals && signals && (
             <section
-              className={cn('zone', showColdSignal ? 'h-rotting' : 'h-attention')}
+              className={cn('zone', riskClass)}
               style={{ ['--zone-surface']: 'var(--h-zone)' } as React.CSSProperties}
             >
               <div className="zone-eyebrow" style={{ color: 'var(--h-chip-ink)' }}>
                 Риски <small className="text-text-dim">что может сорвать лид</small>
               </div>
-              <div data-card className="rounded-lg border border-border bg-surface p-4">
-                <div className="space-y-2">
-                  {showRegWarning && lead.regulatory_deadline && (
-                    <div
-                      className="flex items-start gap-2 rounded-[var(--radius)] bg-yellow-l p-2 text-xs"
-                      style={{ color: 'var(--yellow-text, var(--yellow))' }}
-                    >
-                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                      <span>
-                        {regMonths === 0
-                          ? `Срок маркировки наступил ${formatDateKeyRu(lead.regulatory_deadline)} — пилот уже не успевает`
-                          : `Дедлайн маркировки через ${regMonths} мес. — окно на пилот закрывается ${formatDateKeyRu(lead.regulatory_deadline)}`}
-                      </span>
-                    </div>
-                  )}
-                  {showColdSignal && health && (
-                    <div className="flex items-start gap-2 text-xs text-text-dim">
-                      <Clock size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--red-text, var(--red))' }} />
-                      <span>Молчание {health.days} дн. — лид остывает</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <LeadRisksCard result={signals} />
             </section>
           )}
 
@@ -449,7 +401,8 @@ function LeadQualificationBlock({
   const showKnown = qual.known.length > 0;
 
   return (
-    <div className="sheet rounded-[1.25rem] p-4">
+    // Якорь CTA сигнала `regulatory` (зона «Риски», HEALTH-1).
+    <div id="lead-qualification" className="sheet rounded-[1.25rem] p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <div className={QUAL_LABEL}>Квалификация{readOnly && ' · только чтение'}</div>
         <span className="text-sm font-semibold tabular-nums text-text-main">

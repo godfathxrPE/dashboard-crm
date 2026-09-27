@@ -23,8 +23,9 @@ import type { StageTimeGauge } from '@/lib/domain/stage-norm';
 //
 // Компонент презентационный: данные собирают вызывающие (ProjectDetail,
 // LeadDetail) — у кокпита нет запросов и нет знания о сущностях. Тайм-часть
-// опциональна (`gauge: null`) — у лида нет ни stage_entered_at, ни норм, и
-// выдумывать их нельзя: сигнал времени там несут LeadHealthMark и фокус-панель.
+// опциональна (`gauge: null` → `LegacyRow`). S-LEAD-V2-HEALTH-1: лид тоже на
+// `CockpitRow` — шкала из `leadStatusGauge`, плюс аддитивные `map={null}`,
+// `counterLabel`, `inlineNames`/`restNames`; `LegacyRow` без потребителей.
 //
 // S-COCKPIT-ROW-1: рестайл строки по макету (спека S-STAGE-PROFILE-1, раздел A).
 // Всё новое включается НАЛИЧИЕМ `gauge`: у лида (`gauge === null`) строка
@@ -43,9 +44,9 @@ export interface PipelineCockpitProps {
   /** Имена пройденных стадий — в title чипа «✓ N». */
   pastNames: string[];
   current: { name: string };
-  /** null — строка без тайм-части (лид). */
+  /** null — строка без тайм-части (`LegacyRow`; потребителей нет с S-LEAD-V2-HEALTH-1). */
   gauge: StageTimeGauge | null;
-  /** Слот после счётчика внутри ячейки (лид: LeadHealthMark). */
+  /** Слот после счётчика внутри ячейки. */
   currentExtra?: React.ReactNode;
   /** Подпись над строкой: «Привлечение · группа 1 из 4». */
   groupLabel?: string | null;
@@ -58,7 +59,7 @@ export interface PipelineCockpitProps {
     locked: boolean;
     onClick?: () => void;
   } | null;
-  /** Слот сразу после кнопки следующей стадии (лид: «Отклонить»). Скрыт у терминала. */
+  /** Слот сразу после кнопки следующей стадии. Скрыт у терминала. */
   extraActions?: React.ReactNode;
   restCount: number;
   restGroupsCount?: number;
@@ -77,7 +78,7 @@ export interface PipelineCockpitProps {
    * «Свернуть» в своей шапке (S-COCKPIT-ROW-1): шеврон строки тогда живёт
    * только в свёрнутом состоянии.
    */
-  map: React.ReactNode | ((api: { collapse: () => void }) => React.ReactNode);
+  map: React.ReactNode | ((api: { collapse: () => void }) => React.ReactNode) | null;
   /** Раскрыта ли карта по умолчанию (сделка: текущая стадия в группе `closing`). */
   mapDefaultOpen?: boolean;
   /** Ключ localStorage для ручного выбора «раскрыть/свернуть». Нет — выбор не запоминается. */
@@ -86,6 +87,19 @@ export interface PipelineCockpitProps {
   dates?: { entered: string | null; norm: string | null; closed?: string | null } | null;
   /** Мини-карта групп справа от строки. Строит вызывающий из stages + currentIndex. */
   miniMap?: { groups: CockpitMiniGroup[] } | null;
+  /**
+   * S-LEAD-V2-HEALTH-1: текст счётчика ячейки вместо «N дн. из M по норме»
+   * (лид `new` считает часы: «20 ч из 24»). Нет — прежняя подпись.
+   */
+  counterLabel?: string;
+  /**
+   * S-LEAD-V2-HEALTH-1: пройденные — именами («✓ Новый · Контакт») вместо числа,
+   * остаток — пунктирным чипом на каждое имя из `restNames` вместо «+N». Для
+   * коротких воронок (4 статуса лида помещаются в строку, карта не нужна).
+   */
+  inlineNames?: boolean;
+  /** Имена оставшихся стадий — только при `inlineNames`. */
+  restNames?: string[];
 }
 
 export type CockpitSegment = 'done' | 'current' | 'todo';
@@ -173,6 +187,8 @@ export function PipelineCockpit(props: PipelineCockpitProps) {
 /**
  * Строка до S-COCKPIT-ROW-1 — ветка лида (`gauge === null`), П4 спринта: ни класса
  * не тронуто. Сделки и внедрения сюда больше не попадают — у них `gauge` есть всегда.
+ * С S-LEAD-V2-HEALTH-1 лид тоже на `CockpitRow` — потребителей у ветки нет;
+ * удаление — отдельным решением.
  */
 function LegacyRow({
   pastCount,
@@ -380,6 +396,9 @@ function CockpitRow({
   mapStorageKey,
   dates,
   miniMap,
+  counterLabel,
+  inlineNames = false,
+  restNames = [],
 }: PipelineCockpitProps & { gauge: StageTimeGauge }) {
   // Ручной выбор перекрывает дефолт; дефолт при этом живой — смена стадии на
   // `closing` раскроет карту, если пользователь её не трогал (П3).
@@ -392,7 +411,11 @@ function CockpitRow({
   };
   // Карта-функция несёт «Свернуть» сама — шеврон строки остаётся только у свёрнутой.
   const mapOwnsCollapse = typeof map === 'function';
-  const showChevron = !(mapOpen && mapOwnsCollapse);
+  // S-LEAD-V2-HEALTH-1: `map === null` — карты нет вовсе: ни шеврона, ни кликов,
+  // которые её раскрывали бы (чип пройденных и «+N» становятся `<span>`).
+  const hasMap = map != null;
+  const showChevron = hasMap && !(mapOpen && mapOwnsCollapse);
+  const showRest = inlineNames ? restNames.length > 0 : restCount > 0;
 
   const gateItems = gate?.items ?? [];
   const showGate = !locked && gateItems.length > 0;
@@ -428,16 +451,27 @@ function CockpitRow({
               действием (CTA) и «идёт» (шкала), A1. */}
           {pastCount > 0 && (
             <>
-              <button
-                type="button"
-                onClick={toggleMap}
-                title={pastNames.join(', ')}
-                className="inline-flex h-[2.125rem] items-center gap-[0.3125rem] rounded-xl bg-surface2 px-3
-                           text-xs font-semibold text-text-dim transition-colors hover:bg-surface3"
-              >
-                <Check size={12} strokeWidth={3} style={{ color: 'var(--accent-text, var(--accent))' }} />
-                {pastCount}
-              </button>
+              {hasMap ? (
+                <button
+                  type="button"
+                  onClick={toggleMap}
+                  title={pastNames.join(', ')}
+                  className="inline-flex h-[2.125rem] items-center gap-[0.3125rem] rounded-xl bg-surface2 px-3
+                             text-xs font-semibold text-text-dim transition-colors hover:bg-surface3"
+                >
+                  <Check size={12} strokeWidth={3} style={{ color: 'var(--accent-text, var(--accent))' }} />
+                  {inlineNames ? pastNames.join(' · ') : pastCount}
+                </button>
+              ) : (
+                <span
+                  title={pastNames.join(', ')}
+                  className="inline-flex h-[2.125rem] items-center gap-[0.3125rem] rounded-xl bg-surface2 px-3
+                             text-xs font-semibold text-text-dim"
+                >
+                  <Check size={12} strokeWidth={3} style={{ color: 'var(--accent-text, var(--accent))' }} />
+                  {inlineNames ? pastNames.join(' · ') : pastCount}
+                </span>
+              )}
               <span className="cockpit-conn h-[2px] w-3.5 rounded bg-border2" aria-hidden />
             </>
           )}
@@ -459,9 +493,13 @@ function CockpitRow({
                   title={gauge.norm != null ? `Норма стадии — ${gauge.norm} дн.` : undefined}
                 >
                   {state === 'over' && <Clock size={12} aria-hidden />}
-                  {gauge.days} дн.
-                  {gauge.norm != null && (
-                    <span className="font-normal text-text-dim">из {gauge.norm} по норме</span>
+                  {counterLabel ?? (
+                    <>
+                      {gauge.days} дн.
+                      {gauge.norm != null && (
+                        <span className="font-normal text-text-dim">из {gauge.norm} по норме</span>
+                      )}
+                    </>
                   )}
                 </span>
               )}
@@ -548,9 +586,19 @@ function CockpitRow({
           {/* 6–7. Хвост и разворот карты — неразрывной парой: при переносе уходят на
               вторую строку вместе, шеврон не остаётся один. В раскрытом виде
               «Свернуть» живёт в шапке карты (A1), и шеврона здесь нет. */}
-          {(restCount > 0 || showChevron) && (
+          {(showRest || showChevron) && (
             <span className="inline-flex items-center gap-2.5">
-              {restCount > 0 && (
+              {inlineNames &&
+                restNames.map((name) => (
+                  <span
+                    key={name}
+                    className="inline-flex h-[1.875rem] items-center rounded-[0.625rem] border-[1.5px] border-dashed
+                               border-border2 px-3 text-xs text-text-dim"
+                  >
+                    {name}
+                  </span>
+                ))}
+              {!inlineNames && restCount > 0 && hasMap && (
                 <button
                   type="button"
                   onClick={toggleMap}
@@ -561,6 +609,12 @@ function CockpitRow({
                   +{restCount}
                   {restGroupsCount != null && restGroupsCount > 0 && ` · ${restGroupsCount} ${groupsWord(restGroupsCount)}`}
                 </button>
+              )}
+              {!inlineNames && restCount > 0 && !hasMap && (
+                <span className="rounded-full border border-dashed border-border2 px-[0.5625rem] py-[0.1875rem] text-meta text-text-dim">
+                  +{restCount}
+                  {restGroupsCount != null && restGroupsCount > 0 && ` · ${restGroupsCount} ${groupsWord(restGroupsCount)}`}
+                </span>
               )}
               {showChevron && (
                 <button
@@ -589,7 +643,7 @@ function CockpitRow({
           на листе П6 это читалось пустой полосой между строкой и картой. */}
       {guidance && <div className="mt-3 flex flex-col empty:mt-0">{guidance}</div>}
 
-      {mapOpen && (
+      {mapOpen && hasMap && (
         <div className="mt-3.5">{typeof map === 'function' ? map({ collapse: toggleMap }) : map}</div>
       )}
     </div>

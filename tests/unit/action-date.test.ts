@@ -16,6 +16,13 @@ describe('formatActionDate', () => {
     expect(formatActionDate('2026-10-02', NOW)).toBe('2 октября');
   });
 
+  it('ключ дня не зависит от часового пояса машины (гейт HEALTH-1)', () => {
+    // Локальный вечер: при разборе ключа как UTC-полуночи западнее UTC дата съезжала на день.
+    const evening = new Date(2026, 8, 27, 23, 30, 0);
+    expect(formatActionDate('2026-09-28', evening)).toBe('завтра');
+    expect(formatActionDate('2026-09-27', evening)).toBe('сегодня');
+  });
+
   it('невалидная строка возвращается как есть', () => {
     expect(formatActionDate('не дата', NOW)).toBe('не дата');
   });
