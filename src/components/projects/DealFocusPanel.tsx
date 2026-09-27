@@ -9,6 +9,7 @@ import {
   getNextActionOverdueDays,
 } from '@/lib/utils/deal-health';
 import { cn } from '@/lib/utils/cn';
+import { formatActionDate } from '@/lib/utils/action-date';
 
 // ═══════════════════════════════════════════════════════
 // Фокус-панель сделки — ТОЛЬКО peek 440px (ProjectPeekContent).
@@ -21,19 +22,6 @@ import { cn } from '@/lib/utils/cn';
 // Кнопок CTA у сигналов здесь нет намеренно: скроллить некуда — якоря живут на
 // полной карточке, а панель монтируется поверх неё.
 // ═══════════════════════════════════════════════════════
-
-// ─── Дата следующего шага: «сегодня/завтра/вчера» вблизи, иначе «7 июля» ───
-function formatActionDate(value: string): string {
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  const today = new Date(new Date().toDateString());
-  const target = new Date(new Date(d).toDateString());
-  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
-  if (diffDays === 0) return 'сегодня';
-  if (diffDays === 1) return 'завтра';
-  if (diffDays === -1) return 'вчера';
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-}
 
 export function DealFocusPanel({ project }: { project: Project }) {
   const updateProject = useUpdateProject();

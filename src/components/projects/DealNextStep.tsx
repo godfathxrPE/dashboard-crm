@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ChevronRight, Check, Phone } from 'lucide-react';
+import { ChevronRight, Check } from 'lucide-react';
 import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
-import { useContactBrief, type ContactBrief } from '@/lib/hooks/use-contact-brief';
+import { useContactBrief } from '@/lib/hooks/use-contact-brief';
 import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { getDealHealth, getNextActionOverdueDays } from '@/lib/utils/deal-health';
@@ -11,10 +11,9 @@ import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { touchGapDays, TOUCH_GAP_MIN_DAYS } from '@/lib/domain/touch-gap';
 import { pluralRu } from '@/lib/utils/plural';
 import { cn } from '@/lib/utils/cn';
-import { formatPhone, telHref } from '@/lib/utils/phone';
-import { getInitials } from '@/lib/utils/avatar';
 import { formatContactName } from '@/lib/utils/contact-name';
-import { CopyButton } from '@/components/ui/CopyButton';
+import { formatActionDate } from '@/lib/utils/action-date';
+import { ContactCallChip } from '@/components/shared/ContactCallChip';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-RAIL-1 (R-09): «Следующий шаг» — рабочая зона левой колонки.
@@ -47,82 +46,6 @@ import { CopyButton } from '@/components/ui/CopyButton';
 // (`projects.contact_id`) с номером целиком. Это не «кого ждём» из W2 — чип
 // ничего не утверждает об ожидании, он убирает четыре клика до номера.
 // ═══════════════════════════════════════════════════════
-
-// ─── Дата следующего шага: «сегодня/завтра/вчера» вблизи, иначе «7 июля» ───
-function formatActionDate(value: string): string {
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  const today = new Date(new Date().toDateString());
-  const target = new Date(new Date(d).toDateString());
-  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
-  if (diffDays === 0) return 'сегодня';
-  if (diffDays === 1) return 'завтра';
-  if (diffDays === -1) return 'вчера';
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-}
-
-/**
- * Чип основного контакта (спека 1.3–1.4). Рисуется, только если есть что
- * показать: нет контакта — нет чипа, без пустого слота и «добавить контакт».
- *
- * Акцент — рамкой и иконкой кнопки звонка, не заливкой: заливка `--accent` в
- * виджете одна, у метки «Следующий шаг». Цвет рамки ставит правило `.glass-call`
- * в globals.css, а не утилита `border-accent`: в frost/aurora/tidal safety-net
- * `.t-frost *` безслойный и перебил бы любую `border-*`-утилиту.
- */
-function PrimaryContactChip({ contact }: { contact: ContactBrief }) {
-  const name = formatContactName(contact.first_name, contact.last_name);
-  const focusRing =
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
-
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span
-        aria-hidden
-        className="grid size-[1.375rem] shrink-0 place-items-center rounded-full bg-surface2 text-[0.6rem] font-bold text-text-main"
-      >
-        {getInitials(contact.first_name)}
-      </span>
-      {/* Имя и должность переносятся по словам (15rem ≈ 240px спеки); номер — никогда. */}
-      <span className="min-w-0 max-w-[15rem] leading-[1.2]">
-        <span className="block text-xs font-semibold text-text-main">{name}</span>
-        {contact.position && (
-          <span className="block text-pretty text-[0.65625rem] text-text-dim">{contact.position}</span>
-        )}
-      </span>
-      {contact.phone ? (
-        <a
-          href={telHref(contact.phone)}
-          title={`Позвонить: ${name}`}
-          className={cn(
-            'glass-call inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5',
-            'text-xs font-semibold tabular-nums text-text-main transition-colors',
-            focusRing,
-          )}
-        >
-          <Phone size={12} className="text-accent" aria-hidden />
-          {formatPhone(contact.phone)}
-        </a>
-      ) : (
-        contact.email && (
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span className="min-w-0 text-meta text-text-dim [overflow-wrap:anywhere]">{contact.email}</span>
-            <CopyButton
-              value={contact.email}
-              title="Скопировать почту"
-              iconSize={11}
-              // Кегль вне `cn`: tailwind-merge выкинул бы `text-meta` рядом с `text-text-dim`.
-              className={`text-meta ${cn(
-                'h-[1.375rem] rounded-sm bg-surface2 px-1.5 text-text-dim hover:text-text-main',
-                focusRing,
-              )}`}
-            />
-          </span>
-        )
-      )}
-    </div>
-  );
-}
 
 export function DealNextStep({ project }: { project: Project }) {
   const updateProject = useUpdateProject();
@@ -259,7 +182,15 @@ export function DealNextStep({ project }: { project: Project }) {
                   {gapDays} {pluralRu(gapDays, 'день', 'дня', 'дней')} без касания
                 </span>
               )}
-              {showChip && primaryContact && <PrimaryContactChip contact={primaryContact} />}
+              {showChip && primaryContact && (
+                <ContactCallChip
+                  name={formatContactName(primaryContact.first_name, primaryContact.last_name)}
+                  position={primaryContact.position}
+                  initialsFrom={primaryContact.first_name}
+                  phone={primaryContact.phone}
+                  email={primaryContact.email}
+                />
+              )}
             </div>
           )}
         </div>
