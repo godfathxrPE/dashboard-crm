@@ -72,10 +72,24 @@ export function regulatoryMonths(deadline: string | null | undefined, now: Date)
   return days === null ? null : Math.round(days / 30);
 }
 
+/**
+ * Часы с заявки у нового лида, который ещё ждёт первого касания и не вышел из
+ * окна SLA; иначе null. Одна функция на два сигнала — `first_touch` и глушение
+ * `step` (S-LEAD-V2-WORK-1): граница окна обязана быть ОДНОЙ, чтобы в час, когда
+ * пропадает `first_touch`, появлялся `step` — ни часа без сигнала, ни часа с двумя.
+ */
+function firstTouchWindowHours(lead: LeadForSignals, now: Date): number | null {
+  if (lead.status !== 'new' || lead.first_contacted_at) return null;
+  const created = new Date(lead.created_at).getTime();
+  if (Number.isNaN(created)) return null;
+  const h = Math.max(0, Math.floor((now.getTime() - created) / HOUR_MS));
+  return h < FIRST_TOUCH_SLA_HOURS ? h : null;
+}
+
 const STEP_CTA = 'К шагу';
 const STALE_DETAIL = 'Шага нет — назначь его, и счётчик замолчит';
 
-function stepSignal(lead: LeadForSignals, now: Date): LeadSignal {
+function stepSignal(lead: LeadForSignals, now: Date): LeadSignal | null {
   const health = getLeadHealth(lead, now);
 
   if (lead.next_action_date) {
@@ -97,6 +111,11 @@ function stepSignal(lead: LeadForSignals, now: Date): LeadSignal {
   }
 
   if (health.level === 'ok') {
+    // Решение владельца 27.09 (превью #143): у нового лида в первые сутки шаг
+    // один — позвонить, и о нём уже говорит `first_touch` «осталось N ч».
+    // «Назначь шаг» здесь — шум, сигнала `step` нет вовсе. Назначенный шаг
+    // (ветка выше) не глушится: и «назначен», и «просрочен» видны всегда.
+    if (firstTouchWindowHours(lead, now) !== null) return null;
     return {
       key: 'step',
       state: 'warn',
@@ -140,9 +159,8 @@ function firstTouchSignal(lead: LeadForSignals, now: Date): LeadSignal | null {
     return { key: 'first_touch', state: 'ok', label: `Первое касание — через ${h} ч`, detail: '', cta: null };
   }
 
-  if (lead.status !== 'new') return null;
-  const h = Math.max(0, Math.floor((now.getTime() - created) / HOUR_MS));
-  if (h >= FIRST_TOUCH_SLA_HOURS) return null;
+  const h = firstTouchWindowHours(lead, now);
+  if (h === null) return null;
   return {
     key: 'first_touch',
     state: 'ok',

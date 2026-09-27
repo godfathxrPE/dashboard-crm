@@ -5,29 +5,26 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Loader2,
-  Lock,
   Plus,
   RotateCcw,
   Target,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useLead, useLeadStatusChange, useUpdateLead } from '@/lib/hooks/use-leads';
+import { useLead, useLeadStatusChange } from '@/lib/hooks/use-leads';
 import { useProject } from '@/lib/hooks/use-projects';
 import { usePipelineStagesMap } from '@/lib/hooks/use-pipelines';
 import { useTeamMembers } from '@/lib/hooks/use-team-members';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { leadStatusGauge } from '@/lib/domain/lead-status-gauge';
 import { getLeadSignals } from '@/lib/domain/lead-signals';
-import {
-  qualifyLead,
-  type LeadQualItem,
-  type LeadQualification,
-} from '@/lib/domain/lead-qualification';
+import { qualifyLead, type LeadQualification } from '@/lib/domain/lead-qualification';
+import { CHZ_GROUPS, chzPhase, chzStatusLabel } from '@/lib/data/chz-groups';
 import { LeadHeader } from './LeadHeader';
 import { LeadNextStep } from './LeadNextStep';
 import { LeadContextZone } from './LeadContextZone';
 import { LeadRisksCard } from './LeadRisksCard';
+import { LeadQualRow } from './LeadQualRow';
 import { PipelineCockpit } from '@/components/shared/PipelineCockpit';
 import { formatBudget } from '@/lib/validators/project';
 import {
@@ -35,9 +32,11 @@ import {
   DISQUALIFY_REASON_CONFIG,
   type DisqualifyReason,
 } from '@/lib/validators/lead';
-import { InlineEdit } from '@/components/ui/InlineEdit';
-import { EntityTimeline } from '@/components/shared/EntityTimeline';
+import { TimelineFilterChips, type TimelineFilterValue } from '@/components/shared/EntityTimeline';
 import { ActivityComposer } from '@/components/shared/ActivityComposer';
+import { ChzBadge } from '@/components/shared/ChzBadge';
+import { DealLastEvent } from '@/components/projects/DealLastEvent';
+import { DealActivityFeed, useDealActivity } from '@/components/projects/DealActivityFeed';
 import { openTimelineEvent } from '@/lib/timeline/open-event';
 import { CallModal } from '@/components/calls/CallModal';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -45,7 +44,8 @@ import { LeadModal } from './LeadModal';
 import { LeadConversionModal } from './LeadConversionModal';
 import type { Call } from '@/lib/hooks/use-calls';
 import type { Task } from '@/types/entities';
-import type { LeadStatus } from '@/types/database';
+import type { Lead, LeadStatus } from '@/types/database';
+import type { TimelineKind } from '@/types/timeline';
 
 // ═══════════════════════════════════════════════════════
 // Карточка лида (S-LEAD-HUB-2a, визуал — S-LEAD-CARD-VISUAL-1).
@@ -74,10 +74,20 @@ const STEPPER: { status: LeadStatus; label: string }[] = [
   { status: 'converted', label: 'Конвертирован' },
 ];
 
+/**
+ * Чипы ленты лида: Все · Звонки · Задачи · Заметки · Поля. «Встреч» нет —
+ * `meetings.lead_id` не существует (F-10); AI-прогонов у лида нет. «Заметки» —
+ * производный чип, `TimelineFilterChips` сам разворачивает `activity` в пару
+ * «Заметки» + лог (как у сделки); у лида он живой — композер пишет `comment_added`.
+ */
+const LEAD_CHIP_KINDS: TimelineKind[] = ['call', 'task', 'activity'];
+
+/** Лог без заметок — смены статуса и правки полей: «Поля», как у сделки. */
+const LEAD_CHIP_LABELS: Partial<Record<TimelineFilterValue, string>> = { activity: 'Поля' };
+
 export function LeadDetail({ leadId }: { leadId: string }) {
   const router = useRouter();
   const { data: lead, isLoading, error } = useLead(leadId);
-  const updateLead = useUpdateLead();
   const status = useLeadStatusChange();
   const openModal = useUiStore((s) => s.openModal);
   // Имя ответственного для «Сводки»: общий кэш команды, шапка берёт его же.
@@ -90,6 +100,11 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   // те же «+Звонок»/«+Задача», что у палитры, и один префилл-контекст на оба пути.
   const [editingCall, setEditingCall] = useState<Call | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // Лента — вид сделки W5: чип и «Вся лента» живут здесь, лента управляемая.
+  // Хук — до ранних return: тот же ключ React Query, что у ленты, запрос один.
+  const [activityFilter, setActivityFilter] = useState<TimelineFilterValue>('all');
+  const [activityExpanded, setActivityExpanded] = useState(false);
+  const { emptyEntity: activityEmpty } = useDealActivity(leadId, activityFilter, 'lead');
 
   const handleOpenEvent = useCallback(
     (e: Parameters<typeof openTimelineEvent>[0]) => {
@@ -139,7 +154,6 @@ export function LeadDetail({ leadId }: { leadId: string }) {
 
   const isConverted = lead.status === 'converted';
   const isDisqualified = lead.status === 'disqualified';
-  const readOnly = isConverted;
   const isOpen = !isConverted && !isDisqualified;
   const stepIndex = STEPPER.findIndex((s) => s.status === lead.status);
   const currentStepLabel =
@@ -278,29 +292,46 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             <ConvertedDealCard dealId={lead.converted_deal_id} convertedAt={lead.converted_at} />
           )}
 
-          <LeadQualificationBlock
-            qual={qual}
-            readOnly={readOnly}
-            painValue={lead.pain ?? ''}
-            onSavePain={async (val) => {
-              updateLead.mutate({ id: lead.id, pain: val.trim() || null });
-            }}
-            onFill={() => setEditOpen(true)}
-          />
+          <LeadQualificationBlock lead={lead} qual={qual} />
 
-          {/* ═══ Активность ═══ */}
+          {/* ═══ Активность — вид сделки W5 (S-LEAD-V2-WORK-1, спека §6) ═══
+              Разметка — `isDeal`-ветка ProjectDetail: шапка одной строкой, последнее
+              событие, композер, лента. Чипов «Встречи» нет (`meetings.lead_id` не
+              существует, F-10), AI-прогонов у лида нет. */}
           <div className="sheet rounded-[1.25rem] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text-main">Активность</h2>
-              {!readOnly && (
-                <div className="flex items-center gap-1">
+            <div className="mb-3.5 flex flex-wrap items-center gap-2">
+              <span className="mr-1.5 text-xs font-bold text-text-main">Активность</span>
+              {!activityEmpty && (
+                <>
+                  <TimelineFilterChips
+                    variant="pill"
+                    kinds={LEAD_CHIP_KINDS}
+                    labels={LEAD_CHIP_LABELS}
+                    value={activityFilter}
+                    onChange={(v) => { setActivityFilter(v); setActivityExpanded(false); }}
+                  />
+                  {!activityExpanded && (
+                    <button
+                      type="button"
+                      onClick={() => setActivityExpanded(true)}
+                      className="text-xs font-semibold text-success-text hover:underline"
+                    >
+                      Вся лента
+                    </button>
+                  )}
+                </>
+              )}
+              {isOpen && (
+                <div className="ml-auto flex items-center gap-1">
                   <button
+                    type="button"
                     onClick={() => openModal('call', undefined, { leadId: lead.id })}
                     className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
                   >
                     <Plus size={11} /> Звонок
                   </button>
                   <button
+                    type="button"
                     onClick={() => openModal('task', undefined, { leadId: lead.id })}
                     className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-text-dim transition-colors hover:bg-surface2"
                   >
@@ -309,12 +340,18 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                 </div>
               )}
             </div>
-            <ActivityComposer entityType="lead" entityId={lead.id} />
-            <EntityTimeline
+            <DealLastEvent entityType="lead" entityId={lead.id} onOpenEvent={handleOpenEvent} />
+            {isOpen && <ActivityComposer entityType="lead" entityId={lead.id} variant="deal" />}
+            <DealActivityFeed
               entityType="lead"
               entityId={lead.id}
+              filter={activityFilter}
+              expanded={activityExpanded}
               onOpenEvent={handleOpenEvent}
             />
+            {isConverted && (
+              <p className="mt-2 text-meta text-text-mute">Дальше лента продолжается в сделке</p>
+            )}
           </div>
         </section>
 
@@ -374,109 +411,92 @@ export function LeadDetail({ leadId }: { leadId: string }) {
 // кричало громче незакрытого. Поэтому в зоне «Известно» галок нет вовсе —
 // это плотная справка, а не список достижений.
 //
-// S-LEAD-V2-LAYOUT-1: блок переехал в зону «Работа» как есть — сменилась только
-// обёртка (рамка → лист `.sheet`). Подписи зон держат прежний стиль бывшего
-// заголовка зон; разметку строк переделывает WORK-1 (спека §5).
+// S-LEAD-V2-WORK-1 (спека §5): строки «Осталось выяснить» отвечаются на месте
+// (`LeadQualRow`), «Заполнить» → `LeadModal` убран. Раскладка — по ширине
+// БЛОКА (`.lead-qual`, @container), а не экрана: при 1280 зона «Работа» узкая.
 // ═══════════════════════════════════════════════════════
 
-/** Подпись зоны блока — «ОСТАЛОСЬ ВЫЯСНИТЬ», «ИЗВЕСТНО». */
-const QUAL_LABEL = 'text-meta font-semibold uppercase tracking-wider text-text-mute';
+/** Подпись зоны блока — кегль eyebrow кокпита. */
+const QUAL_LABEL = 'text-[0.65625rem] font-bold uppercase tracking-wider text-text-dim';
 
-function LeadQualificationBlock({
-  qual,
-  readOnly,
-  painValue,
-  onSavePain,
-  onFill,
-}: {
-  qual: LeadQualification;
-  readOnly: boolean;
-  painValue: string;
-  onSavePain: (value: string) => Promise<void>;
-  onFill: () => void;
-}) {
-  // У конвертированного лида квалификация — архив: левая зона не рендерится
-  // независимо от заполненности, править задним числом нечего.
+function LeadQualificationBlock({ lead, qual }: { lead: Lead; qual: LeadQualification }) {
+  const isConverted = lead.status === 'converted';
+  const readOnly = isConverted || lead.status === 'disqualified';
+  // У закрытого лида квалификация — архив: левая зона не рендерится независимо
+  // от заполненности, отвечать задним числом не на что.
   const showMissing = !readOnly && qual.missing.length > 0;
   const showKnown = qual.known.length > 0;
+  const layout = showMissing && showKnown ? 'both' : showMissing ? 'missing' : 'known';
+  const now = new Date();
 
   return (
     // Якорь CTA сигнала `regulatory` (зона «Риски», HEALTH-1).
-    <div id="lead-qualification" className="sheet rounded-[1.25rem] p-4">
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <div className={QUAL_LABEL}>Квалификация{readOnly && ' · только чтение'}</div>
-        <span className="text-sm font-semibold tabular-nums text-text-main">
+    <div id="lead-qualification" className="sheet rounded-[1.25rem] px-[1.125rem] py-4">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-xs font-bold text-text-main">Квалификация</span>
+        <span className="text-xs tabular-nums text-text-dim">
           {qual.filledCount} из {qual.total}
         </span>
+        {readOnly && (
+          <span className="ml-auto text-meta text-text-mute">
+            {isConverted ? 'только чтение · перенесено в сделку' : 'заморожено до восстановления'}
+          </span>
+        )}
       </div>
 
       {!showMissing && !showKnown ? (
         <p className="text-sm text-text-mute">Квалификация не заполнялась.</p>
       ) : (
-        <div
-          className={cn(
-            'grid gap-4',
-            showMissing && showKnown && 'lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]',
-          )}
-        >
-          {showMissing && (
-            <div className="rounded-[var(--radius)] bg-surface2 p-4">
-              {/* Заголовок нейтральный, НЕ жёлтый: жёлтый на экране только у реальной
-                  блокировки — иначе «держит конверсию» перестаёт читаться как замок. */}
-              <div className={cn(QUAL_LABEL, 'mb-2')}>Осталось выяснить</div>
-              <div className={cn('grid gap-3', !showKnown && 'sm:grid-cols-2')}>
-                {qual.missing.map((item) => (
-                  <MissingRow
-                    key={item.key}
-                    item={item}
-                    painValue={painValue}
-                    onSavePain={onSavePain}
-                    onFill={onFill}
-                  />
-                ))}
-              </div>
-              {!showKnown && (
-                <>
-                  {/* Гейт держит КОНВЕРСИЮ, не квалификацию: степпер до «Квалифицирован»
-                      доступен и на пустом лиде. Формулировка §7 макета говорила
-                      «квалифицировать» и противоречила подписи «держит конверсию» в двух
-                      строках выше — исправлено на гейте S-LEAD-CARD-VISUAL-1. */}
+        <div className="lead-qual" data-layout={layout}>
+          <div className="lead-qual-cols">
+            {showMissing && (
+              <div className="rounded-[0.875rem] bg-surface2 p-4">
+                {/* Заголовок нейтральный, НЕ жёлтый: жёлтый на экране только у реальной
+                    блокировки — иначе «держит конверсию» перестаёт читаться как замок. */}
+                <div className={cn(QUAL_LABEL, 'mb-3')}>Осталось выяснить</div>
+                <div className="lead-qual-missing">
+                  {qual.missing.map((item) => (
+                    <LeadQualRow key={item.key} item={item} lead={lead} />
+                  ))}
+                </div>
+                {!showKnown && (
+                  // Гейт держит КОНВЕРСИЮ, не квалификацию: степпер до «Квалифицирован»
+                  // доступен и на пустом лиде (гейт S-LEAD-CARD-VISUAL-1).
                   <p className="mt-3 text-xs text-text-mute">
                     Заполни боль и бюджет — тогда можно конвертировать
                   </p>
-                </>
-              )}
-            </div>
-          )}
-
-          {showKnown && (
-            <div className={cn(!showMissing && 'w-full')}>
-              <div className={cn(QUAL_LABEL, 'mb-2')}>Известно</div>
-              <div
-                className={cn(
-                  'grid gap-x-8 gap-y-2',
-                  showMissing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
                 )}
-              >
-                {qual.known.map((item) => (
-                  // min-h держит строки на общей сетке: без него длинное значение
-                  // роли распирало бы свою ячейку и ломало базовые линии соседей.
-                  <div key={item.key} className="flex min-h-[1.625rem] items-baseline gap-3">
-                    <span className="w-28 shrink-0 text-sm text-text-dim">{item.label}</span>
-                    <span
-                      className={cn(
-                        'min-w-0 text-sm text-text-main',
-                        (item.key === 'value' || item.key === 'deadline') && 'tabular-nums',
-                      )}
-                      title={item.key === 'pain' ? undefined : item.value ?? undefined}
-                    >
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
               </div>
-            </div>
-          )}
+            )}
+
+            {showKnown && (
+              <div className="min-w-0">
+                <div className={cn(QUAL_LABEL, 'mb-2')}>Известно</div>
+                <div className="lead-qual-known">
+                  {qual.known.map((item) => (
+                    // min-h держит строки на общей сетке: без него длинное значение
+                    // роли распирало бы свою ячейку и ломало базовые линии соседей.
+                    <div key={item.key} className="flex min-h-[1.625rem] items-baseline gap-3">
+                      <span className="w-28 shrink-0 text-meta text-text-mute">{item.label}</span>
+                      {item.key === 'chz' ? (
+                        <KnownChzGroups groups={lead.chz_groups ?? []} now={now} />
+                      ) : (
+                        <span
+                          className={cn(
+                            'min-w-0 text-body text-text-main',
+                            (item.key === 'value' || item.key === 'deadline') && 'tabular-nums',
+                          )}
+                          title={item.key === 'pain' ? undefined : item.value ?? undefined}
+                        >
+                          {item.value}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -484,65 +504,29 @@ function LeadQualificationBlock({
 }
 
 /**
- * Строка зоны «Осталось выяснить».
- *
- * Боль правится ЗДЕСЬ (`InlineEdit as="textarea"`): она пишется свободным текстом
- * и в модалку за ней ходить незачем. Остальные пять — селекты, мультиселект и
- * дата, им нужна форма, поэтому «Заполнить» открывает `LeadModal`.
+ * «Группы ЧЗ» в «Известно»: у группы из справочника — тег фазы (`chzStatusLabel`,
+ * тот же `ChzBadge`, что у `DealChzCard`); группы вне справочника (переименовали
+ * после снимка) — одно имя, без выдуманной фазы. Дата старта для лида не
+ * подставляется — это отступление спринта, см. `_analysis/sprint-S-LEAD-V2-WORK-1.md`.
  */
-function MissingRow({
-  item,
-  painValue,
-  onSavePain,
-  onFill,
-}: {
-  item: LeadQualItem;
-  painValue: string;
-  onSavePain: (value: string) => Promise<void>;
-  onFill: () => void;
-}) {
+function KnownChzGroups({ groups, now }: { groups: string[]; now: Date }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-text-main">{item.label}</div>
-        {item.required ? (
-          <div
-            className="mt-0.5 flex items-center gap-1 text-xs"
-            style={{ color: 'var(--yellow-text, var(--yellow))' }}
-          >
-            <Lock size={11} /> держит конверсию
-          </div>
-        ) : (
-          <div className="mt-0.5 text-xs text-text-mute">{item.hint}</div>
-        )}
-      </div>
-
-      {item.key === 'pain' ? (
-        // Пока свёрнут — компактный триггер справа; в режиме правки внутри появляется
-        // textarea, и обёртка уезжает на всю ширину строки (`basis-full` по :has).
-        <div className="shrink-0 [&:has(textarea)]:mt-1 [&:has(textarea)]:basis-full">
-          <InlineEdit
-            value={painValue}
-            as="textarea"
-            placeholder="Заполнить"
-            className="rounded-lg border border-[var(--accent)] px-2.5 py-1 text-xs text-accent no-underline hover:no-underline"
-            onSave={onSavePain}
-          />
-        </div>
-      ) : (
-        <button
-          onClick={onFill}
-          className={cn(
-            'shrink-0 rounded-lg border px-2.5 py-1 text-xs transition-colors',
-            item.required
-              ? 'border-[var(--accent)] text-accent hover:bg-accent-l'
-              : 'border-border text-text-dim hover:bg-surface3',
-          )}
-        >
-          Заполнить
-        </button>
-      )}
-    </div>
+    <ul className="flex min-w-0 flex-col gap-1">
+      {groups.map((name) => {
+        const g = CHZ_GROUPS.find((x) => x.group === name);
+        return (
+          <li key={name} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-body text-text-main">{name}</span>
+            {/* Тег неразрывный: в узкой ячейке «старт 2026-03» ломался по дефису. */}
+            {g && (
+              <span className="whitespace-nowrap">
+                <ChzBadge status={chzPhase(g, now)} label={chzStatusLabel(g, now)} />
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

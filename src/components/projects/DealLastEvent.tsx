@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
+import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import { KIND_META } from '@/lib/timeline/kind-meta';
 import {
   resolveEventEffects,
@@ -89,16 +89,19 @@ function toSource(e: TimelineEvent): EffectSource {
 }
 
 export function DealLastEvent({
-  projectId,
+  entityId,
+  entityType = 'project',
   onOpenEvent,
 }: {
-  projectId: string;
+  entityId: string;
+  /** S-LEAD-V2-WORK-1: лид показывает тот же виджет; дефолт — сделка. */
+  entityType?: TimelineEntityType;
   onOpenEvent?: (event: TimelineEvent) => void;
 }) {
   // Без `kinds` намеренно: виджет показывает последнее событие независимо от
   // выбранного чипа ленты. При чипе «Все» ключ React Query совпадает с лентой
   // (`kindsKey = 'all'`), то есть второго запроса нет вовсе.
-  const { events, isLoading, error } = useEntityTimeline('project', projectId);
+  const { events, isLoading, error } = useEntityTimeline(entityType, entityId);
 
   const anchor = useMemo(() => {
     // ⚠️ ЛЕНТА СОДЕРЖИТ БУДУЩЕЕ. У задачи дата события — `deadline ?? created_at`

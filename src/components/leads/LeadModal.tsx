@@ -15,7 +15,7 @@ import {
 } from '@/lib/validators/lead';
 import { formatBudget, parseBudgetInput } from '@/lib/validators/project';
 import { STAKEHOLDER_ROLE_CONFIG, STAKEHOLDER_ROLE_ORDER } from '@/lib/constants/stakeholders';
-import { CHZ_GROUPS } from '@/lib/data/chz-groups';
+import { CHZ_GROUP_NAMES } from '@/lib/data/chz-groups';
 import { useCreateLead, useUpdateLead } from '@/lib/hooks/use-leads';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { Modal } from '@/components/shared/Modal';
@@ -32,8 +32,6 @@ const INPUT_CLASS =
   'w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main ' +
   'placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-/** Названия групп ЧЗ без дублей (одна группа приходит из нескольких префиксов ОКВЭД). */
-const CHZ_GROUP_NAMES = [...new Set(CHZ_GROUPS.map((g) => g.group))].sort((a, b) => a.localeCompare(b, 'ru'));
 
 const EMPTY_FORM: LeadFormData = {
   title: '',

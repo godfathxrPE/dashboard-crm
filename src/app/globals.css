@@ -1850,6 +1850,44 @@ table { font-variant-numeric: tabular-nums; }
     }
   }
 
+  /* S-LEAD-V2-WORK-1 (спека §5): квалификация лида — раскладка по ширине БЛОКА,
+     приём .deal-org-split выше (довод тот же: при 1280 зона «Работа» узкая, и
+     viewport-брейкпоинт развёл бы колонки там, где им тесно). Три случая —
+     `data-layout` на обёртке:
+       both    — «Осталось выяснить» / «Известно» рядом 2fr / 3fr с 44rem;
+       missing — только открытые: пункты в две колонки внутри подложки с 44rem;
+       known   — только известные: две колонки, с 44rem — три.
+     Справка «Известно» уже 28rem (телефон) — в одну колонку: ключ 7rem и значение
+     в половине 21rem не помещаются. Без поддержки @container — одна колонка везде. */
+  .lead-qual { container-type: inline-size; }
+  .lead-qual-cols,
+  .lead-qual-missing {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lead-qual-cols { gap: 1rem; }
+  .lead-qual-missing { gap: 1rem; }
+  .lead-qual-known {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 2rem;
+    row-gap: 0.5rem;
+  }
+  @container (min-width: 28rem) {
+    .lead-qual-known { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  @container (min-width: 44rem) {
+    .lead-qual[data-layout='both'] .lead-qual-cols {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    }
+    .lead-qual[data-layout='missing'] .lead-qual-missing {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .lead-qual[data-layout='known'] .lead-qual-known {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
   /* Sidebar active */
   .nav-active { border-left: 3px solid var(--accent); background: var(--accent-l); font-weight: 600; color: var(--accent); }
   .nav-active .lucide { color: var(--accent); }
