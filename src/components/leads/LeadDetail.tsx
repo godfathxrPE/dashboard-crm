@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertTriangle,
-  ArrowRight,
   Clock,
   Loader2,
   Lock,
@@ -628,14 +627,9 @@ function ConvertedDealCard({ dealId, convertedAt }: { dealId: string; convertedA
             <small className="ml-2 font-normal normal-case tracking-normal text-text-mute">{convertedLabel}</small>
           )}
         </div>
-        {deal && (
-          <Link
-            href={`/deals/${dealId}`}
-            className="ml-auto flex items-center gap-1 text-xs font-medium text-text-dim transition-colors hover:text-accent"
-          >
-            Открыть сделку <ArrowRight size={12} />
-          </Link>
-        )}
+        {/* Гейт LAYOUT-1: ссылки «Открыть сделку →» здесь нет — путь в сделку уже
+            дважды на экране (кнопка шапки и имя сделки ниже); третий носитель
+            одного действия — F-01. */}
       </div>
 
       {isLoading ? (

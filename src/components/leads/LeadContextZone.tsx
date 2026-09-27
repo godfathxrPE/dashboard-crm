@@ -74,7 +74,10 @@ export function LeadContextZone({ lead, ownerName }: { lead: Lead; ownerName: st
             </a>
           </RailRow>
         )}
-        {ownerName && <RailRow label="Ответственный">{ownerName}</RailRow>}
+        {/* «Менеджер», а не «Ответственный»: колонка лейбла RailRow — 5.5rem, и
+            одно слово в 13 знаков при text-sm её переполняло и наезжало на значение
+            (гейт LAYOUT-1). Смысл тот же — `owner_id`. */}
+        {ownerName && <RailRow label="Менеджер">{ownerName}</RailRow>}
         {source && <RailRow label="Источник">{source}</RailRow>}
         {temperature && (
           <RailRow label="Температура">
