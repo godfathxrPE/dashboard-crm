@@ -9,7 +9,11 @@
 
 /** «сегодня/завтра/вчера» вблизи, иначе «7 июля». Невалидная строка — как есть. */
 export function formatActionDate(value: string, now: Date = new Date()): string {
-  const d = new Date(value);
+  // Ключ дня «YYYY-MM-DD» (колонка `date`) собирается ЛОКАЛЬНОЙ датой по частям.
+  // `new Date('2026-09-28')` — это UTC-полночь: западнее UTC она уже вчера, и
+  // «завтра» печаталось как «сегодня» (гейт S-LEAD-V2-HEALTH-1, TZ=America/Los_Angeles).
+  const key = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const d = key ? new Date(Number(key[1]), Number(key[2]) - 1, Number(key[3])) : new Date(value);
   if (isNaN(d.getTime())) return value;
   const today = new Date(now.toDateString());
   const target = new Date(new Date(d).toDateString());
