@@ -132,6 +132,49 @@ describe('getLeadSignals — первое касание', () => {
   });
 });
 
+describe('getLeadSignals — новый лид в окне SLA (S-LEAD-V2-WORK-1)', () => {
+  // Решение владельца 27.09: в первые сутки без шага «назначь шаг» не выдаётся —
+  // шаг у нового лида один, звонок, и его несёт `first_touch`.
+  it('new, 20 ч, без шага и касания — step нет, first_touch ok «осталось 4 ч», вердикт ok', () => {
+    const r = getLeadSignals(lead({ status: 'new', created_at: hoursAgo(20) }), NOW);
+    expect(step(r)).toBeUndefined();
+    expect(touch(r)).toMatchObject({ state: 'ok', label: 'Первое касание: осталось 4 ч' });
+    expect(r.verdict).toBe('ok');
+    expect(r.top).toBeNull();
+  });
+
+  it('new, 23 ч — то же (граница окна внутри)', () => {
+    const r = getLeadSignals(lead({ status: 'new', created_at: hoursAgo(23) }), NOW);
+    expect(step(r)).toBeUndefined();
+    expect(touch(r)).toMatchObject({ state: 'ok', label: 'Первое касание: осталось 1 ч' });
+    expect(r.verdict).toBe('ok');
+  });
+
+  it('new, 24 ч, без шага — step warn, first_touch нет: ни часа без сигнала, ни часа с двумя', () => {
+    const r = getLeadSignals(lead({ status: 'new', created_at: hoursAgo(24) }), NOW);
+    expect(step(r)).toMatchObject({ state: 'warn', label: 'Следующий шаг не назначен' });
+    expect(touch(r)).toBeUndefined();
+    expect(r.verdict).toBe('attention');
+  });
+
+  it('new, 20 ч, шаг завтра — step ok «Шаг назначен на завтра» (назначенный не глушится)', () => {
+    const r = getLeadSignals(
+      lead({ status: 'new', created_at: hoursAgo(20), next_action_date: dateKey(1) }),
+      NOW,
+    );
+    expect(step(r)).toMatchObject({ state: 'ok', label: 'Шаг назначен на завтра' });
+  });
+
+  it('new, 20 ч, шаг вчера — step bad (просрочка не глушится никогда)', () => {
+    const r = getLeadSignals(
+      lead({ status: 'new', created_at: hoursAgo(20), next_action_date: dateKey(-1) }),
+      NOW,
+    );
+    expect(step(r)).toMatchObject({ state: 'bad' });
+    expect(r.verdict).toBe('rotting');
+  });
+});
+
 describe('getLeadSignals — сводка', () => {
   it('сортировка bad → warn → ok, top — первый не-ok', () => {
     const r = getLeadSignals(

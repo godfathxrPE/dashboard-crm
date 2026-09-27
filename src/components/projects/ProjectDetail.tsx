@@ -456,10 +456,10 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
             </div>
             {/* S-DEAL-EVENT-1: последнее событие и его следствия — НАД композером
                 и над лентой. Своего запроса не заводит: ключ совпадает с чипом «Все». */}
-            <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
+            <DealLastEvent entityId={projectId} onOpenEvent={handleOpenEvent} />
             <ActivityComposer entityType="project" entityId={projectId} variant="deal" />
             <DealActivityFeed
-              projectId={projectId}
+              entityId={projectId}
               filter={activityFilter}
               expanded={activityExpanded}
               onOpenEvent={handleOpenEvent}
@@ -472,7 +472,7 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
               <Clock size={14} className="text-text-dim" />
               <span className="text-xs font-semibold text-text-main">Активность</span>
             </div>
-            <DealLastEvent projectId={projectId} onOpenEvent={handleOpenEvent} />
+            <DealLastEvent entityId={projectId} onOpenEvent={handleOpenEvent} />
             <ActivityComposer entityType="project" entityId={projectId} />
             <EntityTimeline
               entityType="project"

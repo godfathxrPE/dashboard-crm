@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
+import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import { relativeTime } from '@/lib/utils/relative-time';
 import { timelineDotTone, type TimelineDotTone } from '@/lib/timeline/dot-tone';
 import type { TimelineFilterValue } from '@/components/shared/EntityTimeline';
@@ -53,13 +53,21 @@ const DOT_TONE_CLASS: Record<TimelineDotTone, string> = {
  * Лента сделки под выбранным чипом. Один и тот же вызов у шапки (скрыть чипы у
  * сделки без событий) и у ленты — ключ React Query общий, запрос один. При `all`
  * ключ совпадает ещё и с `DealLastEvent`/`DealNextStep`.
+ *
+ * S-LEAD-V2-WORK-1: `entityType` — аддитивно, дефолт `'project'`. Лента лида —
+ * тот же вид W5, а не третья вариация; ключ у сделки прежний
+ * (`['timeline','project',id,…]`).
  */
-export function useDealActivity(projectId: string, filter: TimelineFilterValue) {
+export function useDealActivity(
+  entityId: string,
+  filter: TimelineFilterValue,
+  entityType: TimelineEntityType = 'project',
+) {
   const requestKinds = useMemo<TimelineKindFilter[] | undefined>(
     () => (filter === 'all' ? undefined : [filter]),
     [filter],
   );
-  const timeline = useEntityTimeline('project', projectId, requestKinds);
+  const timeline = useEntityTimeline(entityType, entityId, requestKinds);
   /*
     S-HEALTH-V2-1 (F-08): чипы у сущности БЕЗ ленты — управление, которым нечем
     управлять. Прячем только «активности нет вовсе»: фильтр `all` + загрузка
@@ -76,20 +84,23 @@ function rowText(e: TimelineEvent): string {
 }
 
 export function DealActivityFeed({
-  projectId,
+  entityId,
+  entityType = 'project',
   filter,
   expanded,
   onOpenEvent,
 }: {
-  projectId: string;
+  entityId: string;
+  entityType?: TimelineEntityType;
   filter: TimelineFilterValue;
   /** «Вся лента» в шапке: лимит снят, видно всё загруженное. */
   expanded: boolean;
   onOpenEvent?: (event: TimelineEvent) => void;
 }) {
   const { events, isLoading, error, hasMore, loadMore, isLoadingMore } = useDealActivity(
-    projectId,
+    entityId,
     filter,
+    entityType,
   );
 
   // Лимит сбрасывается сменой чипа: состояние привязано к фильтру, и новый фильтр

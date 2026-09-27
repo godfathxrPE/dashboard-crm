@@ -11,7 +11,7 @@ import { useCompanies, useCreateCompany, useUpdateCompany, type Company } from '
 import { useCompanyLookup } from '@/lib/hooks/use-company-lookup';
 import { innStatusLabel, isLookupableInn, isRiskyInnStatus } from '@/lib/utils/inn';
 import { okvedToIndustry } from '@/lib/data/okved';
-import { CHZ_GROUPS } from '@/lib/data/chz-groups';
+import { CHZ_GROUP_NAMES } from '@/lib/constants/chz';
 import { cn } from '@/lib/utils/cn';
 import { AssigneeSelect } from '@/components/shared/AssigneeSelect';
 import { PhoneFields } from '@/components/shared/PhoneFields';
@@ -50,12 +50,9 @@ const INPUT_CLASS =
   'w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main ' +
   'placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent';
 
-/**
- * S-LEAD-CARRY-1: список групп для пикера — тот же вывод, что в `LeadModal`
- * (дедуп по имени, алфавит по-русски). Контрол один на два места намеренно:
- * второй вид контрола для того же справочника развёл бы их поведение.
- */
-const CHZ_GROUP_NAMES = [...new Set(CHZ_GROUPS.map((g) => g.group))].sort((a, b) => a.localeCompare(b, 'ru'));
+// S-LEAD-CARRY-1: пикер групп — тот же, что в `LeadModal`. Контрол один на два места
+// намеренно: второй вид контрола для того же справочника развёл бы их поведение.
+// Список — общий `CHZ_GROUP_NAMES` (S-LEAD-V2-WORK-1 вынес его в `chz-groups.ts`).
 
 export function CompanyModal({ isOpen, onClose, editCompany, prefill, onCreated }: CompanyModalProps) {
   const router = useRouter();
