@@ -18,11 +18,24 @@ import {
   type OrgExportPayload,
 } from '@/lib/domain/org-export';
 
-const MIGRATION = resolve(__dirname, '../../supabase/migrations/126_org_export.sql');
+// Актуальная редакция `export_org_data` — 134 (добавила `notes`); 126 — первая.
+const MIGRATION = resolve(__dirname, '../../supabase/migrations/134_notes.sql');
+
+/**
+ * Только функция `export_org_data` из файла. С 134 файл содержит и другие функции
+ * (в т.ч. SECURITY DEFINER — RPC заметок), и проверка «нет DEFINER» по всему файлу
+ * была бы ложной тревогой. Функция идёт в файле последней, поэтому срез — до конца.
+ */
+function exportFunctionSql(): string {
+  const sql = readFileSync(MIGRATION, 'utf8');
+  const at = sql.indexOf('create or replace function public.export_org_data(');
+  expect(at, 'export_org_data не найдена в миграции').toBeGreaterThanOrEqual(0);
+  return sql.slice(at);
+}
 
 /** Список таблиц из литерала `v_tables text[] := array[…]` тела функции. */
 function sqlTables(): string[] {
-  const sql = readFileSync(MIGRATION, 'utf8');
+  const sql = exportFunctionSql();
   const block = sql.match(/v_tables text\[\] := array\[([\s\S]*?)\n {2}\];/);
   expect(block, 'массив v_tables не найден в миграции').not.toBeNull();
   return [...block![1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
@@ -46,7 +59,7 @@ describe('состав экспорта', () => {
   });
 });
 
-describe('SQL-массив миграции 126 против EXPORT_TABLES', () => {
+describe('SQL-массив миграции 134 против EXPORT_TABLES', () => {
   it('совпадает построчно, включая порядок', () => {
     expect(sqlTables()).toEqual([...EXPORT_TABLES]);
   });
@@ -63,7 +76,7 @@ describe('SQL-массив миграции 126 против EXPORT_TABLES', () 
   });
 
   it('функция объявлена SECURITY INVOKER — на этом держится изоляция org', () => {
-    const sql = readFileSync(MIGRATION, 'utf8').toLowerCase();
+    const sql = exportFunctionSql().toLowerCase();
     expect(sql).toContain('security invoker');
     expect(sql).not.toMatch(/security\s+definer/);
   });

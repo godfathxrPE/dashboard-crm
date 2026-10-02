@@ -148,21 +148,20 @@ describe('rpcRowToEvent', () => {
 
   // ═══ S-DEAL-NOTES-READ-1: полный текст события — `body` и `nextStep` ═══
 
-  it('activity: comment_added — полный текст заметки в body, title прежний (describeEvent)', () => {
-    const note = 'Заголовок\nАбзац\n\n- пункт';
+  it('activity: comment_added больше не несёт body — заметка приходит видом note (S-NOTES-1)', () => {
     const e = rpcRowToEvent(
       row({
         kind: 'activity',
-        // как и changes/task_id: текст лежит во ВНУТРЕННЕМ payload, рядом с event_type
-        payload: { event_type: 'comment_added', payload: { text: note } },
+        payload: { event_type: 'comment_added', payload: { text: 'старая строка журнала' } },
       }),
       NOW,
     );
-    expect(e.body).toBe(note);
-    expect(e.title).toBe(note);
+    expect(e.body).toBeUndefined();
+    // title прежний: старые строки журнала в кэше org-ленты читаются как раньше
+    expect(e.title).toBe('старая строка журнала');
   });
 
-  it('activity: не-заметка (stage_change) и comment_added без текста — body отсутствует', () => {
+  it('activity: не-заметка (stage_change) — body отсутствует', () => {
     const stage = rpcRowToEvent(
       row({
         kind: 'activity',
@@ -171,11 +170,70 @@ describe('rpcRowToEvent', () => {
       NOW,
     );
     expect(stage.body).toBeUndefined();
-    const empty = rpcRowToEvent(
-      row({ kind: 'activity', payload: { event_type: 'comment_added', payload: { text: 42 } } }),
+  });
+
+  // ═══ S-NOTES-1 (134): вид `note` — заметка из таблицы notes ═══
+
+  it('note: тело из двух строк → title первая строка, body целиком, pinnedAt/editedAt проброшены', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'note',
+        id: `note:${UUID}`,
+        source: 'notes',
+        actor_id: 'actor-3',
+        payload: {
+          body: 'Zoom с АНФИШ\nОбсудили палету',
+          kind: 'note',
+          meta: {},
+          pinned_at: '2026-10-01T09:00:00+00:00',
+          edited_at: '2026-10-02T09:00:00+00:00',
+        },
+      }),
       NOW,
     );
-    expect(empty.body).toBeUndefined();
+    expect(e.kind).toBe('note');
+    expect(e.icon).toBe('note');
+    expect(e.title).toBe('Zoom с АНФИШ');
+    expect(e.body).toBe('Zoom с АНФИШ\nОбсудили палету');
+    expect(e.sourceId).toBe(UUID);
+    expect(e.id).toBe(`note:${UUID}`);
+    expect(e.actorId).toBe('actor-3');
+    expect(e.pinnedAt).toBe('2026-10-01T09:00:00+00:00');
+    expect(e.editedAt).toBe('2026-10-02T09:00:00+00:00');
+    expect(e.noteKind).toBe('note');
+  });
+
+  it('note: не закреплена и не правилась → pinnedAt/editedAt null', () => {
+    const e = rpcRowToEvent(
+      row({ kind: 'note', payload: { body: 'x', kind: 'note', pinned_at: null, edited_at: null } }),
+      NOW,
+    );
+    expect(e.pinnedAt).toBeNull();
+    expect(e.editedAt).toBeNull();
+  });
+
+  it('note: payload.kind=stage_comment → noteKind stage_comment; мусор → note', () => {
+    const stage = rpcRowToEvent(
+      row({ kind: 'note', payload: { body: 'Закрыли этап', kind: 'stage_comment' } }),
+      NOW,
+    );
+    expect(stage.noteKind).toBe('stage_comment');
+    const junk = rpcRowToEvent(
+      row({ kind: 'note', payload: { body: 'Закрыли этап', kind: 'whatever' } }),
+      NOW,
+    );
+    expect(junk.noteKind).toBe('note');
+  });
+
+  it('note: тело из одних пробелов и переводов строки — битая строка', () => {
+    expect(isTimelineRpcRow(row({ kind: 'note', payload: { body: '  \n ' } }))).toBe(false);
+  });
+
+  it('note без body — отбрасывается isTimelineRpcRow (как прочие битые строки)', () => {
+    expect(isTimelineRpcRow(row({ kind: 'note', payload: {} }))).toBe(false);
+    expect(isTimelineRpcRow(row({ kind: 'note', payload: null }))).toBe(false);
+    expect(isTimelineRpcRow(row({ kind: 'note', payload: { body: 42 } }))).toBe(false);
+    expect(isTimelineRpcRow(row({ kind: 'note', payload: { body: 'текст' } }))).toBe(true);
   });
 
   it('meeting: notes и next_step по отдельности, detail прежний (шаг приоритетнее)', () => {

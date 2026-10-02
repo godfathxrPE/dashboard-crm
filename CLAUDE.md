@@ -88,8 +88,10 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
 - **`revoke truncate, references, trigger` в новой миграции писать не нужно** — 082 сузил
   дефолтные привилегии в корне (`alter default privileges ... revoke ... maintain`), новая
   таблица приходит с `authenticated = arwd` сама.
-- **Hard delete.** Ни одной таблицы с `deleted_at` в проекте нет. Одинокий soft-delete не
-  вводить — физический DELETE + CASCADE.
+- **Hard delete.** Физический DELETE + CASCADE — правило по умолчанию. **Единственное
+  исключение — `notes` (134, S-NOTES-1):** soft-delete ради «Вернуть», решение владельца
+  02.10; удаление и возврат только через RPC `soft_delete_note` / `restore_note`. Новые
+  soft-delete без такого решения не вводить.
 - **Никаких хардкод-цветов** — только CSS-переменные; правки тем скоупятся в `.t-aura {}` и т.п.
 - `any` запрещён; для внешних payload — `unknown` + type guard.
 - Единицы rem/em/clamp (px только для границ ≤ 2px). Эмодзи в UI нет — иконки Lucide.

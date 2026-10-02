@@ -210,6 +210,8 @@ export function useOrgTimeline(
   // мутаций (они бьют по префиксу `['timeline']`). Подписки на шесть таблиц ради
   // виджета в 20 строк здесь не окупаются.
   useRealtimeSync('activity_log', ORG_TIMELINE_KEY);
+  // S-NOTES-1 (134): заметки — отдельная таблица, журнал о них больше не знает.
+  useRealtimeSync('notes', ORG_TIMELINE_KEY);
 
   const timeline = useEntityTimeline('org', null, kinds, limit);
   const parentMap = useParentNameMap();

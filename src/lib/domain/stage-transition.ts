@@ -142,7 +142,8 @@ export function buildTransitionPatch(input: TransitionInput): ProjectUpdate {
  * ⚠️ Событие ТЕХНИЧЕСКОЕ и скрыто из человеческих лент (`use-activity-log`,
  * `use-entity-timeline`): переход уже виден там как `stage_changed`, второй ряд
  * на то же действие — шум. Комментарий пользователя пишется отдельным
- * `comment_added` (это делает commitTransition из 1a) и остаётся видимым.
+ * заметкой `kind='stage_comment'` в `notes` (это делает commitTransition из 1a) и
+ * остаётся видимым.
  */
 export const TRANSITION_METRIC_EVENT = 'stage_transition_committed';
 

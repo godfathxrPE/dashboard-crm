@@ -41,8 +41,13 @@ function row(kind: TimelineRpcRow['kind'], n: number, payload: Record<string, un
 const NOTE =
   '02.10.2026 · Zoom · ООО «АНФИШ»\nУчастники: Олег, Сергей.\n\nСитуация\n- Считают вручную\n- В ЧЗ нет интеграции';
 
+// S-NOTES-1 (134): заметка — вид `note` (таблица notes), а не `activity`+`comment_added`.
 const note = () =>
-  rpcRowToEvent(row('activity', 1, { event_type: 'comment_added', payload: { text: NOTE } }));
+  rpcRowToEvent(
+    row('note', 1, { body: NOTE, kind: 'note', meta: {}, pinned_at: null, edited_at: null }),
+  );
+const legacyJournalNote = () =>
+  rpcRowToEvent(row('activity', 4, { event_type: 'comment_added', payload: { text: NOTE } }));
 const meeting = () =>
   rpcRowToEvent(
     row('meeting', 2, { title: 'Демо WMS', notes: 'Обсудили сроки', next_step: 'Прислать КП' }),
@@ -118,6 +123,34 @@ describe('DealActivityFeed: заметки и встречи читаются в
     expect(btn).not.toHaveAttribute('aria-expanded');
     fireEvent.click(btn);
     expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // S-NOTES-1. Этот тест обязан краснеть на коде до спринта: `rowParts` раскрывал только
+  // `kind==='activity'`, и событие `kind:'note'` осталось бы обычной строкой без раскрытия.
+  it('событие kind=note раскрывается на месте; старая строка журнала comment_added — нет', () => {
+    events = [note()];
+    const onOpen = renderFeed();
+    const btn = screen.getByRole('button', { name: /02\.10\.2026 · Zoom/ });
+    expect(btn).toHaveAttribute('aria-expanded', 'false');
+    // Заголовок — первая строка — не повторяется в превью. На старом `rowParts` вид
+    // `note` попадал в ветку «встреча/звонок» (`rest = body`, то есть ВЕСЬ текст с
+    // заголовком), и строка читалась «Zoom … Zoom».
+    expect(btn.textContent?.match(/Zoom/g) ?? []).toHaveLength(1);
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute('aria-expanded', 'true');
+    expect(onOpen).not.toHaveBeenCalled();
+    // ...и не повторяется в раскрытом теле.
+    expect(screen.getAllByText(/02\.10\.2026 · Zoom/)).toHaveLength(1);
+    cleanup();
+
+    // журнал без `body` (SQL уже не отдаёт comment_added, но кэш мог остаться):
+    // обычная строка, клик открывает событие, а не раскрывает
+    events = [legacyJournalNote()];
+    const onOpen2 = renderFeed();
+    const legacy = screen.getByRole('button', { name: /02\.10\.2026 · Zoom/ });
+    expect(legacy).not.toHaveAttribute('aria-expanded');
+    fireEvent.click(legacy);
+    expect(onOpen2).toHaveBeenCalledTimes(1);
   });
 
   it('несколько строк раскрыты одновременно', () => {

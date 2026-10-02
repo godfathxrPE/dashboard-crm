@@ -49,15 +49,16 @@ const KIND_TITLE: Record<TimelineKind, string> = {
   project: 'Сделка',
   activity: 'Событие',
   ai_run: 'AI-прогон',
+  note: 'Заметка',
 };
 
 /**
- * Подпись вида для КОНКРЕТНОГО события: человеческая заметка — «Заметка», а не
- * «Событие» (`comment_added` — единственный вид `activity`, который пишет человек
- * текстом; системные записи остаются «Событием»). S-DEAL-NOTES-READ-1.
+ * Подпись вида для КОНКРЕТНОГО события. Заметка — собственный вид `note` (134) и
+ * называется «Заметка»; `activity` — только системные записи, «Событие».
+ * S-DEAL-NOTES-READ-1, S-NOTES-1.
  */
 function eventTitle(e: TimelineEvent): string {
-  return e.kind === 'activity' && e.eventType === 'comment_added' ? 'Заметка' : KIND_TITLE[e.kind];
+  return KIND_TITLE[e.kind];
 }
 
 /**
@@ -85,6 +86,9 @@ function actionLabel(event: TimelineEvent): string | null {
       return 'Открыть';
     case 'activity':
       return event.refType === 'task' ? 'Изменить' : null;
+    case 'note':
+      // Правка заметки — S-NOTES-2; пока клик по ней молчит (`open-event.ts`).
+      return null;
   }
 }
 
@@ -149,12 +153,9 @@ export function DealLastEvent({
   // ось — смысл, тут без события не остаётся ничего.
   if (isLoading || error || !anchor) return null;
 
-  // Заметка — только событие журнала `comment_added` с текстом. У встречи/звонка `body`
-  // тоже бывает, но заголовок у них свой (`title`), а не первая строка текста.
-  const note =
-    anchor.kind === 'activity' && anchor.eventType === 'comment_added' && anchor.body
-      ? noteHeadline(anchor.body)
-      : null;
+  // Заметка — событие `kind='note'` с текстом. У встречи/звонка `body` тоже бывает,
+  // но заголовок у них свой (`title`), а не первая строка текста.
+  const note = anchor.kind === 'note' && anchor.body ? noteHeadline(anchor.body) : null;
   const meta = KIND_META[anchor.kind];
   const Icon = meta.icon;
   const action = actionLabel(anchor);

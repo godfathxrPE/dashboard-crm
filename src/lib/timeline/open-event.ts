@@ -65,6 +65,11 @@ export async function openTimelineEvent(event: TimelineEvent, ctx: OpenTimelineE
       if (data) ctx.onAiRun(data as unknown as AiRunRow);
       return;
     }
+    case 'note':
+      // S-NOTES-1: клик по заметке молчит — правка и закрепление приходят в S-NOTES-2.
+      // Явной веткой, а не через `default`: чтобы будущий читатель видел, что это
+      // решение, а не пропуск.
+      return;
     case 'activity':
       // S-COST-TRUTH-1. У записи журнала своей карточки нет — открывать нечего.
       // Исключение одно: событие о задаче, несущее `task_id` (адаптер положил его

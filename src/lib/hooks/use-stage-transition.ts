@@ -21,7 +21,7 @@
  */
 
 import { useUpdateProject } from './use-projects';
-import { logActivity } from './use-activity-log';
+import { insertNote } from './use-notes';
 import {
   buildTransitionPatch,
   type TransitionField,
@@ -40,8 +40,9 @@ export function useStageTransition() {
 
   /**
    * Один `projects.update({ stage_id, ...fieldPatches })`. Комментарий (если есть) —
-   * отдельным `comment_added` в activity_log ПОСЛЕ успеха: колонки под него нет, а
-   * писать его до подтверждённого перехода нельзя — гейт мог бы переход отклонить.
+   * отдельной заметкой `kind='stage_comment'` в `notes` ПОСЛЕ успеха (S-NOTES-1, 134;
+   * до того — `comment_added` в activity_log): колонки под него нет, а писать его до
+   * подтверждённого перехода нельзя — гейт мог бы переход отклонить.
    *
    * Событие `stage_changed` пишет сам `useUpdateProject` (он знает from-стадию из
    * кеша) — здесь его дублировать нельзя, иначе одно перемещение даст два события.
@@ -52,10 +53,11 @@ export function useStageTransition() {
       onSuccess: () => {
         const text = input.comment?.trim();
         if (text) {
-          logActivity(input.projectId, 'comment_added', {
-            text,
-            from_stage_id: input.fromStageId,
-            to_stage_id: input.toStageId,
+          void insertNote({
+            project_id: input.projectId,
+            body: text,
+            kind: 'stage_comment',
+            meta: { from_stage_id: input.fromStageId, to_stage_id: input.toStageId },
           });
         }
         options?.onSuccess?.();

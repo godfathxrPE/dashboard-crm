@@ -88,7 +88,7 @@ const GanttTimeline = dynamic(
  * При полном наборе срез — no-op, и долг остаётся ровно таким же теоретическим,
  * каким был.
  */
-const DEAL_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'activity', 'project', 'ai_run'];
+const DEAL_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'note', 'activity', 'project', 'ai_run'];
 
 // PCT-1/S-IA-DELIVERY-1: вкладки нижней секции карточки. S-DEAL-LAYOUT-1:
 // 'quotes' упразднена (её содержимое — в орг. блоке зоны «Работа»); 'board'
