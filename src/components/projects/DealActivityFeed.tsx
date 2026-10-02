@@ -1,11 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useEntityTimeline, type TimelineEntityType } from '@/lib/hooks/use-entity-timeline';
 import { relativeTime } from '@/lib/utils/relative-time';
 import { timelineDotTone, type TimelineDotTone } from '@/lib/timeline/dot-tone';
+import { noteToPlainLine, splitNoteHead } from '@/lib/text/note-blocks';
+import { NoteBody } from '@/components/shared/NoteBody';
 import type { TimelineFilterValue } from '@/components/shared/EntityTimeline';
 import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/timeline';
 
@@ -16,6 +18,11 @@ import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/ti
 // вертикальной линии, текст в одну строку, мета справа без переноса. Групп
 // «Просрочено / Этот месяц / Ранее» и шеврона нет — это вид `<EntityTimeline>`,
 // который у лида, компании и контакта остаётся прежним.
+//
+// S-DEAL-NOTES-READ-1: строка с текстом (заметка, встреча/звонок с notes/agreements)
+// раскрывается НА МЕСТЕ — превью в две строки, по клику полный текст. Модалка
+// остаётся для правки («Изменить»). Нативный тултип с полным текстом убран: на
+// заметке в 2000 символов он был единственным способом прочитать её.
 //
 // Механика запроса — та же, что у `<EntityTimeline>` (S-TL-1…3): выбранный чип
 // уходит в RPC `p_kinds`, `all` — `undefined`. Фильтр управляемый: чипы стоят в
@@ -83,6 +90,21 @@ function rowText(e: TimelineEvent): string {
   return e.detail ? `${e.title} — ${e.detail}` : e.title;
 }
 
+/**
+ * Строка с текстом → заголовок строки и остаток для превью/раскрытия; `null` — текста
+ * нет, строка ведёт себя как раньше. У заметки заголовок — первая строка самого текста
+ * (`title` у неё и есть весь текст одним абзацем), у встречи/звонка — собственный
+ * `title`, а текст — `body`.
+ */
+function rowParts(e: TimelineEvent): { head: string; rest: string } | null {
+  if (!e.body) return null;
+  if (e.kind === 'activity') {
+    const { head, rest } = splitNoteHead(e.body);
+    return head ? { head, rest } : null;
+  }
+  return { head: e.title, rest: e.body };
+}
+
 export function DealActivityFeed({
   entityId,
   entityType = 'project',
@@ -110,6 +132,18 @@ export function DealActivityFeed({
     limit: PAGE,
   });
   const limit = limitState.filter === filter ? limitState.limit : PAGE;
+
+  // Раскрытые строки — по `event.id`, он стабилен при смене чипа и подгрузке страниц,
+  // поэтому сброс не нужен. Несколько раскрытых одновременно — можно.
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(() => new Set());
+  const uid = useId();
+  function toggleOpen(id: string) {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
 
   const visible = expanded ? events : events.slice(0, limit);
   const hiddenLoaded = expanded ? 0 : Math.max(0, events.length - limit);
@@ -155,32 +189,57 @@ export function DealActivityFeed({
         {visible.map((event, i) => {
           const last = i === visible.length - 1;
           const overdue = event.status === 'overdue';
-          const text = rowText(event);
+          const parts = rowParts(event);
+          const open = parts !== null && openIds.has(event.id);
+          const panelId = `${uid}-${event.id}`;
+          const preview = parts ? noteToPlainLine(parts.rest) : '';
+          const editable = event.kind === 'call' || event.kind === 'meeting';
           return (
-            <li key={event.id}>
-              <button
-                type="button"
-                onClick={() => onOpenEvent?.(event)}
-                title={text}
-                className="relative grid w-full grid-cols-[auto_1fr_auto] items-baseline gap-3 rounded-lg
-                           px-1 py-1.5 text-left transition-colors hover:bg-surface2"
-              >
-                {/* Линия идёт от центра этой точки ровно на высоту строки — до центра
-                    следующей, у последней строки её нет. */}
-                {!last && (
-                  <span
-                    aria-hidden
-                    className="absolute left-[calc(0.5rem-0.5px)] top-1/2 h-full border-l border-border"
-                  />
-                )}
+            <li key={event.id} className="relative">
+              {/* Рельса таймлайна рисуется на `li`, а не на кнопке: раскрытая строка выше
+                  соседей, и линия «на высоту кнопки» рвалась бы. Точка стоит на центре
+                  ПЕРВОЙ строки (py-1.5 + пол-строки), линия идёт от неё до такого же
+                  центра следующей `li` — высота строки между ними значения не имеет.
+                  `text-body` на рельсе — чтобы `lh` считался от кегля текста строки. */}
+              {!last && (
                 <span
                   aria-hidden
-                  className={cn(
-                    'relative size-2 self-center rounded-full',
-                    DOT_TONE_CLASS[timelineDotTone(event)],
-                  )}
+                  className="absolute left-[calc(0.5rem-0.5px)] top-[calc(0.375rem+0.5lh)]
+                             -bottom-[calc(0.375rem+0.5lh)] border-l border-border text-body"
                 />
-                <span className="min-w-0 truncate text-body text-text-main">{text}</span>
+              )}
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute left-1 top-[calc(0.375rem+0.5lh-0.25rem)] size-2 rounded-full text-body',
+                  DOT_TONE_CLASS[timelineDotTone(event)],
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => (parts ? toggleOpen(event.id) : onOpenEvent?.(event))}
+                aria-expanded={parts ? open : undefined}
+                aria-controls={parts && open ? panelId : undefined}
+                className="grid w-full grid-cols-[1fr_auto] items-baseline gap-3 rounded-lg
+                           py-1.5 pl-6 pr-1 text-left transition-colors hover:bg-surface2"
+              >
+                <span className="min-w-0">
+                  {/* Раскрытая строка без остатка (заметка в одну строку) разворачивает
+                      САМ заголовок: тела под ним нет, а в `truncate` текст не прочесть. */}
+                  <span
+                    className={cn(
+                      'block text-body text-text-main',
+                      open ? 'whitespace-normal break-words' : 'truncate',
+                    )}
+                  >
+                    {parts ? parts.head : rowText(event)}
+                  </span>
+                  {!open && preview && (
+                    <span className="mt-0.5 line-clamp-2 block text-meta text-text-dim">
+                      {preview}
+                    </span>
+                  )}
+                </span>
                 <span className="whitespace-nowrap text-meta tabular-nums text-text-mute">
                   {/* Просроченная задача: статус несёт метка, а не цвет точки —
                       цвет точки занят смыслом события. */}
@@ -189,6 +248,29 @@ export function DealActivityFeed({
                   {event.actorName && ` · ${event.actorName}`}
                 </span>
               </button>
+
+              {open && parts && (
+                <div id={panelId} className="pb-2 pl-6 pr-1">
+                  {parts.rest && <NoteBody text={parts.rest} collapsedLines={0} />}
+                  {event.nextStep && (
+                    <p className="mt-2 text-meta font-semibold text-text-main">
+                      → Следующий шаг: {event.nextStep}
+                    </p>
+                  )}
+                  {/* Правки заметок в продукте нет — кнопки у неё нет (кнопка без
+                      действия, как в `DealLastEvent`). */}
+                  {editable && onOpenEvent && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenEvent(event)}
+                      className="mt-2 h-[1.875rem] rounded-[0.625rem] border border-border px-3 text-xs
+                                 font-semibold text-text-main transition-colors hover:bg-surface2"
+                    >
+                      Изменить
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}

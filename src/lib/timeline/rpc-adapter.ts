@@ -247,11 +247,18 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
       // а второй запрос к `activity_log` разошёлся бы с лентой при первой же
       // правке RPC. Второго источника нет — тот же payload, что уже приехал.
       const changes = changesOf(inner);
+      // S-DEAL-NOTES-READ-1: полный текст заметки. `title` остаётся строкой
+      // `describeEvent` (его читают org-лента и EntityTimeline), `body` — тот же
+      // текст для рендера с переносами. ⚠️ Текст лежит во ВНУТРЕННЕМ payload
+      // (`inner`), как и `task_id`/`changes`, а не на уровне строки.
+      const eventType = text(p, 'event_type');
+      const noteText = eventType === 'comment_added' ? text(inner, 'text') : null;
       return {
         id: row.id,
         sourceId: taskId ?? sourceId,
         ...(taskId ? { refType: 'task' as const } : {}),
         ...(changes ? { changes } : {}),
+        ...(noteText && noteText.trim() ? { body: noteText } : {}),
         kind: 'activity',
         // payload источника лежит ВНУТРИ `row.payload`, рядом с `event_type` —
         // ровно та форма, которую `describeEvent` читает у строки `activity_log`.
@@ -259,7 +266,7 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
         date: row.ts,
         icon: 'activity',
         actorId: createdBy ?? undefined,
-        eventType: text(p, 'event_type'),
+        eventType,
       };
     }
 

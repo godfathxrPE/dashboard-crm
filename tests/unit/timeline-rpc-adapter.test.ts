@@ -146,6 +146,68 @@ describe('rpcRowToEvent', () => {
     expect(e.sourceId).toBe(UUID);
   });
 
+  // ═══ S-DEAL-NOTES-READ-1: полный текст события — `body` и `nextStep` ═══
+
+  it('activity: comment_added — полный текст заметки в body, title прежний (describeEvent)', () => {
+    const note = 'Заголовок\nАбзац\n\n- пункт';
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        // как и changes/task_id: текст лежит во ВНУТРЕННЕМ payload, рядом с event_type
+        payload: { event_type: 'comment_added', payload: { text: note } },
+      }),
+      NOW,
+    );
+    expect(e.body).toBe(note);
+    expect(e.title).toBe(note);
+  });
+
+  it('activity: не-заметка (stage_change) и comment_added без текста — body отсутствует', () => {
+    const stage = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'stage_change', payload: { from: 'kp_sent', to: 'won', text: 'x' } },
+      }),
+      NOW,
+    );
+    expect(stage.body).toBeUndefined();
+    const empty = rpcRowToEvent(
+      row({ kind: 'activity', payload: { event_type: 'comment_added', payload: { text: 42 } } }),
+      NOW,
+    );
+    expect(empty.body).toBeUndefined();
+  });
+
+  it('meeting: notes и next_step по отдельности, detail прежний (шаг приоритетнее)', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'meeting',
+        payload: { title: 'Демо WMS', next_step: 'Прислать КП', notes: 'Обсудили сроки\n- пункт' },
+      }),
+      NOW,
+    );
+    expect(e.body).toBe('Обсудили сроки\n- пункт');
+    expect(e.nextStep).toBe('Прислать КП');
+    expect(e.detail).toBe('Прислать КП');
+  });
+
+  it('call: agreements → body, next_step → nextStep; пробельные значения → undefined', () => {
+    const full = rpcRowToEvent(
+      row({ kind: 'call', payload: { status: 'done', next_step: 'Созвон', agreements: 'КП до пятницы' } }),
+      NOW,
+    );
+    expect(full.body).toBe('КП до пятницы');
+    expect(full.nextStep).toBe('Созвон');
+    expect(full.detail).toBe('Созвон');
+
+    const blank = rpcRowToEvent(
+      row({ kind: 'call', payload: { status: 'done', next_step: '  ', agreements: '   ' } }),
+      NOW,
+    );
+    expect(blank.body).toBeUndefined();
+    expect(blank.nextStep).toBeUndefined();
+  });
+
   // ═══ S-COST-TRUTH-1: событие журнала о задаче открывается ═══
   const TASK_UUID = '99999999-8888-7777-6666-555555555555';
 

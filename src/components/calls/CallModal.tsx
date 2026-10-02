@@ -38,8 +38,8 @@ function DetailsSection({ register }: { register: UseFormRegister<CallFormValues
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-text-dim">Что обсуждали / договорённости</label>
-        <textarea {...register('agreements')} rows={5} placeholder="Обсудили цены, договорились о КП..."
-          className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        <textarea {...register('agreements')} rows={8} placeholder="Обсудили цены, договорились о КП..."
+          className="max-h-[60vh] w-full resize-y rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           style={{ minHeight: expanded ? '50vh' : '120px', resize: 'vertical', transition: 'min-height 200ms ease' }} />
       </div>
     </>

@@ -36,6 +36,14 @@ export type TimelineEvent = {
   date: string;
   /** Подзаголовок: next_step / agreements / stage / срок — только текст */
   detail?: string;
+  /** S-DEAL-NOTES-READ-1: полный текст события — заметка, notes встречи,
+   *  agreements звонка. Плоский текст с переносами; рендер — `<NoteBody>`.
+   *  Аддитивно: `title`/`detail` не менялись — их читают EntityTimeline, org-лента
+   *  и AI-контекст. */
+  body?: string;
+  /** S-DEAL-NOTES-READ-1: следующий шаг встречи/звонка отдельно от тела
+   *  (в `detail` он вытесняет заметки: `next_step ?? notes`). */
+  nextStep?: string;
   /** Для задач/звонков: статус-чип */
   status?: TimelineStatus;
   /** Клик → открыть сущность/модалку (родитель решает по kind+sourceId) */
