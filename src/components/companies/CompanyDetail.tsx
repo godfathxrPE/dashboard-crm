@@ -59,7 +59,7 @@ interface CompanyDetailProps { companyId: string; }
 
 /** Типы событий ленты компании. `ai_run` в наборе намеренно: без него
  *  `kindFilter` вырезал бы AI-прогоны из ленты вообще, а не просто убрал чип. */
-const COMPANY_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'activity', 'project', 'ai_run'];
+const COMPANY_TIMELINE_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'note', 'activity', 'project', 'ai_run'];
 
 export function CompanyDetail({ companyId }: CompanyDetailProps) {
   const router = useRouter();

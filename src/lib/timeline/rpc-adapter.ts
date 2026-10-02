@@ -19,13 +19,18 @@ import {
 } from '@/lib/timeline/adapters';
 import { presetTitle } from '@/lib/constants/ai-presets';
 import { describeEvent } from '@/lib/utils/activity-events';
+import { splitNoteHead } from '@/lib/text/note-blocks';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 import type { ActivityLog } from '@/types/entities';
 import type { CallStatus, ProjectType, TaskLane } from '@/types/database';
 
-/** Шесть источников функции — ровно те, что читал клиентский хук до S-TL-1. */
+/**
+ * Источники функции: шесть, что читал клиентский хук до S-TL-1, плюс `note` (134,
+ * таблица `notes`). Строка неизвестного вида отбрасывается `isTimelineRpcRow` —
+ * в том числе `note` от старого клиента, не знающего про 134.
+ */
 const TIMELINE_KINDS: readonly TimelineKind[] = [
-  'call', 'meeting', 'task', 'project', 'activity', 'ai_run',
+  'call', 'meeting', 'task', 'project', 'activity', 'ai_run', 'note',
 ];
 
 /**
@@ -83,6 +88,9 @@ export function isTimelineRpcRow(v: unknown): v is TimelineRpcRow {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
   const r = v as Record<string, unknown>;
   return (
+    // S-NOTES-1: заметка без текста — битая строка (`notes_body_len` в БД её не
+    // пропустит, так что это страховка от чужого/сломанного ответа).
+    (r.kind !== 'note' || hasNoteBody(r.payload)) &&
     typeof r.ts === 'string' &&
     typeof r.id === 'string' &&
     typeof r.source === 'string' &&
@@ -96,6 +104,12 @@ export function isTimelineRpcRow(v: unknown): v is TimelineRpcRow {
     (r.parent_id == null || typeof r.parent_id === 'string') &&
     (r.payload === null || (typeof r.payload === 'object' && !Array.isArray(r.payload)))
   );
+}
+
+function hasNoteBody(payload: unknown): boolean {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return false;
+  const body = (payload as Record<string, unknown>).body;
+  return typeof body === 'string' && body.trim().length > 0;
 }
 
 // ─── Чтение payload: jsonb приходит как `unknown`, `any` запрещён ───
@@ -247,18 +261,15 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
       // а второй запрос к `activity_log` разошёлся бы с лентой при первой же
       // правке RPC. Второго источника нет — тот же payload, что уже приехал.
       const changes = changesOf(inner);
-      // S-DEAL-NOTES-READ-1: полный текст заметки. `title` остаётся строкой
-      // `describeEvent` (его читают org-лента и EntityTimeline), `body` — тот же
-      // текст для рендера с переносами. ⚠️ Текст лежит во ВНУТРЕННЕМ payload
-      // (`inner`), как и `task_id`/`changes`, а не на уровне строки.
+      // S-NOTES-1: `body` у `activity` больше нет — заметка (`comment_added`) переехала
+      // в таблицу `notes` и приходит отдельным видом `note`; из журнала её исключает
+      // SQL. `title` для старых строк журнала в кэше остаётся строкой `describeEvent`.
       const eventType = text(p, 'event_type');
-      const noteText = eventType === 'comment_added' ? text(inner, 'text') : null;
       return {
         id: row.id,
         sourceId: taskId ?? sourceId,
         ...(taskId ? { refType: 'task' as const } : {}),
         ...(changes ? { changes } : {}),
-        ...(noteText && noteText.trim() ? { body: noteText } : {}),
         kind: 'activity',
         // payload источника лежит ВНУТРИ `row.payload`, рядом с `event_type` —
         // ровно та форма, которую `describeEvent` читает у строки `activity_log`.
@@ -267,6 +278,28 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
         icon: 'activity',
         actorId: createdBy ?? undefined,
         eventType,
+      };
+    }
+
+    case 'note': {
+      // S-NOTES-1. Тело заметки лежит НА УРОВНЕ payload строки (источник `notes`,
+      // а не вложенный payload журнала). `title` — первая строка тела, как в плитке
+      // ленты; `body` — весь текст. Строку без тела отбрасывает `isTimelineRpcRow`.
+      const body = text(p, 'body') ?? '';
+      const head = splitNoteHead(body).head;
+      const noteKind = text(p, 'kind') === 'stage_comment' ? 'stage_comment' : 'note';
+      return {
+        id: row.id,
+        sourceId,
+        kind: 'note',
+        title: head || 'Заметка',
+        date: row.ts,
+        icon: 'note',
+        body,
+        actorId: createdBy ?? undefined,
+        pinnedAt: text(p, 'pinned_at'),
+        editedAt: text(p, 'edited_at'),
+        noteKind,
       };
     }
 

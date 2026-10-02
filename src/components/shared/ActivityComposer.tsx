@@ -2,21 +2,22 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
-import { useLogActivity } from '@/lib/hooks/use-activity-log';
+import { useCreateNote } from '@/lib/hooks/use-notes';
 
 // ═══════════════════════════════════════════════════════
-// ActivityComposer — ввод заметки (comment_added) для любой сущности.
+// ActivityComposer — ввод заметки для любой сущности.
 // S-NOTES-TIMELINE-1: вынесен из ProjectDetail в shared, чтобы стоять на
-// сделке, контакте и компании. entityType выбирает FK-колонку activity_log;
+// сделке, контакте и компании. entityType выбирает FK-колонку `notes`;
 // read-часть — в <EntityTimeline>. Инвалидацию ленты
-// (['timeline']) делает useLogActivity.
+// (['timeline']) делает useCreateNote.
+// S-NOTES-1 (134): пишет в таблицу `notes`, а не в activity_log (`comment_added`).
 //
 // S-DEAL-NOTES-READ-1: многострочный ввод. Поле растёт до 12 строк, Enter — перенос
 // строки, ⌘/Ctrl+Enter — отправка (как в HubSpot/Pipedrive): заметка встречи
 // многострочна по природе, а Enter-отправка не давала набрать её, только вставить.
 // ═══════════════════════════════════════════════════════
 
-// S-LEAD-HUB-2a: четвёртая сущность — лид (`activity_log.lead_id`, миграция 118).
+// S-LEAD-HUB-2a: четвёртая сущность — лид (`notes.lead_id`; до 134 — `activity_log.lead_id`, 118).
 type Entity = 'project' | 'contact' | 'company' | 'lead';
 
 const FK_KEY: Record<Entity, 'project_id' | 'contact_id' | 'company_id' | 'lead_id'> = {
@@ -55,7 +56,7 @@ interface ActivityComposerProps {
 }
 
 export function ActivityComposer({ entityType, entityId, variant = 'default' }: ActivityComposerProps) {
-  const logMutation = useLogActivity();
+  const createNote = useCreateNote();
   const [comment, setComment] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendKey = useSendKeyLabel();
@@ -80,8 +81,8 @@ export function ActivityComposer({ entityType, entityId, variant = 'default' }: 
   function handleAddComment() {
     const text = comment.trim();
     if (!text) return;
-    logMutation.mutate(
-      { [FK_KEY[entityType]]: entityId, event_type: 'comment_added', payload: { text } },
+    createNote.mutate(
+      { [FK_KEY[entityType]]: entityId, body: text },
       { onSuccess: () => setComment('') },
     );
   }
@@ -125,7 +126,7 @@ export function ActivityComposer({ entityType, entityId, variant = 'default' }: 
           <button
             type="button"
             onClick={handleAddComment}
-            disabled={!comment.trim() || logMutation.isPending}
+            disabled={!comment.trim() || createNote.isPending}
             aria-label="Отправить"
             className="glass-sheet mb-[0.3125rem] grid size-7 shrink-0 place-items-center rounded-[0.5625rem]
                        transition-opacity hover:opacity-90 disabled:opacity-50"
@@ -155,7 +156,7 @@ export function ActivityComposer({ entityType, entityId, variant = 'default' }: 
         <button
           type="button"
           onClick={handleAddComment}
-          disabled={!comment.trim() || logMutation.isPending}
+          disabled={!comment.trim() || createNote.isPending}
           className="grid h-[2.125rem] shrink-0 place-items-center rounded-lg bg-accent px-3 text-sm font-medium text-white
                      transition-opacity hover:opacity-90 disabled:opacity-50"
         >

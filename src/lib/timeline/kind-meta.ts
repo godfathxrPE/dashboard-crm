@@ -1,5 +1,5 @@
 import {
-  Phone, Calendar, CheckSquare, FolderKanban, Activity, Sparkles,
+  Phone, Calendar, CheckSquare, FolderKanban, Activity, Sparkles, StickyNote,
   type LucideIcon,
 } from 'lucide-react';
 import type { TimelineKind } from '@/types/timeline';
@@ -34,6 +34,9 @@ export const KIND_META: Record<TimelineKind, TimelineKindMeta> = {
   project:  { icon: FolderKanban, dot: 'bg-accent-l', fg: 'text-accent' },
   activity: { icon: Activity,     dot: 'bg-surface2', fg: 'text-text-mute' },
   ai_run:   { icon: Sparkles,     dot: 'bg-accent-l', fg: 'text-accent' },
+  // S-NOTES-1: те же токены, что у `task` — заметка стоит в ленте рядом с задачей по
+  // смыслу «человек что-то записал». `task` не трогается.
+  note:     { icon: StickyNote,   dot: 'bg-yellow-l', fg: 'text-yellow' },
 };
 
 /**

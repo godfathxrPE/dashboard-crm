@@ -76,11 +76,11 @@ const STEPPER: { status: LeadStatus; label: string }[] = [
 
 /**
  * Чипы ленты лида: Все · Звонки · Задачи · Заметки · Поля. «Встреч» нет —
- * `meetings.lead_id` не существует (F-10); AI-прогонов у лида нет. «Заметки» —
- * производный чип, `TimelineFilterChips` сам разворачивает `activity` в пару
- * «Заметки» + лог (как у сделки); у лида он живой — композер пишет `comment_added`.
+ * `meetings.lead_id` не существует (F-10); AI-прогонов у лида нет. «Заметки» — вид
+ * `note` (таблица `notes`, 134), «Поля» — `activity` (журнал без заметок); оба
+ * перечислены явно, как у сделки. Композер лида пишет в `notes`.
  */
-const LEAD_CHIP_KINDS: TimelineKind[] = ['call', 'task', 'activity'];
+const LEAD_CHIP_KINDS: TimelineKind[] = ['call', 'task', 'note', 'activity'];
 
 /** Лог без заметок — смены статуса и правки полей: «Поля», как у сделки. */
 const LEAD_CHIP_LABELS: Partial<Record<TimelineFilterValue, string>> = { activity: 'Поля' };

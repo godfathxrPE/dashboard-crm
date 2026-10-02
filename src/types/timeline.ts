@@ -5,24 +5,27 @@
 // Одна ось сортировки — `date`. Один презентер — <EntityTimeline>.
 // ═══════════════════════════════════════════════════════
 
-export type TimelineKind = 'call' | 'meeting' | 'task' | 'project' | 'activity' | 'ai_run';
+export type TimelineKind = 'call' | 'meeting' | 'task' | 'project' | 'activity' | 'ai_run' | 'note';
 
 /**
  * S-TL-3/S-TL-4: словарь серверного фильтра `entity_timeline(p_kinds text[])`.
  *
- * Шесть настоящих видов плюс ТРИ производных — срезы внутри `activity_log` по
- * `event_type`: `note` (заметка человека), `stage` (смена стадии), `deleted`
- * (удаление). Отдельными `TimelineKind` их сделать нельзя: источник тот же, и
- * `kind` у события остаётся `activity`.
+ * Семь настоящих видов плюс ДВА производных — срезы внутри `activity_log` по
+ * `event_type`: `stage` (смена стадии) и `deleted` (удаление). Отдельными
+ * `TimelineKind` их сделать нельзя: источник тот же, и `kind` у события остаётся
+ * `activity`.
+ *
+ * S-NOTES-1 (134): `note` — НАСТОЯЩИЙ вид, не срез журнала. Заметка живёт в таблице
+ * `notes`, `comment_added` в ленту больше не попадает.
  *
  * ⚠️ Списки `event_type` за каждым производным видом живут ТОЛЬКО в SQL (CTE
- * `kind_types` миграции 115). Здесь — имена видов, и это осознанно: перечень типов,
- * продублированный на клиенте, разошёлся бы с серверным молча.
+ * `kind_types` функции `entity_timeline`). Здесь — имена видов, и это осознанно:
+ * перечень типов, продублированный на клиенте, разошёлся бы с серверным молча.
  *
  * Тип живёт здесь, а не в `<EntityTimeline>`, потому что его принимает ХУК: иначе
  * `use-entity-timeline.ts` пришлось бы импортировать из компонента.
  */
-export type TimelineKindFilter = TimelineKind | 'note' | 'stage' | 'deleted';
+export type TimelineKindFilter = TimelineKind | 'stage' | 'deleted';
 
 export type TimelineStatus = 'done' | 'pending' | 'overdue';
 
@@ -93,9 +96,15 @@ export type TimelineEvent = {
   changes?: Record<string, Record<string, unknown>>;
   /**
    * S-UI-CLARITY-1: сырой `activity_log.event_type` для событий `kind='activity'`.
-   * Нужен, чтобы отделить человеческую заметку (`comment_added`) от системной
-   * записи (смена стадии, аудит полей) — на уровне `kind` они неразличимы.
-   * У остальных источников поля нет: у них тип события = `kind`.
+   * Нужен, чтобы отличить смену стадии от аудита полей — на уровне `kind` они
+   * неразличимы. С S-NOTES-1 заметка — отдельный `kind='note'`, `comment_added`
+   * сюда больше не приходит. У остальных источников поля нет: тип события = `kind`.
    */
   eventType?: string | null;
+  /** S-NOTES-1: закреплена ли заметка (ISO). Только у `kind='note'`. */
+  pinnedAt?: string | null;
+  /** S-NOTES-1: когда правили текст заметки (ISO); `null` — не правили. */
+  editedAt?: string | null;
+  /** S-NOTES-1: `stage_comment` — комментарий перехода стадии. Только у `kind='note'`. */
+  noteKind?: 'note' | 'stage_comment';
 };

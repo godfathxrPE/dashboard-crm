@@ -19,7 +19,10 @@ export type TimelineDotTone = 'money' | 'touch' | 'neutral';
 export const MONEY_EVENT_TYPES: readonly string[] = [];
 
 export function timelineDotTone(e: TimelineEvent): TimelineDotTone {
-  if (e.kind === 'call' || e.kind === 'meeting') return 'touch';
+  // S-NOTES-1: заметка — тон касания (решение спринта, макет «Лента сделки v2»).
+  // ⚠️ Заметка журнала (`comment_added`, `kind='activity'`) была нейтральной — точка
+  // заметок в ленте сделки сменит цвет с серой на янтарную.
+  if (e.kind === 'call' || e.kind === 'meeting' || e.kind === 'note') return 'touch';
   if (e.kind === 'activity') {
     if (e.changes && 'budget' in e.changes) return 'money';
     if (e.eventType && MONEY_EVENT_TYPES.includes(e.eventType)) return 'money';

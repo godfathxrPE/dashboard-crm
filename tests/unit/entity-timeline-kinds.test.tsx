@@ -127,11 +127,12 @@ describe('S-TL-3 — виды уходят в RPC', () => {
     // события чипы скрыты, и кликать было бы не по чему. Предмет теста — что вид
     // `note` уходит в RPC, а не видимость чипов; фикстура даёт ленте одну строку.
     respond = (a) => (a.p_kinds === null ? [taskRow(1)] : []);
-    // Чип «Заметки» появляется рядом с «Системой» — просим набор с activity.
+    // S-NOTES-1 (134): `note` — настоящий вид, чип «Заметки» появляется, только если
+    // родитель назвал его в наборе (раньше его неявно порождал `activity`).
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}>
-        <EntityTimeline entityType="project" entityId="p-1" kindFilter={['task', 'activity']} />
+        <EntityTimeline entityType="project" entityId="p-1" kindFilter={['task', 'note', 'activity']} />
       </QueryClientProvider>,
     );
     await screen.findByText('Задача: Задача 1');
@@ -139,6 +140,23 @@ describe('S-TL-3 — виды уходят в RPC', () => {
 
     await waitFor(() => expect(rpcCalls.length).toBeGreaterThan(1));
     expect(rpcCalls[rpcCalls.length - 1].p_kinds).toEqual(['note']);
+
+    // «Система» — это `activity` (журнал без заметок), отдельным запросом.
+    fireEvent.click(screen.getByRole('button', { name: 'Система' }));
+    await waitFor(() => expect(rpcCalls[rpcCalls.length - 1].p_kinds).toEqual(['activity']));
+  });
+
+  it('`activity` без `note` в наборе больше не порождает чип «Заметки» (S-NOTES-1)', async () => {
+    respond = () => [taskRow(1)];
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <EntityTimeline entityType="project" entityId="p-1" kindFilter={['task', 'activity']} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Задача: Задача 1');
+    expect(screen.getByRole('button', { name: 'Система' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Заметки' })).toBeNull();
   });
 
   it('набор видов входит в queryKey: кеш «Все» не отдаётся под «Задачи»', async () => {

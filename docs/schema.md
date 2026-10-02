@@ -600,7 +600,7 @@
 > ⚠️ Членство проверяется явно (`memberships.profile_id = auth.uid()`, **не `user_id`** —
 > такой колонки в таблице нет) и это НЕ дубль RLS: без проверки посторонний получил бы
 > валидный объект с 34 пустыми массивами вместо честной `42501`.
-> Состав — **34 таблицы из 50 org-таблиц**; 16 исключены (секреты Vault, очереди и
+> Состав — **34 таблицы из 50 org-таблиц** _(с 134 — 35 из 51: добавлена `notes`)_; 16 исключены (секреты Vault, очереди и
 > журналы Telegram, журналы прогонов AI/автоматизаций, уведомления, приглашения,
 > `memberships`, мёртвая `activities`, метаданные файлов без самих файлов). Причина по
 > каждой — `src/lib/domain/org-export.ts`, `EXCLUDED_TABLES`; расхождение SQL-массива и
@@ -622,7 +622,10 @@
 > табличный CHECK, RLS/индексы/гранты не тронуты, advisors до и после совпали, новых
 > WARN нет). Клиент выкачен ПЕРВЫМ (PR #100, деплой `29377aa` в READY), CHECK — вторым.
 > Реген типов не нужен: ограничение схему типов не меняет, стаба нет.
-> ⇒ **следующая свободная — 133**, и брать её всё равно запросом.
+> **133 applied** (`20260926102002`, `cron_io_budget`). **134 (S-NOTES-1, `notes`) —
+> НАПИСАНА, НЕ ПРИМЕНЕНА** (статус переводит гейт после apply; описание — «### notes» ниже и
+> запись 134 в ledger миграций).
+> ⇒ **следующая свободная — 135** (после apply 134), и брать её всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
 > ⚠️ Номер брать запросом к
@@ -1000,7 +1003,7 @@
 
 | Класс | Таблицы |
 |-------|---------|
-| **Tenant, `org_id NOT NULL`** | companies, contacts, contact_company, projects, tasks, calls, meetings, leads, project_columns _(032, PCT-1)_ |
+| **Tenant, `org_id NOT NULL`** | companies, contacts, contact_company, projects, tasks, calls, meetings, leads, project_columns _(032, PCT-1)_, notes _(134, S-NOTES-1 — НЕ применена)_ |
 | **Tenant, `org_id NOT NULL`** (пишут SECURITY DEFINER триггеры / фон; ужесточено до NOT NULL в 023, S24) | activities, activity_log, project_files, kpi_entries, call_tracker_days, scheduled_calls |
 | **Tenant через join** (без `org_id`) | meeting_attendees (тенантность наследуется от meetings) |
 | **Глобальные / персональные** (вне тенант-модели) | profiles, user_settings, dashboard_sync, pipelines, pipeline_stages, organizations*, memberships* |
@@ -2147,6 +2150,57 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 | created_by | uuid | → profiles |
 | **org_id** | uuid | **NOT NULL** |
 | created_at / updated_at | timestamptz | |
+
+### notes _(134, S-NOTES-1 — **НАПИСАНА, НЕ ПРИМЕНЕНА**; статус переводит гейт после apply)_
+
+Заметка как сущность. Раньше — строка `activity_log` с `event_type='comment_added'`; у журнала
+нет UPDATE-политики (аудит не правят), поэтому заметку нельзя было изменить, закрепить,
+удалить с отменой.
+
+| Колонка | Тип | Заметки |
+|---------|-----|---------|
+| id | uuid PK | `gen_random_uuid()` |
+| **org_id** | uuid | NOT NULL → organizations (без `on delete` — паритет с `calls`); `trg_set_org_id` на INSERT, `trg_aa_freeze_org_id` на UPDATE |
+| project_id / lead_id / company_id / contact_id | uuid | → родитель, **ON DELETE CASCADE** (не `set null`, как у `calls`: check `notes_has_parent` уронил бы удаление сделки/лида `23514`) |
+| body | text | NOT NULL, **markdown**; `length(btrim(body)) between 1 and 20000` |
+| kind | text | `note` \| `stage_comment` (комментарий перехода стадии, `meta`: `from_stage_id`, `to_stage_id`) |
+| meta | jsonb | NOT NULL DEFAULT `{}` |
+| pinned_at / pinned_by | timestamptz / uuid | пара: `notes_pin_pair` — оба null или оба заданы. Пишет только `set_note_pinned` |
+| created_by | uuid | NOT NULL DEFAULT `auth.uid()` → profiles. Не подменяется: `notes_touch` возвращает `old.created_by` |
+| created_at / updated_at | timestamptz | `updated_at` — `set_updated_at` → `update_updated_at()` |
+| updated_by / edited_at | uuid / timestamptz | `notes_touch`: `updated_by = auth.uid()`; `edited_at` — только при смене `body` |
+| deleted_at | timestamptz | **soft-delete** — решение владельца 02.10 (эпик S-NOTES); исключение из общего правила «hard delete, `deleted_at` нет ни у одной таблицы». Физического DELETE нет |
+| legacy_activity_id | uuid UNIQUE | id строки журнала, из которой заметка перенесена / скопирована мостом; ключ идемпотентности |
+
+- **Индексы** (все partial `where deleted_at is null`): `(project_id|lead_id|company_id|contact_id|org_id, created_at desc)`,
+  `(created_by)`; плюс `(project_id) where pinned_at is not null and deleted_at is null`.
+- **RLS.** `notes_select` — org-first; удалённое видят только автор и owner/admin (для «Вернуть»).
+  `notes_insert` — не viewer, `created_by = auth.uid()`, родитель виден вызывающему (`exists` идёт
+  под RLS, чужая организация не видна). `notes_update` — owner/admin или автор-manager, удалённое
+  не правится. **DELETE-политики нет.**
+  ⚠️ Чтение **org-wide**, как у `calls` и `activity_log`: паритет с заметками журнала, не регрессия.
+  Сужение до видимости сделки — отдельное решение.
+- **Column-level GRANT.** `authenticated`: `select` всё; `insert (project_id, lead_id, company_id, contact_id, body, kind, meta)`;
+  `update (body)`. `pinned_*`, `deleted_at`, `created_by`, `org_id`, `updated_*`, `edited_at` клиент не пишет вообще —
+  это держат гранты, а не дисциплина клиента. `service_role` — all. `anon` — ничего.
+- **RPC** (`SECURITY DEFINER`, `search_path=public,pg_temp`, `revoke public/anon`, `grant authenticated`;
+  org и права проверяются внутри): `set_note_pinned(p_note_id, p_pinned)` — owner/admin/manager, лимит **3 на основного
+  родителя** (`coalesce(project_id, lead_id, company_id, contact_id)`), превышение → `P0001`, hint `notes_pin_limit`,
+  параллельные закрепления сериализует advisory-lock родителя, повтор — no-op;
+  `soft_delete_note(p_note_id)` — owner/admin любую, manager только свою (`42501`), снимает закрепление;
+  `restore_note(p_note_id)` — те же права. Чужая организация / нет строки → `P0002`.
+- **Перенос (134).** 79 `comment_added` → **78** строк `notes` (10 из них `stage_comment`); одна заметка
+  журнала без привязки к сущности **остаётся только в `activity_log`**. Строки журнала не удалялись.
+  Идемпотентно по `legacy_activity_id`.
+- **Мост.** Триггер `trg_zz_notes_bridge` (AFTER INSERT на `activity_log` WHEN `comment_added`,
+  `notes_from_comment_added()` DEFINER) копирует новые `comment_added` в `notes` — страховка на окно
+  «миграция применена, старый клиент ещё в проде». Не роняет запись журнала: пустой текст / нет привязки /
+  нет профиля автора — молча пропускает, текст длиннее 20 000 обрезает.
+  **УДАЛИТЬ В S-NOTES-2** после выката клиента, пишущего в `notes`.
+- **Лента.** `entity_timeline` получила источник `notes` (`kind='note'`), `comment_added` из `src_activity`
+  исключён (иначе дубли) — см. «Лента» ниже. `convert_lead` переносит заметки лида на сделку/компанию/контакт.
+  `export_org_data` выгружает `notes` (35-я таблица). `projects.pinned_note` в этом спринте не тронут (S-NOTES-2).
+- **Realtime:** `notes` добавлена в `supabase_realtime`.
 
 ### meetings _(005, +012, +020, +028 ai_summary)_
 
@@ -3575,6 +3629,14 @@ where n.nspname = 'public' and c.relkind = 'r'
 
 ### Лента (112 `20260808204308` + 113 `20260808222500` + 114 applied `20260809083732` + 115 applied `20260809092051` + 120 applied `20260810104424`) — сборка на сервере, страницами, с фильтром по видам, от сущности до организации
 
+- **134 (S-NOTES-1 — НАПИСАНА, НЕ ПРИМЕНЕНА): сигнатура ЗАМЕНЕНА в пятый раз** — `drop` + `create`,
+  седьмой параметр **`p_search text default null`** (ACL: `authenticated`, `service_role`; `public`/`anon` отозваны).
+  Новый источник **`src_notes`** (`kind='note'`, `source='notes'`, `ref_type='note'`; payload: `body`, `kind`, `meta`,
+  `pinned_at`, `edited_at`); `comment_added` **исключён** из `src_activity`, `kind_types.note` убран.
+  Фильтр `p_kinds`: `note` — настоящий вид (только `notes`), `activity` — журнал без заметок.
+  `p_search` (≥ 2 символов, `ilike`, `%`/`_` экранирует клиент): ищут `notes` / `calls` (`agreements`, `next_step`) /
+  `meetings` (`title`, `notes`, `next_step`) / `tasks` (`text`); `projects`/`activity`/`ai_runs` при поиске молчат.
+  Остаётся `SECURITY INVOKER` — RLS `notes` отрабатывает сама. Описание ниже — для сигнатуры до 134.
 - **`public.entity_timeline(p_entity_type text, p_entity_id uuid default null,
   p_before timestamptz default null, p_before_id text default null,
   p_limit int default 50, p_kinds text[] default null)`**
@@ -4427,6 +4489,16 @@ RETURN`) — упавший проход не оставляет cron-job в о�
   `cron-history-cleanup` `25 6 * * *`. Эффект по числу запусков: ~3 170 → ~680 в сутки.
   **Откат:** `cron.alter_job(...)` обратно на `* * * * *` для обеих + `cron.unschedule('cron-history-cleanup')`;
   удалённая история не восстанавливается (журнал запусков, бизнес-данных нет).
+
+- **134** _(S-NOTES-1 — **НАПИСАНА, НЕ ПРИМЕНЕНА**; номер сверен запросом к ledger 2026-10-02:
+  последняя — `20260926102002 cron_io_budget`)_ — заметка становится сущностью. Таблица `notes`
+  (+RLS, column-grants, 7 индексов, realtime), RPC `set_note_pinned` / `soft_delete_note` /
+  `restore_note`, перенос 78 заметок из журнала, мост `trg_zz_notes_bridge`, `entity_timeline`
+  (+`notes`, +`p_search`, drop+create), `convert_lead` (+перенос заметок лида),
+  `export_org_data` (+`notes`). Подробно — «### notes». **Порядок выката жёсткий:** apply 134 →
+  advisors → смоки → мерж PR. **Откат:** `drop trigger trg_zz_notes_bridge on activity_log`;
+  вернуть `entity_timeline` / `convert_lead` / `export_org_data` из 120 / 123 / 126;
+  `drop table notes` (потеряет правки и закрепления после переноса — журнал сохраняет оригиналы).
 
 ## Edge Functions
 

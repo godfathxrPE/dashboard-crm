@@ -233,7 +233,8 @@ function TransitionModalBody({
             // Знаменатель метрики «% переходов через модалку» — пишется ВСЕГДА,
             // в том числе с пустым комментарием (контракт 1a). Событие техническое
             // и скрыто из человеческих лент: сам переход там уже виден как
-            // stage_changed, а комментарий — отдельным comment_added.
+            // stage_changed, а комментарий — отдельной заметкой в `notes`
+            // (kind='stage_comment', её пишет commitTransition).
             logActivity(project.id, TRANSITION_METRIC_EVENT, {
               from_stage_id: project.stage_id,
               to_stage_id: toStageId,

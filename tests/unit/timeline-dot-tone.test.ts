@@ -15,6 +15,10 @@ describe('timelineDotTone', () => {
     expect(timelineDotTone(ev('meeting'))).toBe('touch');
   });
 
+  test('заметка (S-NOTES-1) — касание', () => {
+    expect(timelineDotTone(ev('note'))).toBe('touch');
+  });
+
   test('правка бюджета — деньги', () => {
     expect(
       timelineDotTone(ev('activity', { eventType: 'project_updated', changes: { budget: { from: '1', to: '2' } } })),

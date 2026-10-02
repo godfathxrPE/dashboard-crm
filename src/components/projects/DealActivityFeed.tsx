@@ -31,15 +31,15 @@ import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/ti
 
 /**
  * Чипы шапки: Все · Звонки · Встречи · Задачи · Заметки · Поля · AI.
- * `activity` разворачивается в «Заметки» + «Поля» внутри `TimelineFilterChips`.
+ * «Заметки» — вид `note` (таблица `notes`, 134), «Поля» — `activity` (журнал без заметок).
  *
  * ⚠️ Это НАБОР ЧИПОВ, не фильтр данных: `project` («Сделка создана из лида») в
  * ленте «Все» остаётся — чипа под него нет, но сужать данные по набору нельзя
  * (дефект S-TL-2: «Все» показывало бы виды только из загруженных страниц).
  */
-export const DEAL_CHIP_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'activity', 'ai_run'];
+export const DEAL_CHIP_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'note', 'activity', 'ai_run'];
 
-/** Подписи чипов сделки: весь `activity_log` без заметок — это правки полей. */
+/** Подписи чипов сделки: `activity_log` без заметок — это правки полей. */
 export const DEAL_CHIP_LABELS: Partial<Record<TimelineFilterValue, string>> = { activity: 'Поля' };
 
 const PAGE = 10;
@@ -98,7 +98,7 @@ function rowText(e: TimelineEvent): string {
  */
 function rowParts(e: TimelineEvent): { head: string; rest: string } | null {
   if (!e.body) return null;
-  if (e.kind === 'activity') {
+  if (e.kind === 'note') {
     const { head, rest } = splitNoteHead(e.body);
     return head ? { head, rest } : null;
   }

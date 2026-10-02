@@ -6,7 +6,8 @@
  * `tests/unit/org-export.test.ts`.
  *
  * ⚠️ Список таблиц продублирован здесь и в SQL-массиве миграции
- * `supabase/migrations/126_org_export.sql`. Дубль ОСОЗНАННЫЙ: SQL-массив —
+ * `supabase/migrations/134_notes.sql` (с 134 — `notes`; 126 — первая редакция
+ * функции, её массив устарел). Дубль ОСОЗНАННЫЙ: SQL-массив —
  * исполняемый контракт (в жёстко заданном литерале, не из аргумента функции),
  * TS-список — документированный, с причиной по каждому исключению. Расхождение
  * двух списков ловит тест, а не прод.
@@ -27,7 +28,7 @@ export const EXPORT_TABLES = [
   'calls', 'scheduled_calls', 'meetings', 'transcripts', 'quotes',
   'stage_transitions', 'stage_requirements', 'segments',
   'conversations', 'conversation_members', 'messages', 'message_reactions',
-  'kpi_entries', 'call_tracker_days', 'activity_log',
+  'kpi_entries', 'call_tracker_days', 'activity_log', 'notes',
   'delivery_templates', 'delivery_template_phases', 'delivery_template_tasks',
   'checklist_templates', 'automation_rules',
 ] as const;

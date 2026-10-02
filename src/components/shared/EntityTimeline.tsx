@@ -24,18 +24,17 @@ import type { TimelineEvent, TimelineKind, TimelineKindFilter } from '@/types/ti
 // ═══════════════════════════════════════════════════════
 
 /**
- * `all` + виды серверного фильтра (шесть kind + производный `note`).
+ * `all` + виды серверного фильтра (`TimelineKind`).
  *
- * S-UI-CLARITY-1: `note` — не kind, а срез внутри `activity`: события
- * `kind='activity'` с человеческим `event_type`. Отдельным kind его сделать
- * нельзя — источник один (`activity_log`), и `kindFilter` родителей пришлось бы
- * учить второму имени того же источника. С S-TL-3 срез считает SQL
- * (`p_kinds = ['note']`), а не клиент.
+ * S-NOTES-1 (134): `note` стал НАСТОЯЩИМ видом — заметки лежат в таблице `notes`, а не
+ * срезом внутри `activity_log` (как было с S-UI-CLARITY-1). Чип «Заметки» —
+ * `p_kinds = ['note']`, чип «Система»/«Поля» — `['activity']` (журнал без заметок).
+ * Родитель, которому нужен чип заметок, перечисляет `'note'` в своём наборе явно.
  */
-// ⚠️ УЖЕ, чем `TimelineKindFilter`: чипы карточки предлагают шесть видов и `note`,
-// но не `stage`/`deleted` — эти два завёл дашборд (S-TL-4), и на карточке сущности
-// им места нет. Значение отсюда всегда валидный `TimelineKindFilter`, обратное неверно.
-export type TimelineFilterValue = 'all' | TimelineKind | 'note';
+// ⚠️ УЖЕ, чем `TimelineKindFilter`: чипы карточки предлагают виды, но не `stage`/
+// `deleted` — эти два завёл дашборд (S-TL-4), и на карточке сущности им места нет.
+// Значение отсюда всегда валидный `TimelineKindFilter`, обратное неверно.
+export type TimelineFilterValue = 'all' | TimelineKind;
 
 interface EntityTimelineProps {
   entityType: TimelineEntityType;
@@ -89,7 +88,7 @@ interface EntityTimelineProps {
 
 // Подписи чипов по kind. S-UI-CLARITY-1: `activity` больше не «Заметки» — это
 // activity_log целиком (смены стадий, аудит полей, автоматизации), и честное имя
-// ему «Система». Заметки выделены отдельным производным чипом ниже.
+// ему «Система». Заметки (с 134) — собственный вид `note`.
 const KIND_LABEL: Record<TimelineKind, string> = {
   call: 'Звонки',
   meeting: 'Встречи',
@@ -97,10 +96,8 @@ const KIND_LABEL: Record<TimelineKind, string> = {
   project: 'Сделки',
   activity: 'Система',
   ai_run: 'AI',
+  note: 'Заметки',
 };
-
-/** Подпись производного чипа — рядом с «Системой», из того же источника. */
-const NOTE_LABEL = 'Заметки';
 
 // Дефолтный набор чипов — прямые источники Sprint A (поведение до S-R2-CO360-1).
 const DEFAULT_KINDS: TimelineKind[] = ['call', 'meeting', 'task', 'project'];
@@ -126,19 +123,12 @@ export function TimelineFilterChips({
   /** Переименование чипов под место (сделка: `activity` → «Поля»). */
   labels?: Partial<Record<TimelineFilterValue, string>>;
 }) {
-  // `activity` разворачивается в ДВА чипа на своём месте в порядке: «Заметки»
-  // (производный срез) и «Система» (весь activity_log). Родителям для этого
-  // ничего передавать не нужно — набор kinds у них прежний.
+  // Чип на каждый вид из набора, в порядке набора. До 134 `activity` разворачивался
+  // здесь в два чипа («Заметки» + «Система»); теперь это два настоящих вида, и
+  // родитель называет оба сам.
   const base: { key: TimelineFilterValue; label: string }[] = [
     { key: 'all', label: 'Все' },
-    ...kinds.flatMap((k) =>
-      k === 'activity'
-        ? [
-            { key: 'note' as TimelineFilterValue, label: NOTE_LABEL },
-            { key: k as TimelineFilterValue, label: KIND_LABEL[k] },
-          ]
-        : [{ key: k as TimelineFilterValue, label: KIND_LABEL[k] }],
-    ),
+    ...kinds.map((k) => ({ key: k as TimelineFilterValue, label: KIND_LABEL[k] })),
   ];
   const items = labels ? base.map((f) => ({ ...f, label: labels[f.key] ?? f.label })) : base;
   const pill = variant === 'pill';
