@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNoteBlocks, splitNoteHead, noteToPlainLine } from '@/lib/text/note-blocks';
+import { parseNoteBlocks, splitNoteHead, noteToPlainLine, noteHeadline } from '@/lib/text/note-blocks';
 
 // S-DEAL-NOTES-READ-1. Заметки хранятся плоским текстом; структуру восстанавливает
 // эта функция. Чистая, без React — тесты фиксируют правила, в том числе НАМЕРЕННЫЕ
@@ -136,5 +136,29 @@ describe('noteToPlainLine', () => {
 
   it('пустой вход → пустая строка', () => {
     expect(noteToPlainLine('  \n')).toBe('');
+  });
+});
+
+describe('noteHeadline', () => {
+  it('короткая первая строка — заголовок, остальное — тело', () => {
+    expect(noteHeadline('02.10 · Zoom · АНФИШ\nУчастники: …')).toEqual({
+      head: '02.10 · Zoom · АНФИШ',
+      rest: 'Участники: …',
+    });
+  });
+
+  it('заметка в одну длинную строку — без заголовка, весь текст в теле', () => {
+    const long = 'а'.repeat(215);
+    expect(noteHeadline(long)).toEqual({ head: null, rest: long });
+  });
+
+  it('длинная первая строка с продолжением — тело целиком, переносы сохранены', () => {
+    const first = 'б'.repeat(121);
+    expect(noteHeadline(`${first}\n- пункт`)).toEqual({ head: null, rest: `${first}\n- пункт` });
+  });
+
+  it('ровно на пороге — ещё заголовок', () => {
+    const edge = 'в'.repeat(120);
+    expect(noteHeadline(edge).head).toBe(edge);
   });
 });

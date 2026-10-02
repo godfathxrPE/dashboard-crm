@@ -13,7 +13,7 @@ import { mskTime } from '@/lib/utils/date-helpers';
 import { useCallBrief } from '@/lib/hooks/use-call-brief';
 import { formatCallDuration } from '@/lib/utils/call-brief';
 import { formatPersonShort } from '@/lib/utils/contact-name';
-import { splitNoteHead } from '@/lib/text/note-blocks';
+import { noteHeadline } from '@/lib/text/note-blocks';
 import { NoteBody } from '@/components/shared/NoteBody';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
@@ -153,7 +153,7 @@ export function DealLastEvent({
   // тоже бывает, но заголовок у них свой (`title`), а не первая строка текста.
   const note =
     anchor.kind === 'activity' && anchor.eventType === 'comment_added' && anchor.body
-      ? splitNoteHead(anchor.body)
+      ? noteHeadline(anchor.body)
       : null;
   const meta = KIND_META[anchor.kind];
   const Icon = meta.icon;
@@ -206,8 +206,12 @@ export function DealLastEvent({
             // S-DEAL-NOTES-READ-1: в `title` заметки лежит весь текст одним абзацем —
             // жирной остаётся только первая строка, остальное читается структурой.
             <>
-              <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{note.head}</p>
-              {note.rest && <NoteBody text={note.rest} collapsedLines={8} className="mt-2" />}
+              {note.head && (
+                <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{note.head}</p>
+              )}
+              {note.rest && (
+                <NoteBody text={note.rest} collapsedLines={8} className={note.head ? 'mt-2' : undefined} />
+              )}
             </>
           ) : anchor.body ? (
             <>

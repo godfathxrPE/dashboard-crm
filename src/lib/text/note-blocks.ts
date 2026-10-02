@@ -102,6 +102,24 @@ export function splitNoteHead(raw: string): { head: string; rest: string } {
   return { head: lines[first], rest };
 }
 
+/** Длиннее — первая строка уже не заголовок, а сам текст (заметка без переносов). */
+export const NOTE_HEADLINE_MAX = 120;
+
+/**
+ * Заголовок плитки «Заметка». Как `splitNoteHead`, но длинная первая строка заголовком
+ * не становится: жирный абзац в 300 символов — тот же дефект, что был до спринта.
+ * Замер 02.10: у 5 из 8 длинных заметок первая строка 211–364 символа (переносов нет).
+ * `head: null` — жирной строки нет, весь текст уходит в тело.
+ */
+export function noteHeadline(
+  raw: string,
+  max: number = NOTE_HEADLINE_MAX,
+): { head: string | null; rest: string } {
+  const { head, rest } = splitNoteHead(raw);
+  if (head.length <= max) return { head, rest };
+  return { head: null, rest: normalize(raw).join('\n').trim() };
+}
+
 /** Текст без разметки для превью в одну-две строки: переносы → пробел, маркеры сняты. */
 export function noteToPlainLine(raw: string): string {
   return normalize(raw)
