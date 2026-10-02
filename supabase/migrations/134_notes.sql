@@ -20,8 +20,9 @@
 --    спринтом сознательно нарушено ради «Вернуть»; `notes` — единственное исключение.
 --    Физического DELETE нет (DELETE-политики и гранта нет).
 --
--- ⚠️ FK `org_id` → organizations и `created_by` → profiles БЕЗ `on delete` — паритет
---    с `calls` (сверено с живой БД). Родители заметки — `on delete cascade`, а НЕ
+-- ⚠️ FK по конвенции CLAUDE.md «Новая org-таблица» (правка гейта 02.10): `org_id` —
+--    `on delete cascade`, `created_by` — nullable, `on delete set null` (как у quotes /
+--    deal_stakeholders; `calls` старше конвенции). Родители заметки — `on delete cascade`, а НЕ
 --    `set null`, как у `calls`: у `notes` есть check `notes_has_parent`, и `set null`
 --    на последнем родителе уронил бы удаление сделки/лида ошибкой 23514.
 --
@@ -33,7 +34,7 @@
 -- ═══ 1. Таблица ═══
 create table if not exists public.notes (
   id                 uuid primary key default gen_random_uuid(),
-  org_id             uuid not null references public.organizations(id),
+  org_id             uuid not null references public.organizations(id) on delete cascade,
   project_id         uuid references public.projects(id)  on delete cascade,
   lead_id            uuid references public.leads(id)     on delete cascade,
   company_id         uuid references public.companies(id) on delete cascade,
@@ -43,7 +44,7 @@ create table if not exists public.notes (
   meta               jsonb not null default '{}'::jsonb,
   pinned_at          timestamptz,
   pinned_by          uuid references public.profiles(id) on delete set null,
-  created_by         uuid not null default auth.uid() references public.profiles(id),
+  created_by         uuid default auth.uid() references public.profiles(id) on delete set null,
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now(),
   updated_by         uuid references public.profiles(id) on delete set null,
@@ -85,7 +86,11 @@ begin
     new.edited_at := now();
   end if;
   new.updated_by := coalesce(auth.uid(), new.updated_by);
-  new.created_by := old.created_by;
+  -- Автора не переназначить. Обнуление разрешено: это FK-действие `on delete set null`
+  -- при удалении профиля (правка гейта 02.10) — без этой ветки удаление профиля падало бы.
+  if new.created_by is not null and new.created_by is distinct from old.created_by then
+    new.created_by := old.created_by;
+  end if;
   new.created_at := old.created_at;
   return new;
 end;

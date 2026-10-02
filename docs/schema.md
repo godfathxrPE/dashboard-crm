@@ -2160,13 +2160,13 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 | Колонка | Тип | Заметки |
 |---------|-----|---------|
 | id | uuid PK | `gen_random_uuid()` |
-| **org_id** | uuid | NOT NULL → organizations (без `on delete` — паритет с `calls`); `trg_set_org_id` на INSERT, `trg_aa_freeze_org_id` на UPDATE |
+| **org_id** | uuid | NOT NULL → organizations **ON DELETE CASCADE** (конвенция CLAUDE.md «Новая org-таблица», правка гейта 02.10); `trg_set_org_id` на INSERT, `trg_aa_freeze_org_id` на UPDATE |
 | project_id / lead_id / company_id / contact_id | uuid | → родитель, **ON DELETE CASCADE** (не `set null`, как у `calls`: check `notes_has_parent` уронил бы удаление сделки/лида `23514`) |
 | body | text | NOT NULL, **markdown**; `length(btrim(body)) between 1 and 20000` |
 | kind | text | `note` \| `stage_comment` (комментарий перехода стадии, `meta`: `from_stage_id`, `to_stage_id`) |
 | meta | jsonb | NOT NULL DEFAULT `{}` |
 | pinned_at / pinned_by | timestamptz / uuid | пара: `notes_pin_pair` — оба null или оба заданы. Пишет только `set_note_pinned` |
-| created_by | uuid | NOT NULL DEFAULT `auth.uid()` → profiles. Не подменяется: `notes_touch` возвращает `old.created_by` |
+| created_by | uuid | DEFAULT `auth.uid()` → profiles **ON DELETE SET NULL** (конвенция CLAUDE.md, правка гейта 02.10). Не подменяется: `notes_touch` возвращает `old.created_by` |
 | created_at / updated_at | timestamptz | `updated_at` — `set_updated_at` → `update_updated_at()` |
 | updated_by / edited_at | uuid / timestamptz | `notes_touch`: `updated_by = auth.uid()`; `edited_at` — только при смене `body` |
 | deleted_at | timestamptz | **soft-delete** — решение владельца 02.10 (эпик S-NOTES); исключение из общего правила «hard delete, `deleted_at` нет ни у одной таблицы». Физического DELETE нет |
