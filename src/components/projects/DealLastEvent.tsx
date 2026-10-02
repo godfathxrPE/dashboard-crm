@@ -13,6 +13,8 @@ import { mskTime } from '@/lib/utils/date-helpers';
 import { useCallBrief } from '@/lib/hooks/use-call-brief';
 import { formatCallDuration } from '@/lib/utils/call-brief';
 import { formatPersonShort } from '@/lib/utils/contact-name';
+import { noteHeadline } from '@/lib/text/note-blocks';
+import { NoteBody } from '@/components/shared/NoteBody';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 
 // ═══════════════════════════════════════════════════════
@@ -48,6 +50,15 @@ const KIND_TITLE: Record<TimelineKind, string> = {
   activity: 'Событие',
   ai_run: 'AI-прогон',
 };
+
+/**
+ * Подпись вида для КОНКРЕТНОГО события: человеческая заметка — «Заметка», а не
+ * «Событие» (`comment_added` — единственный вид `activity`, который пишет человек
+ * текстом; системные записи остаются «Событием»). S-DEAL-NOTES-READ-1.
+ */
+function eventTitle(e: TimelineEvent): string {
+  return e.kind === 'activity' && e.eventType === 'comment_added' ? 'Заметка' : KIND_TITLE[e.kind];
+}
 
 /**
  * Подпись действия — по тому, ЧТО произойдёт по клику (`openTimelineEvent`).
@@ -138,6 +149,12 @@ export function DealLastEvent({
   // ось — смысл, тут без события не остаётся ничего.
   if (isLoading || error || !anchor) return null;
 
+  // Заметка — только событие журнала `comment_added` с текстом. У встречи/звонка `body`
+  // тоже бывает, но заголовок у них свой (`title`), а не первая строка текста.
+  const note =
+    anchor.kind === 'activity' && anchor.eventType === 'comment_added' && anchor.body
+      ? noteHeadline(anchor.body)
+      : null;
   const meta = KIND_META[anchor.kind];
   const Icon = meta.icon;
   const action = actionLabel(anchor);
@@ -168,7 +185,7 @@ export function DealLastEvent({
 
       <div className="min-w-0">
         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-meta tabular-nums text-text-mute">
-          <span className="font-semibold text-text-main">{KIND_TITLE[anchor.kind]}</span>
+          <span className="font-semibold text-text-main">{eventTitle(anchor)}</span>
           <span aria-hidden>·</span>
           <span className="font-semibold text-text-main">
             {formatDateShort(anchor.date)}
@@ -185,9 +202,32 @@ export function DealLastEvent({
         {/* 72ch — мера зоны «Работа», та же, что у тела шага. Хвостик слева снизу —
             форма плашки из макета (r14 14 14 4). */}
         <div className="glass-sheet max-w-[72ch] rounded-[0.875rem] rounded-bl-sm px-4 py-3">
-          <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{anchor.title}</p>
-          {anchor.detail && (
-            <p className="mt-1 text-pretty text-body leading-relaxed text-text-dim">{anchor.detail}</p>
+          {note ? (
+            // S-DEAL-NOTES-READ-1: в `title` заметки лежит весь текст одним абзацем —
+            // жирной остаётся только первая строка, остальное читается структурой.
+            <>
+              {note.head && (
+                <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{note.head}</p>
+              )}
+              {note.rest && (
+                <NoteBody text={note.rest} collapsedLines={8} className={note.head ? 'mt-2' : undefined} />
+              )}
+            </>
+          ) : anchor.body ? (
+            <>
+              <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{anchor.title}</p>
+              <NoteBody text={anchor.body} collapsedLines={8} className="mt-2" />
+              {anchor.nextStep && (
+                <p className="mt-2 text-meta font-semibold">→ Следующий шаг: {anchor.nextStep}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold leading-snug tracking-[-0.01em]">{anchor.title}</p>
+              {anchor.detail && (
+                <p className="mt-1 text-pretty text-body leading-relaxed text-text-dim">{anchor.detail}</p>
+              )}
+            </>
           )}
         </div>
 

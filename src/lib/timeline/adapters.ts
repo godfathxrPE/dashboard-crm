@@ -48,6 +48,11 @@ export interface ProjectEventRow {
 
 // ─── Адаптеры ───
 
+/** Пустая строка и одни пробелы — «текста нет»; непустое отдаётся как есть (переносы нужны). */
+function nonBlank(v: string | null): string | undefined {
+  return v !== null && v.trim() !== '' ? v : undefined;
+}
+
 export function callToEvent(c: CallEventRow): TimelineEvent {
   const status: TimelineEvent['status'] =
     c.status === 'done' ? 'done' : c.status === 'pending' ? 'pending' : undefined;
@@ -62,6 +67,8 @@ export function callToEvent(c: CallEventRow): TimelineEvent {
     title,
     date: c.date,
     detail: c.next_step ?? c.agreements ?? undefined,
+    body: nonBlank(c.agreements),
+    nextStep: nonBlank(c.next_step),
     status,
     icon: 'call',
     actorId: c.created_by ?? undefined,
@@ -76,6 +83,8 @@ export function meetingToEvent(m: MeetingEventRow): TimelineEvent {
     title: m.title ? `Встреча: ${m.title}` : 'Встреча',
     date: m.date,
     detail: m.next_step ?? m.notes ?? undefined,
+    body: nonBlank(m.notes),
+    nextStep: nonBlank(m.next_step),
     icon: 'meeting',
     actorId: m.created_by ?? undefined,
   };

@@ -216,8 +216,8 @@ export function MeetingModal({ isOpen, onClose, editMeeting, defaultProjectId, d
 
           <div>
             <label className="mb-1 block text-xs font-medium text-text-dim">Заметки</label>
-            <textarea {...register('notes')} rows={3} placeholder="Заметки о встрече..."
-              className="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
+            <textarea {...register('notes')} rows={8} placeholder="Заметки о встрече..."
+              className="max-h-[60vh] w-full resize-y rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-mute focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent" />
           </div>
 
           <div>
