@@ -235,7 +235,7 @@ export function DealActivityFeed({
                     {parts ? parts.head : rowText(event)}
                   </span>
                   {!open && preview && (
-                    <span className="mt-0.5 line-clamp-2 block text-meta text-text-dim">
+                    <span className="mt-0.5 line-clamp-2 text-meta text-text-dim">
                       {preview}
                     </span>
                   )}
