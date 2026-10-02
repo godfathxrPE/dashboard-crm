@@ -25,56 +25,6 @@ type RelaxOrgId<TInsert> = 'org_id' extends keyof TInsert
   ? Omit<TInsert, 'org_id'> & { org_id?: TInsert extends { org_id: infer O } ? O : never }
   : TInsert;
 
-// ═══ STUB S-NOTES-1 — снять регеном после apply 134 ═══
-// ВРЕМЕННЫЙ СТАБ таблицы `notes`: миграция 134 написана и НЕ применена, поэтому в
-// `supabase.gen.ts` таблицы ещё нет и `.from('notes')` не собрался бы.
-//
-// Insert — только то, что клиенту разрешают column-GRANT'ы 134 (`project_id`,
-// `lead_id`, `company_id`, `contact_id`, `body`, `kind`, `meta`); Update — только
-// `body`. `org_id`/`created_by` в Insert НЕТ: их ставят триггер и DEFAULT.
-//
-// САМОСНИМАЮЩИЙСЯ: условный тип отключает стаб, как только в автогенерации появляется
-// `notes`. Это страховка от «стаб пережил регенерацию и молча врёт про схему», но не
-// замена удаления: после регена блок обязан уйти целиком (вместе с алиасами ниже).
-type NotesStubRow = {
-  id: string;
-  org_id: string;
-  project_id: string | null;
-  lead_id: string | null;
-  company_id: string | null;
-  contact_id: string | null;
-  body: string;
-  kind: string;
-  meta: Json;
-  pinned_at: string | null;
-  pinned_by: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-  updated_by: string | null;
-  edited_at: string | null;
-  deleted_at: string | null;
-  legacy_activity_id: string | null;
-};
-type NotesStubTables = 'notes' extends keyof GenDatabase['public']['Tables']
-  ? unknown
-  : {
-      notes: {
-        Row: NotesStubRow;
-        Insert: {
-          project_id?: string | null;
-          lead_id?: string | null;
-          company_id?: string | null;
-          contact_id?: string | null;
-          body: string;
-          kind?: string;
-          meta?: Json;
-        };
-        Update: { body?: string };
-        Relationships: [];
-      };
-    };
-
 /** Тонкий слой над автогенерацией: только Insert.org_id → optional, остальное 1:1. */
 export type Database = {
   __InternalSupabase: GenDatabase['__InternalSupabase'];
@@ -86,7 +36,7 @@ export type Database = {
       > & {
         Insert: RelaxOrgId<GenDatabase['public']['Tables'][K]['Insert']>;
       };
-    } & NotesStubTables;
+    };
   };
 };
 

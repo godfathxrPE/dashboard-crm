@@ -1827,6 +1827,126 @@ export type Database = {
           },
         ]
       }
+      notes: {
+        Row: {
+          body: string
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          kind: string
+          lead_id: string | null
+          legacy_activity_id: string | null
+          meta: Json
+          org_id: string
+          pinned_at: string | null
+          pinned_by: string | null
+          project_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string | null
+          legacy_activity_id?: string | null
+          meta?: Json
+          org_id: string
+          pinned_at?: string | null
+          pinned_by?: string | null
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string | null
+          legacy_activity_id?: string | null
+          meta?: Json
+          org_id?: string
+          pinned_at?: string | null
+          pinned_by?: string | null
+          project_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -3911,6 +4031,7 @@ export type Database = {
           p_entity_type: string
           p_kinds?: string[]
           p_limit?: number
+          p_search?: string
         }
         Returns: {
           actor_id: string
@@ -3977,6 +4098,7 @@ export type Database = {
         Returns: undefined
       }
       reorder_tasks: { Args: { p_moves: Json }; Returns: undefined }
+      restore_note: { Args: { p_note_id: string }; Returns: undefined }
       retry_webhook_delivery: {
         Args: { p_delivery_id: string }
         Returns: string
@@ -3998,7 +4120,12 @@ export type Database = {
       run_overdue_automations: { Args: never; Returns: undefined }
       send_test_webhook: { Args: { p_endpoint_id: string }; Returns: string }
       session_gate: { Args: never; Returns: Json }
+      set_note_pinned: {
+        Args: { p_note_id: string; p_pinned: boolean }
+        Returns: undefined
+      }
       shares_org_with: { Args: { p_profile: string }; Returns: boolean }
+      soft_delete_note: { Args: { p_note_id: string }; Returns: undefined }
       spawn_delivery_project: {
         Args: {
           p_deal_id: string

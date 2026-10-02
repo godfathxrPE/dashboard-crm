@@ -622,10 +622,13 @@
 > табличный CHECK, RLS/индексы/гранты не тронуты, advisors до и после совпали, новых
 > WARN нет). Клиент выкачен ПЕРВЫМ (PR #100, деплой `29377aa` в READY), CHECK — вторым.
 > Реген типов не нужен: ограничение схему типов не меняет, стаба нет.
-> **133 applied** (`20260926102002`, `cron_io_budget`). **134 (S-NOTES-1, `notes`) —
-> НАПИСАНА, НЕ ПРИМЕНЕНА** (статус переводит гейт после apply; описание — «### notes» ниже и
+> **133 applied** (`20260926102002`, `cron_io_budget`). **134 applied** (S-NOTES-1, `notes`,
+> гейт Cowork 2026-10-02) четырьмя версиями: `20261002192427 notes_1_table` ·
+> `20261002193630 notes_3_export` · `20261002193718 notes_4_convert_lead` ·
+> `20261002200000 notes_2_timeline`; разбивка — из-за таймаута 180 с MCP `apply_migration` на
+> `entity_timeline`, секция 10 ушла через SQL Editor владельца (описание — «### notes» ниже и
 > запись 134 в ledger миграций).
-> ⇒ **следующая свободная — 135** (после apply 134), и брать её всё равно запросом.
+> ⇒ **следующая свободная — 135**, и брать её всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
 > ⚠️ Номер брать запросом к
@@ -1003,7 +1006,7 @@
 
 | Класс | Таблицы |
 |-------|---------|
-| **Tenant, `org_id NOT NULL`** | companies, contacts, contact_company, projects, tasks, calls, meetings, leads, project_columns _(032, PCT-1)_, notes _(134, S-NOTES-1 — НЕ применена)_ |
+| **Tenant, `org_id NOT NULL`** | companies, contacts, contact_company, projects, tasks, calls, meetings, leads, project_columns _(032, PCT-1)_, notes _(134, S-NOTES-1)_ |
 | **Tenant, `org_id NOT NULL`** (пишут SECURITY DEFINER триггеры / фон; ужесточено до NOT NULL в 023, S24) | activities, activity_log, project_files, kpi_entries, call_tracker_days, scheduled_calls |
 | **Tenant через join** (без `org_id`) | meeting_attendees (тенантность наследуется от meetings) |
 | **Глобальные / персональные** (вне тенант-модели) | profiles, user_settings, dashboard_sync, pipelines, pipeline_stages, organizations*, memberships* |
@@ -2151,7 +2154,7 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
 | **org_id** | uuid | **NOT NULL** |
 | created_at / updated_at | timestamptz | |
 
-### notes _(134, S-NOTES-1 — **НАПИСАНА, НЕ ПРИМЕНЕНА**; статус переводит гейт после apply)_
+### notes _(134, S-NOTES-1 — **applied**, гейт 2026-10-02)_
 
 Заметка как сущность. Раньше — строка `activity_log` с `event_type='comment_added'`; у журнала
 нет UPDATE-политики (аудит не правят), поэтому заметку нельзя было изменить, закрепить,
@@ -3629,7 +3632,7 @@ where n.nspname = 'public' and c.relkind = 'r'
 
 ### Лента (112 `20260808204308` + 113 `20260808222500` + 114 applied `20260809083732` + 115 applied `20260809092051` + 120 applied `20260810104424`) — сборка на сервере, страницами, с фильтром по видам, от сущности до организации
 
-- **134 (S-NOTES-1 — НАПИСАНА, НЕ ПРИМЕНЕНА): сигнатура ЗАМЕНЕНА в пятый раз** — `drop` + `create`,
+- **134 (S-NOTES-1 — applied): сигнатура ЗАМЕНЕНА в пятый раз** — `drop` + `create`,
   седьмой параметр **`p_search text default null`** (ACL: `authenticated`, `service_role`; `public`/`anon` отозваны).
   Новый источник **`src_notes`** (`kind='note'`, `source='notes'`, `ref_type='note'`; payload: `body`, `kind`, `meta`,
   `pinned_at`, `edited_at`); `comment_added` **исключён** из `src_activity`, `kind_types.note` убран.
@@ -4490,8 +4493,10 @@ RETURN`) — упавший проход не оставляет cron-job в о�
   **Откат:** `cron.alter_job(...)` обратно на `* * * * *` для обеих + `cron.unschedule('cron-history-cleanup')`;
   удалённая история не восстанавливается (журнал запусков, бизнес-данных нет).
 
-- **134** _(S-NOTES-1 — **НАПИСАНА, НЕ ПРИМЕНЕНА**; номер сверен запросом к ledger 2026-10-02:
-  последняя — `20260926102002 cron_io_budget`)_ — заметка становится сущностью. Таблица `notes`
+- **134** _(S-NOTES-1 — **applied гейтом 2026-10-02**, четыре версии журнала:
+  `20261002192427 notes_1_table` · `20261002193630 notes_3_export` ·
+  `20261002193718 notes_4_convert_lead` · `20261002200000 notes_2_timeline`; разбивка из-за
+  таймаута 180 с MCP на `entity_timeline`, секция 10 — через SQL Editor владельца)_ — заметка становится сущностью. Таблица `notes`
   (+RLS, column-grants, 7 индексов, realtime), RPC `set_note_pinned` / `soft_delete_note` /
   `restore_note`, перенос 78 заметок из журнала, мост `trg_zz_notes_bridge`, `entity_timeline`
   (+`notes`, +`p_search`, drop+create), `convert_lead` (+перенос заметок лида),
