@@ -19,7 +19,7 @@ import {
 } from '@/lib/timeline/adapters';
 import { presetTitle } from '@/lib/constants/ai-presets';
 import { describeEvent } from '@/lib/utils/activity-events';
-import { splitNoteHead } from '@/lib/text/note-blocks';
+import { buildNoteEvent } from '@/lib/timeline/note-event';
 import type { TimelineEvent, TimelineKind } from '@/types/timeline';
 import type { ActivityLog } from '@/types/entities';
 import type { CallStatus, ProjectType, TaskLane } from '@/types/database';
@@ -157,6 +157,21 @@ function changesOf(p: Record<string, unknown>): Record<string, Record<string, un
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+/** S-NOTES-2.1. Имена и id стадий из payload `stage_changed` (087); `undefined` — ничего нет. */
+function stageOf(inner: Record<string, unknown>): TimelineEvent['stage'] {
+  const fromName = text(inner, 'from_name') || undefined;
+  const toName = text(inner, 'to_name') || undefined;
+  const fromStageId = text(inner, 'from_stage_id') || undefined;
+  const toStageId = text(inner, 'to_stage_id') || undefined;
+  if (!fromName && !toName && !fromStageId && !toStageId) return undefined;
+  return {
+    ...(fromName ? { fromName } : {}),
+    ...(toName ? { toName } : {}),
+    ...(fromStageId ? { fromStageId } : {}),
+    ...(toStageId ? { toStageId } : {}),
+  };
+}
+
 /**
  * `id` строки RPC — уже `${kind}:${uuid}` (его собирает SQL, чтобы ключ был уникален
  * между источниками). Адаптеры собирают тот же префикс сами, поэтому им нужен голый
@@ -265,11 +280,15 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
       // в таблицу `notes` и приходит отдельным видом `note`; из журнала её исключает
       // SQL. `title` для старых строк журнала в кэше остаётся строкой `describeEvent`.
       const eventType = text(p, 'event_type');
+      // S-NOTES-2.1: смена стадии несёт имена и id — карточка «было → стало» и привязка
+      // комментария перехода (`notes.meta.to_stage_id`) читают их отсюда.
+      const stage = eventType === 'stage_changed' ? stageOf(inner) : undefined;
       return {
         id: row.id,
         sourceId: taskId ?? sourceId,
         ...(taskId ? { refType: 'task' as const } : {}),
         ...(changes ? { changes } : {}),
+        ...(stage ? { stage } : {}),
         kind: 'activity',
         // payload источника лежит ВНУТРИ `row.payload`, рядом с `event_type` —
         // ровно та форма, которую `describeEvent` читает у строки `activity_log`.
@@ -283,24 +302,19 @@ function baseEvent(row: TimelineRpcRow, now: number): TimelineEvent {
 
     case 'note': {
       // S-NOTES-1. Тело заметки лежит НА УРОВНЕ payload строки (источник `notes`,
-      // а не вложенный payload журнала). `title` — первая строка тела, как в плитке
-      // ленты; `body` — весь текст. Строку без тела отбрасывает `isTimelineRpcRow`.
-      const body = text(p, 'body') ?? '';
-      const head = splitNoteHead(body).head;
-      const noteKind = text(p, 'kind') === 'stage_comment' ? 'stage_comment' : 'note';
-      return {
+      // а не вложенный payload журнала). Строку без тела отбрасывает `isTimelineRpcRow`.
+      // S-NOTES-2.1: сборка — `buildNoteEvent`, её же зовёт `usePinnedNotes`.
+      return buildNoteEvent({
         id: row.id,
         sourceId,
-        kind: 'note',
-        title: head || 'Заметка',
         date: row.ts,
-        icon: 'note',
-        body,
-        actorId: createdBy ?? undefined,
+        actorId: createdBy,
+        body: text(p, 'body') ?? '',
+        kind: text(p, 'kind'),
+        meta: p.meta,
         pinnedAt: text(p, 'pinned_at'),
         editedAt: text(p, 'edited_at'),
-        noteKind,
-      };
+      });
     }
 
     case 'ai_run':

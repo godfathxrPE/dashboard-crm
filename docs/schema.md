@@ -628,7 +628,10 @@
 > `20261002200000 notes_2_timeline`; разбивка — из-за таймаута 180 с MCP `apply_migration` на
 > `entity_timeline`, секция 10 ушла через SQL Editor владельца (описание — «### notes» ниже и
 > запись 134 в ledger миграций).
-> ⇒ **следующая свободная — 135**, и брать её всё равно запросом.
+> **135 НАПИСАНА, НЕ ПРИМЕНЕНА** (S-NOTES-2.1, `135_notes_drop_bridge.sql`): `drop trigger
+> trg_zz_notes_bridge` + `drop function notes_from_comment_added()`; строки `activity_log` не трогаются.
+> Применяет гейт Cowork.
+> ⇒ **следующая свободная — 136** (после apply 135; до apply — 135), и брать её всё равно запросом.
 > Пометки «НЕ применена» пережили применение уже трижды (104, 126, 127) — это не описка,
 > а свойство: статус меняет гейт, а правит его тот, кто в следующий раз откроет файл.
 > ⚠️ Номер брать запросом к
@@ -2199,7 +2202,8 @@ IN ('owner','admin','manager')` (viewer — read-only). **`task_dep_update` (062
   `notes_from_comment_added()` DEFINER) копирует новые `comment_added` в `notes` — страховка на окно
   «миграция применена, старый клиент ещё в проде». Не роняет запись журнала: пустой текст / нет привязки /
   нет профиля автора — молча пропускает, текст длиннее 20 000 обрезает.
-  **УДАЛИТЬ В S-NOTES-2** после выката клиента, пишущего в `notes`.
+  **Снят в 135** (S-NOTES-2.1, НАПИСАНА, НЕ ПРИМЕНЕНА): клиент пишет в `notes` напрямую, писателей
+  `comment_added` нет; триггер и функция удаляются, строки журнала остаются как аудит.
 - **Лента.** `entity_timeline` получила источник `notes` (`kind='note'`), `comment_added` из `src_activity`
   исключён (иначе дубли) — см. «Лента» ниже. `convert_lead` переносит заметки лида на сделку/компанию/контакт.
   `export_org_data` выгружает `notes` (35-я таблица). `projects.pinned_note` в этом спринте не тронут (S-NOTES-2).
@@ -4504,6 +4508,11 @@ RETURN`) — упавший проход не оставляет cron-job в о�
   advisors → смоки → мерж PR. **Откат:** `drop trigger trg_zz_notes_bridge on activity_log`;
   вернуть `entity_timeline` / `convert_lead` / `export_org_data` из 120 / 123 / 126;
   `drop table notes` (потеряет правки и закрепления после переноса — журнал сохраняет оригиналы).
+- **135** _(S-NOTES-2.1 — **НАПИСАНА, НЕ ПРИМЕНЕНА**; `135_notes_drop_bridge.sql`)_ — снимает мост 134:
+  `drop trigger if exists trg_zz_notes_bridge on public.activity_log` +
+  `drop function if exists public.notes_from_comment_added()`. Писателей `comment_added` нет
+  (разведка 03.10), строки журнала остаются как аудит, `entity_timeline` не меняется.
+  Применяет гейт Cowork. **Откат:** вернуть секцию 9 из `134_notes.sql`.
 
 ## Edge Functions
 

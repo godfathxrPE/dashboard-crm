@@ -105,11 +105,11 @@ export function DealFocusPanel({ project }: { project: Project }) {
         </div>
       </div>
 
-      {/* ─── Зона 2: Закреплено ─── */}
+      {/* ─── Зона 2: Суть сделки (S-NOTES-2.1: бывшее «Закреплено»; то же поле `pinned_note`) ─── */}
       <div className="min-w-0">
         <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-text-dim">
           <Pin size={12} />
-          Закреплено
+          Суть сделки
         </div>
         <div className="text-body leading-relaxed">
           <InlineEdit

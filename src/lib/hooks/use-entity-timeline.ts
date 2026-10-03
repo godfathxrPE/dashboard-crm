@@ -174,6 +174,8 @@ export function useEntityTimeline(
     hasMore: timeline.hasNextPage,
     loadMore: timeline.fetchNextPage,
     isLoadingMore: timeline.isFetchingNextPage,
+    // S-NOTES-2.1: «Повторить» у ленты, которая не загрузилась.
+    refetch: timeline.refetch,
   };
 }
 

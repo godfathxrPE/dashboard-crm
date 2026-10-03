@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лента сделки — S-NOTES-2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head><body>
+<style>
+/* ══ ТОКЕНЫ dashboard-crm — сгенерированы build-mockup.py из globals.css 2026-10-03 ══ */
+/* ══ ТОКЕНЫ — сгенерированы из globals.css, руками не править ══ */
+:root {
+  --chart-fjord: #5B5EA6;
+  --chart-granit: #6D5D7B;
+  --chart-skog: #3E6B58;
+  --chart-is: #3D6B7E;
+  --chart-stal: #4A5E8A;
+  --content-max: 90rem;
+  
+  --zone-base: color-mix(in srgb, var(--text) 2%, var(--bg));
+  --zone-work-tint: var(--accent);
+  --zone-work-ink: var(--accent-text, var(--accent));
+  --zone-work: color-mix(in srgb, var(--zone-work-tint) 14%, var(--zone-base));
+  --zone-ctx: color-mix(in srgb, var(--text)    6%, var(--zone-base));
+  --zone-risk-ok: color-mix(in srgb, var(--green)  12%, var(--zone-base));
+  --zone-risk-attention: color-mix(in srgb, var(--yellow) 14%, var(--zone-base));
+  --zone-risk-rotting: color-mix(in srgb, var(--red)    10%, var(--zone-base));
+  --radius-zone: 26px;
+  --h-zone: var(--zone-risk-ok);
+  --h-ring: var(--green);
+  --h-chip-ink: var(--green-text, var(--green));
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --surface3: #e5e3dc;
+  --popover: var(--surface);
+  --border: #e5e3dc;
+  --border2: #d4d2ca;
+  --border-input: #8c8c8c;
+  --text: #1a1916;
+  --text-dim: #6b6860;
+  --text-mute: #6f6d68;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent);
+  --accent: #b5622a;
+  --accent-l: rgba(181,98,42,0.08);
+  --accent-l2: rgba(181,98,42,0.16);
+  --on-accent: #ffffff;
+  --green: #2e7d52;
+  --green-l: rgba(46,125,82,0.09);
+  --red: #c0392b;
+  --red-l: rgba(192,57,43,0.09);
+  --blue: #2d6ab4;
+  --blue-l: rgba(45,106,180,0.09);
+  --yellow: #a07020;
+  --yellow-l: rgba(160,112,32,0.09);
+  --yellow-text: #92661d;
+  --purple: #7c3aed;
+  --purple-l: rgba(124,58,237,0.09);
+  --font-app: var(--font-manrope, 'Manrope');
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-accent: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --elevation-2: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #d1fae5;
+  --track-prep-current: #34d399;
+  --track-exp-done: #ede9fe;
+  --track-exp-current: #a78bfa;
+  --track-nego-done: #fef3c7;
+  --track-nego-current: #d97706;
+  --track-proj-done: #fce7f3;
+  --track-proj-current: #f472b6;
+  --cal-line: color-mix(in srgb, var(--border) 75%, var(--text-mute));
+  --chat-bg: var(--bg);
+  --chat-in-bg: var(--surface);
+  --chat-in-border: var(--border);
+  --chat-pattern-ink: #1a1916;
+  --chat-pattern-op: 0.045;
+  --chat-chip: rgba(255,255,255,0.85);
+  --danger: var(--red);
+  --danger-l: var(--red-l);
+  --danger-text: var(--red-text, var(--red));
+  --success: var(--green);
+  --success-l: var(--green-l);
+  --success-text: var(--green-text, var(--green));
+  --warning: var(--yellow);
+  --warning-l: var(--yellow-l);
+  --warning-text: var(--yellow-text, var(--yellow));
+  --info: var(--blue);
+  --info-l: var(--blue-l);
+  --info-text: var(--blue-text, var(--blue));
+  --time-ok-fill: color-mix(in srgb, var(--bg) 84%, var(--accent));
+  --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
+  --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
+  
+  --mark-today-l2: var(--accent-l2);
+  --sheet-glass: rgba(4, 4, 6, .84);
+  --sheet-sheen: linear-gradient(160deg, rgba(255,255,255,.13) 0%,
+                                        rgba(255,255,255,0) 46%, rgba(255,255,255,.04) 100%);
+  --sheet-shadow: 0 10px 32px rgba(0,0,0,.20),
+                        inset 0 1px 0 rgba(255,255,255,.24),
+                        inset 0 -1px 0 rgba(255,255,255,.06);
+  --sheet-hairline: rgba(255,255,255,.20);
+  --sheet-text: #FFFFFF;
+  --sheet-dim: #D2D2D6;
+  --sheet-red: #FF7A68;
+  --sheet-warning: #FFC24D;
+  --sheet-green: #5CD98C;
+  --sheet-btn-border: rgba(255,255,255,.35);
+  --sheet-hover: rgba(255,255,255,.10);
+  --sheet-plate-bg: rgba(255,255,255,.09);
+  --sheet-plate-border: rgba(255,255,255,.16);
+  --sheet-mark: #D2D2D6;
+  --sheet-mark-fill: #D2D2D6;
+  --sheet-mark-ink: #040406;
+  --sheet-empty-in: var(--yellow);
+  --sheet-empty-out: var(--yellow-text, var(--yellow));
+  --profile-norm: var(--border2);
+  --profile-fact: color-mix(in srgb, var(--text)   55%, transparent);
+  --profile-over-past: color-mix(in srgb, var(--yellow) 55%, transparent);
+  --profile-over-now: color-mix(in srgb, var(--red)    70%, transparent);
+  --profile-now: var(--mark-today);
+}
+
+.t-minimal {
+  --bg: #ECECEF;
+  --surface: #FFFFFF;
+  --surface2: #F4F4F6;
+  --surface3: #E7E7EB;
+  --popover: var(--surface);
+  --border: #D9D9E0;
+  --border2: #C4C4CE;
+  --border-input: #82828C;
+  --text: #17171C;
+  --text-dim: #4E4E59;
+  --text-mute: #5F5F6A;
+  --sidebar-indicator: #FFFFFF;
+  --sidebar-active-text: var(--text);
+  --accent: #0E7C86;
+  --accent-l: rgba(14,124,134,0.08);
+  --accent-l2: rgba(14,124,134,0.16);
+  --accent-text: #0A6771;
+  --green: #1B8A4C;
+  --green-l: rgba(27,138,76,0.09);
+  --green-text: #177B43;
+  --red: #CC3B2E;
+  --red-l: rgba(204,59,46,0.09);
+  --red-text: #B02A24;
+  --blue: #2563C9;
+  --blue-l: rgba(37,99,201,0.09);
+  --blue-text: #1D68BC;
+  --yellow: #B0680A;
+  --yellow-l: rgba(176,104,10,0.10);
+  --yellow-text: #846300;
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.09);
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(18,18,24,0.05);
+  --shadow-sm: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-md: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --shadow-lg: 0 4px 8px rgba(18,18,24,0.06), 0 18px 48px rgba(18,18,24,0.14);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --elevation-2: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --elevation-3: 0 4px 8px rgba(18,18,24,0.07), 0 20px 56px rgba(18,18,24,0.16);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EDEDEF;
+  --track-prep-current: #2E2E36;
+  --track-exp-done: #DDEEF0;
+  --track-exp-current: #0E7C86;
+  --track-nego-done: #F7EBD4;
+  --track-nego-current: #B0680A;
+  --track-proj-done: #DFEAF9;
+  --track-proj-current: #2563C9;
+  --font-app: var(--font-inter, 'Inter');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #0A6771;
+  --chat-pattern-op: 0.03;
+  --chat-chip: rgba(255,255,255,0.85);
+  --sheet-glass: rgba(0, 10, 12, .84);
+  --sheet-mark: #6AC1C6;
+  --sheet-mark-fill: #6AC1C6;
+  --sheet-mark-ink: #000A0C;
+}
+
+.t-aura {
+  --bg: #EFEFF3;
+  --surface: #FFFFFF;
+  --surface2: #F6F6FA;
+  --surface3: #EAEAF1;
+  --popover: var(--surface);
+  --border: #E2E2EC;
+  --border2: #D2D2DE;
+  --border-input: #8a8a9a;
+  --text: #16161D;
+  --text-dim: #59596D;
+  --text-mute: #61617A;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #484D57;
+  --accent-l: rgba(72,77,87,0.09);
+  --accent-l2: rgba(72,77,87,0.16);
+  --green: #2F8F5B;
+  --green-l: rgba(47,143,91,0.10);
+  --red: #D14343;
+  --red-l: rgba(209,67,67,0.10);
+  --blue: #3B7FD4;
+  --blue-l: rgba(59,127,212,0.10);
+  --yellow: #B0810F;
+  --yellow-l: rgba(176,129,15,0.10);
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.10);
+  --accent-text: #343840;
+  --green-text: #1F7C41;
+  --red-text: #C02B2D;
+  --blue-text: #1D68BC;
+  --yellow-text: #846300;
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+  --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md: 0 4px 14px rgba(20,20,40,0.07), 0 1px 3px rgba(20,20,40,0.04);
+  --shadow-lg: 0 12px 36px rgba(20,20,40,0.10), 0 2px 8px rgba(20,20,40,0.05);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --elevation-2: 0 4px 14px rgba(20,20,40,0.08), 0 2px 4px rgba(20,20,40,0.04);
+  --elevation-3: 0 14px 44px rgba(20,20,40,0.13), 0 4px 10px rgba(20,20,40,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EBEDF1;
+  --track-prep-current: #484D57;
+  --track-exp-done: #E9E2FB;
+  --track-exp-current: #7C5CD4;
+  --track-nego-done: #FDF1CC;
+  --track-nego-current: #B0810F;
+  --track-proj-done: #D7EAFB;
+  --track-proj-current: #3B7FD4;
+  --font-app: var(--font-onest, 'Onest');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #343840;
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(255,255,255,0.85);
+  --sheet-glass: rgba(3, 6, 10, .84);
+  --sheet-mark: #ACB3B9;
+  --sheet-mark-fill: #ACB3B9;
+  --sheet-mark-ink: #03060A;
+}
+
+.t-frost {
+  --bg: #0d1020;
+  --surface: rgba(255,255,255,0.07);
+  --surface2: rgba(255,255,255,0.04);
+  --surface3: rgba(255,255,255,0.10);
+  --popover: #1e2233;
+  --border: rgba(255,255,255,0.12);
+  --border2: rgba(255,255,255,0.22);
+  --border-input: rgba(255,255,255,0.42);
+  --text: #eef2ff;
+  --text-dim: #94a4d4;
+  --text-mute: #7e90c0;
+  --sidebar-indicator: rgba(255,255,255,0.10);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #5b8aff;
+  --accent-l: rgba(91,138,255,0.15);
+  --accent-l2: rgba(91,138,255,0.25);
+  --accent-text: #7eb0ff;
+  --on-accent: #0d1020;
+  --green: #5BB88E;
+  --green-l: rgba(91,184,142,0.14);
+  --red: #E8795A;
+  --red-l: rgba(232,121,90,0.14);
+  --blue: #5FA8E8;
+  --blue-l: rgba(95,168,232,0.14);
+  --yellow: #F0C45E;
+  --yellow-l: rgba(240,196,94,0.14);
+  --yellow-text: #F0C45E;
+  --purple: #A070E0;
+  --purple-l: rgba(160,112,224,0.14);
+  --purple-text: #c9a0f5;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.35);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.16);
+  --glass-bg: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.11);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.12);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.10);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.12);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #5381C4;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #339CEB;
+  --track-nego-done: #78350f;
+  --track-nego-current: #08BAF8;
+  --track-proj-done: #500724;
+  --track-proj-current: #5CD7F4;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #7eb0ff;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(30,34,51,0.85);
+  --sheet-glass: rgba(221, 232, 255, .88);
+  --sheet-text: #0B152C;
+  --sheet-dim: #454D5E;
+  --sheet-mark: #3355A8;
+  --sheet-mark-fill: #4B70C6;
+}
+
+/* ══ КАРКАС МОКАПА ══ */
+*, *::before, *::after { box-sizing: border-box; }
+*,*::before,*::after{box-sizing:border-box}
+body{background:#ECECEF;color:#17171C;margin:0}
+#app{background:var(--bg);color:var(--text);font-family:var(--font-app),system-ui,sans-serif;font-size:.875rem;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh;padding-inline:16px;padding-block:2rem 4rem}
+.wrap{max-width:64rem;margin:0 auto;display:grid;gap:2.25rem}
+.doc{max-width:72ch}
+.eyebrow{font-size:.6875rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-text,var(--accent))}
+h1{font-size:clamp(1.5rem,3.4vw,2rem);line-height:1.15;margin:.4rem 0 .6rem;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:1.05rem;margin:0 0 .6rem;letter-spacing:-.01em}
+h3{font-size:.9rem;margin:1rem 0 .35rem}
+p{margin:.35rem 0}
+.dim{color:var(--text-dim)}
+.mute{color:var(--text-mute)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8em;background:var(--surface2);padding:.1em .35em;border-radius:var(--radius-s)}
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-m);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:36rem;font-size:.8125rem}
+th,td{text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.c{text-align:center}
+.yes{color:var(--success-text,var(--green))} .no{color:var(--text-mute)}
+ol.steps,ul.plain{margin:.4rem 0;padding-left:1.2rem;display:grid;gap:.35rem}
+.decide{display:grid;gap:.6rem}
+.decide div{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:.75rem .9rem}
+.decide b{display:block;margin-bottom:.15rem}
+.crm{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+@media (max-width:720px){.crm{grid-template-columns:1fr}}
+.crm div{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:.7rem .9rem;font-size:.8125rem}
+.crm b{display:block}
+.road{display:grid;gap:.5rem}
+.road div{display:grid;grid-template-columns:8.5rem minmax(0,1fr) 5.5rem;gap:.75rem;align-items:baseline;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:.65rem .85rem}
+@media (max-width:640px){.road div{grid-template-columns:1fr}}
+.road b{font-size:.8125rem}
+.road span.est{font-size:.75rem;color:var(--text-mute);text-align:right;font-variant-numeric:tabular-nums}
+svg.i{width:1em;height:1em;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── мокап ── */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.5rem .75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m)}
+.bar strong{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute)}
+.bar button{font:inherit;font-size:.75rem;padding:.2rem .65rem;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer}
+.bar button[aria-pressed="true"]{color:var(--accent-text,var(--accent));border-color:var(--accent);background:var(--accent-l);font-weight:600}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-zone,26px);padding:1.25rem 1.25rem 1rem;box-shadow:var(--shadow-sm)}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin-bottom:.9rem}
+.head .t{font-weight:700;margin-right:.6rem}
+.chip{font:inherit;font-size:.8125rem;border:0;background:none;color:var(--text-dim);padding:.3rem .7rem;border-radius:999px;cursor:pointer}
+.chip.on{background:var(--text);color:var(--bg)}
+.search{margin-left:auto;display:flex;align-items:center;gap:.4rem;border:1px solid var(--border);border-radius:999px;padding:.25rem .7rem;color:var(--text-mute);font-size:.8125rem;min-width:0}
+.search input{border:0;background:transparent;font:inherit;color:var(--text);width:9rem;outline:none;min-width:0}
+
+/* композер */
+.composer{border:1px solid var(--border2);border-radius:var(--radius-l);background:var(--surface);overflow:hidden}
+.composer:focus-within{border-color:var(--accent)}
+.ctabs{display:flex;gap:.15rem;padding:.35rem .4rem 0;border-bottom:1px solid var(--border)}
+.ctabs button{font:inherit;font-size:.8125rem;display:flex;align-items:center;gap:.35rem;border:0;background:none;color:var(--text-mute);padding:.4rem .65rem;border-bottom:2px solid transparent;cursor:pointer}
+.ctabs button.on{color:var(--text);border-bottom-color:var(--text);font-weight:600}
+.tools{display:flex;gap:.1rem;padding:.35rem .5rem;border-bottom:1px solid var(--border);color:var(--text-dim)}
+.tools span{display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:var(--radius-s)}
+.tools span:hover{background:var(--surface2)}
+.tools .sep{width:1px;height:1.1rem;background:var(--border);align-self:center;margin:0 .25rem}
+.editor{padding:.7rem .9rem;min-height:4.5rem;font-size:.875rem;color:var(--text)}
+.editor .ph{color:var(--text-mute)}
+.cfoot{display:flex;align-items:center;gap:.6rem;padding:.45rem .5rem .5rem .9rem;font-size:.75rem;color:var(--text-mute);flex-wrap:wrap}
+.cfoot .grow{flex:1}
+.btn{font:inherit;font-size:.8125rem;font-weight:600;border-radius:var(--radius-m);padding:.4rem .85rem;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btn.ghost{border-color:transparent;background:none;color:var(--text-dim)}
+
+/* секции ленты */
+.sec{margin-top:1.25rem}
+.sec-h{display:flex;align-items:center;gap:.5rem;font-size:.6875rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute);margin-bottom:.5rem}
+.sec-h::after{content:"";flex:1;height:1px;background:var(--border)}
+.sec-h .n{font-variant-numeric:tabular-nums;letter-spacing:0}
+
+/* карточка касания */
+.card{position:relative;border:1px solid var(--border);border-radius:var(--radius-l);background:var(--surface);padding:.8rem .95rem .75rem;max-width:72ch}
+.card + .card,.card + .sys,.sys + .card,.sys + .sys{margin-top:.5rem}
+.card.note{background:color-mix(in srgb,var(--yellow) 7%,var(--surface));border-color:color-mix(in srgb,var(--yellow) 22%,var(--border))}
+.card.pinned{border-color:color-mix(in srgb,var(--yellow) 40%,var(--border))}
+.card:hover,.card.hover{box-shadow:var(--shadow-sm)}
+.ch{display:flex;align-items:center;gap:.5rem;font-size:.8125rem;min-width:0}
+.ico{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:.45rem;background:var(--surface2);color:var(--text-dim);flex-shrink:0}
+.note .ico{background:color-mix(in srgb,var(--yellow) 16%,var(--surface));color:var(--yellow-text,var(--yellow))}
+.kind{font-weight:600}
+.who{display:flex;align-items:center;gap:.35rem;color:var(--text-dim);min-width:0}
+.av{width:1.15rem;height:1.15rem;border-radius:50%;background:var(--surface3);color:var(--text-dim);font-size:.625rem;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.when{margin-left:auto;color:var(--text-mute);font-size:.75rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.edited{color:var(--text-mute);font-size:.75rem}
+.title{font-weight:600;margin:.45rem 0 .1rem;letter-spacing:-.01em}
+.body{margin-top:.4rem;color:var(--text);font-size:.875rem}
+.body.clamp{max-height:calc(1.55em * 6);overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent);mask-image:linear-gradient(to bottom,#000 60%,transparent)}
+.body p{margin:0 0 .35rem;white-space:pre-line}
+.body .h{font-size:.6875rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute);margin:.6rem 0 .25rem}
+.body .h:first-child{margin-top:0}
+.body ul{margin:0 0 .35rem;padding-left:1.1rem}
+.body li{margin:.1rem 0}
+.body strong{font-weight:600}
+.more{font:inherit;font-size:.75rem;font-weight:600;color:var(--text-dim);background:none;border:0;padding:.3rem 0 0;cursor:pointer}
+.facts{display:flex;flex-wrap:wrap;gap:.35rem .9rem;margin-top:.5rem;font-size:.75rem;color:var(--text-dim)}
+.facts span{display:flex;align-items:center;gap:.3rem}
+.pill{font-size:.6875rem;font-weight:600;padding:.1rem .45rem;border-radius:999px}
+.pill.ok{background:var(--success-l,var(--green-l));color:var(--success-text,var(--green))}
+.pill.info{background:var(--info-l,var(--blue-l));color:var(--info-text,var(--blue))}
+.pill.over{background:var(--danger-l,var(--red-l));color:var(--danger-text,var(--red))}
+.step{margin-top:.55rem;display:flex;gap:.5rem;align-items:baseline;padding:.45rem .6rem;border-radius:var(--radius-m);background:var(--surface2);font-size:.8125rem}
+.step b{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);white-space:nowrap}
+.effects{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem}
+.effects span{font-size:.75rem;font-weight:600;color:var(--success-text,var(--green));background:var(--success-l,var(--green-l));padding:.1rem .5rem;border-radius:999px}
+.acts{position:absolute;top:.5rem;right:.55rem;display:none;gap:.1rem;background:var(--popover,var(--surface));border:1px solid var(--border);border-radius:var(--radius-m);padding:.15rem;box-shadow:var(--shadow-sm)}
+.card:hover .acts,.card.hover .acts,.card:focus-within .acts{display:flex}
+.acts span{display:grid;place-items:center;width:1.75rem;height:1.75rem;border-radius:var(--radius-s);color:var(--text-dim)}
+.acts span:hover{background:var(--surface2);color:var(--text)}
+.acts span.on{color:var(--yellow-text,var(--yellow))}
+
+/* системные строки */
+.sys{display:flex;align-items:baseline;gap:.6rem;max-width:72ch;padding:.15rem .25rem .15rem .55rem;font-size:.8125rem;color:var(--text-dim)}
+.sys .dot{width:.4rem;height:.4rem;border-radius:50%;background:var(--border2);flex-shrink:0;align-self:center}
+.sys .dot.stage{background:var(--accent)}
+.sys .txt{min-width:0;flex:1}
+.sys .txt b{color:var(--text);font-weight:600}
+.sys .when{margin-left:.5rem}
+.sys button{font:inherit;font-size:.75rem;color:var(--text-dim);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.grp{margin:.2rem 0 0 1.5rem;padding-left:.7rem;border-left:1px solid var(--border);display:grid;gap:.15rem;font-size:.8125rem;color:var(--text-dim)}
+
+/* запланировано */
+.plan{display:grid;gap:.25rem;max-width:72ch}
+.prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.6rem;align-items:center;padding:.4rem .55rem;border-radius:var(--radius-m);font-size:.8125rem}
+.prow:hover{background:var(--surface2)}
+.box{width:.95rem;height:.95rem;border:1.5px solid var(--border2);border-radius:.25rem}
+.prow .d{font-size:.75rem;white-space:nowrap;color:var(--text-mute);font-variant-numeric:tabular-nums}
+.prow .d.over{color:var(--danger-text,var(--red));font-weight:600}
+
+/* состояния */
+.states{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+@media (max-width:820px){.states{grid-template-columns:1fr}}
+.state-l{font-size:.6875rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute);margin-bottom:.4rem}
+.toast{display:flex;align-items:center;gap:.9rem;background:var(--text);color:var(--bg);border-radius:var(--radius-m);padding:.55rem .55rem .55rem .9rem;font-size:.8125rem;width:max-content;max-width:100%}
+.toast button{font:inherit;font-weight:600;color:inherit;background:color-mix(in srgb,var(--bg) 22%,transparent);border:0;border-radius:var(--radius-s);padding:.25rem .6rem}
+.empty{border:1px dashed var(--border2);border-radius:var(--radius-l);padding:1rem;color:var(--text-dim);font-size:.8125rem}
+.editing{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l)}
+.editing .editor{padding:.5rem 0 .2rem;min-height:0}
+.note-legend{font-size:.75rem;color:var(--text-mute);margin-top:.75rem}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+
+/* ── S-NOTES-2 ── */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 15rem;gap:1rem;align-items:start}
+@media (max-width:960px){.layout{grid-template-columns:1fr}}
+.rail{display:grid;gap:.5rem}
+.rail-h{font-size:.6875rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute)}
+.rail-card{display:flex;gap:.6rem;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-m);padding:.6rem .75rem;font-size:.8125rem;color:var(--text-dim)}
+.rail-card b{display:block;color:var(--text);font-weight:600}
+.rail-card span{display:block;font-size:.75rem}
+.rail-card.gone{border-style:dashed;background:transparent}
+.rail-card.gone b{text-decoration:line-through;text-decoration-color:var(--text-mute)}
+.essence{position:relative;max-width:72ch;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-l);padding:.6rem .85rem .65rem}
+.essence + .card{margin-top:.5rem}
+.essence p{margin:.25rem 0 0;font-size:.875rem}
+.ess-h{display:flex;align-items:center;gap:.6rem;font-size:.8125rem}
+.ess-hint,.ess-count{font-size:.6875rem;color:var(--text-mute)}
+.ess-count{margin-left:auto;font-variant-numeric:tabular-nums}
+.acts-inline{margin-left:auto;display:none;color:var(--text-dim)}
+.acts-inline span{display:grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:var(--radius-s)}
+.essence:hover .acts-inline,.essence:focus-within .acts-inline{display:flex}
+.editing-ess{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-l);background:var(--surface)}
+.ess-ed{padding:.35rem 0 .2rem;min-height:0}
+.empty-ess{background:transparent;border:1px dashed var(--border2)}
+.ghost-line{font:inherit;font-size:.8125rem;color:var(--text-mute);background:none;border:0;padding:.2rem 0 0;cursor:text;text-align:left}
+.body.clamp3{max-height:calc(1.55em * 3);overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent)}
+.menu{position:absolute;top:2.6rem;right:.55rem;z-index:3;display:grid;min-width:12rem;background:var(--popover,var(--surface));border:1px solid var(--border);border-radius:var(--radius-m);box-shadow:var(--shadow-md,var(--shadow-sm));padding:.25rem}
+.menu button{font:inherit;font-size:.8125rem;display:flex;align-items:center;gap:.5rem;text-align:left;background:none;border:0;border-radius:var(--radius-s);padding:.4rem .55rem;color:var(--text);cursor:pointer}
+.menu button:hover{background:var(--surface2)}
+.menu .danger{color:var(--danger-text,var(--red))}
+.stage-row{display:flex;gap:.6rem;max-width:72ch;padding:.3rem .25rem .3rem .55rem;margin:.1rem 0 .5rem}
+.stage-row .dot{width:.4rem;height:.4rem;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:.55rem}
+.st-main{flex:1;min-width:0}
+.st-line{display:flex;gap:.5rem;align-items:baseline;font-size:.8125rem;color:var(--text-dim)}
+.st-line b{color:var(--text);font-weight:600}
+.st-comment{margin-top:.3rem;padding:.4rem .6rem;border-radius:var(--radius-m);background:color-mix(in srgb,var(--yellow) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--yellow) 22%,var(--border));font-size:.8125rem}
+.editor.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8125rem;line-height:1.6;padding:.5rem 0 .2rem;min-height:0}
+.tools.in-card{margin:.5rem -.95rem 0;border-top:1px solid var(--border)}
+.err{display:flex;gap:.45rem;align-items:center;margin-top:.4rem;font-size:.8125rem;color:var(--danger-text,var(--red))}
+.cap{font-size:.75rem;color:var(--text-mute);margin:.4rem 0 0;max-width:60ch}
+.skel{border:1px solid var(--border);border-radius:var(--radius-l);padding:.8rem .95rem;display:grid;gap:.45rem;background:var(--surface)}
+.skel span{display:block;height:.6rem;border-radius:999px;background:var(--surface2)}
+.toast + .toast{margin-top:.5rem}
+[hidden]{display:none!important}
+/* ── тип касания без бокового маркера: вариант Б (пилюля) — в основной ленте ── */
+.kind.k-note,.kind.k-meet,.kind.k-call,.kind.k-ess{font-size:.75rem;font-weight:600;padding:.1rem .55rem;border-radius:999px;line-height:1.4}
+.kind.k-note{background:var(--yellow-l);color:var(--yellow-text,var(--yellow))}
+.kind.k-meet{background:var(--purple-l);color:var(--purple-text,var(--purple))}
+.kind.k-call{background:var(--blue-l);color:var(--blue-text,var(--blue))}
+.kind.k-ess{display:inline-flex;align-items:center;gap:.3rem;background:var(--accent-l);color:var(--accent-text,var(--accent))}
+/* сравнение вариантов */
+.variants{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;align-items:start}
+@media (max-width:1100px){.variants{grid-template-columns:1fr}}
+.variant{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);padding:.9rem}
+.variant h3{margin:0 0 .15rem;font-size:.9rem}
+.variant .vd{font-size:.75rem;color:var(--text-dim);margin:0 0 .75rem}
+.variant .tl{margin-top:.5rem}
+.variant .essence{margin-bottom:.6rem}
+/* А — тонированная шапка */
+.va .card.touch{padding-top:0;overflow:hidden}
+.va .card.touch .ch{margin:0 -.95rem .45rem;padding:.45rem .95rem}
+.va .ev-meet .ch{background:var(--purple-l)}
+.va .ev-call .ch{background:var(--blue-l)}
+.va .essence{padding:0;overflow:hidden}
+.va .essence .ess-h{background:var(--accent-l);padding:.4rem .85rem;color:var(--accent-text,var(--accent))}
+.va .essence p{padding:.1rem .85rem .6rem}
+.va .kind{font-size:.8125rem;padding:0;background:none}
+/* В — тон всей карточки */
+.vc .ev-meet .card.touch{background:color-mix(in srgb,var(--purple) 6%,var(--surface));border-color:color-mix(in srgb,var(--purple) 28%,var(--border))}
+.vc .ev-call .card.touch{background:color-mix(in srgb,var(--blue) 6%,var(--surface));border-color:color-mix(in srgb,var(--blue) 28%,var(--border))}
+.vc .essence{background:color-mix(in srgb,var(--accent) 7%,var(--surface));border-color:color-mix(in srgb,var(--accent) 28%,var(--border))}
+.vc .kind{font-size:.8125rem;padding:0;background:none}
+
+/* ── лента со шпилем (v2.1: сегменты между узлами, линия не касается кружков) ── */
+.tl{margin-top:1.4rem;max-width:calc(72ch + 2.6rem)}
+.tl-day{margin:.35rem 0 .7rem;display:flex}
+.tl-day:first-child{margin-top:0}
+.tl-day span{font-size:.6875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:.2rem .65rem}
+.ev{display:grid;grid-template-columns:2.6rem minmax(0,1fr);grid-template-rows:auto 1fr;padding-bottom:.6rem}
+.ev > .node{grid-column:1;grid-row:1;justify-self:center;margin-top:.55rem}
+.ev > :not(.node){grid-column:2;grid-row:1 / span 2;min-width:0}
+/* коннектор: от низа своего узла до верха следующего, с зазором .4rem с обеих сторон */
+.ev::before{content:"";grid-column:1;grid-row:2;justify-self:center;width:2px;border-radius:2px;background:var(--border);margin:.4rem 0 -.15rem}
+.ev:last-child::before,.ev:has(+ .tl-day)::before{display:none}
+.ev .node{width:1.95rem;height:1.95rem;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:2px solid var(--border);color:var(--text-dim)}
+.ev-note .node{background:var(--yellow-l);border-color:color-mix(in srgb,var(--yellow) 55%,transparent);color:var(--yellow-text,var(--yellow))}
+.ev-meet .node{background:var(--purple-l);border-color:color-mix(in srgb,var(--purple) 55%,transparent);color:var(--purple-text,var(--purple))}
+.ev-call .node{background:var(--blue-l);border-color:color-mix(in srgb,var(--blue) 55%,transparent);color:var(--blue-text,var(--blue))}
+.ev-stage .node{background:var(--accent);border-color:var(--accent);color:var(--bg);width:2.15rem;height:2.15rem;margin-top:.35rem}
+.ev-sys{padding-bottom:.35rem}
+.ev-sys .node{width:.55rem;height:.55rem;border:0;background:var(--border2);margin-top:.5rem}
+.ev-sys::before{margin-top:.35rem}
+.ev-sys .sys{padding-left:0}
+.kind.k-note{color:var(--yellow-text,var(--yellow))}
+.kind.k-meet{color:var(--purple-text,var(--purple))}
+.kind.k-call{color:var(--blue-text,var(--blue))}
+.card.touch{border-color:var(--border)}
+.res{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;color:var(--text-dim)}
+.people{display:flex;align-items:center;gap:.3rem;margin-top:.45rem;font-size:.75rem;color:var(--text-dim)}
+.av.sm{width:1.05rem;height:1.05rem;font-size:.5625rem;margin-right:-.15rem;border:1.5px solid var(--surface)}
+.people span:last-child{margin-left:.35rem}
+.step-d{margin-left:auto;font-size:.75rem;color:var(--text-mute);white-space:nowrap}
+.stage-card{border-radius:var(--radius-l);padding:.55rem .8rem .65rem;background:color-mix(in srgb,var(--accent) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border))}
+.stage-card .st-line{display:flex;align-items:center;gap:.45rem;font-size:.875rem}
+.st-from{color:var(--text-dim)}
+.st-arrow{color:var(--text-mute)}
+.stage-card .st-line b{color:var(--text);font-weight:700}
+.stage-card .st-comment{margin-top:.45rem;background:var(--surface);border:1px solid var(--border)}
+.tl-grp{margin:.25rem 0 0 .2rem}
+
+
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-task" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.8V5h6v5.8l2.3 2.3A1 1 0 0 1 16.6 15H7.4a1 1 0 0 1-.7-1.9z"/><path d="M8 5h8"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-plustask" viewBox="0 0 24 24"><path d="M11 12H3M16 6H3M16 18H3M18 9v6M21 12h-6"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 12h9a4 4 0 0 1 0 8H6V4h8a4 4 0 0 1 0 8"/></symbol>
+  <symbol id="i-italic" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></symbol>
+  <symbol id="i-heading" viewBox="0 0 24 24"><path d="M6 12h12M6 20V4M18 20V4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-olist" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-ai" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8L4 11l6.1 2.2L12 19l1.9-5.8L20 11l-6.1-2.2z"/></symbol>
+  <symbol id="i-pinoff" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M15 9.3V5h-6v1"/><path d="M8 5h8"/><path d="M9 10.8 6.7 13.1A1 1 0 0 0 7.4 15h9.2"/><path d="m2 2 20 20"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4"/><path d="M4 4h12l-2 4 2 4H4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+</svg>
+<div id="app" class="t-minimal">
+<div class="wrap">
+
+<header class="doc">
+  <div class="eyebrow">dashboard-crm · мокап на апрув · эпик S-NOTES, спринт S-NOTES-2</div>
+  <h1>Лента сделки на заметках: закрепление, правка, удаление</h1>
+  <p class="dim">Вкладка «Активность» карточки сделки. Данные — из таблицы <code>notes</code> и RPC <code>entity_timeline</code>, применённых в S-NOTES-1. Концепция «Лента сделки v2» одобрена 02.10; здесь — то, что войдёт в код S-NOTES-2, и все состояния.</p>
+  <p class="dim"><b>5 секунд:</b> открыв вкладку, менеджер видит суть сделки и закреплённое, затем что запланировано, затем историю касаний — и пишет заметку, не прокручивая.</p>
+</header>
+
+<section>
+  <div class="bar" role="group" aria-label="Тема мокапа">
+    <strong>Тема</strong>
+    <button type="button" data-theme="t-minimal" aria-pressed="true">minimal</button>
+    <button type="button" data-theme="t-aura" aria-pressed="false">aura</button>
+    <button type="button" data-theme="t-frost" aria-pressed="false">frost</button>
+    <span class="mute" style="font-size:.75rem">наведите на карточку — появятся действия</span>
+  </div>
+
+  <div class="layout" style="margin-top:.75rem">
+  <div class="sheet">
+    <div class="head">
+      <span class="t">Активность</span>
+      <button class="chip on" type="button">Все</button><button class="chip" type="button">Заметки</button><button class="chip" type="button">Звонки</button><button class="chip" type="button">Встречи</button><button class="chip" type="button">Задачи</button><button class="chip" type="button">Поля</button><button class="chip" type="button">AI</button>
+    </div>
+
+    <div class="composer">
+      <div class="tools" role="toolbar" aria-label="Форматирование">
+        <span title="Жирный · ⌘B"><svg class="i"><use href="#i-bold"/></svg></span><span title="Курсив · ⌘I"><svg class="i"><use href="#i-italic"/></svg></span><span title="Заголовок"><svg class="i"><use href="#i-heading"/></svg></span><span class="sep"></span><span title="Список"><svg class="i"><use href="#i-list"/></svg></span><span title="Нумерованный список"><svg class="i"><use href="#i-olist"/></svg></span><span title="Ссылка · ⌘K"><svg class="i"><use href="#i-link"/></svg></span>
+      </div>
+      <div class="editor"><span class="ph">Заметка по сделке… Вставка из Word, Google Docs и почты сохранит списки и жирный.</span></div>
+      <div class="cfoot"><span class="grow">⌘↵ — сохранить</span><button class="btn primary" type="button" disabled>Сохранить заметку</button></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><svg class="i"><use href="#i-pin"/></svg>Закреплено <span class="n">2 из 3</span></div>
+
+      <div class="essence">
+        <div class="ess-h"><span class="kind k-ess"><svg class="i"><use href="#i-pin"/></svg>Суть сделки</span><span class="ess-hint">поле сделки · читает AI</span><span class="acts-inline"><span title="Изменить"><svg class="i"><use href="#i-edit"/></svg></span></span></div>
+        <p>Рыбопереработка: маркировка пластов переменного веса, агрегация в короб, по запросу оптовиков — в палету. Блокер — учёт в 1С:УНФ без поддержки БИТ.MDT; схема с отдельной базой КА, решение до 06.10.</p>
+      </div>
+
+      <article class="card note pinned">
+        <div class="acts" aria-label="Действия"><span class="on" title="Открепить"><svg class="i"><use href="#i-pinoff"/></svg></span><span title="Изменить"><svg class="i"><use href="#i-edit"/></svg></span><span title="Скопировать текст"><svg class="i"><use href="#i-copy"/></svg></span><span title="Ещё"><svg class="i"><use href="#i-dots"/></svg></span></div>
+        <div class="ch"><span class="ico"><svg class="i"><use href="#i-note"/></svg></span><span class="kind">Заметка</span><span class="who"><span class="av">О</span>Олег Музыка</span><span class="when">2 окт, 16:56</span></div>
+        <div class="title">Квалификация АНФИШ — главное</div>
+        <div class="body clamp3" id="p1"><ul><li>Собственники в звонках не участвовали — ЛПР и бюджет не подтверждены.</li><li>Учёт в 1С:УНФ, БИТ.MDT её не поддерживает → контур маркировки на отдельной базе КА.</li><li>Решение по схеме — 05–06.10, до этого КП не отправлять.</li><li>Москва выезжала через 10 дней ожидания — скорость реакции для клиента аргумент.</li></ul></div>
+        <button class="more" type="button" aria-expanded="false" aria-controls="p1" data-more="p1" data-cls="clamp3">Показать полностью</button>
+      </article>
+
+      <article class="card note pinned">
+        <div class="ch"><span class="ico"><svg class="i"><use href="#i-note"/></svg></span><span class="kind">Заметка</span><span class="who"><span class="av">С</span>Сергей Базанов</span><span class="when">30 сен, 11:12</span></div>
+        <div class="title">Кто есть кто в ООО «АНФИШ»</div>
+        <div class="body clamp3" id="p2"><p>Наталья Сергеевна — технолог, ведёт проект ЧЗ, отвечает быстро. Наталья Викторовна — директор по производству, решение по оборудованию за ней. Бухгалтерия на аутсорсе, по 1С вопросы через Анну.</p></div>
+        <button class="more" type="button" aria-expanded="false" aria-controls="p2" data-more="p2" data-cls="clamp3">Показать полностью</button>
+      </article>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><svg class="i"><use href="#i-clock"/></svg>Запланировано <span class="n">3</span></div>
+      <div class="plan">
+        <div class="prow"><span class="box" aria-hidden="true"></span><span>Отправить требования к видео участка маркировки</span><span class="d over">просрочено · 2 окт</span></div>
+        <div class="prow"><span class="box" aria-hidden="true"></span><span>Получить видео и номенклатуру с кодами ТН ВЭД / ОКПД2</span><span class="d">5 окт · Олег</span></div>
+        <div class="prow"><svg class="i" style="color:var(--text-mute)"><use href="#i-users"/></svg><span>Встреча: схема 1С + Честный знак, разбор видео участка</span><span class="d">6 окт, 11:00 · Сергей</span></div>
+      </div>
+    </div>
+
+    <div class="tl">
+      <div class="tl-day"><span>Сегодня, 3 октября</span></div>
+
+      <div class="ev ev-note">
+        <span class="node" aria-hidden="true"><svg class="i"><use href="#i-note"/></svg></span>
+        <article class="card note hover" id="c1">
+          <div class="acts" aria-label="Действия"><span title="Закрепить"><svg class="i"><use href="#i-pin"/></svg></span><span title="Изменить"><svg class="i"><use href="#i-edit"/></svg></span><span title="Скопировать текст"><svg class="i"><use href="#i-copy"/></svg></span><span title="Ещё"><svg class="i"><use href="#i-dots"/></svg></span></div>
+          <div class="menu" role="menu"><button type="button" role="menuitem"><svg class="i"><use href="#i-link"/></svg>Скопировать ссылку</button><button type="button" role="menuitem" class="danger"><svg class="i"><use href="#i-trash"/></svg>Удалить</button></div>
+          <div class="ch"><span class="kind k-note">Заметка</span><span class="who"><span class="av">О</span>Олег Музыка</span><span class="when">10:41</span></div>
+          <div class="title">02.10.2026 · Zoom · ООО «АНФИШ» (ИНН 5056005909)</div>
+          <div class="body clamp" id="b1">
+            <p>Участники: Олег Музыка, Сергей Базанов (Первый Бит); Наталья — технолог, Наталья — директор по производству.</p>
+            <div class="h">Ситуация</div>
+            <ul><li>Считают 01.02.2027 обязательной датой по рыбе. Фактически эксперимент до 28.02.2027, дата 01.02.2027 — <strong>проект</strong>.</li><li>В ЧЗ зарегистрированы, карточек в Нацкаталоге нет.</li><li>Учёт: 1С:УНФ, внедрена 2 дня назад. ЭДО — СБИС.</li></ul>
+            <div class="h">Производство</div>
+            <ul><li>Тушки → разделка → вакуум → камера, созревание 1–3 сут.</li><li>Пласт — потребительская упаковка, короб 5–7 пластов, палета — 45 коробов.</li></ul>
+            <div class="h">Договорённости</div>
+            <ul><li>Клиент: видео участка маркировки + номенклатура с кодами.</li><li>Мы: требования к видео, решение по схеме 05–06.10.</li></ul>
+          </div>
+          <button class="more" type="button" aria-expanded="false" aria-controls="b1" data-more="b1" data-cls="clamp">Показать полностью</button>
+        </article>
+      </div>
+
+      <div class="ev ev-sys">
+        <span class="node" aria-hidden="true"></span>
+        <div><div class="sys"><span class="txt"><b>3 изменения</b> · Бюджет, Следующий шаг, Менеджер <button type="button" aria-expanded="false" data-grp="g1">показать</button></span><span class="when">10:44 · Олег</span></div>
+        <div class="grp tl-grp" id="g1" hidden><div>Бюджет: не указан → <b>1.2M ₽</b></div><div>Следующий шаг: «Получить видео участка»</div><div>Менеджер: Сергей Базанов → Олег Музыка</div></div></div>
+      </div>
+
+      <div class="ev ev-note">
+        <span class="node" aria-hidden="true"><svg class="i"><use href="#i-note"/></svg></span>
+        <article class="card note">
+          <div class="ch"><span class="kind k-note">Заметка</span><span class="who"><span class="av">В</span>Виктория Лебедева</span><span class="when">09:15 · <span class="edited" title="Изменено 3 окт, 09:40">изменено</span></span></div>
+          <div class="body"><p>Номер ГЛН у клиента есть. Икру год назад маркировали вручную: покупали коды, печатали и клеили сами. Созвон через неделю.</p></div>
+        </article>
+      </div>
+
+      <div class="tl-day"><span>Вчера, 2 октября</span></div>
+
+      <div class="ev ev-stage">
+        <span class="node" aria-hidden="true"><svg class="i"><use href="#i-flag"/></svg></span>
+        <div class="stage-card">
+          <div class="st-line"><span class="st-from">Квалификация</span><svg class="i st-arrow"><use href="#i-arrow"/></svg><b>Подготовка КП</b><span class="when">16:20 · Олег</span></div>
+          <div class="st-comment">Бюджет подтверждён на встрече, КП после решения по схеме 1С. Видео участка обещали до 5.10.</div>
+        </div>
+      </div>
+
+      <div class="ev ev-meet">
+        <span class="node" aria-hidden="true"><svg class="i"><use href="#i-users"/></svg></span>
+        <article class="card touch">
+          <div class="acts" aria-label="Действия"><span title="Изменить"><svg class="i"><use href="#i-edit"/></svg></span><span title="Скопировать текст"><svg class="i"><use href="#i-copy"/></svg></span></div>
+          <div class="ch"><span class="kind k-meet">Встреча</span><span class="res"><svg class="i"><use href="#i-check"/></svg>состоялась</span><span class="who"><span class="av">О</span>Олег Музыка</span><span class="when">14:00 · 1 ч 10 мин</span></div>
+          <div class="title">Установочная встреча · Zoom</div>
+          <div class="people"><span class="av sm">Н</span><span class="av sm">Н</span><span>Наталья (технолог), Наталья (директор по производству)</span></div>
+          <div class="body"><p>Прошли процесс от приёмки тушек до отгрузки палет. Ключевой вопрос — одна этикетка на пласт с DataMatrix, весом и датой, печать по артикулу без ручного ввода.</p></div>
+          <div class="step"><b>Дальше</b><span>Отправить требования к видео участка маркировки</span><span class="step-d">до 2 окт</span></div>
+        </article>
+      </div>
+
+      <div class="ev ev-call">
+        <span class="node" aria-hidden="true"><svg class="i"><use href="#i-phone"/></svg></span>
+        <article class="card touch">
+          <div class="ch"><span class="kind k-call">Звонок</span><span class="res"><svg class="i"><use href="#i-check"/></svg>дозвонились</span><span class="who"><span class="av">С</span>Сергей Базанов</span><span class="when">10:20 · 6 мин</span></div>
+          <div class="people"><span class="av sm">Н</span><span>Наталья, директор по производству</span></div>
+          <div class="body"><p>Подтвердили встречу на 14:00, попросили заранее список номенклатуры.</p></div>
+        </article>
+      </div>
+
+      <div class="ev ev-sys">
+        <span class="node" aria-hidden="true"></span>
+        <div class="sys"><span class="txt"><svg class="i" style="vertical-align:-.15em;margin-right:.25rem"><use href="#i-ai"/></svg>AI: бриф компании собран</span><span class="when">09:12 · система</span></div>
+      </div>
+      <div class="ev ev-sys">
+        <span class="node" aria-hidden="true"></span>
+        <div class="sys"><span class="txt">Задача закрыта: <b>подтвердить встречу</b></span><span class="when">09:05 · Сергей</span></div>
+      </div>
+    </div>
+
+    <button class="btn" type="button" style="margin-top:1rem">Показать ещё</button>
+  </div>
+
+  <aside class="rail" aria-label="Правая колонка — что изменилось">
+    <div class="rail-h">Правая колонка</div>
+    <div class="rail-card gone"><svg class="i"><use href="#i-pin"/></svg><div><b>«Закреплено» убрано</b><span>Поле переехало в ленту как «Суть сделки». Второго места правки больше нет.</span></div></div>
+    <div class="rail-card"><svg class="i"><use href="#i-users"/></svg><div><b>Стейкхолдеры</b><span>без изменений</span></div></div>
+    <div class="rail-card"><svg class="i"><use href="#i-note"/></svg><div><b>Материалы</b><span>без изменений, строка «Закреплённая заметка» уходит</span></div></div>
+  </aside>
+  </div>
+</section>
+
+<section>
+  <h2>Тип касания без бокового маркера — три варианта</h2>
+  <p class="dim" style="max-width:72ch">Кант слева убран отовсюду, включая «Суть сделки». Узел на шпиле остаётся во всех трёх — он и так несёт тип. Варианты отличаются тем, как тип повторяется внутри карточки. В основной ленте выше стоит Б.</p>
+  <div class="variants">
+    <div class="variant va">
+      <h3>А · Тонированная шапка</h3><p class="vd">Цвет типа — полосой-шапкой карточки, тело нейтральное. Тип виден издалека, но шапка — крупное цветное пятно на каждом касании.</p>
+      <div class="essence"><div class="ess-h"><span class="kind">Суть сделки</span></div><p>Маркировка пластов переменного веса, агрегация в короб. Блокер — учёт в 1С:УНФ, решение до 06.10.</p></div>
+      <div class="tl">
+        <div class="ev ev-meet"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-users"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-meet">Встреча</span><span class="res"><svg class="i"><use href="#i-check"/></svg>состоялась</span><span class="when">14:00</span></div>
+          <div class="title">Установочная встреча · Zoom</div><div class="body"><p>Ключевой вопрос — одна этикетка на пласт с DataMatrix и весом.</p></div></article></div>
+        <div class="ev ev-call"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-phone"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-call">Звонок</span><span class="res"><svg class="i"><use href="#i-check"/></svg>дозвонились</span><span class="when">10:20</span></div>
+          <div class="body"><p>Подтвердили встречу, попросили список номенклатуры.</p></div></article></div>
+      </div>
+    </div>
+    <div class="variant vb">
+      <h3>Б · Пилюля типа — рекомендую</h3><p class="vd">Карточка нейтральная, тип — маленькой пилюлей в шапке и узлом на шпиле. Меньше всего цвета, читается спокойно на длинной ленте.</p>
+      <div class="essence"><div class="ess-h"><span class="kind k-ess"><svg class="i"><use href="#i-pin"/></svg>Суть сделки</span></div><p>Маркировка пластов переменного веса, агрегация в короб. Блокер — учёт в 1С:УНФ, решение до 06.10.</p></div>
+      <div class="tl">
+        <div class="ev ev-meet"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-users"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-meet">Встреча</span><span class="res"><svg class="i"><use href="#i-check"/></svg>состоялась</span><span class="when">14:00</span></div>
+          <div class="title">Установочная встреча · Zoom</div><div class="body"><p>Ключевой вопрос — одна этикетка на пласт с DataMatrix и весом.</p></div></article></div>
+        <div class="ev ev-call"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-phone"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-call">Звонок</span><span class="res"><svg class="i"><use href="#i-check"/></svg>дозвонились</span><span class="when">10:20</span></div>
+          <div class="body"><p>Подтвердили встречу, попросили список номенклатуры.</p></div></article></div>
+      </div>
+    </div>
+    <div class="variant vc">
+      <h3>В · Тон всей карточки</h3><p class="vd">Вся карточка в лёгком оттенке типа, как бумага у заметок. Цельно и мягко, но заметки, встречи и звонки сливаются в «цветной поток», а стадия теряет выделенность.</p>
+      <div class="essence"><div class="ess-h"><span class="kind">Суть сделки</span></div><p>Маркировка пластов переменного веса, агрегация в короб. Блокер — учёт в 1С:УНФ, решение до 06.10.</p></div>
+      <div class="tl">
+        <div class="ev ev-meet"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-users"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-meet">Встреча</span><span class="res"><svg class="i"><use href="#i-check"/></svg>состоялась</span><span class="when">14:00</span></div>
+          <div class="title">Установочная встреча · Zoom</div><div class="body"><p>Ключевой вопрос — одна этикетка на пласт с DataMatrix и весом.</p></div></article></div>
+        <div class="ev ev-call"><span class="node" aria-hidden="true"><svg class="i"><use href="#i-phone"/></svg></span>
+          <article class="card touch"><div class="ch"><span class="kind k-call">Звонок</span><span class="res"><svg class="i"><use href="#i-check"/></svg>дозвонились</span><span class="when">10:20</span></div>
+          <div class="body"><p>Подтвердили встречу, попросили список номенклатуры.</p></div></article></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Состояния</h2>
+  <div class="states">
+    <div>
+      <div class="state-l">Правка заметки на месте</div>
+      <article class="card note editing">
+        <div class="ch"><span class="ico"><svg class="i"><use href="#i-note"/></svg></span><span class="kind">Заметка</span><span class="who"><span class="av">В</span>Виктория Лебедева</span><span class="when">09:15</span></div>
+        <div class="tools in-card"><span><svg class="i"><use href="#i-bold"/></svg></span><span><svg class="i"><use href="#i-italic"/></svg></span><span><svg class="i"><use href="#i-heading"/></svg></span><span class="sep"></span><span><svg class="i"><use href="#i-list"/></svg></span><span><svg class="i"><use href="#i-olist"/></svg></span><span><svg class="i"><use href="#i-link"/></svg></span></div>
+        <div class="editor mono">Номер ГЛН у клиента есть. Икру год назад маркировали **вручную**:<br>- покупали коды в ЧЗ<br>- печатали и клеили сами<br>Созвон через неделю.▍</div>
+        <div class="cfoot" style="padding-inline:0"><span class="grow">⌘↵ — сохранить · Esc — отмена</span><button class="btn ghost" type="button">Отмена</button><button class="btn primary" type="button">Сохранить</button></div>
+      </article>
+      <p class="cap">В поле — markdown как есть, панель вставляет разметку. Карточка после сохранения рендерит его. Правят автор (manager) и owner/admin.</p>
+
+      <div class="state-l" style="margin-top:1.25rem">Сохранение не прошло</div>
+      <article class="card note editing">
+        <div class="editor mono">Номер ГЛН у клиента есть. Созвон через неделю.</div>
+        <div class="err" role="alert"><svg class="i"><use href="#i-alert"/></svg>Не получилось сохранить — нет связи. Текст остался в поле.</div>
+        <div class="cfoot" style="padding-inline:0"><span class="grow"></span><button class="btn ghost" type="button">Отмена</button><button class="btn primary" type="button">Повторить</button></div>
+      </article>
+
+      <div class="state-l" style="margin-top:1.25rem">Суть сделки — правка и пусто</div>
+      <div class="essence editing-ess">
+        <div class="ess-h"><span class="kind">Суть сделки</span><span class="ess-count">214 / 500</span></div>
+        <div class="editor ess-ed">Рыбопереработка: маркировка пластов переменного веса, агрегация в короб. Блокер — учёт в 1С:УНФ; схема с отдельной базой КА, решение до 06.10.▍</div>
+        <div class="cfoot" style="padding-inline:0"><span class="grow">⌘↵ — сохранить · Esc — отмена</span><button class="btn ghost" type="button">Отмена</button><button class="btn primary" type="button">Сохранить</button></div>
+      </div>
+      <div class="essence empty-ess" style="margin-top:.5rem">
+        <div class="ess-h"><span class="kind">Суть сделки</span></div>
+        <button class="ghost-line" type="button">Две строки: что продаём и что мешает закрыть</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="state-l">Удаление с отменой</div>
+      <div class="toast" role="status">Заметка удалена <button type="button">Вернуть</button></div>
+      <p class="cap">Тост 8 секунд. «Вернуть» — <code>restore_note</code>. После тоста заметку видит в базе только автор и owner/admin, в ленте её нет.</p>
+
+      <div class="state-l" style="margin-top:1.25rem">Четвёртое закрепление</div>
+      <div class="toast" role="status">Закреплено уже три заметки. Открепите одну — и эта встанет на её место.</div>
+
+      <div class="state-l" style="margin-top:1.25rem">Чужая заметка (manager)</div>
+      <article class="card note hover">
+        <div class="acts" aria-label="Действия" style="display:flex"><span title="Закрепить"><svg class="i"><use href="#i-pin"/></svg></span><span title="Скопировать текст"><svg class="i"><use href="#i-copy"/></svg></span></div>
+        <div class="ch"><span class="ico"><svg class="i"><use href="#i-note"/></svg></span><span class="kind">Заметка</span><span class="who"><span class="av">С</span>Сергей Базанов</span><span class="when">30 сен</span></div>
+        <div class="body"><p>Бухгалтерия на аутсорсе, по 1С вопросы через Анну.</p></div>
+      </article>
+      <p class="cap">Править и удалять чужое manager не может — кнопок нет, а не «нет доступа» после клика.</p>
+
+      <div class="state-l" style="margin-top:1.25rem">Загрузка</div>
+      <div class="skel"><span style="width:38%"></span><span style="width:92%"></span><span style="width:76%"></span></div>
+      <div class="skel" style="margin-top:.5rem"><span style="width:30%"></span><span style="width:84%"></span></div>
+
+      <div class="state-l" style="margin-top:1.25rem">Лента не загрузилась</div>
+      <div class="empty">Ленту не удалось загрузить. <button class="more" type="button" style="padding:0">Повторить</button></div>
+
+      <div class="state-l" style="margin-top:1.25rem">Сделка без событий</div>
+      <div class="empty">Здесь появятся заметки, звонки и встречи по сделке. Начните с заметки по первому разговору.</div>
+
+      <div class="state-l" style="margin-top:1.25rem">Viewer</div>
+      <div class="empty">Композера нет. На карточках — только «Скопировать текст». «Суть сделки» — без кнопки правки.</div>
+    </div>
+  </div>
+</section>
+
+<section class="doc">
+  <h2>Что войдёт в S-NOTES-2 и что нет</h2>
+  <div class="decide">
+    <div><b>Входит</b>Зоны «Закреплено» (суть сделки + до 3 заметок) → «Запланировано» → история по дням. Карточки касаний, строка стадии с комментарием, склейка изменений полей. Правка заметки на месте с панелью markdown, вставка HTML из буфера как markdown, рендер своим парсером без HTML. Закрепить / открепить, удалить с «Вернуть». «Изменить» у встречи и звонка открывает их окно правки. Плитка «Последнее событие» и карточка «Закреплено» в правой колонке уходят. Миграция 135: снятие моста <code>trg_zz_notes_bridge</code>.</div>
+    <div><b>Не входит — S-NOTES-3</b>Вкладки композера (звонок, встреча, задача из ленты), поиск по ленте (RPC уже умеет <code>p_search</code>), та же лента у лида, компании, контакта и внедрения, «Задача из заметки».</div>
+    <div><b>Визуал истории (v2, 03.10)</b>Слева — шпиль ленты: короткие сегменты между узлами, линия не касается кружков (v2.1). Узлы по типу касания: заметка — жёлтый, встреча — фиолетовый, звонок — синий, смена стадии — акцентный узел-флаг и подкрашенная карточка «было → стало». Системные строки — мелкие точки на шпиле. Дни — пилюли на шпиле. Иконка типа переехала из карточки в узел, в карточке тип — пилюлей (вариант Б). Боковых кантов нет нигде. Статус встречи и звонка — нейтральный текст с галочкой, а не зелёная пилюля: так цветов в рабочей зоне четыре типовых и красный для просрочки.</div>
+    <div><b>Чем платим</b>«Суть сделки» и закреплённые заметки — два источника в одной зоне: поле без автора и истории, заметки с ними. Зато AI, автоматизации и гейт стадии продолжают работать с коротким полем без переделки. Цвет по типу — ещё три оттенка в ленте: держим их только в узле и подписи, фон карточек остаётся нейтральным, кроме заметок. Правка — markdown в поле, а не WYSIWYG: звёздочки видны, пока пишешь. Формат хранения тот же, WYSIWYG можно поставить позже без миграции.</div>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script>
+(function(){
+  var app=document.getElementById('app');
+  var themes=['t-minimal','t-aura','t-frost'];
+  document.querySelectorAll('.bar button[data-theme]').forEach(function(b){
+    b.addEventListener('click',function(){
+      themes.forEach(function(t){app.classList.remove(t)});
+      app.classList.add(b.dataset.theme);
+      document.querySelectorAll('.bar button[data-theme]').forEach(function(x){x.setAttribute('aria-pressed','false')});
+      b.setAttribute('aria-pressed','true');
+    });
+  });
+  document.querySelectorAll('[data-more]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var el=document.getElementById(btn.dataset.more);
+      var open=btn.getAttribute('aria-expanded')==='true';
+      el.classList.toggle(btn.dataset.cls||'clamp',open);
+      btn.setAttribute('aria-expanded',String(!open));
+      btn.textContent=open?'Показать полностью':'Свернуть';
+    });
+  });
+  document.querySelectorAll('[data-grp]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var el=document.getElementById(btn.dataset.grp);
+      el.hidden=!el.hidden;
+      btn.setAttribute('aria-expanded',String(!el.hidden));
+      btn.textContent=el.hidden?'показать':'скрыть';
+    });
+  });
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click',function(){document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});c.classList.add('on');});
+  });
+  var c1=document.getElementById('c1');
+  c1.addEventListener('mouseleave',function(){c1.classList.remove('hover')},{once:true});
+})();
+</script>
+
+</body></html>

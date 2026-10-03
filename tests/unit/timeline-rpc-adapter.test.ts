@@ -225,6 +225,74 @@ describe('rpcRowToEvent', () => {
     expect(junk.noteKind).toBe('note');
   });
 
+  // ═══ S-NOTES-2.1: meta комментария перехода и имена стадий ═══
+
+  it('note: meta.to_stage_id / from_stage_id → noteMeta (S-NOTES-2.1)', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'note',
+        payload: {
+          body: 'Бюджет подтверждён',
+          kind: 'stage_comment',
+          meta: { from_stage_id: 'stage-a', to_stage_id: 'stage-b' },
+        },
+      }),
+      NOW,
+    );
+    expect(e.noteMeta).toEqual({ fromStageId: 'stage-a', toStageId: 'stage-b' });
+  });
+
+  it('note: пустая meta, не-объект и нестроковые ключи → noteMeta нет', () => {
+    for (const meta of [{}, null, 'x', [], { to_stage_id: 5 }, { to_stage_id: '' }]) {
+      const e = rpcRowToEvent(row({ kind: 'note', payload: { body: 'x', kind: 'note', meta } }), NOW);
+      expect(e.noteMeta).toBeUndefined();
+    }
+  });
+
+  it('activity stage_changed: имена и id стадий → stage (S-NOTES-2.1)', () => {
+    const e = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: {
+          event_type: 'stage_changed',
+          payload: {
+            from_name: 'Квалификация',
+            to_name: 'Подготовка КП',
+            from_stage_id: 'stage-a',
+            to_stage_id: 'stage-b',
+          },
+        },
+      }),
+      NOW,
+    );
+    expect(e.stage).toEqual({
+      fromName: 'Квалификация',
+      toName: 'Подготовка КП',
+      fromStageId: 'stage-a',
+      toStageId: 'stage-b',
+    });
+    expect(e.eventType).toBe('stage_changed');
+  });
+
+  it('activity: stage — только у stage_changed; легаси stage_change и прочее его не несут', () => {
+    const legacy = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'stage_change', payload: { from: 'kp_sent', to: 'won' } },
+      }),
+      NOW,
+    );
+    expect(legacy.stage).toBeUndefined();
+    const other = rpcRowToEvent(
+      row({
+        kind: 'activity',
+        payload: { event_type: 'project_updated', payload: { to_name: 'x' } },
+      }),
+      NOW,
+    );
+    expect(other.stage).toBeUndefined();
+  });
+
   it('note: тело из одних пробелов и переводов строки — битая строка', () => {
     expect(isTimelineRpcRow(row({ kind: 'note', payload: { body: '  \n ' } }))).toBe(false);
   });

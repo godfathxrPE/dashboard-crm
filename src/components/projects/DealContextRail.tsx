@@ -1,8 +1,7 @@
 'use client';
 
-import { Activity, Pin } from 'lucide-react';
-import { useUpdateProject, type Project } from '@/lib/hooks/use-projects';
-import { InlineEdit } from '@/components/ui/InlineEdit';
+import { Activity } from 'lucide-react';
+import type { Project } from '@/lib/hooks/use-projects';
 import { RailCard } from '@/components/shared/RailCard';
 import { DeliveryHealthDot } from '@/components/shared/DeliveryHealthDot';
 import { DealSignals, scrollToSignalAnchor, type DealSignalsView } from './DealSignals';
@@ -18,7 +17,8 @@ import { cn } from '@/lib/utils/cn';
 // ═══════════════════════════════════════════════════════
 // S-DEAL-RAIL-1 (R-02, R-03): правая рельса контекста карточки сделки.
 //
-// Всё справочное — здоровье, сводка, участники, закреплённая заметка — уходит
+// Всё справочное — здоровье, сводка, участники (и закреплённая заметка до
+// S-NOTES-2.1, теперь «Суть сделки» в ленте) — уходит
 // в колонку 320px, а вертикаль полотна возвращается работе: шагу, вкладкам и
 // ленте. Порядок карточек фиксирован и держится здесь, а не в вызывающем.
 //
@@ -95,30 +95,6 @@ function HealthDeliveryCard({ health }: { health: DeliveryHealth }) {
 }
 
 /**
- * Закреплённая заметка. Только у сделки: у delivery/internal заметка команды
- * живёт в «Материалах проекта», и второе поле под ту же колонку `pinned_note`
- * означало бы два редактора одного значения на одной странице.
- */
-function PinnedNoteCard({ project }: { project: Project }) {
-  const updateProject = useUpdateProject();
-  return (
-    <RailCard icon={Pin} title="Закреплено">
-      {/* S-DEAL-ZONES-1A (F-08): мера строки на теле заметки, а не на карточке. */}
-      <div className="max-w-[72ch] text-body leading-relaxed">
-        <InlineEdit
-          as="textarea"
-          value={project.pinned_note ?? ''}
-          placeholder="Закрепить заметку…"
-          onSave={async (val) => {
-            updateProject.mutate({ id: project.id, pinned_note: val || null });
-          }}
-        />
-      </div>
-    </RailCard>
-  );
-}
-
-/**
  * Стейкхолдеры: id на обёртке — якорь CTA сигнала `single_threaded`.
  *
  * `pipelineId` идёт пропом отсюда, где `project` уже есть целиком: ожидания ролей
@@ -149,8 +125,11 @@ function StakeholdersBlock({ project, onEdit }: { project: Project; onEdit?: () 
  * же узле, что подложка.
  *
  * Пустой список сигналов — нормальное состояние: `HealthDealCard` вернёт null,
- * остаётся «Закреплено» и спокойная заливка. Второго абзаца «всё в норме» тут
+ * остаётся пульс и спокойная заливка. Второго абзаца «всё в норме» тут
  * НЕТ намеренно — уровень уже несёт цвет зоны.
+ *
+ * S-NOTES-2.1: карточка «Закреплено» ушла отсюда — поле `pinned_note` стало блоком
+ * «Суть сделки» зоны «Закреплено» в ленте (`DealPinnedZone`).
  */
 export function DealRisksZone({
   project,
@@ -164,7 +143,6 @@ export function DealRisksZone({
       {/* S-DEAL-ZONES-1B: кольцо только здесь — оно несёт пропорцию, которой в
           списке нет (норма свёрнута под «N в норме»). */}
       <HealthDealCard signals={signals} withRing />
-      <PinnedNoteCard project={project} />
       {/* S-DEAL-PULSE-1 (W8): последний в «Рисках» — тишина видна формой, не
           цифрой, и это самое дальнее чтение при скролле рельсы. */}
       <DealPulseCard project={project} />
@@ -264,13 +242,10 @@ export function DealContextRail({
           `single_threaded`, он и раньше жил на обёртке. */}
       <StakeholdersBlock project={project} onEdit={onEdit} />
 
-      {/* ─── 4. Закреплено ─── */}
-      {isDeal && <PinnedNoteCard project={project} />}
-
-      {/* ─── 5. Материалы ─── */}
+      {/* ─── 4. Материалы ─── */}
       {/* Последней: порядок карточек — по убыванию частоты обращения. Сигналы
-          смотрят каждый раз, сводку часто, участников реже, заметку и материалы
-          — по необходимости. */}
+          смотрят каждый раз, сводку часто, участников реже, материалы — по
+          необходимости. (Карточка «Закреплено» между ними ушла в ленту, S-NOTES-2.1.) */}
       <DealMaterialsCard
         project={project}
         isDelivery={isDelivery}

@@ -22,11 +22,16 @@ export function NoteBody({
   text,
   collapsedLines = 6,
   className,
+  expandLabel = 'Развернуть',
+  collapseLabel = 'Свернуть',
 }: {
   text: string;
   /** Высота свёрнутого вида в строках; 0 — без свёртки. */
   collapsedLines?: number;
   className?: string;
+  /** S-NOTES-2.1: подписи кнопки (лента сделки — «Показать полностью»). */
+  expandLabel?: string;
+  collapseLabel?: string;
 }) {
   const blocks = useMemo(() => parseNoteBlocks(text), [text]);
   const ref = useRef<HTMLDivElement>(null);
@@ -113,7 +118,7 @@ export function NoteBody({
           }}
           className="mt-1 text-xs font-semibold text-text-dim transition-colors hover:text-text-main"
         >
-          {expanded ? 'Свернуть' : 'Развернуть'}
+          {expanded ? collapseLabel : expandLabel}
         </button>
       )}
     </div>
