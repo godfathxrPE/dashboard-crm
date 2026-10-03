@@ -274,10 +274,41 @@ function cellsOf(tr: Element): Element[] {
 const LAYOUT_CELL_MAX = 300;
 
 /**
+ * Сетка таблицы: текст ячеек (инлайн `**…**` сохраняется), переносы → пробел, `|` → `\|`.
+ * `colspan` — ячейка плюс пустые; пустые строки выброшены; строки дополнены до общей ширины.
+ */
+function tableGrid(rows: Element[], ctx: Ctx): string[][] {
+  const grid = rows
+    .map((tr) =>
+      cellsOf(tr).flatMap((c) => {
+        const text = flatText(c, ctx).replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+        const span = Math.max(1, Math.min(parseInt(c.getAttribute('colspan') ?? '', 10) || 1, 100));
+        return [text, ...Array<string>(span - 1).fill('')];
+      }),
+    )
+    .filter((r) => r.some((v) => v !== ''));
+  const width = Math.max(0, ...grid.map((r) => r.length));
+  return grid.map((r) => [...r, ...Array<string>(width - r.length).fill('')]);
+}
+
+/**
+ * Колонка без текста во всех ячейках (включая первую строку) выбрасывается: колонка
+ * логотипа подписи, фото в каталоге, отступы Outlook. Картинки в заметке не хранятся —
+ * пустая колонка ничего не теряет.
+ */
+function dropEmptyColumns(grid: string[][]): string[][] {
+  const width = grid[0]?.length ?? 0;
+  const keep = Array.from({ length: width }, (_, c) => c).filter((c) => grid.some((r) => r[c] !== ''));
+  return grid.map((r) => keep.map((c) => r[c]));
+}
+
+/**
  * Вёрстка (письма Outlook и рассылок строятся таблицами), а не таблица данных.
  * `<p class=MsoNormal>` в ячейке — не признак: Word кладёт абзац в каждую ячейку.
+ * `grid` — сетка уже без пустых колонок: подпись «логотип | контакты» после отброса
+ * колонки логотипа остаётся в одну колонку и попадает под правило `≤ 1`.
  */
-function isLayoutTable(table: Element, rows: Element[]): boolean {
+function isLayoutTable(table: Element, rows: Element[], grid: string[][]): boolean {
   // Разметка доступности: так помечают вёрстку письма.
   const role = (table.getAttribute('role') ?? '').toLowerCase();
   if (role === 'presentation' || role === 'none') return true;
@@ -287,35 +318,20 @@ function isLayoutTable(table: Element, rows: Element[]): boolean {
   // это меньшее зло (решение гейта 03.10).
   if (table.querySelector('table') || table.parentElement?.closest('table')) return true;
   const cells = rows.flatMap(cellsOf);
-  // Ячейка-картинка без текста (логотип подписи, баннер, иконка соцсети). Иконка рядом
-  // с текстом в той же ячейке — не признак.
-  if (cells.some((c) => c.querySelector('img') && flatText(c, PLAIN) === '')) return true;
   if (cells.some((c) => c.querySelector('ul, ol, h1, h2, h3, h4, h5, h6, blockquote'))) return true;
-  if (Math.max(0, ...rows.map((tr) => cellsOf(tr).length)) <= 1) return true;
-  return cells.some((c) => flatText(c, PLAIN).length > LAYOUT_CELL_MAX);
+  if ((grid[0]?.length ?? 0) <= 1) return true;
+  return grid.some((r) => r.some((v) => v.length > LAYOUT_CELL_MAX));
 }
 
 /**
- * Таблица данных → GFM. Заголовок — первая строка (у Excel и Google Sheets она и есть
- * заголовок); `colspan` — ячейка плюс пустые; короткие строки дополняются до ширины.
+ * Сетка → GFM. Заголовок — первая строка (у Excel и Google Sheets она и есть заголовок).
  * Выравнивание не переносим: числовые колонки выравнивает рендер.
  */
-function tableToGfm(rows: Element[], ctx: Ctx): string {
-  const grid = rows
-    .map((tr) =>
-      cellsOf(tr).flatMap((c) => {
-        const text = flatText(c, ctx).replace(/\s*\n\s*/g, ' ').replace(/\|/g, '\\|');
-        const span = Math.max(1, Math.min(parseInt(c.getAttribute('colspan') ?? '', 10) || 1, 100));
-        return [text, ...Array<string>(span - 1).fill('')];
-      }),
-    )
-    .filter((r) => r.some((v) => v !== ''));
+function tableToGfm(grid: string[][]): string {
   if (grid.length === 0) return '';
-  const width = Math.max(...grid.map((r) => r.length));
-  const line = (r: string[]) =>
-    `| ${[...r, ...Array<string>(width - r.length).fill('')].join(' | ')} |`;
+  const line = (r: string[]) => `| ${r.join(' | ')} |`;
   const [head, ...body] = grid;
-  return [line(head), line(Array<string>(width).fill('---')), ...body.map(line)].join('\n');
+  return [line(head), line(head.map(() => '---')), ...body.map(line)].join('\n');
 }
 
 function walk(node: Node, ctx: Ctx, w: Writer): void {
@@ -377,8 +393,9 @@ function walk(node: Node, ctx: Ctx, w: Writer): void {
 
   if (tag === 'table') {
     const rows = ownRows(el);
+    const grid = dropEmptyColumns(tableGrid(rows, inner));
     w.gap(2);
-    if (isLayoutTable(el, rows)) {
+    if (isLayoutTable(el, rows, grid)) {
       // Вёрстка письма: строки и ячейки — как `div`, содержимое разбирается обычными блоками.
       for (const tr of rows) {
         w.gap(1);
@@ -390,7 +407,7 @@ function walk(node: Node, ctx: Ctx, w: Writer): void {
         w.gap(1);
       }
     } else {
-      const gfm = tableToGfm(rows, inner);
+      const gfm = tableToGfm(grid);
       if (gfm) w.emit(gfm, 2);
     }
     w.gap(2);

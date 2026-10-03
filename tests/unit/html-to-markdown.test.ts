@@ -249,6 +249,29 @@ describe('htmlToMarkdown · таблицы (fix-S-NOTES-2.2-tables)', () => {
     expect(md(html)).toBe('| Город | Офис |\n| --- | --- |\n| Москва | 1 |');
   });
 
+  it('каталог: колонка только с картинками выброшена → GFM из двух колонок', () => {
+    const img = '<td><img src="https://x/p.png"></td>';
+    const html =
+      `<table><tr>${img}<td>Товар</td><td>Цена</td></tr>` +
+      `<tr>${img}<td>Чай</td><td>100</td></tr><tr>${img}<td>Кофе</td><td>200</td></tr></table>`;
+    expect(md(html)).toBe('| Товар | Цена |\n| --- | --- |\n| Чай | 100 |\n| Кофе | 200 |');
+  });
+
+  it('колонка фото с заголовком «Фото» остаётся, ячейки тела пустые', () => {
+    const img = '<td><img src="https://x/p.png"></td>';
+    const html =
+      '<table><tr><td>Фото</td><td>Товар</td></tr>' +
+      `<tr>${img}<td>Чай</td></tr><tr>${img}<td>Кофе</td></tr></table>`;
+    expect(md(html)).toBe('| Фото | Товар |\n| --- | --- |\n|  | Чай |\n|  | Кофе |');
+  });
+
+  it('пустая средняя колонка-отступ (&nbsp;) выброшена', () => {
+    const html =
+      '<table><tr><td>a</td><td>&nbsp;</td><td>b</td></tr>' +
+      '<tr><td>c</td><td>&nbsp;</td><td>d</td></tr></table>';
+    expect(md(html)).toBe('| a | b |\n| --- | --- |\n| c | d |');
+  });
+
   it('Word: MsoTableGrid с <p class=MsoNormal> в ячейках → GFM без o:p', () => {
     const html =
       '<table class=MsoTableGrid border=1>' +
