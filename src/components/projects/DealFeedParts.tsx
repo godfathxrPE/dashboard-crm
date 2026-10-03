@@ -214,7 +214,7 @@ function ActionPlate({ children }: { children: ReactNode }) {
     <div
       role="toolbar"
       aria-label="Действия"
-      className="absolute right-2 top-2 flex gap-0.5 rounded-xl border border-border bg-popover p-0.5 shadow-sm
+      className="absolute right-2 top-2 flex gap-0.5 rounded-full border border-border bg-popover p-1 shadow-sm
                  opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100
                  [@media(hover:none)]:opacity-100"
     >
@@ -224,7 +224,7 @@ function ActionPlate({ children }: { children: ReactNode }) {
 }
 
 const ACTION_BTN =
-  'grid size-7 place-items-center rounded-md text-text-dim transition-colors hover:bg-surface2 ' +
+  'grid size-7 place-items-center rounded-full text-text-dim transition-colors hover:bg-surface2 ' +
   'hover:text-text-main disabled:opacity-50';
 
 function ActionButton({
@@ -263,7 +263,7 @@ function CopyTextButton({ value }: { value: string }) {
       iconSize={14}
       title="Скопировать текст"
       // Раскладку (inline-flex, центр) даёт сам `CopyButton`; `grid` из ACTION_BTN с ним спорил бы.
-      className="size-7 rounded-md text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+      className="size-7 rounded-full text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
     />
   );
 }
