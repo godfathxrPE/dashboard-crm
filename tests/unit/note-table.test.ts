@@ -45,4 +45,15 @@ describe('isNumericCell', () => {
   it.each(['', 'н/д', '2025 год'])('«%s» — не число', (v) => {
     expect(isNumericCell(v)).toBe(false);
   });
+
+  it.each(['721 105 (×8,5)', '16 355 (−9%)', '**19 074** (−25%)'])('«%s» — число с пометкой', (v) => {
+    expect(isNumericCell(v)).toBe(true);
+  });
+
+  it.each(['(н/д)', '2025 год (оценка)', '100 (очень длинная пометка в скобках)'])(
+    '«%s» — не число',
+    (v) => {
+      expect(isNumericCell(v)).toBe(false);
+    },
+  );
 });

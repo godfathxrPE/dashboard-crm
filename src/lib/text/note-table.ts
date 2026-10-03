@@ -55,7 +55,11 @@ export function isTableStart(lines: string[], i: number): boolean {
   return align !== null && align.length === splitRow(head).length;
 }
 
+/** Хвостовая пометка отчёта: `721 105 (×8,5)`, `16 355 (−9%)`. Длиннее 16 символов — уже текст. */
+const TRAILING_NOTE = /\s*\([^()]{1,16}\)$/;
+
+/** Число, в том числе с одной пометкой в скобках в конце. Пометка без числа (`(н/д)`) — не число. */
 export function isNumericCell(text: string): boolean {
-  const t = stripInline(text).trim();
+  const t = stripInline(text).trim().replace(TRAILING_NOTE, '');
   return t !== '' && NUMERIC.test(t);
 }
