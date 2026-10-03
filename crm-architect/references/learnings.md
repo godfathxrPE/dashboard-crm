@@ -78,8 +78,10 @@ OTHERS` в теле молча **маскирует** нарушение CHECK/c
 ### ⚠️ Порядок выката при смене формы ответа RPC
 Когда миграция меняет, ЧТО отдаёт RPC (новый `kind`, убран тип строки), клиент в main обязан понимать обе формы ДО apply. Иначе apply и мерж — одним окном. 02.10 (S-NOTES-1): `entity_timeline` перестала отдавать `comment_added`, а `TIMELINE_KINDS` в main не знал `note` — заметки пропали из лент прода до деплоя #151. Данные не пострадали. Детали: журнал, «S-NOTES-1».
 
-### ⚠️ MCP `apply_migration` виснет на `drop` — не на размере
-Миграция с оператором `drop` (trigger, function) через MCP висит до таймаута 180 с и не доходит до БД: инструмент ждёт подтверждения destructive-операции, а окна подтверждения в сессии нет. `create` / `create or replace` до ~11 КБ проходят. Вывод 02.10 «дело в размере» был ошибкой — 03.10 двухстрочная 135 повисла так же. Порядок: миграцию с `drop` — сразу через SQL Editor владельца одной транзакцией с `insert into supabase_migrations.schema_migrations`; перед повтором любой упавшей — проверить сигнатуру и `pg_stat_activity`. Детали: журнал, «S-NOTES-1», «S-NOTES-2.1».
+### ⚠️ MCP `apply_migration` / `execute_sql` виснет на `drop` и на `delete` в DO-блоке — не на размере
+Миграция с оператором `drop` (trigger, function) через MCP висит до таймаута 180 с и не доходит до БД: инструмент ждёт подтверждения destructive-операции, а окна подтверждения в сессии нет. `create` / `create or replace` до ~11 КБ проходят. Вывод 02.10 «дело в размере» был ошибкой — 03.10 двухстрочная 135 повисла так же.
+Висит не только DDL `drop`, но и DML `delete` внутри DO-блока: 03.10 (136) одиночный `delete from pipeline_stages` прошёл, а связка `insert into pipelines` + `delete from pipeline_stages` в одном DO висла 6 раз подряд — и через `execute_sql`, и через `apply_migration`, без следа в `pg_stat_activity` и в логах Postgres (до БД запрос не доходит).
+Порядок: **миграцию с `drop` или `delete` — сразу через SQL Editor владельца** одной транзакцией с `insert into supabase_migrations.schema_migrations`; прогон вхолостую — там же (DO-блок с `raise exception` в конце). Перед повтором любой упавшей — проверить сигнатуру и `pg_stat_activity`. Детали: журнал, «S-NOTES-1», «S-NOTES-2.1», «S-PIPE-SPLIT-1».
 
 ---
 
