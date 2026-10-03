@@ -78,7 +78,7 @@ function NoteTable({ block }: { block: Extract<NoteBlock, { type: 'table' }> }) 
       className="max-w-full overflow-x-auto rounded-sm focus-visible:outline-none focus-visible:ring-2
                  focus-visible:ring-accent"
     >
-      <table className="w-max min-w-full border-collapse text-body tabular-nums">
+      <table className="note-table w-max min-w-full border-collapse text-body tabular-nums">
         <thead>
           <tr className="border-b border-border">
             {block.header.map((h, c) => (
@@ -216,7 +216,8 @@ export function NoteBody({
             e.stopPropagation();
             setExpanded((v) => !v);
           }}
-          className="mt-1 text-xs font-semibold text-text-dim transition-colors hover:text-text-main"
+          className="mt-1 rounded-sm text-xs font-semibold text-text-dim transition-colors hover:text-text-main
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {expanded ? collapseLabel : expandLabel}
         </button>
