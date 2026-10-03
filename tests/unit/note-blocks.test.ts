@@ -27,9 +27,9 @@ describe('parseNoteBlocks', () => {
         type: 'paragraph',
         text: '02.10.2026 · Zoom · ООО «АНФИШ» (ИНН 5056005909)\nУчастники: Олег, Сергей.',
       },
-      { type: 'heading', text: 'Ситуация' },
+      { type: 'heading', level: 3, text: 'Ситуация' },
       { type: 'list', items: ['Считают вручную', 'В ЧЗ нет интеграции'] },
-      { type: 'heading', text: 'Решение (предварительно)' },
+      { type: 'heading', level: 3, text: 'Решение (предварительно)' },
       { type: 'list', items: ['Подключить 1С', 'Завести шаблон', 'Обучить кладовщиков'] },
     ]);
   });
@@ -48,20 +48,20 @@ describe('parseNoteBlocks', () => {
 
   it('«Итоги:» перед списком — заголовок, двоеточие сохраняется', () => {
     expect(parseNoteBlocks('Итоги:\n- первое\n- второе')).toEqual([
-      { type: 'heading', text: 'Итоги:' },
+      { type: 'heading', level: 3, text: 'Итоги:' },
       { type: 'list', items: ['первое', 'второе'] },
     ]);
   });
 
   it('заголовок находится через пустую строку до списка', () => {
-    expect(parseNoteBlocks('Итоги\n\n- первое')[0]).toEqual({ type: 'heading', text: 'Итоги' });
+    expect(parseNoteBlocks('Итоги\n\n- первое')[0]).toEqual({ type: 'heading', level: 3, text: 'Итоги' });
   });
 
   it('строка длиной 49 без пунктуации перед списком — абзац', () => {
     const long = 'а'.repeat(49);
     expect(parseNoteBlocks(`${long}\n- пункт`)[0]).toEqual({ type: 'paragraph', text: long });
     const ok = 'а'.repeat(48);
-    expect(parseNoteBlocks(`${ok}\n- пункт`)[0]).toEqual({ type: 'heading', text: ok });
+    expect(parseNoteBlocks(`${ok}\n- пункт`)[0]).toEqual({ type: 'heading', level: 3, text: ok });
   });
 
   it('строка без маркера сразу после пункта склеивается с пунктом', () => {
@@ -76,10 +76,15 @@ describe('parseNoteBlocks', () => {
     ['—', '— пункт'],
     ['*', '* пункт'],
     ['-', '- пункт'],
-    ['1.', '1. пункт'],
-    ['1)', '1) пункт'],
   ])('маркер %s — пункт списка', (_m, line) => {
     expect(parseNoteBlocks(line)).toEqual([{ type: 'list', items: ['пункт'] }]);
+  });
+
+  it.each([
+    ['1.', '1. пункт'],
+    ['1)', '1) пункт'],
+  ])('маркер %s — пункт нумерованного списка', (_m, line) => {
+    expect(parseNoteBlocks(line)).toEqual([{ type: 'olist', items: ['пункт'] }]);
   });
 
   it('маркер без пробела — не пункт: «1.5 млн», «-5 градусов», «*важно*»', () => {
@@ -102,6 +107,53 @@ describe('parseNoteBlocks', () => {
     expect(parseNoteBlocks('раз\nдва\n\nтри')).toEqual([
       { type: 'paragraph', text: 'раз\nдва' },
       { type: 'paragraph', text: 'три' },
+    ]);
+  });
+});
+
+describe('parseNoteBlocks · markdown (S-NOTES-2.2)', () => {
+  it('`## Итоги` — заголовок уровня 2', () => {
+    expect(parseNoteBlocks('## Итоги')).toEqual([{ type: 'heading', level: 2, text: 'Итоги' }]);
+  });
+
+  it.each([
+    ['# a', 1],
+    ['## a', 2],
+    ['### a', 3],
+  ])('«%s» — уровень %i', (line, level) => {
+    expect(parseNoteBlocks(line)).toEqual([{ type: 'heading', level, text: 'a' }]);
+  });
+
+  it('четыре решётки, «#хэштег» и «#» без текста — обычный текст', () => {
+    for (const s of ['#### a', '#хэштег', '#']) {
+      expect(parseNoteBlocks(s)).toEqual([{ type: 'paragraph', text: s }]);
+    }
+  });
+
+  it('заголовок разрывает абзац и список без пустой строки', () => {
+    expect(parseNoteBlocks('текст\n## Итоги\n- а\n## Дальше\nещё')).toEqual([
+      { type: 'paragraph', text: 'текст' },
+      { type: 'heading', level: 2, text: 'Итоги' },
+      { type: 'list', items: ['а'] },
+      { type: 'heading', level: 2, text: 'Дальше' },
+      { type: 'paragraph', text: 'ещё' },
+    ]);
+  });
+
+  it('`1. a` и `2. b` — один нумерованный список', () => {
+    expect(parseNoteBlocks('1. a\n2. b')).toEqual([{ type: 'olist', items: ['a', 'b'] }]);
+  });
+
+  it('нумерованный сразу после маркированного — отдельный список', () => {
+    expect(parseNoteBlocks('- a\n1. b')).toEqual([
+      { type: 'list', items: ['a'] },
+      { type: 'olist', items: ['b'] },
+    ]);
+  });
+
+  it('инлайн-разметка остаётся в тексте блока как есть', () => {
+    expect(parseNoteBlocks('**Итог:** см. [КП](https://x.ru)')).toEqual([
+      { type: 'paragraph', text: '**Итог:** см. [КП](https://x.ru)' },
     ]);
   });
 });
@@ -137,6 +189,15 @@ describe('noteToPlainLine', () => {
   it('пустой вход → пустая строка', () => {
     expect(noteToPlainLine('  \n')).toBe('');
   });
+
+  it('снимает инлайн-разметку: жирный, курсив, ссылка', () => {
+    expect(noteToPlainLine('**Итог:** [КП](https://x)')).toBe('Итог: КП');
+    expect(noteToPlainLine('это *важно* и _срочно_')).toBe('это важно и срочно');
+  });
+
+  it('`## ` и номер списка снимаются', () => {
+    expect(noteToPlainLine('## Итоги\n1. **первое**\n2. второе')).toBe('Итоги первое второе');
+  });
 });
 
 describe('noteHeadline', () => {
@@ -155,6 +216,11 @@ describe('noteHeadline', () => {
   it('длинная первая строка с продолжением — тело целиком, переносы сохранены', () => {
     const first = 'б'.repeat(121);
     expect(noteHeadline(`${first}\n- пункт`)).toEqual({ head: null, rest: `${first}\n- пункт` });
+  });
+
+  it('разметка в первой строке снята: `## Итоги` и `**Итог**` → чистый заголовок', () => {
+    expect(noteHeadline('## Итоги встречи\nтело')).toEqual({ head: 'Итоги встречи', rest: 'тело' });
+    expect(noteHeadline('**Итог:** [КП](https://x)').head).toBe('Итог: КП');
   });
 
   it('ровно на пороге — ещё заголовок', () => {

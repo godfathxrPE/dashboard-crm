@@ -1,15 +1,9 @@
 'use client';
 
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pencil, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { MarkdownEditor } from '@/components/shared/MarkdownEditor';
 import { useProject, useUpdateProject } from '@/lib/hooks/use-projects';
 import { PINNED_LIMIT, usePinnedNotes, pinnedNotesKey, type NoteEntityType } from '@/lib/hooks/use-notes';
 import { useRealtimeSync } from '@/lib/hooks/use-realtime';
@@ -110,34 +104,9 @@ function EssenceEditor({
   onCancel: () => void;
 }) {
   const [text, setText] = useState(initial);
-  const ref = useRef<HTMLTextAreaElement>(null);
   // Длиннее потолка приходит от AI-прогрессии (до 2000): держим исходную длину как
   // максимум, иначе такую сделку нельзя было бы даже открыть на правку без обрезки.
   const limit = Math.max(ESSENCE_MAX, initial.length);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    el.setSelectionRange(el.value.length, el.value.length);
-  }, []);
-
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      onSave(text);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  };
 
   return (
     <div className="max-w-[72ch] rounded-lg border border-accent bg-surface px-[0.85rem] pb-2.5 pt-2.5">
@@ -155,17 +124,19 @@ function EssenceEditor({
           {text.length} / {limit}
         </span>
       </div>
-      <textarea
-        ref={ref}
+      {/* Суть — 1–2 предложения, разметка ей не нужна: поле без панели. */}
+      <MarkdownEditor
         value={text}
+        onChange={setText}
+        onSubmit={() => onSave(text)}
+        onCancel={onCancel}
+        toolbar={false}
         maxLength={limit}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={2}
+        autoFocus
         aria-label="Суть сделки"
         placeholder="Две строки: что продаём и что мешает закрыть"
-        className="mt-1 block w-full resize-none bg-transparent text-sm leading-relaxed text-text-main
-                   placeholder:text-text-mute focus:outline-none"
+        className="mt-1"
+        fieldClassName="text-sm"
       />
       <div className="mt-1 flex items-center gap-2 text-xs text-text-mute">
         <span className="mr-auto">⌘↵ — сохранить · Esc — отмена</span>
