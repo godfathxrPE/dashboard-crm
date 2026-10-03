@@ -40,9 +40,8 @@ export function DealMaterialsCard({
   const { data: videos } = useProjectVideos(projectId);
   const fileCount = files?.length ?? 0;
   const videoCount = videos?.length ?? 0;
-  // Заметка команды живёт в «Материалах» только у delivery/internal: у сделки то же
-  // поле `pinned_note` уже редактируется карточкой «Закреплено» в этой же рельсе.
-  const hasTeamNote = isDelivery || project.type === 'internal';
+  // S-NOTES-2.1: строки про `pinned_note` здесь больше нет. У сделки поле стало «Сутью
+  // сделки» в ленте; у delivery/internal «Заметки проекта» живут в самой модалке материалов.
 
   return (
     // Кликабельна вся карточка, включая строки с нулём: ноль — повод открыть и
@@ -59,13 +58,6 @@ export function DealMaterialsCard({
             {project.do_url
               ? <Value>привязан</Value>
               : <Value muted>привязать</Value>}
-          </RailRow>
-        )}
-        {hasTeamNote && (
-          <RailRow label="Заметки">
-            {project.pinned_note
-              ? <Value>есть</Value>
-              : <Value muted>—</Value>}
           </RailRow>
         )}
         <RailRow label="Файлы">

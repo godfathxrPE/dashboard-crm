@@ -107,4 +107,16 @@ export type TimelineEvent = {
   editedAt?: string | null;
   /** S-NOTES-1: `stage_comment` — комментарий перехода стадии. Только у `kind='note'`. */
   noteKind?: 'note' | 'stage_comment';
+  /**
+   * S-NOTES-2.1: `notes.meta` комментария перехода (`from_stage_id` / `to_stage_id`) —
+   * по нему лента прикрепляет комментарий к смене стадии. Только у `kind='note'`;
+   * поле есть, когда в `meta` нашёлся хотя бы один из двух ключей.
+   */
+  noteMeta?: { fromStageId?: string; toStageId?: string };
+  /**
+   * S-NOTES-2.1: смена стадии (`event_type = 'stage_changed'`, 087) — имена и id из
+   * payload журнала для карточки «было → стало». У легаси-`stage_change` (до 14.07)
+   * полей нет: в payload лежат enum'ы, а не имена. Только у `kind='activity'`.
+   */
+  stage?: { fromName?: string; toName?: string; fromStageId?: string; toStageId?: string };
 };

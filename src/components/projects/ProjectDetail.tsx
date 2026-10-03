@@ -51,6 +51,7 @@ import { SpawnWizard } from './SpawnWizard';
 import { canManageDeliveryProject } from '@/lib/utils/project-permissions';
 import { cn } from '@/lib/utils/cn';
 import { useOrgRole } from '@/lib/hooks/use-org-role';
+import { canWriteFeed } from '@/lib/notes/permissions';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { ProjectTeam } from './ProjectTeam';
 import { InlineConfirm } from '@/components/ui/InlineConfirm';
@@ -454,10 +455,12 @@ function ProjectDetailBody({ project, projectId }: { project: Project; projectId
                 </>
               )}
             </div>
-            {/* S-DEAL-EVENT-1: последнее событие и его следствия — НАД композером
-                и над лентой. Своего запроса не заводит: ключ совпадает с чипом «Все». */}
-            <DealLastEvent entityId={projectId} onOpenEvent={handleOpenEvent} />
-            <ActivityComposer entityType="project" entityId={projectId} variant="deal" />
+            {/* S-NOTES-2.1: плитки «Последнее событие» (S-DEAL-EVENT-1) здесь больше нет —
+                ленту ведут зоны «Закреплено» → «Запланировано» → история. Viewer пишет не
+                может: композера для него нет (RLS `notes_insert` всё равно закрыта). */}
+            {canWriteFeed(orgRole) && (
+              <ActivityComposer entityType="project" entityId={projectId} variant="deal" />
+            )}
             <DealActivityFeed
               entityId={projectId}
               filter={activityFilter}

@@ -100,7 +100,7 @@ export const AUTOMATION_FIELD_OPTIONS: { value: string; label: string; numeric?:
   { value: 'budget', label: 'Бюджет', numeric: true },
   { value: 'probability', label: 'Вероятность, %', numeric: true },
   { value: 'next_step', label: 'Следующий шаг' },
-  { value: 'pinned_note', label: 'Закреплённая заметка' },
+  { value: 'pinned_note', label: 'Суть сделки' },
   { value: 'next_action_date', label: 'Дата следующего действия' },
   { value: 'deadline', label: 'Дедлайн' },
   { value: 'direction', label: 'Направление' },
@@ -158,7 +158,7 @@ export const AUTOMATION_SET_FIELD_OPTIONS: {
   hint?: string;
 }[] = [
   { value: 'next_step', label: 'Следующий шаг', input: 'text' },
-  { value: 'pinned_note', label: 'Закреплённая заметка', input: 'text' },
+  { value: 'pinned_note', label: 'Суть сделки', input: 'text' },
   { value: 'next_action_date', label: 'Дата следующего действия', input: 'date' },
   {
     value: 'probability',

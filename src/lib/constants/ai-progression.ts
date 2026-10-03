@@ -26,7 +26,7 @@ export const PROGRESSION_FIELDS: {
 }[] = [
   { key: 'next_step', label: 'Следующий шаг', kind: 'text' },
   { key: 'next_action_date', label: 'Дата следующего действия', kind: 'date' },
-  { key: 'pinned_note', label: 'Закреплённая заметка', kind: 'text' },
+  { key: 'pinned_note', label: 'Суть сделки', kind: 'text' },
   {
     key: 'probability',
     label: 'Вероятность, %',

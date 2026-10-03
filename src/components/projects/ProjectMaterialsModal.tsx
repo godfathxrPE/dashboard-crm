@@ -75,8 +75,9 @@ export function ProjectMaterialsModal({
         )}
 
         {/* S-PROJECT-WORKSPACE-1 (п.6): заметки проекта для команды — переиспользуем
-            projects.pinned_note (017); на client заметка уже в рельсе («Закреплено»)
-            — не дублируем. Пишет canManage, команда читает. */}
+            projects.pinned_note (017); у сделки (client) это поле — «Суть сделки» в зоне
+            «Закреплено» ленты (S-NOTES-2.1), здесь не дублируем. Пишет canManage,
+            команда читает. */}
         {(isDelivery || project.type === 'internal') && (
           <div className="rounded-xl border border-border bg-surface p-4">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-text-main">
