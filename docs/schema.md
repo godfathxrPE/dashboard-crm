@@ -1399,6 +1399,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 | duration_ms | int | |
 | rating | smallint | CHECK `-1`\|`1` — 👍/👎 фидбек юзера |
 | feedback_note | text | «что не так» при 👎 (QA-датасет) |
+| auto_reason | text | **138 (S-BRIEF-IN-DEAL-1.1, НЕ ПРИМЕНЕНА)** — причина автозапуска брифа `no_brief`\|`stage`\|`stale`; NULL — ручной прогон. CHECK `ai_runs_auto_reason_check`: не NULL только при `preset_key = 'company_brief'` и `entity_type = 'company'`. Страж `trg_ai_runs_auto_reason_guard` (BEFORE INSERT OR UPDATE OF auto_reason): под `auth.uid()` поставить или сменить признак → 42501; ставит только `brief_auto_tick()` |
 | created_by | uuid | NOT NULL DEFAULT `auth.uid()` → profiles |
 | created_at / finished_at | timestamptz | |
 | — | — | INDEX `idx_ai_runs_entity`(entity_type,entity_id,created_at DESC), `idx_ai_runs_org_created`(org_id,created_at DESC) |
@@ -1505,6 +1506,51 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
 `callClaude` не тронут — все остальные пресеты идут прежним путём. Контекст брифа —
 карточка компании + вычисленный кодом маркировочный профиль ЧЗ по ОКВЭД
 (`src/lib/data/chz-groups.ts`, зеркало в `supabase/functions/ai-run/chz-groups.ts`).
+
+**138 (S-BRIEF-IN-DEAL-1.1) — НАПИСАНА, НЕ ПРИМЕНЕНА**: автозапуск AI-брифа компании.
+Бриф был у 2 из 16 компаний с открытыми сделками, кнопку не нажимали с 04.09 — теперь
+бриф собирается сам: по триггерам, с дневным лимитом, фоновой очередью. Решения
+владельца 29.09 и 03.10.
+
+- **Триггеры** (у компании открытая сделка `type = 'client' and status = 'open'`):
+  `no_brief` — нет ни одного `company_brief` в `done`; `stage` — сделка вошла в стадию с
+  `phase_group = 'working'` позже, чем последний бриф + 30 дн. (по `stage_transitions`;
+  имён стадий и id воронок в SQL нет); `stale` — последний бриф старше 90 дн. Пороги
+  30 / 90 дн. зеркалит TS-константа `BRIEF_STALE_DAYS` (1.2). Порядок очереди: `stage` →
+  `no_brief` → `stale`, внутри — ближайшая `next_action_date` открытой сделки.
+- **Не чаще:** один активный прогон на компанию (`ux_ai_runs_active_entity`), пауза
+  45 мин после `error`, не больше 2 автопопыток на компанию за сутки МСК.
+- **Лимит:** 10 автопрогонов в сутки (МСК) на org; переопределение —
+  `organizations.settings.brief_auto_daily_limit` (целое; `0` — автозапуск выключен;
+  нецелое — дефолт 10, не ошибка тика). Ручные прогоны вне лимита.
+- **Автор автопрогона** (`created_by`) — владелец сделки (`owner_id`, запасной —
+  `created_by` сделки). Видимость — существующая ветка `companies` в `ai_runs_select`,
+  RLS не менялись.
+- **Функции** (все `SECURITY DEFINER SET search_path = public, pg_temp`):
+
+  | Функция | Что | ACL |
+  |---------|-----|-----|
+  | `brief_auto_day_start()` | начало суток МСК — одна граница для тика, кандидатов и RPC | `service_role` |
+  | `brief_auto_daily_limit(uuid)` | лимит org из `settings`, иначе 10 | `service_role` |
+  | `company_brief_candidates()` | вычисляемая очередь: `org_id, company_id, reason, author_id, next_action_date`; видит все org | `service_role` |
+  | `company_brief_auto_state(uuid)` | RPC для UI 1.2: `reason, used_today, daily_limit, attempts_today`; org-first (`current_org_id()`), чужая/нет компании → 0 строк, `reason = NULL` — «сейчас не в очереди» | `authenticated`, `service_role` |
+  | `brief_auto_tick()` | `pg_advisory_xact_lock` → реклейм автопрогонов `pending`/`running` старше 15 мин → нет кандидатов — выход → нет Vault — выход → по org: `least(2, лимит − использовано)` INSERT `ai_runs` (`auto_reason`) + `net.http_post` в `ai-run` | `service_role` |
+  | `ai_runs_auto_reason_guard()` | триггер-страж `auto_reason` | `service_role` |
+
+- **Очередь вычисляемая, не таблица**: таблица очереди стала бы вторым источником
+  правды рядом с `ai_runs`. Резерв лимита — INSERT строки в той же транзакции, что
+  подсчёт; дубль по компании отсекает уникальный индекс (`unique_violation` → следующий).
+- **Крон `brief-auto`** — `40 5-16 * * *` UTC (08:40–19:40 МСК), 12 тиков в сутки, ≤ 2
+  прогона за тик (не залпом: лимит провайдера по токенам в минуту). Холостой тик — один
+  запрос и выход (бюджет I-1, 133). Ошибки тика **не глотаются** — видны в
+  `cron.job_run_details`.
+- **Vault** (заводит владелец): `brief_auto_key` (= Function Secret `BRIEF_AUTO_KEY`),
+  `brief_auto_url` (`…/functions/v1/ai-run`), `brief_auto_jwt` (легаси-anon JWT для шлюза).
+- **Порядок включения:** apply 138 → реген типов → деплой `ai-run` → секреты. Безопасен в
+  любой точке: без секретов тик выходит молча, без деплоя pg_net-вызовов нет.
+- **Обратимость:** `cron.unschedule('brief-auto')` → drop пяти функций → drop
+  триггера и стража → drop CHECK; колонку `auto_reason` — только по «да» владельца (в ней
+  журнал автозапусков). Полный текст — в шапке миграции.
 
 ---
 
@@ -4715,6 +4761,23 @@ RETURN`) — упавший проход не оставляет cron-job в о�
   refetch-страховка / `useStartRun` / `useRunRating`); UI — `AiRunPanel` + рендереры в
   `src/components/ai/`. Action item протокола → `TaskModal` (`defaultText`/
   `defaultDeadline`), принцип «AI предлагает — юзер подтверждает».
+- **Ветка диспетчера автозапуска брифа (138, S-BRIEF-IN-DEAL-1.1 — НЕ задеплоена)** —
+  единственное исключение из «service_role НЕ используется». Вход — заголовок
+  `X-Dispatch-Key`, проверка **до** разбора тела (`handleAutoDispatch`). Зовёт только
+  `brief_auto_tick()` (pg_cron → pg_net); шлюз (`verify_jwt = true`, **не менялся**)
+  проходит легаси-anon JWT из Vault `brief_auto_jwt`, доступ к ветке решает только ключ.
+  Порядок: ключ (`BRIEF_AUTO_KEY`, `timingSafeEqual` из `_shared/timing-safe.ts`; пусто
+  или не совпал → 401) → тело `{ run_id: uuid }` (иначе 400) → гард ключа провайдера
+  (500, строка остаётся `pending`, её реклеймит тик через 15 мин) → сервисный клиент
+  (создаётся только здесь) → строка по `run_id`: нет → 404, не автопрогон брифа или не
+  `pending` → 409 → CAS-захват `pending → running` с `model`/`prompt_version` (пусто →
+  409: двойная доставка pg_net не запустит второй `processRun`) → `processRun` в
+  `waitUntil` → 202. **Узкая способность ключа:** ветка не создаёт прогонов и не берёт
+  из тела ни org, ни автора, ни сущность — только `run_id` строки, поставленной тиком
+  (`company_brief`, `entity_type = 'company'`, `auto_reason` не пуст, `pending`). Чистая
+  часть — `ai-run/auto-dispatch.ts` (`parseAutoDispatchBody`, `checkAutoRun`, `UUID_RE`),
+  тест `tests/unit/ai-run-auto-dispatch.test.ts`. Секрет — Function Secret
+  `BRIEF_AUTO_KEY` (то же значение, что Vault `brief_auto_key`).
 
 ---
 

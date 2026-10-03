@@ -7,6 +7,12 @@
 //     на клиенте только как текст. Вход обрезается до preset.maxInputChars.
 //  2. Доступ — клиент под JWT вызывающего, RLS решает. Сервисный ключ НЕ используется.
 //     Транскрипт не нашёлся (нет / чужое) → 404.
+//     ОДНО ИСКЛЮЧЕНИЕ — ветка диспетчера автозапуска брифа (S-BRIEF-IN-DEAL-1.1, 138,
+//     `handleAutoDispatch`): вход по заголовку X-Dispatch-Key от `brief_auto_tick()`,
+//     сервисный клиент создаётся только внутри неё. Безопасна узостью: ветка не создаёт
+//     прогонов и не берёт из тела ни org, ни автора, ни сущность — только `run_id`
+//     строки, которую поставил тик (company_brief, auto_reason, pending). Утечка ключа
+//     даёт запуск обработки уже поставленной строки, не больше.
 //  3. Ключ — только из secrets, через `_shared/llm.ts` (ANTHROPIC_API_KEY либо
 //     OPENROUTER_API_KEY по значению LLM_PROVIDER / AI_RUN_PROVIDER).
 //  4. Вход — ОДИН из двух взаимоисключающих вариантов, иначе 400:
@@ -49,6 +55,7 @@
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { createInFlightRuns, flushInFlightRuns } from './in-flight.ts';
+import { checkAutoRun, parseAutoDispatchBody, UUID_RE, type AutoRunRow } from './auto-dispatch.ts';
 import {
   checkResultShape,
   checkSearchAnnotations,
@@ -76,6 +83,8 @@ import {
   resolveApiKey,
   resolveProvider,
 } from '../_shared/llm.ts';
+import { requireEnv } from '../_shared/env.ts';
+import { timingSafeEqual } from '../_shared/timing-safe.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
 
@@ -85,7 +94,6 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STALE_RUN_MINUTES = 10; // pending/running старше → зомби (isolate убит по wall-clock)
 const MAX_OUTPUT_TOKENS = 4096;
 
@@ -1458,9 +1466,87 @@ addEventListener('beforeunload', (ev: Event) => {
   }));
 });
 
+/**
+ * S-BRIEF-IN-DEAL-1.1 (138) — ВЕТКА ДИСПЕТЧЕРА АВТОЗАПУСКА БРИФА.
+ *
+ * Зовёт только `brief_auto_tick()` (pg_cron → pg_net): строку ai_runs (pending,
+ * auto_reason) тик уже вставил сам, в одной транзакции с подсчётом дневного лимита.
+ * Здесь — только исполнение этой строки тем же `processRun`, но сервисным клиентом:
+ * JWT пользователя у крона нет. Из тела берётся ровно `run_id` — ни org, ни автор,
+ * ни сущность (см. `./auto-dispatch.ts`).
+ *
+ * Провайдер не настроен (500) — строка остаётся pending, её реклеймит тик через 15 мин.
+ */
+async function handleAutoDispatch(req: Request): Promise<Response> {
+  const expectedKey = Deno.env.get('BRIEF_AUTO_KEY') ?? '';
+  const providedKey = req.headers.get('X-Dispatch-Key') ?? '';
+  if (!expectedKey || !timingSafeEqual(providedKey, expectedKey)) {
+    return json({ error: 'Требуется авторизация' }, 401);
+  }
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return json({ error: 'Некорректное тело запроса' }, 400);
+  }
+  const body = parseAutoDispatchBody(raw);
+  if ('error' in body) return json({ error: body.error }, 400);
+  const runId = body.runId;
+
+  // Тот же гард ключа провайдера, что в пользовательском пути.
+  try {
+    resolveApiKey(resolveProvider('AI_RUN_PROVIDER'));
+  } catch {
+    return json({ error: 'AI-функция временно недоступна' }, 500);
+  }
+
+  // Сервисный клиент — только здесь (Security №2, единственное исключение).
+  const service = createClient(
+    requireEnv('SUPABASE_URL', (n) => Deno.env.get(n)),
+    requireEnv('SUPABASE_SERVICE_ROLE_KEY', (n) => Deno.env.get(n)),
+    { auth: { persistSession: false } },
+  );
+
+  const { data: row, error: loadErr } = await service
+    .from('ai_runs')
+    .select('id, preset_key, entity_type, entity_id, status, auto_reason')
+    .eq('id', runId)
+    .maybeSingle();
+  if (loadErr) {
+    console.error('auto-dispatch run load error:', loadErr.message);
+    return json({ error: 'Не удалось загрузить прогон' }, 500);
+  }
+  const verdict = checkAutoRun(row as AutoRunRow | null);
+  if (verdict === 'not_found') return json({ error: 'Прогон не найден' }, 404);
+  if (verdict !== 'ok') return json({ error: 'Прогон не подходит для автозапуска', reason: verdict }, 409);
+  const entityId = (row as AutoRunRow).entity_id as string;
+
+  // CAS-захват: двойная доставка pg_net не запустит второй processRun.
+  const preset = PRESETS.company_brief;
+  const { data: claimed, error: claimErr } = await service
+    .from('ai_runs')
+    .update({ status: 'running', model: preset.model, prompt_version: preset.promptVersion })
+    .eq('id', runId)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
+  if (claimErr) {
+    console.error('auto-dispatch claim error:', claimErr.message);
+    return json({ error: 'Не удалось запустить прогон' }, 500);
+  }
+  if (!claimed) return json({ error: 'Прогон уже взят', reason: 'not_pending' }, 409);
+
+  EdgeRuntime.waitUntil(processRun(service, preset, runId, null, 'company', entityId));
+  return json({ run_id: runId }, 202);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Метод не поддерживается' }, 405);
+
+  // S-BRIEF-IN-DEAL-1.1 (138): вход автозапуска брифа — только от brief_auto_tick() (pg_cron → pg_net).
+  if (req.headers.has('X-Dispatch-Key')) return handleAutoDispatch(req);
 
   // Security №4 — строгая валидация тела.
   let payload: {

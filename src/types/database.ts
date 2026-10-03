@@ -107,6 +107,8 @@ export type AiRunRow = {
   duration_ms: number | null;
   rating: -1 | 1 | null;
   feedback_note: string | null;
+  // 138: причина автозапуска брифа; NULL — ручной прогон
+  auto_reason: 'no_brief' | 'stale' | 'stage' | null;
   created_by: string;
   created_at: string;
   finished_at: string | null;
