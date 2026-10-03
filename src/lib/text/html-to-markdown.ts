@@ -3,7 +3,8 @@
 //
 // Word, Google Docs, почта и мессенджеры кладут в буфер `text/html` со стилями. Берём
 // из него структуру (жирный, курсив, заголовки, списки, ссылки) и выбрасываем всё
-// остальное: шрифты, цвета, таблицы (остаётся текст ячеек).
+// остальное: шрифты, цвета. Таблица данных → GFM-таблица, вёрстка письма таблицами —
+// обычные блоки (fix-S-NOTES-2.2-tables).
 //
 // Чистая функция: DOM-парсер приходит аргументом (в браузере — `DOMParser`, в тестах —
 // jsdom), поэтому модуль не трогает `window` и работает на сервере.
@@ -260,6 +261,54 @@ function msoListLine(el: Element, text: string): string | null {
   return `${'  '.repeat(depth)}${m[2] ? `${m[2]}.` : '-'} ${m[3]}`;
 }
 
+/** Строки самой таблицы, без строк вложенных. */
+function ownRows(table: Element): Element[] {
+  return Array.from(table.querySelectorAll('tr')).filter((tr) => tr.closest('table') === table);
+}
+
+function cellsOf(tr: Element): Element[] {
+  return Array.from(tr.children).filter((c) => tagOf(c) === 'td' || tagOf(c) === 'th');
+}
+
+/** Ячейка длиннее — это колонка письма, а не значение. */
+const LAYOUT_CELL_MAX = 300;
+
+/**
+ * Вёрстка (письма Outlook и рассылок строятся таблицами), а не таблица данных.
+ * `<p class=MsoNormal>` в ячейке — не признак: Word кладёт абзац в каждую ячейку.
+ */
+function isLayoutTable(table: Element, rows: Element[]): boolean {
+  // Вложенная таблица — часть той же вёрстки, и сама вложенная — тоже.
+  if (table.querySelector('table') || table.parentElement?.closest('table')) return true;
+  const cells = rows.flatMap(cellsOf);
+  if (cells.some((c) => c.querySelector('ul, ol, h1, h2, h3, h4, h5, h6, blockquote'))) return true;
+  if (Math.max(0, ...rows.map((tr) => cellsOf(tr).length)) <= 1) return true;
+  return cells.some((c) => flatText(c, PLAIN).length > LAYOUT_CELL_MAX);
+}
+
+/**
+ * Таблица данных → GFM. Заголовок — первая строка (у Excel и Google Sheets она и есть
+ * заголовок); `colspan` — ячейка плюс пустые; короткие строки дополняются до ширины.
+ * Выравнивание не переносим: числовые колонки выравнивает рендер.
+ */
+function tableToGfm(rows: Element[], ctx: Ctx): string {
+  const grid = rows
+    .map((tr) =>
+      cellsOf(tr).flatMap((c) => {
+        const text = flatText(c, ctx).replace(/\s*\n\s*/g, ' ').replace(/\|/g, '\\|');
+        const span = Math.max(1, Math.min(parseInt(c.getAttribute('colspan') ?? '', 10) || 1, 100));
+        return [text, ...Array<string>(span - 1).fill('')];
+      }),
+    )
+    .filter((r) => r.some((v) => v !== ''));
+  if (grid.length === 0) return '';
+  const width = Math.max(...grid.map((r) => r.length));
+  const line = (r: string[]) =>
+    `| ${[...r, ...Array<string>(width - r.length).fill('')].join(' | ')} |`;
+  const [head, ...body] = grid;
+  return [line(head), line(Array<string>(width).fill('---')), ...body.map(line)].join('\n');
+}
+
 function walk(node: Node, ctx: Ctx, w: Writer): void {
   if (node.nodeType === 3) {
     const t = (node.nodeValue ?? '').replace(/[​﻿]/g, '').replace(/\s+/g, ' ');
@@ -318,14 +367,22 @@ function walk(node: Node, ctx: Ctx, w: Writer): void {
   }
 
   if (tag === 'table') {
+    const rows = ownRows(el);
     w.gap(2);
-    const rows = Array.from(el.querySelectorAll('tr')).filter((tr) => tr.closest('table') === el);
-    for (const tr of rows) {
-      const cells = Array.from(tr.children)
-        .filter((c) => tagOf(c) === 'td' || tagOf(c) === 'th')
-        .map((c) => flatText(c, ctx))
-        .filter(Boolean);
-      if (cells.length > 0) w.emit(cells.join(' · '), 1);
+    if (isLayoutTable(el, rows)) {
+      // Вёрстка письма: строки и ячейки — как `div`, содержимое разбирается обычными блоками.
+      for (const tr of rows) {
+        w.gap(1);
+        for (const c of cellsOf(tr)) {
+          w.gap(1);
+          for (const n of Array.from(c.childNodes)) walk(n, inner, w);
+          w.gap(1);
+        }
+        w.gap(1);
+      }
+    } else {
+      const gfm = tableToGfm(rows, inner);
+      if (gfm) w.emit(gfm, 2);
     }
     w.gap(2);
     return;

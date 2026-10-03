@@ -162,8 +162,8 @@ export function insertAt(value: string, start: number, end: number, text: string
   return { value: value.slice(0, start) + text + value.slice(end), start: caret, end: caret };
 }
 
-/** Строка-блок: пункт списка или `#`-заголовок. */
-const BLOCK_LINE = /^(?:[-*•]\s|\d+[.)]\s|#{1,3}\s)/;
+/** Строка-блок: пункт списка, `#`-заголовок или строка таблицы. */
+const BLOCK_LINE = /^(?:[-*•]\s|\d+[.)]\s|#{1,3}\s|\|)/;
 
 /**
  * Вставка markdown, который может начинаться или кончаться блоком (список, заголовок).

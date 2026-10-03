@@ -285,3 +285,73 @@ describe('noteHeadline', () => {
     expect(noteHeadline(edge).head).toBe(edge);
   });
 });
+
+describe('таблицы (fix-S-NOTES-2.2-tables)', () => {
+  const OWNER = [
+    'Выручка за 2025 год составила 17,9 млрд руб., чистая прибыль выросла.',
+    '',
+    '| Год | Выручка | Чистая прибыль | Активы | Капитал |',
+    '|---|---|---|---|---|',
+    '| 2025 | **17 930** | **1 240** | 9 800 | 4 100 |',
+    '| 2024 | 15 200 | 980 | 8 700 | 3 600 |',
+    '| 2023 | 12 400 | 610 | 7 300 | 3 050 |',
+  ].join('\n');
+
+  it('текст владельца: абзац + таблица 5×3, все колонки числовые → right', () => {
+    const blocks = parseNoteBlocks(OWNER);
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'table']);
+    const t = blocks[1];
+    if (t.type !== 'table') throw new Error('не таблица');
+    expect(t.header).toEqual(['Год', 'Выручка', 'Чистая прибыль', 'Активы', 'Капитал']);
+    expect(t.rows).toHaveLength(3);
+    expect(t.align).toEqual(['right', 'right', 'right', 'right', 'right']);
+    expect(t.rows[0][1]).toBe('**17 930**');
+  });
+
+  it('таблица сразу после строки абзаца, без пустой строки', () => {
+    const blocks = parseNoteBlocks('Итоги:\n| a | b |\n|---|---|\n| 1 | 2 |');
+    expect(blocks.map((b) => b.type)).toEqual(['paragraph', 'table']);
+  });
+
+  it('явное выравнивание и текстовая колонка → left', () => {
+    const [t] = parseNoteBlocks('| Тариф | Цена |\n|:---:|---|\n| Старт | 1 000 ₽ |\n| Про | н/д |');
+    if (t.type !== 'table') throw new Error('не таблица');
+    expect(t.align).toEqual(['center', 'left']);
+  });
+
+  it('короткая строка тела дополнена, длинная обрезана', () => {
+    const [t] = parseNoteBlocks('| a | b | c |\n|---|---|---|\n| 1 |\n| 1 | 2 | 3 | 4 |');
+    if (t.type !== 'table') throw new Error('не таблица');
+    expect(t.rows).toEqual([
+      ['1', '', ''],
+      ['1', '2', '3'],
+    ]);
+  });
+
+  it('таблица, за ней пункт списка без пустой строки → table + list', () => {
+    const blocks = parseNoteBlocks('| a | b |\n|---|---|\n| 1 | 2 |\n- пункт');
+    expect(blocks.map((b) => b.type)).toEqual(['table', 'list']);
+  });
+
+  it('регрессия: строка с `|` без разделителя — абзац', () => {
+    expect(parseNoteBlocks('1С | ЧЗ — интеграция\nследующая строка')).toEqual([
+      { type: 'paragraph', text: '1С | ЧЗ — интеграция\nследующая строка' },
+    ]);
+  });
+
+  it('hasMarkdown: одна таблица без `**` → true', () => {
+    expect(hasMarkdown('| a | b |\n|---|---|\n| 1 | 2 |')).toBe(true);
+  });
+
+  it('заметка начинается с таблицы — заголовка нет, весь текст в теле', () => {
+    const raw = '| Год | Выручка |\n|---|---|\n| 2025 | 10 |';
+    expect(noteHeadline(raw)).toEqual({ head: null, rest: raw });
+    expect(splitNoteHead(raw)).toEqual({ head: '', rest: raw });
+  });
+
+  it('noteToPlainLine: разделитель выброшен, ячейки через « · »', () => {
+    expect(noteToPlainLine('Итоги\n| Год | Выручка |\n|---|---|\n| 2025 | **10** |')).toBe(
+      'Итоги Год · Выручка 2025 · 10',
+    );
+  });
+});

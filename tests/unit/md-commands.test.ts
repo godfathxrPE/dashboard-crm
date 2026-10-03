@@ -138,6 +138,10 @@ describe('insertBlock', () => {
     expect(insertBlock('abc', 3, 3, '- x')).toEqual({ value: 'abc\n- x', start: 7, end: 7 });
   });
 
+  it('таблица в середину строки: перенос до и после', () => {
+    expect(insertBlock('ab', 1, 1, '| x |\n| --- |').value).toBe('a\n| x |\n| --- |\nb');
+  });
+
   it('перед переносом строки хвостовой `\\n` не добавляется', () => {
     expect(insertBlock('abc\ndef', 3, 3, '- x').value).toBe('abc\n- x\ndef');
   });

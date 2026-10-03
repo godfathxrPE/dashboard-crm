@@ -2,7 +2,7 @@
 
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/cn';
-import { parseNoteBlocks } from '@/lib/text/note-blocks';
+import { parseNoteBlocks, type NoteBlock } from '@/lib/text/note-blocks';
 import { parseInline } from '@/lib/text/note-inline';
 
 // ═══════════════════════════════════════════════════════
@@ -60,6 +60,50 @@ function Inline({ text }: { text: string }) {
   );
 }
 
+const ALIGN_CLASS = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
+
+/**
+ * GFM-таблица. Широкая таблица прокручивается внутри карточки, с клавиатуры — фокус на
+ * обёртке и стрелки. Без зебры и вертикальных линий: только нижние границы строк.
+ * Числовая колонка (`right`) не переносится.
+ */
+function NoteTable({ block }: { block: Extract<NoteBlock, { type: 'table' }> }) {
+  const cell = (c: number) =>
+    cn('px-2 py-1 align-top first:pl-0', ALIGN_CLASS[block.align[c]], block.align[c] === 'right' && 'whitespace-nowrap');
+  return (
+    <div
+      role="region"
+      aria-label="Таблица"
+      tabIndex={0}
+      className="max-w-full overflow-x-auto rounded-sm focus-visible:outline-none focus-visible:ring-2
+                 focus-visible:ring-accent"
+    >
+      <table className="w-max min-w-full border-collapse text-body tabular-nums">
+        <thead>
+          <tr className="border-b border-border">
+            {block.header.map((h, c) => (
+              <th key={c} scope="col" className={cn(cell(c), 'text-meta font-semibold text-text-mute')}>
+                <Inline text={h} />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, r) => (
+            <tr key={r} className="border-b border-border last:border-b-0">
+              {row.map((v, c) => (
+                <td key={c} className={cn(cell(c), 'text-text-main')}>
+                  <Inline text={v} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function NoteBody({
   text,
   collapsedLines = 6,
@@ -114,45 +158,51 @@ export function NoteBody({
         }}
       >
         {blocks.map((b, i) => {
-          if (b.type === 'heading') {
-            return (
-              <p key={i} role="heading" aria-level={b.level + 3} className={HEADING_CLASS[b.level]}>
-                <Inline text={b.text} />
-              </p>
-            );
+          switch (b.type) {
+            case 'heading':
+              return (
+                <p key={i} role="heading" aria-level={b.level + 3} className={HEADING_CLASS[b.level]}>
+                  <Inline text={b.text} />
+                </p>
+              );
+            case 'paragraph':
+              return (
+                <p key={i} className="whitespace-pre-line text-body leading-relaxed text-text-main">
+                  <Inline text={b.text} />
+                </p>
+              );
+            case 'olist':
+              return (
+                <ol key={i} className="list-decimal space-y-1 pl-5 marker:text-text-mute">
+                  {b.items.map((item, j) => (
+                    <li key={j} className="pl-0.5 text-body leading-relaxed text-text-main">
+                      <Inline text={item} />
+                    </li>
+                  ))}
+                </ol>
+              );
+            case 'list':
+              return (
+                <ul key={i} className="space-y-1">
+                  {b.items.map((item, j) => (
+                    <li
+                      key={j}
+                      className="relative pl-3.5 text-body leading-relaxed text-text-main before:absolute
+                                 before:left-0.5 before:top-[0.65em] before:size-1 before:rounded-full
+                                 before:bg-text-mute before:content-['']"
+                    >
+                      <Inline text={item} />
+                    </li>
+                  ))}
+                </ul>
+              );
+            case 'table':
+              return <NoteTable key={i} block={b} />;
+            default: {
+              const _exhaustive: never = b;
+              return _exhaustive;
+            }
           }
-          if (b.type === 'paragraph') {
-            return (
-              <p key={i} className="whitespace-pre-line text-body leading-relaxed text-text-main">
-                <Inline text={b.text} />
-              </p>
-            );
-          }
-          if (b.type === 'olist') {
-            return (
-              <ol key={i} className="list-decimal space-y-1 pl-5 marker:text-text-mute">
-                {b.items.map((item, j) => (
-                  <li key={j} className="pl-0.5 text-body leading-relaxed text-text-main">
-                    <Inline text={item} />
-                  </li>
-                ))}
-              </ol>
-            );
-          }
-          return (
-            <ul key={i} className="space-y-1">
-              {b.items.map((item, j) => (
-                <li
-                  key={j}
-                  className="relative pl-3.5 text-body leading-relaxed text-text-main before:absolute
-                             before:left-0.5 before:top-[0.65em] before:size-1 before:rounded-full
-                             before:bg-text-mute before:content-['']"
-                >
-                  <Inline text={item} />
-                </li>
-              ))}
-            </ul>
-          );
         })}
       </div>
 

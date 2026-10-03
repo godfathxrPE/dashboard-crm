@@ -15,12 +15,15 @@
 // ═══════════════════════════════════════════════════════
 
 import { parseInline, stripInline } from '@/lib/text/note-inline';
+import { hasPipe, isNumericCell, isTableStart, parseSeparator, splitRow } from '@/lib/text/note-table';
 
 export type NoteBlock =
   | { type: 'heading'; level: 1 | 2 | 3; text: string }
   | { type: 'paragraph'; text: string }
   | { type: 'list'; items: string[] }
-  | { type: 'olist'; items: string[] };
+  | { type: 'olist'; items: string[] }
+  /** GFM-таблица; `align` итоговое: явное из разделителя, иначе числовая колонка → `right`. */
+  | { type: 'table'; header: string[]; align: ('left' | 'center' | 'right')[]; rows: string[][] };
 
 /** Заголовок короче порога и без конечной пунктуации (двоеточие допустимо). */
 const HEADING_MAX_LEN = 48;
@@ -68,9 +71,46 @@ function isHeadingText(text: string): boolean {
  * Разбор — тем же `parseInline`, построчно (жирный через пустую строку парой не считается).
  */
 export function hasMarkdown(raw: string): boolean {
-  return normalize(raw).some(
-    (l) => MD_HEADING.test(l) || parseInline(l).some((n) => n.t === 'strong' || n.t === 'link'),
+  const lines = normalize(raw);
+  return lines.some(
+    (l, i) =>
+      MD_HEADING.test(l) ||
+      parseInline(l).some((n) => n.t === 'strong' || n.t === 'link') ||
+      isTableStart(lines, i),
   );
+}
+
+/** Строка тела таблицы: есть `|`, и это не пустая строка, не `#`-заголовок и не пункт списка. */
+function isTableRow(raw: string, line: Line): boolean {
+  return line.kind === 'text' && hasPipe(raw);
+}
+
+/**
+ * Таблица с `lines[start]` (заголовок) → блок и индекс первой строки после неё.
+ * Строки тела выравниваются по числу колонок заголовка: короткие дополняются, длинные режутся.
+ */
+function readTable(
+  raw: string[],
+  lines: Line[],
+  start: number,
+): { block: Extract<NoteBlock, { type: 'table' }>; next: number } {
+  const header = splitRow(raw[start]);
+  const explicit = parseSeparator(raw[start + 1]) ?? [];
+  const width = header.length;
+  const rows: string[][] = [];
+  let j = start + 2;
+  for (; j < raw.length && isTableRow(raw[j], lines[j]); j++) {
+    const cells = splitRow(raw[j]).slice(0, width);
+    while (cells.length < width) cells.push('');
+    rows.push(cells);
+  }
+  const align = header.map((_, c) => {
+    const a = explicit[c];
+    if (a) return a;
+    const filled = rows.map((r) => r[c]).filter((v) => v !== '');
+    return filled.length > 0 && filled.every(isNumericCell) ? 'right' : 'left';
+  });
+  return { block: { type: 'table', header, align, rows }, next: j };
 }
 
 /**
@@ -85,7 +125,8 @@ export function hasMarkdown(raw: string): boolean {
  * остаётся абзацем.
  */
 export function parseNoteBlocks(raw: string): NoteBlock[] {
-  const lines = normalize(raw).map(classify);
+  const rawLines = normalize(raw);
+  const lines = rawLines.map(classify);
   const guessHeadings = !hasMarkdown(raw);
   const blocks: NoteBlock[] = [];
   let para: string[] = [];
@@ -104,17 +145,22 @@ export function parseNoteBlocks(raw: string): NoteBlock[] {
     return undefined;
   };
 
-  lines.forEach((line, i) => {
+  // Проход по индексу: таблице нужен просмотр вперёд (строка-разделитель).
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
     if (line.kind === 'blank') {
       flushPara();
       flushList();
-      return;
+      i++;
+      continue;
     }
     if (line.kind === 'mdhead') {
       flushPara();
       flushList();
       blocks.push({ type: 'heading', level: line.level, text: line.text });
-      return;
+      i++;
+      continue;
     }
     if (line.kind === 'item') {
       flushPara();
@@ -122,31 +168,48 @@ export function parseNoteBlocks(raw: string): NoteBlock[] {
       if (list && list.ordered !== line.ordered) flushList();
       list ??= { ordered: line.ordered, items: [] };
       list.items.push(line.text);
-      return;
+      i++;
+      continue;
     }
-    // text
+    // text. Таблица прерывает абзац и список без пустой строки (так в GFM).
+    if (isTableStart(rawLines, i)) {
+      flushPara();
+      flushList();
+      const { block, next } = readTable(rawLines, lines, i);
+      blocks.push(block);
+      i = next;
+      continue;
+    }
     if (list) {
       // Пустая строка закрывает список, так что открытый список = мы сразу после пункта.
       list.items[list.items.length - 1] += ` ${line.text}`;
-      return;
+      i++;
+      continue;
     }
     if (guessHeadings && isHeadingText(line.text) && nextNonBlank(i)?.kind === 'item') {
       flushPara();
       blocks.push({ type: 'heading', level: 3, text: line.text });
-      return;
+      i++;
+      continue;
     }
     para.push(line.text);
-  });
+    i++;
+  }
   flushPara();
   flushList();
   return blocks;
 }
 
-/** Первая непустая строка — заголовок превью; остальное — тело (без ведущих пустых строк). */
+/**
+ * Первая непустая строка — заголовок превью; остальное — тело (без ведущих пустых строк).
+ * Заметка, которая начинается с таблицы, заголовка не имеет: строка заголовка таблицы
+ * в заголовке карточки оставила бы тело без неё, и таблица сломалась бы.
+ */
 export function splitNoteHead(raw: string): { head: string; rest: string } {
   const lines = normalize(raw);
   const first = lines.findIndex((l) => l !== '');
   if (first === -1) return { head: '', rest: '' };
+  if (isTableStart(lines, first)) return { head: '', rest: lines.slice(first).join('\n').trim() };
   const rest = lines.slice(first + 1).join('\n').trim();
   return { head: stripLine(lines[first], false), rest };
 }
@@ -165,6 +228,7 @@ export function noteHeadline(
   max: number = NOTE_HEADLINE_MAX,
 ): { head: string | null; rest: string } {
   const { head, rest } = splitNoteHead(raw);
+  if (head === '' && rest !== '') return { head: null, rest };
   if (head.length <= max) return { head, rest };
   return { head: null, rest: normalize(raw).join('\n').trim() };
 }
@@ -180,10 +244,18 @@ function stripLine(line: string, withMarker: boolean): string {
   return stripInline(m ? m[1] : line);
 }
 
-/** Текст без разметки для превью в одну-две строки: переносы → пробел, маркеры сняты. */
+/**
+ * Текст без разметки для превью в одну-две строки: переносы → пробел, маркеры сняты.
+ * Таблица — построчно: разделитель выброшен, строка с `|` → ячейки через « · ».
+ */
 export function noteToPlainLine(raw: string): string {
   return normalize(raw)
-    .map((l) => stripLine(l, true))
+    .filter((l) => parseSeparator(l) === null)
+    .map((l) =>
+      hasPipe(l)
+        ? splitRow(l).map(stripInline).filter(Boolean).join(' · ')
+        : stripLine(l, true),
+    )
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();

@@ -104,9 +104,9 @@ describe('htmlToMarkdown · структура', () => {
     expect(md('<p><b>см. <a href="https://x.ru">сайт</a></b></p>')).toBe('**см.** [сайт](https://x.ru)');
   });
 
-  it('таблица 2×2 → две строки, ячейки через « · »', () => {
+  it('таблица 2×2 → GFM-таблица', () => {
     const html = '<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>';
-    expect(md(html)).toBe('a · b\nc · d');
+    expect(md(html)).toBe('| a | b |\n| --- | --- |\n| c | d |');
   });
 
   it('<br> — перенос строки внутри абзаца; <div> подряд — строки без пустых между ними', () => {
@@ -162,5 +162,80 @@ describe('htmlToMarkdown → parseNoteBlocks (сквозное)', () => {
       { type: 'paragraph', text: 'Клиент **согласен**.' },
       { type: 'list', items: ['КП до пятницы', 'Созвон во вторник'] },
     ]);
+  });
+});
+
+describe('htmlToMarkdown · таблицы (fix-S-NOTES-2.2-tables)', () => {
+  it('thead/th + tbody, <strong> в ячейке → `**…**`', () => {
+    const html =
+      '<table><thead><tr><th>Год</th><th>Выручка</th></tr></thead>' +
+      '<tbody><tr><td>2025</td><td><strong>17 930</strong></td></tr></tbody></table>';
+    expect(md(html)).toBe('| Год | Выручка |\n| --- | --- |\n| 2025 | **17 930** |');
+  });
+
+  it('`|` в ячейке → `\\|`, <br> → пробел', () => {
+    const html = '<table><tr><td>a|b</td><td>раз<br>два</td></tr><tr><td>1</td><td>2</td></tr></table>';
+    expect(md(html)).toBe('| a\\|b | раз два |\n| --- | --- |\n| 1 | 2 |');
+  });
+
+  it('colspan="2" в строке 3×3 → ячейка + пустая', () => {
+    const html =
+      '<table><tr><td>a</td><td>b</td><td>c</td></tr>' +
+      '<tr><td colspan="2">d</td><td>e</td></tr><tr><td>f</td><td>g</td><td>h</td></tr></table>';
+    expect(md(html)).toBe('| a | b | c |\n| --- | --- | --- |\n| d |  | e |\n| f | g | h |');
+  });
+
+  it('строки разной длины дополнены до максимума', () => {
+    const html = '<table><tr><td>a</td></tr><tr><td>b</td><td>c</td></tr></table>';
+    expect(md(html)).toBe('| a |  |\n| --- | --- |\n| b | c |');
+  });
+
+  it('пустая строка таблицы пропущена', () => {
+    const html = '<table><tr><td>a</td><td>b</td></tr><tr><td></td><td> </td></tr><tr><td>c</td><td>d</td></tr></table>';
+    expect(md(html)).toBe('| a | b |\n| --- | --- |\n| c | d |');
+  });
+
+  it('GFM-таблица из буфера разбирается парсером заметки', () => {
+    const html = '<p>Итоги</p><table><tr><td>a</td><td>b</td></tr><tr><td>1</td><td>2</td></tr></table><p>после</p>';
+    expect(parseNoteBlocks(md(html)).map((b) => b.type)).toEqual(['paragraph', 'table', 'paragraph']);
+  });
+
+  it('вёрстка: одна колонка с <p> → абзацы без `|`', () => {
+    const html = '<table><tr><td><p>Привет</p><p>Текст письма</p></td></tr><tr><td><p>Подпись</p></td></tr></table>';
+    const out = md(html);
+    expect(out).not.toContain('|');
+    expect(out).toBe('Привет\n\nТекст письма\n\nПодпись');
+  });
+
+  it('вёрстка: вложенная table → без `|`', () => {
+    const html =
+      '<table><tr><td>Шапка</td><td>лого</td></tr><tr><td colspan="2">' +
+      '<table><tr><td>внутри</td><td>ещё</td></tr></table></td></tr></table>';
+    const out = md(html);
+    expect(out).not.toContain('|');
+    expect(out).toContain('внутри');
+  });
+
+  it('вёрстка: ячейка с <ul> → список `- `', () => {
+    const html = '<table><tr><td>Слева</td><td><ul><li>раз</li><li>два</li></ul></td></tr></table>';
+    const out = md(html);
+    expect(out).not.toContain('|');
+    expect(out).toContain('- раз\n- два');
+  });
+
+  it('вёрстка: ячейка длиннее 300 символов → без `|`', () => {
+    const long = 'с'.repeat(301);
+    const html = `<table><tr><td>${long}</td><td>б</td></tr></table>`;
+    expect(md(html)).not.toContain('|');
+  });
+
+  it('Word: MsoTableGrid с <p class=MsoNormal> в ячейках → GFM без o:p', () => {
+    const html =
+      '<table class=MsoTableGrid border=1>' +
+      '<tr><td><p class=MsoNormal>Год<o:p></o:p></p></td><td><p class=MsoNormal><b>Выручка</b><o:p></o:p></p></td></tr>' +
+      '<tr><td><p class=MsoNormal>2025<o:p></o:p></p></td><td><p class=MsoNormal>10<o:p></o:p></p></td></tr></table>';
+    const out = md(html);
+    expect(out).toBe('| Год | **Выручка** |\n| --- | --- |\n| 2025 | 10 |');
+    expect(out).not.toContain('o:p');
   });
 });
