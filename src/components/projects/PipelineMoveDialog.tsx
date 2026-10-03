@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 import { Modal } from '@/components/shared/Modal';
 import { useStageTransition } from '@/lib/hooks/use-stage-transition';
 import { parseStageGateError, type Project } from '@/lib/hooks/use-projects';
-import { mapStageToPipeline } from '@/lib/domain/pipeline-choice';
-import type { Pipeline, PipelineStage } from '@/types/database';
+import type { PipelineMoveTarget } from '@/lib/domain/pipeline-choice';
+import type { PipelineStage } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // S-PIPE-SPLIT-2: перевод сделки в другую воронку направления.
@@ -20,31 +20,6 @@ import type { Pipeline, PipelineStage } from '@/types/database';
 // Отдельного примитива нет: компактный `Modal` (Esc / фон / Tab — его), а не
 // `InlineConfirm` — тот принимает только строки, а здесь нужен выбор воронки.
 // ═══════════════════════════════════════════════════════
-
-export interface PipelineMoveTarget {
-  pipeline: Pipeline;
-  /** Стадия в целевой воронке — уже посчитана вызывающим (`mapStageToPipeline`). */
-  stage: PipelineStage;
-}
-
-/** Цели перевода: другие воронки, где для текущей стадии нашлась пара. */
-export function pipelineMoveTargets(
-  pipelines: Pipeline[],
-  currentPipelineId: string | null,
-  currentStage: PipelineStage | null,
-  allStages: PipelineStage[],
-): PipelineMoveTarget[] {
-  const out: PipelineMoveTarget[] = [];
-  for (const pipeline of pipelines) {
-    if (pipeline.id === currentPipelineId) continue;
-    const stage = mapStageToPipeline(
-      currentStage,
-      allStages.filter((s) => s.pipeline_id === pipeline.id),
-    );
-    if (stage) out.push({ pipeline, stage });
-  }
-  return out;
-}
 
 interface PipelineMoveDialogProps {
   project: Project;

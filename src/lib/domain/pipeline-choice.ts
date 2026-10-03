@@ -83,3 +83,32 @@ export function mapStageToPipeline(
   }
   return first;
 }
+
+/** Цель перевода сделки: воронка и стадия в ней, уже подобранная `mapStageToPipeline`. */
+export interface PipelineMoveTarget {
+  pipeline: Pipeline;
+  stage: PipelineStage;
+}
+
+/**
+ * Цели перевода сделки: воронки из `pipelines` (вызывающий передаёт deal-воронки
+ * направления), кроме текущей, где для текущей стадии нашлась пара. Воронка без
+ * рабочих стадий отбрасывается — переводить в неё некуда.
+ */
+export function pipelineMoveTargets(
+  pipelines: Pipeline[],
+  currentPipelineId: string | null,
+  currentStage: PipelineStage | null,
+  allStages: PipelineStage[],
+): PipelineMoveTarget[] {
+  const out: PipelineMoveTarget[] = [];
+  for (const pipeline of pipelines) {
+    if (pipeline.id === currentPipelineId) continue;
+    const stage = mapStageToPipeline(
+      currentStage,
+      allStages.filter((s) => s.pipeline_id === pipeline.id),
+    );
+    if (stage) out.push({ pipeline, stage });
+  }
+  return out;
+}

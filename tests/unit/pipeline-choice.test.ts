@@ -10,6 +10,7 @@ import {
   dealPipelinesFor,
   firstWorkingStage,
   mapStageToPipeline,
+  pipelineMoveTargets,
   resolveActivePipeline,
 } from '@/lib/domain/pipeline-choice';
 import type { Pipeline, PipelineStage } from '@/types/database';
@@ -136,5 +137,40 @@ describe('firstWorkingStage', () => {
       stage({ id: 'a', name: 'А', order_index: 1 }),
     ];
     expect(firstWorkingStage(stages)?.id).toBe('a');
+  });
+});
+
+describe('pipelineMoveTargets', () => {
+  const EMPTY = pipe({ id: 'p-empty', name: 'IIoT Пустая' });
+  const pipelines = [PROJECT, EXPERIMENT, EMPTY];
+  const stages = [
+    stage({ id: 'proj-lead', pipeline_id: 'p-proj', name: 'Лид', order_index: 1 }),
+    stage({ id: 'proj-mat', pipeline_id: 'p-proj', name: 'Материалы', order_index: 3 }),
+    stage({ id: 'proj-kp', pipeline_id: 'p-proj', name: 'Подготовка КП', order_index: 4 }),
+    stage({ id: 'exp-lead', pipeline_id: 'p-exp', name: 'Лид', order_index: 1 }),
+    stage({ id: 'exp-mat', pipeline_id: 'p-exp', name: 'Материалы', order_index: 3 }),
+    // У «пустой» воронки только терминалы — рабочих стадий нет.
+    stage({ id: 'empty-won', pipeline_id: 'p-empty', name: 'Выиграна', order_index: 7, is_won: true }),
+  ];
+  const current = stages[1]; // «Материалы» проекта
+
+  it('текущая воронка в цели не попадает', () => {
+    const ids = pipelineMoveTargets(pipelines, 'p-proj', current, stages).map((t) => t.pipeline.id);
+    expect(ids).not.toContain('p-proj');
+  });
+
+  it('воронка без рабочих стадий отброшена', () => {
+    const ids = pipelineMoveTargets(pipelines, 'p-proj', current, stages).map((t) => t.pipeline.id);
+    expect(ids).toEqual(['p-exp']);
+  });
+
+  it('стадия цели — по имени: «Материалы» → «Материалы»', () => {
+    const [target] = pipelineMoveTargets(pipelines, 'p-proj', current, stages);
+    expect(target.stage.id).toBe('exp-mat');
+  });
+
+  it('нет пары по имени — первая рабочая цели', () => {
+    const [target] = pipelineMoveTargets(pipelines, 'p-proj', stages[2], stages);
+    expect(target.stage.id).toBe('exp-lead');
   });
 });

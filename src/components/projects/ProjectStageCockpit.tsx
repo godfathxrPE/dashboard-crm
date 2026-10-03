@@ -10,8 +10,8 @@ import {
 } from '@/components/shared/PipelineCockpit';
 import { StageProfile, type StageProfileVisit } from '@/components/shared/StageProfile';
 import { usePipelines, usePipelineStages, useStagesForPipeline } from '@/lib/hooks/use-pipelines';
-import { dealPipelinesFor } from '@/lib/domain/pipeline-choice';
-import { PipelineMoveDialog, pipelineMoveTargets } from './PipelineMoveDialog';
+import { dealPipelinesFor, pipelineMoveTargets } from '@/lib/domain/pipeline-choice';
+import { PipelineMoveDialog } from './PipelineMoveDialog';
 import { useStageStory } from '@/lib/hooks/use-stage-story';
 import { useStageRequirements } from '@/lib/hooks/use-stage-requirements';
 import { useStageGate } from '@/lib/hooks/use-stage-gate';
@@ -322,8 +322,12 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
                     onClick={() => setMoveOpen(true)}
                     aria-haspopup="dialog"
                     title="Перевести сделку в другую воронку"
-                    className="inline-flex items-center gap-0.5 text-meta text-text-dim
-                               transition-colors hover:text-accent focus-visible:text-accent"
+                    // Кольцо фокуса — тот же outline, что у столбиков StageProfile; offset
+                    // наружу (там −2 внутрь блока), иначе контур лёг бы на текст ссылки.
+                    className="inline-flex items-center gap-0.5 rounded-sm text-meta text-text-dim
+                               transition-colors hover:text-accent focus-visible:text-accent
+                               focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+                               focus-visible:outline-[color:var(--accent-text,var(--accent))]"
                   >
                     {pipelineName}
                     <ChevronDown size={12} aria-hidden />

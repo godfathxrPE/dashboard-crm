@@ -414,10 +414,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
           {/* Direction — segmented control (только client) */}
           {!isInternal && !isDelivery && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-text-dim">
+              <span id="project-direction-label" className="mb-1 block text-xs font-medium text-text-dim">
                 Направление
-              </label>
-              <div className="flex rounded-lg border border-border p-1">
+              </span>
+              <div role="group" aria-labelledby="project-direction-label" className="flex rounded-lg border border-border p-1">
                 {([
                   { value: 'iiot' as const, label: 'IIoT / Маркировка' },
                   { value: 'erp' as const, label: 'ERP' },
@@ -451,10 +451,10 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
               При правке только для чтения: перевод — в карточке сделки (гейт + история). */}
           {!isInternal && !isDelivery && directionPipelines.length > 1 && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-text-dim">
+              <span id="project-pipeline-label" className="mb-1 block text-xs font-medium text-text-dim">
                 Воронка
-              </label>
-              <div className="flex rounded-lg border border-border p-1">
+              </span>
+              <div role="group" aria-labelledby="project-pipeline-label" className="flex rounded-lg border border-border p-1">
                 {directionPipelines.map((pl) => (
                   <button
                     key={pl.id}
