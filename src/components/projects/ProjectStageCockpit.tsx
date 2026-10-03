@@ -2,14 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Lightbulb } from 'lucide-react';
+import { ChevronDown, Lightbulb } from 'lucide-react';
 import {
   PipelineCockpit,
   type CockpitGateItem,
   type CockpitMiniGroup,
 } from '@/components/shared/PipelineCockpit';
 import { StageProfile, type StageProfileVisit } from '@/components/shared/StageProfile';
-import { usePipelines, useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { usePipelines, usePipelineStages, useStagesForPipeline } from '@/lib/hooks/use-pipelines';
+import { dealPipelinesFor, pipelineMoveTargets } from '@/lib/domain/pipeline-choice';
+import { PipelineMoveDialog } from './PipelineMoveDialog';
 import { useStageStory } from '@/lib/hooks/use-stage-story';
 import { useStageRequirements } from '@/lib/hooks/use-stage-requirements';
 import { useStageGate } from '@/lib/hooks/use-stage-gate';
@@ -69,6 +71,9 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
   // запрос инициирует карта, и это законно (тот же случай, что в DealWaitingList).
   const { story, actorName } = useStageStory(project);
   const { data: pipelines } = usePipelines();
+  const { data: everyStage } = usePipelineStages();
+  // S-PIPE-SPLIT-2: диалог перевода в другую воронку направления.
+  const [moveOpen, setMoveOpen] = useState(false);
 
   // Хук НЕ сортирует и НЕ фильтрует — то же, что делал StackedPipeline на месте.
   const stages = useMemo(
@@ -187,6 +192,20 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
       ? phaseLabel(currentStage.phase_group)
       : null;
 
+  // S-PIPE-SPLIT-2: перевод между deal-воронками направления. Кнопка — только когда
+  // воронок больше одной, сделка открыта (тот же признак `locked`, что гасит карту),
+  // роль может двигать стадию и в цели нашлась стадия. Внедрение — не сделка.
+  const moveTargets =
+    !isDelivery && !locked && orgRole !== 'viewer' && project.direction
+      ? pipelineMoveTargets(
+          dealPipelinesFor(pipelines ?? [], project.direction),
+          project.pipeline_id,
+          currentStage,
+          everyStage ?? [],
+        )
+      : [];
+  const pipelineName = pipelines?.find((p) => p.id === project.pipeline_id)?.name ?? null;
+
   const restCount = currentIndex >= 0 ? stages.length - currentIndex - 1 : 0;
   const restGroupsCount = groups.filter((g) => g.from > currentIndex).length;
 
@@ -296,6 +315,26 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
           // S-COCKPIT-ROW-1: число вероятности — цветом текста, как в макете.
           currentIndex >= 0 ? (
             <>
+              {moveTargets.length > 0 && pipelineName && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMoveOpen(true)}
+                    aria-haspopup="dialog"
+                    title="Перевести сделку в другую воронку"
+                    // Кольцо фокуса — тот же outline, что у столбиков StageProfile; offset
+                    // наружу (там −2 внутрь блока), иначе контур лёг бы на текст ссылки.
+                    className="inline-flex items-center gap-0.5 rounded-sm text-meta text-text-dim
+                               transition-colors hover:text-accent focus-visible:text-accent
+                               focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+                               focus-visible:outline-[color:var(--accent-text,var(--accent))]"
+                  >
+                    {pipelineName}
+                    <ChevronDown size={12} aria-hidden />
+                  </button>
+                  {' · '}
+                </>
+              )}
               {currentIndex + 1} из {stages.length}
               {!isDelivery && currentStage.probability != null && (
                 <>
@@ -382,6 +421,14 @@ export function ProjectStageCockpit({ project, onRollback }: ProjectStageCockpit
           )
         }
       />
+      {moveOpen && (
+        <PipelineMoveDialog
+          project={project}
+          currentStage={currentStage}
+          targets={moveTargets}
+          onClose={() => setMoveOpen(false)}
+        />
+      )}
     </div>
   );
 }

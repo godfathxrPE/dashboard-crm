@@ -13,6 +13,12 @@ import { DELIVERY_PHASE_LABELS } from '@/lib/constants/delivery-phases';
 // компонентами не используются.
 // ═══════════════════════════════════════════════════════
 
+/**
+ * Порядок phase_group deal-воронки — колонки доски сделок и чипы групп в таблице
+ * (S-PIPE-SPLIT-2: одна константа на оба экрана, подписи — `PHASE_LABELS`).
+ */
+export const DEAL_PHASE_ORDER = ['attraction', 'working', 'approval', 'closing'] as const;
+
 export const PHASE_LABELS: Record<string, string> = {
   attraction: 'Привлечение',
   working: 'Проработка',

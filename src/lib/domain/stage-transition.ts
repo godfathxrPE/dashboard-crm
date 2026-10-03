@@ -100,6 +100,13 @@ export type TransitionInput = {
   /** Стадия «откуда» — для лога и превью; в сам патч не входит. */
   fromStageId: string | null;
   toStageId: string;
+  /**
+   * S-PIPE-SPLIT-2: перевод сделки в другую воронку направления. Пишется ТЕМ ЖЕ
+   * UPDATE, что `stage_id` (см. АТОМАРНОСТЬ): согласованность «стадия ∈ воронка»
+   * БД не проверяет, держит её только этот патч, а гейт требований целевой стадии
+   * срабатывает на том же запросе. Без `pipelineId` патч прежний байт-в-байт.
+   */
+  pipelineId?: string;
   /** Поля, закрывающие требования гейта, — тем же UPDATE (см. АТОМАРНОСТЬ). */
   fieldPatches?: Partial<Pick<Project, TransitionField>>;
   /** Комментарий к переходу → отдельная запись в activity_log, не колонка. */
@@ -122,7 +129,9 @@ export function buildTransitionPatch(input: TransitionInput): ProjectUpdate {
   ) as Partial<Pick<Project, TransitionField>>;
 
   // id/stage_id пишутся ПОСЛЕ спреда — переход не может быть перебит fieldPatches.
-  return { ...allowed, id: input.projectId, stage_id: input.toStageId };
+  const patch: ProjectUpdate = { ...allowed, id: input.projectId, stage_id: input.toStageId };
+  if (input.pipelineId) patch.pipeline_id = input.pipelineId;
+  return patch;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
