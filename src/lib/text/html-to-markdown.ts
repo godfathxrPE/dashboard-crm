@@ -278,9 +278,18 @@ const LAYOUT_CELL_MAX = 300;
  * `<p class=MsoNormal>` в ячейке — не признак: Word кладёт абзац в каждую ячейку.
  */
 function isLayoutTable(table: Element, rows: Element[]): boolean {
-  // Вложенная таблица — часть той же вёрстки, и сама вложенная — тоже.
+  // Разметка доступности: так помечают вёрстку письма.
+  const role = (table.getAttribute('role') ?? '').toLowerCase();
+  if (role === 'presentation' || role === 'none') return true;
+  // Вложенная таблица — часть той же вёрстки, и сама вложенная — тоже. Вложенные таблицы
+  // в письмах — чаще всего подписи (логотип | контакты) и шапки рассылок: если судить
+  // вложенную отдельно, подпись станет GFM-таблицей. Прайс в рассылке уйдёт текстом —
+  // это меньшее зло (решение гейта 03.10).
   if (table.querySelector('table') || table.parentElement?.closest('table')) return true;
   const cells = rows.flatMap(cellsOf);
+  // Ячейка-картинка без текста (логотип подписи, баннер, иконка соцсети). Иконка рядом
+  // с текстом в той же ячейке — не признак.
+  if (cells.some((c) => c.querySelector('img') && flatText(c, PLAIN) === '')) return true;
   if (cells.some((c) => c.querySelector('ul, ol, h1, h2, h3, h4, h5, h6, blockquote'))) return true;
   if (Math.max(0, ...rows.map((tr) => cellsOf(tr).length)) <= 1) return true;
   return cells.some((c) => flatText(c, PLAIN).length > LAYOUT_CELL_MAX);

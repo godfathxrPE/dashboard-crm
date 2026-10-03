@@ -229,6 +229,26 @@ describe('htmlToMarkdown · таблицы (fix-S-NOTES-2.2-tables)', () => {
     expect(md(html)).not.toContain('|');
   });
 
+  it('подпись письма: ячейка-логотип без текста → вёрстка, строки подписи отдельно', () => {
+    const html =
+      '<table><tr><td><img src="https://x/logo.png"></td><td>Иван Петров<br>+7 900 000-00-00</td></tr></table>';
+    const out = md(html);
+    expect(out).not.toContain('|');
+    expect(out.split('\n')).toEqual(expect.arrayContaining(['Иван Петров', '+7 900 000-00-00']));
+  });
+
+  it('<table role="presentation"> 2×2 → вёрстка, без `|`', () => {
+    const html = '<table role="presentation"><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>';
+    expect(md(html)).not.toContain('|');
+  });
+
+  it('картинка рядом с текстом в ячейке — не признак вёрстки', () => {
+    const html =
+      '<table><tr><td>Город</td><td>Офис</td></tr>' +
+      '<tr><td><img src="https://x/pin.png"> Москва</td><td>1</td></tr></table>';
+    expect(md(html)).toBe('| Город | Офис |\n| --- | --- |\n| Москва | 1 |');
+  });
+
   it('Word: MsoTableGrid с <p class=MsoNormal> в ячейках → GFM без o:p', () => {
     const html =
       '<table class=MsoTableGrid border=1>' +

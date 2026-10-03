@@ -246,16 +246,25 @@ function stripLine(line: string, withMarker: boolean): string {
 
 /**
  * Текст без разметки для превью в одну-две строки: переносы → пробел, маркеры сняты.
- * Таблица — построчно: разделитель выброшен, строка с `|` → ячейки через « · ».
+ * Строки настоящей таблицы (заголовок + разделитель + тело) → ячейки через « · »,
+ * разделитель выброшен. Строка с `|` вне таблицы («1С | ЧЗ») остаётся как есть.
  */
 export function noteToPlainLine(raw: string): string {
-  return normalize(raw)
-    .filter((l) => parseSeparator(l) === null)
-    .map((l) =>
-      hasPipe(l)
-        ? splitRow(l).map(stripInline).filter(Boolean).join(' · ')
-        : stripLine(l, true),
-    )
+  const lines = normalize(raw);
+  const cells = (l: string) => splitRow(l).map(stripInline).filter(Boolean).join(' · ');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!isTableStart(lines, i)) {
+      out.push(stripLine(lines[i], true));
+      i++;
+      continue;
+    }
+    out.push(cells(lines[i]));
+    i += 2;
+    for (; i < lines.length && lines[i] !== '' && hasPipe(lines[i]); i++) out.push(cells(lines[i]));
+  }
+  return out
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
