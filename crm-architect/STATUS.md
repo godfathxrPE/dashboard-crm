@@ -1,6 +1,6 @@
 # STATUS — dashboard-crm
 
-**Ревизия 75 · 2026-10-02 · main: `96c9e04` (PR #147) · тег: `v2026.08.1`**
+**Ревизия 76 · 2026-10-02 · main: `73413df` (PR #151) · тег: `v2026.08.1`**
 
 Единственный носитель состояния «что открыто / что закрыто». Правится только этот файл;
 события (спринт-отчёты в `_analysis/`, гейты и хендоффы в Claude Project) неизменяемы
@@ -9,7 +9,9 @@
 
 ## В работе
 
-**Пусто. Эпик «Лид v2» закрыт 27.09** — **S-LEAD-V2-WORK-1** (#145): квалификация «ответ в строке» (`LeadQualRow`: бюджет и роль кнопками, группы ЧЗ списком, сумма полем; «Заполнить» → `LeadModal` убран), лента лида в виде W5 (`DealActivityFeed`/`DealLastEvent` получили `entityType`), новый лид в окне SLA без шага не тревожит (решение 27.09). Гейт — `CHZ_GROUP_NAMES` вынесен в `lib/constants/chz.ts` (зеркало `chz-groups.ts` не трогаем). Эпик: #140 спека · #141 LAYOUT-1 · #143 HEALTH-1 · #144 приёмка · #145 WORK-1 · #146 приёмка «Известно» (список свойств, тег ЧЗ только у старта).
+**Закрыт 02.10 S-NOTES-1** (#151, `73413df`) — заметка стала сущностью: таблица `notes` (миграция 134, применена гейтом 02.10 четырьмя версиями журнала), RPC `set_note_pinned` / `soft_delete_note` / `restore_note`, перенос 78 заметок из `activity_log`, мост `trg_zz_notes_bridge` для старого клиента; `entity_timeline` читает `kind='note'` и принимает `p_search`; `convert_lead` и `export_org_data` знают `notes`. Soft-delete — решение владельца 02.10, единственное исключение из hard delete (CLAUDE.md). Типы регенерированы, стаб снят — chore `chore/notes-1-after-apply`. Хвосты: **S-NOTES-2** (лента карточек, правка / закрепление / удаление в UI, снятие моста `trg_zz_notes_bridge`, перенос `projects.pinned_note`), **S-NOTES-3**, **🟡 чтение `notes` org-wide** (паритет с `calls` и `activity_log`; сужать вместе), **fix-FONT-UNBOUNDED**. Урок — `learnings.md` («Порядок выката», «Таймаут `apply_migration`»), журнал — «S-NOTES-1».
+
+**Эпик «Лид v2» закрыт 27.09** — **S-LEAD-V2-WORK-1** (#145): квалификация «ответ в строке» (`LeadQualRow`: бюджет и роль кнопками, группы ЧЗ списком, сумма полем; «Заполнить» → `LeadModal` убран), лента лида в виде W5 (`DealActivityFeed`/`DealLastEvent` получили `entityType`), новый лид в окне SLA без шага не тревожит (решение 27.09). Гейт — `CHZ_GROUP_NAMES` вынесен в `lib/constants/chz.ts` (зеркало `chz-groups.ts` не трогаем). Эпик: #140 спека · #141 LAYOUT-1 · #143 HEALTH-1 · #144 приёмка · #145 WORK-1 · #146 приёмка «Известно» (список свойств, тег ЧЗ только у старта).
 
 Закрыт 27.09 **S-LEAD-V2-HEALTH-1** (#143, `0c55546`): шкала времени в статусе в кокпите лида (`leadStatusGauge`), зона «Риски» (`getLeadSignals`, `LeadRisksCard`), `PipelineCockpit` получил `map={null}` / `counterLabel` / `inlineNames`. Гейт — `formatActionDate` без сдвига дня западнее UTC. Приёмка владельца — #144: стекло шага лида без жёлтого канта пустого состояния. Хвост: `LegacyRow` без потребителей — удалить отдельным PR.
 
@@ -202,9 +204,11 @@ S-R2-D3 в силе). Спецификация W10 требует другого
 падает случайно на ответе Google Fonts (`next/font/google`, `Cannot read properties of null` на
 этапе webpack; превью #147 упало именно так, required-чек `checks` при этом зелёный).
 
-**Эпик S-NOTES** — чтение заметок в ленте. **NOTES-READ-1 закрыт #147.** **NOTES-READ-2** —
-`NoteBody` в `EntityTimeline` (компания, контакт, внедрение) + org-лента — поглощён S-NOTES-2
-(одна лента на все сущности).
+**Эпик S-NOTES** — **NOTES-READ-1 закрыт #147, S-NOTES-1 закрыт #151.** Дальше **S-NOTES-2**: лента
+карточек на `notes` (`NoteBody` в `EntityTimeline` — компания, контакт, внедрение, org-лента), правка /
+закрепление / удаление в UI, снятие моста `trg_zz_notes_bridge`, перенос `projects.pinned_note`.
+**S-NOTES-3** — по плану эпика. **🟡 Чтение `notes` org-wide** — паритет с `calls` и `activity_log`
+сегодня; сужать вместе с ними, не по одной таблице.
 
 **L-SILENCE** (из гейта S-LEAD-V2-WORK-1, 27.09) — молчание лида считается от `updated_at`: любая правка поля сбрасывает счётчик, и «Молчание N дн. — остывает» превращается в «Шаг не назначен». Нужна формула «последнее касание» (последний звонок/задача или `first_contacted_at`) в `getLeadHealth`/`leadStaleness` + тесты. Продуктовое решение — до спринта.
 
@@ -633,4 +637,7 @@ CLI на пробнике), `--warning → --yellow` живой во всех в
 | #139 | docs | закрытие S-DEAL-STAKE-VIEW-1 и S-DEAL-ACTIVITY-VIEW-1: отчёты гейтов, STATUS ревизия 68 (очередь эпика пуста, хвост A-1), журнал и learnings (Tailwind не сканирует `src/lib`). Правок кода нет |
 | #147 | S-DEAL-NOTES-READ-1 | **Эпик S-NOTES, спринт 1 (`96c9e04`).** Заметки и встречи в ленте сделки читаются структурой: `note-blocks.ts` + `NoteBody`, раскрытие на месте, превью в две строки, длинная первая строка не становится заголовком плитки; `ActivityComposer` — многострочный ввод (`CallModal`/`MeetingModal` подстроены); тело заметки идёт через timeline-адаптеры. Миграций нет. Хвост NOTES-READ-2 поглощён S-NOTES-2 (см. «Очередь») |
 | #148 | docs | **STATUS ревизия 75.** #147 перенесён из «В работе» в реестр; хвост NOTES-READ-2 описан (поглощён S-NOTES-2); в «Очередь» — fix-FONT-UNBOUNDED (Unbounded → `next/font/local`). Правок кода нет |
+| #149 | chore | STE-lite формат отчёта CC в `sprint-prompt-builder` v2.2; спринт-файл `_analysis/chore-ste-report.md`. Правок кода нет |
+| #150 | chore | мерж через PR и канал доставки спринта в `sprint-prompt-builder` v2.3. Правок кода нет |
+| #151 | S-NOTES-1 | **Эпик S-NOTES, спринт 2 (`73413df`).** Таблица `notes` + RLS + column-grants, RPC `set_note_pinned` / `soft_delete_note` / `restore_note`, перенос 78 заметок, мост `trg_zz_notes_bridge`, `entity_timeline` (+`kind='note'`, +`p_search`), `convert_lead` и `export_org_data` (+`notes`). Миграция 134 применена гейтом 02.10 четырьмя версиями (таймаут MCP на `entity_timeline`). Гейт: FK по конвенции, `notes_touch`, `set null` у автора. Окно между apply и деплоем: заметки пропали из лент прода, данные целы |
 Закрытое до августа — `CHANGELOG.md` и roadmap-ревизии; сюда не переносится.

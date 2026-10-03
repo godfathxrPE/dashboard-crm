@@ -39,7 +39,6 @@ export type MeetingInsert = Database['public']['Tables']['meetings']['Insert'];
 export type ActivityLog = Database['public']['Tables']['activity_log']['Row'];
 export type ActivityLogInsert = Database['public']['Tables']['activity_log']['Insert'];
 
-// STUB S-NOTES-1 — снять регеном после apply 134 (алиас остаётся, снимается стаб в database.ts)
 export type Note = Database['public']['Tables']['notes']['Row'];
 export type NoteInsert = Database['public']['Tables']['notes']['Insert'];
 
