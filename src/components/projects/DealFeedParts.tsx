@@ -3,10 +3,8 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import {
@@ -28,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/cn';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { MarkdownEditor } from '@/components/shared/MarkdownEditor';
 import { NoteBody } from '@/components/shared/NoteBody';
 import { useSetNotePinned, useSoftDeleteNote, useUpdateNote } from '@/lib/hooks/use-notes';
 import { noteAbilities } from '@/lib/notes/permissions';
@@ -306,53 +305,26 @@ function NoteEditor({
   onCancel: () => void;
 }) {
   const [text, setText] = useState(initial);
-  const ref = useRef<HTMLTextAreaElement>(null);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    const cs = getComputedStyle(el);
-    const lineHeight = parseFloat(cs.lineHeight) || 20;
-    const max = lineHeight * 16 + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
-    el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
-  }, [text]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.focus();
-    el.setSelectionRange(el.value.length, el.value.length);
-  }, []);
 
   const empty = text.trim() === '';
   const submit = () => {
     if (!empty && !saving) onSave(text);
   };
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      submit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      onCancel();
-    }
-  };
 
   return (
     <div className="mt-2">
-      <textarea
-        ref={ref}
+      {/* Правка видит разметку как есть (моноширинный шрифт), панель её вставляет. */}
+      <MarkdownEditor
         value={text}
+        onChange={setText}
+        onSubmit={submit}
+        onCancel={onCancel}
         maxLength={NOTE_MAX_LENGTH}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={2}
+        autoFocus
+        mono
+        maxRows={16}
         aria-label="Текст заметки"
-        className="block w-full resize-none bg-transparent py-1 font-mono text-body leading-relaxed text-text-main
-                   focus:outline-none"
+        fieldClassName="py-1"
       />
       {failed && (
         <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-body text-danger-text">

@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 import { Send } from 'lucide-react';
+import { cn } from '@/lib/utils/cn';
 import { useCreateNote } from '@/lib/hooks/use-notes';
+import { MarkdownEditor, useModKeyLabel } from '@/components/shared/MarkdownEditor';
+import { NOTE_MAX_LENGTH } from '@/lib/notes/build-insert';
 
 // ═══════════════════════════════════════════════════════
 // ActivityComposer — ввод заметки для любой сущности.
@@ -15,6 +18,9 @@ import { useCreateNote } from '@/lib/hooks/use-notes';
 // S-DEAL-NOTES-READ-1: многострочный ввод. Поле растёт до 12 строк, Enter — перенос
 // строки, ⌘/Ctrl+Enter — отправка (как в HubSpot/Pipedrive): заметка встречи
 // многострочна по природе, а Enter-отправка не давала набрать её, только вставить.
+//
+// S-NOTES-2.2: поле — `MarkdownEditor` (панель markdown, вставка из Word/Google Docs/
+// почты сохраняет списки и жирный). Автовысота до 12 строк переехала в него.
 // ═══════════════════════════════════════════════════════
 
 // S-LEAD-HUB-2a: четвёртая сущность — лид (`notes.lead_id`; до 134 — `activity_log.lead_id`, 118).
@@ -27,23 +33,13 @@ const FK_KEY: Record<Entity, 'project_id' | 'contact_id' | 'company_id' | 'lead_
   lead: 'lead_id',
 };
 
-/** Потолок автовысоты поля — 12 строк; выше — прокрутка внутри поля. */
-const MAX_ROWS = 12;
-
-/**
- * Клавиша отправки для подсказки. Определяется в эффекте, а не при рендере: на
- * сервере `navigator` нет, и расхождение серверной и клиентской разметки дало бы
- * ошибку гидратации. До эффекта — «Ctrl», безопасный дефолт.
- */
-function useSendKeyLabel(): string {
-  const [label, setLabel] = useState('Ctrl');
-  useEffect(() => {
-    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-    const platform = nav.userAgentData?.platform ?? nav.platform ?? '';
-    if (/mac|iphone|ipad/i.test(platform)) setLabel('⌘');
-  }, []);
-  return label;
-}
+/** Начало плейсхолдера: о чём заметка. */
+const SUBJECT: Record<Entity, string> = {
+  project: 'Заметка по сделке',
+  lead: 'Заметка по лиду',
+  contact: 'Заметка по контакту',
+  company: 'Заметка по компании',
+};
 
 interface ActivityComposerProps {
   entityType: Entity;
@@ -58,25 +54,7 @@ interface ActivityComposerProps {
 export function ActivityComposer({ entityType, entityId, variant = 'default' }: ActivityComposerProps) {
   const createNote = useCreateNote();
   const [comment, setComment] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sendKey = useSendKeyLabel();
-
-  // Поле растёт вместе с текстом и схлопывается после отправки: эффект зависит от
-  // `comment`, поэтому сброс в '' проходит тем же путём, что набор.
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    const cs = getComputedStyle(el);
-    const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-    const padding = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
-    const lineHeight = parseFloat(cs.lineHeight) || 20;
-    const max = lineHeight * MAX_ROWS + padding + border;
-    // scrollHeight границу не включает, а `box-sizing: border-box` её требует.
-    const want = el.scrollHeight + border;
-    el.style.height = `${Math.min(want, max)}px`;
-    el.style.overflowY = want > max ? 'auto' : 'hidden';
-  }, [comment]);
+  const sendKey = useModKeyLabel();
 
   function handleAddComment() {
     const text = comment.trim();
@@ -87,81 +65,65 @@ export function ActivityComposer({ entityType, entityId, variant = 'default' }: 
     );
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleAddComment();
-    }
-  }
-
   const hint = (
     <p className="mt-1 hidden text-meta text-text-mute group-focus-within:block">
       {sendKey}↵ — отправить
     </p>
   );
 
-  if (variant === 'deal') {
-    return (
-      <div className="group my-3">
-        <div
-          className="flex min-h-10 items-end gap-2.5 rounded-xl border border-border2 pl-3.5 pr-1.5
-                     focus-within:border-accent"
-        >
-          {/* Slash-команд нет, поэтому и в плейсхолдере их нет (решение спринта). */}
-          <textarea
-            ref={textareaRef}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Добавить комментарий…"
-            aria-label="Добавить комментарий"
-            rows={1}
-            onKeyDown={handleKeyDown}
-            className="min-w-0 flex-1 resize-none bg-transparent py-[0.5625rem] text-body leading-5
-                       text-text-main placeholder:text-text-mute focus:outline-none"
-          />
-          {/* Материал кнопки — тот же, что у плитки последнего события (`.glass-sheet`
-              + `text-accent` → `--sheet-mark`): «тёмное с акцентом» из макета, которое
-              держит контраст во всех восьми темах (в aura акцент — графит, и пара
-              `bg-text-main text-accent` там слипалась). Прижата к низу: поле растёт вверх. */}
-          <button
-            type="button"
-            onClick={handleAddComment}
-            disabled={!comment.trim() || createNote.isPending}
-            aria-label="Отправить"
-            className="glass-sheet mb-[0.3125rem] grid size-7 shrink-0 place-items-center rounded-[0.5625rem]
-                       transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <Send size={13} strokeWidth={2.4} className="text-accent" />
-          </button>
-        </div>
-        {hint}
-      </div>
-    );
-  }
+  const placeholder = `${SUBJECT[entityType]}… Вставка из Word, Google Docs и почты сохранит списки и жирный.`;
 
+  const sendButton =
+    variant === 'deal' ? (
+      // Материал кнопки — тот же, что у плитки последнего события (`.glass-sheet`
+      // + `text-accent` → `--sheet-mark`): «тёмное с акцентом» из макета, которое
+      // держит контраст во всех восьми темах (в aura акцент — графит, и пара
+      // `bg-text-main text-accent` там слипалась). Прижата к низу: поле растёт вверх.
+      <button
+        type="button"
+        onClick={handleAddComment}
+        disabled={!comment.trim() || createNote.isPending}
+        aria-label="Отправить"
+        className="glass-sheet mb-[0.0625rem] grid size-7 shrink-0 place-items-center rounded-[0.5625rem]
+                   transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        <Send size={13} strokeWidth={2.4} className="text-accent" />
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={handleAddComment}
+        disabled={!comment.trim() || createNote.isPending}
+        aria-label="Отправить"
+        className="grid h-[2.125rem] shrink-0 place-items-center rounded-lg bg-accent px-3 text-sm font-medium text-white
+                   transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        <Send size={14} />
+      </button>
+    );
+
+  // Рамка общая для поля и панели; сам `MarkdownEditor` рамки не имеет. Slash-команд нет,
+  // поэтому и в плейсхолдере их нет (решение спринта).
   return (
-    <div className="group mb-4">
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
+    <div className={cn('group', variant === 'deal' ? 'my-3' : 'mb-4')}>
+      <div
+        className={cn(
+          'border pb-1 pt-1.5',
+          variant === 'deal'
+            ? 'min-h-10 rounded-xl border-border2 pl-3.5 pr-1.5 focus-within:border-accent'
+            : 'rounded-lg border-input bg-bg px-3 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent',
+        )}
+      >
+        <MarkdownEditor
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Добавить комментарий..."
-          rows={1}
-          onKeyDown={handleKeyDown}
-          className="flex-1 resize-none rounded-lg border border-input bg-bg px-3 py-1.5
-                     text-sm text-text-main placeholder:text-text-mute
-                     focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          onChange={setComment}
+          onSubmit={handleAddComment}
+          placeholder={placeholder}
+          aria-label="Добавить комментарий"
+          maxLength={NOTE_MAX_LENGTH}
+          fieldClassName="py-[0.4375rem] leading-5"
+          actions={sendButton}
         />
-        <button
-          type="button"
-          onClick={handleAddComment}
-          disabled={!comment.trim() || createNote.isPending}
-          className="grid h-[2.125rem] shrink-0 place-items-center rounded-lg bg-accent px-3 text-sm font-medium text-white
-                     transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          <Send size={14} />
-        </button>
       </div>
       {hint}
     </div>
