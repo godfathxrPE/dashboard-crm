@@ -14,7 +14,7 @@ import { Bold, Heading, Italic, Link2, List, ListOrdered, type LucideIcon } from
 import { cn } from '@/lib/utils/cn';
 import { htmlToMarkdown } from '@/lib/text/html-to-markdown';
 import {
-  insertAt,
+  insertBlock,
   insertLink,
   toggleLinePrefix,
   wrapSelection,
@@ -263,7 +263,7 @@ export function MarkdownEditor({
       if (room <= 0) return;
       if (text.length > room) text = text.slice(0, safeBoundary(text, room));
     }
-    apply(insertAt(el.value, el.selectionStart, el.selectionEnd, text));
+    apply(insertBlock(el.value, el.selectionStart, el.selectionEnd, text));
   }
 
   return (

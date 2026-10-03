@@ -161,3 +161,21 @@ export function insertAt(value: string, start: number, end: number, text: string
   const caret = start + text.length;
   return { value: value.slice(0, start) + text + value.slice(end), start: caret, end: caret };
 }
+
+/** Строка-блок: пункт списка или `#`-заголовок. */
+const BLOCK_LINE = /^(?:[-*•]\s|\d+[.)]\s|#{1,3}\s)/;
+
+/**
+ * Вставка markdown, который может начинаться или кончаться блоком (список, заголовок).
+ * Блок в середине строки склеился бы с ней: текст перед курсором стал бы частью абзаца,
+ * а строка после — продолжением последнего пункта. Поэтому перед блоком, если курсор
+ * не в начале строки, ставится `\n`; после блока, если дальше в строке есть текст, — тоже.
+ * Курсор — сразу за вставленным `md` (до добавленного переноса). Без блоков — как `insertAt`.
+ */
+export function insertBlock(value: string, start: number, end: number, md: string): EditResult {
+  const lines = md.split('\n');
+  const before = start > 0 && value[start - 1] !== '\n' && BLOCK_LINE.test(lines[0]) ? '\n' : '';
+  const after = end < value.length && value[end] !== '\n' && BLOCK_LINE.test(lines[lines.length - 1]) ? '\n' : '';
+  const caret = start + before.length + md.length;
+  return { value: value.slice(0, start) + before + md + after + value.slice(end), start: caret, end: caret };
+}

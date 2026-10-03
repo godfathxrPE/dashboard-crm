@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { insertAt, insertLink, toggleLinePrefix, wrapSelection } from '@/lib/text/md-commands';
+import { insertAt, insertBlock, insertLink, toggleLinePrefix, wrapSelection } from '@/lib/text/md-commands';
 
 // S-NOTES-2.2. Команды панели — чистые функции: текст + выделение → текст + выделение.
 
@@ -118,5 +118,39 @@ describe('insertLink', () => {
 describe('insertAt', () => {
   it('заменяет выделение и ставит курсор за вставленным', () => {
     expect(insertAt('abc', 1, 2, 'XY')).toEqual({ value: 'aXYc', start: 3, end: 3 });
+  });
+});
+
+describe('insertBlock', () => {
+  it('список в середину строки: перенос до и после, курсор за `- y`', () => {
+    const r = insertBlock('abc def', 3, 3, '- x\n- y');
+    expect(r.value).toBe('abc\n- x\n- y\n def');
+    expect(r.start).toBe(r.end);
+    expect(r.value.slice(0, r.start)).toBe('abc\n- x\n- y');
+  });
+
+  it('в начале строки перед блоком `\\n` не добавляется', () => {
+    expect(insertBlock('\nabc', 0, 0, '- x').value).toBe('- x\nabc');
+    expect(insertBlock('a\nbc', 2, 2, '## Итоги').value).toBe('a\n## Итоги\nbc');
+  });
+
+  it('блок в конец текста — без хвостового `\\n`', () => {
+    expect(insertBlock('abc', 3, 3, '- x')).toEqual({ value: 'abc\n- x', start: 7, end: 7 });
+  });
+
+  it('перед переносом строки хвостовой `\\n` не добавляется', () => {
+    expect(insertBlock('abc\ndef', 3, 3, '- x').value).toBe('abc\n- x\ndef');
+  });
+
+  it('текст без блока — как insertAt, без переносов', () => {
+    expect(insertBlock('abc def', 3, 3, 'просто фраза')).toEqual(insertAt('abc def', 3, 3, 'просто фраза'));
+  });
+
+  it('абзац, кончающийся списком: перенос только после', () => {
+    expect(insertBlock('abc def', 4, 4, 'Итог:\n\n- x').value).toBe('abc Итог:\n\n- x\ndef');
+  });
+
+  it('заменяет выделение', () => {
+    expect(insertBlock('aXXb', 1, 3, '- x').value).toBe('a\n- x\nb');
   });
 });

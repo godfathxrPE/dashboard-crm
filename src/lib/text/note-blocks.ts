@@ -14,7 +14,7 @@
 // отдельно, в `note-inline.ts`: блок хранит текст как есть.
 // ═══════════════════════════════════════════════════════
 
-import { stripInline } from '@/lib/text/note-inline';
+import { parseInline, stripInline } from '@/lib/text/note-inline';
 
 export type NoteBlock =
   | { type: 'heading'; level: 1 | 2 | 3; text: string }
@@ -53,8 +53,24 @@ function classify(line: string): Line {
     : { kind: 'text', text: line };
 }
 
+/** Строка с разметкой (`**x**`, `*x*`, ссылка) — это абзац, который написали руками, а не заголовок. */
+function hasInlineMarkup(text: string): boolean {
+  return parseInline(text).some((n) => n.t !== 'text');
+}
+
 function isHeadingText(text: string): boolean {
-  return text.length <= HEADING_MAX_LEN && !HEADING_BAD_END.test(text);
+  return text.length <= HEADING_MAX_LEN && !HEADING_BAD_END.test(text) && !hasInlineMarkup(text);
+}
+
+/**
+ * Заметка написана в markdown-редакторе (2.2+): есть `#`-заголовок, `**жирный**` или
+ * ссылка. Курсив не в счёт: `*` в старом плоском тексте встречается и без разметки.
+ * Разбор — тем же `parseInline`, построчно (жирный через пустую строку парой не считается).
+ */
+export function hasMarkdown(raw: string): boolean {
+  return normalize(raw).some(
+    (l) => MD_HEADING.test(l) || parseInline(l).some((n) => n.t === 'strong' || n.t === 'link'),
+  );
 }
 
 /**
@@ -63,9 +79,14 @@ function isHeadingText(text: string): boolean {
  * Приоритет: строка без маркера сразу после пункта списка — продолжение пункта, а не
  * заголовок (иначе короткое продолжение перед следующим пунктом стало бы заголовком).
  * Заголовку нужна пустая строка или абзац перед ним.
+ *
+ * Эвристика заголовка — только для плоского текста (78 перенесённых заметок и всё до 2.2).
+ * В markdown-заметке заголовок ставят явно (`#`), и короткая строка перед списком
+ * остаётся абзацем.
  */
 export function parseNoteBlocks(raw: string): NoteBlock[] {
   const lines = normalize(raw).map(classify);
+  const guessHeadings = !hasMarkdown(raw);
   const blocks: NoteBlock[] = [];
   let para: string[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
@@ -109,7 +130,7 @@ export function parseNoteBlocks(raw: string): NoteBlock[] {
       list.items[list.items.length - 1] += ` ${line.text}`;
       return;
     }
-    if (isHeadingText(line.text) && nextNonBlank(i)?.kind === 'item') {
+    if (guessHeadings && isHeadingText(line.text) && nextNonBlank(i)?.kind === 'item') {
       flushPara();
       blocks.push({ type: 'heading', level: 3, text: line.text });
       return;

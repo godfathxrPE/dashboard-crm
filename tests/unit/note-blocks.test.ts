@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNoteBlocks, splitNoteHead, noteToPlainLine, noteHeadline } from '@/lib/text/note-blocks';
+import { parseNoteBlocks, splitNoteHead, noteToPlainLine, noteHeadline, hasMarkdown } from '@/lib/text/note-blocks';
 
 // S-DEAL-NOTES-READ-1. Заметки хранятся плоским текстом; структуру восстанавливает
 // эта функция. Чистая, без React — тесты фиксируют правила, в том числе НАМЕРЕННЫЕ
@@ -155,6 +155,63 @@ describe('parseNoteBlocks · markdown (S-NOTES-2.2)', () => {
     expect(parseNoteBlocks('**Итог:** см. [КП](https://x.ru)')).toEqual([
       { type: 'paragraph', text: '**Итог:** см. [КП](https://x.ru)' },
     ]);
+  });
+});
+
+describe('parseNoteBlocks · эвристика заголовка и markdown (гейт 2.2)', () => {
+  it('`Клиент **согласен**` перед списком — абзац, а не заголовок', () => {
+    expect(parseNoteBlocks('Клиент **согласен**\n- пункт')).toEqual([
+      { type: 'paragraph', text: 'Клиент **согласен**' },
+      { type: 'list', items: ['пункт'] },
+    ]);
+  });
+
+  it('есть `#` — эвристика выключена: короткая строка перед списком — абзац', () => {
+    expect(parseNoteBlocks('## Итоги\nКороткая строка\n- пункт')).toEqual([
+      { type: 'heading', level: 2, text: 'Итоги' },
+      { type: 'paragraph', text: 'Короткая строка' },
+      { type: 'list', items: ['пункт'] },
+    ]);
+  });
+
+  it('ссылка где угодно в заметке выключает эвристику', () => {
+    expect(parseNoteBlocks('Ситуация\n- пункт\n\nсм. [КП](https://x.ru)')[0]).toEqual({
+      type: 'paragraph',
+      text: 'Ситуация',
+    });
+  });
+
+  it('строка с курсивом заголовком не становится, остальная эвристика работает', () => {
+    expect(parseNoteBlocks('Итоги *вчерне*\n- пункт')[0]).toEqual({ type: 'paragraph', text: 'Итоги *вчерне*' });
+    expect(parseNoteBlocks('Итоги *вчерне*\n- пункт\n\nСитуация\n- ещё')[2]).toEqual({
+      type: 'heading',
+      level: 3,
+      text: 'Ситуация',
+    });
+  });
+
+  it('плоский текст без разметки: `Ситуация\n- пункт` → заголовок уровня 3 (регрессия)', () => {
+    expect(parseNoteBlocks('Ситуация\n- пункт')).toEqual([
+      { type: 'heading', level: 3, text: 'Ситуация' },
+      { type: 'list', items: ['пункт'] },
+    ]);
+  });
+});
+
+describe('hasMarkdown', () => {
+  it.each([
+    ['# Итоги', true],
+    ['текст\n### x', true],
+    ['**жирный**', true],
+    ['[сайт](https://x.ru)', true],
+    ['[почта](mailto:a@b.ru)', true],
+    ['*курсив* не в счёт', false],
+    ['#хэштег', false],
+    ['**\n\n**', false],
+    ['[x](javascript:alert(1))', false],
+    ['Ситуация\n- пункт', false],
+  ])('%j → %s', (raw, want) => {
+    expect(hasMarkdown(raw)).toBe(want);
   });
 });
 
