@@ -154,7 +154,8 @@ const PILL_CLASS: Record<PillTone, string> = {
   note: 'bg-yellow-l text-yellow',
   meeting: 'bg-purple-l text-purple',
   call: 'bg-blue-l text-blue',
-  essence: 'bg-accent-l text-accent',
+  // Не --accent: в t-washi акцент = красный, пилюля «Суть сделки» читалась бы как тревога (гейт S-NOTES-2.1).
+  essence: 'bg-surface2 text-text-main',
 };
 
 /** Пилюля типа в шапке карточки (вариант Б макета). */
