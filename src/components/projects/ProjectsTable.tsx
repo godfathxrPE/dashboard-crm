@@ -8,7 +8,7 @@ import {
 import { useProjects, useDeleteProject, type Project } from '@/lib/hooks/use-projects';
 import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { formatBudget } from '@/lib/validators/project';
-import { trackFromPhaseGroup } from '@/lib/utils/stage-track';
+import { DEAL_PHASE_ORDER, PHASE_LABELS, phaseLabel } from '@/lib/constants/phase-labels';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { ChipFilter, type ChipOption } from '@/components/ui/ChipFilter';
 import { useChipFilter } from '@/lib/hooks/use-chip-filter';
@@ -26,9 +26,11 @@ import { ProjectModal } from './ProjectModal';
 import { ProjectPeekContent } from './ProjectPeekContent';
 import type { PipelineStage, SegmentPredicate } from '@/types/database';
 
-// Путь B: 3-трек из phase_group стадии (stage_id → pipeline_stages), не legacy `stage`.
-function getTrack(p: Project, stagesMap: Map<string, PipelineStage>): string | null {
-  return trackFromPhaseGroup(p.stage_id ? stagesMap.get(p.stage_id)?.phase_group : null);
+// S-PIPE-SPLIT-2: группа стадии (phase_group) вместо 3-трека «Подготовка / Эксперимент /
+// Проект». Трек врал: «Эксперимент» был группой working+approval, и в него попадала
+// «Подготовка КП» проектной воронки. Подписи и порядок — те же, что у колонок доски.
+function getPhase(p: Project, stagesMap: Map<string, PipelineStage>): string | null {
+  return (p.stage_id ? stagesMap.get(p.stage_id)?.phase_group : null) ?? null;
 }
 
 // Resolve stage display name from pipeline_stages (stage_id). Legacy `stage` не читаем.
@@ -43,13 +45,18 @@ type ViewMode = 'pipeline' | 'board' | 'table';
 
 interface ProjectsTableProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
+  /**
+   * S-PIPE-SPLIT-2: воронка из ЯВНОГО `?pipeline`. null — все воронки направления
+   * (таблице, в отличие от доски, одна воронка не нужна).
+   */
+  pipelineId?: string | null;
   quickFilter?: ProjectQuickFilter | null;
   /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
   segment?: SegmentPredicate | null;
   onSwitchView?: (view: ViewMode) => void;
 }
 
-export function ProjectsTable({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: ProjectsTableProps) {
+export function ProjectsTable({ directionFilter = 'all', pipelineId = null, quickFilter = null, segment = null, onSwitchView }: ProjectsTableProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading, error } = useProjects('deals');
   const { data: allStages } = usePipelineStages();
@@ -87,7 +94,11 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
   const projects = useMemo(
     () => applySegment(
       applyProjectQuickFilter(
-        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        (rawProjects ?? []).filter(
+          (p) =>
+            (directionFilter === 'all' || p.direction === directionFilter) &&
+            (!pipelineId || p.pipeline_id === pipelineId),
+        ),
         quickFilter,
       ),
       segment,
@@ -96,15 +107,15 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
       // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
       { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
+    [rawProjects, directionFilter, pipelineId, quickFilter, segment, completenessRules],
   );
 
   const today = useMemo(() => new Date(new Date().toDateString()), []);
 
   const chipFilters = useMemo<Record<string, (p: Project) => boolean>>(() => ({
-    track_prep: (p) => getTrack(p, stagesMap) === 'Подготовка',
-    track_exp: (p) => getTrack(p, stagesMap) === 'Эксперимент',
-    track_proj: (p) => getTrack(p, stagesMap) === 'Проект',
+    ...Object.fromEntries(
+      DEAL_PHASE_ORDER.map((phase) => [`phase_${phase}`, (p: Project) => getPhase(p, stagesMap) === phase]),
+    ),
     dir_iiot: (p) => p.direction === 'iiot',
     dir_erp: (p) => p.direction === 'erp',
     has_budget: (p) => !!p.budget && p.budget > 0,
@@ -120,9 +131,11 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
   const { filtered, activeFilters, counts, toggle, reset } = useChipFilter(activeProjects, chipFilters);
 
   const chipOptions: ChipOption[] = useMemo(() => [
-    { label: 'Подготовка', value: 'track_prep', count: counts.track_prep },
-    { label: 'Эксперимент', value: 'track_exp', count: counts.track_exp },
-    { label: 'Проект', value: 'track_proj', count: counts.track_proj },
+    ...DEAL_PHASE_ORDER.map((phase) => ({
+      label: PHASE_LABELS[phase],
+      value: `phase_${phase}`,
+      count: counts[`phase_${phase}`],
+    })),
     { label: 'Есть бюджет', value: 'has_budget', count: counts.has_budget },
     { label: 'Просрочен', value: 'overdue', count: counts.overdue },
   ], [counts]);
@@ -162,11 +175,11 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
       ),
     },
     {
-      key: 'track',
-      label: 'Трек',
+      key: 'phase',
+      label: 'Фаза',
       sortable: false,
       render: (p) => (
-        <span className="text-xs text-text-dim">{getTrack(p, stagesMap) ?? '—'}</span>
+        <span className="text-xs text-text-dim">{phaseLabel(getPhase(p, stagesMap))}</span>
       ),
     },
     {
@@ -343,7 +356,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
                   name: p.name,
                   direction: p.direction === 'iiot' ? 'IIoT' : 'ERP',
                   stage: getStageName(p, stagesMap),
-                  track: getTrack(p, stagesMap) ?? '',
+                  phase: getPhase(p, stagesMap) ? phaseLabel(getPhase(p, stagesMap)) : '',
                   company: p.company?.name ?? '',
                   contact: p.contact ? `${p.contact.first_name} ${p.contact.last_name}` : '',
                   budget: p.budget ? formatBudget(p.budget) : '',
@@ -355,7 +368,7 @@ export function ProjectsTable({ directionFilter = 'all', quickFilter = null, seg
                   { key: 'name', label: 'Сделка' },
                   { key: 'direction', label: 'Направление' },
                   { key: 'stage', label: 'Стадия' },
-                  { key: 'track', label: 'Трек' },
+                  { key: 'phase', label: 'Фаза' },
                   { key: 'company', label: 'Компания' },
                   { key: 'contact', label: 'Контакт' },
                   { key: 'budget', label: 'Бюджет' },

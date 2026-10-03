@@ -34,7 +34,7 @@ import {
 } from '@/lib/hooks/use-projects';
 import { useMoveProject } from '@/lib/hooks/use-stage-transition';
 import { formatBudget } from '@/lib/validators/project';
-import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { usePipelineStages } from '@/lib/hooks/use-pipelines';
 import { applyProjectQuickFilter, type ProjectQuickFilter } from '@/lib/utils/project-filters';
 import { applySegment } from '@/lib/domain/segment-eval';
 import { useCompletenessRules } from '@/lib/hooks/use-org-settings';
@@ -44,7 +44,7 @@ import { ProjectModal } from './ProjectModal';
 import { LostDeals } from './LostDeals';
 import { WonDeals } from './WonDeals';
 import { Badge } from '@/components/ui/Badge';
-import type { PipelineStage, Direction, SegmentPredicate } from '@/types/database';
+import type { PipelineStage, SegmentPredicate } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // Phase group colors for column header tint
@@ -267,17 +267,17 @@ function StageColumn({
 // ═══════════════════════════════════════════════════════
 
 interface StageBoardProps {
-  directionFilter?: 'all' | 'erp' | 'iiot';
+  /** S-PIPE-SPLIT-2: воронка доски, уже разрешённая `ProjectsView` (см. PipelineBoard). */
+  pipelineId: string;
   quickFilter?: ProjectQuickFilter | null;
   /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
   segment?: SegmentPredicate | null;
   onSwitchView: () => void;
 }
 
-export function StageBoard({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: StageBoardProps) {
+export function StageBoard({ pipelineId, quickFilter = null, segment = null, onSwitchView }: StageBoardProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
-  const { data: pipelines } = usePipelines();
   const { data: allStages } = usePipelineStages();
   const { moveToStageId } = useMoveProject();
   const deleteProject = useDeleteProject();
@@ -293,11 +293,12 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
 
   const completenessRules = useCompletenessRules();
 
-  // Direction-filtered projects
+  // Сделки активной воронки (S-PIPE-SPLIT-2: срез по `pipeline_id` до раскладки —
+  // как в PipelineBoard; заодно отсекает чужое направление и честно считает пустую доску).
   const projects = useMemo(
     () => applySegment(
       applyProjectQuickFilter(
-        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        (rawProjects ?? []).filter((p) => p.pipeline_id === pipelineId),
         quickFilter,
       ),
       segment,
@@ -306,20 +307,13 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
       // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
       { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
-  );
-
-  // Active pipeline
-  const effectiveDirection: Direction = directionFilter === 'all' ? 'iiot' : directionFilter;
-  const activePipeline = useMemo(
-    () => pipelines?.find((p) => p.direction === effectiveDirection && p.entity_type === 'deal' && p.is_default),
-    [pipelines, effectiveDirection],
+    [rawProjects, pipelineId, quickFilter, segment, completenessRules],
   );
 
   // Pipeline stages (active only — no won/lost)
   const pipelineStages = useMemo(
-    () => allStages?.filter((s) => s.pipeline_id === activePipeline?.id).sort((a, b) => a.order_index - b.order_index) ?? [],
-    [allStages, activePipeline],
+    () => allStages?.filter((s) => s.pipeline_id === pipelineId).sort((a, b) => a.order_index - b.order_index) ?? [],
+    [allStages, pipelineId],
   );
   const activeStages = useMemo(
     () => pipelineStages.filter((s) => !s.is_won && !s.is_lost),
@@ -342,7 +336,8 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
       if (result[p.stage_id]) {
         result[p.stage_id].push(p);
       }
-      // Projects from other pipeline (e.g. ERP when showing IIoT) — skip
+      // Чужие воронки отсечены в `projects`. Сюда доходит только сделка этой воронки
+      // со стадией вне её (битые данные) — колонки у неё нет, на доске её не видно.
     }
     // Sort within each stage
     for (const key of Object.keys(result)) {
@@ -405,7 +400,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
     deleteProject.mutate(id);
   }
 
-  const isLoading = loadingProjects || !pipelines || !allStages;
+  const isLoading = loadingProjects || !allStages;
 
   if (isLoading) {
     return (
@@ -533,6 +528,7 @@ export function StageBoard({ directionFilter = 'all', quickFilter = null, segmen
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditProject(null); }}
         editProject={editProject}
+        defaultPipelineId={pipelineId}
       />
     </>
   );

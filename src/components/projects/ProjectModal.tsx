@@ -17,6 +17,7 @@ import {
   type Project,
 } from '@/lib/hooks/use-projects';
 import { usePipelines, usePipelineStages } from '@/lib/hooks/use-pipelines';
+import { dealPipelinesFor, firstWorkingStage } from '@/lib/domain/pipeline-choice';
 import { useCompanies } from '@/lib/hooks/use-companies';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { contactsForCompany } from '@/lib/forms/derive-links';
@@ -32,9 +33,14 @@ interface ProjectModalProps {
   defaultCompanyId?: string | null;
   /** Sprint W1a: открыть модалку с фокусом на «Дата следующего шага» (prompt после переноса стадии) */
   focusNextAction?: boolean;
+  /**
+   * S-PIPE-SPLIT-2: воронка, в которой создаётся сделка (доска передаёт активную).
+   * Учитывается только при создании и только если это deal-воронка; иначе — default.
+   */
+  defaultPipelineId?: string | null;
 }
 
-export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, focusNextAction }: ProjectModalProps) {
+export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, focusNextAction, defaultPipelineId }: ProjectModalProps) {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const { data: companies = [] } = useCompanies();
@@ -96,9 +102,20 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     return allStages.filter((s) => s.pipeline_id === currentPipelineId);
   }, [allStages, currentPipelineId]);
 
-  // Default pipeline for a direction
-  const getDefaultPipeline = (dir: Direction) =>
-    pipelines?.find((p) => p.direction === dir && p.entity_type === 'deal' && p.is_default);
+  // S-PIPE-SPLIT-2: deal-воронки направления, default первой. «Default направления» —
+  // первая из них, отдельного поиска по флагу default в форме нет.
+  const getDefaultPipeline = (dir: Direction) => dealPipelinesFor(pipelines ?? [], dir)[0];
+  const directionPipelines = useMemo(
+    () => (currentDirection ? dealPipelinesFor(pipelines ?? [], currentDirection) : []),
+    [pipelines, currentDirection],
+  );
+
+  /** Воронка + её первая рабочая стадия — одним действием, стадия чужой воронки не остаётся. */
+  const applyPipeline = (pipelineId: string) => {
+    setValue('pipeline_id', pipelineId, { shouldDirty: true });
+    const first = firstWorkingStage((allStages ?? []).filter((s) => s.pipeline_id === pipelineId));
+    setValue('stage_id', first?.id ?? '', { shouldDirty: true });
+  };
 
   // Reset формы — ТОЛЬКО при открытии модалки / смене editProject. Раньше эффект
   // зависел от [pipelines, allStages] и при их фоновом рефетче re-run reset()
@@ -181,15 +198,19 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     if (watch('type') === 'internal') return; // PCT-1: internal вне воронки
     if (watch('pipeline_id')) return; // уже установлено (reset/пользователь)
 
-    const defaultPipeline = getDefaultPipeline('iiot');
-    if (defaultPipeline) {
-      setValue('pipeline_id', defaultPipeline.id);
-      const firstStage = allStages.find(
-        (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
-      );
+    // S-PIPE-SPLIT-2: воронка доски, с которой открыли форму. Её направление
+    // становится направлением формы — «+ Сделка» на доске ERP создаёт ERP-сделку.
+    const requested = defaultPipelineId
+      ? pipelines.find((p) => p.id === defaultPipelineId && p.entity_type === 'deal')
+      : undefined;
+    const target = requested ?? getDefaultPipeline('iiot');
+    if (target) {
+      setValue('direction', target.direction);
+      setValue('pipeline_id', target.id);
+      const firstStage = firstWorkingStage(allStages.filter((s) => s.pipeline_id === target.id));
       if (firstStage) setValue('stage_id', firstStage.id);
     }
-  }, [isOpen, editProject, pipelines, allStages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, editProject, pipelines, allStages, defaultPipelineId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sprint W1a: фокус на «Дата шага», когда модалку открыли из prompt после переноса стадии
   useEffect(() => {
@@ -203,8 +224,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     const defaultPipeline = getDefaultPipeline(dir);
     if (defaultPipeline) {
       setValue('pipeline_id', defaultPipeline.id);
-      const firstStage = allStages?.find(
-        (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
+      const firstStage = firstWorkingStage(
+        (allStages ?? []).filter((s) => s.pipeline_id === defaultPipeline.id),
       );
       if (firstStage) setValue('stage_id', firstStage.id);
     }
@@ -223,8 +244,8 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
       const defaultPipeline = getDefaultPipeline('iiot');
       if (defaultPipeline) {
         setValue('pipeline_id', defaultPipeline.id);
-        const firstStage = allStages?.find(
-          (s) => s.pipeline_id === defaultPipeline.id && s.order_index === 1,
+        const firstStage = firstWorkingStage(
+          (allStages ?? []).filter((s) => s.pipeline_id === defaultPipeline.id),
         );
         setValue('stage_id', firstStage?.id ?? null);
       }
@@ -281,13 +302,23 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
     // воронки» — снимать её отсюда безопасно: тип проекта после создания не
     // меняется (селектор типа рендерится только при !editProject), значит у
     // редактируемого internal-проекта stage_id уже null в БД.
+    //
+    // S-PIPE-SPLIT-2: то же для `pipeline_id` и `direction`. Воронка меняется
+    // переводом из карточки сделки (stage_id + pipeline_id одним UPDATE через
+    // useStageTransition); форма, пишущая воронку без стадии, развела бы их — БД
+    // согласованность «стадия ∈ воронка» не проверяет. Направление определяет набор
+    // воронок, поэтому при правке оно тоже только для чтения.
     if (editProject) {
-      // stage_id объявляем опциональным ровно ради `delete`: сама схема формы
-      // держит его обязательным (создание стадию выбирает).
-      const stripped: Omit<ProjectFormValues, 'stage_id'> & { stage_id?: string | null } = {
-        ...payload,
-      };
+      // Ключи объявляем опциональными ровно ради `delete`: сама схема формы держит
+      // их обязательными (создание их выбирает).
+      const stripped: Omit<ProjectFormValues, 'stage_id' | 'pipeline_id' | 'direction'> & {
+        stage_id?: string | null;
+        pipeline_id?: string | null;
+        direction?: Direction | null;
+      } = { ...payload };
       delete stripped.stage_id;
+      delete stripped.pipeline_id;
+      delete stripped.direction;
       payload = stripped as ProjectFormValues;
     }
 
@@ -395,16 +426,58 @@ export function ProjectModal({ isOpen, onClose, editProject, defaultCompanyId, f
                     key={opt.value}
                     type="button"
                     onClick={() => onDirectionChange(opt.value)}
+                    disabled={!!editProject}
+                    aria-pressed={currentDirection === opt.value}
+                    aria-describedby={editProject ? 'direction-readonly-hint' : undefined}
                     className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
                       currentDirection === opt.value
                         ? 'bg-accent-l text-accent'
                         : 'text-text-mute hover:text-text-main'
-                    }`}
+                    } disabled:cursor-not-allowed disabled:opacity-70`}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
+              {editProject && (
+                <p id="direction-readonly-hint" className="mt-1 text-xs text-text-mute">
+                  Направление задаётся при создании сделки
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* S-PIPE-SPLIT-2: воронка — когда у направления их больше одной (ERP — нет).
+              При правке только для чтения: перевод — в карточке сделки (гейт + история). */}
+          {!isInternal && !isDelivery && directionPipelines.length > 1 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-text-dim">
+                Воронка
+              </label>
+              <div className="flex rounded-lg border border-border p-1">
+                {directionPipelines.map((pl) => (
+                  <button
+                    key={pl.id}
+                    type="button"
+                    onClick={() => applyPipeline(pl.id)}
+                    disabled={!!editProject}
+                    aria-pressed={currentPipelineId === pl.id}
+                    aria-describedby={editProject ? 'pipeline-readonly-hint' : undefined}
+                    className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+                      currentPipelineId === pl.id
+                        ? 'bg-accent-l text-accent'
+                        : 'text-text-mute hover:text-text-main'
+                    } disabled:cursor-not-allowed disabled:opacity-70`}
+                  >
+                    {pl.name}
+                  </button>
+                ))}
+              </div>
+              {editProject && (
+                <p id="pipeline-readonly-hint" className="mt-1 text-xs text-text-mute">
+                  Воронка меняется в карточке сделки
+                </p>
+              )}
             </div>
           )}
 

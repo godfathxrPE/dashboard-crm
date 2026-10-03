@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Pipeline, PipelineStage, Direction, PipelineEntityType } from '@/types/database';
+import type { Pipeline, PipelineStage } from '@/types/database';
 
 /**
  * Load all pipelines. Cached long — pipelines almost never change at runtime.
@@ -84,15 +84,5 @@ export function useIsProjectActive() {
   }, [stages]);
 }
 
-/**
- * Helper: find default pipeline for given direction + entity_type.
- */
-export function useDefaultPipeline(
-  direction: Direction,
-  entityType: PipelineEntityType,
-): Pipeline | undefined {
-  const { data: pipelines } = usePipelines();
-  return pipelines?.find(
-    (p) => p.direction === direction && p.entity_type === entityType && p.is_default,
-  );
-}
+// S-PIPE-SPLIT-2: `useDefaultPipeline` снят — потребителей не было, а «одна default-
+// воронка на направление» после 136 неверна. Выбор воронки — `@/lib/domain/pipeline-choice`.

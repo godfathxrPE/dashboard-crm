@@ -10,7 +10,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { previewTransition, describeAutomationAction } from '@/lib/domain/stage-transition';
+import {
+  buildTransitionPatch,
+  describeAutomationAction,
+  previewTransition,
+} from '@/lib/domain/stage-transition';
 import type { AutomationRule, UnmetRequirement } from '@/types/database';
 
 const fieldReq = (column: string, hint = `Заполни ${column}`): UnmetRequirement =>
@@ -172,5 +176,43 @@ describe('describeAutomationAction', () => {
   it('set_field использует человеческий лейбл колонки', () => {
     const r = rule({ action_type: 'set_field', action_config: { field: 'next_step', value: 'Позвонить' } });
     expect(describeAutomationAction(r)).toBe('Заполнить «Следующий шаг» → Позвонить');
+  });
+});
+
+// S-PIPE-SPLIT-2: перевод между воронками — тот же UPDATE, что смена стадии.
+describe('buildTransitionPatch — воронка', () => {
+  const base = {
+    projectId: 'deal-1',
+    fromStageId: 'stage-A',
+    toStageId: 'stage-B',
+    fieldPatches: { budget: 500000, next_step: 'Созвон' },
+  };
+
+  it('без pipelineId патч прежний: только whitelist-поля, id и stage_id', () => {
+    expect(buildTransitionPatch(base)).toEqual({
+      budget: 500000,
+      next_step: 'Созвон',
+      id: 'deal-1',
+      stage_id: 'stage-B',
+    });
+    expect('pipeline_id' in buildTransitionPatch(base)).toBe(false);
+  });
+
+  it('с pipelineId — pipeline_id и stage_id одним объектом', () => {
+    expect(buildTransitionPatch({ ...base, pipelineId: 'pipe-exp' })).toEqual({
+      budget: 500000,
+      next_step: 'Созвон',
+      id: 'deal-1',
+      stage_id: 'stage-B',
+      pipeline_id: 'pipe-exp',
+    });
+  });
+
+  it('pipeline_id не протаскивается через fieldPatches', () => {
+    const patch = buildTransitionPatch({
+      ...base,
+      fieldPatches: { pipeline_id: 'pipe-x' } as unknown as typeof base.fieldPatches,
+    });
+    expect('pipeline_id' in patch).toBe(false);
   });
 });

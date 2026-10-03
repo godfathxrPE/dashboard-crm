@@ -47,20 +47,14 @@ import { LostDeals } from './LostDeals';
 import { WonDeals } from './WonDeals';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { CTAButton } from '@/components/ui/CTAButton';
-import type { PipelineStage, Direction, SegmentPredicate } from '@/types/database';
+import { DEAL_PHASE_ORDER, PHASE_LABELS } from '@/lib/constants/phase-labels';
+import type { PipelineStage, SegmentPredicate } from '@/types/database';
 
 // ═══════════════════════════════════════════════════════
 // Phase visual config — keyed by phase_group from DB
 // ═══════════════════════════════════════════════════════
 
-const PHASE_ORDER = ['attraction', 'working', 'approval', 'closing'] as const;
-
-const PHASE_LABELS: Record<string, string> = {
-  attraction: 'Привлечение',
-  working: 'Проработка',
-  approval: 'Согласование',
-  closing: 'Закрытие',
-};
+// Порядок и подписи колонок — общие с чипами групп таблицы сделок (S-PIPE-SPLIT-2).
 
 // Точка-маркер заголовка — track-current (заливка-цвет).
 const PHASE_HEADER_COLOR: Record<string, string> = {
@@ -319,13 +313,18 @@ function PhaseColumn({
 
 interface PipelineBoardProps {
   directionFilter?: 'all' | 'erp' | 'iiot';
+  /**
+   * S-PIPE-SPLIT-2: воронка доски, уже разрешённая `ProjectsView`
+   * (`resolveActivePipeline`: `?pipeline` → default направления). Доска её не выбирает.
+   */
+  pipelineId: string;
   quickFilter?: ProjectQuickFilter | null;
   /** Предикат активного сегмента (?segment=<uuid>); null — сегмент не выбран. */
   segment?: SegmentPredicate | null;
   onSwitchView?: () => void;
 }
 
-export function PipelineBoard({ directionFilter = 'all', quickFilter = null, segment = null, onSwitchView }: PipelineBoardProps = {}) {
+export function PipelineBoard({ directionFilter = 'all', pipelineId, quickFilter = null, segment = null, onSwitchView }: PipelineBoardProps) {
   const router = useRouter();
   const { data: rawProjects, isLoading: loadingProjects, error } = useProjects('deals');
   const { data: pipelines } = usePipelines();
@@ -364,11 +363,15 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
 
   const completenessRules = useCompletenessRules();
 
-  // Direction-filtered projects + быстрые пресеты (?q=attention|nobudget)
+  // Сделки активной воронки + быстрые пресеты (?q=attention|nobudget) + сегмент.
+  // S-PIPE-SPLIT-2: срез по `pipeline_id` — ДО раскладки по колонкам. Раньше доска
+  // резала только по направлению, и сделка второй воронки того же направления
+  // («IIoT Эксперимент» на доске «IIoT Проект») падала в первую колонку с чужой
+  // стадией. Срез по воронке заодно отсекает и чужое направление.
   const projects = useMemo(
     () => applySegment(
       applyProjectQuickFilter(
-        directionFilter === 'all' ? rawProjects ?? [] : (rawProjects ?? []).filter((p) => p.direction === directionFilter),
+        (rawProjects ?? []).filter((p) => p.pipeline_id === pipelineId),
         quickFilter,
       ),
       segment,
@@ -377,25 +380,23 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
       // S-R3-TRUST-1: веса правил организации для вычисляемого `completeness_score`.
       { completenessRules },
     ),
-    [rawProjects, directionFilter, quickFilter, segment, completenessRules],
+    [rawProjects, pipelineId, quickFilter, segment, completenessRules],
   );
 
-  // Effective pipeline: when 'all', show IIoT pipeline
-  const effectiveDirection: Direction = directionFilter === 'all' ? 'iiot' : directionFilter;
   const activePipeline = useMemo(
-    () => pipelines?.find((p) => p.direction === effectiveDirection && p.entity_type === 'deal' && p.is_default),
-    [pipelines, effectiveDirection],
+    () => pipelines?.find((p) => p.id === pipelineId) ?? null,
+    [pipelines, pipelineId],
   );
 
   // Stages for the active pipeline
   const pipelineStages = useMemo(
-    () => allStages?.filter((s) => s.pipeline_id === activePipeline?.id).sort((a, b) => a.order_index - b.order_index) ?? [],
-    [allStages, activePipeline],
+    () => allStages?.filter((s) => s.pipeline_id === pipelineId).sort((a, b) => a.order_index - b.order_index) ?? [],
+    [allStages, pipelineId],
   );
 
   // Build phase columns from pipeline_stages
   const phaseColumns = useMemo<PhaseColumnData[]>(() => {
-    return PHASE_ORDER
+    return DEAL_PHASE_ORDER
       .filter((phase) => pipelineStages.some((s) => s.phase_group === phase))
       .map((phase) => ({
         id: phase,
@@ -457,13 +458,13 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
           break;
         }
       }
-      // Projects from other pipelines (e.g. ERP when showing IIoT pipeline) — skip
-      if (!placed && directionFilter === 'all') continue;
-      // If direction matches but stage not found — put in first column
+      // ⚠️ АВАРИЙНАЯ ветка: сделка ЭТОЙ воронки (чужие отсечены в `projects`), а её
+      // стадии в воронке нет — битые данные (stage_id и pipeline_id разошлись; БД это
+      // не проверяет). Кладём в первую колонку, чтобы сделка не пропала с доски молча.
       if (!placed) result[phaseColumns[0]?.id]?.push(p);
     }
     return result;
-  }, [projects, sortBy, phaseColumns, phaseStageIds, wonStageIds, lostStageIds, allStages, directionFilter]);
+  }, [projects, sortBy, phaseColumns, phaseStageIds, wonStageIds, lostStageIds, allStages]);
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === activeId) ?? null,
@@ -639,12 +640,12 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
       </div>
 
       {/* Hero Metrics */}
-      <HeroMetrics projects={projects ?? []} pipelineId={activePipeline?.id} stages={pipelineStages} />
+      <HeroMetrics projects={projects ?? []} pipelineId={pipelineId} stages={pipelineStages} />
 
       {/* ERP banner when direction=all */}
       {directionFilter === 'all' && erpCount > 0 && (
         <div className="mb-3 rounded border border-border px-4 py-2 text-xs text-text-mute">
-          Показан IIoT-пайплайн. {erpCount} ERP-{erpCount === 1 ? 'сделка' : erpCount < 5 ? 'сделки' : 'сделок'} доступны в фильтре ERP.
+          Показана воронка «{activePipeline?.name ?? 'IIoT'}». {erpCount} ERP-{erpCount === 1 ? 'сделка' : erpCount < 5 ? 'сделки' : 'сделок'} доступны в фильтре ERP.
         </div>
       )}
 
@@ -690,6 +691,7 @@ export function PipelineBoard({ directionFilter = 'all', quickFilter = null, seg
         onClose={() => { setModalOpen(false); setEditProject(null); setFocusNextAction(false); }}
         editProject={editProject}
         focusNextAction={focusNextAction}
+        defaultPipelineId={pipelineId}
       />
 
       {/* Sprint W1a: мягкая (не блокирующая) подсказка запланировать следующий шаг */}
