@@ -91,9 +91,12 @@ function GroupHeading({ layout, onToggle }: { layout: TodayGroupLayout; onToggle
           className={cn('shrink-0 self-start mt-0.5 text-text-mute transition-transform', !layout.collapsed && 'rotate-90')}
         />
         {label}
-        <span className="min-w-0 flex-1 text-body text-text-dim">
+        <span className={cn('min-w-0 flex-1 text-text-dim', layout.collapsed ? 'text-body' : 'text-xs')}>
           {layout.collapsed ? collapsedSummary(g) : TODAY_GROUP_RULES[g.key]}
         </span>
+        {!layout.collapsed && g.inMoves > 0 && (
+          <span className="shrink-0 text-xs text-text-mute">{inMovesText(g.inMoves)}</span>
+        )}
       </button>
     );
   }

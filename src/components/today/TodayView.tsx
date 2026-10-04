@@ -216,7 +216,9 @@ export function TodayView() {
       now,
     );
   }, [now, dealsReady, sinceKey, dealSources, touchesQ.data, quotesQ.data, tasks, myCalls, myUpcomingMeetings, snoozedDealIds]);
-  const loadError = projectsQ.isError || touchesQ.isError;
+  // Все четыре запроса модели: без КП и стадий модель не собирается, и без ошибки
+  // на экране скелетон висел бы вечно.
+  const loadError = projectsQ.isError || stagesQ.isError || touchesQ.isError || quotesQ.isError;
 
   // ── «Не сделки» — прежние правила отбора, без изменений.
   //
@@ -576,7 +578,12 @@ export function TodayView() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => { void projectsQ.refetch(); void touchesQ.refetch(); }}
+            onClick={() => {
+              void projectsQ.refetch();
+              void stagesQ.refetch();
+              void touchesQ.refetch();
+              void quotesQ.refetch();
+            }}
           >
             Повторить
           </Button>

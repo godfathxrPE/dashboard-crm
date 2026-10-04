@@ -70,7 +70,7 @@ export function TodayMoveCard({
         {step || 'Шаг не задан'}
       </p>
 
-      <p className="mt-1.5 line-clamp-2 text-xs text-text-dim">
+      <p className="mt-1.5 text-xs text-text-dim">
         <b className="font-semibold text-text-main">{why.lead}</b>{' '}
         {why.due && (
           <>
@@ -91,14 +91,14 @@ export function TodayMoveCard({
           type="button"
           aria-expanded={expanded}
           onClick={onToggle}
-          className="whitespace-nowrap rounded px-1.5 py-1 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+          className="inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
         >
           {expanded ? 'Свернуть' : 'Подробнее'}
         </button>
         <button
           type="button"
           onClick={onSnooze}
-          className="ml-auto whitespace-nowrap rounded px-1.5 py-1 text-xs text-text-mute transition-colors hover:bg-surface2 hover:text-text-main"
+          className="ml-auto inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-mute transition-colors hover:bg-surface2 hover:text-text-main"
         >
           Отложить
         </button>

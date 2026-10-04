@@ -145,13 +145,12 @@ export function DealPulseCard({ project }: { project: Project }) {
         <span>сегодня</span>
       </div>
 
-      <div className="mb-1.5 mt-2.5 text-[10.5px] text-text-mute">
-        Дни без активности · {pulse.longestSilence.days} дн.
+      <div className="mt-2.5">
+        <PulseDayStrip
+          days={pulseDays}
+          dueLabel={dueInWindow && project.next_action_date ? mskDayCaption(project.next_action_date) : undefined}
+        />
       </div>
-      <PulseDayStrip
-        days={pulseDays}
-        dueLabel={dueInWindow && project.next_action_date ? mskDayCaption(project.next_action_date) : undefined}
-      />
     </RailCard>
   );
 }

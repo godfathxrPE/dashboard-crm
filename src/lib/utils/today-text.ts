@@ -20,6 +20,18 @@ export function dayText(key: string): string {
   return mskDayCaption(key);
 }
 
+/**
+ * «Дедлайн сделки · 14 авг 2027» / «Дедлайн сделки был 30 сент».
+ * Год печатается, когда он не текущий: дата без года читается как этот год.
+ */
+export function deadlineText(key: string, todayKey: string): string {
+  const day = key.slice(0, 10);
+  const year = day.slice(0, 4) !== todayKey.slice(0, 4) ? ` ${day.slice(0, 4)}` : '';
+  return day < todayKey
+    ? `Дедлайн сделки был ${dayText(day)}${year}`
+    : `Дедлайн сделки · ${dayText(day)}${year}`;
+}
+
 /** «пт 9 окт» — Intl ставит запятую после дня недели, в строке она лишняя. */
 export function dayWeekdayText(key: string): string {
   return mskDayCaption(key, { weekday: true }).replace(',', '');

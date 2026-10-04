@@ -16,9 +16,9 @@ import { useUpdateCall } from '@/lib/hooks/use-calls';
 import { formatContactName } from '@/lib/utils/contact-name';
 import { projectHref } from '@/lib/utils/project-href';
 import { pluralRu } from '@/lib/utils/plural';
-import { mskTime } from '@/lib/utils/date-helpers';
+import { localDateKey, mskTime } from '@/lib/utils/date-helpers';
 import { formatBudget } from '@/lib/validators/project';
-import { dayText, dayWeekdayText, plannedText } from '@/lib/utils/today-text';
+import { dayText, dayWeekdayText, deadlineText, plannedText } from '@/lib/utils/today-text';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { PipelineStage } from '@/types/database';
 import type { TodayDealView } from '@/lib/domain/today-model';
@@ -151,7 +151,7 @@ export function TodayDealPanel({ view, project, stage, now, onPlan, onSnooze, st
                   <button
                     type="button"
                     onClick={() => updateTask.mutate({ id: t.id, lane: 'done' })}
-                    className="shrink-0 rounded border border-border px-2 py-0.5 text-xs text-text-dim transition-colors hover:text-text-main"
+                    className="inline-flex min-h-7 shrink-0 items-center rounded border border-border px-2 text-xs text-text-dim transition-colors hover:text-text-main"
                   >
                     Готово
                   </button>
@@ -165,7 +165,7 @@ export function TodayDealPanel({ view, project, stage, now, onPlan, onSnooze, st
                   <button
                     type="button"
                     onClick={() => updateCall.mutate({ id: c.id, status: 'done' })}
-                    className="shrink-0 rounded border border-border px-2 py-0.5 text-xs text-text-dim transition-colors hover:text-text-main"
+                    className="inline-flex min-h-7 shrink-0 items-center rounded border border-border px-2 text-xs text-text-dim transition-colors hover:text-text-main"
                   >
                     Выполнен
                   </button>
@@ -176,7 +176,7 @@ export function TodayDealPanel({ view, project, stage, now, onPlan, onSnooze, st
 
           <div className="mt-3 space-y-1 text-xs text-text-dim">
             {quoteExpired && <p className="text-warning-text">КП истекло {dayText(quoteExpired.since)}</p>}
-            {project.deadline && <p>Дедлайн сделки · {dayText(project.deadline)}</p>}
+            {project.deadline && <p>{deadlineText(project.deadline, localDateKey(now))}</p>}
             {gauge && gauge.days !== null && source.stage && (
               <p>
                 Стадия «{source.stage.name}»: {gauge.days} {pluralRu(gauge.days, 'день', 'дня', 'дней')}
