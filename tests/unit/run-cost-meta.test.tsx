@@ -33,6 +33,7 @@ function run(patch: Partial<AiRunRow> = {}): AiRunRow {
     duration_ms: 42_000,
     rating: null,
     feedback_note: null,
+    auto_reason: null,
     created_by: 'u1',
     created_at: '2026-08-18T09:00:00Z',
     finished_at: '2026-08-18T09:00:42Z',

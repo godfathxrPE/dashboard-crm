@@ -194,6 +194,7 @@ export type Database = {
       }
       ai_runs: {
         Row: {
+          auto_reason: string | null
           created_at: string
           created_by: string
           duration_ms: number | null
@@ -215,6 +216,7 @@ export type Database = {
           transcript_id: string | null
         }
         Insert: {
+          auto_reason?: string | null
           created_at?: string
           created_by?: string
           duration_ms?: number | null
@@ -236,6 +238,7 @@ export type Database = {
           transcript_id?: string | null
         }
         Update: {
+          auto_reason?: string | null
           created_at?: string
           created_by?: string
           duration_ms?: number | null
@@ -3907,6 +3910,9 @@ export type Database = {
         }
         Returns: number
       }
+      brief_auto_daily_limit: { Args: { p_org: string }; Returns: number }
+      brief_auto_day_start: { Args: never; Returns: string }
+      brief_auto_tick: { Args: never; Returns: undefined }
       build_deal_webhook_payload: {
         Args: {
           p_changes: Json
@@ -3971,6 +3977,25 @@ export type Database = {
       }
       cleanup_telegram_transport: { Args: never; Returns: number }
       cleanup_webhook_deliveries: { Args: never; Returns: number }
+      company_brief_auto_state: {
+        Args: { p_company_id: string }
+        Returns: {
+          attempts_today: number
+          daily_limit: number
+          reason: string
+          used_today: number
+        }[]
+      }
+      company_brief_candidates: {
+        Args: never
+        Returns: {
+          author_id: string
+          company_id: string
+          next_action_date: string
+          org_id: string
+          reason: string
+        }[]
+      }
       complete_onboarding: {
         Args: { p_full_name: string; p_job_title: string; p_phone: string }
         Returns: undefined
