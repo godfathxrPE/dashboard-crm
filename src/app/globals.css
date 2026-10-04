@@ -2188,6 +2188,15 @@ table { font-variant-numeric: tabular-nums; }
   background-color: color-mix(in srgb, var(--sheet-mark-fill) 8%, transparent);
 }
 
+/* S-BRIEF-IN-DEAL-1.2: разделитель внутри стекла. Классом, а не утилитой border-t:
+   safety-net `.t-frost *` перебивает border-утилиты при равной специфичности. */
+.glass-sheet .glass-divider { border-top: 1px solid var(--sheet-plate-border); }
+.glass-sheet .glass-skeleton {
+  height: 0.5625rem;
+  border-radius: 999px;
+  background: var(--sheet-plate-bg);
+}
+
 
 /* ═══ S-DEAL-NEXTSTEP-1: пустое состояние виджета «Следующий шаг» ═══
    Ни полосы слева, ни заливки: сигнал «шага нет» несёт кант ЦЕЛИКОМ.
