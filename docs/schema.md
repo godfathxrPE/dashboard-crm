@@ -1399,7 +1399,7 @@ deal-воронок. «Подготовка КП» → «Подготовить 
 | duration_ms | int | |
 | rating | smallint | CHECK `-1`\|`1` — 👍/👎 фидбек юзера |
 | feedback_note | text | «что не так» при 👎 (QA-датасет) |
-| auto_reason | text | **138 (S-BRIEF-IN-DEAL-1.1, НЕ ПРИМЕНЕНА)** — причина автозапуска брифа `no_brief`\|`stage`\|`stale`; NULL — ручной прогон. CHECK `ai_runs_auto_reason_check`: не NULL только при `preset_key = 'company_brief'` и `entity_type = 'company'`. Страж `trg_ai_runs_auto_reason_guard` (BEFORE INSERT OR UPDATE OF auto_reason): под `auth.uid()` поставить или сменить признак → 42501; ставит только `brief_auto_tick()` |
+| auto_reason | text | **138 (S-BRIEF-IN-DEAL-1.1, applied `20261004093000`)** — причина автозапуска брифа `no_brief`\|`stage`\|`stale`; NULL — ручной прогон. CHECK `ai_runs_auto_reason_check`: не NULL только при `preset_key = 'company_brief'` и `entity_type = 'company'`. Страж `trg_ai_runs_auto_reason_guard` (BEFORE INSERT OR UPDATE OF auto_reason): под `auth.uid()` поставить или сменить признак → 42501; ставит только `brief_auto_tick()` |
 | created_by | uuid | NOT NULL DEFAULT `auth.uid()` → profiles |
 | created_at / finished_at | timestamptz | |
 | — | — | INDEX `idx_ai_runs_entity`(entity_type,entity_id,created_at DESC), `idx_ai_runs_org_created`(org_id,created_at DESC) |
@@ -1507,7 +1507,7 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
 карточка компании + вычисленный кодом маркировочный профиль ЧЗ по ОКВЭД
 (`src/lib/data/chz-groups.ts`, зеркало в `supabase/functions/ai-run/chz-groups.ts`).
 
-**138 (S-BRIEF-IN-DEAL-1.1) — НАПИСАНА, НЕ ПРИМЕНЕНА**: автозапуск AI-брифа компании.
+**138 (S-BRIEF-IN-DEAL-1.1) — applied 2026-10-04 `20261004093000`, SQL Editor**: автозапуск AI-брифа компании.
 Бриф был у 2 из 16 компаний с открытыми сделками, кнопку не нажимали с 04.09 — теперь
 бриф собирается сам: по триггерам, с дневным лимитом, фоновой очередью. Решения
 владельца 29.09 и 03.10.
