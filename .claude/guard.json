@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "baseBranch": "main",
+  "protectedBranches": ["main", "master", "dev"],
+  "branchPrefixes": ["feat/", "fix/", "chore/", "refactor/", "docs/"],
+  "generatedFiles": ["src/types/database.ts", "src/types/supabase.gen.ts"],
+  "commitRules": [
+    {
+      "id": "sprint-file",
+      "ifChanged": "^(src|supabase|scripts|tests)/",
+      "requireInBranch": "^_analysis/(sprint|fix)-.+\\.md$",
+      "message": "Спринт-файл коммитится в ветку спринта: git add _analysis/<файл>.md"
+    },
+    {
+      "id": "schema-doc",
+      "ifChanged": "^supabase/migrations/",
+      "requireInBranch": "^docs/schema\\.md$",
+      "message": "Миграция без docs/schema.md: обнови раздел миграции тем же PR"
+    }
+  ]
+}
