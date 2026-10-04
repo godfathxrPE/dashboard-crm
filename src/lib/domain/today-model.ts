@@ -122,6 +122,21 @@ export interface TodayModelInput {
   /** `meetings.date` — колонка `date`, `meetings.time` — `time` ('HH:MM:SS'). */
   meetings: readonly { id: string; project_id: string | null; date: string; time: string | null }[];
   snoozedDealIds: ReadonlySet<string>;
+  /**
+   * ACT-1: набор ходов дня (`day-moves.ts`). Задан — `moves` это сделки из него в
+   * этом порядке (id без сделки пропускаются), строки групп и `inMoves` считаются
+   * относительно него. Не задан — ходы дня это `computed`.
+   */
+  picked?: readonly string[];
+  /** Слот хода на момент взятия в набор — для «почему здесь» сделанного хода. */
+  pickedSlots?: Readonly<Record<string, MoveSlot>>;
+  /**
+   * ACT-1: группа ПОКАЗА записанной сегодня сделки. Строка остаётся на своём месте до
+   * перезагрузки, а не прыгает в «По плану» сразу после записи. Действует только на
+   * строки групп: `noStepAhead` — по настоящему классу, на сделки из `picked` карта
+   * не действует.
+   */
+  pinnedGroups?: ReadonlyMap<string, TodayGroup>;
   /** День, с которого загружены касания: 'YYYY-MM-DD'. */
   sinceKey: string;
 }
@@ -293,27 +308,39 @@ export function buildTodayModel(
 
   const computed = pickMoves(candidates, thresholds.movesLimit);
   const slotById = new Map(computed.map((m) => [m.id, m.slot] as const));
-  for (const v of views) v.slot = slotById.get(v.source.id) ?? null;
-
   const viewById = new Map(views.map((v) => [v.source.id, v] as const));
+
+  // Ходы дня: набор дня, если он задан, иначе `computed`. id без сделки (закрыта,
+  // ушла с экрана) пропускается молча — набор хранится до конца дня.
+  const moveIds = input.picked
+    ? input.picked.filter((id) => viewById.has(id))
+    : computed.map((m) => m.id);
+  const inMoves = new Set(moveIds);
+  for (const v of views) {
+    const id = v.source.id;
+    v.slot = inMoves.has(id) ? input.pickedSlots?.[id] ?? slotById.get(id) ?? 'fill' : null;
+  }
+
   const byWeight = (a: TodayDealView, b: TodayDealView) =>
     compareByWeight(candidateById.get(a.source.id) as MoveCandidate, candidateById.get(b.source.id) as MoveCandidate);
 
   const visible = views.filter((v) => !input.snoozedDealIds.has(v.source.id));
+  const shownGroup = (v: TodayDealView): TodayGroup =>
+    (!inMoves.has(v.source.id) && input.pinnedGroups?.get(v.source.id)) || v.cls.group;
   const groups: TodayGroupView[] = TODAY_GROUP_ORDER.map((key) => {
-    const members = visible.filter((v) => v.cls.group === key).sort(byWeight);
+    const members = visible.filter((v) => shownGroup(v) === key).sort(byWeight);
     return {
       key,
-      rows: members.filter((v) => v.slot === null),
+      rows: members.filter((v) => !inMoves.has(v.source.id)),
       total: members.length,
-      inMoves: members.filter((v) => v.slot !== null).length,
+      inMoves: members.filter((v) => inMoves.has(v.source.id)).length,
     };
   });
 
   return {
     candidates,
     computed,
-    moves: computed.map((m) => viewById.get(m.id)).filter((v): v is TodayDealView => !!v),
+    moves: moveIds.map((id) => viewById.get(id)).filter((v): v is TodayDealView => !!v),
     groups,
     snoozed: views.filter((v) => input.snoozedDealIds.has(v.source.id)).sort(byWeight),
     // Отложенные считаются: это факт о книге сделок, а не о видимых строках.

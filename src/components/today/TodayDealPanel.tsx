@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import { ContactCallChip } from '@/components/shared/ContactCallChip';
 import { PulseDayStrip } from '@/components/shared/PulseDayStrip';
 import { cn } from '@/lib/utils/cn';
@@ -28,8 +27,8 @@ interface TodayDealPanelProps {
   project: Project;
   stage: PipelineStage | null;
   now: Date;
-  onPlan: () => void;
-  onSnooze: () => void;
+  /** Кнопки хода или форма (`TodayStepActions`) — блок «Сейчас». */
+  actions: ReactNode;
   /** Панель под рядом карточек — отдельный лист; под строкой — часть листа списка. */
   standalone?: boolean;
 }
@@ -55,7 +54,7 @@ function Column({ title, children }: { title: string; children: ReactNode }) {
  * Задачи и звонки сделки живут здесь, в «Сейчас», с прежними действиями «Готово» и
  * «Выполнен»: раньше они стояли отдельными строками экрана.
  */
-export function TodayDealPanel({ view, project, stage, now, onPlan, onSnooze, standalone }: TodayDealPanelProps) {
+export function TodayDealPanel({ view, project, stage, now, actions, standalone }: TodayDealPanelProps) {
   const { source, cls } = view;
   const { data: moves } = useFieldMoves(source.id);
   const stepMoves = moves?.step.count ?? 0;
@@ -125,16 +124,7 @@ export function TodayDealPanel({ view, project, stage, now, onPlan, onSnooze, st
             {step ? `«${step}»` : 'Шаг не задан'}
           </p>
           <p className="mt-1 text-xs text-text-dim">{stepMeta}</p>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <Button size="sm" variant="secondary" onClick={onPlan}>Запланировать шаг</Button>
-            <button
-              type="button"
-              onClick={onSnooze}
-              className="rounded px-2 py-1 text-xs text-text-mute transition-colors hover:bg-surface hover:text-text-main"
-            >
-              Отложить
-            </button>
-          </div>
+          <div className="mt-2.5">{actions}</div>
 
           {(view.tasks.length > 0 || view.calls.length > 0) && (
             <ul className="mt-3 space-y-1.5">

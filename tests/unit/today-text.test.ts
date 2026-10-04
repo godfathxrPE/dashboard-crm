@@ -4,6 +4,7 @@ import {
   dayText,
   dayWeekdayText,
   deadlineText,
+  doneText,
   dueText,
   inMovesText,
   moveWhy,
@@ -195,5 +196,22 @@ describe('deadlineText', () => {
     expect(deadlineText('2026-09-30', '2026-10-04')).toBe('Дедлайн сделки был 30 сент');
     expect(deadlineText('2026-12-01', '2026-10-04')).toBe('Дедлайн сделки · 1 дек');
     expect(deadlineText('2026-10-04', '2026-10-04')).toBe('Дедлайн сделки · 4 окт');
+  });
+});
+
+
+describe('doneText', () => {
+  it('итог в памяти: записано, перенесено, закрыто', () => {
+    expect(doneText(view(), { outcome: 'written', dateKey: '2026-10-06', moveCount: 0 })).toBe('Записано в сделку · шаг вт 6 окт');
+    expect(doneText(view(), { outcome: 'moved', dateKey: '2026-10-12', moveCount: 7 }))
+      .toBe('Перенесён на пн 12 окт · в сделке «перенесён 7 раз»');
+    expect(doneText(view(), { outcome: 'cleared', dateKey: null, moveCount: 0 })).toBe('Шаг закрыт · сделка осталась без шага');
+  });
+
+  it('после перезагрузки — по сделке: шаг впереди или шага нет', () => {
+    expect(doneText(view({ next_action_date: '2026-10-06', cls: { stepAhead: true, group: 'plan' } }), null))
+      .toBe('Записано в сделку · шаг вт 6 окт');
+    expect(doneText(view({ next_step: null, next_action_date: null, cls: { noStep: true, group: 'stale' } }), null))
+      .toBe('Шаг закрыт · сделка осталась без шага');
   });
 });

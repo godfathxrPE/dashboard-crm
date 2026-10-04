@@ -161,3 +161,27 @@ export function planItemText(view: TodayDealView): string {
   const time = planned && planned.dateKey === dayKey ? planned.time : null;
   return `${source.name} — ${dayWeekdayText(dayKey)}${time ? `, ${time}` : ''}`;
 }
+
+/** Итог записи хода — в объёме, нужном подписи карточки. */
+export interface DoneOutcome {
+  outcome: 'written' | 'moved' | 'cleared';
+  dateKey: string | null;
+  moveCount: number;
+}
+
+/**
+ * Подпись сделанного хода (макет, кадр 5). Есть итог записи в памяти экрана — по нему;
+ * после перезагрузки итога нет, и подпись берётся из текущего состояния сделки:
+ * «Перенесён на …» живёт только до перезагрузки.
+ */
+export function doneText(view: TodayDealView, result: DoneOutcome | null): string {
+  if (result?.outcome === 'moved' && result.dateKey) {
+    return `Перенесён на ${dayWeekdayText(result.dateKey)} · в сделке «перенесён ${result.moveCount} ${pluralRu(result.moveCount, 'раз', 'раза', 'раз')}»`;
+  }
+  if (result?.outcome === 'written' && result.dateKey) return `Записано в сделку · шаг ${dayWeekdayText(result.dateKey)}`;
+  if (result?.outcome === 'cleared') return 'Шаг закрыт · сделка осталась без шага';
+  const { cls, source } = view;
+  return cls.stepAhead && source.next_action_date
+    ? `Записано в сделку · шаг ${dayWeekdayText(source.next_action_date)}`
+    : 'Шаг закрыт · сделка осталась без шага';
+}

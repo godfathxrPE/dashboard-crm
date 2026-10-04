@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -11,7 +12,7 @@ import { getLeadHealth, compareLeadHealth } from '@/lib/utils/lead-health';
 import { useTasks, useUpdateTask } from '@/lib/hooks/use-tasks';
 import { useMeetings, useMyMeetings } from '@/lib/hooks/use-meetings';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { useProjects, type Project } from '@/lib/hooks/use-projects';
+import { useProjects } from '@/lib/hooks/use-projects';
 import { projectHref } from '@/lib/utils/project-href';
 import { useContacts } from '@/lib/hooks/use-contacts';
 import { useIsProjectActive, usePipelineStages } from '@/lib/hooks/use-pipelines';
@@ -21,10 +22,17 @@ import { useUiStore } from '@/lib/stores/ui-store';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
 import { useDealTouches } from '@/lib/hooks/use-deal-touches';
 import { useDealsQuotes } from '@/lib/hooks/use-quotes';
+import { useDayMoves } from '@/lib/hooks/use-day-moves';
+import { useStepFlow } from '@/lib/hooks/use-step-flow';
 import { localDateKey } from '@/lib/utils/date-helpers';
 import { useQueueSnoozes, useSnooze, useUnsnooze } from '@/lib/hooks/use-queue-snooze';
 import { activeSnoozes, excludeSnoozed, snoozeKey, type SnoozeEntityType } from '@/lib/domain/queue-snooze';
-import { DEFAULT_TODAY_THRESHOLDS, type TodayGroup } from '@/lib/domain/today-deals';
+import { DEFAULT_TODAY_THRESHOLDS, pickMoves, type TodayGroup } from '@/lib/domain/today-deals';
+import { markMoveDone, reconcileDayMoves, takeOneMore, unmarkMoveDone, type DayMovesState } from '@/lib/domain/day-moves';
+import { planRestore, type StepMode } from '@/lib/domain/step-flow';
+import { stepActionsFor } from '@/lib/domain/step-actions';
+import { pluralRu } from '@/lib/utils/plural';
+import { doneText } from '@/lib/utils/today-text';
 import {
   buildTodayModel,
   touchesSinceKey,
@@ -34,13 +42,16 @@ import {
 import { TODAY_COLLAPSED_GROUPS, TODAY_GROUP_ROWS_LIMIT } from '@/lib/constants/today-groups';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
-import { ProjectModal } from '@/components/projects/ProjectModal';
 import type { PipelineStage } from '@/types/database';
 import { QueueRow } from './QueueRow';
 import { TodayMoves } from './TodayMoves';
 import { TodayGroups, type TodayGroupLayout } from './TodayGroups';
 import { TodayDealPanel } from './TodayDealPanel';
 import { TodayOffDeals, type OffDealChip, type OffDealRow } from './TodayOffDeals';
+import { TodayStepActions, TodayStepDone } from './TodayStepActions';
+import type { StepResult } from './TodayStepComposer';
+
+const MOVES_LIMIT = DEFAULT_TODAY_THRESHOLDS.movesLimit;
 
 const RED = 'var(--red-text, var(--red))';
 const YELLOW = 'var(--yellow-text, var(--yellow))';
@@ -110,9 +121,20 @@ export function TodayView() {
   const unsnooze = useUnsnooze();
   const [showSnoozed, setShowSnoozed] = useState(false);
 
-  // ProjectModal (для «Запланировать шаг» — Sprint W1a)
-  const [editProject, setEditProject] = useState<Project | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  // ACT-1: форма хода — одна на экран: в карточке хода или в «Сейчас» панели.
+  // `wasPicked` — была ли сделка в наборе дня, когда форму открыли. Решает, отмечать ли
+  // ход сделанным: optimistic-правка `useUpdateProject` может сделать сделку «назначенной
+  // на сегодня» ещё до конца записи, сверка добавит её в набор — и перенос строки на
+  // сегодня засчитался бы как сделанный ход (найдено смоком ACT-1).
+  const [composer, setComposer] = useState<{ id: string; mode: StepMode; place: 'card' | 'panel'; wasPicked: boolean } | null>(null);
+  // Итоги записей до перезагрузки: подпись карточки, «записано сегодня», «Вернуть».
+  const [results, setResults] = useState<ReadonlyMap<string, StepResult>>(new Map());
+  // Группа показа записанной строки — строка стоит на месте до перезагрузки.
+  const [pinnedGroups, setPinnedGroups] = useState<ReadonlyMap<string, TodayGroup>>(new Map());
+  // «Разобрать по одной»: после записи по сделке «Решить судьбу» открыть следующую.
+  const [sweep, setSweep] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const flow = useStepFlow();
 
   // Одна открытая панель на экран: под рядом ходов или под строкой группы.
   const [openPanel, setOpenPanel] = useState<{ id: string; place: 'move' | 'row' } | null>(null);
@@ -200,22 +222,61 @@ export function TodayView() {
     () => new Set(screenIds.filter((id) => snoozedKeys.has(snoozeKey('deal', id)))),
     [screenIds, snoozedKeys],
   );
-  const model = useMemo(() => {
+  const modelInput = useMemo(() => {
     if (!now || !dealsReady || !sinceKey) return null;
-    return buildTodayModel(
-      {
-        deals: dealSources,
-        touches: touchesQ.data ?? new Map(),
-        quotes: quotesQ.data ?? new Map(),
-        tasks,
-        calls: myCalls,
-        meetings: myUpcomingMeetings,
-        snoozedDealIds,
-        sinceKey,
-      },
-      now,
-    );
+    return {
+      deals: dealSources,
+      touches: touchesQ.data ?? new Map(),
+      quotes: quotesQ.data ?? new Map(),
+      tasks,
+      calls: myCalls,
+      meetings: myUpcomingMeetings,
+      snoozedDealIds,
+      sinceKey,
+    };
   }, [now, dealsReady, sinceKey, dealSources, touchesQ.data, quotesQ.data, tasks, myCalls, myUpcomingMeetings, snoozedDealIds]);
+  const base = useMemo(() => (modelInput && now ? buildTodayModel(modelInput, now) : null), [modelInput, now]);
+
+  // ── ACT-1: набор ходов дня (`day-moves.ts`). Порядок без круговой зависимости:
+  // базовая модель → кандидаты без сделанных сегодня (иначе «Взять ещё ход» вернул бы
+  // ту же сделку) → сверка с сохранённым набором → модель с набором. До чтения
+  // `localStorage` экран показывает базовую модель.
+  const dayMoves = useDayMoves(mounted ? todayKey : null);
+  const savedToday = dayMoves.saved?.day === todayKey ? dayMoves.saved : null;
+  const doneToday = useMemo(() => new Set(savedToday?.done ?? []), [savedToday]);
+  const freshComputed = useMemo(
+    () => (base ? pickMoves(base.candidates.filter((c) => !doneToday.has(c.id)), MOVES_LIMIT) : []),
+    [base, doneToday],
+  );
+  const existingIds = useMemo(
+    () => new Set(screenIds.filter((id) => !snoozedDealIds.has(id))),
+    [screenIds, snoozedDealIds],
+  );
+  const dayState = useMemo<DayMovesState | null>(
+    () => (base && dayMoves.loaded
+      ? reconcileDayMoves(dayMoves.saved, todayKey, freshComputed, existingIds, MOVES_LIMIT)
+      : null),
+    [base, dayMoves.loaded, dayMoves.saved, todayKey, freshComputed, existingIds],
+  );
+  const { persist: persistDayMoves, saved: savedDayMoves } = dayMoves;
+  useEffect(() => {
+    // Сверка идемпотентна: записанное состояние на следующем рендере даёт себя же,
+    // поэтому сравнение по содержимому обрывает цикл записи.
+    if (dayState && JSON.stringify(dayState) !== JSON.stringify(savedDayMoves)) persistDayMoves(dayState);
+  }, [dayState, savedDayMoves, persistDayMoves]);
+  const dayStateRef = useRef(dayState);
+  dayStateRef.current = dayState;
+
+  const model = useMemo(
+    () => (modelInput && now && dayState
+      ? buildTodayModel({ ...modelInput, picked: dayState.picked, pickedSlots: dayState.slots, pinnedGroups }, now)
+      : base),
+    [modelInput, now, dayState, pinnedGroups, base],
+  );
+  const dayDone = useMemo(() => new Set(dayState?.done ?? []), [dayState]);
+  const movesDone = (model?.moves ?? []).filter((v) => dayDone.has(v.source.id)).length;
+  const allMovesDone = !!model && model.moves.length > 0 && movesDone === model.moves.length;
+
   // Все четыре запроса модели: без КП и стадий модель не собирается, и без ошибки
   // на экране скелетон висел бы вечно.
   const loadError = projectsQ.isError || stagesQ.isError || touchesQ.isError || quotesQ.isError;
@@ -448,7 +509,7 @@ export function TodayView() {
   // Отложенные и свёрнутые строки в очередь не входят: невидимые позиции дали бы
   // провалы фокуса.
   const queue: QueueItem[] = [
-    ...(model?.moves ?? []).map((view): QueueItem => ({ kind: 'move', view })),
+    ...(allMovesDone ? [] : model?.moves ?? []).map((view): QueueItem => ({ kind: 'move', view })),
     ...layout.flatMap((l) => l.rows.map((view): QueueItem => ({ kind: 'row', view }))),
     ...openChipRows.map((row): QueueItem => ({ kind: 'off', row })),
   ];
@@ -456,15 +517,79 @@ export function TodayView() {
   const dealKbdIndex = (id: string) => kbdIndexByKey.get(`deal:${id}`) ?? -1;
   const offKbdIndex = (key: string) => kbdIndexByKey.get(key) ?? -1;
 
-  const planDeal = (id: string) => {
-    const p = projectsById.get(id);
-    if (!p) return;
-    setEditProject(p);
-    setModalOpen(true);
-  };
   const snoozeDeal = (id: string) => {
     if (openPanel?.id === id) setOpenPanel(null);
+    if (composer?.id === id) setComposer(null);
     snooze.mutate({ entity_type: 'deal', entity_id: id });
+  };
+  const isDealDone = (id: string) => dayDone.has(id) || results.has(id);
+
+  /** Группа, в которой строка стоит сейчас: группа показа или настоящая. */
+  const shownGroupOf = (id: string): TodayGroup | null =>
+    model?.groups.find((g) => g.rows.some((v) => v.source.id === id))?.key ?? null;
+
+  const handleWritten = (view: TodayDealView, result: StepResult, place: 'card' | 'panel') => {
+    const id = view.source.id;
+    setResults((cur) => new Map(cur).set(id, result));
+    setComposer(null);
+    const state = dayStateRef.current;
+    const wasPicked = composer?.id === id ? composer.wasPicked : !!state?.picked.includes(id);
+    if (state && wasPicked) {
+      persistDayMoves(markMoveDone(state, id));
+    } else {
+      const group = shownGroupOf(id) ?? view.cls.group;
+      setPinnedGroups((cur) => new Map(cur).set(id, group));
+      // «Разобрать по одной»: следующая строка «Решить судьбу»; строк нет — панель закрыта.
+      if (sweep && place === 'panel' && group === 'decide') {
+        const rows = layout.find((l) => l.view.key === 'decide')?.rows ?? [];
+        const next = rows[rows.findIndex((v) => v.source.id === id) + 1];
+        if (next) setOpenPanel({ id: next.source.id, place: 'row' });
+        else { setOpenPanel(null); setSweep(false); }
+      }
+    }
+  };
+
+  const restore = async (view: TodayDealView) => {
+    const id = view.source.id;
+    const result = results.get(id);
+    if (!result) return;
+    setRestoringId(id);
+    try {
+      await flow.run(id, planRestore(result.prev));
+      setResults((cur) => { const next = new Map(cur); next.delete(id); return next; });
+      const state = dayStateRef.current;
+      if (state) persistDayMoves(unmarkMoveDone(state, id));
+    } catch {
+      toast.error(`Не удалось вернуть шаг по «${view.source.name}»`);
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  const openComposer = (id: string, mode: StepMode, place: 'card' | 'panel') =>
+    setComposer({ id, mode, place, wasPicked: !!dayStateRef.current?.picked.includes(id) });
+
+  /** Открыть форму: у карточки — в карточке, у строки — в «Сейчас» раскрытой панели. */
+  const composeFor = (q: Extract<QueueItem, { kind: 'move' | 'row' }>, mode: StepMode) => {
+    const id = q.view.source.id;
+    if (q.kind === 'move') {
+      openComposer(id, mode, 'card');
+    } else {
+      setOpenPanel({ id, place: 'row' });
+      openComposer(id, mode, 'panel');
+    }
+  };
+  const dealItem = (i: number) => {
+    const q = queue[i];
+    return q && q.kind !== 'off' ? q : null;
+  };
+
+  const startSweep = () => {
+    const first = model?.groups.find((g) => g.key === 'decide')?.rows[0];
+    if (!first) return;
+    setExpandedGroups((cur) => new Set(cur).add('decide'));
+    setOpenPanel({ id: first.source.id, place: 'row' });
+    setSweep(true);
   };
   const togglePanel = (id: string, place: 'move' | 'row') =>
     setOpenPanel((cur) => (cur && cur.id === id && cur.place === place ? null : { id, place }));
@@ -482,20 +607,37 @@ export function TodayView() {
       if (q.kind === 'off') q.row.onOpen();
       else togglePanel(q.view.source.id, q.kind);
     },
+    // D — главная кнопка сделки по таблице хода (`stepActionsFor`), у строки чипа — её primary.
     onAction: (i) => {
       const q = queue[i];
       if (!q) return;
-      if (q.kind === 'off') q.row.primary?.onClick();
-      else planDeal(q.view.source.id);
+      if (q.kind === 'off') { q.row.primary?.onClick(); return; }
+      if (isDealDone(q.view.source.id)) return;
+      composeFor(q, stepActionsFor(q.view.cls).primary.mode);
     },
     onKeys: {
       KeyO: (i) => {
-        const q = queue[i];
-        if (q && q.kind !== 'off') openDealPage(q.view.source.id);
+        const q = dealItem(i);
+        if (q) openDealPage(q.view.source.id);
+      },
+      // U — «Обновить шаг» у любой сделки (без шага — тот же режим «Назначить шаг»).
+      KeyU: (i) => {
+        const q = dealItem(i);
+        if (q && !isDealDone(q.view.source.id)) composeFor(q, 'update');
+      },
+      // T — «Перенести», только там, где он есть по таблице хода.
+      KeyT: (i) => {
+        const q = dealItem(i);
+        if (q && !isDealDone(q.view.source.id) && stepActionsFor(q.view.cls).canMove) composeFor(q, 'move');
+      },
+      KeyS: (i) => {
+        const q = dealItem(i);
+        if (q) snoozeDeal(q.view.source.id);
       },
     },
-    // ProjectModal здесь локальный (не в ui-store) — глушим nav отдельно
-    isActive: () => !modalOpen,
+    // Форма хода открыта — клавиши экрана молчат: иначе Enter на кнопке даты раскрывает
+    // панель вместо выбора даты, а S откладывает сделку посреди ввода.
+    isActive: () => composer === null,
     containerRef: queueRef,
     enabled: mounted && queue.length > 0,
   });
@@ -542,6 +684,40 @@ export function TodayView() {
     : null;
   const panelProject = panelView ? projectsById.get(panelView.source.id) ?? null : null;
   const panelStage: PipelineStage | null = panelProject?.stage_id ? stageById.get(panelProject.stage_id) ?? null : null;
+  // Первый несделанный ход держит единственную primary-кнопку экрана; открытая форма
+  // забирает её себе.
+  const primaryId = composer ? null : model?.moves.find((v) => !dayDone.has(v.source.id))?.source.id ?? null;
+  const hrefOf = (id: string) => {
+    const p = projectsById.get(id);
+    return p ? projectHref(p) : '/deals';
+  };
+  /** Итог хода. Карточка — только у сделанного хода набора; панель — и у записанной строки. */
+  const doneOf = (view: TodayDealView, scope: 'card' | 'panel' = 'card') => {
+    const id = view.source.id;
+    const result = results.get(id) ?? null;
+    if (scope === 'card' ? !dayDone.has(id) : !result && !dayDone.has(id)) return null;
+    return {
+      text: doneText(view, result),
+      onRestore: result ? () => void restore(view) : undefined,
+      restoring: restoringId === id,
+    };
+  };
+  const actionsFor = (view: TodayDealView, place: 'card' | 'panel', extra?: ReactNode) => (
+    <TodayStepActions
+      view={view}
+      primary={place === 'card' && primaryId === view.source.id}
+      composer={composer && composer.id === view.source.id && composer.place === place ? composer.mode : null}
+      onCompose={(mode) => (mode ? openComposer(view.source.id, mode, place) : setComposer(null))}
+      onWritten={(result) => handleWritten(view, result, place)}
+      onSnooze={() => snoozeDeal(view.source.id)}
+      href={hrefOf(view.source.id)}
+      extra={extra}
+    />
+  );
+  const panelActions = (view: TodayDealView) => {
+    const done = doneOf(view, 'panel');
+    return done ? <TodayStepDone {...done} /> : actionsFor(view, 'panel');
+  };
   const panel = (place: 'move' | 'row') =>
     panelView && panelProject && now && openPanel?.place === place ? (
       <TodayDealPanel
@@ -549,8 +725,7 @@ export function TodayView() {
         project={panelProject}
         stage={panelStage}
         now={now}
-        onPlan={() => planDeal(panelView.source.id)}
-        onSnooze={() => snoozeDeal(panelView.source.id)}
+        actions={panelActions(panelView)}
         standalone={place === 'move'}
       />
     ) : null;
@@ -564,9 +739,27 @@ export function TodayView() {
 
   return (
     <div className="today-cq">
-      <header className="mb-6">
-        <h1 className="aura-page-title text-2xl font-semibold text-text-main">Сегодня</h1>
-        <p className="mt-1 text-sm text-text-dim">{dateProse}</p>
+      <header className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="aura-page-title text-2xl font-semibold text-text-main">Сегодня</h1>
+          <p className="mt-1 text-sm text-text-dim">{dateProse}</p>
+        </div>
+        {dayState && model && model.moves.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-text-dim" title="Сколько ходов дня уже сделано">
+            <span className="flex gap-1" aria-hidden="true">
+              {model.moves.map((v) => (
+                <span
+                  key={v.source.id}
+                  className={dayDone.has(v.source.id) ? 'h-2 w-2 rounded-full bg-success' : 'h-2 w-2 rounded-full border border-border2'}
+                />
+              ))}
+            </span>
+            <span>
+              <b className="font-semibold tabular-nums text-text-main">{movesDone}</b> из {model.moves.length}{' '}
+              {pluralRu(model.moves.length, 'хода', 'ходов', 'ходов')} сделано
+            </span>
+          </div>
+        )}
       </header>
 
       {loadError ? (
@@ -605,8 +798,14 @@ export function TodayView() {
               loading={loading}
               openId={openPanel?.place === 'move' ? openPanel.id : null}
               onToggle={(id) => togglePanel(id, 'move')}
-              onPlan={(v) => planDeal(v.source.id)}
-              onSnooze={(v) => snoozeDeal(v.source.id)}
+              doneOf={(view) => doneOf(view, 'card')}
+              renderActions={(view, extra) => actionsFor(view, 'card', extra)}
+              allDone={allMovesDone}
+              onTakeMore={
+                dayState && freshComputed.some((m) => !dayState.picked.includes(m.id))
+                  ? () => persistDayMoves(takeOneMore(dayState, freshComputed))
+                  : null
+              }
               panel={panel('move')}
               kbdIndexOf={dealKbdIndex}
               activeIndex={activeIndex}
@@ -630,6 +829,8 @@ export function TodayView() {
             panel={panel('row')}
             kbdIndexOf={dealKbdIndex}
             activeIndex={activeIndex}
+            writtenIds={new Set(results.keys())}
+            onSweep={startSweep}
           />
 
           <TodayOffDeals
@@ -642,7 +843,7 @@ export function TodayView() {
 
           {queue.length > 0 && (
             <p className="mb-6 text-xs text-text-dim">
-              J / K — по строкам · Enter — раскрыть · D — запланировать шаг · O — открыть сделку
+              J / K — по строкам · Enter — раскрыть · D — главное действие · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку
             </p>
           )}
         </div>
@@ -679,13 +880,6 @@ export function TodayView() {
           )}
         </section>
       )}
-
-      <ProjectModal
-        isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditProject(null); }}
-        editProject={editProject}
-        focusNextAction
-      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { Button } from '@/components/ui/Button';
+import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { formatBudget } from '@/lib/validators/project';
@@ -13,30 +14,43 @@ interface TodayMoveCardProps {
   slot: MoveSlot;
   /** Номер в круге, 1-based. */
   number: number;
-  /** Primary-кнопка на экране одна — у первой карточки. */
-  primary: boolean;
   expanded: boolean;
   onToggle: () => void;
-  onPlan: () => void;
-  onSnooze: () => void;
+  /** Ход сделан: подпись итога и «Вернуть» (пока итог в памяти экрана). */
+  done: { text: string; onRestore?: () => void; restoring?: boolean } | null;
+  /** Ряд действий (`TodayStepActions`); `extra` — «Подробнее» этой карточки. */
+  renderActions: (extra: ReactNode) => ReactNode;
   kbdIndex: number;
   focused: boolean;
 }
 
 /**
- * Карточка хода дня (макет, кадр 1). Действия этого спринта — прежние: «Запланировать
- * шаг» (`ProjectModal`) и «Отложить» (snooze); форма хода на месте — ACT-1.
+ * Карточка хода дня (макет, кадры 1, 4, 5). Действия — `TodayStepActions`: кнопки по
+ * таблице хода или форма на месте. Сделанный ход остаётся карточкой: номер зелёный,
+ * шаг зачёркнут, вместо кнопок — итог записи.
  *
  * `useFieldMoves` зовётся здесь, а не в контейнере: запросов переносов ровно столько,
  * сколько карточек (до трёх), а не по одному на каждую сделку экрана.
  */
 export function TodayMoveCard({
-  view, slot, number, primary, expanded, onToggle, onPlan, onSnooze, kbdIndex, focused,
+  view, slot, number, expanded, onToggle, done, renderActions, kbdIndex, focused,
 }: TodayMoveCardProps) {
   const { data: moves } = useFieldMoves(view.source.id);
   const why = moveWhy(view, slot, moves?.step.count ?? 0);
   const step = view.source.next_step?.trim();
   const amount = view.amount.amount;
+  const toggle = (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={onToggle}
+          aria-label={expanded ? 'Свернуть' : 'Подробнее'}
+          title={expanded ? 'Свернуть' : 'Подробнее'}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+        >
+          <ChevronDown size={14} aria-hidden="true" className={cn('transition-transform', expanded && 'rotate-180')} />
+        </button>
+      );
 
   return (
     <article
@@ -46,7 +60,10 @@ export function TodayMoveCard({
       <div className="flex items-start gap-2">
         <span
           aria-hidden="true"
-          className="mt-0.5 inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border border-border text-meta tabular-nums text-text-dim"
+          className={cn(
+            'mt-0.5 inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border text-meta tabular-nums',
+            done ? 'border-success font-semibold text-success' : 'border-border text-text-dim',
+          )}
         >
           {number}
         </span>
@@ -65,6 +82,7 @@ export function TodayMoveCard({
         className={cn(
           'mt-2 line-clamp-2 text-[0.9375rem] font-medium leading-snug',
           step ? 'text-text-main' : 'text-text-dim',
+          done && 'text-text-dim line-through',
         )}
       >
         {step || 'Шаг не задан'}
@@ -83,25 +101,25 @@ export function TodayMoveCard({
         {why.facts.join(' · ')}
       </p>
 
-      <div className="mt-auto flex flex-wrap items-center gap-x-0.5 gap-y-1 pt-3">
-        <Button size="sm" variant={primary ? 'primary' : 'secondary'} onClick={onPlan} className="whitespace-nowrap px-2">
-          Запланировать шаг
-        </Button>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={onToggle}
-          className="inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
-        >
-          {expanded ? 'Свернуть' : 'Подробнее'}
-        </button>
-        <button
-          type="button"
-          onClick={onSnooze}
-          className="ml-auto inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-mute transition-colors hover:bg-surface2 hover:text-text-main"
-        >
-          Отложить
-        </button>
+      <div className="mt-auto pt-3">
+        {done ? (
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span className="text-xs font-medium text-success-text">{done.text}</span>
+            {done.onRestore && (
+              <button
+                type="button"
+                disabled={done.restoring}
+                onClick={done.onRestore}
+                className="inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
+              >
+                Вернуть
+              </button>
+            )}
+            <span className="ml-auto">{toggle}</span>
+          </div>
+        ) : (
+          renderActions(toggle)
+        )}
       </div>
     </article>
   );
