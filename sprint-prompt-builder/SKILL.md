@@ -278,7 +278,7 @@ Vitest для новой логики в lib/ (utils, validators, helpers): вх
 Lint / typecheck / vitest / build commands
 
 ## КОММИТ
-git add (включая `_analysis/<этот спринт-файл>`) + commit with descriptive message; без push
+git add (включая `_analysis/<этот спринт-файл>`) и git commit — двумя отдельными вызовами Bash (страж oleg-guard, C2); без push
 
 ## ОТЧЁТ
 Финальный ответ CC в чат — по формату ниже (блок копируется в спринт без изменений)
@@ -386,7 +386,7 @@ Run before delivering any prompt:
 - [ ] Секция ТЕСТЫ есть: vitest для новой логики в `lib/` или явное «тестов нет: …» с причиной
 - [ ] Тест описан поведением (вход → выход, граничные случаи), не «покрыть функцию»
 - [ ] ФИНАЛЬНАЯ ПРОВЕРКА includes typecheck/lint/vitest/build
-- [ ] КОММИТ with descriptive message, включает `_analysis/<спринт-файл>`, без push
+- [ ] КОММИТ with descriptive message, включает `_analysis/<спринт-файл>`; git add и git commit — отдельными вызовами Bash (страж oleg-guard, C2); без push
 - [ ] Секция ОТЧЁТ — скопирована из скелета без изменений (STE-lite формат отчёта CC)
 - [ ] Edge cases addressed (what if file doesn't exist, column already exists)
 - [ ] `IF NOT EXISTS` / `IF EXISTS` in SQL statements
