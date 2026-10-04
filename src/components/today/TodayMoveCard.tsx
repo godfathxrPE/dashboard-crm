@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { formatBudget } from '@/lib/validators/project';
@@ -43,9 +44,11 @@ export function TodayMoveCard({
           type="button"
           aria-expanded={expanded}
           onClick={onToggle}
-          className="inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+          aria-label={expanded ? 'Свернуть' : 'Подробнее'}
+          title={expanded ? 'Свернуть' : 'Подробнее'}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
         >
-          {expanded ? 'Свернуть' : 'Подробнее'}
+          <ChevronDown size={14} aria-hidden="true" className={cn('transition-transform', expanded && 'rotate-180')} />
         </button>
       );
 

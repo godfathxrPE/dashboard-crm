@@ -71,9 +71,27 @@ export function TodayMoves({
             <p className="text-sm font-semibold text-text-main">
               {moves.length} из {moves.length} {pluralRu(moves.length, 'хода', 'ходов', 'ходов')} сделано
             </p>
-            <p className="text-xs text-text-dim">
-              {moves.map((v) => v.source.name).join(', ')} — шаги записаны в сделки
-            </p>
+            <ul className="mt-1 space-y-0.5">
+              {moves.map((v) => {
+                const done = doneOf(v);
+                return (
+                  <li key={v.source.id} className="flex flex-wrap items-center gap-x-1.5 text-xs text-text-dim">
+                    <span className="font-medium text-text-main">{v.source.name}</span>
+                    <span>— {done?.text ?? 'шаг записан'}</span>
+                    {done?.onRestore && (
+                      <button
+                        type="button"
+                        disabled={done.restoring}
+                        onClick={done.onRestore}
+                        className="inline-flex min-h-7 items-center rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
+                      >
+                        Вернуть
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           {onTakeMore && (
             <Button size="sm" variant="secondary" onClick={onTakeMore} className="whitespace-nowrap">

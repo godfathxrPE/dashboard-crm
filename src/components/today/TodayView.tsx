@@ -635,6 +635,9 @@ export function TodayView() {
         if (q) snoozeDeal(q.view.source.id);
       },
     },
+    // Форма хода открыта — клавиши экрана молчат: иначе Enter на кнопке даты раскрывает
+    // панель вместо выбора даты, а S откладывает сделку посреди ввода.
+    isActive: () => composer === null,
     containerRef: queueRef,
     enabled: mounted && queue.length > 0,
   });
@@ -840,7 +843,7 @@ export function TodayView() {
 
           {queue.length > 0 && (
             <p className="mb-6 text-xs text-text-dim">
-              J / K — по строкам · Enter — раскрыть · D — сделано · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку
+              J / K — по строкам · Enter — раскрыть · D — главное действие · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку
             </p>
           )}
         </div>

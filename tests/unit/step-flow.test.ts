@@ -3,6 +3,7 @@ import {
   planLeaveWithoutStep,
   planRestore,
   planStepWrites,
+  stepAlreadyCleared,
   validateStepInput,
   type StepPrev,
   type StepWrite,
@@ -71,11 +72,47 @@ describe('planLeaveWithoutStep / planRestore', () => {
 });
 
 describe('validateStepInput', () => {
+  const TODAY = '2026-10-04';
+
   it('done без текста → no_step; без даты → no_date; move без текста с датой → null', () => {
-    expect(validateStepInput('done', { note: '', nextStep: ' ', dateKey: '2026-10-06' })).toBe('no_step');
-    expect(validateStepInput('done', { note: '', nextStep: 'Шаг', dateKey: '' })).toBe('no_date');
-    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '2026-10-06' })).toBe(null);
-    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '' })).toBe('no_date');
+    expect(validateStepInput('done', { note: '', nextStep: ' ', dateKey: '2026-10-06' }, TODAY, PREV)).toBe('no_step');
+    expect(validateStepInput('done', { note: '', nextStep: 'Шаг', dateKey: '' }, TODAY, PREV)).toBe('no_date');
+    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '2026-10-06' }, TODAY, PREV)).toBe(null);
+    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '' }, TODAY, PREV)).toBe('no_date');
+  });
+
+  it('done: дата вчера → past_date; дата сегодня → null', () => {
+    expect(validateStepInput('done', { note: '', nextStep: 'Шаг', dateKey: '2026-10-03' }, TODAY, PREV)).toBe('past_date');
+    expect(validateStepInput('done', { note: '', nextStep: 'Шаг', dateKey: TODAY }, TODAY, PREV)).toBe(null);
+  });
+
+  it('move: та же дата → same_date, в т.ч. когда прежняя пришла таймстампом; дата позже → null', () => {
+    const prev: StepPrev = { next_step: 'Шаг', next_action_date: '2026-10-08' };
+    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '2026-10-08' }, TODAY, prev)).toBe('same_date');
+    const prevTs: StepPrev = { next_step: 'Шаг', next_action_date: '2026-10-08T00:00:00+00:00' };
+    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '2026-10-08' }, TODAY, prevTs)).toBe('same_date');
+    expect(validateStepInput('move', { note: '', nextStep: '', dateKey: '2026-10-09' }, TODAY, prev)).toBe(null);
+  });
+
+  it('порядок: done без текста и с датой в прошлом → no_step', () => {
+    expect(validateStepInput('done', { note: '', nextStep: '', dateKey: '2026-09-01' }, TODAY, PREV)).toBe('no_step');
+  });
+});
+
+describe('stepAlreadyCleared', () => {
+  const done = planStepWrites('done', PREV, { note: 'Итог', nextStep: 'Шаг', dateKey: '2026-10-06' });
+
+  it('done с заметкой: упал на заметке или снятии → false; на назначении → true', () => {
+    expect(done.map((w) => w.kind)).toEqual(['note', 'project', 'project']);
+    expect(stepAlreadyCleared(done, 0)).toBe(false);
+    expect(stepAlreadyCleared(done, 1)).toBe(false);
+    expect(stepAlreadyCleared(done, 2)).toBe(true);
+  });
+
+  it('move, from = 0 → false; «Оставить без шага», упал на снятии → false', () => {
+    expect(stepAlreadyCleared(planStepWrites('move', PREV, { note: '', nextStep: '', dateKey: '2026-10-12' }), 0)).toBe(false);
+    const leave = planLeaveWithoutStep(PREV, 'Итог');
+    expect(stepAlreadyCleared(leave, leave.length - 1)).toBe(false);
   });
 });
 

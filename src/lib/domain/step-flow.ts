@@ -71,9 +71,26 @@ export function planRestore(prev: StepPrev): StepWrite[] {
   return [{ kind: 'project', next_step: prev.next_step, next_action_date: prev.next_action_date }];
 }
 
-/** Проверка ввода формы; `null` — ошибок нет. */
-export function validateStepInput(mode: StepMode, input: StepInput): 'no_step' | 'no_date' | null {
+export type StepInputError = 'no_step' | 'no_date' | 'past_date' | 'same_date';
+
+/** Проверка ввода формы; `null` — ошибок нет. Порядок: шаг, дата, дата в прошлом, та же дата. */
+export function validateStepInput(mode: StepMode, input: StepInput, todayKey: string, prev: StepPrev): StepInputError | null {
   if (mode !== 'move' && !input.nextStep.trim()) return 'no_step';
   if (!input.dateKey) return 'no_date';
+  // Следующий шаг в прошлом — сделка сразу просрочена; `<input type="date">` это позволяет.
+  if (input.dateKey < todayKey) return 'past_date';
+  // Перенос на ту же дату — пустая запись, а экран обещал бы «перенесён N+1 раз».
+  if (mode === 'move' && input.dateKey === prev.next_action_date?.slice(0, 10)) return 'same_date';
   return null;
+}
+
+/**
+ * Прежний шаг уже снят, а план не дописан: запись `{ null, null }` стоит раньше
+ * упавшего шага `from`. Форма обязана сказать об этом — иначе «Отмена» оставит
+ * сделку без шага, и пользователь об этом не узнает.
+ */
+export function stepAlreadyCleared(writes: readonly StepWrite[], from: number): boolean {
+  return writes.some(
+    (w, i) => i < from && w.kind === 'project' && w.next_step === null && w.next_action_date === null,
+  );
 }

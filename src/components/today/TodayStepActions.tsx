@@ -39,6 +39,11 @@ export function TodayStepActions({ view, primary, composer, onCompose, onWritten
 
   return (
     <div>
+      {actions.closeLink && (
+        <Link href={href} className="mb-1.5 inline-block text-xs text-text-dim underline-offset-2 hover:underline">
+          Закрыть сделку — в карточке
+        </Link>
+      )}
       <div className="flex flex-wrap items-center gap-x-0.5 gap-y-1">
         <Button
           size="sm"
@@ -53,16 +58,11 @@ export function TodayStepActions({ view, primary, composer, onCompose, onWritten
             Перенести
           </button>
         )}
-        {extra}
         <button type="button" onClick={onSnooze} className={`${TEXT_BUTTON} ml-auto text-text-mute`}>
           Отложить
         </button>
+        {extra}
       </div>
-      {actions.closeLink && (
-        <Link href={href} className="mt-1 inline-block text-xs text-text-dim underline-offset-2 hover:underline">
-          Закрыть сделку — в карточке
-        </Link>
-      )}
     </div>
   );
 }

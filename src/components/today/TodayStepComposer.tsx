@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils/cn';
 import { pluralRu } from '@/lib/utils/plural';
 import { dayText } from '@/lib/utils/today-text';
+import { localDateKey } from '@/lib/utils/date-helpers';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
 import { useStepFlow, StepFlowError } from '@/lib/hooks/use-step-flow';
@@ -12,6 +13,7 @@ import { quickStepDates, type QuickDate } from '@/lib/domain/step-dates';
 import {
   planLeaveWithoutStep,
   planStepWrites,
+  stepAlreadyCleared,
   validateStepInput,
   type StepMode,
   type StepPrev,
@@ -70,6 +72,7 @@ export function TodayStepComposer({ view, mode, onCancel, onWritten }: TodayStep
 
   // Даты считаются в момент открытия формы, а не на каждом рендере.
   const [dates] = useState<QuickDate[]>(() => quickStepDates(new Date()));
+  const [todayKey] = useState(() => localDateKey(new Date()));
   const [note, setNote] = useState('');
   const [nextStep, setNextStep] = useState('');
   const [dateKey, setDateKey] = useState('');
@@ -83,7 +86,8 @@ export function TodayStepComposer({ view, mode, onCancel, onWritten }: TodayStep
 
   const prev: StepPrev = { next_step: source.next_step, next_action_date: source.next_action_date };
   const input = { note, nextStep, dateKey };
-  const invalid = validateStepInput(mode, input) !== null;
+  const problem = validateStepInput(mode, input, todayKey, prev);
+  const invalid = problem !== null;
 
   async function execute(writes: StepWrite[], from: number, leave: boolean) {
     setPending(true);
@@ -194,6 +198,7 @@ export function TodayStepComposer({ view, mode, onCancel, onWritten }: TodayStep
           <input
             id={`${uid}-date`}
             type="date"
+            min={todayKey}
             value={dateKey}
             onChange={(e) => setDateKey(e.target.value)}
             className={cn(FIELD, 'w-auto py-1 text-xs')}
@@ -204,11 +209,18 @@ export function TodayStepComposer({ view, mode, onCancel, onWritten }: TodayStep
             в сделке станет «перенесён {nextMoves} {pluralRu(nextMoves, 'раз', 'раза', 'раз')}»
           </p>
         )}
+        {(problem === 'past_date' || problem === 'same_date') && (
+          <p className="mt-1.5 text-xs text-text-dim">
+            {problem === 'past_date' ? 'Дата шага раньше сегодняшнего дня' : 'Шаг уже стоит на эту дату'}
+          </p>
+        )}
       </div>
 
       {failure && (
         <p role="alert" className="text-xs text-danger-text">
-          Шаг по «{source.name}» не записан. Введённый текст сохранён.{' '}
+          {stepAlreadyCleared(failure.writes, failure.from)
+            ? `Прежний шаг по «${source.name}» снят, новый не записан. Нажми «Повторить» — иначе сделка останется без шага.`
+            : `Шаг по «${source.name}» не записан. Введённый текст сохранён.`}{' '}
           <button
             type="button"
             disabled={pending}
