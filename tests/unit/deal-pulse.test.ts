@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildDealPulse, silenceWithin } from '@/lib/domain/deal-pulse';
+import { buildDealPulse, buildPulseDays } from '@/lib/domain/deal-pulse';
+import type { DealTouch } from '@/lib/domain/deal-touch';
 
 // «Сейчас» фиксировано: время аргументом, тест не зависит от часов машины
 // (урок S-LEAD-HUB-2b — leadStaleness читала Date.now() мимо переданного
@@ -105,15 +106,58 @@ describe('buildDealPulse', () => {
   });
 });
 
-describe('silenceWithin', () => {
-  it('считает разрыв только в пределах последних N точек среза', () => {
-    const pulse = buildDealPulse(
-      // Событие 20 дней назад (за пределами 14-дневного среза), тишина на
-      // последних 14 днях полная.
-      [{ created_at: daysAgo(20) }],
-      NOW,
-    );
-    const within14 = silenceWithin(pulse.days, 14);
-    expect(within14.days).toBe(14);
+// ── S-TODAY-V3-DOMAIN-1: buildPulseDays ───────────────────
+
+describe('buildPulseDays', () => {
+  const todayKey = buildDealPulse([], NOW).days[29].day;
+
+  it('30 дней, последний — день now; ключи те же, что у buildDealPulse', () => {
+    const days = buildPulseDays([], null, NOW);
+    expect(days).toHaveLength(30);
+    expect(days[29].day).toBe(todayKey);
+    expect(days.map((d) => d.day)).toEqual(buildDealPulse([], NOW).days.map((d) => d.day));
+  });
+
+  it('в дне stage и note → kind stage, count 2, kinds в порядке появления', () => {
+    const touches: DealTouch[] = [
+      { at: daysAgo(3, 10), kind: 'note' },
+      { at: daysAgo(3, 7), kind: 'stage' },
+    ];
+    const day = buildPulseDays(touches, null, NOW)[26];
+    expect(day.kind).toBe('stage');
+    expect(day.count).toBe(2);
+    expect(day.kinds).toEqual(['stage', 'note']);
+  });
+
+  it('повтор вида в дне считается в count, в kinds — один раз', () => {
+    const touches: DealTouch[] = [
+      { at: daysAgo(1, 7), kind: 'note' },
+      { at: daysAgo(1, 8), kind: 'note' },
+    ];
+    const day = buildPulseDays(touches, null, NOW)[28];
+    expect(day.count).toBe(2);
+    expect(day.kinds).toEqual(['note']);
+  });
+
+  it('только note → touch; пустой день → none, count 0', () => {
+    const days = buildPulseDays([{ at: daysAgo(2), kind: 'note' }], null, NOW);
+    expect(days[27].kind).toBe('touch');
+    expect(days[26]).toMatchObject({ kind: 'none', count: 0, kinds: [] });
+  });
+
+  it('dueKey внутри окна → ровно один isDue; вне окна и null → ни одного', () => {
+    const inside = buildPulseDays([], buildDealPulse([], NOW).days[10].day, NOW);
+    expect(inside.filter((d) => d.isDue).map((d) => d.day)).toEqual([inside[10].day]);
+    expect(buildPulseDays([], '2020-01-01', NOW).some((d) => d.isDue)).toBe(false);
+    expect(buildPulseDays([], null, NOW).some((d) => d.isDue)).toBe(false);
+  });
+
+  it('касание завтрашним днём и касание старше 30 дней в дни не попадают', () => {
+    const touches: DealTouch[] = [
+      { at: daysAgo(-1), kind: 'note' },
+      { at: daysAgo(30), kind: 'stage' },
+    ];
+    const days = buildPulseDays(touches, null, NOW);
+    expect(days.reduce((sum, d) => sum + d.count, 0)).toBe(0);
   });
 });

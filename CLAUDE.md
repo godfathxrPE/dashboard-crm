@@ -21,10 +21,13 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
 
 1. **Миграции не применять.** Писать `supabase/migrations/0NN_name.sql` и коммитить.
    Применяет гейт Cowork (apply_migration → gen-types → advisors → ролевые смоки).
-   Прод-БД из CC не трогать: мутаторы Supabase MCP закрыты `deny` в
-   `.claude/settings.local.json`; `execute_sql` оставлен **только** под read-only
-   разведку (`information_schema`, `pg_policies`, `pg_get_functiondef`) — писать им запрещено
-   контрактом, система прав этого не различает.
+   Прод-БД из CC не трогать. Три слоя:
+   (1) БД из CC — только проектный сервер `supabase_ro` (`.mcp.json`, `read_only=true`):
+   запрос исполняется только на чтение, мутирующая функция через `select` падает на сервере;
+   (2) страж `oleg-guard` закрывает в CC коннектор `claude.ai Supabase` целиком, пока в
+   `.mcp.json` есть read-only сервер, и мутаторы любого Supabase MCP по имени;
+   (3) `deny` в `.claude/settings.local.json`.
+   Коннектор `claude.ai Supabase` — инструмент гейта Cowork (apply_migration).
 2. **`src/types/supabase.gen.ts` и `src/types/database.ts` руками не правятся** —
    только регенерация (реген через MCP не отдаёт блок `graphql_public`, который отдаёт
    CLI → в диф придут ~28 ложных удалений; сверять).

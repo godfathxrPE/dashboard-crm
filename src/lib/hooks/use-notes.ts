@@ -17,6 +17,7 @@ import { isPinLimitError } from '@/lib/notes/errors';
 import { buildNoteEvent } from '@/lib/timeline/note-event';
 import type { TimelineEvent } from '@/types/timeline';
 import { useActorMap } from './use-actor';
+import { DEAL_TOUCHES_KEY } from './use-deal-touches';
 
 // ═══════════════════════════════════════════════════════
 // S-NOTES-1: запись заметок в `notes` (миграция 134). Чтение — через
@@ -89,6 +90,9 @@ function patchCaches(
 function invalidateNoteCaches(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: TIMELINE_KEY });
   void qc.invalidateQueries({ queryKey: PINNED_KEY });
+  // S-TODAY-V3-SCREEN-1: заметка — касание. Без сброса «Пульс» карточки (realtime у
+  // него нет) не увидел бы правку до истечения `staleTime`.
+  void qc.invalidateQueries({ queryKey: DEAL_TOUCHES_KEY });
 }
 
 /**
@@ -110,6 +114,7 @@ export function useCreateNote() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['timeline'] });
+      qc.invalidateQueries({ queryKey: DEAL_TOUCHES_KEY });
     },
   });
 }

@@ -15,6 +15,7 @@
 // Берём 15: окно ровно 30 дней, пары без остатка (см. ТЕСТЫ спринта).
 
 import { mskDateKey } from '@/lib/utils/date-helpers';
+import type { DealTouch, TouchKind } from './deal-touch';
 
 const WINDOW_DAYS = 30;
 const MS_PER_DAY = 86_400_000;
@@ -77,25 +78,23 @@ function longestZeroRun(points: readonly PulsePoint[]): SilenceGap {
 }
 
 /**
- * Разрыв тишины В ПРЕДЕЛАХ последних `n` дней среза `days` — отдельно от
- * `longestSilence` за все 30, чтобы тепловая полоса (14 дней) и её заголовок
- * говорили про одно и то же число, а не про разные окна (W2 ревью).
+ * Календарные ключи 30 дней окна, от now−29 до now включительно. МСК — фиксированный
+ * офсет (без перевода часов), поэтому шаг «минус 24ч в UTC» = «минус один календарный
+ * день в МСК» без расхождений на границе. Одно окно на `buildDealPulse` и `buildPulseDays`.
  */
-export function silenceWithin(days: readonly PulsePoint[], n: number): SilenceGap {
-  return longestZeroRun(days.slice(-n));
+function windowDayKeys(now: Date): string[] {
+  const dayKeys: string[] = [];
+  for (let i = WINDOW_DAYS - 1; i >= 0; i--) {
+    dayKeys.push(mskDateKey(new Date(now.getTime() - i * MS_PER_DAY)));
+  }
+  return dayKeys;
 }
 
 export function buildDealPulse(
   events: readonly { created_at: string }[],
   now: Date,
 ): DealPulse {
-  // Календарные ключи 30 дней окна, от now−29 до now включительно. МСК — фиксированный
-  // офсет (без перевода часов), поэтому шаг «минус 24ч в UTC» = «минус один календарный
-  // день в МСК» без расхождений на границе.
-  const dayKeys: string[] = [];
-  for (let i = WINDOW_DAYS - 1; i >= 0; i--) {
-    dayKeys.push(mskDateKey(new Date(now.getTime() - i * MS_PER_DAY)));
-  }
+  const dayKeys = windowDayKeys(now);
 
   const counts = new Map<string, number>();
   for (const key of dayKeys) counts.set(key, 0);
@@ -125,4 +124,53 @@ export function buildDealPulse(
   const longestSilence = longestZeroRun(days);
 
   return { days, points, total, longestSilence, lastEventAt };
+}
+
+// ── S-TODAY-V3-DOMAIN-1: дни полосы «Было» ────────────────
+//
+// Полоса рисует капсулу на каждый из 30 дней и отличает смену стадии от прочего
+// касания (решение C-21). Вход — касания (`deal-touch.ts`), а не строки журнала:
+// правка полей касанием не считается, заметки приходят из `notes`.
+
+export type PulseDayKind = 'none' | 'touch' | 'stage';
+
+export interface PulseDay {
+  /** Календарный день по МСК, 'YYYY-MM-DD'. */
+  day: string;
+  count: number;
+  kind: PulseDayKind;
+  /** Виды касаний за день, без повторов, в порядке появления. */
+  kinds: TouchKind[];
+  /** День срока шага. */
+  isDue: boolean;
+}
+
+/**
+ * 30 дней окна `buildDealPulse` с видом дня и засечкой срока шага.
+ *
+ * Касания с днём позже сегодняшнего и старше окна не учитываются — их ключа нет
+ * среди 30 подготовленных. «Порядок появления» — по времени касания, а не по порядку
+ * входа: вход приходит из двух запросов (`notes` + журнал) и склеен как попало.
+ */
+export function buildPulseDays(
+  touches: readonly DealTouch[],
+  dueKey: string | null,
+  now: Date,
+): PulseDay[] {
+  const dayKeys = windowDayKeys(now);
+  const byDay = new Map<string, TouchKind[]>();
+  for (const key of dayKeys) byDay.set(key, []);
+
+  const sorted = [...touches].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  for (const t of sorted) {
+    const bucket = byDay.get(mskDateKey(t.at));
+    if (bucket) bucket.push(t.kind);
+  }
+
+  return dayKeys.map((day) => {
+    const all = byDay.get(day) ?? [];
+    const kinds = [...new Set(all)];
+    const kind: PulseDayKind = kinds.includes('stage') ? 'stage' : all.length > 0 ? 'touch' : 'none';
+    return { day, count: all.length, kind, kinds, isDue: dueKey !== null && day === dueKey };
+  });
 }

@@ -74,6 +74,8 @@ npm run build 2>&1 | tail -10
 
 ## КОММИТ
 
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
+
 ```bash
 git add .
 git commit -m "feat([scope]): [description]"
@@ -143,6 +145,8 @@ npm run build 2>&1 | tail -5
 
 ## КОММИТ
 
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
+
 ```bash
 git add .
 git commit -m "fix([scope]): [what was fixed and why]"
@@ -199,6 +203,8 @@ npm run build 2>&1 | tail -10
 ```
 
 ## КОММИТ
+
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
 
 ```bash
 git add .
@@ -274,6 +280,8 @@ npm run build 2>&1 | tail -10
 
 ## КОММИТ
 
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
+
 ```bash
 git add .
 git commit -m "feat(db): [migration description], types and hooks updated"
@@ -346,6 +354,8 @@ npm run build 2>&1 | tail -5
 
 ## КОММИТ
 
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
+
 ```bash
 git add .
 git commit -m "feat(ui): add [Name] component"
@@ -386,6 +396,8 @@ npm run dev & sleep 5 && curl -s http://localhost:3000 | head -5 && kill %1
 ```
 
 ## КОММИТ
+
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
 
 ```bash
 git add .
@@ -429,6 +441,8 @@ npm run build 2>&1 | tail -5
 ```
 
 ## КОММИТ
+
+`git add` и `git commit` — отдельными вызовами Bash (страж oleg-guard, C2):
 
 ```bash
 git add .

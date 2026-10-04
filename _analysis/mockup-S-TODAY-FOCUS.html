@@ -1,0 +1,1731 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мокап S-TODAY-FOCUS — «Сегодня»: список и фокус</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Токены dashboard-crm: сгенерированы build-mockup.py из src/app/globals.css (снимок 03.10.2026), руками не править. :root → .crm */
+.crm {
+  --chart-fjord: #5B5EA6;
+  --chart-granit: #6D5D7B;
+  --chart-skog: #3E6B58;
+  --chart-is: #3D6B7E;
+  --chart-stal: #4A5E8A;
+  --content-max: 90rem;
+  --zone-base: color-mix(in srgb, var(--text) 2%, var(--bg));
+  --zone-work-tint: var(--accent);
+  --zone-work-ink: var(--accent-text, var(--accent));
+  --zone-work: color-mix(in srgb, var(--zone-work-tint) 14%, var(--zone-base));
+  --zone-ctx: color-mix(in srgb, var(--text)    6%, var(--zone-base));
+  --zone-risk-ok: color-mix(in srgb, var(--green)  12%, var(--zone-base));
+  --zone-risk-attention: color-mix(in srgb, var(--yellow) 14%, var(--zone-base));
+  --zone-risk-rotting: color-mix(in srgb, var(--red)    10%, var(--zone-base));
+  --radius-zone: 26px;
+  --h-zone: var(--zone-risk-ok);
+  --h-ring: var(--green);
+  --h-chip-ink: var(--green-text, var(--green));
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --surface3: #e5e3dc;
+  --popover: var(--surface);
+  --border: #e5e3dc;
+  --border2: #d4d2ca;
+  --border-input: #8c8c8c;
+  --text: #1a1916;
+  --text-dim: #6b6860;
+  --text-mute: #6f6d68;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent);
+  --accent: #b5622a;
+  --accent-l: rgba(181,98,42,0.08);
+  --accent-l2: rgba(181,98,42,0.16);
+  --on-accent: #ffffff;
+  --green: #2e7d52;
+  --green-l: rgba(46,125,82,0.09);
+  --red: #c0392b;
+  --red-l: rgba(192,57,43,0.09);
+  --blue: #2d6ab4;
+  --blue-l: rgba(45,106,180,0.09);
+  --yellow: #a07020;
+  --yellow-l: rgba(160,112,32,0.09);
+  --yellow-text: #92661d;
+  --purple: #7c3aed;
+  --purple-l: rgba(124,58,237,0.09);
+  --font-app: var(--font-manrope, 'Manrope');
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-accent: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --elevation-2: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #d1fae5;
+  --track-prep-current: #34d399;
+  --track-exp-done: #ede9fe;
+  --track-exp-current: #a78bfa;
+  --track-nego-done: #fef3c7;
+  --track-nego-current: #d97706;
+  --track-proj-done: #fce7f3;
+  --track-proj-current: #f472b6;
+  --cal-line: color-mix(in srgb, var(--border) 75%, var(--text-mute));
+  --chat-bg: var(--bg);
+  --chat-in-bg: var(--surface);
+  --chat-in-border: var(--border);
+  --chat-pattern-ink: #1a1916;
+  --chat-pattern-op: 0.045;
+  --chat-chip: rgba(255,255,255,0.85);
+  --danger: var(--red);
+  --danger-l: var(--red-l);
+  --danger-text: var(--red-text, var(--red));
+  --success: var(--green);
+  --success-l: var(--green-l);
+  --success-text: var(--green-text, var(--green));
+  --warning: var(--yellow);
+  --warning-l: var(--yellow-l);
+  --warning-text: var(--yellow-text, var(--yellow));
+  --info: var(--blue);
+  --info-l: var(--blue-l);
+  --info-text: var(--blue-text, var(--blue));
+  --time-ok-fill: color-mix(in srgb, var(--bg) 84%, var(--accent));
+  --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
+  --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
+  --mark-today:    var(--accent);
+  --mark-today-l2: var(--accent-l2);
+  --sheet-glass: rgba(4, 4, 6, .84);
+  --sheet-sheen: linear-gradient(160deg, rgba(255,255,255,.13) 0%,
+                                        rgba(255,255,255,0) 46%, rgba(255,255,255,.04) 100%);
+  --sheet-shadow: 0 10px 32px rgba(0,0,0,.20),
+                        inset 0 1px 0 rgba(255,255,255,.24),
+                        inset 0 -1px 0 rgba(255,255,255,.06);
+  --sheet-hairline: rgba(255,255,255,.20);
+  --sheet-text: #FFFFFF;
+  --sheet-dim: #D2D2D6;
+  --sheet-red: #FF7A68;
+  --sheet-warning: #FFC24D;
+  --sheet-green: #5CD98C;
+  --sheet-btn-border: rgba(255,255,255,.35);
+  --sheet-hover: rgba(255,255,255,.10);
+  --sheet-plate-bg: rgba(255,255,255,.09);
+  --sheet-plate-border: rgba(255,255,255,.16);
+  --sheet-mark: #D2D2D6;
+  --sheet-mark-fill: #D2D2D6;
+  --sheet-mark-ink: #040406;
+  --sheet-empty-in: var(--yellow);
+  --sheet-empty-out: var(--yellow-text, var(--yellow));
+  --profile-norm: var(--border2);
+  --profile-fact: color-mix(in srgb, var(--text)   55%, transparent);
+  --profile-over-past: color-mix(in srgb, var(--yellow) 55%, transparent);
+  --profile-over-now: color-mix(in srgb, var(--red)    70%, transparent);
+  --profile-now: var(--mark-today);
+}
+
+.crm.t-cobalt {
+  --bg: #FAF8F5;
+  --surface: #FFFFFF;
+  --surface2: #F2EFE9;
+  --surface3: #E9E5DE;
+  --popover: var(--surface);
+  --border: #E6E2DA;
+  --border2: #D5D0C6;
+  --border-input: #8C8C8C;
+  --text: #17171C;
+  --text-dim: #5F5F6A;
+  --text-mute: #5F5F6A;
+  --accent: #275DE5;
+  --accent-text: #1D4BC0;
+  --on-accent: #FFFFFF;
+  --accent-l: rgba(39,93,229,0.10);
+  --accent-l2: rgba(39,93,229,0.22);
+  --sidebar-indicator: var(--accent);
+  --sidebar-active-text: var(--on-accent);
+  --green: #1B8A4C;
+  --green-l: rgba(27,138,76,0.10);
+  --green-text: #15703C;
+  --red: #CC3B2E;
+  --red-l: rgba(204,59,46,0.10);
+  --red-text: #A02620;
+  --yellow: #B0680A;
+  --yellow-l: rgba(176,104,10,0.12);
+  --yellow-text: #7A5C00;
+  --blue: #007E9C;
+  --blue-l: rgba(0,126,156,0.10);
+  --blue-text: #006882;
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.09);
+  --purple-text: #6F4BC8;
+  --font-app: var(--font-inter, 'Inter');
+  --radius: 12px;
+  --radius-s: 9px;
+  --radius-m: 12px;
+  --radius-l: 20px;
+  --shadow-xs: 0 1px 2px rgba(18,18,24,0.05);
+  --shadow-sm: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-md: 0 4px 12px rgba(18,18,24,0.07), 0 1px 3px rgba(18,18,24,0.05);
+  --shadow-lg: 0 12px 34px rgba(18,18,24,0.10), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-accent: 0 6px 16px rgba(39,93,229,0.28);
+  --glass-bg: #17171C;
+  --glass-border: rgba(255,255,255,0.18);
+  --glass-blur: none;
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(255,255,255,0.06);
+  --glass-sheen: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 45%, rgba(39,93,229,0.12) 100%);
+  --zone-work: color-mix(in srgb, var(--zone-work-tint) 8%, var(--zone-base));
+  --tw-ring-color: var(--accent-text);
+  --sheet-glass: rgba(3, 8, 28, .84);
+  --sheet-mark: #93B7FF;
+  --sheet-mark-fill: #93B7FF;
+  --sheet-mark-ink: #050B1F;
+}
+
+.crm.t-minimal {
+  --bg: #ECECEF;
+  --surface: #FFFFFF;
+  --surface2: #F4F4F6;
+  --surface3: #E7E7EB;
+  --popover: var(--surface);
+  --border: #D9D9E0;
+  --border2: #C4C4CE;
+  --border-input: #82828C;
+  --text: #17171C;
+  --text-dim: #4E4E59;
+  --text-mute: #5F5F6A;
+  --sidebar-indicator: #FFFFFF;
+  --sidebar-active-text: var(--text);
+  --accent: #0E7C86;
+  --accent-l: rgba(14,124,134,0.08);
+  --accent-l2: rgba(14,124,134,0.16);
+  --accent-text: #0A6771;
+  --green: #1B8A4C;
+  --green-l: rgba(27,138,76,0.09);
+  --green-text: #177B43;
+  --red: #CC3B2E;
+  --red-l: rgba(204,59,46,0.09);
+  --red-text: #B02A24;
+  --blue: #2563C9;
+  --blue-l: rgba(37,99,201,0.09);
+  --blue-text: #1D68BC;
+  --yellow: #B0680A;
+  --yellow-l: rgba(176,104,10,0.10);
+  --yellow-text: #846300;
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.09);
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(18,18,24,0.05);
+  --shadow-sm: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-md: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --shadow-lg: 0 4px 8px rgba(18,18,24,0.06), 0 18px 48px rgba(18,18,24,0.14);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --elevation-2: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --elevation-3: 0 4px 8px rgba(18,18,24,0.07), 0 20px 56px rgba(18,18,24,0.16);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EDEDEF;
+  --track-prep-current: #2E2E36;
+  --track-exp-done: #DDEEF0;
+  --track-exp-current: #0E7C86;
+  --track-nego-done: #F7EBD4;
+  --track-nego-current: #B0680A;
+  --track-proj-done: #DFEAF9;
+  --track-proj-current: #2563C9;
+  --font-app: var(--font-inter, 'Inter');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #0A6771;
+  --chat-pattern-op: 0.03;
+  --chat-chip: rgba(255,255,255,0.85);
+  --sheet-glass: rgba(0, 10, 12, .84);
+  --sheet-mark: #6AC1C6;
+  --sheet-mark-fill: #6AC1C6;
+  --sheet-mark-ink: #000A0C;
+}
+
+.crm.t-frost {
+  --bg: #0d1020;
+  --surface: rgba(255,255,255,0.07);
+  --surface2: rgba(255,255,255,0.04);
+  --surface3: rgba(255,255,255,0.10);
+  --popover: #1e2233;
+  --border: rgba(255,255,255,0.12);
+  --border2: rgba(255,255,255,0.22);
+  --border-input: rgba(255,255,255,0.42);
+  --text: #eef2ff;
+  --text-dim: #94a4d4;
+  --text-mute: #7e90c0;
+  --sidebar-indicator: rgba(255,255,255,0.10);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #5b8aff;
+  --accent-l: rgba(91,138,255,0.15);
+  --accent-l2: rgba(91,138,255,0.25);
+  --accent-text: #7eb0ff;
+  --on-accent: #0d1020;
+  --green: #5BB88E;
+  --green-l: rgba(91,184,142,0.14);
+  --red: #E8795A;
+  --red-l: rgba(232,121,90,0.14);
+  --blue: #5FA8E8;
+  --blue-l: rgba(95,168,232,0.14);
+  --yellow: #F0C45E;
+  --yellow-l: rgba(240,196,94,0.14);
+  --yellow-text: #F0C45E;
+  --purple: #A070E0;
+  --purple-l: rgba(160,112,224,0.14);
+  --purple-text: #c9a0f5;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.35);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.16);
+  --glass-bg: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.11);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.12);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.10);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.12);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #5381C4;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #339CEB;
+  --track-nego-done: #78350f;
+  --track-nego-current: #08BAF8;
+  --track-proj-done: #500724;
+  --track-proj-current: #5CD7F4;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #7eb0ff;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(30,34,51,0.85);
+  --sheet-glass: rgba(221, 232, 255, .88);
+  --sheet-text: #0B152C;
+  --sheet-dim: #454D5E;
+  --sheet-mark: #3355A8;
+  --sheet-mark-fill: #4B70C6;
+}
+
+
+/* Дополнение к tokens.css для досок «Визуал A/B» (04.10).
+   Источник — src/app/globals.css в main (f952d4d): блок .t-aura (стр. 246–297),
+   семейство --sheet-* для aura (стр. 2805) и направление B стекла для frost
+   (стр. 2824–2845). Значения перенесены как есть, без правок. */
+
+.crm.t-aura {
+  --bg: #EFEFF3;  --surface: #FFFFFF;  --surface2: #F6F6FA;  --surface3: #EAEAF1;
+  --popover: var(--surface);
+  --border: #E2E2EC;  --border2: #D2D2DE;  --border-input: #8a8a9a;
+  --text: #16161D;  --text-dim: #59596D;  --text-mute: #61617A;
+  --sidebar-indicator: var(--accent-l);  --sidebar-active-text: var(--accent-text);
+  --accent: #484D57;  --accent-l: rgba(72,77,87,0.09);  --accent-l2: rgba(72,77,87,0.16);
+  --green: #2F8F5B;  --green-l: rgba(47,143,91,0.10);
+  --red: #D14343;  --red-l: rgba(209,67,67,0.10);
+  --blue: #3B7FD4;  --blue-l: rgba(59,127,212,0.10);
+  --yellow: #B0810F;  --yellow-l: rgba(176,129,15,0.10);
+  --purple: #7C5CD4;  --purple-l: rgba(124,92,212,0.10);
+  --accent-text: #343840;
+  --green-text:  #1F7C41;
+  --red-text:    #C02B2D;
+  --blue-text:   #1D68BC;
+  --yellow-text: #846300;
+  --purple-text: #6F4BC8;
+  --teal-text:   #007B6A;
+  --radius: 12px;  --radius-s: 8px;  --radius-m: 12px;  --radius-l: 18px;
+  --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md: 0 4px 14px rgba(20,20,40,0.07), 0 1px 3px rgba(20,20,40,0.04);
+  --shadow-lg: 0 12px 36px rgba(20,20,40,0.10), 0 2px 8px rgba(20,20,40,0.05);
+  --shadow-card: var(--shadow-sm);  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);  --glass-border: var(--border);  --glass-blur: none;  --glass-inset: none;
+  --font-app: 'Onest';
+  letter-spacing: -0.006em;
+  --sheet-glass: rgba(3, 6, 10, .84);
+  --sheet-mark: #ACB3B9; --sheet-mark-fill: #ACB3B9; --sheet-mark-ink: #03060A;
+}
+
+/* Направление B стекла: светлое стекло в тёмной теме */
+.crm.t-frost {
+  --sheet-sheen:        linear-gradient(160deg, rgba(255,255,255,.55) 0%,
+                                        rgba(255,255,255,0) 48%, rgba(0,0,0,.05) 100%);
+  --sheet-shadow:       0 10px 34px rgba(0,0,0,.34),
+                        inset 0 1px 0 rgba(255,255,255,.65),
+                        inset 0 -1px 0 rgba(0,0,0,.05);
+  --sheet-hairline:     rgba(255,255,255,.55);
+  --sheet-red:          #8D3123;
+  --sheet-warning:      #764600;
+  --sheet-green:        #00551D;
+  --sheet-btn-border:   rgba(0,0,0,.22);
+  --sheet-hover:        rgba(0,0,0,.06);
+  --sheet-plate-bg:     rgba(0,0,0,.055);
+  --sheet-plate-border: rgba(0,0,0,.10);
+  --sheet-mark-ink:     #FFFFFF;
+  --sheet-empty-in:     #764600;
+  --sheet-empty-out:    var(--yellow);
+}
+
+/* Материал «Следующий шаг» (S-DEAL-NEXTSTEP-1) — правило из globals.css стр. 2117–2153 без изменений */
+.glass-sheet {
+  background-color: var(--sheet-glass);
+  background-image: var(--sheet-sheen);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: var(--sheet-shadow);
+  border: 1px solid var(--sheet-hairline);
+  color: var(--sheet-text);
+  --text:         var(--sheet-text);
+  --text-dim:     var(--sheet-dim);
+  --text-mute:    var(--sheet-dim);
+  --red:          var(--sheet-red);
+  --warning-text: var(--sheet-warning);
+  --green:        var(--sheet-green);
+  --accent:       var(--sheet-mark-fill);
+  --accent-text:  var(--sheet-mark);
+  --border:       var(--sheet-btn-border);
+  --surface2:     var(--sheet-hover);
+}
+
+/* «Сегодня» v3.2 — ходы и сделки. Компоненты мокапа. Цвета — только токены темы (tokens.css). */
+
+.crm {
+  --c-meta: 9.5rem;      /* сумма и стадия */
+  --c-due: 15rem;        /* срок шага и что было после него */
+  font-family: var(--font-app), 'Inter', system-ui, sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  min-height: 100%;
+}
+.crm.t-frost {
+  background:
+    radial-gradient(60rem 36rem at 12% -10%, rgba(91,138,255,0.28), transparent 60%),
+    radial-gradient(48rem 30rem at 96% 8%, rgba(160,112,224,0.22), transparent 62%),
+    var(--bg);
+}
+.crm, .crm *, .crm *::before, .crm *::after { box-sizing: border-box; }
+.crm :where(button) { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; text-align: inherit; }
+.crm :where(h1, h2, h3, h4, p) { margin: 0; }
+.crm svg { display: block; }
+.grow { flex: 1; }
+.num-t { font-variant-numeric: tabular-nums; }
+
+/* ── Оболочка приложения ── */
+.side {
+  width: 12.5rem; flex: none; padding: 0.75rem 0.5rem;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 0.0625rem;
+}
+.brand { display: flex; align-items: center; gap: 0.625rem; padding: 0.125rem 0.375rem 1rem; font-weight: 600; }
+.brand i {
+  width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; font-style: normal; font-size: 0.75rem; font-weight: 600;
+}
+.nav {
+  display: flex; align-items: center; gap: 0.6875rem; height: 2.0625rem; padding: 0 0.6875rem;
+  border-radius: 999px; color: var(--text); text-decoration: none;
+}
+.nav svg { width: 1rem; height: 1rem; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.nav.on { background: var(--sidebar-indicator); color: var(--sidebar-active-text); font-weight: 500; }
+.nav .cnt {
+  margin-left: auto; min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 999px;
+  background: var(--red); color: var(--on-accent); font-size: 0.6875rem; font-weight: 600; display: grid; place-items: center;
+}
+.nav-gap { height: 1rem; }
+
+.main { flex: 1; min-width: 0; padding: 1.125rem 1.625rem 2.5rem 1.25rem; container-type: inline-size; }
+.topbar { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; height: 2rem; }
+.search {
+  display: flex; align-items: center; gap: 0.5rem; height: 2rem; padding: 0 0.625rem; border-radius: var(--radius-s);
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+}
+.search kbd { font: inherit; font-size: 0.6875rem; padding: 0 0.3125rem; border: 1px solid var(--border); border-radius: 0.25rem; }
+.tb-ico { width: 2rem; height: 2rem; display: grid; place-items: center; color: var(--text-dim); border-radius: 999px; }
+.tb-ico svg, .search svg { width: 1rem; height: 1rem; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Шапка страницы ── */
+.ph { display: flex; align-items: flex-end; gap: 1rem; margin: 0.25rem 0 1.125rem; }
+.ph h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+.ph p { color: var(--text-dim); margin-top: 0.125rem; }
+.dayprog { display: flex; align-items: center; gap: 0.5rem; color: var(--text-dim); font-size: 0.75rem; }
+.dayprog .dots { display: flex; gap: 0.25rem; }
+.dayprog .dots i { width: 0.5rem; height: 0.5rem; border-radius: 999px; border: 1.5px solid var(--border2); }
+.dayprog .dots i.on { background: var(--accent); border-color: var(--accent); }
+.dayprog b { color: var(--text); font-weight: 600; }
+
+/* ── Кнопки и чипы ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; height: 1.875rem; padding: 0 0.75rem;
+  border-radius: var(--radius-s); border: 1px solid var(--border2); background: var(--surface);
+  font-size: 0.8125rem; font-weight: 500; color: var(--text); white-space: nowrap; text-decoration: none;
+}
+.btn:hover { border-color: var(--text-mute); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: var(--shadow-xs); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--text-dim); }
+.btn.ico { width: 1.875rem; padding: 0; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn svg { width: 0.875rem; height: 0.875rem; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.375rem; height: 1.75rem; padding: 0 0.625rem; border-radius: 999px;
+  border: 1px solid var(--border2); color: var(--text-dim); font-size: 0.75rem; background: var(--surface); white-space: nowrap;
+}
+.chip b { color: var(--text); font-weight: 600; }
+.chip svg { width: 0.75rem; height: 0.75rem; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.chip.on { border-color: var(--accent); background: var(--accent-l); color: var(--accent-text, var(--accent)); font-weight: 500; }
+.lnk { color: var(--accent-text, var(--accent)); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 0.15em; }
+.lnk.sm { font-size: 0.75rem; }
+kbd.k {
+  font: inherit; font-size: 0.6875rem; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: 0.25rem;
+  border: 1px solid var(--border2); background: var(--surface); color: var(--text-dim); display: inline-grid; place-items: center;
+}
+
+/* ── Заголовок секции ── */
+.sec-h { display: flex; align-items: baseline; gap: 0.625rem; margin-bottom: 0.625rem; min-height: 1.75rem; flex-wrap: wrap; }
+.sec-h h2 { font-size: 0.8125rem; font-weight: 600; }
+.sec-h .hint { color: var(--text-dim); font-size: 0.75rem; }
+
+/* номер хода и отметки */
+.numdot {
+  flex: none; width: 1.125rem; height: 1.125rem; border-radius: 999px; background: var(--mark-today, var(--accent)); color: var(--on-accent);
+  font-size: 0.6875rem; font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums;
+}
+.numdot.ok { background: var(--green); }
+.numdot svg { width: 0.6875rem; height: 0.6875rem; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.sq { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 1.5px; background: var(--text-mute); }
+.fl { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 0 0.25rem 0.25rem 0; border-left: 2px solid var(--text-mute); background: color-mix(in srgb, var(--text-mute) 35%, transparent); }
+
+/* ── Ходы на сегодня ── */
+.moves { margin-bottom: 1.25rem; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; align-items: start; }
+.mcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); box-shadow: var(--shadow-card);
+  padding: 0.875rem 1rem 0.875rem; display: flex; flex-direction: column; gap: 0.375rem; min-width: 0;
+  backdrop-filter: var(--glass-blur);
+}
+.mcard.sel { border-color: var(--border2); box-shadow: var(--shadow-md); }
+.mc-top { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.mc-name { font-size: 0.9375rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mc-sum { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; font-weight: 500; }
+.mc-sum.none { color: var(--text-mute); font-weight: 400; }
+.mc-move {
+  font-size: 0.9375rem; font-weight: 500; line-height: 1.35; letter-spacing: -0.005em; text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5rem; margin-top: 0.125rem;
+}
+.mc-why { color: var(--text-dim); font-size: 0.75rem; text-wrap: pretty; min-height: 2.125rem; }
+.mc-why b { color: var(--text); font-weight: 500; }
+.mc-why .bad { color: var(--danger-text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.mc-act { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.375rem; flex-wrap: wrap; }
+.mc-act .sp { flex: 1; }
+.mcard.done { background: var(--surface2); box-shadow: none; }
+.mcard.done .numdot { background: var(--green); }
+.mcard.done .mc-move { color: var(--text-dim); text-decoration: line-through; text-decoration-color: var(--border2); }
+.mc-next { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; color: var(--text-dim); min-height: 1.875rem; margin-top: 0.375rem; }
+.mc-next b { color: var(--text); font-weight: 600; }
+.mc-next svg { width: 0.875rem; height: 0.875rem; stroke: var(--green); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* композер «что дальше?» */
+.cmp { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem; }
+.cmp label { font-size: 0.75rem; color: var(--text-dim); display: flex; flex-direction: column; gap: 0.1875rem; }
+.cmp input[type="text"], .cmp textarea {
+  width: 100%; height: 2rem; padding: 0 0.625rem; border-radius: var(--radius-s); border: 1px solid var(--border-input, var(--border2));
+  background: var(--surface); color: var(--text); font: inherit;
+}
+.cmp textarea { height: 3.25rem; padding: 0.375rem 0.625rem; resize: none; }
+.cmp input::placeholder, .cmp textarea::placeholder { color: var(--text-mute); font-style: italic; }
+.cmp .when { display: flex; flex-wrap: wrap; gap: 0.3125rem; align-items: center; }
+.cmp input[type="date"] {
+  height: 1.75rem; padding: 0 0.5rem; border-radius: 999px; border: 1px solid var(--border2); background: var(--surface);
+  color: var(--text-dim); font: inherit; font-size: 0.75rem;
+}
+.cmp .src { font-size: 0.6875rem; color: var(--text-mute); }
+.cmp .cost { font-size: 0.75rem; color: var(--warning-text); }
+.cmp .go { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+
+/* ── Сделки в работе ── */
+.sheet {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); box-shadow: var(--shadow-card);
+  backdrop-filter: var(--glass-blur);
+}
+.deals { padding: 0.75rem 1rem 0.5rem; }
+.deals .sec-h { margin-bottom: 0.125rem; }
+.d-sum { color: var(--text-dim); font-size: 0.75rem; }
+.d-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@container (max-width: 72rem) {
+  .deals { --c-meta: 8rem; --c-due: 15rem; }
+}
+
+.row { display: grid; grid-template-columns: minmax(0, 1fr) var(--c-meta) var(--c-due); column-gap: 1.25rem; align-items: start; }
+
+/* подписи колонок */
+.cols { height: 1.625rem; align-items: end; padding: 0 0.5rem 0.3125rem 0.25rem; border-bottom: 1px solid var(--border); font-size: 0.6875rem; color: var(--text-mute); }
+.cols .c1 { padding-left: 1.375rem; }
+.cols .c2 { text-align: right; }
+
+/* группа */
+.grp {
+  display: flex; align-items: baseline; gap: 0.5rem; padding: 0.625rem 0.5rem 0.25rem 0.25rem; flex-wrap: wrap;
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim);
+}
+.grp .n { color: var(--text-mute); font-weight: 500; letter-spacing: 0; }
+.grp .rule { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 0.75rem; color: var(--text-dim); }
+.grp .note { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 0.75rem; color: var(--text-mute); }
+.ln + .grp, .xp + .grp, .grp-c + .grp, .ln + .grp-c, .xp + .grp-c, .grp-c + .grp-c { border-top: 1px solid var(--border); margin-top: 0.25rem; }
+
+/* свёрнутая группа — одна строка */
+.grp-c { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.5rem 0.5rem 0.25rem; }
+.grp-t { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; flex: 1; }
+.grp-t .lb { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.grp-t .n { font-size: 0.6875rem; color: var(--text-mute); font-weight: 500; }
+.grp-t .sm { color: var(--text-dim); min-width: 0; text-wrap: pretty; }
+.grp-t .chev { align-self: center; }
+
+/* строка сделки: две линии */
+.ln { width: 100%; padding: 0.5rem 0.5rem 0.5625rem 0.25rem; border-radius: var(--radius-s); text-align: left; }
+.ln:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.ln.sel { background: color-mix(in srgb, var(--text) 4%, transparent); border-radius: var(--radius-s) var(--radius-s) 0 0; }
+.ln.kb { box-shadow: inset 0 0 0 2px var(--mark-today, var(--accent)); }
+.c-deal { display: grid; grid-template-columns: 1rem minmax(0, 1fr); column-gap: 0.375rem; min-width: 0; }
+.chev { flex: none; width: 0.875rem; height: 0.875rem; margin-top: 0.1875rem; stroke: var(--text-mute); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--duration-fast, 0.15s); }
+.ln.sel .chev, .grp-t.open .chev { transform: rotate(90deg); }
+.ln-n { grid-column: 2; font-size: 0.9375rem; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em; min-width: 0; text-wrap: pretty; }
+.ln-n2 { color: var(--text-dim); font-weight: 400; }
+.ln-step {
+  grid-column: 2; margin-top: 0.0625rem; min-width: 0; text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ln-step.dim { color: var(--text-dim); }
+.ln-step.ok { color: var(--text-dim); }
+.c-meta { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; text-align: right; }
+.ln-sum { font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2656rem; white-space: nowrap; }
+.ln-sum.none { color: var(--text-mute); font-weight: 400; }
+.ln-stage { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.0625rem; }
+.c-due { display: flex; flex-direction: column; min-width: 0; }
+.due-l { display: flex; align-items: baseline; gap: 0.5rem; line-height: 1.2656rem; }
+.due-d { min-width: 5.75rem; white-space: nowrap; }
+.age { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.age.bad { color: var(--danger-text); }
+.after { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.0625rem; text-wrap: pretty; }
+.after.warn { color: var(--warning-text); }
+.after.ok { color: var(--success-text, var(--green)); }
+
+/* раскрытая строка: было │ сейчас │ впереди */
+.xp {
+  margin: 0 0 0.5rem; padding: 0.625rem 0.875rem 0.875rem 1.625rem; border-radius: 0 0 var(--radius-s) var(--radius-s);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.xp.card { margin: 0.75rem 0 0; padding-left: 1rem; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--border2); box-shadow: var(--shadow-card); }
+.xp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.625rem; }
+.xp-head b { color: var(--text); font-weight: 600; font-size: 0.8125rem; }
+.xp-cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 0.8fr); column-gap: 1.25rem; }
+.xp-cols > div { min-width: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.xp-cols > div + div { border-left: 1px solid var(--border2); padding-left: 1.25rem; }
+.xp h4 { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-mute); }
+.xp-step { font-size: 0.9375rem; font-weight: 500; line-height: 1.35; text-wrap: pretty; }
+.xp-meta { font-size: 0.75rem; color: var(--text-dim); text-wrap: pretty; }
+.xp-act { display: flex; gap: 0.375rem 0.5rem; align-items: center; flex-wrap: wrap; margin: 0.125rem 0; }
+.xr { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); gap: 0.5rem; font-size: 0.75rem; text-decoration: none; color: var(--text); align-items: baseline; }
+.xr .d { color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xr .x { text-wrap: pretty; }
+.xr:hover .x { text-decoration: underline; text-decoration-color: var(--border2); }
+.xd { display: grid; grid-template-columns: 0.75rem minmax(0, 1fr); gap: 0.5rem; font-size: 0.75rem; align-items: baseline; }
+.xd .g { align-self: center; justify-self: center; }
+.xd .m { color: var(--text-dim); }
+.xp-empty { font-size: 0.75rem; color: var(--text-dim); }
+.xp-done { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; color: var(--text-dim); flex-wrap: wrap; }
+.xp-done svg { width: 0.875rem; height: 0.875rem; stroke: var(--green); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.xp-done b { color: var(--text); font-weight: 600; }
+
+/* «Было»: капсула на каждый из 30 дней — только в раскрытой строке.
+   Пустая — событий не было, нейтральная — касание, акцентная — смена стадии. */
+.pulse { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); column-gap: 0.25rem; padding-top: 0.5625rem; margin-top: 0.125rem; }
+.day { position: relative; display: block; height: 1.375rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.day.t { background: color-mix(in srgb, var(--text) 50%, transparent); }
+.day.s { background: var(--info); }  /* семантический токен, не акцент: в washi акцент равен красному, в aura он не цветной */
+.day.due::before, .due-mk {
+  content: ''; width: 0; height: 0;
+  border-left: 0.25rem solid transparent; border-right: 0.25rem solid transparent; border-top: 0.3125rem solid var(--text-dim);
+}
+.day.due::before { position: absolute; left: 50%; top: -0.5rem; margin-left: -0.25rem; }
+.pulse-ax { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.pulse-lg { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; font-size: 0.6875rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+.pulse-lg span { display: inline-flex; align-items: center; gap: 0.3125rem; }
+.pulse-lg .day { width: 0.4375rem; height: 0.875rem; flex: none; }
+.due-mk { display: inline-block; flex: none; }
+
+/* ── Блоки действия на досках-разборах ── */
+.pop {
+  width: 25rem; padding: 0.875rem 1rem 0.75rem;
+  background: var(--popover, var(--surface)); border: 1px solid var(--border2); border-radius: var(--radius-m); box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.pop-h { display: flex; align-items: baseline; gap: 0.5rem; }
+.pop-h .t { font-size: 0.9375rem; font-weight: 600; }
+.pop-h .s { color: var(--text-dim); font-size: 0.75rem; margin-left: auto; white-space: nowrap; }
+.pop-co { color: var(--text-dim); font-size: 0.6875rem; letter-spacing: 0.01em; margin-top: -0.375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop-step { font-size: 0.9375rem; font-weight: 500; line-height: 1.35; text-wrap: pretty; }
+.pop-meta { font-size: 0.75rem; color: var(--text-dim); text-wrap: pretty; }
+.pop-act { display: flex; gap: 0.375rem 0.5rem; align-items: center; flex-wrap: wrap; }
+
+/* ── Под списком: то, что не сделка, и клавиши ── */
+.off-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.875rem; color: var(--text-dim); font-size: 0.75rem; flex-wrap: wrap; }
+.keys { display: flex; align-items: center; gap: 0.375rem 1rem; margin-top: 0.75rem; color: var(--text-dim); font-size: 0.75rem; flex-wrap: wrap; }
+.keys span { display: inline-flex; align-items: center; gap: 0.3125rem; }
+
+/* ── Доски-разборы (время, ход, состояния, связи) ── */
+.board { display: block; padding: 1.75rem 2rem 2rem; min-height: 0; }
+.board .note { color: var(--text-dim); font-size: 0.75rem; max-width: 62ch; text-wrap: pretty; }
+.frames { display: grid; gap: 1.5rem 1.25rem; }
+.frame { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.frame > .cap { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
+.frame > .sub { color: var(--text-dim); font-size: 0.75rem; text-wrap: pretty; max-width: 86ch; }
+.skel { display: block; background: var(--surface2); border-radius: 0.25rem; }
+.empty-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.875rem 0.5rem; color: var(--text-dim); }
+.err { color: var(--danger-text); }
+.menu {
+  width: 15.5rem; background: var(--popover, var(--surface)); border: 1px solid var(--border2); border-radius: var(--radius-m); box-shadow: var(--shadow-lg);
+  padding: 0.3125rem; display: flex; flex-direction: column;
+}
+.menu .mi { display: flex; align-items: center; gap: 0.5rem; height: 1.875rem; padding: 0 0.5rem; border-radius: 0.375rem; font-size: 0.8125rem; }
+.menu .mi:hover { background: var(--surface2); }
+.menu .mi .k { margin-left: auto; color: var(--text-dim); font-size: 0.6875rem; }
+.menu .mi.chk::before { content: ''; width: 0.75rem; height: 0.375rem; border-left: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent); transform: rotate(-45deg) translate(1px, -1px); flex: none; }
+.menu .mi.nochk::before { content: ''; width: 0.75rem; flex: none; }
+.menu .mrow { display: flex; flex-direction: column; gap: 0.0625rem; padding: 0.3125rem 0.5rem; }
+.menu .mrow .t { font-size: 0.8125rem; }
+.menu .mrow .m { font-size: 0.75rem; color: var(--text-dim); }
+.menu .ms { height: 1px; background: var(--border); margin: 0.25rem 0.25rem; }
+.menu .mh { font-size: 0.6875rem; color: var(--text-dim); padding: 0.375rem 0.5rem 0.125rem; }
+
+/* таблица «каждый элемент работает» */
+.lx { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 1fr); border: 1px solid var(--border); border-radius: var(--radius-m); background: var(--surface); overflow: hidden; }
+.lx > div { padding: 0.625rem 0.875rem; border-top: 1px solid var(--border); min-width: 0; }
+.lx > .hd { border-top: 0; background: var(--surface2); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
+.lx .a { display: flex; gap: 0.625rem; align-items: flex-start; }
+.lx .a .gl { flex: none; width: 2.75rem; height: 1.25rem; display: flex; align-items: center; justify-content: center; gap: 0.1875rem; position: relative; font-size: 0.75rem; }
+.lx .a b { font-weight: 600; }
+.lx .a p, .lx .c p { color: var(--text-dim); font-size: 0.75rem; margin-top: 0.0625rem; text-wrap: pretty; }
+.lx .b { font-size: 0.75rem; color: var(--text-dim); text-wrap: pretty; }
+.lx .b code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.6875rem; color: var(--text); background: var(--surface2); padding: 0.0625rem 0.25rem; border-radius: 0.25rem; }
+.lx .b .dir { display: inline-block; min-width: 3.75rem; font-weight: 600; color: var(--text); }
+.lx .c b { font-weight: 600; }
+
+@container (max-width: 52rem) {
+  .cards { grid-template-columns: minmax(0, 1fr); }
+  .row { grid-template-columns: minmax(0, 1fr); row-gap: 0.25rem; }
+  .cols { display: none; }
+  .c-meta { flex-direction: row; align-items: baseline; gap: 0.5rem; padding-left: 1.375rem; text-align: left; }
+  .c-due { padding-left: 1.375rem; }
+  .xp-cols { grid-template-columns: minmax(0, 1fr); row-gap: 0.75rem; }
+  .xp-cols > div + div { border-left: 0; padding-left: 0; border-top: 1px solid var(--border2); padding-top: 0.625rem; }
+  .grp-c { flex-wrap: wrap; }
+  .ln-step { display: block; }
+}
+@media (max-width: 60rem) {
+  .side { display: none; }
+}
+
+/* «Сегодня» — визуал, варианты A «Пульт» и B «Река». Цвета — только токены темы. */
+
+.crm { --c-meta: 9.5rem; --c-due: 15rem; }
+.vb-deals, .vb-deals .vb-grid { --c-meta: 8.5rem; --c-due: 17rem; }
+.crm.t-aura { font-family: 'Onest', 'Inter', system-ui, sans-serif; }
+
+/* ── Общее ── */
+.crm b { font-weight: 600; }
+.vx-h2 { font-size: 0.875rem; font-weight: 600; }
+.vx-dim { color: var(--text-dim); }
+.vx-mute { color: var(--text-mute); }
+.vx-hot { color: var(--danger-text); font-weight: 600; }
+.vx-warn { color: var(--warning-text); }
+.vx-ok { color: var(--success-text); }
+.vx-sec { display: flex; align-items: baseline; gap: 0.625rem; flex-wrap: wrap; margin-bottom: 0.625rem; }
+.vx-sec .hint { font-size: 0.75rem; color: var(--text-dim); }
+.vx-ico { width: 1rem; height: 1rem; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.vx-ico.sm { width: 0.875rem; height: 0.875rem; }
+.vx-num { font-variant-numeric: tabular-nums; }
+.vx-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* компактный пульс 30 дней (тот же смысл, что C-21: бледная — пусто, нейтральная — касание, --info — стадия) */
+.vx-pulse { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); column-gap: 0.1875rem; position: relative; }
+.vx-pulse i { display: block; height: 0.75rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 9%, transparent); position: relative; }
+.vx-pulse i.t { background: color-mix(in srgb, var(--text) 48%, transparent); }
+.vx-pulse i.s { background: var(--info); }
+.vx-pulse i.due::after {
+  content: ''; position: absolute; left: 50%; top: -0.4375rem; margin-left: -0.21875rem;
+  border-left: 0.21875rem solid transparent; border-right: 0.21875rem solid transparent; border-top: 0.28125rem solid var(--text-dim);
+}
+.vx-pax { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.3125rem; font-size: 0.6875rem; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.vx-pax b { font-weight: 500; color: var(--text-dim); }
+
+.vx-kbd { font: inherit; font-size: 0.6875rem; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: 0.25rem;
+  border: 1px solid var(--border2); color: var(--text-dim); display: inline-grid; place-items: center; line-height: 1; }
+
+/* ═════════════════ A «ПУЛЬТ» ═════════════════ */
+
+/* ходы — триптих */
+.va-moves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+.va-card { display: flex; flex-direction: column; padding: 0.75rem 1rem 0.75rem; min-width: 0; }
+.va-kick { display: flex; align-items: flex-start; gap: 0.5rem; min-height: 1.5rem; }
+.va-n { flex: none; width: 1.25rem; height: 1.25rem; border-radius: 999px; border: 1px solid var(--border2); color: var(--text-dim);
+  font-size: 0.6875rem; font-weight: 600; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.va-n.ok { border-color: var(--success); background: var(--success); color: var(--on-accent); }
+.va-n svg { width: 0.75rem; height: 0.75rem; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.va-tag { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); line-height: 1.3; padding-top: 0.1875rem; min-width: 0; }
+.va-tag .vx-hot { font-weight: 600; }
+.va-sum { margin-left: auto; text-align: right; flex: none; line-height: 1.15; }
+.va-sum b { display: block; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.va-sum span { display: block; font-size: 0.6875rem; color: var(--text-mute); }
+.va-sum .none { font-size: 0.75rem; font-weight: 400; color: var(--text-mute); }
+.va-step { margin-top: 0.5rem; font-size: 1rem; font-weight: 600; line-height: 1.3; text-wrap: pretty; }
+.va-step.done { color: var(--text-dim); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 60%, transparent); }
+.va-ctx { margin-top: 0.4375rem; font-size: 0.75rem; line-height: 1.5; color: var(--text-dim); }
+.va-ctx .va-mono { display: inline-grid; vertical-align: -0.25rem; margin-right: 0.375rem; }
+.va-ctx b { color: var(--text); font-weight: 500; font-size: 0.8125rem; }
+.va-foot { margin-top: auto; padding-top: 0.625rem; }
+.va-strip { padding-top: 0.4375rem; }
+.va-act { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.625rem; }
+.va-foot > .va-act:first-child, .va-foot > .va-close:first-child { margin-top: 0; }
+.va-act .sp { flex: 1; }
+.va-close { font-size: 0.75rem; margin-top: 0.625rem; }
+.va-done { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: auto; padding: 0.5rem 0.625rem; border-radius: var(--radius-s);
+  background: var(--success-l); font-size: 0.75rem; color: var(--text); }
+.va-done svg { color: var(--success-text); margin-top: 0.0625rem; }
+.va-done .grow { flex: 1; }
+
+/* монограмма компании */
+.va-mono { flex: none; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; display: grid; place-items: center; }
+
+
+/* шапка списка и состав */
+.va-book { display: flex; align-items: center; gap: 0.625rem; margin-bottom: 0.625rem; }
+.va-book .cnt { font-size: 0.75rem; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.va-book .hint { font-size: 0.75rem; color: var(--text-dim); }
+.va-book .hint b { color: var(--text); font-weight: 600; }
+.va-bar { flex: 1; min-width: 0; display: flex; gap: 0.5rem; margin: 0 0.75rem; }
+.va-seg { min-width: 0; display: flex; flex-direction: column; gap: 0.3125rem; font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+.va-seg i { display: block; height: 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--text) var(--w, 30%), transparent); }
+.va-seg i.hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text) 30%, transparent) 0 2px, color-mix(in srgb, var(--text) 8%, transparent) 2px 5px); }
+.va-seg b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; margin-right: 0.25rem; }
+
+/* карточка группы */
+.va-grp { margin-bottom: 0.625rem; overflow: hidden; }
+.va-gh { display: flex; align-items: center; gap: 0.625rem; padding: 0.625rem 1rem 0.375rem; min-height: 2.75rem; }
+.va-gh.fold { padding-bottom: 0.625rem; }
+.va-gi { flex: none; width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; background: var(--surface2); color: var(--text-dim); display: grid; place-items: center; }
+.va-gi svg { width: 0.9375rem; height: 0.9375rem; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.va-gi.hot { background: var(--danger-l); color: var(--danger-text); }
+.va-gi.warn { background: var(--warning-l); color: var(--warning-text); }
+.va-gt { font-size: 0.875rem; font-weight: 600; white-space: nowrap; }
+.va-gc { flex: none; min-width: 1.375rem; height: 1.25rem; padding: 0 0.4375rem; border-radius: 999px; background: var(--surface2);
+  font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; display: grid; place-items: center; color: var(--text); }
+.va-gr { flex: 1; min-width: 0; font-size: 0.75rem; color: var(--text-dim); }
+.va-gn { flex: none; font-size: 0.75rem; color: var(--text-mute); }
+.va-gchev { flex: none; color: var(--text-mute); }
+
+/* строка */
+.va-row { position: relative; display: grid; grid-template-columns: 3.375rem minmax(0, 1fr) var(--c-meta) 14rem; column-gap: 1rem;
+  align-items: start; padding: 0.625rem 1rem; }
+.va-row::before { content: ''; position: absolute; top: 0; left: 5.375rem; right: 1rem; border-top: 1px solid var(--border); }
+.va-row:hover { background: var(--surface2); }
+.va-name { display: block; font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+.va-stp { display: block; margin-top: 0.125rem; font-size: 0.8125rem; line-height: 1.4; }
+.va-stp.dim { color: var(--text-dim); }
+.va-meta { text-align: right; }
+.va-meta b { display: block; font-size: 0.8125rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.35; }
+.va-meta .none { display: block; font-size: 0.75rem; color: var(--text-mute); line-height: 1.5; }
+.va-stg { display: flex; justify-content: flex-end; align-items: center; gap: 0.375rem; margin-top: 0.1875rem; font-size: 0.75rem; color: var(--text-dim); }
+.va-dots { display: inline-flex; gap: 2px; }
+.va-dots i { width: 0.4375rem; height: 0.25rem; border-radius: 1px; background: var(--border2); }
+.va-dots i.on { background: var(--text-dim); }
+.va-due { display: flex; flex-direction: column; gap: 0.25rem; }
+.va-due .l1 { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-dim); }
+.va-due .l2 { font-size: 0.75rem; color: var(--text-dim); }
+.va-age { flex: none; display: inline-flex; align-items: center; height: 1.25rem; padding: 0 0.4375rem; border-radius: 999px; background: var(--surface2);
+  font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+.va-age.hot { background: var(--danger-l); color: var(--danger-text); }
+.va-age.fut { background: transparent; border: 1px solid var(--border2); color: var(--text-dim); font-weight: 500; }
+.va-age.done { background: var(--success-l); color: var(--success-text); font-weight: 500; }
+
+/* свёрнутая группа — колода чипов */
+.va-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; padding: 0 1rem 0.875rem 3.375rem; margin-top: -0.25rem; }
+.va-dc { display: inline-flex; align-items: center; gap: 0.375rem; height: 1.75rem; padding: 0 0.625rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); font-size: 0.75rem; white-space: nowrap; }
+.va-dc .va-mono { border-radius: 999px; }
+.va-dc b { font-weight: 500; }
+.va-dc span { color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.va-dc.more { padding: 0 0.625rem; color: var(--text-mute); border-style: dashed; }
+
+/* все ходы сделаны */
+.va-alldone { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.875rem 1rem; margin-bottom: 1.5rem; }
+.va-ad-h { display: flex; align-items: center; gap: 0.625rem; }
+.va-ad-h .va-gi { background: var(--success-l); color: var(--success-text); }
+.va-ad-l { display: grid; grid-template-columns: 1.25rem 10rem minmax(0, 1fr) auto; align-items: center; gap: 0.625rem; font-size: 0.75rem; color: var(--text-dim);
+  padding: 0.25rem 0 0.25rem 2.375rem; }
+.va-ad-l b { color: var(--text); font-weight: 500; font-size: 0.8125rem; }
+
+/* скелетон */
+.vx-sk { display: block; background: var(--surface2); border-radius: 0.25rem; }
+
+/* ═════════════════ B «РЕКА» ═════════════════ */
+
+/* ходы — фокус и очередь */
+.vb-moves { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 0.75rem; margin-bottom: 1.25rem; align-items: stretch; }
+.vb-focus { border-radius: var(--radius-l); padding: 1rem 1.375rem 0.875rem; display: flex; flex-direction: column; min-width: 0; }
+.vb-fk { display: flex; align-items: baseline; gap: 0.75rem; }
+.vb-tag { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+.vb-tag em { font-style: normal; color: var(--red); }
+.vb-fsum { margin-left: auto; text-align: right; line-height: 1.1; flex: none; }
+.vb-fsum b { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vb-fsum span { display: block; font-size: 0.6875rem; color: var(--text-dim); margin-top: 0.125rem; }
+.vb-fstep { margin-top: 0.5rem; font-size: 1.25rem; font-weight: 600; line-height: 1.28; letter-spacing: -0.005em; max-width: 46rem; text-wrap: pretty; }
+.vb-fctx { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--text-dim); }
+.vb-fctx b { color: var(--text); font-weight: 500; }
+.vb-fpulse { margin-top: 0.75rem; padding: 0.5rem 0.75rem 0.4375rem; border-radius: var(--radius-s); background: var(--sheet-plate-bg); border: 1px solid var(--sheet-plate-border); }
+.vb-fpulse .vx-pulse { column-gap: 0.25rem; padding-top: 0.4375rem; }
+.vb-fpulse .vx-pulse i { justify-self: center; width: min(100%, 0.75rem); height: 1.5rem; background: color-mix(in srgb, var(--sheet-text) 13%, transparent); }
+.vb-fpulse .vx-pulse i.t { background: color-mix(in srgb, var(--sheet-text) 58%, transparent); }
+.vb-fpulse .vx-pulse i.s { background: color-mix(in srgb, var(--info) 62%, var(--sheet-text)); }
+.vb-fpulse .vx-pulse i.due::after { border-top-color: var(--sheet-dim); }
+.vb-fpulse .vx-pax { color: var(--sheet-dim); }
+.vb-fpulse .vx-pax b { color: var(--sheet-text); }
+.vb-fact { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+.vb-fact .sp { flex: 1; }
+.vb-btn { display: inline-flex; align-items: center; gap: 0.5rem; height: 2.125rem; padding: 0 0.75rem 0 0.875rem; border-radius: var(--radius-s);
+  border: 1px solid var(--sheet-btn-border); color: var(--sheet-text); font-size: 0.8125rem; font-weight: 500; white-space: nowrap; }
+.vb-btn.pri { background: var(--sheet-mark-fill); border-color: var(--sheet-mark-fill); color: var(--sheet-mark-ink); }
+.vb-btn .vx-kbd { border-color: currentColor; color: inherit; opacity: 0.7; height: 1.0625rem; min-width: 1.0625rem; font-size: 0.6875rem; }
+.vb-btn.ghost { border-color: transparent; color: var(--sheet-dim); padding: 0 0.5rem; }
+.vb-flnk { font-size: 0.75rem; color: var(--sheet-dim); text-decoration: underline; text-underline-offset: 0.15em; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+
+.vb-queue { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.vb-qh { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-dim); min-height: 1.5rem; }
+.vb-qh .cap { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.vb-prog { display: flex; gap: 0.1875rem; margin-left: auto; }
+.vb-prog i { width: 1.5rem; height: 0.3125rem; border-radius: 999px; background: var(--border2); }
+.vb-prog i.on { background: var(--success); }
+.vb-prog i.cur { background: var(--text); }
+.vb-qc { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem 0.875rem; min-width: 0; }
+.vb-qt { display: flex; align-items: center; gap: 0.5rem; }
+.vb-qt b { font-size: 0.875rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.vb-qt .r { margin-left: auto; flex: none; font-size: 0.8125rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.vb-qs { font-size: 0.8125rem; line-height: 1.4; }
+.vb-qm { font-size: 0.75rem; color: var(--text-dim); margin-top: auto; padding-top: 0.25rem; }
+.vb-qc.done .vb-qs { color: var(--text-dim); text-decoration: line-through; }
+
+/* река */
+.vb-deals { overflow: hidden; }
+.vb-head { display: flex; align-items: baseline; gap: 0.625rem; flex-wrap: wrap; padding: 0.875rem 1rem 0.5rem; }
+.vb-head .hint { font-size: 0.75rem; color: var(--text-dim); }
+.vb-head .hint b { color: var(--text); font-weight: 600; }
+.vb-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--c-meta) var(--c-due); column-gap: 1.25rem; }
+.vb-ruler { padding: 0.25rem 1rem 0.375rem; align-items: end; }
+.vb-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 0.875rem; font-size: 0.6875rem; color: var(--text-mute); align-items: center; }
+.vb-legend span { display: inline-flex; align-items: center; gap: 0.3125rem; }
+.vb-lg-due { width: 0.5rem; height: 0.5rem; border-radius: 999px; border: 1.5px solid var(--text-dim); background: var(--surface); }
+.vb-lg-tch { width: 0.3125rem; height: 0.3125rem; border-radius: 999px; background: var(--text); }
+.vb-lg-now { width: 2px; height: 0.75rem; background: var(--text); border-radius: 1px; }
+.vb-lg-bar { width: 1rem; height: 0.25rem; border-radius: 999px; background: color-mix(in srgb, var(--text-mute) 55%, transparent); }
+.vb-axis { position: relative; height: 1.75rem; }
+.vb-axis .tk { position: absolute; bottom: 0; width: 1px; height: 0.3125rem; background: var(--border2); }
+.vb-axis .lb { position: absolute; bottom: 0.5rem; font-size: 0.6875rem; color: var(--text-mute); transform: translateX(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vb-axis .lb.now { color: var(--text); font-weight: 600; }
+.vb-axis .lb.thr { color: var(--text-dim); }
+.vb-axis .base { position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--border); }
+
+.vb-band { display: grid; grid-template-columns: minmax(0, 1fr) var(--c-meta) var(--c-due); column-gap: 1.25rem; align-items: center;
+  padding: 0.4375rem 1rem; background: var(--surface2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 2.25rem; }
+.vb-bl { display: flex; align-items: baseline; gap: 0.5rem; min-width: 0; }
+.vb-bl .t { font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+.vb-bl .n { font-size: 0.75rem; font-weight: 600; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.vb-bl .r { font-size: 0.75rem; color: var(--text-dim); min-width: 0; }
+.vb-bl .chev { align-self: center; color: var(--text-mute); }
+.vb-bm { font-size: 0.75rem; color: var(--text-mute); text-align: right; white-space: nowrap; }
+.vb-zone { position: relative; height: 0.875rem; }
+.vb-zone .z { position: absolute; top: 0; bottom: 0; border-radius: 0.1875rem; background: color-mix(in srgb, var(--text) 7%, transparent); }
+.vb-zone .z.hot { background: var(--danger-l); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent); }
+.vb-zone .z.hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text) 13%, transparent) 0 2px, transparent 2px 5px); }
+.vb-zone .now { position: absolute; top: -0.1875rem; bottom: -0.1875rem; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.vb-zone .lbl { position: absolute; top: 50%; transform: translateY(-50%); font-size: 0.6875rem; color: var(--text-dim); white-space: nowrap; padding: 0 0.25rem; }
+
+.vb-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--c-meta) var(--c-due); column-gap: 1.25rem; align-items: start; padding: 0.625rem 1rem; }
+.vb-row + .vb-row { border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.vb-row:hover { background: var(--surface2); }
+.vb-nm { display: flex; gap: 0.375rem; min-width: 0; }
+.vb-nm .chev { margin-top: 0.1875rem; color: var(--text-mute); }
+.vb-name { display: block; font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+.vb-stp { display: block; margin-top: 0.125rem; font-size: 0.8125rem; line-height: 1.4; }
+.vb-stp.dim { color: var(--text-dim); }
+.vb-meta { text-align: right; }
+.vb-meta b { display: block; font-size: 0.8125rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.35; }
+.vb-meta .none { display: block; font-size: 0.75rem; color: var(--text-mute); line-height: 1.5; }
+.vb-meta span { display: block; font-size: 0.75rem; color: var(--text-dim); margin-top: 0.125rem; }
+
+.vb-track { position: relative; height: 1.125rem; margin-top: 0.0625rem; }
+.vb-track .ax { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed color-mix(in srgb, var(--border2) 70%, transparent); }
+.vb-track .bar { position: absolute; top: 50%; height: 0.375rem; margin-top: -0.1875rem; border-radius: 999px; background: color-mix(in srgb, var(--text-mute) 55%, transparent); }
+.vb-track .bar.hot { background: var(--danger); }
+.vb-track .bar.quiet { background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--text-mute) 55%, transparent) 0 4px, transparent 4px 7px); }
+.vb-track .due { position: absolute; top: 50%; width: 0.625rem; height: 0.625rem; margin: -0.3125rem 0 0 -0.3125rem; border-radius: 999px;
+  border: 1.5px solid var(--text-dim); background: var(--surface); z-index: 2; }
+.vb-track .due.hot { border-color: var(--danger); }
+.vb-track .tch { position: absolute; top: 50%; width: 0.4375rem; height: 0.4375rem; margin: -0.21875rem 0 0 -0.21875rem; border-radius: 999px; background: var(--text); box-shadow: 0 0 0 1.5px var(--surface); }
+.vb-track .now { position: absolute; top: 0; bottom: 0; width: 2px; z-index: 3; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.vb-track .fut { position: absolute; top: 50%; width: 0.625rem; height: 0.625rem; margin: -0.3125rem 0 0 -0.3125rem; border-radius: 999px; background: var(--text-dim); }
+.vb-track .link { position: absolute; top: 50%; border-top: 1.5px dotted var(--text-dim); }
+.vb-track .sig { position: absolute; top: 0; width: 0; height: 0; margin-left: -0.25rem;
+  border-left: 0.25rem solid transparent; border-right: 0.25rem solid transparent; border-top: 0.3125rem solid var(--warning-text); }
+.vb-track .clip { position: absolute; left: -0.125rem; top: 50%; transform: translateY(-50%); font-size: 0.6875rem; color: var(--text-mute); line-height: 1; background: var(--surface); padding-right: 0.125rem; }
+.vb-cap { margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+.vb-cap b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.vb-cap b.hot { color: var(--danger-text); }
+
+/* свёрнутая полоса — точки на той же оси */
+.vb-fold-sum { font-size: 0.8125rem; color: var(--text-dim); line-height: 1.45; }
+.vb-swarm { position: relative; height: 1.5rem; }
+.vb-swarm .ax { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed color-mix(in srgb, var(--border2) 70%, transparent); }
+.vb-swarm .d { position: absolute; width: 0.5625rem; height: 0.5625rem; margin-left: -0.28125rem; border-radius: 999px; border: 1.5px solid var(--text-dim); background: var(--surface2); }
+.vb-swarm .d.f { background: var(--text-dim); border-color: var(--text-dim); }
+.vb-swarm .now { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.vb-swarm .clip { position: absolute; left: -0.125rem; top: 50%; transform: translateY(-50%); font-size: 0.6875rem; color: var(--text-mute); line-height: 1; }
+
+/* все ходы сделаны — B */
+.vb-alldone { border-radius: var(--radius-l); padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.vb-ad-l { display: grid; grid-template-columns: 1.25rem 11rem minmax(0, 1fr) auto; gap: 0.625rem; align-items: center; font-size: 0.8125rem; color: var(--sheet-dim); }
+.vb-ad-l b { color: var(--sheet-text); font-weight: 500; }
+.vb-ok { width: 1.25rem; height: 1.25rem; border-radius: 999px; background: var(--sheet-green); color: var(--sheet-glass); display: grid; place-items: center; }
+.vb-ok svg { width: 0.75rem; height: 0.75rem; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* форма хода на стекле */
+.vb-cmp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.875rem 1.25rem; margin-top: 0.875rem; }
+.vb-cmp label { display: flex; flex-direction: column; gap: 0.3125rem; font-size: 0.75rem; color: var(--sheet-dim); }
+.vb-cmp textarea, .vb-cmp input[type="text"] { font: inherit; font-size: 0.8125rem; color: var(--sheet-text); background: var(--sheet-plate-bg);
+  border: 1px solid var(--sheet-btn-border); border-radius: var(--radius-s); padding: 0.5rem 0.625rem; resize: none; width: 100%; }
+.vb-cmp textarea { height: 4.75rem; }
+.vb-cmp input[type="text"] { height: 2.125rem; }
+.vb-cmp ::placeholder { color: var(--sheet-dim); opacity: 0.85; font-style: italic; }
+.vb-when { display: flex; flex-wrap: wrap; gap: 0.3125rem; margin-top: 0.5rem; }
+.vb-chip { display: inline-flex; align-items: center; height: 1.75rem; padding: 0 0.625rem; border-radius: 999px; border: 1px solid var(--sheet-btn-border); font-size: 0.75rem; color: var(--sheet-text); }
+.vb-chip.on { background: var(--sheet-mark-fill); border-color: var(--sheet-mark-fill); color: var(--sheet-mark-ink); font-weight: 500; }
+.vb-cost { font-size: 0.75rem; color: var(--sheet-warning); grid-column: 1 / -1; }
+
+/* ширина 1280: контент 994 px — как контейнерные запросы .today-cq */
+@container (max-width: 66rem) {
+  .vb-moves { grid-template-columns: minmax(0, 1fr) 16rem; }
+  .va-row { grid-template-columns: 3.375rem minmax(0, 1fr) 8.5rem 12.5rem; column-gap: 0.875rem; }
+  .vb-grid, .vb-band, .vb-row { grid-template-columns: minmax(0, 1fr) 8rem 15rem; column-gap: 1rem; }
+  .lbl-long { display: none; }
+}
+
+/* выбранная дата формы — как в живом коде: нейтральная, не акцент */
+.cmp .chip.on { border-color: var(--border2); background: var(--surface2); color: var(--text); font-weight: 500; }
+
+/* доска-сводка */
+.vs-wrap { display: grid; grid-template-columns: 1.05fr 1fr 1fr; gap: 1rem; margin-top: 1.25rem; align-items: start; }
+.vs-col { padding: 1rem 1.125rem 1.125rem; }
+.vs-col h3 { font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.vs-col h3 .va-gi { width: 1.5rem; height: 1.5rem; }
+.vs-col .lead { font-size: 0.8125rem; color: var(--text-dim); margin-top: 0.375rem; line-height: 1.5; }
+.vs-col dl { margin: 0.75rem 0 0; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.5rem 0.75rem; font-size: 0.8125rem; line-height: 1.45; }
+.vs-col dt { color: var(--text-mute); font-size: 0.75rem; padding-top: 0.0625rem; }
+.vs-col dd { margin: 0; }
+.vs-f { display: grid; grid-template-columns: 2.75rem 4.25rem minmax(0, 1fr); gap: 0.5rem; padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 0.8125rem; line-height: 1.45; }
+.vs-f:first-of-type { border-top: 0; }
+.vs-f .id { font-weight: 600; font-variant-numeric: tabular-nums; }
+.vs-sev { display: inline-flex; height: 1.25rem; align-items: center; padding: 0 0.4375rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; background: var(--surface2); color: var(--text-dim); justify-self: start; }
+.vs-sev.h { background: var(--warning-l); color: var(--warning-text); }
+.vs-note { margin-top: 1rem; font-size: 0.75rem; color: var(--text-dim); max-width: 110ch; line-height: 1.5; }
+
+/* строка A: шеврон раскрытия остаётся (как в живом коде), монограмма за ним */
+.va-lead { display: flex; align-items: center; gap: 0.5rem; }
+.va-rchev { color: var(--text-mute); transition: transform var(--duration-fast); }
+.va-rchev.open { transform: rotate(90deg); }
+.va-row.open { background: var(--surface2); }
+.va-chips { padding-left: 3.375rem; }
+
+/* текстовые кнопки — как TEXT_BUTTON в TodayStepActions */
+.vx-tb { display: inline-flex; align-items: center; min-height: 1.75rem; padding: 0 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+.vx-tb.mute { color: var(--text-mute); }
+.vx-tb.bd { border: 1px solid var(--border); padding: 0 0.5rem; }
+.vx-tb:hover { background: var(--surface2); color: var(--text); }
+.vx-close { display: inline-block; margin-bottom: 0.375rem; font-size: 0.75rem; color: var(--text-dim); text-decoration: underline; text-underline-offset: 0.15em; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+.va-foot > .vx-close:first-child + .va-act, .va-foot > .va-act:first-child { margin-top: 0; }
+
+/* панель — живой TodayDealPanel: под строкой border-t + bg-surface2, под ходами — отдельный лист */
+.vx-panel { padding: 1rem; border-top: 1px solid var(--border); background: var(--surface2); }
+.vx-panel.sheet { border-top: 1px solid var(--border); background: var(--surface); }
+.vx-panel .xp-head { margin-bottom: 0.75rem; }
+.vx-open { font-size: 0.75rem; font-weight: 500; color: var(--text); text-decoration: none; }
+.vx-panel .xp-cols > div + div { border-left: 0; padding-left: 0; }
+.vx-panel h4 { margin: 0 0 0.5rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-mute); }
+.vx-feeds { display: flex; flex-direction: column; gap: 0.375rem; margin-top: 0.75rem; }
+.vx-feed { display: flex; gap: 0.5rem; font-size: 0.75rem; }
+.vx-feed span:first-child { width: 3rem; flex: none; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.vx-all { display: inline-block; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-dim); text-decoration: none; }
+.vx-now { font-size: 0.9375rem; font-weight: 500; line-height: 1.35; }
+.vx-nowm { margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-dim); }
+.vx-tasks { list-style: none; margin: 0.75rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.vx-tasks li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.75rem; }
+.vx-tasks li > span { flex: 1; min-width: 0; }
+.vx-facts { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; color: var(--text-dim); }
+.vx-contact { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.75rem; }
+.vx-contact .ini { width: 1.375rem; height: 1.375rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-size: 0.6875rem; font-weight: 600; }
+.vx-contact .call { display: inline-flex; align-items: center; gap: 0.375rem; height: 1.75rem; padding: 0 0.625rem; border-radius: 0.5rem; border: 1px solid var(--border); font-weight: 600; font-variant-numeric: tabular-nums; }
+.vx-ahead { font-size: 0.75rem; color: var(--text-dim); }
+
+/* ═════════════════ A + ФОКУС ═════════════════ */
+.vf-split { display: grid; grid-template-columns: minmax(0, 1fr) 28rem; gap: 1rem; align-items: start; }
+.vf-focus { position: sticky; top: 1rem; border-radius: var(--radius-l); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-card); background: var(--surface); }
+.vf-head { padding: 1rem 1.125rem 0.875rem; border: 0; border-radius: 0; }
+.vf-head .vb-fsum .vf-sum { font-size: 1.125rem; }
+.vf-step { margin-top: 0.5rem; font-size: 1.125rem; font-weight: 600; line-height: 1.3; text-wrap: pretty; }
+.vf-head .vb-fctx { font-size: 0.75rem; line-height: 1.5; }
+.vf-head .vb-btn { height: 1.875rem; padding: 0 0.5rem 0 0.625rem; gap: 0.375rem; font-size: 0.75rem; }
+.vf-head .vb-btn.ghost { padding: 0 0.375rem; }
+.vf-body { display: flex; flex-direction: column; }
+.vf-sec { padding: 0.75rem 1.125rem; border-top: 1px solid var(--border); }
+.vf-sec:first-child { border-top: 0; }
+.vf-sh { display: flex; align-items: center; gap: 0.375rem; min-height: 1.5rem; margin-bottom: 0.375rem; }
+.vf-sh h4 { margin: 0; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-mute); }
+.vf-hint { font-size: 0.6875rem; color: var(--text-mute); }
+.vf-pulse { column-gap: 0.1875rem; }
+.vf-pulse .day.sel { outline: 2px solid var(--text); outline-offset: 1px; }
+.vf-tip { font-style: normal; position: absolute; bottom: calc(100% + 0.5rem); left: 50%; transform: translateX(-60%); white-space: nowrap; font-size: 0.6875rem; padding: 0.25rem 0.5rem; border-radius: 0.375rem;
+  background: var(--popover); color: var(--text); border: 1px solid var(--border2); box-shadow: var(--shadow-md); z-index: 4; }
+.vf-note { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+.vf-in { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; height: 2rem; padding: 0 0.5rem 0 0.625rem; border-radius: var(--radius-s);
+  border: 1px solid var(--border-input, var(--border2)); background: var(--surface); font-size: 0.8125rem; color: var(--text-mute); font-style: italic; }
+.vf-in.filled { color: var(--text); font-style: normal; }
+.vf-fc { display: inline-flex; align-items: center; gap: 0.25rem; height: 1.375rem; padding: 0 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.6875rem; color: var(--text-dim); white-space: nowrap; }
+.vf-fc.on { border-color: var(--border2); background: var(--surface2); color: var(--text); font-weight: 500; }
+.vf-fc.off { color: var(--text-mute); border-style: dashed; }
+.vf-fc svg { width: 0.625rem; height: 0.625rem; }
+.vf-evs { display: flex; flex-direction: column; gap: 0.4375rem; }
+.vf-ev { display: grid; grid-template-columns: 3.25rem 1rem minmax(0, 1fr); gap: 0.375rem; font-size: 0.75rem; align-items: start; line-height: 1.4; }
+.vf-ev .d { color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.vf-ev .i { color: var(--text-dim); padding-top: 0.0625rem; }
+.vf-ev .i.s { color: var(--info); }
+.vf-ev .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vf-ev.new .d { color: var(--text); font-weight: 600; }
+.vf-txt { font-size: 0.75rem; color: var(--text-dim); }
+.vf-txt b { color: var(--text); }
+.vf-facts { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; color: var(--text-dim); }
+.vf-mute { font-size: 0.75rem; color: var(--text-mute); }
+.vx-tb svg { margin-right: 0.25rem; }
+
+.vf-moves { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 1.25rem; }
+.vf-tile { display: flex; flex-direction: column; gap: 0.1875rem; padding: 0.625rem 0.75rem 0.6875rem; text-align: left; min-width: 0; }
+.vf-tile.sel { background: var(--accent-l); box-shadow: inset 0 0 0 1.5px var(--accent), var(--shadow-card); border-color: transparent; }
+.vf-tt { display: flex; align-items: center; gap: 0.4375rem; min-width: 0; }
+.vf-tt .va-tag { padding-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vf-tsum { margin-left: auto; flex: none; font-size: 0.8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vf-tsum.none { font-size: 0.75rem; font-weight: 400; color: var(--text-mute); }
+.vf-tn { font-size: 0.875rem; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vf-tg { padding-top: 0.125rem; }
+.vf-ts { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+.vf-bar { margin: 0 0 0.75rem; }
+.vf-row { position: relative; display: grid; grid-template-columns: 2rem minmax(0, 1fr) 7rem; cursor: pointer; column-gap: 0.875rem; align-items: start; padding: 0.5625rem 1rem; }
+.vf-row::before { content: ''; position: absolute; top: 0; left: 3.875rem; right: 1rem; border-top: 1px solid var(--border); }
+.vf-row:hover { background: var(--surface2); }
+.vf-row.sel { background: var(--accent-l); box-shadow: inset 3px 0 0 var(--accent); }
+.vf-rm { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; text-align: right; }
+.vf-rm b { font-size: 0.8125rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.35; }
+.vf-rm .none { font-size: 0.75rem; color: var(--text-mute); line-height: 1.5; }
+.vf-sig { display: block; margin-top: 0.1875rem; font-size: 0.75rem; }
+.vf-split .va-gh { flex-wrap: wrap; row-gap: 0.25rem; }
+.vf-split .va-chips { padding-left: 1rem; }
+@container (max-width: 66rem) {
+  .vf-split { grid-template-columns: minmax(0, 1fr) 25rem; }
+  .vf-split .va-gr { flex-basis: 100%; order: 9; padding-left: 2.375rem; }
+  .vf-tn { white-space: normal; }
+  .vf-tt { align-items: flex-start; }
+}
+
+/* переход в карточку сделки из фокуса: имя сделки — ссылка, в ряду действий — «Открыть сделку» с клавишей O */
+.vf-deal { color: var(--sheet-text); font-weight: 600; text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: color-mix(in srgb, var(--sheet-text) 35%, transparent); white-space: nowrap; }
+.vf-deal .vx-ico.xs { display: inline-block; width: 0.6875rem; height: 0.6875rem; margin-left: 0.1875rem; vertical-align: -0.0625rem; }
+.vf-open { text-decoration: none; gap: 0.3125rem; color: var(--sheet-text); }
+.vf-open .vx-ico { width: 0.75rem; height: 0.75rem; }
+.vf-head .vb-fact { flex-wrap: nowrap; }
+.vf-head .vb-fact .vb-btn { flex: none; }
+.vf-focus { container: focus / inline-size; }
+.vf-head .vb-fact .vb-btn:not(.vf-open) .vx-kbd { display: none; }
+@container focus (max-width: 27.5rem) {
+  .vf-head { padding-left: 1rem; padding-right: 1rem; }
+  .vf-head .vb-fact { gap: 0.375rem; }
+  .vf-open .vx-ico, .vf-open .vf-long { display: none; }
+}
+
+/* строка в раскладке с фокусом: без шеврона — раскрытия под строкой нет, клик выбирает сделку в фокус */
+.vf-row.sel .va-mono { background: var(--surface); border-color: var(--accent); color: var(--text); }
+.vf-split .va-dc { cursor: pointer; }
+
+/* ── A + фокус, разгрузка 04.10: полоса ходов, плитки с номером и микропульсом, группы без строки правила ── */
+.vf-band { margin-bottom: 1.25rem; padding: 0.75rem 0.75rem 0.75rem; border-radius: var(--radius-l); background: var(--zone-work); }
+.vf-bh { display: flex; align-items: center; gap: 0.625rem; padding: 0 0.25rem 0.625rem; flex-wrap: wrap; }
+.vf-bh .hint { font-size: 0.75rem; color: var(--text-dim); }
+.vf-prog { display: inline-flex; gap: 0.1875rem; }
+.vf-prog i { width: 1.25rem; height: 0.3125rem; border-radius: 999px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.vf-prog i.on { background: var(--success); }
+.vf-pt { font-size: 0.75rem; color: var(--text-dim); }
+.vf-pt b { color: var(--text); }
+.vf-band .vf-moves { margin-bottom: 0; }
+.vf-tile { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); column-gap: 0.625rem; align-items: start; padding: 0.75rem 0.75rem 0.6875rem 0.625rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); box-shadow: var(--shadow-card); text-align: left; min-width: 0; transition: transform var(--duration-fast), box-shadow var(--duration-fast); }
+.vf-tile:hover { transform: translateY(-1px); box-shadow: var(--shadow-card-hover); }
+.vf-tile.sel { background: var(--surface); box-shadow: 0 0 0 2px var(--accent), var(--shadow-card-hover); border-color: transparent; }
+.vf-num { font-size: 1.5rem; font-weight: 600; line-height: 1; color: var(--text-mute); font-variant-numeric: tabular-nums; text-align: center; padding-top: 0.0625rem; }
+.vf-tile.sel .vf-num { color: var(--accent-text, var(--accent)); }
+.vf-num.ok { color: var(--success); }
+.vf-num .vx-ico { width: 1.25rem; height: 1.25rem; stroke-width: 2.5; margin: 0 auto; }
+.vf-tb { display: flex; flex-direction: column; gap: 0.1875rem; min-width: 0; }
+.vf-tt { align-items: baseline; }
+.vf-mp { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); column-gap: 2px; margin-top: 0.5rem; position: relative; }
+.vf-mp i { display: block; height: 0.375rem; border-radius: 1px; background: color-mix(in srgb, var(--text) 10%, transparent); position: relative; }
+.vf-mp i.t { background: color-mix(in srgb, var(--text) 45%, transparent); }
+.vf-mp i.s { background: var(--info); }
+.vf-mp i.due::after { content: ''; position: absolute; left: 50%; top: -0.3125rem; margin-left: -0.1875rem; border-left: 0.1875rem solid transparent; border-right: 0.1875rem solid transparent; border-top: 0.25rem solid var(--text-dim); }
+
+.vf-grp { margin-bottom: 0.625rem; overflow: visible; }
+.vf-gh { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem 0.375rem; min-height: 2.625rem; }
+.vf-gi { flex: none; display: grid; place-items: center; color: var(--text-mute); }
+.vf-gi.hot { color: var(--danger-text); }
+.vf-gi.warn { color: var(--warning-text); }
+.vf-gt { position: relative; font-size: 0.875rem; font-weight: 600; white-space: nowrap; cursor: help; }
+.vf-gc { font-size: 0.8125rem; font-weight: 500; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.vf-grp .va-chips { padding: 0.125rem 1rem 0.875rem; margin-top: 0; }
+.vf-bub { position: absolute; top: calc(100% + 0.5rem); left: 0; z-index: 5; width: max-content; max-width: 22rem; white-space: normal; font-size: 0.75rem; font-weight: 400; line-height: 1.45;
+  padding: 0.4375rem 0.625rem; border-radius: 0.5rem; background: var(--popover); color: var(--text); border: 1px solid var(--border2); box-shadow: var(--shadow-md); text-align: left; }
+.vf-bub.r { left: auto; right: 0; }
+.vf-risk { position: relative; gap: 0.25rem; color: var(--text); }
+.vf-risk .vx-ico.xs { width: 0.75rem; height: 0.75rem; color: var(--warning-text); }
+.vf-split .vf-row { grid-template-columns: minmax(0, 1fr) 7rem; }
+.vf-split .vf-row::before { left: 1rem; }
+.vf-namechip { display: inline-block; padding: 0.1875rem 0.5rem; border-radius: 0.375rem; background: var(--surface2); border: 1px solid var(--border); font-size: 0.875rem; font-weight: 600; line-height: 1.35; }
+@container (max-width: 66rem) {
+  .vf-tile { grid-template-columns: 1.25rem minmax(0, 1fr); column-gap: 0.5rem; }
+  .vf-num { font-size: 1.125rem; }
+  .vf-bh .hint { flex-basis: 100%; padding-left: 0; }
+}
+
+/* ── ходы: «таймер остывания» ── */
+.vf-mv { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.875rem 0.875rem 0.75rem; min-width: 0; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l); box-shadow: var(--shadow-card);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast); }
+.vf-mv:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.vf-mv.glass-sheet { background-color: var(--sheet-glass); background-image: var(--sheet-sheen); box-shadow: var(--sheet-shadow); color: var(--sheet-text); border: 1px solid var(--sheet-hairline); }
+.vf-mv.glass-sheet:hover { box-shadow: var(--sheet-shadow); }
+.vf-mtop { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+.vf-ring { position: relative; flex: none; width: 3.5rem; height: 3.5rem; }
+.vf-ring > svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.vf-ring > svg circle { fill: none; stroke-width: 5; }
+.vf-ring .tr { stroke: color-mix(in srgb, var(--text) 11%, transparent); }
+.vf-ring .pr { stroke-linecap: round; stroke: var(--text-dim); }
+.vf-ring.warn .pr { stroke: var(--warning); }
+.vf-ring.over .pr { stroke: var(--danger); }
+.vf-ring.ok .pr { stroke: var(--success); }
+.vf-rc { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.vf-rc b { font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vf-rc span { font-size: 0.6875rem; color: var(--text-dim); margin-top: 0.125rem; }
+.vf-ring.over .vf-rc b { color: var(--danger-text); }
+.vf-rck { width: 1.375rem; height: 1.375rem; color: var(--success); stroke-width: 2.5; }
+.vf-mid { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.vf-mk { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vf-mn { font-size: 0.875rem; font-weight: 600; line-height: 1.3; }
+.vf-msum { font-size: 0.8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vf-msum.none { font-weight: 400; color: var(--text-mute); font-size: 0.75rem; }
+.vf-ms { font-size: 0.75rem; line-height: 1.4; color: var(--text-dim); min-height: 2.1em; }
+.vf-mc { font-size: 0.6875rem; color: var(--text-mute); padding-top: 0.4375rem; border-top: 1px solid var(--border); }
+/* выбранный ход — тот же материал, что шапка фокуса: «это сейчас в фокусе» */
+.vf-mv.sel .vf-ring .tr { stroke: color-mix(in srgb, var(--sheet-text) 18%, transparent); }
+.vf-mv.sel .vf-ring .pr { stroke: var(--sheet-text); }
+.vf-mv.sel .vf-ring.warn .pr { stroke: var(--sheet-warning); }
+.vf-mv.sel .vf-ring.over .pr, .vf-mv.sel .vf-ring.over .vf-rc b { stroke: var(--sheet-red); color: var(--sheet-red); }
+.vf-mv.sel .vf-rc span, .vf-mv.sel .vf-mk, .vf-mv.sel .vf-ms { color: var(--sheet-dim); }
+.vf-mv.sel .vf-mc { color: var(--sheet-dim); border-top-color: var(--sheet-plate-border); }
+.vf-mv.sel .vf-msum.none { color: var(--sheet-dim); }
+.vf-mv.done .vf-mc { color: var(--success-text); }
+@container (max-width: 66rem) {
+  .vf-ring { width: 3rem; height: 3rem; }
+  .vf-mtop { gap: 0.5rem; }
+  .vf-mv { padding: 0.75rem 0.75rem 0.625rem; }
+  .vf-mk { white-space: normal; }
+}
+.vf-mv.done .vf-mc { color: var(--success-text); }
+.vf-mv.done .vf-ms { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--text-dim) 60%, transparent); }
+
+/* выбранная строка: маркер — второй слой под листом группы, выходит из-под него слева */
+.vf-grp { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.vf-split .vf-row.sel { box-shadow: none; background: none; }
+.vf-split .vf-row.sel:hover { background: var(--surface2); }
+.vf-tab { position: absolute; z-index: -1; left: -0.5625rem; top: 0.3125rem; bottom: 0.3125rem; width: 0.8125rem;
+  border-radius: 0.375rem 0 0 0.375rem; background: var(--accent);
+  box-shadow: -1px 0 0 color-mix(in srgb, var(--accent) 60%, var(--text)), 0 1px 2px color-mix(in srgb, var(--text) 18%, transparent); }
+.vf-split > .min-w-0 { isolation: isolate; }
+
+/* смена выбора: язычок уходит под лист и выходит у новой строки */
+.vf-rad { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.vf-demo .vf-row { cursor: pointer; }
+.vf-demo .vf-tab { transform: translateX(0.75rem); opacity: 0; transition: transform 140ms ease-in, opacity 0s linear 140ms; }
+.vf-demo .vf-row:has(.vf-rad:checked) .vf-tab { transform: translateX(0); opacity: 1; transition: transform 260ms cubic-bezier(0.3, 1.35, 0.5, 1) 110ms, opacity 0s linear 110ms; }
+.vf-demo .vf-row:has(.vf-rad:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .vf-demo .vf-tab, .vf-demo .vf-row:has(.vf-rad:checked) .vf-tab { transition: none; }
+}
+
+
+body{margin:0;background:#d9d9de;font-family:Inter,system-ui,sans-serif}
+.mk-bar{position:sticky;top:0;z-index:50;display:flex;gap:1rem;align-items:center;padding:.625rem 1.25rem;background:#17171c;color:#fff;font-size:13px}
+.mk-bar select{font:inherit;padding:.25rem .5rem}
+.mk-sec{padding:2rem 1.25rem 0}.mk-sec>h2{margin:0 0 .25rem;font-size:15px}.mk-sec>p{margin:0 0 .875rem;font-size:13px;color:#4e4e59;max-width:90ch}
+.mk-frame{border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.12);margin-bottom:1rem}
+.min-w-0{min-width:0}
+</style></head><body>
+<div class="mk-bar"><b>S-TODAY-FOCUS · мокап «Сегодня»: список + фокус</b><span>Данные — живая БД 04.10.2026. Канон — холст «Сегодня — ходы и сделки», версия 23.</span><span style="flex:1"></span>
+<label>Тема <select id="mk-theme"><option value="t-minimal">Minimal</option><option value="t-cobalt">Cobalt</option><option value="t-aura">Aura</option><option value="t-frost">Frost</option></select></label></div>
+<section class="mk-sec" id="frame-1"><h2>Кадр 1. Экран: ход 1 в фокусе (1440)</h2><p>Раскладка «список + фокус». Полоса ходов с таймером остывания, выбранный ход — на стекле, как шапка фокуса. Группы — отдельные листы, правило группы — в подсказке на названии.</p><div class="mk-frame" style="width:1440px"><div class="crm t-minimal" style="width:1440px;min-height: 1360px">
+<nav class="side" aria-label="Разделы"><div class="brand"><i>TC</i>Torii CRM</div><a class="nav on" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>Сегодня</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Обзор</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Чат</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Задачи<span class=cnt>9</span></a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Лиды</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Сделки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Проекты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Контакты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/></svg>Компании</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Звонки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Встречи</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Календарь</a></nav>
+  <main class="main">
+    <div class="topbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Поиск <kbd>⌘K</kbd></div>
+      <button class="tb-ico" aria-label="Уведомления"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></div>
+    <header class="ph"><div><h1>Сегодня</h1><p>Воскресенье, 4 октября · выходной</p></div><span class="grow"></span>
+      <button class="chip">Вид <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></header>
+    <div class="vf-split"><div class="min-w-0"><section class="vf-band" aria-label="Ходы на сегодня">
+        <div class="vf-bh"><h2 class="vx-h2">Ходы на сегодня</h2><span class="vf-prog"><i class=""></i><i class=""></i><i class=""></i></span><span class="vf-pt"><b class="num-t">0</b> из 3 сделано</span>
+          <span class="grow"></span><span class="hint">кольцо — 14 дней срыва до «Решить судьбу»</span></div>
+        <div class="vf-moves"><button class="vf-mv glass-sheet sel">
+          <span class="vf-mtop"><span class="vf-ring calm" aria-label="4 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="41.3 144.5"/></svg>
+            <span class="vf-rc"><b>4</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">1 · Свежий срыв</span><span class="vf-mn">Лоренц снек</span><b class="vf-msum">14,3 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Договориться о встрече с клиентом 1 октября в четверг</span>
+          <span class="vf-mc">15 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring warn" aria-label="9 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="92.9 144.5"/></svg>
+            <span class="vf-rc"><b>9</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">2 · Свежий срыв</span><span class="vf-mn">Нытва</span><span class="vf-msum none">без суммы</span></span></span>
+          <span class="vf-ms vx-clamp2">Договор готов</span>
+          <span class="vf-mc">10 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring over" aria-label="16 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="144.5 144.5"/></svg>
+            <span class="vf-rc"><b>16</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">3 · Сумма без шага</span><span class="vf-mn">ЭЙЧ ЭНД ЭН</span><b class="vf-msum">10 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Звонить Руслану</span>
+          <span class="vf-mc">с 3 окт — в «Решить судьбу»</span></button></div></section><section aria-label="Сделки в работе">
+      <div class="va-book" style="flex-wrap:wrap"><h2 class="vx-h2">Сделки в работе</h2><span class="cnt">17</span><span class="hint">у <b>14</b> из 17 нет шага впереди</span>
+        <span class="grow"></span><span class="hint">у <b>11</b> не указана сумма</span></div>
+      <div class="va-bar vf-bar" aria-label="Состав списка по группам"><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:62%"></i><span><b>3</b>сорвано</span></span><span class="va-seg" style="flex:1 1 0;min-width:max-content"><i class="" style="--w:46%"></i><span><b>1</b>риск</span></span><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:32%"></i><span><b>3</b>обновить</span></span><span class="va-seg" style="flex:8 1 0;min-width:max-content"><i class="hatch" style="--w:0%"></i><span><b>8</b>решить судьбу</span></span><span class="va-seg" style="flex:2 1 0;min-width:max-content"><i class="" style="--w:14%"></i><span><b>2</b>план</span></span></div>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi hot"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/></svg></span>
+          <span class="vf-gt" title="Срок шага прошёл не больше 14 дней назад, после него тишина. Ещё две такие сделки — в ходах наверху">Сорвано недавно</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">АР Системс</span><span class="va-stp">Встреча с клиентом</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age hot">4 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском</span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Глорус-норд</span><span class="va-stp dim">Предоставить КП 16.09</span></span>
+          <span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Хлебпродукт-2</span><span class="va-stp dim">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">За Родину</span><span class="va-stp dim">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span>
+          <span class="vf-gt" title="Тишина дольше 14 дней: вернуть в работу или закрыть. Ещё одна такая сделка — в ходах наверху">Решить судьбу</span><span class="vf-gc">8</span>
+          <span class="grow"></span><button class="vx-tb bd">Разобрать по одной</button><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Зерде Фито</b><span>39 дн.</span></span><span class="va-dc"><b>Продовольственный фонд</b><span>18 дн.</span></span><span class="va-dc"><b>Агросорос</b><span>24 дн.</span></span><span class="va-dc"><b>Агрохолод</b><span>19 дн.</span></span><span class="va-dc"><b>М Д М</b><span>18 дн.</span></span><span class="va-dc"><b>ПК Русь</b><span>16 дн.</span></span><span class="va-dc"><b>Лид #001</b><span>16 дн.</span></span><span class="va-dc more">ещё одна — в ходах наверху</span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, сигналов нет">По плану</span><span class="vf-gc">2</span>
+          <span class="grow"></span><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Стройпарк</b><span>пн 5 окт</span></span><span class="va-dc"><b>Анфиш</b><span>пн 5 окт</span></span></div>
+      </section>
+    </section><div class="off-row"><span>Не сделки:</span>
+      <button class="chip">Задачи без сделки <b>2</b></button><button class="chip">Хвост закрытой сделки <b>1</b></button>
+      <button class="chip">Остывающие контакты <b>5</b></button><button class="chip">Лиды без шага <b>1</b></button></div>
+    <div class="keys" aria-label="Клавиши"><span><kbd class="k">J</kbd><kbd class="k">K</kbd>по сделкам — фокус следует</span>
+      <span><kbd class="k">D</kbd>сделано</span><span><kbd class="k">U</kbd>обновить шаг</span><span><kbd class="k">T</kbd>перенести</span>
+      <span><kbd class="k">N</kbd>заметка</span><span><kbd class="k">O</kbd>открыть сделку</span></div></div><aside class="vf-focus" aria-label="Фокус: Лоренц снек"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Ход 1 из 3 · свежий срыв · <em>4 дн.</em></span><div class="vb-fsum"><b class="vf-sum">14,3 млн ₽</b><span>черновик КП</span></div></div>
+        <p class="vf-step">Договориться о встрече с клиентом 1 октября в четверг</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Лоренц снек<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · Подготовка КП · перенесён 6 раз</p><div class="vb-fact" style="margin-top:.875rem"><button class="vb-btn pri">Сделано <span class="vx-kbd">D</span></button><button class="vb-btn">Перенести <span class="vx-kbd">T</span></button><button class="vb-btn">Отложить <span class="vx-kbd">S</span></button><span class="sp"></span><a class="vb-btn ghost vf-open" href="#" title="Открыть карточку сделки"><span>Открыть<span class="vf-long"> сделку</span></span><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span class="vx-kbd">O</span></a></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day due"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 30 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">Все 3</span><span class="vf-fc">Заметки 1</span><span class="vf-fc off">Звонки 0</span><span class="vf-fc">Стадии 1</span></div>
+        <div class="vf-evs"><div class="vf-ev"><span class="d">29 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Вносятся правки в КП. Текущая редакция устарела»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «получил файл от клиента с данными по тактам»</span></div><div class="vf-ev"><span class="d">24 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/></svg></span><span class="t">Поставлены задачи «Новая концепция» и «Предложить клиенту новую концепцию»</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Предложит клиенту новую концепцию» <span class=vx-warn>· срок был 25 сен</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Подготовить КП по Лоренц снек» <span class=vx-warn>· срок был 2 окт</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Новая концепция»</span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Открыть КП</a></div><p class="vf-txt">Черновик от 7 сен · <b>14,3 млн ₽</b> · не отправлено</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Подготовка КП»: 5 дней при норме 7</p><p>Дедлайн сделки был 1 окт</p></div><p class="vf-mute" style="margin-top:.375rem">Контакт не указан · <a class="vx-all" style="margin:0" href="#">Добавить</a></p></section>
+      </div></aside></div>
+  </main>
+</div></div></section>
+<section class="mk-sec" id="frame-2"><h2>Кадр 2. Выбрана строка из списка</h2><p>Клик по строке «Глорус-норд»: язычок выходит из-под листа слева, фокус показывает сделку, все плитки ходов белые.</p><div class="mk-frame" style="width:1440px"><div class="crm t-minimal" style="width:1440px;min-height: 1360px">
+<nav class="side" aria-label="Разделы"><div class="brand"><i>TC</i>Torii CRM</div><a class="nav on" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>Сегодня</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Обзор</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Чат</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Задачи<span class=cnt>9</span></a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Лиды</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Сделки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Проекты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Контакты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/></svg>Компании</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Звонки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Встречи</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Календарь</a></nav>
+  <main class="main">
+    <div class="topbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Поиск <kbd>⌘K</kbd></div>
+      <button class="tb-ico" aria-label="Уведомления"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></div>
+    <header class="ph"><div><h1>Сегодня</h1><p>Воскресенье, 4 октября · выходной</p></div><span class="grow"></span>
+      <button class="chip">Вид <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></header>
+    <div class="vf-split"><div class="min-w-0"><section class="vf-band" aria-label="Ходы на сегодня">
+        <div class="vf-bh"><h2 class="vx-h2">Ходы на сегодня</h2><span class="vf-prog"><i class=""></i><i class=""></i><i class=""></i></span><span class="vf-pt"><b class="num-t">0</b> из 3 сделано</span>
+          <span class="grow"></span><span class="hint">кольцо — 14 дней срыва до «Решить судьбу»</span></div>
+        <div class="vf-moves"><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring calm" aria-label="4 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="41.3 144.5"/></svg>
+            <span class="vf-rc"><b>4</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">1 · Свежий срыв</span><span class="vf-mn">Лоренц снек</span><b class="vf-msum">14,3 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Договориться о встрече с клиентом 1 октября в четверг</span>
+          <span class="vf-mc">15 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring warn" aria-label="9 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="92.9 144.5"/></svg>
+            <span class="vf-rc"><b>9</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">2 · Свежий срыв</span><span class="vf-mn">Нытва</span><span class="vf-msum none">без суммы</span></span></span>
+          <span class="vf-ms vx-clamp2">Договор готов</span>
+          <span class="vf-mc">10 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring over" aria-label="16 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="144.5 144.5"/></svg>
+            <span class="vf-rc"><b>16</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">3 · Сумма без шага</span><span class="vf-mn">ЭЙЧ ЭНД ЭН</span><b class="vf-msum">10 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Звонить Руслану</span>
+          <span class="vf-mc">с 3 окт — в «Решить судьбу»</span></button></div></section><section aria-label="Сделки в работе">
+      <div class="va-book" style="flex-wrap:wrap"><h2 class="vx-h2">Сделки в работе</h2><span class="cnt">17</span><span class="hint">у <b>14</b> из 17 нет шага впереди</span>
+        <span class="grow"></span><span class="hint">у <b>11</b> не указана сумма</span></div>
+      <div class="va-bar vf-bar" aria-label="Состав списка по группам"><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:62%"></i><span><b>3</b>сорвано</span></span><span class="va-seg" style="flex:1 1 0;min-width:max-content"><i class="" style="--w:46%"></i><span><b>1</b>риск</span></span><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:32%"></i><span><b>3</b>обновить</span></span><span class="va-seg" style="flex:8 1 0;min-width:max-content"><i class="hatch" style="--w:0%"></i><span><b>8</b>решить судьбу</span></span><span class="va-seg" style="flex:2 1 0;min-width:max-content"><i class="" style="--w:14%"></i><span><b>2</b>план</span></span></div>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi hot"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/></svg></span>
+          <span class="vf-gt" title="Срок шага прошёл не больше 14 дней назад, после него тишина. Ещё две такие сделки — в ходах наверху">Сорвано недавно</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">АР Системс</span><span class="va-stp">Встреча с клиентом</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age hot">4 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском</span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row sel" role="option" aria-selected="true"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">Глорус-норд</span><span class="va-stp dim">Предоставить КП 16.09</span></span>
+          <span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Хлебпродукт-2</span><span class="va-stp dim">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">За Родину</span><span class="va-stp dim">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span>
+          <span class="vf-gt" title="Тишина дольше 14 дней: вернуть в работу или закрыть. Ещё одна такая сделка — в ходах наверху">Решить судьбу</span><span class="vf-gc">8</span>
+          <span class="grow"></span><button class="vx-tb bd">Разобрать по одной</button><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Зерде Фито</b><span>39 дн.</span></span><span class="va-dc"><b>Продовольственный фонд</b><span>18 дн.</span></span><span class="va-dc"><b>Агросорос</b><span>24 дн.</span></span><span class="va-dc"><b>Агрохолод</b><span>19 дн.</span></span><span class="va-dc"><b>М Д М</b><span>18 дн.</span></span><span class="va-dc"><b>ПК Русь</b><span>16 дн.</span></span><span class="va-dc"><b>Лид #001</b><span>16 дн.</span></span><span class="va-dc more">ещё одна — в ходах наверху</span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, сигналов нет">По плану</span><span class="vf-gc">2</span>
+          <span class="grow"></span><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Стройпарк</b><span>пн 5 окт</span></span><span class="va-dc"><b>Анфиш</b><span>пн 5 окт</span></span></div>
+      </section>
+    </section><div class="off-row"><span>Не сделки:</span>
+      <button class="chip">Задачи без сделки <b>2</b></button><button class="chip">Хвост закрытой сделки <b>1</b></button>
+      <button class="chip">Остывающие контакты <b>5</b></button><button class="chip">Лиды без шага <b>1</b></button></div>
+    <div class="keys" aria-label="Клавиши"><span><kbd class="k">J</kbd><kbd class="k">K</kbd>по сделкам — фокус следует</span>
+      <span><kbd class="k">D</kbd>сделано</span><span><kbd class="k">U</kbd>обновить шаг</span><span><kbd class="k">T</kbd>перенести</span>
+      <span><kbd class="k">N</kbd>заметка</span><span><kbd class="k">O</kbd>открыть сделку</span></div></div><aside class="vf-focus" aria-label="Фокус: Глорус-норд"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Обновить шаг · 26 дн. после срока</span><div class="vb-fsum"><b class="vf-sum">5 млн ₽</b><span>бюджет сделки</span></div></div>
+        <p class="vf-step">Предоставить КП 16.09</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Глорус-норд<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ГЛОРУС-НОРД" · Защита КП</p><div class="vb-fact" style="margin-top:.875rem"><button class="vb-btn pri">Обновить шаг <span class="vx-kbd">U</span></button><button class="vb-btn">Отложить <span class="vx-kbd">S</span></button><span class="sp"></span><a class="vb-btn ghost vf-open" href="#" title="Открыть карточку сделки"><span>Открыть<span class="vf-long"> сделку</span></span><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span class="vx-kbd">O</span></a></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day due"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 8 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">Все 6</span><span class="vf-fc">Заметки 2</span><span class="vf-fc">Звонки 1</span><span class="vf-fc">Стадии 2</span></div>
+        <div class="vf-evs"><div class="vf-ev"><span class="d">30 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Защита КП. «КП готово. Внутренняя защита, затем у клиента»</span></div><div class="vf-ev"><span class="d">14 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Клиент принял нашу позицию: оборудование не меняем, ставим наше ПО поверх существующего контура»</span></div><div class="vf-ev"><span class="d">14 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «Поговорили с Денисом в ПТ. Получили запрос на КП.»</span></div><div class="vf-ev"><span class="d">9 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></svg></span><span class="t">Задача закрыта: «Звонить»</span></div><div class="vf-ev"><span class="d">7 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «Есть 2 видео. Ожидаем во вторник список оборудования»</span></div><div class="vf-ev"><span class="d">4 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span class="t">Звонок · Денис Трубачев</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Подготовить КП по Глорус-норд» <span class=vx-warn>· срок был 17 сен</span></span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Создать КП</a></div><p class="vf-txt">КП не заведено · сумма — из бюджета сделки</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Защита КП»: 4 дня при норме 14</p><p>Дедлайн сделки был 30 сен</p></div><div class="vx-contact" style="margin-top:.5rem"><span class="ini">ДЕ</span><b>Денис Трубачев</b><span class="call"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 ••• •••-••-••</span></div></section>
+      </div></aside></div>
+  </main>
+</div></div></section>
+<section class="mk-sec" id="frame-3"><h2>Кадр 3. Действия в фокусе</h2><p>Форма хода в шапке фокуса; заметка записана; клик по дню пульса фильтрует ленту.</p><div class="mk-frame" style="width:1440px"><div class="crm t-minimal board" style="width:1440px;min-height: 1300px">
+<div class="frames" style="grid-template-columns:repeat(3, 28rem);justify-content:space-between"><div class="frame" style="min-width:0"><span class="cap">Форма хода — в шапке фокуса</span><span class="sub" style="min-height:3.25rem">Та же форма ACT-1, на стекле. Тело фокуса остаётся ниже и не меняется; клавиши экрана молчат, пока форма открыта (C-24).</span><aside class="vf-focus" aria-label="Фокус: Лоренц снек"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Ход 1 из 3 · свежий срыв · <em>4 дн.</em></span><div class="vb-fsum"><b class="vf-sum">14,3 млн ₽</b><span>черновик КП</span></div></div>
+        <p class="vf-step">Договориться о встрече с клиентом 1 октября в четверг</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Лоренц снек<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · Подготовка КП · перенесён 6 раз</p><div class="vb-cmp" style="grid-template-columns:1fr;gap:.625rem">
+          <label>Шаг переносился 6 раз — чем закончилось на этот раз?<textarea placeholder="Итог — заметкой в ленту сделки" style="height:3.5rem"></textarea></label>
+          <label>Следующий шаг<input type="text" placeholder="Следующий шаг — действием"></label>
+          <div><div class="vb-when" style="margin-top:0"><span class="vb-chip on">Пн 5 окт</span><span class="vb-chip">Вт 6</span><span class="vb-chip">Ср 7</span><span class="vb-chip">Пн 12</span><span class="vb-chip">Другая дата</span></div></div>
+        </div>
+        <div class="vb-fact" style="margin-top:.75rem"><button class="vb-btn pri">Записать в сделку <span class="vx-kbd">↵</span></button><button class="vb-btn ghost">Без шага</button>
+          <span class="sp"></span><button class="vb-btn ghost">Отмена <span class="vx-kbd">Esc</span></button></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day due"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 30 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">Все 3</span><span class="vf-fc">Заметки 1</span><span class="vf-fc off">Звонки 0</span><span class="vf-fc">Стадии 1</span></div>
+        <div class="vf-evs"><div class="vf-ev"><span class="d">29 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Вносятся правки в КП. Текущая редакция устарела»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «получил файл от клиента с данными по тактам»</span></div><div class="vf-ev"><span class="d">24 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/></svg></span><span class="t">Поставлены задачи «Новая концепция» и «Предложить клиенту новую концепцию»</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Предложит клиенту новую концепцию» <span class=vx-warn>· срок был 25 сен</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Подготовить КП по Лоренц снек» <span class=vx-warn>· срок был 2 окт</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Новая концепция»</span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Открыть КП</a></div><p class="vf-txt">Черновик от 7 сен · <b>14,3 млн ₽</b> · не отправлено</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Подготовка КП»: 5 дней при норме 7</p><p>Дедлайн сделки был 1 окт</p></div><p class="vf-mute" style="margin-top:.375rem">Контакт не указан · <a class="vx-all" style="margin:0" href="#">Добавить</a></p></section>
+      </div></aside></div><div class="frame" style="min-width:0"><span class="cap">Заметка записана</span><span class="sub" style="min-height:3.25rem">Строка заметки — касание без перехода в карточку: Enter пишет в ленту, сегодняшний день на пульсе загорается, событие встаёт первым. Текст — пример.</span><aside class="vf-focus" aria-label="Фокус: Лоренц снек"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Ход 1 из 3 · свежий срыв · <em>4 дн.</em></span><div class="vb-fsum"><b class="vf-sum">14,3 млн ₽</b><span>черновик КП</span></div></div>
+        <p class="vf-step">Договориться о встрече с клиентом 1 октября в четверг</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Лоренц снек<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · Подготовка КП · перенесён 6 раз</p><div class="vb-fact" style="margin-top:.875rem"><button class="vb-btn pri">Сделано <span class="vx-kbd">D</span></button><button class="vb-btn">Перенести <span class="vx-kbd">T</span></button><button class="vb-btn">Отложить <span class="vx-kbd">S</span></button><span class="sp"></span><a class="vb-btn ghost vf-open" href="#" title="Открыть карточку сделки"><span>Открыть<span class="vf-long"> сделку</span></span><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span class="vx-kbd">O</span></a></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day due"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 30 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">Все 4</span><span class="vf-fc">Заметки 2</span><span class="vf-fc off">Звонки 0</span><span class="vf-fc">Стадии 1</span></div>
+        <div class="vf-evs"><div class="vf-ev new"><span class="d">сегодня</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «Отправил клиенту исправленный черновик КП»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Вносятся правки в КП. Текущая редакция устарела»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «получил файл от клиента с данными по тактам»</span></div><div class="vf-ev"><span class="d">24 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/></svg></span><span class="t">Поставлены задачи «Новая концепция» и «Предложить клиенту новую концепцию»</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Предложит клиенту новую концепцию» <span class=vx-warn>· срок был 25 сен</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Подготовить КП по Лоренц снек» <span class=vx-warn>· срок был 2 окт</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Новая концепция»</span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Открыть КП</a></div><p class="vf-txt">Черновик от 7 сен · <b>14,3 млн ₽</b> · не отправлено</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Подготовка КП»: 5 дней при норме 7</p><p>Дедлайн сделки был 1 окт</p></div><p class="vf-mute" style="margin-top:.375rem">Контакт не указан · <a class="vx-all" style="margin:0" href="#">Добавить</a></p></section>
+      </div></aside></div><div class="frame" style="min-width:0"><span class="cap">Клик по дню пульса</span><span class="sub" style="min-height:3.25rem">Наведение показывает, что было в этот день; клик фильтрует ленту на этот день, крестик — снять фильтр.</span><aside class="vf-focus" aria-label="Фокус: Лоренц снек"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Ход 1 из 3 · свежий срыв · <em>4 дн.</em></span><div class="vb-fsum"><b class="vf-sum">14,3 млн ₽</b><span>черновик КП</span></div></div>
+        <p class="vf-step">Договориться о встрече с клиентом 1 октября в четверг</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Лоренц снек<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · Подготовка КП · перенесён 6 раз</p><div class="vb-fact" style="margin-top:.875rem"><button class="vb-btn pri">Сделано <span class="vx-kbd">D</span></button><button class="vb-btn">Перенести <span class="vx-kbd">T</span></button><button class="vb-btn">Отложить <span class="vx-kbd">S</span></button><span class="sp"></span><a class="vb-btn ghost vf-open" href="#" title="Открыть карточку сделки"><span>Открыть<span class="vf-long"> сделку</span></span><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span class="vx-kbd">O</span></a></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s sel"><span class="vf-tip">29 сен · смена стадии, заметка</span></i><i class="day due"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 30 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">29 сен <svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><span class="vf-fc">Все 3</span></div>
+        <div class="vf-evs"><div class="vf-ev"><span class="d">29 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Вносятся правки в КП. Текущая редакция устарела»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «получил файл от клиента с данными по тактам»</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Предложит клиенту новую концепцию» <span class=vx-warn>· срок был 25 сен</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Подготовить КП по Лоренц снек» <span class=vx-warn>· срок был 2 окт</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Новая концепция»</span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Открыть КП</a></div><p class="vf-txt">Черновик от 7 сен · <b>14,3 млн ₽</b> · не отправлено</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Подготовка КП»: 5 дней при норме 7</p><p>Дедлайн сделки был 1 окт</p></div><p class="vf-mute" style="margin-top:.375rem">Контакт не указан · <a class="vx-all" style="margin:0" href="#">Добавить</a></p></section>
+      </div></aside></div></div>
+</div></div></section>
+<section class="mk-sec" id="frame-4"><h2>Кадр 4. Ход сделан, подсказки, сравнение</h2><p>Кольцо замыкается зелёным, стекло переезжает на следующий ход; подсказка на названии группы и на плашке дней; «название в плашке» отклонено.</p><div class="mk-frame" style="width:1440px"><div class="crm t-minimal board" style="width:1440px;min-height: 1120px">
+<div class="frame" style=""><span class="cap">Ход сделан — кольцо замыкается зелёным, фокус переходит к следующему</span><span class="sub">Сделанный ход остаётся плиткой: кольцо полное, зелёное, с галочкой, внизу — что записано. Прогресс полосы — 1 из 3. Стекло переехало на ход 2: он теперь в фокусе.</span><div class="vf-split" style="grid-template-columns:46rem"><section class="vf-band" aria-label="Ходы на сегодня">
+        <div class="vf-bh"><h2 class="vx-h2">Ходы на сегодня</h2><span class="vf-prog"><i class="on"></i><i class=""></i><i class=""></i></span><span class="vf-pt"><b class="num-t">1</b> из 3 сделано</span>
+          <span class="grow"></span><span class="hint">кольцо — 14 дней срыва до «Решить судьбу»</span></div>
+        <div class="vf-moves"><button class="vf-mv done">
+          <span class="vf-mtop"><span class="vf-ring ok" aria-label="4 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="144.5 144.5"/></svg>
+            <span class="vf-rc"><svg class="vx-ico vf-rck" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></span>
+            <span class="vf-mid"><span class="vf-mk">1 · Свежий срыв</span><span class="vf-mn">Лоренц снек</span><b class="vf-msum">14,3 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Договориться о встрече с клиентом 1 октября в четверг</span>
+          <span class="vf-mc">Записано · шаг пн 5 окт</span></button><button class="vf-mv glass-sheet sel">
+          <span class="vf-mtop"><span class="vf-ring warn" aria-label="9 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="92.9 144.5"/></svg>
+            <span class="vf-rc"><b>9</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">2 · Свежий срыв</span><span class="vf-mn">Нытва</span><span class="vf-msum none">без суммы</span></span></span>
+          <span class="vf-ms vx-clamp2">Договор готов</span>
+          <span class="vf-mc">10 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring over" aria-label="16 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="144.5 144.5"/></svg>
+            <span class="vf-rc"><b>16</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">3 · Сумма без шага</span><span class="vf-mn">ЭЙЧ ЭНД ЭН</span><b class="vf-msum">10 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Звонить Руслану</span>
+          <span class="vf-mc">с 3 окт — в «Решить судьбу»</span></button></div></section></div></div><div class="frames" style="grid-template-columns:1fr 1fr;margin-top:1.5rem"><div class="frame" style=""><span class="cap">Наведение на название группы</span><span class="sub">Правило группы больше не лежит строкой под заголовком — оно в подсказке на названии.</span><div class="vf-split" style="display:block;padding-bottom:2.5rem"><section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском<span class="vf-bub">Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок</span></span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.</span></span></div>
+      </section></div></div><div class="frame" style=""><span class="cap">Наведение на плашку дней</span><span class="sub">Сигнал риска — значок в плашке; текст сигнала — по наведению и в фокусе (КП, задачи).</span><div class="vf-split" style="display:block;padding-bottom:2.5rem"><section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском</span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.<span class="vf-bub r">КП истекло 18 сен · задача с 15 сен</span></span></span></div>
+      </section></div></div></div><div class="frames" style="grid-template-columns:1fr 1fr;margin-top:1.5rem"><div class="frame" style=""><span class="cap">Как предложено: название в плашке</span><span class="sub">Плашка вокруг каждого названия — рамка внутри рамки листа: на 17 строках это 17 одинаковых рамок, а название и шаг расходятся по вертикали.</span><div class="vf-split" style="display:block"><section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row"><span class="min-w-0"><span class="vf-namechip">Глорус-норд</span><span class="va-stp dim" style="margin-top:.375rem">Предоставить КП 16.09</span></span><span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></div><div class="vf-row"><span class="min-w-0"><span class="vf-namechip">Хлебпродукт-2</span><span class="va-stp dim" style="margin-top:.375rem">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span><span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></div><div class="vf-row"><span class="min-w-0"><span class="vf-namechip">За Родину</span><span class="va-stp dim" style="margin-top:.375rem">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span><span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></div>
+      </section></div></div><div class="frame" style=""><span class="cap">Принято: название текстом, без значка</span><span class="sub">Монограмма убрана — она повторяла название. Якорь строки — жирное название; рамки только у листа группы.</span><div class="vf-split" style="display:block"><section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Глорус-норд</span><span class="va-stp dim">Предоставить КП 16.09</span></span>
+          <span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Хлебпродукт-2</span><span class="va-stp dim">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">За Родину</span><span class="va-stp dim">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></div>
+      </section></div></div></div>
+</div></div></section>
+<section class="mk-sec" id="frame-5"><h2>Кадр 5. Анимация язычка — кликни по строке</h2><p>Старый язычок уходит под лист (140 мс), новый выходит у выбранной строки (260 мс, задержка 110 мс). CSS-демо, фокус не переключается.</p><div class="mk-frame" style="width:1440px"><div class="crm t-minimal board" style="width:1440px;min-height: 760px">
+<div class="frame" style=""><span class="cap">Смена выбора: язычок прячется под лист и выходит у новой строки — кликни по любой строке</span><span class="sub">Старый язычок уходит под свой лист (0,14 с), новый выходит из-под листа выбранной строки с лёгкой пружиной (0,26 с, задержка 0,11 с). Между листами язычок не путешествует. Клавиши J/K делают то же. При «уменьшить движение» в системе — без анимации. Фокус справа в этом демо не переключается — показана только анимация.</span><div class="vf-split" style="grid-template-columns:46rem"><div class="min-w-0" style="padding-left:.75rem"><section aria-label="Сделки в работе" class="vf-demo">
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi hot"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/></svg></span>
+          <span class="vf-gt" title="Срок шага прошёл не больше 14 дней назад, после него тишина. Ещё две такие сделки — в ходах наверху">Сорвано недавно</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <label class="vf-row" role="option"><input class="vf-rad" type="radio" name="vfsel" aria-label="АР Системс"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">АР Системс</span><span class="va-stp">Встреча с клиентом</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age hot">4 дн.</span></span></label>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском</span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <label class="vf-row" role="option"><input class="vf-rad" type="radio" name="vfsel" aria-label="Фитнес Десерты. WMS"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.</span></span></label>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <label class="vf-row" role="option"><input class="vf-rad" type="radio" name="vfsel" checked aria-label="Глорус-норд"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">Глорус-норд</span><span class="va-stp dim">Предоставить КП 16.09</span></span>
+          <span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></label><label class="vf-row" role="option"><input class="vf-rad" type="radio" name="vfsel" aria-label="Хлебпродукт-2"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">Хлебпродукт-2</span><span class="va-stp dim">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></label><label class="vf-row" role="option"><input class="vf-rad" type="radio" name="vfsel" aria-label="За Родину"><span class="vf-tab" aria-hidden="true"></span>
+          <span class="min-w-0"><span class="va-name">За Родину</span><span class="va-stp dim">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></label>
+      </section>
+    </section></div></div></div>
+</div></div></section>
+<section class="mk-sec" id="frame-6"><h2>Кадр 6. Ширина 1280 (контент ~1034 px)</h2><p>Фокус 25rem, подписи на плитках переносятся, у «Открыть сделку» короткая подпись.</p><div class="mk-frame" style="width:1280px"><div class="crm t-minimal" style="width:1280px;min-height: 1360px">
+<nav class="side" aria-label="Разделы"><div class="brand"><i>TC</i>Torii CRM</div><a class="nav on" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>Сегодня</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Обзор</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>Чат</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Задачи<span class=cnt>9</span></a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Лиды</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Сделки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Проекты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Контакты</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/></svg>Компании</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Звонки</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Встречи</a><a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Календарь</a></nav>
+  <main class="main">
+    <div class="topbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Поиск <kbd>⌘K</kbd></div>
+      <button class="tb-ico" aria-label="Уведомления"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button></div>
+    <header class="ph"><div><h1>Сегодня</h1><p>Воскресенье, 4 октября · выходной</p></div><span class="grow"></span>
+      <button class="chip">Вид <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></header>
+    <div class="vf-split"><div class="min-w-0"><section class="vf-band" aria-label="Ходы на сегодня">
+        <div class="vf-bh"><h2 class="vx-h2">Ходы на сегодня</h2><span class="vf-prog"><i class=""></i><i class=""></i><i class=""></i></span><span class="vf-pt"><b class="num-t">0</b> из 3 сделано</span>
+          <span class="grow"></span><span class="hint">кольцо — 14 дней срыва до «Решить судьбу»</span></div>
+        <div class="vf-moves"><button class="vf-mv glass-sheet sel">
+          <span class="vf-mtop"><span class="vf-ring calm" aria-label="4 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="41.3 144.5"/></svg>
+            <span class="vf-rc"><b>4</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">1 · Свежий срыв</span><span class="vf-mn">Лоренц снек</span><b class="vf-msum">14,3 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Договориться о встрече с клиентом 1 октября в четверг</span>
+          <span class="vf-mc">15 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring warn" aria-label="9 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="92.9 144.5"/></svg>
+            <span class="vf-rc"><b>9</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">2 · Свежий срыв</span><span class="vf-mn">Нытва</span><span class="vf-msum none">без суммы</span></span></span>
+          <span class="vf-ms vx-clamp2">Договор готов</span>
+          <span class="vf-mc">10 окт — в «Решить судьбу»</span></button><button class="vf-mv">
+          <span class="vf-mtop"><span class="vf-ring over" aria-label="16 дн. после срока из 14">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle class="tr" cx="28" cy="28" r="23"/><circle class="pr" cx="28" cy="28" r="23" stroke-dasharray="144.5 144.5"/></svg>
+            <span class="vf-rc"><b>16</b><span>дн.</span></span></span>
+            <span class="vf-mid"><span class="vf-mk">3 · Сумма без шага</span><span class="vf-mn">ЭЙЧ ЭНД ЭН</span><b class="vf-msum">10 млн ₽</b></span></span>
+          <span class="vf-ms vx-clamp2">Звонить Руслану</span>
+          <span class="vf-mc">с 3 окт — в «Решить судьбу»</span></button></div></section><section aria-label="Сделки в работе">
+      <div class="va-book" style="flex-wrap:wrap"><h2 class="vx-h2">Сделки в работе</h2><span class="cnt">17</span><span class="hint">у <b>14</b> из 17 нет шага впереди</span>
+        <span class="grow"></span><span class="hint">у <b>11</b> не указана сумма</span></div>
+      <div class="va-bar vf-bar" aria-label="Состав списка по группам"><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:62%"></i><span><b>3</b>сорвано</span></span><span class="va-seg" style="flex:1 1 0;min-width:max-content"><i class="" style="--w:46%"></i><span><b>1</b>риск</span></span><span class="va-seg" style="flex:3 1 0;min-width:max-content"><i class="" style="--w:32%"></i><span><b>3</b>обновить</span></span><span class="va-seg" style="flex:8 1 0;min-width:max-content"><i class="hatch" style="--w:0%"></i><span><b>8</b>решить судьбу</span></span><span class="va-seg" style="flex:2 1 0;min-width:max-content"><i class="" style="--w:14%"></i><span><b>2</b>план</span></span></div>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi hot"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/></svg></span>
+          <span class="vf-gt" title="Срок шага прошёл не больше 14 дней назад, после него тишина. Ещё две такие сделки — в ходах наверху">Сорвано недавно</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">АР Системс</span><span class="va-stp">Встреча с клиентом</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age hot">4 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi warn"><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, но есть сигнал: истёкшее КП, просроченная задача или звонок">Под риском</span><span class="vf-gc">1</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Фитнес Десерты. WMS</span><span class="va-stp">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</span></span>
+          <span class="vf-rm"><b>3,9 млн ₽</b><span class="va-age fut vf-risk" title="КП истекло 18 сен · задача с 15 сен"><svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>через 5 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></svg></span>
+          <span class="vf-gt" title="После срока работа шла — шаг просто не переписан">Обновить шаг</span><span class="vf-gc">3</span>
+          <span class="grow"></span></div>
+        <div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Глорус-норд</span><span class="va-stp dim">Предоставить КП 16.09</span></span>
+          <span class="vf-rm"><b>5 млн ₽</b><span class="va-age">26 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">Хлебпродукт-2</span><span class="va-stp dim">Уточнить контакты другого человека либо насколько акутально для них эта задача вообще, тк видео не отправляют</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">12 дн.</span></span></div><div class="vf-row" role="option" aria-selected="false">
+          <span class="min-w-0"><span class="va-name">За Родину</span><span class="va-stp dim">Обсудить дальнейшие шаги - предложить наше участие в контуре агрегации</span></span>
+          <span class="vf-rm"><span class="none">без суммы</span><span class="va-age">18 дн.</span></span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span>
+          <span class="vf-gt" title="Тишина дольше 14 дней: вернуть в работу или закрыть. Ещё одна такая сделка — в ходах наверху">Решить судьбу</span><span class="vf-gc">8</span>
+          <span class="grow"></span><button class="vx-tb bd">Разобрать по одной</button><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Зерде Фито</b><span>39 дн.</span></span><span class="va-dc"><b>Продовольственный фонд</b><span>18 дн.</span></span><span class="va-dc"><b>Агросорос</b><span>24 дн.</span></span><span class="va-dc"><b>Агрохолод</b><span>19 дн.</span></span><span class="va-dc"><b>М Д М</b><span>18 дн.</span></span><span class="va-dc"><b>ПК Русь</b><span>16 дн.</span></span><span class="va-dc"><b>Лид #001</b><span>16 дн.</span></span><span class="va-dc more">ещё одна — в ходах наверху</span></div>
+      </section>
+      <section class="sheet vf-grp">
+        <div class="vf-gh"><span class="vf-gi "><svg class="vx-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>
+          <span class="vf-gt" title="Шаг впереди, сигналов нет">По плану</span><span class="vf-gc">2</span>
+          <span class="grow"></span><span class="va-gchev"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span></div>
+        <div class="va-chips"><span class="va-dc"><b>Стройпарк</b><span>пн 5 окт</span></span><span class="va-dc"><b>Анфиш</b><span>пн 5 окт</span></span></div>
+      </section>
+    </section><div class="off-row"><span>Не сделки:</span>
+      <button class="chip">Задачи без сделки <b>2</b></button><button class="chip">Хвост закрытой сделки <b>1</b></button>
+      <button class="chip">Остывающие контакты <b>5</b></button><button class="chip">Лиды без шага <b>1</b></button></div>
+    <div class="keys" aria-label="Клавиши"><span><kbd class="k">J</kbd><kbd class="k">K</kbd>по сделкам — фокус следует</span>
+      <span><kbd class="k">D</kbd>сделано</span><span><kbd class="k">U</kbd>обновить шаг</span><span><kbd class="k">T</kbd>перенести</span>
+      <span><kbd class="k">N</kbd>заметка</span><span><kbd class="k">O</kbd>открыть сделку</span></div></div><aside class="vf-focus" aria-label="Фокус: Лоренц снек"><div class="glass-sheet vf-head">
+        <div class="vb-fk"><span class="vb-tag">Ход 1 из 3 · свежий срыв · <em>4 дн.</em></span><div class="vb-fsum"><b class="vf-sum">14,3 млн ₽</b><span>черновик КП</span></div></div>
+        <p class="vf-step">Договориться о встрече с клиентом 1 октября в четверг</p><p class="vb-fctx"><a class="vf-deal" href="#" title="Открыть карточку сделки · O">Лоренц снек<svg class="vx-ico xs" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · Подготовка КП · перенесён 6 раз</p><div class="vb-fact" style="margin-top:.875rem"><button class="vb-btn pri">Сделано <span class="vx-kbd">D</span></button><button class="vb-btn">Перенести <span class="vx-kbd">T</span></button><button class="vb-btn">Отложить <span class="vx-kbd">S</span></button><span class="sp"></span><a class="vb-btn ghost vf-open" href="#" title="Открыть карточку сделки"><span>Открыть<span class="vf-long"> сделку</span></span><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span class="vx-kbd">O</span></a></div>
+      </div><div class="vf-body">
+        <section class="vf-sec"><div class="vf-sh"><h4>Было · 30 дней</h4><span class="grow"></span><span class="vf-hint">день — события, клик — лента за день</span></div>
+          <div class="pulse vf-pulse"><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day t"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day s"></i><i class="day due"></i><i class="day"></i><i class="day"></i><i class="day"></i><i class="day"></i></div><div class="pulse-ax"><span>5 сен</span><span>сегодня</span></div><div class="pulse-lg" style="margin-top:.375rem"><span><i class="day t"></i>касание</span><span><i class="day s"></i>смена стадии</span><span><i class="due-mk"></i>срок 30 сен</span></div></section>
+        <section class="vf-sec vf-note"><div class="vf-in">Заметка в ленту сделки<span class="vx-kbd">↵</span></div></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Лента</h4><span class="grow"></span><span class="vf-fc on">Все 3</span><span class="vf-fc">Заметки 1</span><span class="vf-fc off">Звонки 0</span><span class="vf-fc">Стадии 1</span></div>
+        <div class="vf-evs"><div class="vf-ev"><span class="d">29 сен</span><span class="i s"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg></span><span class="t">Стадия → Подготовка КП. «Вносятся правки в КП. Текущая редакция устарела»</span></div><div class="vf-ev"><span class="d">29 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg></span><span class="t">Заметка: «получил файл от клиента с данными по тактам»</span></div><div class="vf-ev"><span class="d">24 сен</span><span class="i"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/></svg></span><span class="t">Поставлены задачи «Новая концепция» и «Предложить клиенту новую концепцию»</span></div></div><a class="vx-all" href="#">Вся лента сделки</a></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Задачи</h4><span class="grow"></span><button class="vx-tb"><svg class="vx-ico sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Поставить</button></div><ul class="vx-tasks" style="margin-top:.25rem"><li><span>Задача «Предложит клиенту новую концепцию» <span class=vx-warn>· срок был 25 сен</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Подготовить КП по Лоренц снек» <span class=vx-warn>· срок был 2 окт</span></span><button class="vx-tb bd">Готово</button></li><li><span>Задача «Новая концепция»</span><button class="vx-tb bd">Готово</button></li></ul></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>КП</h4><span class="grow"></span><a class="vx-all" style="margin:0" href="#">Открыть КП</a></div><p class="vf-txt">Черновик от 7 сен · <b>14,3 млн ₽</b> · не отправлено</p></section>
+        <section class="vf-sec"><div class="vf-sh"><h4>Сделка</h4></div><div class="vf-facts"><p>Стадия «Подготовка КП»: 5 дней при норме 7</p><p>Дедлайн сделки был 1 окт</p></div><p class="vf-mute" style="margin-top:.375rem">Контакт не указан · <a class="vx-all" style="margin:0" href="#">Добавить</a></p></section>
+      </div></aside></div>
+  </main>
+</div></div></section>
+<script>document.getElementById("mk-theme").addEventListener("change",function(e){document.querySelectorAll(".crm").forEach(function(el){el.classList.remove("t-minimal","t-cobalt","t-aura","t-frost");el.classList.add(e.target.value);});});</script>
+</body></html>
