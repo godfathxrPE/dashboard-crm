@@ -1,0 +1,643 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AI-бриф в шаге сделки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Onest:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.add("t-minimal");document.documentElement.lang="ru";</script>
+<style>
+/* ══ ТОКЕНЫ — сгенерированы из globals.css, руками не править ══ */
+:root {
+  --chart-fjord: #5B5EA6;
+  --chart-granit: #6D5D7B;
+  --chart-skog: #3E6B58;
+  --chart-is: #3D6B7E;
+  --chart-stal: #4A5E8A;
+  --content-max: 90rem;
+  --zone-base: color-mix(in srgb, var(--text) 2%, var(--bg));
+  --zone-work-tint: var(--accent);
+  --zone-work-ink: var(--accent-text, var(--accent));
+  --zone-work: color-mix(in srgb, var(--zone-work-tint) 14%, var(--zone-base));
+  --zone-ctx: color-mix(in srgb, var(--text)    6%, var(--zone-base));
+  --zone-risk-ok: color-mix(in srgb, var(--green)  12%, var(--zone-base));
+  --zone-risk-attention: color-mix(in srgb, var(--yellow) 14%, var(--zone-base));
+  --zone-risk-rotting: color-mix(in srgb, var(--red)    10%, var(--zone-base));
+  --radius-zone: 26px;
+  --h-zone: var(--zone-risk-ok);
+  --h-ring: var(--green);
+  --h-chip-ink: var(--green-text, var(--green));
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --surface3: #e5e3dc;
+  --popover: var(--surface);
+  --border: #e5e3dc;
+  --border2: #d4d2ca;
+  --border-input: #8c8c8c;
+  --text: #1a1916;
+  --text-dim: #6b6860;
+  --text-mute: #6f6d68;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent);
+  --accent: #b5622a;
+  --accent-l: rgba(181,98,42,0.08);
+  --accent-l2: rgba(181,98,42,0.16);
+  --on-accent: #ffffff;
+  --green: #2e7d52;
+  --green-l: rgba(46,125,82,0.09);
+  --red: #c0392b;
+  --red-l: rgba(192,57,43,0.09);
+  --blue: #2d6ab4;
+  --blue-l: rgba(45,106,180,0.09);
+  --yellow: #a07020;
+  --yellow-l: rgba(160,112,32,0.09);
+  --yellow-text: #92661d;
+  --purple: #7c3aed;
+  --purple-l: rgba(124,58,237,0.09);
+  --font-app: var(--font-manrope, 'Manrope');
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-accent: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --elevation-2: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #d1fae5;
+  --track-prep-current: #34d399;
+  --track-exp-done: #ede9fe;
+  --track-exp-current: #a78bfa;
+  --track-nego-done: #fef3c7;
+  --track-nego-current: #d97706;
+  --track-proj-done: #fce7f3;
+  --track-proj-current: #f472b6;
+  --cal-line: color-mix(in srgb, var(--border) 75%, var(--text-mute));
+  --chat-bg: var(--bg);
+  --chat-in-bg: var(--surface);
+  --chat-in-border: var(--border);
+  --chat-pattern-ink: #1a1916;
+  --chat-pattern-op: 0.045;
+  --chat-chip: rgba(255,255,255,0.85);
+  --danger: var(--red);
+  --danger-l: var(--red-l);
+  --danger-text: var(--red-text, var(--red));
+  --success: var(--green);
+  --success-l: var(--green-l);
+  --success-text: var(--green-text, var(--green));
+  --warning: var(--yellow);
+  --warning-l: var(--yellow-l);
+  --warning-text: var(--yellow-text, var(--yellow));
+  --info: var(--blue);
+  --info-l: var(--blue-l);
+  --info-text: var(--blue-text, var(--blue));
+  --time-ok-fill: color-mix(in srgb, var(--bg) 84%, var(--accent));
+  --time-warn-fill: color-mix(in srgb, var(--bg) 82%, var(--yellow));
+  --time-over-fill: color-mix(in srgb, var(--bg) 84%, var(--red));
+  --text-main: var(--text);
+  --mark-today:    var(--accent);
+  --mark-today-l2: var(--accent-l2);
+  --sheet-glass: rgba(4, 4, 6, .84);
+  --sheet-sheen: linear-gradient(160deg, rgba(255,255,255,.13) 0%,
+                                        rgba(255,255,255,0) 46%, rgba(255,255,255,.04) 100%);
+  --sheet-shadow: 0 10px 32px rgba(0,0,0,.20),
+                        inset 0 1px 0 rgba(255,255,255,.24),
+                        inset 0 -1px 0 rgba(255,255,255,.06);
+  --sheet-hairline: rgba(255,255,255,.20);
+  --sheet-text: #FFFFFF;
+  --sheet-dim: #D2D2D6;
+  --sheet-red: #FF7A68;
+  --sheet-warning: #FFC24D;
+  --sheet-green: #5CD98C;
+  --sheet-btn-border: rgba(255,255,255,.35);
+  --sheet-hover: rgba(255,255,255,.10);
+  --sheet-plate-bg: rgba(255,255,255,.09);
+  --sheet-plate-border: rgba(255,255,255,.16);
+  --sheet-mark: #D2D2D6;
+  --sheet-mark-fill: #D2D2D6;
+  --sheet-mark-ink: #040406;
+  --sheet-empty-in: var(--yellow);
+  --sheet-empty-out: var(--yellow-text, var(--yellow));
+  --profile-norm: var(--border2);
+  --profile-fact: color-mix(in srgb, var(--text)   55%, transparent);
+  --profile-over-past: color-mix(in srgb, var(--yellow) 55%, transparent);
+  --profile-over-now: color-mix(in srgb, var(--red)    70%, transparent);
+  --profile-now: var(--mark-today);
+}
+
+.t-minimal {
+  --bg: #ECECEF;
+  --surface: #FFFFFF;
+  --surface2: #F4F4F6;
+  --surface3: #E7E7EB;
+  --popover: var(--surface);
+  --border: #D9D9E0;
+  --border2: #C4C4CE;
+  --border-input: #82828C;
+  --text: #17171C;
+  --text-dim: #4E4E59;
+  --text-mute: #5F5F6A;
+  --sidebar-indicator: #FFFFFF;
+  --sidebar-active-text: var(--text);
+  --accent: #0E7C86;
+  --accent-l: rgba(14,124,134,0.08);
+  --accent-l2: rgba(14,124,134,0.16);
+  --accent-text: #0A6771;
+  --green: #1B8A4C;
+  --green-l: rgba(27,138,76,0.09);
+  --green-text: #177B43;
+  --red: #CC3B2E;
+  --red-l: rgba(204,59,46,0.09);
+  --red-text: #B02A24;
+  --blue: #2563C9;
+  --blue-l: rgba(37,99,201,0.09);
+  --blue-text: #1D68BC;
+  --yellow: #B0680A;
+  --yellow-l: rgba(176,104,10,0.10);
+  --yellow-text: #846300;
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.09);
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 10px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --shadow-xs: 0 1px 2px rgba(18,18,24,0.05);
+  --shadow-sm: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --shadow-md: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --shadow-lg: 0 4px 8px rgba(18,18,24,0.06), 0 18px 48px rgba(18,18,24,0.14);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(18,18,24,0.06), 0 2px 8px rgba(18,18,24,0.05);
+  --elevation-2: 0 2px 4px rgba(18,18,24,0.06), 0 10px 24px rgba(18,18,24,0.10);
+  --elevation-3: 0 4px 8px rgba(18,18,24,0.07), 0 20px 56px rgba(18,18,24,0.16);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EDEDEF;
+  --track-prep-current: #2E2E36;
+  --track-exp-done: #DDEEF0;
+  --track-exp-current: #0E7C86;
+  --track-nego-done: #F7EBD4;
+  --track-nego-current: #B0680A;
+  --track-proj-done: #DFEAF9;
+  --track-proj-current: #2563C9;
+  --font-app: var(--font-inter, 'Inter');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #0A6771;
+  --chat-pattern-op: 0.03;
+  --chat-chip: rgba(255,255,255,0.85);
+  --sheet-glass: rgba(0, 10, 12, .84);
+  --sheet-mark: #6AC1C6;
+  --sheet-mark-fill: #6AC1C6;
+  --sheet-mark-ink: #000A0C;
+}
+
+.t-aura {
+  --bg: #EFEFF3;
+  --surface: #FFFFFF;
+  --surface2: #F6F6FA;
+  --surface3: #EAEAF1;
+  --popover: var(--surface);
+  --border: #E2E2EC;
+  --border2: #D2D2DE;
+  --border-input: #8a8a9a;
+  --text: #16161D;
+  --text-dim: #59596D;
+  --text-mute: #61617A;
+  --sidebar-indicator: var(--accent-l);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #484D57;
+  --accent-l: rgba(72,77,87,0.09);
+  --accent-l2: rgba(72,77,87,0.16);
+  --green: #2F8F5B;
+  --green-l: rgba(47,143,91,0.10);
+  --red: #D14343;
+  --red-l: rgba(209,67,67,0.10);
+  --blue: #3B7FD4;
+  --blue-l: rgba(59,127,212,0.10);
+  --yellow: #B0810F;
+  --yellow-l: rgba(176,129,15,0.10);
+  --purple: #7C5CD4;
+  --purple-l: rgba(124,92,212,0.10);
+  --accent-text: #343840;
+  --green-text: #1F7C41;
+  --red-text: #C02B2D;
+  --blue-text: #1D68BC;
+  --yellow-text: #846300;
+  --purple-text: #6F4BC8;
+  --teal-text: #007B6A;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+  --shadow-xs: 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-sm: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --shadow-md: 0 4px 14px rgba(20,20,40,0.07), 0 1px 3px rgba(20,20,40,0.04);
+  --shadow-lg: 0 12px 36px rgba(20,20,40,0.10), 0 2px 8px rgba(20,20,40,0.05);
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
+  --glass-blur: none;
+  --glass-inset: none;
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(20,20,40,0.06), 0 1px 2px rgba(20,20,40,0.04);
+  --elevation-2: 0 4px 14px rgba(20,20,40,0.08), 0 2px 4px rgba(20,20,40,0.04);
+  --elevation-3: 0 14px 44px rgba(20,20,40,0.13), 0 4px 10px rgba(20,20,40,0.06);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #EBEDF1;
+  --track-prep-current: #484D57;
+  --track-exp-done: #E9E2FB;
+  --track-exp-current: #7C5CD4;
+  --track-nego-done: #FDF1CC;
+  --track-nego-current: #B0810F;
+  --track-proj-done: #D7EAFB;
+  --track-proj-current: #3B7FD4;
+  --font-app: var(--font-onest, 'Onest');
+  --tw-ring-color: var(--accent-text);
+  --chat-pattern-ink: #343840;
+  --chat-pattern-op: 0.05;
+  --chat-chip: rgba(255,255,255,0.85);
+  --sheet-glass: rgba(3, 6, 10, .84);
+  --sheet-mark: #ACB3B9;
+  --sheet-mark-fill: #ACB3B9;
+  --sheet-mark-ink: #03060A;
+}
+
+.t-frost {
+  --bg: #0d1020;
+  --surface: rgba(255,255,255,0.07);
+  --surface2: rgba(255,255,255,0.04);
+  --surface3: rgba(255,255,255,0.10);
+  --popover: #1e2233;
+  --border: rgba(255,255,255,0.12);
+  --border2: rgba(255,255,255,0.22);
+  --border-input: rgba(255,255,255,0.42);
+  --text: #eef2ff;
+  --text-dim: #94a4d4;
+  --text-mute: #7e90c0;
+  --sidebar-indicator: rgba(255,255,255,0.10);
+  --sidebar-active-text: var(--accent-text);
+  --accent: #5b8aff;
+  --accent-l: rgba(91,138,255,0.15);
+  --accent-l2: rgba(91,138,255,0.25);
+  --accent-text: #7eb0ff;
+  --on-accent: #0d1020;
+  --green: #5BB88E;
+  --green-l: rgba(91,184,142,0.14);
+  --red: #E8795A;
+  --red-l: rgba(232,121,90,0.14);
+  --blue: #5FA8E8;
+  --blue-l: rgba(95,168,232,0.14);
+  --yellow: #F0C45E;
+  --yellow-l: rgba(240,196,94,0.14);
+  --yellow-text: #F0C45E;
+  --purple: #A070E0;
+  --purple-l: rgba(160,112,224,0.14);
+  --purple-text: #c9a0f5;
+  --radius: 12px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.35);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12);
+  --shadow-card-hover: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.16);
+  --glass-bg: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.11);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.12);
+  --elevation-0: none;
+  --elevation-1: 0 2px 6px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.10);
+  --elevation-2: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.12);
+  --elevation-3: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.14);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --track-prep-done: #14532d;
+  --track-prep-current: #5381C4;
+  --track-exp-done: #3b0764;
+  --track-exp-current: #339CEB;
+  --track-nego-done: #78350f;
+  --track-nego-current: #08BAF8;
+  --track-proj-done: #500724;
+  --track-proj-current: #5CD7F4;
+  --chat-in-bg: var(--popover);
+  --chat-pattern-ink: #7eb0ff;
+  --chat-pattern-op: 0.035;
+  --chat-chip: rgba(30,34,51,0.85);
+  --sheet-glass: rgba(221, 232, 255, .88);
+  --sheet-text: #0B152C;
+  --sheet-dim: #454D5E;
+  --sheet-mark: #3355A8;
+  --sheet-mark-fill: #4B70C6;
+}
+
+/* ══ КАРКАС МОКАПА ══ */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-app), system-ui, sans-serif;
+  font-size: 0.8125rem; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mockup-bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 100;
+  display: flex; gap: 0.75rem; align-items: center;
+  padding: 0.5rem 1rem; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.mockup-bar strong { font-size: 0.6875rem; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-mute); font-weight: 600; }
+.mockup-bar button {
+  padding: 0.25rem 0.625rem; font: inherit; font-size: 0.6875rem;
+  color: var(--text-dim); background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 999px;
+}
+.mockup-bar button[aria-current] {
+  color: var(--accent); border-color: var(--accent);
+  background: var(--accent-l); font-weight: 600;
+}
+.mockup-bar label { margin-left: auto; display: flex; gap: 0.375rem;
+  align-items: center; font-size: 0.6875rem; color: var(--text-mute); }
+
+/* Полотно: ограничитель ширины — как на детальных страницах.
+   Для досок, таблиц и Ганта снять .canvas--capped. */
+.canvas { padding: 1.5rem; }
+.canvas--capped { max-width: 90rem; margin-inline: auto; }
+.canvas[data-width="1280"] { max-width: 1280px; }
+/* ══ ИЗВЛЕЧЕНО СКРИПТОМ ИЗ globals.css (мульти-селекторы тем + материал стекла) ══ */
+.t-aura, .t-washi, .t-tidal, .t-minimal {
+  --zone-work-tint: var(--purple);
+  --zone-work-ink:  var(--text-dim);
+}
+.t-frost, .t-aurora, .t-tidal {
+  --sheet-sheen:        linear-gradient(160deg, rgba(255,255,255,.55) 0%,
+                                        rgba(255,255,255,0) 48%, rgba(0,0,0,.05) 100%);
+  --sheet-shadow:       0 10px 34px rgba(0,0,0,.34),
+                        inset 0 1px 0 rgba(255,255,255,.65),
+                        inset 0 -1px 0 rgba(0,0,0,.05);
+  --sheet-hairline:     rgba(255,255,255,.55);
+  --sheet-red:          #8D3123;
+  --sheet-warning:      #764600;
+  --sheet-green:        #00551D;
+  --sheet-btn-border:   rgba(0,0,0,.22);
+  --sheet-hover:        rgba(0,0,0,.06);
+  --sheet-plate-bg:     rgba(0,0,0,.055);
+  --sheet-plate-border: rgba(0,0,0,.10);
+  --sheet-mark-ink:     #FFFFFF;
+  /* Грани канта поменялись местами вместе с направлением: внутрь смотрит тёмный
+     янтарь (на белое стекло), наружу — заливочный `--yellow` темы (на тёмную зону). */
+  --sheet-empty-in:     #764600;
+  --sheet-empty-out:    var(--yellow);
+}
+.glass-sheet,
+[data-card].glass-sheet {
+  background-color: var(--sheet-glass);
+  background-image: var(--sheet-sheen);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: var(--sheet-shadow);
+  border-color: var(--sheet-hairline);
+  color: var(--sheet-text);
+
+  /* Утилиты Tailwind компилируются в `color: var(--<токен>)` (`tailwind.config.ts`,
+     функция-значение `v()`), поэтому одно переопределение токенов на контейнере
+     переадресует все утилиты потомков разом — theme-if в разметке не нужен ни один. */
+  --text:         var(--sheet-text);
+  --text-dim:     var(--sheet-dim);
+  --text-mute:    var(--sheet-dim);
+  --red:          var(--sheet-red);
+  --warning-text: var(--sheet-warning);
+  --green:        var(--sheet-green);
+  /* Метка: `--accent` кормит заливку квадрата (`bg-accent`), `--accent-text` —
+     подпись (`.text-accent` объявлен глобально как `var(--accent-text, var(--accent))`). */
+  --accent:       var(--sheet-mark-fill);
+  --accent-text:  var(--sheet-mark);
+  --border:       var(--sheet-btn-border);
+  --surface2:     var(--sheet-hover);
+}
+.glass-sheet .text-accent { color: var(--sheet-mark); }
+.glass-sheet .bg-accent { background-color: var(--sheet-mark-fill) !important; }
+.glass-sheet .bg-accent.text-white { color: var(--sheet-mark-ink) !important; }
+.glass-sheet .glass-call {
+  border-color: color-mix(in srgb, var(--sheet-mark-fill) 60%, transparent);
+}
+.glass-sheet .glass-call:hover {
+  border-color: color-mix(in srgb, var(--sheet-mark-fill) 90%, transparent);
+  background-color: color-mix(in srgb, var(--sheet-mark-fill) 8%, transparent);
+}
+.glass-sheet {
+    border: 1px solid var(--sheet-hairline);
+    border-radius: var(--radius-l);
+  }
+.glass-plate {
+    background: var(--sheet-plate-bg);
+    border: 1px solid var(--sheet-plate-border);
+    border-radius: var(--radius-l) var(--radius-l) var(--radius-l) var(--radius-s);
+  }
+.zone {
+    background: var(--zone-surface, var(--zone-ctx));
+    border-radius: var(--radius-zone);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--zone-gap, 0.75rem);
+  }
+.zone-eyebrow {
+    display: flex; align-items: baseline; gap: 0.5rem;
+    font-size: 0.6875rem; font-weight: 700;  /* text-meta; 10px-капс запрещён S-TYPO-SCALE */
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+.zone-eyebrow small { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.t-frost  { --sheet-glass: rgba(221, 232, 255, .88); --sheet-text: #0B152C; --sheet-dim: #454D5E;
+            --sheet-mark: #3355A8; --sheet-mark-fill: #4B70C6; }
+/* ══ МОКАП BRIEF-IN-DEAL-1 — только токены ══ */
+.canvas[data-width="1280"] { max-width: 65rem; } /* 1280 минус сайдбар 15rem */
+.hd h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 .25rem; }
+.lead { color: var(--text-dim); max-width: 75ch; margin: 0 0 1rem; }
+.sec { margin: 2.25rem 0; }
+.sec > h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-mute); font-weight: 700; margin: 0 0 .25rem; }
+code { font-size: .75rem; background: var(--surface2); padding: 0 .25rem; border-radius: var(--radius-s); }
+.plain { margin: 0; padding-left: 1.125rem; color: var(--text-dim); max-width: 80ch; }
+.plain li { margin: .25rem 0; }
+.dim { color: var(--text-dim); } .red { color: var(--red); } .warn { color: var(--warning-text); }
+.fw5 { font-weight: 500; } .meta { font-size: .6875rem; } .sm { font-size: .75rem; }
+.num { font-variant-numeric: tabular-nums; }
+.ic { flex-shrink: 0; }
+.ic.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ic.spin { animation: none; } }
+
+/* раскладка сделки */
+.deal { display: grid; grid-template-columns: minmax(0,1fr) 22.25rem; gap: 1.25rem; align-items: start; }
+.rail { display: flex; flex-direction: column; gap: 1.25rem; }
+@media (max-width: 64rem) { .deal { grid-template-columns: 1fr; } }
+.stub { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); padding: .75rem 1rem; box-shadow: var(--shadow-card); }
+.stub-t { font-size: .75rem; font-weight: 600; color: var(--text-dim); margin-bottom: .25rem; }
+.stub-line { height: .4375rem; border-radius: 999px; background: var(--surface2); margin: .375rem 0; }
+
+/* стекло «Следующий шаг» — геометрия как в DealNextStep.tsx */
+.sheet-pad { padding: 1.125rem 1.25rem 1rem; }
+.sh-h { display: flex; align-items: center; gap: .5rem; margin-bottom: .625rem; }
+.sq { display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: var(--radius-s); flex-shrink: 0; }
+.bg-accent { background-color: var(--accent); }
+.text-white { color: var(--on-accent); }
+.text-accent { color: var(--accent-text, var(--accent)); }
+.sh-t { font-size: .75rem; font-weight: 700; letter-spacing: .02em; }
+.plate { max-width: 72ch; padding: .875rem 1.125rem; }
+.step { font-size: 1.25rem; font-weight: 500; line-height: 1.3; letter-spacing: -.015em; }
+.foot { margin-top: .875rem; display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; font-size: .8125rem; }
+.mini .sh-h + .foot { margin-top: 0; }
+.rgt { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .375rem .75rem; min-width: 0; }
+
+.pill { display: inline-flex; align-items: center; gap: .25rem; border: 1px solid var(--border); border-radius: var(--radius-l);
+  padding: .125rem .5rem; font: inherit; font-size: .75rem; line-height: 1.4; color: var(--text-dim); background: transparent;
+  cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s; }
+.pill:hover { background: var(--surface2); color: var(--text); }
+.pill:focus-visible, .lnk:focus-visible, .call:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brief .sep { opacity: .7; }
+.brief .chev { transition: transform .15s; margin-left: .0625rem; }
+.brief[aria-expanded="true"] { background: var(--surface2); color: var(--text); }
+.brief[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.new-dot { width: .4375rem; height: .4375rem; border-radius: 999px; background: var(--accent); margin-right: .0625rem; }
+
+.chip { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.ava { display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 999px; background: var(--surface2); font-size: .6rem; font-weight: 700; color: var(--text); }
+.who b { font-size: .75rem; font-weight: 600; }
+.call { display: inline-flex; align-items: center; gap: .375rem; height: 1.75rem; padding: 0 .625rem; border: 1px solid; border-radius: var(--radius-l);
+  font-size: .75rem; font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mark { color: var(--accent-text, var(--accent)); }
+
+/* панель брифа — внутри стекла */
+.bp { margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--sheet-plate-border); display: flex; flex-direction: column; gap: .75rem; }
+.bp-meta { display: flex; flex-wrap: wrap; gap: .125rem .75rem; font-size: .6875rem; color: var(--text-dim); }
+.bp-meta b { color: var(--text); font-weight: 600; }
+.bp-sum { margin: 0; max-width: 72ch; font-size: .875rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bp-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .75rem 1.5rem; }
+.bp-h { font-size: .6875rem; font-weight: 600; color: var(--text-dim); margin-bottom: .375rem; }
+.hooks, .news { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; font-size: .8125rem; line-height: 1.4; }
+.hooks li { position: relative; padding-left: .875rem; }
+.hooks li::before { content: ""; position: absolute; left: .125rem; top: .5rem; width: .3125rem; height: .3125rem; border-radius: 999px; background: var(--text-dim); }
+.news li { display: grid; grid-template-columns: 4.5rem minmax(0,1fr); gap: .5rem; }
+.nd { color: var(--text-dim); font-size: .75rem; padding-top: .0625rem; }
+.news a { color: var(--text); text-decoration: none; }
+.news a:hover { text-decoration: underline; }
+.src { display: inline-flex; align-items: center; gap: .1875rem; margin-left: .375rem; color: var(--text-dim); font-size: .6875rem; white-space: nowrap; }
+.bp-act { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.bp-act > .pill { margin-left: auto; }
+.lnk { display: inline-flex; align-items: center; gap: .25rem; background: none; border: 0; padding: 0; font: inherit; font-size: .75rem; font-weight: 600; color: var(--accent-text, var(--accent)); cursor: pointer; }
+.lnk.sm { font-weight: 500; margin-top: .375rem; }
+.bp-note { margin: 0; font-size: .8125rem; color: var(--text-dim); display: flex; gap: .375rem; align-items: flex-start; max-width: 72ch; }
+.bp-note.warn { color: var(--warning-text); }
+.sk { height: .5625rem; border-radius: 999px; background: var(--sheet-plate-bg); margin: .3125rem 0; }
+.sk-cols { margin-top: .25rem; }
+
+/* витрина состояний */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr)); gap: 1rem 1.25rem; }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 38rem), 1fr)); }
+.st { margin: 0; padding: .75rem; border-radius: var(--radius-zone); background: var(--zone-work); }
+.st figcaption { font-size: .6875rem; text-transform: uppercase; letter-spacing: .05em; color: var(--zone-work-ink); font-weight: 700; margin: 0 0 .5rem .25rem; }
+.st .cap { font-size: .75rem; color: var(--text-dim); margin: .5rem .25rem 0; max-width: 70ch; }
+/* v2: плотная панель */
+.bp-top { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem 1rem; }
+.bp-top .bp-meta { flex: 1 1 18rem; }
+.bp-top .bp-act { margin-left: auto; }
+.bp-top .bp-act > .pill { margin-left: 0; }
+.hooks li { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 72ch; }
+.news1 { display: flex; align-items: baseline; gap: .5rem; min-width: 0; font-size: .8125rem; max-width: 72ch; }
+.news1 .bp-h { margin: 0; flex-shrink: 0; }
+.news1 .nd { flex-shrink: 0; }
+.news1 a { display: flex; min-width: 0; align-items: baseline; color: var(--text); text-decoration: none; }
+.news1 a:hover .nt { text-decoration: underline; }
+.news1 .nt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+</style>
+
+<div class="mockup-bar">
+  <strong>Тема</strong>
+      <button data-theme="t-minimal" aria-current="true">minimal</button>
+      <button data-theme="t-aura">aura</button>
+      <button data-theme="t-frost">frost</button>
+  <label>
+    Ширина
+    <select id="w">
+      <option value="">полная</option>
+      <option value="1280">1280 + сайдбар</option>
+    </select>
+  </label>
+</div>
+
+<main class="canvas canvas--capped" id="canvas">
+<header class="hd"><h1>AI-бриф компании в шаге сделки</h1>
+<p class="lead">На согласование: кнопка «AI-бриф · дата» в футере стекла «Следующий шаг» — сразу после «Шаг сделан» — и панель брифа, которая раскрывается внутри того же стекла. По умолчанию свёрнуто, выбор запоминается. Рельса «Контекст» брифа не получает.</p></header>
+
+<section class="sec"><h2>1 · Свёрнуто — как выглядит каждый день</h2>
+<p class="lead">Глорус-норд, данные прода («18 дней без касания» — условно, для проверки переноса). Футер в худшем случае. Бриф встал в левую группу к «Шагу сделан»: рядом с чипом контакта на 1280 он давал футеру третью строку, здесь — ноль лишних строк. Левая группа — что делаем с шагом, правая — с кем говорим.</p>
+<div class="deal"><section class="zone" style="--zone-surface:var(--zone-work);--zone-gap:.875rem"><div class="zone-eyebrow" style="color:var(--zone-work-ink)">Работа <small class="dim">что делаем сейчас · где в воронке · задачи</small></div><div class="stub"><div class="stub-t">Кокпит · IIoT Проект · Защита КП · 5 из 6</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div><div data-card class="glass-sheet sheet-pad "><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Предоставить КП 16.09</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="red fw5">8 сентября</span></span><span class="red fw5">просрочен 25 дн.</span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num">04.09</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><span class="meta dim">18 дней без касания</span><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><div class="stub"><div class="stub-t">Доска задач · 4</div><div class="stub-line" style="width:88%"></div></div><div class="stub"><div class="stub-t">Организационный блок · КП v2 · материалы</div><div class="stub-line" style="width:88%"></div></div></section><div class="rail"><section class="zone" style="--zone-surface:var(--zone-risk-attention)"><div class="zone-eyebrow dim">Риски</div><div class="stub"><div class="stub-t">Шаг просрочен на 25 дн.</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div><div class="stub-line" style="width:80%"></div></div></section><section class="zone" style="--zone-surface:var(--zone-ctx)"><div class="zone-eyebrow dim">Контекст</div><div class="stub"><div class="stub-t">Сводка</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div><div class="stub-line" style="width:80%"></div></div><div class="stub"><div class="stub-t">Честный Знак</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div><div class="stub"><div class="stub-t">Стейкхолдеры · 1 из 3 ролей</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div></section></div></div></section>
+
+<section class="sec"><h2>2 · Развёрнуто</h2>
+<p class="lead">Сводка в три строки, две зацепки (по две строки максимум), свежая новость одной строкой со ссылкой на источник. «Весь бриф» открывает модалку с нынешним <code>CompanyBriefRenderer</code> — со сделки никуда не уходим. Цена — +286px вертикали на 1280 (замер), но только когда человек сам раскрыл.</p>
+<div class="deal"><section class="zone" style="--zone-surface:var(--zone-work);--zone-gap:.875rem"><div class="zone-eyebrow" style="color:var(--zone-work-ink)">Работа <small class="dim">что делаем сейчас · где в воронке · задачи</small></div><div class="stub"><div class="stub-t">Кокпит · IIoT Проект · Защита КП · 5 из 6</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div><div data-card class="glass-sheet sheet-pad "><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Предоставить КП 16.09</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="red fw5">8 сентября</span></span><span class="red fw5">просрочен 25 дн.</span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num">04.09</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><span class="meta dim">18 дней без касания</span><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>ООО «ГЛОРУС-НОРД»</b></span><span>4 сентября · 29 дн. назад</span><span>7 источников</span></div><div class="bp-act"><button class="lnk"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>Весь бриф</button><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>Обновить</button></div></div><p class="bp-sum">ООО «ГЛОРУС-НОРД» — торгово-производственное предприятие по выпуску бытовой химии (мыло, моющие средства, таблетки для ПММ) в Санкт-Петербурге. Работает под СТМ и собственными брендами, выручка в 2025 г. превысила 1 млрд руб. (+37–40% к 2024 г.), в мае 2025 г. сменился генеральный директор.</p><div><div class="bp-h">Зацепки для разговора · 2 из 4</div><ul class="hooks"><li>ОКВЭД 20.41.3 попадает под обязательную маркировку бытовой химии с 2025 г., но признаков внедрения ЧЗ у компании пока не найдено.</li><li>Рост выручки до 1+ млрд руб. в 2025 г. при штате 158 чел. — компания масштабируется, учёт и маркировка отстают.</li></ul></div><div class="news1"><span class="bp-h">Новость</span><span class="nd num">22.05.2025</span><a href="#"><span class="nt">Смена генерального директора: Шмараев Никита Игоревич назначен руководителем</span><span class="src">focus.kontur.ru<svg class="ic " width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></a></div></div></div><div class="stub"><div class="stub-t">Доска задач · 4</div><div class="stub-line" style="width:88%"></div></div><div class="stub"><div class="stub-t">Организационный блок · КП v2 · материалы</div><div class="stub-line" style="width:88%"></div></div></section><div class="rail"><section class="zone" style="--zone-surface:var(--zone-risk-attention)"><div class="zone-eyebrow dim">Риски</div><div class="stub"><div class="stub-t">Шаг просрочен на 25 дн.</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div><div class="stub-line" style="width:80%"></div></div></section><section class="zone" style="--zone-surface:var(--zone-ctx)"><div class="zone-eyebrow dim">Контекст</div><div class="stub"><div class="stub-t">Сводка</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div><div class="stub-line" style="width:80%"></div></div><div class="stub"><div class="stub-t">Честный Знак</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div><div class="stub"><div class="stub-t">Стейкхолдеры · 1 из 3 ролей</div><div class="stub-line" style="width:88%"></div><div class="stub-line" style="width:72%"></div></div></section></div></div></section>
+
+<section class="sec"><h2>3 · Состояния кнопки</h2>
+<p class="lead">Одна кнопка на все состояния: меняется иконка и хвост после «·». Ширина почти постоянная — футер не перестраивается при смене состояния.</p>
+<div class="grid"><figure class="st"><figcaption>новый · < 14 дн., ещё не открывали</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp" aria-label="AI-бриф компании, новый"><span class="new-dot" aria-hidden="true"></span><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num">28.09</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Точка гаснет после первого раскрытия этим пользователем. Дата на точке не держится: бриф 28.09 без точки — обычный свежий.</p></figure><figure class="st"><figcaption>свежий · 14–90 дн.</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num">04.09</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Основной вид. Дата — когда собран, а не когда открыт.</p></figure><figure class="st"><figcaption>устарел · > 90 дн.</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num warn">19.05</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Тот же вид, дата цветом предупреждения. Автозапуск обновит сегодня, в очереди лимита.</p></figure><figure class="st"><figcaption>собирается</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span>AI-бриф</span><span class="sep">·</span><span>собираем…</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Автозапуск или «Обновить». Около минуты; соседние элементы не прыгают — ширина кнопки близка к обычной.</p></figure><figure class="st"><figcaption>в очереди · лимит дня</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>AI-бриф</span><span class="sep">·</span><span>в очереди</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Дневной лимит автозапуска занят. Внутри — «Собрать сейчас».</p></figure><figure class="st"><figcaption>ничего не найдено</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span>мало данных</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Поиск отработал, но о компании почти нет данных. Не ошибка — нейтрально.</p></figure><figure class="st"><figcaption>не собран · ошибка</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>AI-бриф</span><span class="sep">·</span><span>не собран</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Сбой фонового прогона. Не красным: пользователь его не запускал, и чинить ему нечего — повтор автоматический.</p></figure><figure class="st"><figcaption>viewer</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill brief" aria-expanded="false" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num">04.09</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button><div class="rgt"><div class="chip"><span class="ava" aria-hidden="true">Д</span><span class="who"><b>Денис Трубачев</b></span><a class="glass-call call" href="#" title="Позвонить: Денис Трубачев"><svg class="ic mark" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>+7 994 409-02-88</a></div></div></div></div><p class="cap">Кнопка та же, внутри нет «Обновить»; «Шаг сделан» у viewer и так нет.</p></figure><figure class="st"><figcaption>у сделки нет компании</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button></div></div><p class="cap">Кнопки нет вовсе: брифу не к чему привязаться. Не «добавьте компанию» — это работа карточки, не шага.</p></figure></div></section>
+
+<section class="sec"><h2>4 · Состояния панели</h2>
+<p class="lead">Свежий вид — в разделе 2. Здесь — всё, что не «готово». Ни одно состояние не выше готового брифа.</p>
+<div class="grid wide"><figure class="st"><figcaption>устарел · > 90 дн.</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Звонить Руслану</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span class="num warn">19.05</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>АО «ЭЙЧ ЭНД ЭН» (бывш. ДАНОН РОССИЯ)</b></span><span>19 мая · 137 дн. назад</span><span>5 источников</span></div><div class="bp-act"><button class="lnk"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>Весь бриф</button><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>Обновить сейчас</button></div></div><p class="bp-note">Бриф старше 90 дней: руководство и новости могли смениться. Обновим автоматически сегодня.</p><p class="bp-sum">АО «ЭЙЧ ЭНД ЭН» (ИНН 7714626332) — бывшее российское юрлицо Danone, переименованное в сентябре 2023 года. В мае 2024 года активы проданы группе «Вамин Р», в октябре 2025 года — ребрендинг в «Логика молока».</p><div><div class="bp-h">Зацепки для разговора · 2 из 4</div><ul class="hooks"><li>Статус маркировки молочной продукции в свете поэтапных требований «Честного Знака» с 2021–2022 годов.</li><li>Обсуждение итогов ребрендинга «Логика молока» и планов на 2026 год.</li></ul></div><div class="news1"><span class="bp-h">Новость</span><span class="nd num">без даты</span><a href="#"><span class="nt">Владелец бывших активов Danone в России переименуют в «Логику молока»</span><span class="src">forbes.ru<svg class="ic " width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></a></div></div></div><p class="cap">Содержимое — прод (Эйч энд эн), дата сдвинута: брифов старше 90 дней на проде сейчас нет.</p></figure><figure class="st"><figcaption>собирается · автозапуск</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">ПОлучить видео</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><span>AI-бриф</span><span class="sep">·</span><span>собираем…</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>ООО «АНФИШ»</b></span><span>собираем, около минуты</span></div><div class="bp-act"></div></div><div class="sk" style="width:96%"></div><div class="sk" style="width:90%"></div><div class="sk" style="width:58%"></div><div class="bp-cols sk-cols"><div><div class="sk" style="width:80%"></div><div class="sk" style="width:70%"></div></div><div><div class="sk" style="width:85%"></div><div class="sk" style="width:60%"></div></div></div><p class="bp-note">Запущено автоматически: у компании не было брифа. Можно закрыть страницу — бриф соберётся без неё.</p></div></div><p class="cap">Каркас повторяет раскладку готового брифа: по завершении ничего не прыгает.</p></figure><figure class="st"><figcaption>в очереди · лимит дня</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Звонить</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>AI-бриф</span><span class="sep">·</span><span>в очереди</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>ООО «СТРОЙ ПАРК»</b></span><span>брифа ещё нет</span></div><div class="bp-act"><span class="dim sm">Нужно до звонка?</span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>Собрать сейчас</button></div></div><p class="bp-note">Соберём сегодня: дневной лимит автозапуска занят — 3 из 3.</p></div></div><p class="cap">«Собрать сейчас» — ручной прогон вне лимита автозапуска (≈ $0.2).</p></figure><figure class="st"><figcaption>ничего не найдено</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Встреча с клиентом</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.94 14.06 4 20"/><path d="m12 3 1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9Z"/></svg><span>AI-бриф</span><span class="sep">·</span><span>мало данных</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>ООО «АР-СИСТЕМС»</b></span><span>3 октября · сегодня</span></div><div class="bp-act"><button class="lnk">Что искали</button><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>Обновить</button></div></div><p class="bp-note"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg> В открытых источниках о компании почти ничего нет: ни сайта, ни новостей. Контекст соберите на встрече.</p></div></div><p class="cap">Иллюстрация состояния: текст для АР-Системс условный, реального прогона не было.</p></figure><figure class="st"><figcaption>не собран · ошибка</figcaption><div data-card class="glass-sheet sheet-pad mini"><div class="sh-h"><span class="sq bg-accent text-white"><svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span><span class="sh-t text-accent">Следующий шаг</span></div><div class="glass-plate plate"><div class="step">Звонить</div></div><div class="foot"><span><span class="dim">Дата:</span> <span class="fw5">6 октября</span></span><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Шаг сделан</button><button class="pill brief" aria-expanded="true" aria-controls="bp"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>AI-бриф</span><span class="sep">·</span><span>не собран</span><svg class="ic chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="bp" id="bp" role="region" aria-label="AI-бриф компании"><div class="bp-top"><div class="bp-meta"><span>Бриф компании <b>ООО «СТРОЙ ПАРК»</b></span><span>не собран</span></div><div class="bp-act"><button class="pill"><svg class="ic " width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>Повторить сейчас</button></div></div><p class="bp-note">Поиск не ответил. Повторим автоматически через час.</p></div></div><p class="cap">Текст ошибки из <code>ai_runs.error</code> не показываем — он технический; он есть в истории прогонов компании.</p></figure></div></section>
+
+<section class="sec"><h2>5 · Что мокап не проверяет</h2>
+<ul class="plain"><li>Длину реальных брифов: <code>summary</code> на проде — 250–520 знаков, обрезка в три строки проверена на самом длинном.</li>
+<li>Как часто срабатывает автозапуск и хватает ли лимита 3/день: это решение спринта, не экрана.</li>
+<li>Клавиатуру и фокус: кнопка — <code>&lt;button aria-expanded aria-controls&gt;</code>, кольцо фокуса как у кнопки воронки в кокпите; проверка — a11y-auditor на живом коде.</li>
+<li>Остальные 5 тем — прогон после кода.</li></ul></section>
+</main>
+
+<script>
+const root = document.documentElement;
+const THEMES = ['t-minimal', 't-aura', 't-frost'];
+document.querySelectorAll('.mockup-bar button').forEach(b => {
+  b.addEventListener('click', () => {
+    THEMES.forEach(t => root.classList.remove(t));
+    root.classList.add(b.dataset.theme);
+    document.querySelectorAll('.mockup-bar button')
+      .forEach(x => x.removeAttribute('aria-current'));
+    b.setAttribute('aria-current', 'true');
+  });
+});
+document.getElementById('w').addEventListener('change', e => {
+  document.getElementById('canvas').dataset.width = e.target.value;
+});
+</script>
+
+
+</body></html>

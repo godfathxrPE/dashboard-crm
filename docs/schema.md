@@ -1544,7 +1544,7 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
   прогона за тик (не залпом: лимит провайдера по токенам в минуту). Холостой тик — один
   запрос и выход (бюджет I-1, 133). Ошибки тика **не глотаются** — видны в
   `cron.job_run_details`.
-- **Vault** (заводит владелец): `brief_auto_key` (= Function Secret `BRIEF_AUTO_KEY`),
+- **Vault** (заводит владелец; заведены 04.10): `brief_auto_key` (= Function Secret `BRIEF_AUTO_KEY`),
   `brief_auto_url` (`…/functions/v1/ai-run`), `brief_auto_jwt` (легаси-anon JWT для шлюза).
 - **Порядок включения:** apply 138 → реген типов → деплой `ai-run` → секреты. Безопасен в
   любой точке: без секретов тик выходит молча, без деплоя pg_net-вызовов нет.
@@ -4761,7 +4761,7 @@ RETURN`) — упавший проход не оставляет cron-job в о�
   refetch-страховка / `useStartRun` / `useRunRating`); UI — `AiRunPanel` + рендереры в
   `src/components/ai/`. Action item протокола → `TaskModal` (`defaultText`/
   `defaultDeadline`), принцип «AI предлагает — юзер подтверждает».
-- **Ветка диспетчера автозапуска брифа (138, S-BRIEF-IN-DEAL-1.1 — НЕ задеплоена)** —
+- **Ветка диспетчера автозапуска брифа (138, S-BRIEF-IN-DEAL-1.1 — задеплоена 04.10, v40; крон `brief-auto` включён 04.10 09:57 UTC)** —
   единственное исключение из «service_role НЕ используется». Вход — заголовок
   `X-Dispatch-Key`, проверка **до** разбора тела (`handleAutoDispatch`). Зовёт только
   `brief_auto_tick()` (pg_cron → pg_net); шлюз (`verify_jwt = true`, **не менялся**)
