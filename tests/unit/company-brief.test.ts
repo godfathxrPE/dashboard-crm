@@ -7,7 +7,9 @@ import {
   briefNote,
   pickHeadlineNews,
   newsHost,
+  newsLink,
   formatBriefMetaDate,
+  formatBriefNewsDate,
   type BriefAutoState,
   type BriefRuns,
 } from '@/lib/domain/company-brief';
@@ -186,6 +188,14 @@ describe('briefNote', () => {
     });
     expect(t).toContain('рабочую стадию');
   });
+  test('stale в очереди, но лимит 0 → без фразы про очередь', () => {
+    const t = briefNote({ kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 0 }) });
+    expect(t).not.toContain('очереди');
+  });
+  test('stale в очереди, лимит 10 → с фразой про очередь', () => {
+    const t = briefNote({ kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 10 }) });
+    expect(t).toContain('стоит в очереди автосбора');
+  });
   test('new → null', () => {
     expect(briefNote({ kind: 'new', runs: runsOf({}), auto: null })).toBeNull();
   });
@@ -214,6 +224,43 @@ describe('newsHost', () => {
   });
   test('мусор → null', () => {
     expect(newsHost('не url')).toBeNull();
+  });
+});
+
+describe('newsLink', () => {
+  test('https — адрес тот же, хост без www', () => {
+    expect(newsLink('https://www.forbes.ru/x')).toEqual({ href: 'https://www.forbes.ru/x', host: 'forbes.ru' });
+  });
+  test('javascript:, data:, ftp: → null', () => {
+    expect(newsLink('javascript:alert(1)')).toBeNull();
+    expect(newsLink('data:text/html,x')).toBeNull();
+    expect(newsLink('ftp://files.example/x')).toBeNull();
+  });
+  test('голый домен → https', () => {
+    expect(newsLink('example.com/n')?.href).toBe('https://example.com/n');
+  });
+  test('пусто и null → null', () => {
+    expect(newsLink('')).toBeNull();
+    expect(newsLink(null)).toBeNull();
+  });
+});
+
+describe('formatBriefNewsDate', () => {
+  test('YYYY-MM-DD — календарная дата', () => {
+    expect(formatBriefNewsDate('2026-09-20')).toBe('20.09.2026');
+  });
+  test('день не уезжает назад в зоне с отрицательным смещением', () => {
+    const tz = process.env.TZ;
+    try {
+      process.env.TZ = 'America/Los_Angeles';
+      expect(formatBriefNewsDate('2026-09-20')).toBe('20.09.2026');
+    } finally {
+      process.env.TZ = tz;
+    }
+  });
+  test('null и мусор → «без даты»', () => {
+    expect(formatBriefNewsDate(null)).toBe('без даты');
+    expect(formatBriefNewsDate('вчера')).toBe('без даты');
   });
 });
 

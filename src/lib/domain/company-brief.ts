@@ -1,5 +1,7 @@
 import type { AiRunRow, CompanyBriefResult } from '@/types/database';
 import { formatActionDate } from '@/lib/utils/action-date';
+import { formatCalendarDate, formatDateNumeric } from '@/lib/utils/dates';
+import { safeHref } from '@/lib/utils/safe-href';
 
 // ═══════════════════════════════════════════════════════
 // S-BRIEF-IN-DEAL-1.2: AI-бриф компании в шаге сделки — чистый домен.
@@ -136,7 +138,10 @@ export function briefNote(i: { kind: BriefKind; runs: BriefRuns; auto: BriefAuto
     }
     case 'stale': {
       const base = 'Бриф старше 90 дней: руководство и новости могли смениться.';
-      return auto?.reason === 'stale' ? `${base} Обновление стоит в очереди автосбора.` : base;
+      // Кандидаты лимит не фильтруют: при `daily_limit = 0` RPC отдаёт `reason = 'stale'`,
+      // а тик ничего не соберёт. Исчерпанный за сутки лимит — очередь есть, соберём завтра.
+      const inQueue = auto?.reason === 'stale' && auto.daily_limit > 0;
+      return inQueue ? `${base} Обновление стоит в очереди автосбора.` : base;
     }
     case 'lowData':
       return 'В открытых источниках о компании почти ничего нет. Контекст соберите на встрече.';
@@ -207,6 +212,21 @@ export function newsHost(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Ссылка новости: только схемы safeHref; host — для подписи. Нет безопасного адреса — null. */
+export function newsLink(url: string | null | undefined): { href: string; host: string | null } | null {
+  const href = safeHref(url);
+  return href ? { href, host: newsHost(href) } : null;
+}
+
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** «20.09.2026». YYYY-MM-DD — календарная дата; иная разбираемая строка — момент времени. */
+export function formatBriefNewsDate(date: string | null | undefined): string {
+  if (!date) return 'без даты';
+  if (CALENDAR_DATE.test(date)) return formatCalendarDate(date);
+  return Number.isFinite(Date.parse(date)) ? formatDateNumeric(date) : 'без даты';
 }
 
 function pad2(n: number): string {

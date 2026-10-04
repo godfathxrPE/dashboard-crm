@@ -9,7 +9,8 @@ import {
   briefAction,
   briefNote,
   formatBriefMetaDate,
-  newsHost,
+  formatBriefNewsDate,
+  newsLink,
   pickHeadlineNews,
   type BriefAutoState,
   type BriefKind,
@@ -33,12 +34,6 @@ const PILL =
   'flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-border px-2 py-0.5 ' +
   'text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main ' +
   'disabled:cursor-not-allowed disabled:opacity-50';
-
-function newsDate(date: string | null): string {
-  if (!date) return 'без даты';
-  const d = new Date(date);
-  return isNaN(d.getTime()) ? 'без даты' : d.toLocaleDateString('ru-RU');
-}
 
 function pendingMeta(kind: BriefKind): string {
   if (kind === 'running') return 'собираем, около минуты';
@@ -73,7 +68,7 @@ export function DealBriefPanel({
   const sourcesCount = Array.isArray(result?.sources) ? result.sources.length : null;
   const hooks = Array.isArray(result?.talk_hooks) ? result.talk_hooks : [];
   const news = pickHeadlineNews(result?.recent_news);
-  const host = news ? newsHost(news.url) : null;
+  const link = news ? newsLink(news.url) : null;
 
   return (
     <div
@@ -159,17 +154,22 @@ export function DealBriefPanel({
           {news && (
             <div className="flex min-w-0 max-w-[72ch] items-baseline gap-2 text-sm">
               <span className="shrink-0 text-meta font-semibold text-text-dim">Новость</span>
-              <span className="shrink-0 text-meta tabular-nums text-text-dim">{newsDate(news.date)}</span>
-              <a
-                href={news.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-w-0 items-baseline gap-1.5 hover:underline"
-              >
-                <span className="truncate">{news.title}</span>
-                {host && <span className="shrink-0 text-meta text-text-dim">{host}</span>}
-                <ExternalLink size={11} className="shrink-0 self-center text-text-dim" />
-              </a>
+              <span className="shrink-0 text-meta tabular-nums text-text-dim">{formatBriefNewsDate(news.date)}</span>
+              {link ? (
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex min-w-0 items-baseline gap-1.5 hover:underline"
+                >
+                  <span className="truncate">{news.title}</span>
+                  {link.host && <span className="shrink-0 text-meta text-text-dim">{link.host}</span>}
+                  <ExternalLink size={11} className="shrink-0 self-center text-text-dim" />
+                </a>
+              ) : (
+                // Адрес не прошёл safeHref — заголовок без ссылки, хоста и иконки.
+                <span className="min-w-0 truncate">{news.title}</span>
+              )}
             </div>
           )}
         </>
