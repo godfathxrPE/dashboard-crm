@@ -34,6 +34,10 @@ interface TodayGroupsProps {
   panel: ReactNode;
   kbdIndexOf: (id: string) => number;
   activeIndex: number;
+  /** ACT-1: сделки, по которым сегодня записан ход. */
+  writtenIds: ReadonlySet<string>;
+  /** «Разобрать по одной» у свёрнутой «Решить судьбу». */
+  onSweep: () => void;
 }
 
 function RowSkeleton() {
@@ -68,7 +72,7 @@ function collapsedSummary(g: TodayGroupView): string {
   return [items, note].filter(Boolean).join(' · ');
 }
 
-function GroupHeading({ layout, onToggle }: { layout: TodayGroupLayout; onToggle: () => void }) {
+function GroupHeading({ layout, onToggle, onSweep }: { layout: TodayGroupLayout; onToggle: () => void; onSweep: () => void }) {
   const g = layout.view;
   const label = (
     <>
@@ -78,26 +82,38 @@ function GroupHeading({ layout, onToggle }: { layout: TodayGroupLayout; onToggle
   );
 
   if (layout.collapsible) {
+    const sweep = layout.collapsed && g.key === 'decide' && g.rows.length > 0;
     return (
-      <button
-        type="button"
-        aria-expanded={!layout.collapsed}
-        onClick={onToggle}
-        className="flex w-full items-baseline gap-x-2 border-t border-border px-4 py-2.5 text-left transition-colors queue-row-hover"
-      >
-        <ChevronRight
-          size={14}
-          aria-hidden="true"
-          className={cn('shrink-0 self-start mt-0.5 text-text-mute transition-transform', !layout.collapsed && 'rotate-90')}
-        />
-        {label}
-        <span className={cn('min-w-0 flex-1 text-text-dim', layout.collapsed ? 'text-body' : 'text-xs')}>
-          {layout.collapsed ? collapsedSummary(g) : TODAY_GROUP_RULES[g.key]}
-        </span>
-        {!layout.collapsed && g.inMoves > 0 && (
-          <span className="shrink-0 text-xs text-text-mute">{inMovesText(g.inMoves)}</span>
+      <div className="flex items-baseline gap-2 border-t border-border pr-4">
+        <button
+          type="button"
+          aria-expanded={!layout.collapsed}
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-baseline gap-x-2 py-2.5 pl-4 text-left transition-colors queue-row-hover"
+        >
+          <ChevronRight
+            size={14}
+            aria-hidden="true"
+            className={cn('shrink-0 self-start mt-0.5 text-text-mute transition-transform', !layout.collapsed && 'rotate-90')}
+          />
+          {label}
+          <span className={cn('min-w-0 flex-1 text-text-dim', layout.collapsed ? 'text-body' : 'text-xs')}>
+            {layout.collapsed ? collapsedSummary(g) : TODAY_GROUP_RULES[g.key]}
+          </span>
+          {!layout.collapsed && g.inMoves > 0 && (
+            <span className="shrink-0 text-xs text-text-mute">{inMovesText(g.inMoves)}</span>
+          )}
+        </button>
+        {sweep && (
+          <button
+            type="button"
+            onClick={onSweep}
+            className="inline-flex min-h-7 shrink-0 items-center whitespace-nowrap rounded px-1.5 text-xs font-medium text-text-main underline-offset-2 hover:underline"
+          >
+            Разобрать по одной
+          </button>
         )}
-      </button>
+      </div>
     );
   }
 
@@ -114,7 +130,7 @@ function GroupHeading({ layout, onToggle }: { layout: TodayGroupLayout; onToggle
 /** Список «Сделки в работе»: один лист, группы по типу решения (макет, кадр 1). */
 export function TodayGroups({
   loading, total, noStepAhead, noAmount, layout, onToggleGroup, onShowAll, openRowId, onToggleRow, panel,
-  kbdIndexOf, activeIndex,
+  kbdIndexOf, activeIndex, writtenIds, onSweep,
 }: TodayGroupsProps) {
   const visibleGroups = layout.filter((l) => l.view.total > 0);
 
@@ -158,7 +174,7 @@ export function TodayGroups({
       ) : (
         visibleGroups.map((l) => (
           <div key={l.view.key}>
-            <GroupHeading layout={l} onToggle={() => onToggleGroup(l.view.key)} />
+            <GroupHeading layout={l} onToggle={() => onToggleGroup(l.view.key)} onSweep={onSweep} />
             {l.rows.map((v) => (
               <div key={v.source.id}>
                 <TodayDealRow
@@ -167,6 +183,7 @@ export function TodayGroups({
                   onToggle={() => onToggleRow(v.source.id)}
                   kbdIndex={kbdIndexOf(v.source.id)}
                   focused={activeIndex === kbdIndexOf(v.source.id)}
+                  writtenToday={writtenIds.has(v.source.id)}
                 />
                 {openRowId === v.source.id && panel}
               </div>

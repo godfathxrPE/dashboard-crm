@@ -12,6 +12,8 @@ interface TodayDealRowProps {
   onToggle: () => void;
   kbdIndex: number;
   focused: boolean;
+  /** ACT-1: по сделке сегодня записан ход — строка стоит на месте до перезагрузки. */
+  writtenToday?: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ interface TodayDealRowProps {
  * сигнал риска — `--warning-text`. Точек-маркеров нет. `--accent` для смысла не
  * берётся: в `t-washi` он равен красному.
  */
-export function TodayDealRow({ view, expanded, onToggle, kbdIndex, focused }: TodayDealRowProps) {
+export function TodayDealRow({ view, expanded, onToggle, kbdIndex, focused, writtenToday }: TodayDealRowProps) {
   const { source, cls } = view;
   const step = source.next_step?.trim();
   const due = dueText(view);
@@ -82,7 +84,9 @@ export function TodayDealRow({ view, expanded, onToggle, kbdIndex, focused }: To
             </span>
           )}
         </span>
-        {after && (
+        {writtenToday ? (
+          <span className="block text-xs text-success-text">записано сегодня</span>
+        ) : after && (
           <span className={cn('block text-xs', view.after.kind === 'signals' ? 'text-warning-text' : 'text-text-dim')}>
             {after}
           </span>

@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/Button';
 import { pluralRu } from '@/lib/utils/plural';
 import type { TodayDealView } from '@/lib/domain/today-model';
 import { TodayMoveCard } from './TodayMoveCard';
@@ -13,8 +14,13 @@ interface TodayMovesProps {
   loading: boolean;
   openId: string | null;
   onToggle: (id: string) => void;
-  onPlan: (view: TodayDealView) => void;
-  onSnooze: (view: TodayDealView) => void;
+  /** Ход сделан — подпись итога и «Вернуть»; `null` — ход не сделан. */
+  doneOf: (view: TodayDealView) => { text: string; onRestore?: () => void; restoring?: boolean } | null;
+  renderActions: (view: TodayDealView, extra: ReactNode) => ReactNode;
+  /** Все ходы набора сделаны — карточки свёрнуты в строку. */
+  allDone: boolean;
+  /** «Взять ещё ход»; `null` — кандидатов нет, кнопки нет. */
+  onTakeMore: (() => void) | null;
   /** Панель открытой карточки — под рядом карточек. */
   panel: ReactNode;
   kbdIndexOf: (id: string) => number;
@@ -31,9 +37,14 @@ function CardSkeleton() {
   );
 }
 
-/** Ходы дня: три карточки (макет, кадр 1). Заголовок стоит и во время загрузки. */
+/**
+ * Ходы дня (макет, кадры 1, 5, 10). Заголовок стоит и во время загрузки. Все ходы
+ * набора сделаны — карточки сворачиваются в строку: лимит защищает день, следующий
+ * ход берётся только кнопкой.
+ */
 export function TodayMoves({
-  moves, assignedCount, limit, loading, openId, onToggle, onPlan, onSnooze, panel, kbdIndexOf, activeIndex,
+  moves, assignedCount, limit, loading, openId, onToggle, doneOf, renderActions, allDone, onTakeMore, panel,
+  kbdIndexOf, activeIndex,
 }: TodayMovesProps) {
   return (
     <section aria-label="Ходы на сегодня" className="mb-6">
@@ -54,6 +65,22 @@ export function TodayMoves({
         <p className="sheet px-4 py-3 text-xs text-text-dim">
           Ходов на сегодня нет: назначенного нет, сорванных и устаревших шагов тоже.
         </p>
+      ) : allDone ? (
+        <div className="sheet flex flex-wrap items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-text-main">
+              {moves.length} из {moves.length} {pluralRu(moves.length, 'хода', 'ходов', 'ходов')} сделано
+            </p>
+            <p className="text-xs text-text-dim">
+              {moves.map((v) => v.source.name).join(', ')} — шаги записаны в сделки
+            </p>
+          </div>
+          {onTakeMore && (
+            <Button size="sm" variant="secondary" onClick={onTakeMore} className="whitespace-nowrap">
+              Взять ещё ход
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="today-cards">
           {moves.map((v, i) => (
@@ -62,11 +89,10 @@ export function TodayMoves({
               view={v}
               slot={v.slot ?? 'fill'}
               number={i + 1}
-              primary={i === 0}
               expanded={openId === v.source.id}
               onToggle={() => onToggle(v.source.id)}
-              onPlan={() => onPlan(v)}
-              onSnooze={() => onSnooze(v)}
+              done={doneOf(v)}
+              renderActions={(extra) => renderActions(v, extra)}
               kbdIndex={kbdIndexOf(v.source.id)}
               focused={activeIndex === kbdIndexOf(v.source.id)}
             />
@@ -80,7 +106,7 @@ export function TodayMoves({
         </p>
       )}
 
-      {panel && <div className="mt-3">{panel}</div>}
+      {panel && !allDone && <div className="mt-3">{panel}</div>}
     </section>
   );
 }

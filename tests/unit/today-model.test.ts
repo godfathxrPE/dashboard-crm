@@ -219,3 +219,33 @@ describe('touchesSinceKey', () => {
     expect(touchesSinceKey([{ next_action_date: '2026-01-10' }], NOW)).toBe('2026-06-05');
   });
 });
+
+// ── S-TODAY-V3-ACT-1: набор дня и группа показа ───────────
+
+describe('buildTodayModel: picked и pinnedGroups', () => {
+  it('picked = [hn, glorus] → ходы в этом порядке; glorus вне строк stale; lorenz и nytva — строки fresh', () => {
+    const model = buildTodayModel(input({ picked: ['hn', 'glorus'] }), NOW);
+    expect(model.moves.map((v) => v.source.id)).toEqual(['hn', 'glorus']);
+    expect(group(model, 'stale').rows.map((v) => v.source.id)).not.toContain('glorus');
+    expect(group(model, 'stale').inMoves).toBe(1);
+    expect(group(model, 'fresh').rows.map((v) => v.source.id)).toEqual(expect.arrayContaining(['lorenz', 'nytva']));
+    expect(model.computed.map((m) => m.id)).toEqual(['lorenz', 'nytva', 'hn']);
+  });
+
+  it('picked с id, которого нет среди сделок → пропущен без ошибки', () => {
+    const model = buildTodayModel(input({ picked: ['нет-такой', 'hn'] }), NOW);
+    expect(model.moves.map((v) => v.source.id)).toEqual(['hn']);
+  });
+
+  it('pinnedGroups ar → fresh при шаге впереди: строка в fresh, в plan её нет; fresh.total 3; noStepAhead 13', () => {
+    const ahead = deals().map((d) => (d.id === 'ar' ? { ...d, next_action_date: '2026-10-06' } : d));
+    const model = buildTodayModel(
+      input({ deals: ahead, picked: ['lorenz', 'nytva', 'hn'], pinnedGroups: new Map([['ar', 'fresh' as const]]) }),
+      NOW,
+    );
+    expect(group(model, 'fresh').rows.map((v) => v.source.id)).toContain('ar');
+    expect(group(model, 'plan').rows.map((v) => v.source.id)).not.toContain('ar');
+    expect(group(model, 'fresh').total).toBe(3);
+    expect(model.noStepAhead).toBe(13);
+  });
+});
