@@ -107,3 +107,15 @@ describe('CompanyBriefRenderer — секция «Маркировка»', () =>
     expect(screen.queryByText(/не найдено/)).toBeNull();
   });
 });
+
+describe('CompanyBriefRenderer — «Свежие события»', () => {
+  it('дата новости в формате проекта, а не ISO', () => {
+    render(
+      <CompanyBriefRenderer
+        result={brief({ recent_news: [{ title: 'Новость', url: 'https://example.com/n', date: '2026-09-20' }] })}
+      />,
+    );
+    expect(screen.getByText('20.09.2026')).toBeTruthy();
+    expect(screen.queryByText('2026-09-20')).toBeNull();
+  });
+});

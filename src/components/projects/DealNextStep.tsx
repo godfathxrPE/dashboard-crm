@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils/cn';
 import { formatContactName } from '@/lib/utils/contact-name';
 import { formatActionDate } from '@/lib/utils/action-date';
 import { ContactCallChip } from '@/components/shared/ContactCallChip';
+import { useDealBrief } from '@/lib/hooks/use-deal-brief';
+import { DealBriefButton } from './DealBriefButton';
+import { DealBriefPanel } from './DealBriefPanel';
 
 // ═══════════════════════════════════════════════════════
 // S-DEAL-RAIL-1 (R-09): «Следующий шаг» — рабочая зона левой колонки.
@@ -56,6 +59,8 @@ export function DealNextStep({ project }: { project: Project }) {
 
   // Визитка основного контакта: запрос сделки несёт только имя (см. use-contact-brief).
   const { data: primaryContact } = useContactBrief(project.contact_id);
+  // S-BRIEF-IN-DEAL-1.2: AI-бриф компании сделки. Нет компании — ни кнопки, ни панели.
+  const brief = useDealBrief(project.company_id ?? null);
   // Чип без телефона и почты не рисуем: имя без способа связи — это не «в один клик».
   const showChip = !!primaryContact && !!(primaryContact.phone || primaryContact.email);
 
@@ -165,6 +170,13 @@ export function DealNextStep({ project }: { project: Project }) {
               Шаг сделан
             </button>
           )}
+          {/* S-BRIEF-IN-DEAL-1.2: кнопка брифа — в ЛЕВОЙ группе, сразу после «Шаг
+              сделан»: группа отвечает «что делаем с шагом», а бриф — подготовка к
+              нему. В правой группе (у чипа) на 1280 с сайдбаром футер давал третью
+              строку — замер мокапа. Нет шага — встаёт после даты и пометок. */}
+          {project.company_id && (
+            <DealBriefButton kind={brief.kind} runs={brief.runs} open={brief.open} onToggle={brief.toggle} />
+          )}
           {/* ⚠️ «БЕЗ КАСАНИЯ», а не «без ответа» из спеки. Направления у касания в
               схеме нет, поля «кого ждём» нет, входящих событий система не знает
               вовсе — печатать «N дн. без ответа» по числу дней с НАШЕГО последнего
@@ -194,6 +206,20 @@ export function DealNextStep({ project }: { project: Project }) {
             </div>
           )}
         </div>
+
+        {/* Панель брифа — внутри того же стекла, под футером (решение владельца
+            03.10): рельса «Контекст» бриф не получает, «справа может потеряться». */}
+        {project.company_id && brief.open && (
+          <DealBriefPanel
+            companyName={project.company?.name ?? null}
+            kind={brief.kind}
+            runs={brief.runs}
+            auto={brief.auto}
+            canRun={brief.canRun}
+            starting={brief.starting}
+            onRun={brief.run}
+          />
+        )}
       </div>
 
       {/* Вердикт отсюда УБРАН (S-DEAL-ZONES-1B): он переехал в зону «Риски», к
