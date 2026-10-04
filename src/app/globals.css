@@ -1874,6 +1874,40 @@ table { font-variant-numeric: tabular-nums; }
     }
   }
 
+  /* S-TODAY-V3-SCREEN-1: экран «Сегодня» — раскладка по ширине КОНТЕНТА, а не экрана
+     (довод .deal-org-split: ширину съедает сайдбар, и при 1280 контент уже 1440 на
+     целую колонку). Контейнер один — корень экрана; карточки ходов, строки сделок и
+     раскрытая панель меряются от него.
+     «Мобайл-ферст»: одна колонка по умолчанию. С 40rem — сетка строки с узкой второй
+     колонкой (8rem, 1280), с 66rem — полная `minmax(0,1fr) 9.5rem 15rem` (1440).
+     Три карточки и три колонки панели — с 52rem. */
+  .today-cq { container-type: inline-size; }
+  .today-cards,
+  .today-panel-cols,
+  .today-row-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .today-cards { gap: 0.75rem; }
+  .today-panel-cols { gap: 1.25rem; }
+  .today-row-grid { gap: 0.25rem 1.25rem; }
+  .today-row-head { display: none; }
+  /* В одну колонку сумма и срок встают под названием — с отступом шеврона. */
+  .today-row-sub { padding-left: 1.25rem; }
+  @container (min-width: 40rem) {
+    .today-row-grid { grid-template-columns: minmax(0, 1fr) 8rem 15rem; }
+    .today-row-head { display: grid; }
+    .today-row-amount { text-align: right; }
+    .today-row-sub { padding-left: 0; }
+  }
+  @container (min-width: 52rem) {
+    .today-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .today-panel-cols { grid-template-columns: 1.1fr 1.3fr 0.8fr; }
+  }
+  @container (min-width: 66rem) {
+    .today-row-grid { grid-template-columns: minmax(0, 1fr) 9.5rem 15rem; }
+  }
+
   /* S-LEAD-V2-WORK-1 (спека §5): квалификация лида — раскладка по ширине БЛОКА,
      приём .deal-org-split выше (довод тот же: при 1280 зона «Работа» узкая, и
      viewport-брейкпоинт развёл бы колонки там, где им тесно). Три случая —
