@@ -237,11 +237,11 @@ export function buildTodayModel(
 ): TodayModel;
 ```
 
-- Вход `deals` уже отфильтрован вызывающим: `type === 'client'` и `isProjectActive`. `calls` и `meetings` — уже «мои».
+- Вход `deals` уже отфильтрован вызывающим: `type === 'client'`, `status === 'open'` и `isProjectActive`. `calls` и `meetings` — уже «мои».
 - `planned` — ближайшее из встреч и `pending`-звонков сделки с днём сегодня или позже. Время встречи — `time`, время звонка — `mskTime(date)`.
 - `amount` — `dealHeaderAmount(quotes, budget)`. `noAmount` — число сделок с `amount.amount === null`.
 - `groups` — все пять групп в порядке `TODAY_GROUP_ORDER`, пустые тоже (экран решает, что скрыть).
-- `after` — по порядку: шаг просрочен и `touchedAfterDue` → `touched_after_due`; просрочен, группа `fresh` → `silence_after_due`; просрочен, группа `decide`, последнее касание есть → `silence_since`, нет → `no_touches`; шаг впереди и есть сигналы → `signals`; шага нет и есть `planned` → `planned`; иначе последнее касание есть → `last_touch`, нет → `no_touches`. `wholeLife` — `mskDateKey(created_at) >= sinceKey` (вход модели получает `sinceKey`).
+- `after` — по порядку: шаг просрочен, группа `stale` → `touched_after_due`; просрочен, группа `fresh` → `silence_after_due`; просрочен, группа `decide`, последнее касание есть → `silence_since`, нет → `no_touches`; шаг впереди и есть сигналы → `signals`; шага нет и есть `planned` → `planned`; иначе последнее касание есть → `last_touch`, нет → `no_touches`. `wholeLife` — `mskDateKey(created_at) >= sinceKey` (вход модели получает `sinceKey`).
 - `tasks` и `calls` — то, что раньше стояло отдельными строками экрана: теперь оно внутри сделки и не должно пропасть.
 - `noStepAhead` и `total` считают и отложенные сделки: это факт о книге, а не о видимых строках.
 - Имена полей `tasks.text`, `calls.date`, `meetings.time` сверить с типами `Task`, `Call`, `Meeting` и поправить сигнатуру под них, не наоборот.
@@ -411,13 +411,13 @@ export function buildTodayModel(
 
 - `now = 2026-10-03T19:00:00+03:00`: `total` 17, `noStepAhead` 14, `noAmount` 11;
 - `moves` → `lorenz`, `nytva`, `hn`;
-- `groups`: `fresh` `total` 3, `inMoves` 2, строки — `ar`; `decide` `total` 6, `inMoves` 1, пять строк; `stale` пять строк; `risk` — `fitnes`; `plan` две строки;
+- `groups`: `fresh` `total` 3, `inMoves` 2, строки — `ar`; `decide` `total` 8, `inMoves` 1, семь строк; `stale` три строки; `risk` — `fitnes`; `plan` две строки;
 - `fitnes`: `signals` — `quote_expired` и `task_overdue`; в `tasks` одна задача, `overdue`;
 - `ar` отложена → её нет ни в `moves`, ни в строках; она в `snoozed`; `noStepAhead` по-прежнему 14; второй ход по-прежнему `nytva`;
 - звонок `pending` сегодня в 11:00 по сделке `stroy` → `planned.time` `'11:00'`, сделка в `moves` первой со слотом `assigned`;
 - задача без `project_id` на модель не влияет;
 - задача сделки `lane = 'now'` без дедлайна → есть в `tasks`, `overdue` `false`, сигнала нет;
-- `after`: `lorenz` и `ar` → `silence_after_due`; `glorus` → `touched_after_due`, день 2026-09-30, вид `stage`; `hn` → `silence_since`, день 2026-09-17; `agros` → `no_touches`; `fitnes` → `signals`; `stroy` → `last_touch`, день 2026-10-02;
+- `after`: `lorenz` и `ar` → `silence_after_due`; `glorus` → `touched_after_due`, день 2026-09-30, вид `stage`; `hn` → `silence_since`, день 2026-09-17; `mdm` → `silence_since`, день 2026-09-16; `agros` → `no_touches`; `fitnes` → `signals`; `stroy` → `last_touch`, день 2026-10-02;
 - `no_touches`: сделка создана позже `sinceKey` → `wholeLife` `true`; раньше → `false`;
 - `candidates` — 17 элементов; `computed` совпадает с `moves` по id и порядку;
 - пустой вход → пять пустых групп, нули в счётчиках.

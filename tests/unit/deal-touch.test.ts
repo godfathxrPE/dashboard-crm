@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  TOUCH_EVENT_TYPES,
   dropStageBounces,
   lastTouchAt,
   touchKindOfActivity,
@@ -35,6 +36,12 @@ describe('touchKindOfActivity', () => {
     'что-то-новое',
   ])('%s → null', (eventType) => {
     expect(touchKindOfActivity(eventType)).toBeNull();
+  });
+
+  it('каждый тип из TOUCH_EVENT_TYPES — касание: список запроса и таблица видов не расходятся', () => {
+    for (const eventType of TOUCH_EVENT_TYPES) {
+      expect(touchKindOfActivity(eventType)).not.toBeNull();
+    }
   });
 });
 

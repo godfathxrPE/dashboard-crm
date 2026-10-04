@@ -81,12 +81,34 @@ describe('classifyDeal', () => {
     expect(c.overdueDays).toBe(15);
   });
 
-  it('срок 40 дней назад, касание через день после срока, дальше тишина → stale', () => {
+  it('срок 40 дней назад, касание через день после срока, дальше тишина → decide', () => {
     const c = classifyDeal(
       input({ next_action_date: '2026-08-24', touches: [{ at: noon('2026-08-25'), kind: 'note' }] }),
       NOW,
     );
     expect(c.overdueDays).toBe(40);
+    expect(c.touchedAfterDue).toBe(true);
+    expect(c.group).toBe('decide');
+  });
+
+  it('касание после срока: тишина 14 дней → stale; 15 дней → decide', () => {
+    const at = (day: string) =>
+      classifyDeal(input({ next_action_date: '2026-08-24', touches: [{ at: noon(day), kind: 'note' }] }), NOW).group;
+    expect(at('2026-09-19')).toBe('stale');
+    expect(at('2026-09-18')).toBe('decide');
+  });
+
+  it('тишина считается от последнего касания, а не от первого после срока', () => {
+    const c = classifyDeal(
+      input({
+        next_action_date: '2026-08-24',
+        touches: [
+          { at: noon('2026-08-25'), kind: 'note' },
+          { at: noon('2026-10-01'), kind: 'call' },
+        ],
+      }),
+      NOW,
+    );
     expect(c.group).toBe('stale');
   });
 
@@ -370,14 +392,14 @@ describe('эталон: снимок 03.10.2026', () => {
     expect(TODAY_2026_10_03).toHaveLength(17);
   });
 
-  it('03.10 19:00 МСК: группы 3/1/5/6/2, без шага впереди 14, ходы Лоренц · Нытва · ЭЙЧ ЭНД ЭН', () => {
+  it('03.10 19:00 МСК: группы 3/1/3/8/2, без шага впереди 14, ходы Лоренц · Нытва · ЭЙЧ ЭНД ЭН', () => {
     const now = new Date('2026-10-03T19:00:00+03:00');
     const list = classifySnapshot(now);
     const groups = groupsOf(list);
     expect(groups.fresh).toEqual(['lorenz', 'ar', 'nytva']);
     expect(groups.risk).toEqual(['fitnes']);
-    expect(groups.stale).toEqual(['glorus', 'prodfond', 'hleb', 'rodina', 'mdm']);
-    expect(groups.decide).toEqual(['hn', 'lid', 'rus', 'agroh', 'agros', 'zerde']);
+    expect(groups.stale).toEqual(['glorus', 'hleb', 'rodina']);
+    expect(groups.decide).toEqual(['prodfond', 'mdm', 'hn', 'lid', 'rus', 'agroh', 'agros', 'zerde']);
     expect(groups.plan).toEqual(['stroy', 'anfish']);
     expect(countNoStepAhead(list.map((c) => c.cls))).toBe(14);
     expect(pickMoves(list, 3)).toEqual([

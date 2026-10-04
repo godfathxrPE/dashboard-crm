@@ -24,7 +24,7 @@ export type TodayGroup = 'fresh' | 'risk' | 'stale' | 'decide' | 'plan';
 export const TODAY_GROUP_ORDER: readonly TodayGroup[] = ['fresh', 'risk', 'stale', 'decide', 'plan'];
 
 export interface TodayThresholds {
-  /** Дней тишины после срока, после которых «сорвано» становится «решить судьбу». */
+  /** Дней тишины, после которых сделка без шага впереди уходит в «решить судьбу». */
   decideDays: number;
   /** Ходов на день. */
   movesLimit: number;
@@ -140,17 +140,15 @@ export interface TodayDealClass {
  * Группа сделки экрана «Сегодня». Порядок проверок — таблица спринта:
  *
  * 1. шаг впереди, сигналов нет → `plan`;          2. шаг впереди, сигнал есть → `risk`;
- * 3. срок прошёл, касание после дня срока → `stale`;
- * 4. срок прошёл, тишина ≤ decideDays → `fresh`; 5. тишина > decideDays → `decide`;
+ * 3. срок прошёл, касание после дня срока, от последнего касания ≤ decideDays → `stale`;
+ *    касание после дня срока было, но тишина после него > decideDays → `decide`;
+ * 4. срок прошёл, касаний после нет, просрочка ≤ decideDays → `fresh`; 5. > decideDays → `decide`;
  * 6. шага нет, есть встреча/звонок впереди → `plan`;
  * 7. шага нет, тишина ≤ decideDays → `stale`;     8. тишина > decideDays → `decide`.
  *
  * Трихотомию «впереди / просрочен / нет шага» даёт `getDealHealth` — второй формулы
  * нет. Проверок `status` сверх её собственной тоже нет: вызывающий код отдаёт только
  * сделки экрана (спека, п. 2).
- *
- * ⚠️ «Касание сразу после срока, потом тишина» — `stale`, даже если тишина длится
- * месяц (правило 3 не смотрит на давность касания). Так согласовано владельцем.
  */
 export function classifyDeal(
   input: TodayDealInput,
@@ -191,8 +189,14 @@ export function classifyDeal(
   if (health === 'ok') {
     group = input.signals.length > 0 ? 'risk' : 'plan';
   } else if (health === 'overdue-action') {
-    if (touchedAfterDue) group = 'stale';
-    else group = (overdueDays ?? 0) <= thresholds.decideDays ? 'fresh' : 'decide';
+    if (touchedAfterDue && lastTouchAt) {
+      // Касание после срока держит сделку в «Обновить шаг», пока оно свежее. Дальше —
+      // та же тишина, что у сделки без шага (правила 7–8): порог один на оба случая.
+      const silentDays = diffDaysKey(mskDateKey(lastTouchAt), eventTodayKey);
+      group = silentDays <= thresholds.decideDays ? 'stale' : 'decide';
+    } else {
+      group = (overdueDays ?? 0) <= thresholds.decideDays ? 'fresh' : 'decide';
+    }
   } else if (input.planned) {
     group = 'plan';
   } else {
