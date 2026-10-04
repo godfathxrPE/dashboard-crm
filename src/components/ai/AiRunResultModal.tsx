@@ -1,7 +1,8 @@
 'use client';
 
 import { runErrorText } from '@/lib/domain/ai-run-error';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Sparkles, Copy, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { presetTitle, PROGRESSION_PRESET_KEY } from '@/lib/constants/ai-presets';
 import { serializeRun } from '@/lib/utils/ai-run-serialize';
@@ -18,6 +19,36 @@ import type { AiRunRow } from '@/types/database';
  */
 export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // Зависимость — id, не объект: React Query на рефетче отдаёт новый объект,
+  // и фокус прыгал бы на «Закрыть» посреди чтения.
+  const runId = run?.id ?? null;
+
+  // A11y (S-BRIEF-IN-DEAL-1.2): в модалку входят с клавиатуры («AI-бриф» → «Весь бриф»).
+  // Фокус — на «Закрыть»; по закрытию — обратно на элемент, с которого открыли.
+  useEffect(() => {
+    if (!runId) return;
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => {
+      if (opener && opener.isConnected) opener.focus();
+    };
+  }, [runId]);
+
+  // Esc — capture на window: модалка верхний слой, слушатели `document` под ней
+  // (peek, меню) нажатие получить не должны.
+  useEffect(() => {
+    if (!runId) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onCloseRef.current();
+    }
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [runId]);
 
   if (!run) return null;
 
@@ -34,12 +65,14 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
   });
   const hasText = serializeRun(run).trim().length > 0;
 
-  return (
+  // Портал в body: у предка с `backdrop-filter` (стекло `DealNextStep`) `fixed`-оверлей
+  // растягивается по предку, а не по окну, и правила стекла перекрашивают текст.
+  // `run` приходит только из клика — на сервере он null, до `document` не доходим.
+  return createPortal(
     <div
       data-modal-overlay
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
-      aria-hidden="true"
     >
       <div
         data-modal
@@ -60,6 +93,8 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
             </p>
           </div>
           <button
+            ref={closeRef}
+            type="button"
             onClick={onClose}
             aria-label="Закрыть"
             className="shrink-0 rounded-lg p-1 text-text-mute hover:bg-surface2"
@@ -118,7 +153,8 @@ export function AiRunResultModal({ run, onClose }: { run: AiRunRow | null; onClo
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -4,6 +4,7 @@ import { Calculator, ExternalLink, Search } from 'lucide-react';
 import type { CompanyBriefResult } from '@/types/database';
 import { matchChzGroups, chzStatusLabel } from '@/lib/data/chz-groups';
 import { safeHref } from '@/lib/utils/safe-href';
+import { formatBriefNewsDate } from '@/lib/domain/company-brief';
 
 /**
  * S-COMPANY-AI-1 (104) — бриф по компании из открытых источников. READ-ONLY.
@@ -121,7 +122,7 @@ export function CompanyBriefRenderer({
           <ul className="space-y-1">
             {result.recent_news.map((n, i) => (
               <li key={i} className="text-text-main">
-                {n.date && <span className="mr-1 text-xs tabular-nums text-text-mute">{n.date}</span>}
+                {n.date && <span className="mr-1 text-xs tabular-nums text-text-mute">{formatBriefNewsDate(n.date)}</span>}
                 <span className="whitespace-pre-wrap">{n.title}</span>{' '}
                 <SourceLink url={n.url} label="ссылка" />
               </li>
