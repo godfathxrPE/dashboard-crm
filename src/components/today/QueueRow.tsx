@@ -40,7 +40,9 @@ export function QueueRow({ marker, title, subtitle, meta, onOpen, primary, secon
       onClick={onOpen}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className={cn(
-        'group -mx-2 flex cursor-pointer items-center gap-3 rounded-lg border-b border-border px-2 py-2.5 transition-colors',
+        // F-07: без скругления — `rounded-lg` вместе с `border-b` загибал разделитель
+        // по краям и рисовал «скобку» под строкой. Hover-подложка остаётся.
+        'group -mx-2 flex cursor-pointer items-center gap-3 border-b border-border px-2 py-2.5 transition-colors',
         focused ? 'kbd-focus-row' : 'queue-row-hover',
       )}
     >

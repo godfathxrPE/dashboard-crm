@@ -78,15 +78,6 @@ function longestZeroRun(points: readonly PulsePoint[]): SilenceGap {
 }
 
 /**
- * Разрыв тишины В ПРЕДЕЛАХ последних `n` дней среза `days` — отдельно от
- * `longestSilence` за все 30, чтобы тепловая полоса (14 дней) и её заголовок
- * говорили про одно и то же число, а не про разные окна (W2 ревью).
- */
-export function silenceWithin(days: readonly PulsePoint[], n: number): SilenceGap {
-  return longestZeroRun(days.slice(-n));
-}
-
-/**
  * Календарные ключи 30 дней окна, от now−29 до now включительно. МСК — фиксированный
  * офсет (без перевода часов), поэтому шаг «минус 24ч в UTC» = «минус один календарный
  * день в МСК» без расхождений на границе. Одно окно на `buildDealPulse` и `buildPulseDays`.

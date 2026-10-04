@@ -105,3 +105,76 @@ export function lastTouchAt(touches: readonly DealTouch[], now: Date): string | 
   }
   return best;
 }
+
+// ── S-TODAY-V3-SCREEN-1: сборка касаний из строк запроса ──
+//
+// Вход — сырые строки двух запросов (`notes` + `activity_log`), выход — касания по
+// сделкам. Хук (`use-deal-touches.ts`) только запрашивает и зовёт эту функцию:
+// вся логика отбора живёт здесь, где её видит тест.
+
+export interface NoteTouchRow { project_id: string | null; created_at: string | null; kind: string | null }
+export interface ActivityTouchRow {
+  project_id: string | null;
+  event_type: string;
+  created_at: string | null;
+  payload: unknown;
+}
+
+/** Строковое поле объекта `payload`; всё остальное (не объект, массив, не строка) — `null`. */
+function payloadString(payload: unknown, key: string): string | null {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return null;
+  // `Reflect.get` вместо приведения `as Record<…>`: тип значения честно `unknown`.
+  const value: unknown = Reflect.get(payload, key);
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+/** Касания по сделкам: заметки + события журнала, отскоки стадии сняты. */
+export function touchesFromRows(
+  notes: readonly NoteTouchRow[],
+  activity: readonly ActivityTouchRow[],
+): Map<string, DealTouch[]> {
+  const out = new Map<string, DealTouch[]>();
+  const push = (projectId: string, touch: DealTouch) => {
+    const list = out.get(projectId);
+    if (list) list.push(touch);
+    else out.set(projectId, [touch]);
+  };
+
+  for (const n of notes) {
+    if (!n.project_id || !n.created_at) continue;
+    // `stage_comment` — часть смены стадии, а не отдельное касание: иначе комментарий
+    // к отскоку стадии остался бы касанием, когда сам отскок снят.
+    if (n.kind !== 'note') continue;
+    push(n.project_id, { at: n.created_at, kind: 'note' });
+  }
+
+  const stageRows = new Map<string, StageChangeRow[]>();
+  for (const a of activity) {
+    if (!a.project_id || !a.created_at) continue;
+    const kind = touchKindOfActivity(a.event_type);
+    if (kind === null) continue;
+    if (kind === 'stage') {
+      const row: StageChangeRow = {
+        at: a.created_at,
+        fromStageId: payloadString(a.payload, 'from_stage_id'),
+        toStageId: payloadString(a.payload, 'to_stage_id'),
+      };
+      const list = stageRows.get(a.project_id);
+      if (list) list.push(row);
+      else stageRows.set(a.project_id, [row]);
+      continue;
+    }
+    push(a.project_id, { at: a.created_at, kind });
+  }
+
+  // Отскок снимается по каждой сделке отдельно: пара «A→B, B→A» двух разных сделок —
+  // не отскок, а два независимых перемещения.
+  for (const [projectId, rows] of stageRows) {
+    for (const r of dropStageBounces(rows)) push(projectId, { at: r.at, kind: 'stage' });
+  }
+
+  for (const list of out.values()) {
+    list.sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime());
+  }
+  return out;
+}

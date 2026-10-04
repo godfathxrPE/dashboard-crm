@@ -11,6 +11,12 @@ interface UseKeyboardNavOptions {
   onPeek?: (index: number) => void;
   /** D — primary-действие focused-строки (экран «Сегодня») */
   onAction?: (index: number) => void;
+  /**
+   * Дополнительные клавиши строки: ключ — `e.code` (`'KeyO'`), не зависит от раскладки.
+   * Зовутся только при выбранной строке и не раньше 600 мс после `G` — как `D`:
+   * `G O` — глобальный переход, и строка не должна перехватить его вторую букву.
+   */
+  onKeys?: Record<string, (index: number) => void>;
   /** Escape — дополнительно к сбросу фокуса (напр. закрыть peek) */
   onEscape?: () => void;
   /** Дополнительный gate: видимость списка, арбитраж между двумя таблицами */
@@ -25,6 +31,7 @@ export function useKeyboardNav({
   onSelect,
   onPeek,
   onAction,
+  onKeys,
   onEscape,
   isActive,
   containerRef,
@@ -33,8 +40,8 @@ export function useKeyboardNav({
   const [activeIndex, setActiveIndex] = useState(-1);
   const activeIndexRef = useRef(activeIndex);
   activeIndexRef.current = activeIndex;
-  const cbRef = useRef({ onSelect, onPeek, onAction, onEscape, isActive });
-  cbRef.current = { onSelect, onPeek, onAction, onEscape, isActive };
+  const cbRef = useRef({ onSelect, onPeek, onAction, onKeys, onEscape, isActive });
+  cbRef.current = { onSelect, onPeek, onAction, onKeys, onEscape, isActive };
   // 'G' — префикс глобальной навигации (Hotkeys: G-D → дашборд), глушим 'D' сразу после него
   const gPressedAt = useRef(0);
 
@@ -88,6 +95,12 @@ export function useKeyboardNav({
       } else if (e.key === 'Escape') {
         setActiveIndex(-1);
         cbRef.current.onEscape?.();
+      } else if (cbRef.current.onKeys?.[e.code]) {
+        const i = activeIndexRef.current;
+        if (i >= 0 && Date.now() - gPressedAt.current > 600) {
+          e.preventDefault();
+          cbRef.current.onKeys[e.code](i);
+        }
       }
     }
 

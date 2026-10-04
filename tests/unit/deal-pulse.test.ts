@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildDealPulse, buildPulseDays, silenceWithin } from '@/lib/domain/deal-pulse';
+import { buildDealPulse, buildPulseDays } from '@/lib/domain/deal-pulse';
 import type { DealTouch } from '@/lib/domain/deal-touch';
 
 // «Сейчас» фиксировано: время аргументом, тест не зависит от часов машины
@@ -103,19 +103,6 @@ describe('buildDealPulse', () => {
   it('lastEventAt — самое позднее событие, не последнее по порядку массива', () => {
     const pulse = buildDealPulse([ev(daysAgo(0)), ev(daysAgo(5))], NOW);
     expect(pulse.lastEventAt).toBe(daysAgo(0));
-  });
-});
-
-describe('silenceWithin', () => {
-  it('считает разрыв только в пределах последних N точек среза', () => {
-    const pulse = buildDealPulse(
-      // Событие 20 дней назад (за пределами 14-дневного среза), тишина на
-      // последних 14 днях полная.
-      [{ created_at: daysAgo(20) }],
-      NOW,
-    );
-    const within14 = silenceWithin(pulse.days, 14);
-    expect(within14.days).toBe(14);
   });
 });
 

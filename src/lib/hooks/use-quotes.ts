@@ -1,7 +1,8 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { fetchInBatches } from '@/lib/utils/query-batching';
 import type { Quote, QuoteInsert, QuoteUpdate } from '@/types/entities';
 
 // ═══════════════════════════════════════════════════════
@@ -15,6 +16,18 @@ const QUOTE_COLS =
   'id, org_id, project_id, status, amount, currency, document_url, notes, valid_until, sent_at, accepted_at, rejection_reason, created_by, created_at, updated_at';
 
 const quotesKey = (projectId: string) => ['quotes', projectId] as const;
+/** Префикс пакетных ключей `useDealsQuotes`. */
+const QUOTES_BULK_KEY = ['quotes', 'bulk'] as const;
+
+/**
+ * Сброс после мутации КП: ключ сделки И все пакетные ключи. Одна функция на три
+ * мутации — иначе экран «Сегодня» (пакет) не увидел бы нового КП до `staleTime`,
+ * а четвёртая мутация когда-нибудь забыла бы второй ключ.
+ */
+function invalidateQuoteKeys(qc: QueryClient, projectId: string) {
+  void qc.invalidateQueries({ queryKey: quotesKey(projectId) });
+  void qc.invalidateQueries({ queryKey: QUOTES_BULK_KEY });
+}
 
 /** КП сделки, свежие сверху. */
 export function useQuotes(projectId: string) {
@@ -35,6 +48,41 @@ export function useQuotes(projectId: string) {
   });
 }
 
+/**
+ * КП пачки сделок одним запросом: Map<projectId, Quote[]>.
+ *
+ * Для экрана «Сегодня»: сумма (`dealHeaderAmount`) и сигнал «КП истекло» нужны по
+ * всем сделкам сразу — запрос на сделку дал бы N запросов. Порядок внутри сделки —
+ * как у `useQuotes` (свежие сверху), но домен (`pickActiveQuote`) сортирует сам.
+ */
+export function useDealsQuotes(projectIds: readonly string[]) {
+  const supabase = createClient();
+  const ids = [...projectIds].sort();
+
+  return useQuery({
+    queryKey: [...QUOTES_BULK_KEY, ids.join(',')],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const rows = await fetchInBatches(ids, async (batch) => {
+        const { data, error } = await supabase
+          .from('quotes')
+          .select(QUOTE_COLS)
+          .in('project_id', batch)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return (data ?? []) as Quote[];
+      });
+      const map = new Map<string, Quote[]>();
+      for (const q of rows) {
+        const list = map.get(q.project_id);
+        if (list) list.push(q);
+        else map.set(q.project_id, [q]);
+      }
+      return map;
+    },
+  });
+}
+
 /** Создать КП. amount уже в копейках (form → parseBudgetInput). */
 export function useCreateQuote(projectId: string) {
   const supabase = createClient();
@@ -51,7 +99,7 @@ export function useCreateQuote(projectId: string) {
       return data as Quote;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: quotesKey(projectId) });
+      invalidateQuoteKeys(queryClient, projectId);
     },
   });
 }
@@ -76,7 +124,7 @@ export function useUpdateQuote(projectId: string) {
       return data as Quote;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: quotesKey(projectId) });
+      invalidateQuoteKeys(queryClient, projectId);
     },
   });
 }
@@ -93,7 +141,7 @@ export function useDeleteQuote(projectId: string) {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: quotesKey(projectId) });
+      invalidateQuoteKeys(queryClient, projectId);
     },
   });
 }
