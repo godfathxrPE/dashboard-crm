@@ -221,9 +221,11 @@ git diff --stat main -- src/lib/domain/today-deals.ts src/lib/domain/today-model
 
 ## КОММИТ
 
+Перед коммитом сохрани отчёт (формат — секция ОТЧЁТ ниже) в `_analysis/sprint-S-TODAY-FOCUS-4-report.md`: спринт-файл уже в `main`, а страж `sprint-file` требует файл `_analysis/` в диффе ветки (урок FOCUS-1). `git add` и `git commit` — отдельными вызовами.
+
 ```bash
 git checkout -b feat/today-focus-4
-git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-4.md
+git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-4-report.md
 git commit -m "feat(today): активность в фокусе — пульс по дням, фильтр ленты, заметка в одну строку
 
 - focus-feed: вид события (заметка, звонок, стадия, прочее), фильтр по виду и дню МСК

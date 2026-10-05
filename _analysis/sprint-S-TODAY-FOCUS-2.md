@@ -125,7 +125,7 @@ export function rowPill(
   - `done` — `bg-success-l text-success-text`, под плашкой «записано сегодня» 11/400 `text-success-text`.
 - Наведение — `--surface2`. Последняя строка листа — радиус низа как у `.sheet` (`border-radius: 0 0 var(--radius-m) var(--radius-m)`): лист без `overflow: hidden`, иначе подсветка вылезет за скругление.
 
-**2.3. Снять CSS V3:** `.today-row-grid`, `.today-row-head`, `.today-row-sub`, `.today-row-amount`, если `grep` из разведки 5 других потребителей не показал. Временный маркер строки из FOCUS-1 (`--accent-l2`) снять — его заменяет язычок (задача 4). У плиток ходов маркер остаётся до S3.
+**2.3. Снять CSS V3:** `.today-row-grid`, `.today-row-head`, `.today-row-sub`, `.today-row-amount`, если `grep` из разведки 5 других потребителей не показал. Временный маркер строки из FOCUS-1 (`--accent-l2`) снять — его заменяет язычок (задача 4). Маркер — правило `.today-cq [data-today-pick][aria-current='true']` в `globals.css`: у строки сделки снять атрибут `data-today-pick`, у карточки хода он остаётся до S3.
 
 **Проверка:** `npx vitest run tests/unit/today-text.test.ts`.
 
@@ -254,9 +254,11 @@ grep -n "ChevronRight" src/components/today/TodayDealRow.tsx | head
 
 ## КОММИТ
 
+Перед коммитом сохрани отчёт (формат — секция ОТЧЁТ ниже) в `_analysis/sprint-S-TODAY-FOCUS-2-report.md`: спринт-файл уже в `main`, а страж `sprint-file` требует файл `_analysis/` в диффе ветки (урок FOCUS-1). `git add` и `git commit` — отдельными вызовами.
+
 ```bash
 git checkout -b feat/today-focus-2
-git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-2.md
+git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-2-report.md
 git commit -m "feat(today): список — листы групп, строка без шеврона, язычок выбора
 
 - каждая группа — свой лист; заголовок: иконка, название с правилом в подсказке, тихий счёт
