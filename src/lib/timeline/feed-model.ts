@@ -109,7 +109,7 @@ export type FeedRow =
 /** Типы журнала, означающие смену стадии: легаси `stage_change` (до 14.07) и `stage_changed`. */
 const STAGE_EVENT_TYPES: readonly string[] = ['stage_change', 'stage_changed'];
 
-export function isStageEvent(e: TimelineEvent): boolean {
+export function isStageEvent(e: Pick<TimelineEvent, 'kind' | 'eventType'>): boolean {
   return e.kind === 'activity' && e.eventType != null && STAGE_EVENT_TYPES.includes(e.eventType);
 }
 

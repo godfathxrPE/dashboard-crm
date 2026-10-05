@@ -77,7 +77,11 @@ export function Hotkeys() {
       }
 
       // N → палитра в режиме «Действия» (быстрое создание). Не перехватываем G-N.
+      // S-TODAY-FOCUS-4: экран, у которого N своя (`data-hotkeys-local~="n"`, «Сегодня» —
+      // заметка в фокусе), забирает клавишу. Порядком слушателей на `window` это не
+      // решить: `useKeyboardNav` перевешивает свой при каждой смене числа строк.
       if (key === 'n' && !gPressed.current) {
+        if (document.querySelector('[data-hotkeys-local~="n"]')) return;
         e.preventDefault();
         openCommandPalette(true);
         return;

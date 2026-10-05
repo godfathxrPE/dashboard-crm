@@ -10,7 +10,6 @@ import {
   dueText,
   focusKicker,
   inMovesText,
-  moveWhy,
   namesText,
   planItemText,
   plannedText,
@@ -128,43 +127,6 @@ describe('plannedText', () => {
   it('встреча со временем; звонок без времени', () => {
     expect(plannedText({ dateKey: '2026-10-08', time: '14:00', kind: 'meeting' })).toBe('встреча 8 окт, 14:00');
     expect(plannedText({ dateKey: '2026-10-05', time: null, kind: 'call' })).toBe('звонок 5 окт');
-  });
-});
-
-describe('moveWhy', () => {
-  it('fresh, 4 дня, 6 переносов: стадия и «перенесён 6 раз», без «после срока тишина»', () => {
-    const why = moveWhy(view({ cls: { overdueDays: 4 }, after: { kind: 'silence_after_due' } }), 'fresh', 6);
-    expect(why.lead).toBe('Свежий срыв.');
-    expect(why.due?.days).toBe('4 дн.');
-    expect(why.facts).toContain('Квалификация');
-    expect(why.facts).toContain('перенесён 6 раз');
-    expect(why.facts).not.toContain('после срока тишина');
-  });
-
-  it('1 перенос — слова «перенесён» нет', () => {
-    const why = moveWhy(view({ cls: { overdueDays: 4 }, after: { kind: 'silence_after_due' } }), 'fresh', 1);
-    expect(why.facts.join(' ')).not.toContain('перенесён');
-  });
-
-  it('biggest, decide, silence_since 17.09: days null, «тишина с 17 сент»', () => {
-    const why = moveWhy(
-      view({ cls: { group: 'decide', overdueDays: 16 }, after: { kind: 'silence_since', dateKey: '2026-09-17' } }),
-      'biggest',
-      0,
-    );
-    expect(why.lead).toBe('Крупнейшая сумма без шага.');
-    expect(why.due?.days).toBeNull();
-    expect(why.facts).toContain('тишина с 17 сент');
-  });
-
-  it('assigned со временем 11:00: due null, первый факт — время', () => {
-    const why = moveWhy(
-      view({ cls: { group: 'plan', stepAhead: true, assignedToday: { time: '11:00' } }, after: { kind: 'last_touch' } }),
-      'assigned',
-      0,
-    );
-    expect(why.due).toBeNull();
-    expect(why.facts[0]).toBe('11:00');
   });
 });
 

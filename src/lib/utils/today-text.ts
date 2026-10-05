@@ -102,51 +102,6 @@ export function dueText(view: TodayDealView): { label: string; days: string | nu
   return { label: 'шага нет', days: null };
 }
 
-const SLOT_LEADS: Record<MoveSlot, string> = {
-  assigned: 'Назначено на сегодня.',
-  fresh: 'Свежий срыв.',
-  biggest: 'Крупнейшая сумма без шага.',
-  fill: 'Добор.',
-};
-
-export interface MoveWhy {
-  lead: string;
-  /** Срок: текст, и отдельно «N дн.» — его красит только свежий срыв. */
-  due: { text: string; days: string | null; daysTail: string } | null;
-  facts: string[];
-}
-
-/**
- * «Почему здесь» карточки хода: слот жирным, дальше факты через « · ».
- * «перенесён N раз» — при N ≥ 2, как в `DealNextStep`.
- */
-export function moveWhy(view: TodayDealView, slot: MoveSlot, stepMoves: number): MoveWhy {
-  const { cls, source } = view;
-  const facts: string[] = [];
-  let due: MoveWhy['due'] = null;
-
-  if (slot === 'assigned') {
-    const time = cls.assignedToday?.time;
-    if (time) facts.push(time);
-  } else if (cls.overdueDays !== null && source.next_action_date) {
-    due = cls.group === 'fresh'
-      ? { text: `Срок был ${dayText(source.next_action_date)}, `, days: `${cls.overdueDays} дн.`, daysTail: ' назад' }
-      : { text: `Срок был ${dayText(source.next_action_date)}`, days: null, daysTail: '' };
-  } else if (cls.noStep) {
-    due = { text: 'Шага нет', days: null, daysTail: '' };
-  }
-
-  // «после срока тишина» уже сказано словами «N дн. назад» — второй раз не повторяем.
-  if (view.after.kind !== 'silence_after_due') {
-    const after = afterText(view);
-    if (after) facts.push(after);
-  }
-  if (source.stage) facts.push(source.stage.name);
-  if (stepMoves >= 2) facts.push(`перенесён ${stepMoves} ${pluralRu(stepMoves, 'раз', 'раза', 'раз')}`);
-
-  return { lead: SLOT_LEADS[slot], due, facts };
-}
-
 /** «две — в ходах наверху». */
 export function inMovesText(n: number): string {
   const word = n === 1 ? 'одна' : n === 2 ? 'две' : String(n);

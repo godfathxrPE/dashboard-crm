@@ -29,33 +29,73 @@ function dayTitle(d: PulseDay): string {
   return d.isDue ? `${base} · срок шага` : base;
 }
 
-export function PulseDayStrip({ days, dueLabel }: { days: readonly PulseDay[]; dueLabel?: string }) {
+/** Засечка срока шага и капсула дня — общая начинка кнопки и простой ячейки. */
+function DayMarks({ d }: { d: PulseDay }) {
+  return (
+    <>
+      {/* Место под засечку резервируется всегда: полоса не прыгает по высоте,
+          когда срок шага входит в окно или выходит из него. */}
+      <span className="flex h-2 items-end">
+        {d.isDue && (
+          <span
+            aria-hidden="true"
+            className="block h-0 w-0 border-x-[0.25rem] border-t-[0.3125rem] border-x-transparent"
+            style={{ borderTopColor: 'var(--text-dim)' }}
+          />
+        )}
+      </span>
+      <span className="mt-0.5 block h-[1.375rem] w-full rounded-full" style={{ background: FILL[d.kind] }} />
+    </>
+  );
+}
+
+/**
+ * S-TODAY-FOCUS-4 (F-06): с `onSelectDay` дни — кнопки, клик выбирает день. Без него
+ * разметка прежняя: карточка сделки (`DealPulseCard`) пульс только показывает.
+ * Кнопка без своих отступов, границ и фона — высота и сетка полосы те же.
+ */
+export function PulseDayStrip({
+  days,
+  dueLabel,
+  selectedDay = null,
+  onSelectDay,
+}: {
+  days: readonly PulseDay[];
+  dueLabel?: string;
+  selectedDay?: string | null;
+  onSelectDay?: (day: string) => void;
+}) {
   const touched = days.filter((d) => d.count > 0).length;
+  const label = `30 дней: дней с касаниями — ${touched}`;
 
   return (
     <div>
-      <div
-        role="img"
-        aria-label={`30 дней: дней с касаниями — ${touched}`}
-        className="grid grid-cols-[repeat(30,minmax(0,1fr))] gap-1"
-      >
-        {days.map((d) => (
-          <div key={d.day} className="flex flex-col items-center" title={dayTitle(d)}>
-            {/* Место под засечку резервируется всегда: полоса не прыгает по высоте,
-                когда срок шага входит в окно или выходит из него. */}
-            <span className="flex h-2 items-end">
-              {d.isDue && (
-                <span
-                  aria-hidden="true"
-                  className="block h-0 w-0 border-x-[0.25rem] border-t-[0.3125rem] border-x-transparent"
-                  style={{ borderTopColor: 'var(--text-dim)' }}
-                />
-              )}
-            </span>
-            <span className="mt-0.5 block h-[1.375rem] w-full rounded-full" style={{ background: FILL[d.kind] }} />
-          </div>
-        ))}
-      </div>
+      {onSelectDay ? (
+        <div role="group" aria-label={label} className="grid grid-cols-[repeat(30,minmax(0,1fr))] gap-1">
+          {days.map((d) => (
+            <button
+              key={d.day}
+              type="button"
+              aria-pressed={d.day === selectedDay}
+              aria-label={dayTitle(d)}
+              title={dayTitle(d)}
+              onClick={() => onSelectDay(d.day)}
+              className="flex cursor-pointer appearance-none flex-col items-center rounded-sm border-0 bg-transparent p-0 outline-offset-1 focus-visible:[outline:2px_solid_var(--text)]"
+              style={d.day === selectedDay ? { outline: '2px solid var(--text)' } : undefined}
+            >
+              <DayMarks d={d} />
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div role="img" aria-label={label} className="grid grid-cols-[repeat(30,minmax(0,1fr))] gap-1">
+          {days.map((d) => (
+            <div key={d.day} className="flex flex-col items-center" title={dayTitle(d)}>
+              <DayMarks d={d} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {days.length > 0 && (
         <div className="mt-1 flex justify-between text-meta text-text-mute">
