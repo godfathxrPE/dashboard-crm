@@ -1,10 +1,13 @@
 'use client';
 
-import type { MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils/cn';
 import { pluralRu } from '@/lib/utils/plural';
+import { decideClock } from '@/lib/domain/decide-clock';
+import { DEFAULT_TODAY_THRESHOLDS } from '@/lib/domain/today-deals';
 import type { TodayDealView } from '@/lib/domain/today-model';
-import { TodayMoveCard } from './TodayMoveCard';
+import { TodayMoveTile } from './TodayMoveTile';
 
 interface TodayMovesProps {
   moves: readonly TodayDealView[];
@@ -12,108 +15,112 @@ interface TodayMovesProps {
   assignedCount: number;
   limit: number;
   loading: boolean;
+  /** «Сейчас» экрана — от него считается таймер остывания; `null` — до первого тика. */
+  now: Date | null;
   /** Сделка в фокусе. */
   selectedId: string | null;
   onSelect: (id: string, e: MouseEvent) => void;
-  /** Ход сделан — подпись итога и «Вернуть»; `null` — ход не сделан. */
-  doneOf: (view: TodayDealView) => { text: string; onRestore?: () => void; restoring?: boolean } | null;
-  /** Все ходы набора сделаны — карточки свёрнуты в строку. */
-  allDone: boolean;
+  /** Ход сделан — подпись итога; `null` — ход не сделан. */
+  doneOf: (view: TodayDealView) => { text: string } | null;
   /** «Взять ещё ход»; `null` — кандидатов нет, кнопки нет. */
   onTakeMore: (() => void) | null;
   kbdIndexOf: (id: string) => number;
 }
 
-function CardSkeleton() {
+/** Плиток в строке не больше четырёх; с пятой — перенос (решение владельца 05.10). */
+const TILES_PER_ROW = 4;
+
+function TileSkeleton() {
   return (
-    <div className="sheet px-4 py-3.5" aria-hidden="true">
-      <div className="h-3.5 w-1/2 animate-pulse rounded bg-surface2" />
-      <div className="mt-2 h-3.5 w-11/12 animate-pulse rounded bg-surface2" />
-      <div className="mt-2 h-2.5 w-2/3 animate-pulse rounded bg-surface2" />
+    <div className="today-tile today-tile-skeleton" aria-hidden="true">
+      <span className="flex w-full items-start gap-3">
+        <span className="today-ring rounded-full bg-surface2" />
+        <span className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+          <span className="h-2.5 w-1/2 animate-pulse rounded bg-surface2" />
+          <span className="h-3.5 w-11/12 animate-pulse rounded bg-surface2" />
+          <span className="h-3 w-1/3 animate-pulse rounded bg-surface2" />
+        </span>
+      </span>
     </div>
   );
 }
 
 /**
- * Ходы дня (макет, кадры 1, 5, 10). Заголовок стоит и во время загрузки. Все ходы
- * набора сделаны — карточки сворачиваются в строку: лимит защищает день, следующий
- * ход берётся только кнопкой.
+ * Ходы дня — полоса над списком (спека `today-focus-spec.md`, §6; F-16, F-17). Плитка —
+ * переключатель фокуса; все ходы сделаны — плитки остаются: иначе сделанный ход не
+ * выбрать и «Вернуть» в шапке фокуса недоступно. Следующий ход — только кнопкой.
  */
 export function TodayMoves({
-  moves, assignedCount, limit, loading, selectedId, onSelect, doneOf, allDone, onTakeMore, kbdIndexOf,
+  moves, assignedCount, limit, loading, now, selectedId, onSelect, doneOf, onTakeMore, kbdIndexOf,
 }: TodayMovesProps) {
+  const doneCount = moves.filter((v) => doneOf(v) !== null).length;
+  const setDone = moves.length > 0 && doneCount === moves.length;
+  const showProgress = !loading && moves.length > 0;
+  const tiles = loading ? 3 : Math.min(moves.length, TILES_PER_ROW);
+
   return (
-    <section aria-label="Ходы на сегодня" className="mb-6">
-      <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-body font-semibold text-text-main">Ходы на сегодня</h2>
-        <span className="text-xs text-text-dim">
-          сначала назначенное на сегодня, затем свежие срывы по фазе и сумме, последний — крупнейшая сумма без шага
-        </span>
+    <section aria-label="Ходы на сегодня" className="today-band">
+      <div className="today-band-head">
+        <h2 className="text-sm font-semibold text-text-main">Ходы на сегодня</h2>
+        {showProgress && (
+          <>
+            <span className="flex gap-1" aria-hidden="true">
+              {moves.map((v) => (
+                <span key={v.source.id} className={cn('today-band-seg', doneOf(v) !== null && 'today-band-seg-done')} />
+              ))}
+            </span>
+            <span className="text-xs text-text-main">
+              <b className="font-semibold tabular-nums">{doneCount}</b> из {moves.length} сделано
+            </span>
+          </>
+        )}
+        {setDone && onTakeMore ? (
+          <Button size="sm" variant="secondary" onClick={onTakeMore} className="ml-auto whitespace-nowrap">
+            Взять ещё ход
+          </Button>
+        ) : (
+          showProgress && (
+            <span className="today-band-hint text-xs text-text-dim">
+              кольцо — {DEFAULT_TODAY_THRESHOLDS.decideDays} дней срыва до «Решить судьбу»
+            </span>
+          )
+        )}
       </div>
 
-      {loading ? (
-        <div className="today-cards">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      ) : moves.length === 0 ? (
-        <p className="sheet px-4 py-3 text-xs text-text-dim">
-          Ходов на сегодня нет: назначенного нет, сорванных и устаревших шагов тоже.
-        </p>
-      ) : allDone ? (
-        <div className="sheet flex flex-wrap items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-text-main">
-              {moves.length} из {moves.length} {pluralRu(moves.length, 'хода', 'ходов', 'ходов')} сделано
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {moves.map((v) => {
+      {loading || moves.length > 0 ? (
+        <div
+          className="today-tiles"
+          data-tiles={tiles}
+          style={{ '--tiles': tiles } as CSSProperties}
+        >
+          {/* Модели без часов не бывает; `!now` — ради типа аргумента таймера. */}
+          {loading || !now
+            ? [0, 1, 2].map((i) => <TileSkeleton key={i} />)
+            : moves.map((v, i) => {
                 const done = doneOf(v);
                 return (
-                  <li key={v.source.id} className="flex flex-wrap items-center gap-x-1.5 text-xs text-text-dim">
-                    <span className="font-medium text-text-main">{v.source.name}</span>
-                    <span>— {done?.text ?? 'шаг записан'}</span>
-                    {done?.onRestore && (
-                      <button
-                        type="button"
-                        disabled={done.restoring}
-                        onClick={done.onRestore}
-                        className="inline-flex min-h-7 items-center rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
-                      >
-                        Вернуть
-                      </button>
-                    )}
-                  </li>
+                  <TodayMoveTile
+                    key={v.source.id}
+                    view={v}
+                    slot={v.slot ?? 'fill'}
+                    number={i + 1}
+                    clock={decideClock(v, now, done !== null)}
+                    selected={selectedId === v.source.id}
+                    onSelect={(e) => onSelect(v.source.id, e)}
+                    doneText={done?.text ?? null}
+                    kbdIndex={kbdIndexOf(v.source.id)}
+                  />
                 );
               })}
-            </ul>
-          </div>
-          {onTakeMore && (
-            <Button size="sm" variant="secondary" onClick={onTakeMore} className="whitespace-nowrap">
-              Взять ещё ход
-            </Button>
-          )}
         </div>
       ) : (
-        <div className="today-cards">
-          {moves.map((v, i) => (
-            <TodayMoveCard
-              key={v.source.id}
-              view={v}
-              slot={v.slot ?? 'fill'}
-              number={i + 1}
-              selected={selectedId === v.source.id}
-              onSelect={(e) => onSelect(v.source.id, e)}
-              doneText={doneOf(v)?.text ?? null}
-              kbdIndex={kbdIndexOf(v.source.id)}
-            />
-          ))}
-        </div>
+        <p className="px-1 text-xs text-text-dim">
+          Ходов на сегодня нет: назначенного нет, сорванных и устаревших шагов тоже.
+        </p>
       )}
 
       {!loading && assignedCount > limit && (
-        <p className="mt-2 text-xs text-text-dim">
+        <p className="mt-2 px-1 text-xs text-text-dim">
           На сегодня назначено {assignedCount} {pluralRu(assignedCount, 'шаг', 'шага', 'шагов')} при лимите {limit}. Показаны все.
         </p>
       )}

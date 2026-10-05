@@ -1876,18 +1876,10 @@ table { font-variant-numeric: tabular-nums; }
 
   /* S-TODAY-V3-SCREEN-1: экран «Сегодня» — раскладка по ширине КОНТЕНТА, а не экрана
      (довод .deal-org-split: ширину съедает сайдбар, и при 1280 контент уже 1440 на
-     целую колонку). Контейнер один — корень экрана; карточки ходов и фокус меряются
-     от него. «Мобайл-ферст»: одна колонка по умолчанию, три карточки — с 52rem.
-     Строка сделки — S-TODAY-FOCUS-2, блок без слоя ниже по файлу. */
+     целую колонку). Контейнер один — корень экрана; плитки ходов и фокус меряются
+     от него. Строка сделки (S-TODAY-FOCUS-2) и полоса ходов (S-TODAY-FOCUS-3) — блоки
+     без слоя ниже по файлу. */
   .today-cq { container-type: inline-size; }
-  .today-cards {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
-  }
-  @container (min-width: 52rem) {
-    .today-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
 
   /* S-TODAY-FOCUS-1 (`_analysis/today-focus-spec.md`, §2): список + фокус справа.
      Фокус — один детальный вид сделки: шапка на стекле не прокручивается, тело
@@ -2417,16 +2409,6 @@ table tbody tr[data-kbd-focused] {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* S-TODAY-FOCUS-1: сделка в фокусе «Сегодня» — карточка хода.
-   ВРЕМЕННЫЙ маркер выбора (спека §3): `--accent-l2` — конвенция «выбрано»
-   (`theme-system.md`). У строк его с S2 заменил язычок (`data-today-pick` у строки
-   снят), у плиток его заменит стекло в S3. Вне @layer: `.sheet` живёт в
-   `@layer components`, а стеклянные темы перекрашивают его без слоя. Клавиатурной
-   рамки `kbd-focus-row` у сделок нет — подсветка J/K и выбор одно и то же. */
-.today-cq [data-today-pick][aria-current='true'] {
-  background: var(--accent-l2);
-}
-
 /* S-TODAY-FOCUS-1: красный кикера на стекле фокуса. `.text-red` читает
    `var(--red-text, var(--red))`, а `.glass-sheet` перекрашивает только `--red`:
    в темах с `--red-text` (minimal, aura, washi…) дни срыва остались бы тёмно-красными
@@ -2540,6 +2522,10 @@ table tbody tr[data-kbd-focused] {
   transition: background-color 120ms ease-out;
 }
 button.today-chip:hover { background: var(--surface2); }
+/* S-TODAY-FOCUS-3 (гейт FOCUS-2): длинное название не вылезает за лист в колонке
+   578 px (1280) — чип не шире строки, название режется многоточием, плашка цела. */
+button.today-chip { max-width: 100%; }
+.today-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .today-chip-more {
   border-style: dashed;
   background: transparent;
@@ -2582,6 +2568,151 @@ button.today-chip:hover { background: var(--surface2); }
 @media (prefers-reduced-motion: reduce) {
   .today-tab,
   .today-row[aria-current='true'] .today-tab { transition: none; }
+}
+
+/* ═══ S-TODAY-FOCUS-3: полоса ходов и плитка с таймером (`_analysis/today-focus-spec.md`, §6) ═══
+   Без слоя, НИЖЕ `.glass-sheet` и dark safety-net `.t-frost *`. Правила экрана в
+   `@layer components` стекло перебить не могут, а безслойная `.today-tile` (0,1,0)
+   перебила бы `.glass-sheet` (0,1,0) порядком — отсюда явная пара
+   `.today-tile.glass-sheet`. `data-card` на плитку не ставится: `.t-aura [data-card]`
+   перебивает стекло (комментарий у `.glass-sheet`). Границы — классами, не утилитами:
+   safety-net перекрасил бы утилиту при равной специфичности. */
+.today-band {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-l);
+  background: var(--zone-work);
+}
+.today-band-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0 0.25rem 0.625rem;
+}
+.today-band-seg {
+  width: 1.25rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.today-band-seg-done { background: var(--success); }
+.today-band-hint { margin-left: auto; }
+
+/* Одна строка до четырёх плиток (решение владельца 05.10): `--tiles` — число ходов,
+   не больше четырёх, инлайн-стилем на сетке; с пятой — перенос. */
+.today-tiles {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(var(--tiles, 3), minmax(0, 1fr));
+}
+
+.today-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.875rem 0.875rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+  text-align: left;
+  transition: transform var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+}
+.today-tile:not(.glass-sheet):not(.today-tile-skeleton):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+.today-tile.glass-sheet {
+  background-color: var(--sheet-glass);
+  background-image: var(--sheet-sheen);
+  border-color: var(--sheet-hairline);
+  box-shadow: var(--sheet-shadow);
+  color: var(--sheet-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-tile { transition: none; }
+  .today-tile:not(.glass-sheet):not(.today-tile-skeleton):hover { transform: none; }
+}
+/* Вид слота — одной строкой с многоточием; перенос — только при контенте < 66rem
+   (ниже). Название — не больше двух строк: при четырёх плитках колонка текста рядом
+   с кольцом ≈ 4–5rem, и без предела плитка растёт на строку за каждое слово. */
+.today-tile-kind { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-tile-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.today-tile-step {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 2.1em;
+}
+.today-tile-foot {
+  margin-top: auto;
+  padding-top: 0.4375rem;
+  border-top: 1px solid var(--border);
+}
+.today-tile-done { color: var(--success-text); }
+.today-tile.glass-sheet .today-tile-foot { border-top-color: var(--sheet-plate-border); }
+.today-tile.glass-sheet .today-tile-done { color: var(--sheet-green); }
+
+/* Кольцо: дорожка и дуга r = 23, штрих 5, старт сверху (−90°). Внутри стекла
+   `--danger`, `--success`, `--warning` не перекрашены — отсюда явные `--sheet-*`. */
+.today-ring {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+}
+.today-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.today-ring-svg circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.today-ring-track { stroke: color-mix(in srgb, var(--text) 11%, transparent); }
+.today-ring-arc { stroke: var(--text-dim); }
+.today-ring-center { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.today-ring-num { font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.today-ring-unit { margin-top: 0.125rem; font-size: 0.6875rem; font-weight: 400; color: var(--text-dim); }
+.today-ring-check { width: 1.375rem; height: 1.375rem; color: var(--success); }
+.today-tile[data-clock='warn'] .today-ring-arc { stroke: var(--warning); }
+.today-tile[data-clock='over'] .today-ring-arc { stroke: var(--danger); }
+.today-tile[data-clock='over'] .today-ring-num { color: var(--danger-text); }
+.today-tile[data-clock='done'] .today-ring-arc { stroke: var(--success); }
+
+.today-tile.glass-sheet .today-ring-track { stroke: color-mix(in srgb, var(--sheet-text) 18%, transparent); }
+.today-tile.glass-sheet .today-ring-arc { stroke: var(--sheet-text); }
+.today-tile.glass-sheet .today-ring-unit { color: var(--sheet-dim); }
+.today-tile.glass-sheet[data-clock='warn'] .today-ring-arc { stroke: var(--sheet-warning); }
+.today-tile.glass-sheet[data-clock='over'] .today-ring-arc { stroke: var(--sheet-red); }
+.today-tile.glass-sheet[data-clock='over'] .today-ring-num { color: var(--sheet-red); }
+.today-tile.glass-sheet[data-clock='done'] .today-ring-arc { stroke: var(--sheet-green); }
+.today-tile.glass-sheet .today-ring-check { color: var(--sheet-green); }
+
+/* Контент < 66rem (1280): плитка уже — кольцо 3rem, отступы меньше, подсказка
+   полосы отдельной строкой. Четыре плитки (≈ 9rem) — шаг в одну строку. */
+@container (max-width: 66rem) {
+  .today-tile { padding: 0.75rem 0.75rem 0.625rem; }
+  .today-ring { width: 3rem; height: 3rem; }
+  .today-tile-kind { white-space: normal; overflow-wrap: anywhere; }
+  .today-band-hint { flex-basis: 100%; margin-left: 0; }
+  .today-tiles[data-tiles='4'] .today-tile-step { -webkit-line-clamp: 1; min-height: 1.05em; }
+}
+@container (max-width: 40rem) {
+  .today-tiles { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Peek-панель: слайд справа; z-40 — между drawer (30) и dropdown (50) */

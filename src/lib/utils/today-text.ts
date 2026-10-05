@@ -7,6 +7,7 @@ import type { Quote } from '@/types/entities';
 import type { QuoteStatus } from '@/lib/validators/quote';
 import type { TouchKind } from '@/lib/domain/deal-touch';
 import type { MoveSlot, PlannedEvent, RiskSignal } from '@/lib/domain/today-deals';
+import type { DecideClock } from '@/lib/domain/decide-clock';
 import type { TodayDealView } from '@/lib/domain/today-model';
 
 // ═══════════════════════════════════════════════════════
@@ -189,6 +190,28 @@ export function doneText(view: TodayDealView, result: DoneOutcome | null): strin
   return cls.stepAhead && source.next_action_date
     ? `Записано в сделку · шаг ${dayWeekdayText(source.next_action_date)}`
     : 'Шаг закрыт · сделка осталась без шага';
+}
+
+// ── S-TODAY-FOCUS-3: подпись под кольцом плитки хода (спека, §6) ──
+
+/**
+ * «15 окт — в «Решить судьбу»» / «с 3 окт — в «Решить судьбу»» / «назначено на сегодня,
+ * 14:00» / «шаг пт 9 окт» / «встреча 9 окт, 11:00». Сделанный ход плитка подписывает
+ * `doneText` — сюда он не приходит.
+ */
+export function clockCaption(clock: DecideClock, view: TodayDealView): string {
+  if (clock.tipKey && (clock.state === 'calm' || clock.state === 'warn')) {
+    return `${dayText(clock.tipKey)} — в «Решить судьбу»`;
+  }
+  if (clock.tipKey && clock.state === 'over') return `с ${dayText(clock.tipKey)} — в «Решить судьбу»`;
+  if (clock.state !== 'none') return '';
+  const { cls, source } = view;
+  if (cls.assignedToday) {
+    return cls.assignedToday.time ? `назначено на сегодня, ${cls.assignedToday.time}` : 'назначено на сегодня';
+  }
+  if (cls.stepAhead && source.next_action_date) return `шаг ${dayWeekdayText(source.next_action_date)}`;
+  if (view.planned) return plannedText(view.planned);
+  return '';
 }
 
 // ── S-TODAY-FOCUS-1: тексты фокуса (спека `today-focus-spec.md`, §4) ──

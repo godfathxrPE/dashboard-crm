@@ -201,6 +201,12 @@ export function diffDaysKey(a: string, b: string): number {
   return Math.round((noonMs(b) - noonMs(a)) / GANTT_DAY_MS);
 }
 
+/** Сдвиг YYYY-MM-DD на n календарных дней (n < 0 — назад). Обратная к diffDaysKey:
+ *  diffDaysKey(k, addDaysKey(k, n)) === n. */
+export function addDaysKey(key: string, days: number): string {
+  return keyOfMs(noonMs(key) + days * GANTT_DAY_MS);
+}
+
 function bucketLabel(key: string, zoom: GanttZoom): string {
   if (zoom === 'day') return key.slice(8, 10);                    // DD
   if (zoom === 'week') return `${key.slice(8, 10)}.${key.slice(5, 7)}`; // DD.MM (Пн)

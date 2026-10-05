@@ -218,8 +218,8 @@ export function TodayGroups({
                     }}
                     onAuxClick={(e) => { if (e.button === 1) onSelect(v.source.id, e); }}
                   >
-                    <b className="font-medium text-text-main">{v.source.name}</b>
-                    <span className="text-xs tabular-nums text-text-mute">
+                    <b className="today-chip-name font-medium text-text-main">{v.source.name}</b>
+                    <span className="shrink-0 text-xs tabular-nums text-text-mute">
                       {rowPill(v, todayKey, writtenOf(v.source.id)).text}
                     </span>
                   </button>
