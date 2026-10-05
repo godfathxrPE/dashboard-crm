@@ -1521,8 +1521,8 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
 - **Не чаще:** один активный прогон на компанию (`ux_ai_runs_active_entity`), пауза
   45 мин после `error`, не больше 2 автопопыток на компанию за сутки МСК. С 140 — после
   двух ошибок `shape` подряд (две последние попытки, ручные в счёт) компания вне очереди
-  7 суток; `upstream`/`access`/`network` не в счёт (fix-BRIEF-SHAPE-BACKOFF, **140 —
-  НАПИСАНА, НЕ ПРИМЕНЕНА**).
+  7 суток; `upstream`/`access`/`network` не в счёт (fix-BRIEF-SHAPE-BACKOFF, **140 — applied
+  2026-10-05 `20261005061137`, MCP**).
 - **Лимит:** 10 автопрогонов в сутки (МСК) на org; переопределение —
   `organizations.settings.brief_auto_daily_limit` (целое; `0` — автозапуск выключен;
   нецелое — дефолт 10, не ошибка тика). Ручные прогоны вне лимита.

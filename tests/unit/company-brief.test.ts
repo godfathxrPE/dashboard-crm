@@ -227,12 +227,12 @@ describe('briefNote', () => {
       'примерно через час',
     );
   });
-  test('failed на паузе после серии shape → «Две попытки подряд» и дата возврата', () => {
+  test('failed на паузе после серии shape → «Две попытки подряд» и «не раньше» с датой', () => {
     // 12:00 UTC — дата не съезжает ни в одной TZ
     const until = new Date(NOW.getTime() + 3 * DAY).toISOString();
     const t = briefNote({ now: NOW, kind: 'failed', runs: runsOf({ backoffUntil: until }), auto: auto() });
     expect(t?.startsWith('Две попытки подряд')).toBe(true);
-    expect(t).toContain(formatBriefChipDate(until));
+    expect(t).toContain(`не раньше ${formatBriefChipDate(until)}`);
   });
   test('failed, пауза в прошлом → прежние тексты по auto', () => {
     const past = new Date(NOW.getTime() - DAY).toISOString();
@@ -258,6 +258,25 @@ describe('briefNote', () => {
   test('stale в очереди, лимит 10 → с фразой про очередь', () => {
     const t = briefNote({ now: NOW, kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 10 }) });
     expect(t).toContain('стоит в очереди автосбора');
+  });
+  test('stale на паузе после серии shape → про паузу «не раньше» с датой, без очереди', () => {
+    const until = new Date(NOW.getTime() + 3 * DAY).toISOString();
+    const t = briefNote({ now: NOW, kind: 'stale', runs: runsOf({ backoffUntil: until }), auto: auto({ reason: null }) });
+    expect(t).toContain('Две попытки обновить подряд');
+    expect(t).toContain(`не раньше ${formatBriefChipDate(until)}`);
+    expect(t).not.toContain('стоит в очереди');
+  });
+  test('stale, пауза в прошлом, в очереди с лимитом 10 → прежняя фраза про очередь, про паузу ни слова', () => {
+    const past = new Date(NOW.getTime() - DAY).toISOString();
+    const t = briefNote({
+      now: NOW,
+      kind: 'stale',
+      runs: runsOf({ backoffUntil: past }),
+      auto: auto({ reason: 'stale', daily_limit: 10 }),
+    });
+    expect(t).toContain('стоит в очереди автосбора');
+    expect(t).not.toContain('Две попытки');
+    expect(t).not.toContain('не раньше');
   });
   test('new → null', () => {
     expect(briefNote({ now: NOW, kind: 'new', runs: runsOf({}), auto: null })).toBeNull();
