@@ -10,6 +10,7 @@ import {
   newsLink,
   formatBriefMetaDate,
   formatBriefNewsDate,
+  formatBriefChipDate,
   type BriefAutoState,
   type BriefRuns,
 } from '@/lib/domain/company-brief';
@@ -71,7 +72,13 @@ const auto = (p: Partial<BriefAutoState> = {}): BriefAutoState => ({
   ...p,
 });
 
-const runsOf = (p: Partial<BriefRuns>): BriefRuns => ({ latestDone: null, active: null, latest: null, ...p });
+const runsOf = (p: Partial<BriefRuns>): BriefRuns => ({
+  latestDone: null,
+  active: null,
+  latest: null,
+  backoffUntil: null,
+  ...p,
+});
 
 describe('toBriefAutoState', () => {
   test('reason NULL сохраняется как null, числа — как есть', () => {
@@ -108,7 +115,47 @@ describe('pickBriefRuns', () => {
     expect(r.latest?.id).toBe(active.id);
   });
   test('пусто → все null', () => {
-    expect(pickBriefRuns([])).toEqual({ latestDone: null, active: null, latest: null });
+    expect(pickBriefRuns([])).toEqual({ latestDone: null, active: null, latest: null, backoffUntil: null });
+  });
+});
+
+describe('pickBriefRuns · backoffUntil', () => {
+  const SHAPE = 'shape|Поиск не дал ни одного источника.';
+  test('две последние — shape ⇒ конец более поздней + 7 суток', () => {
+    const t = ago(2 * DAY);
+    const older = run({ status: 'error', error: SHAPE, created_at: ago(4 * DAY), finished_at: ago(4 * DAY - 60_000) });
+    const newer = run({ status: 'error', error: SHAPE, created_at: ago(2 * DAY + 60_000), finished_at: t });
+    expect(pickBriefRuns([older, newer]).backoffUntil).toBe(new Date(Date.parse(t) + 7 * DAY).toISOString());
+  });
+  test('последняя shape, предыдущая done ⇒ null', () => {
+    const done = run({ created_at: ago(3 * DAY) });
+    const err = run({ status: 'error', error: SHAPE, created_at: ago(DAY) });
+    expect(pickBriefRuns([done, err]).backoffUntil).toBeNull();
+  });
+  test('две ошибки, одна upstream ⇒ null', () => {
+    const a = run({ status: 'error', error: SHAPE, created_at: ago(3 * DAY) });
+    const b = run({ status: 'error', error: 'upstream|Прогон прерван по таймауту.', created_at: ago(DAY) });
+    expect(pickBriefRuns([a, b]).backoffUntil).toBeNull();
+  });
+  test('у одной из двух error: null ⇒ null', () => {
+    const a = run({ status: 'error', error: SHAPE, created_at: ago(3 * DAY) });
+    const b = run({ status: 'error', error: null, created_at: ago(DAY) });
+    expect(pickBriefRuns([a, b]).backoffUntil).toBeNull();
+  });
+  test('одна попытка, shape ⇒ null', () => {
+    expect(pickBriefRuns([run({ status: 'error', error: SHAPE, created_at: ago(DAY) })]).backoffUntil).toBeNull();
+  });
+  test('finished_at null ⇒ отсчёт от created_at', () => {
+    const c = ago(DAY);
+    const a = run({ status: 'error', error: SHAPE, created_at: ago(3 * DAY), finished_at: null });
+    const b = run({ status: 'error', error: SHAPE, created_at: c, finished_at: null });
+    expect(pickBriefRuns([b, a]).backoffUntil).toBe(new Date(Date.parse(c) + 7 * DAY).toISOString());
+  });
+  test('прогон чужого пресета между двумя shape серию не рвёт', () => {
+    const a = run({ status: 'error', error: SHAPE, created_at: ago(3 * DAY), finished_at: ago(3 * DAY) });
+    const foreign = run({ preset_key: 'deal_summary', status: 'done', created_at: ago(2 * DAY) });
+    const b = run({ status: 'error', error: SHAPE, created_at: ago(DAY), finished_at: ago(DAY) });
+    expect(pickBriefRuns([a, foreign, b]).backoffUntil).toBe(new Date(NOW.getTime() - DAY + 7 * DAY).toISOString());
   });
 });
 
@@ -162,26 +209,42 @@ describe('briefKind', () => {
 
 describe('briefNote', () => {
   test('queued: лимит исчерпан → «завтра» и «10 из 10»', () => {
-    const t = briefNote({ kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', used_today: 10 }) });
+    const t = briefNote({ now: NOW, kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', used_today: 10 }) });
     expect(t).toContain('завтра');
     expect(t).toContain('10 из 10');
   });
   test('queued: лимит не исчерпан → «в течение часа»', () => {
-    const t = briefNote({ kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', used_today: 3 }) });
+    const t = briefNote({ now: NOW, kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', used_today: 3 }) });
     expect(t).toContain('в течение часа');
   });
   test('queued: лимит 0 → «выключен»', () => {
-    const t = briefNote({ kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', daily_limit: 0 }) });
+    const t = briefNote({ now: NOW, kind: 'queued', runs: runsOf({}), auto: auto({ reason: 'no_brief', daily_limit: 0 }) });
     expect(t).toContain('выключен');
   });
   test('failed: 2 попытки и reason null → «завтра»; 1 попытка → «примерно через час»', () => {
-    expect(briefNote({ kind: 'failed', runs: runsOf({}), auto: auto({ attempts_today: 2 }) })).toContain('завтра');
-    expect(briefNote({ kind: 'failed', runs: runsOf({}), auto: auto({ attempts_today: 1 }) })).toContain(
+    expect(briefNote({ now: NOW, kind: 'failed', runs: runsOf({}), auto: auto({ attempts_today: 2 }) })).toContain('завтра');
+    expect(briefNote({ now: NOW, kind: 'failed', runs: runsOf({}), auto: auto({ attempts_today: 1 }) })).toContain(
       'примерно через час',
     );
   });
+  test('failed на паузе после серии shape → «Две попытки подряд» и «не раньше» с датой', () => {
+    // 12:00 UTC — дата не съезжает ни в одной TZ
+    const until = new Date(NOW.getTime() + 3 * DAY).toISOString();
+    const t = briefNote({ now: NOW, kind: 'failed', runs: runsOf({ backoffUntil: until }), auto: auto() });
+    expect(t?.startsWith('Две попытки подряд')).toBe(true);
+    expect(t).toContain(`не раньше ${formatBriefChipDate(until)}`);
+  });
+  test('failed, пауза в прошлом → прежние тексты по auto', () => {
+    const past = new Date(NOW.getTime() - DAY).toISOString();
+    const runs = runsOf({ backoffUntil: past });
+    expect(briefNote({ now: NOW, kind: 'failed', runs, auto: auto({ attempts_today: 1 }) })).toContain(
+      'примерно через час',
+    );
+    expect(briefNote({ now: NOW, kind: 'failed', runs, auto: auto({ attempts_today: 2 }) })).toContain('завтра');
+  });
   test('running автозапуском по стадии → текст про рабочую стадию', () => {
     const t = briefNote({
+      now: NOW,
       kind: 'running',
       runs: runsOf({ active: run({ status: 'running', auto_reason: 'stage' }) }),
       auto: null,
@@ -189,15 +252,34 @@ describe('briefNote', () => {
     expect(t).toContain('рабочую стадию');
   });
   test('stale в очереди, но лимит 0 → без фразы про очередь', () => {
-    const t = briefNote({ kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 0 }) });
+    const t = briefNote({ now: NOW, kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 0 }) });
     expect(t).not.toContain('очереди');
   });
   test('stale в очереди, лимит 10 → с фразой про очередь', () => {
-    const t = briefNote({ kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 10 }) });
+    const t = briefNote({ now: NOW, kind: 'stale', runs: runsOf({}), auto: auto({ reason: 'stale', daily_limit: 10 }) });
     expect(t).toContain('стоит в очереди автосбора');
   });
+  test('stale на паузе после серии shape → про паузу «не раньше» с датой, без очереди', () => {
+    const until = new Date(NOW.getTime() + 3 * DAY).toISOString();
+    const t = briefNote({ now: NOW, kind: 'stale', runs: runsOf({ backoffUntil: until }), auto: auto({ reason: null }) });
+    expect(t).toContain('Две попытки обновить подряд');
+    expect(t).toContain(`не раньше ${formatBriefChipDate(until)}`);
+    expect(t).not.toContain('стоит в очереди');
+  });
+  test('stale, пауза в прошлом, в очереди с лимитом 10 → прежняя фраза про очередь, про паузу ни слова', () => {
+    const past = new Date(NOW.getTime() - DAY).toISOString();
+    const t = briefNote({
+      now: NOW,
+      kind: 'stale',
+      runs: runsOf({ backoffUntil: past }),
+      auto: auto({ reason: 'stale', daily_limit: 10 }),
+    });
+    expect(t).toContain('стоит в очереди автосбора');
+    expect(t).not.toContain('Две попытки');
+    expect(t).not.toContain('не раньше');
+  });
   test('new → null', () => {
-    expect(briefNote({ kind: 'new', runs: runsOf({}), auto: null })).toBeNull();
+    expect(briefNote({ now: NOW, kind: 'new', runs: runsOf({}), auto: null })).toBeNull();
   });
 });
 

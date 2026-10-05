@@ -20,6 +20,9 @@ export const BRIEF_STALE_DAYS = 90;
 export const BRIEF_LOW_DATA_MAX_SOURCES = 1;
 /** Зеркало «не больше 2 автопопыток на компанию в сутки» (138). */
 export const BRIEF_AUTO_MAX_ATTEMPTS = 2;
+/** Зеркало межсуточной паузы company_brief_candidates() (миграция 140) — менять парой. */
+export const BRIEF_SHAPE_BACKOFF_STREAK = 2;
+export const BRIEF_SHAPE_BACKOFF_DAYS = 7;
 
 const DAY_MS = 86_400_000;
 const BRIEF_PRESET_KEY = 'company_brief';
@@ -33,7 +36,13 @@ export type BriefAutoState = {
   attempts_today: number;
 };
 
-export type BriefRuns = { latestDone: AiRunRow | null; active: AiRunRow | null; latest: AiRunRow | null };
+export type BriefRuns = {
+  latestDone: AiRunRow | null;
+  active: AiRunRow | null;
+  latest: AiRunRow | null;
+  /** ISO-момент, до которого компания вне автоочереди (пауза после серии `shape`, 140); null — паузы нет. */
+  backoffUntil: string | null;
+};
 export type BriefKind = 'new' | 'fresh' | 'stale' | 'lowData' | 'running' | 'queued' | 'failed' | 'none';
 
 type BriefNews = CompanyBriefResult['recent_news'][number];
@@ -73,7 +82,21 @@ export function pickBriefRuns(runs: AiRunRow[]): BriefRuns {
     latestDone: briefs.find((r) => r.status === 'done') ?? null,
     active: briefs.find((r) => r.status === 'pending' || r.status === 'running') ?? null,
     latest: briefs[0] ?? null,
+    backoffUntil: shapeBackoffUntil(briefs),
   };
+}
+
+/**
+ * Зеркало условия 140: последние `BRIEF_SHAPE_BACKOFF_STREAK` попыток — все ошибки класса
+ * `shape` ⇒ пауза до конца более поздней + `BRIEF_SHAPE_BACKOFF_DAYS` суток. От «сейчас»
+ * не зависит — сравнение с `now` делает `briefNote`. `briefs` — уже новые первыми.
+ */
+function shapeBackoffUntil(briefs: AiRunRow[]): string | null {
+  const streak = briefs.slice(0, BRIEF_SHAPE_BACKOFF_STREAK);
+  if (streak.length < BRIEF_SHAPE_BACKOFF_STREAK) return null;
+  if (!streak.every((r) => r.status === 'error' && (r.error ?? '').startsWith('shape|'))) return null;
+  const endedAt = Math.max(...streak.map((r) => Date.parse(r.finished_at ?? r.created_at)));
+  return new Date(endedAt + BRIEF_SHAPE_BACKOFF_DAYS * DAY_MS).toISOString();
 }
 
 /** Целые сутки — только для подписи «N дн. назад». Пороги сравниваются в мс (см. `olderThanDays`). */
@@ -125,8 +148,18 @@ const AUTO_REASON_TEXT: Record<BriefAutoReason, string> = {
 
 const CAN_CLOSE = 'Можно закрыть страницу — бриф соберётся без неё.';
 
-export function briefNote(i: { kind: BriefKind; runs: BriefRuns; auto: BriefAutoState | null }): string | null {
-  const { kind, runs, auto } = i;
+/** Конец паузы после серии `shape`, если она ещё идёт; иначе null. */
+function activeBackoffUntil(runs: BriefRuns, now: Date): string | null {
+  return runs.backoffUntil && Date.parse(runs.backoffUntil) > now.getTime() ? runs.backoffUntil : null;
+}
+
+export function briefNote(i: {
+  kind: BriefKind;
+  runs: BriefRuns;
+  auto: BriefAutoState | null;
+  now: Date;
+}): string | null {
+  const { kind, runs, auto, now } = i;
   switch (kind) {
     case 'running': {
       if (runs.latestDone) return 'Обновляем бриф, около минуты. Пока показана прежняя версия.';
@@ -138,6 +171,10 @@ export function briefNote(i: { kind: BriefKind; runs: BriefRuns; auto: BriefAuto
     }
     case 'stale': {
       const base = 'Бриф старше 90 дней: руководство и новости могли смениться.';
+      const backoff = activeBackoffUntil(runs, now);
+      if (backoff) {
+        return `${base} Две попытки обновить подряд не удались — автосбор вернётся к компании не раньше ${formatBriefChipDate(backoff)}.`;
+      }
       // Кандидаты лимит не фильтруют: при `daily_limit = 0` RPC отдаёт `reason = 'stale'`,
       // а тик ничего не соберёт. Исчерпанный за сутки лимит — очередь есть, соберём завтра.
       const inQueue = auto?.reason === 'stale' && auto.daily_limit > 0;
@@ -155,6 +192,10 @@ export function briefNote(i: { kind: BriefKind; runs: BriefRuns; auto: BriefAuto
       return 'Брифа ещё нет. Соберём автоматически в рабочее время, обычно в течение часа.';
     }
     case 'failed': {
+      const backoff = activeBackoffUntil(runs, now);
+      if (backoff) {
+        return `Две попытки подряд не дали брифа. Автосбор вернётся к компании не раньше ${formatBriefChipDate(backoff)}.`;
+      }
       const retrySoon =
         !!auto &&
         auto.daily_limit > 0 &&

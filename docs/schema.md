@@ -1519,7 +1519,10 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
   30 / 90 дн. зеркалит TS-константа `BRIEF_STALE_DAYS` (1.2). Порядок очереди: `stage` →
   `no_brief` → `stale`, внутри — ближайшая `next_action_date` открытой сделки.
 - **Не чаще:** один активный прогон на компанию (`ux_ai_runs_active_entity`), пауза
-  45 мин после `error`, не больше 2 автопопыток на компанию за сутки МСК.
+  45 мин после `error`, не больше 2 автопопыток на компанию за сутки МСК. С 140 — после
+  двух ошибок `shape` подряд (две последние попытки, ручные в счёт) компания вне очереди
+  7 суток; `upstream`/`access`/`network` не в счёт (fix-BRIEF-SHAPE-BACKOFF, **140 — applied
+  2026-10-05 `20261005061137`, MCP**).
 - **Лимит:** 10 автопрогонов в сутки (МСК) на org; переопределение —
   `organizations.settings.brief_auto_daily_limit` (целое; `0` — автозапуск выключен;
   нецелое — дефолт 10, не ошибка тика). Ручные прогоны вне лимита.
@@ -1532,7 +1535,7 @@ CHECK `ai_runs_entity_type_check`, CHECK `ai_runs_transcript_required` — и **
   |---------|-----|-----|
   | `brief_auto_day_start()` | начало суток МСК — одна граница для тика, кандидатов и RPC | `service_role` |
   | `brief_auto_daily_limit(uuid)` | лимит org из `settings`, иначе 10 | `service_role` |
-  | `company_brief_candidates()` | вычисляемая очередь: `org_id, company_id, reason, author_id, next_action_date`; видит все org | `service_role` |
+  | `company_brief_candidates()` | вычисляемая очередь: `org_id, company_id, reason, author_id, next_action_date`; видит все org + пауза 7 сут после двух `shape` подряд (140) | `service_role` |
   | `company_brief_auto_state(uuid)` | RPC для UI 1.2: `reason, used_today, daily_limit, attempts_today`; org-first (`current_org_id()`), чужая/нет компании → 0 строк, `reason = NULL` — «сейчас не в очереди» | `authenticated`, `service_role` |
   | `brief_auto_tick()` | `pg_advisory_xact_lock` → реклейм автопрогонов `pending`/`running` старше 15 мин → нет кандидатов — выход → нет Vault — выход → по org: `least(2, лимит − использовано)` INSERT `ai_runs` (`auto_reason`) + `net.http_post` в `ai-run` | `service_role` |
   | `ai_runs_auto_reason_guard()` | триггер-страж `auto_reason` | `service_role` |

@@ -61,9 +61,9 @@ export function DealBriefPanel({
   const [modalOpen, setModalOpen] = useState(false);
   const done = runs.latestDone;
   const result = (done?.result ?? null) as CompanyBriefResult | null;
-  const note = briefNote({ kind, runs, auto });
-  const action = briefAction(kind);
   const now = new Date();
+  const note = briefNote({ kind, runs, auto, now });
+  const action = briefAction(kind);
 
   const sourcesCount = Array.isArray(result?.sources) ? result.sources.length : null;
   const hooks = Array.isArray(result?.talk_hooks) ? result.talk_hooks : [];
