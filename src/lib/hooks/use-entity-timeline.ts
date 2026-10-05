@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { infiniteQueryOptions, useInfiniteQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { isTimelineRpcRow, rpcRowToEvent } from '@/lib/timeline/rpc-adapter';
 import {
@@ -112,6 +112,43 @@ async function fetchTimelinePage(
   return rows.filter(isTimelineRpcRow).map((r) => rpcRowToEvent(r, now));
 }
 
+/**
+ * S-TODAY-FOCUS-4: опции запроса ленты — общие для хука и префетча соседних сделок
+ * на экране «Сегодня». Вынесены, чтобы префетч клал страницу ровно под тот ключ,
+ * который потом прочтёт хук: ключ, собранный руками в двух местах, разошёлся бы
+ * молча, и префетч грел бы чужую запись кеша.
+ */
+export function entityTimelineQueryOptions(
+  entityType: TimelineEntityType,
+  entityId: string | null | undefined,
+  kinds?: readonly TimelineKindFilter[],
+  limit: number = TIMELINE_PAGE_SIZE,
+) {
+  const kindsKey = kinds && kinds.length > 0 ? [...kinds].sort() : 'all';
+  // Ключ без курсора: страницы живут внутри одной записи кеша `useInfiniteQuery`.
+  // Инвалидации в use-activity-log / use-calls / use-meetings / use-tasks идут
+  // префиксом `['timeline']` и продолжают работать без правок — они сбрасывают
+  // ленту целиком, к первой странице, и это верно: новое событие приходит сверху.
+  //
+  // ⚠️ S-TL-3: набор видов ОБЯЗАН быть частью ключа. Без него React Query отдал бы
+  // на «Задачи» кеш от «Все» — то есть чужую ленту, молча и мгновенно. Он же даёт
+  // сброс пагинации: смена чипа заводит новую запись кеша, а с ней и первую
+  // страницу без курсора. Ключ нормализован сортировкой: порядок чипов у родителя
+  // — не свойство данных, и ['task','call'] не должен заводить второй кеш.
+  //
+  // ⚠️ `limit` тоже часть ключа: у виджета дровера страница из 5 событий, у дашборда
+  // из 20, и общий кеш отдал бы одному из них чужой размер — а вместе с ним и
+  // неверное «есть ещё» (признак дна — НЕПОЛНАЯ страница, то есть функция лимита).
+  return infiniteQueryOptions({
+    queryKey: ['timeline', entityType, entityId ?? null, kindsKey, limit],
+    initialPageParam: null as TimelineCursor | null,
+    queryFn: ({ pageParam }) =>
+      fetchTimelinePage(entityType, entityId ?? null, pageParam, kinds ?? null, limit),
+    getNextPageParam: (lastPage: TimelineEvent[]) => nextTimelineCursor(lastPage, limit),
+    staleTime: STALE_TIME,
+  });
+}
+
 export function useEntityTimeline(
   entityType: TimelineEntityType,
   entityId: string | null | undefined,
@@ -127,30 +164,9 @@ export function useEntityTimeline(
   // навсегда оставило бы запрос выключенным — лента молча не загрузилась бы, без
   // ошибки и без спиннера. Тот же класс немого сбоя, что FIX S-TL-1-RPC-THIS.
   const enabled = entityType === 'org' || Boolean(entityId);
-  const kindsKey = kinds && kinds.length > 0 ? [...kinds].sort() : 'all';
-
-  // Ключ без курсора: страницы живут внутри одной записи кеша `useInfiniteQuery`.
-  // Инвалидации в use-activity-log / use-calls / use-meetings / use-tasks идут
-  // префиксом `['timeline']` и продолжают работать без правок — они сбрасывают
-  // ленту целиком, к первой странице, и это верно: новое событие приходит сверху.
-  //
-  // ⚠️ S-TL-3: набор видов ОБЯЗАН быть частью ключа. Без него React Query отдал бы
-  // на «Задачи» кеш от «Все» — то есть чужую ленту, молча и мгновенно. Он же даёт
-  // сброс пагинации: смена чипа заводит новую запись кеша, а с ней и первую
-  // страницу без курсора. Ключ нормализован сортировкой: порядок чипов у родителя
-  // — не свойство данных, и ['task','call'] не должен заводить второй кеш.
-  //
-  // ⚠️ `limit` тоже часть ключа: у виджета дровера страница из 5 событий, у дашборда
-  // из 20, и общий кеш отдал бы одному из них чужой размер — а вместе с ним и
-  // неверное «есть ещё» (признак дна — НЕПОЛНАЯ страница, то есть функция лимита).
   const timeline = useInfiniteQuery({
-    queryKey: ['timeline', entityType, entityId ?? null, kindsKey, limit],
-    initialPageParam: null as TimelineCursor | null,
-    queryFn: ({ pageParam }) =>
-      fetchTimelinePage(entityType, entityId ?? null, pageParam, kinds ?? null, limit),
-    getNextPageParam: (lastPage) => nextTimelineCursor(lastPage, limit),
+    ...entityTimelineQueryOptions(entityType, entityId, kinds, limit),
     enabled,
-    staleTime: STALE_TIME,
   });
 
   // Резолв актора id→имя — на сборке (одна Map из useTeamMembers-кеша, не N запросов).
@@ -176,6 +192,8 @@ export function useEntityTimeline(
     isLoadingMore: timeline.isFetchingNextPage,
     // S-NOTES-2.1: «Повторить» у ленты, которая не загрузилась.
     refetch: timeline.refetch,
+    // S-TODAY-FOCUS-4: когда пришла страница — отсечка «не позже сейчас» в фокусе.
+    dataUpdatedAt: timeline.dataUpdatedAt,
   };
 }
 

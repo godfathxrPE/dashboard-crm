@@ -32,6 +32,8 @@ interface TodayFocusPaneProps {
   paneRef: RefObject<HTMLElement | null>;
   /** Шапка: в её первую кнопку уходит DOM-фокус по Enter. */
   headRef: RefObject<HTMLDivElement | null>;
+  /** Поле заметки в теле — туда ставит курсор клавиша N. */
+  noteRef: RefObject<HTMLInputElement | null>;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   /** Узкий режим: панель поверх списка, порталом в `body`. */
   overlay?: boolean;
@@ -56,7 +58,7 @@ export function focusHeadEntry(head: HTMLElement | null) {
  * `data-card` на шапке нет: `.t-aura [data-card]` перебил бы стекло.
  */
 export function TodayFocusPane({
-  view, project, stage, quotes, now, move, actions, composerOpen, paneRef, headRef, onKeyDown, overlay, onClose,
+  view, project, stage, quotes, now, move, actions, composerOpen, paneRef, headRef, noteRef, onKeyDown, overlay, onClose,
 }: TodayFocusPaneProps) {
   const { source } = view;
   const { data: moves } = useFieldMoves(source.id);
@@ -143,7 +145,10 @@ export function TodayFocusPane({
         )}
       </div>
 
+      {/* `key`: смена сделки сбрасывает фильтр ленты, выделение новой заметки и
+          недописанный текст — они про прежнюю сделку. */}
       <TodayFocusBody
+        key={project.id}
         project={project}
         stage={stage}
         touches={view.touches}
@@ -152,6 +157,7 @@ export function TodayFocusPane({
         planned={view.planned}
         quotes={quotes}
         now={now}
+        noteRef={noteRef}
       />
     </aside>
   );

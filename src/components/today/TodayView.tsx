@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
@@ -22,6 +23,8 @@ import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-tou
 import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
+import { entityTimelineQueryOptions } from '@/lib/hooks/use-entity-timeline';
+import { TIMELINE_PAGE_SIZE } from '@/lib/timeline/cursor';
 import { useContainerWide } from '@/lib/hooks/use-container-wide';
 import { useDealTouches } from '@/lib/hooks/use-deal-touches';
 import { useDealsQuotes } from '@/lib/hooks/use-quotes';
@@ -647,6 +650,9 @@ export function TodayView() {
   const queueRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
+  /** N: курсор в поле заметки — эффектом после коммита, как и Enter в шапку. */
+  const [noteFocusTick, setNoteFocusTick] = useState(0);
   /**
    * DOM-фокус в фокусе — клавиши экрана молчат: иначе Enter на кнопке «Сделано» в
    * шапке перехватил бы `useKeyboardNav` (он ловит Enter на `window` с
@@ -696,6 +702,15 @@ export function TodayView() {
         const q = dealItem(i);
         if (q) snoozeDeal(q.view.source.id);
       },
+      // N — заметка в ленту сделки (S-TODAY-FOCUS-4): узкий режим — открыть панель,
+      // затем курсор в поле. `preventDefault` в `useKeyboardNav` не даёт «n» попасть в поле.
+      KeyN: (i) => {
+        const q = dealItem(i);
+        if (!q) return;
+        setSelectedId(q.view.source.id);
+        if (!wide) setNarrowOpen(true);
+        setNoteFocusTick((t) => t + 1);
+      },
     },
     // Esc: узкий режим и панель открыта — закрыть её; иначе выбор по умолчанию.
     // `useKeyboardNav` перед этим сбрасывает индекс в −1 — возвращаем его на сделку
@@ -744,6 +759,38 @@ export function TodayView() {
   useEffect(() => {
     if (headFocusTick > 0) focusHeadEntry(headRef.current);
   }, [headFocusTick]);
+  useEffect(() => {
+    if (noteFocusTick > 0) noteRef.current?.focus();
+  }, [noteFocusTick]);
+
+  // S-TODAY-FOCUS-4: префетч ленты соседних сделок очереди. Быстрый J/K иначе грузит
+  // ленту на каждую сделку по очереди, со скелетоном. 300 мс тишины — чтобы зажатая J
+  // не стреляла запросом на каждую пролетевшую строку. Опции — те же, что у ленты
+  // фокуса (`TodayFocusBody`): иначе префетч грел бы чужую запись кеша.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!focusId) return;
+    const timer = setTimeout(() => {
+      const q = queueNow.current;
+      const at = q.findIndex((x) => x.kind !== 'off' && x.view.source.id === focusId);
+      if (at < 0) return;
+      const neighbour = (from: number, step: number) => {
+        for (let i = from + step; i >= 0 && i < q.length; i += step) {
+          const x = q[i];
+          if (x.kind !== 'off') return x.view.source.id;
+        }
+        return null;
+      };
+      for (const id of [neighbour(at, -1), neighbour(at, 1)]) {
+        if (id && id !== focusId) {
+          void queryClient.prefetchInfiniteQuery(
+            entityTimelineQueryOptions('project', id, undefined, TIMELINE_PAGE_SIZE),
+          );
+        }
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [focusId, queryClient]);
 
   // S-TODAY-FOCUS-2: язычок выбора. Смена фокуса чаще 150 мс (зажатая J) — без
   // анимации: пружины не накладываются, «хвоста» нет. Через 150 мс тишины атрибут
@@ -864,6 +911,7 @@ export function TodayView() {
         composerOpen={composer?.id === focusView.source.id}
         paneRef={paneRef}
         headRef={headRef}
+        noteRef={noteRef}
         onKeyDown={onFocusKeyDown}
         overlay={overlay}
         onClose={overlay ? () => setNarrowOpen(false) : undefined}
@@ -879,7 +927,9 @@ export function TodayView() {
   const assignedCount = model?.moves.filter((v) => v.slot === 'assigned').length ?? 0;
 
   return (
-    <div ref={cqRef} className="today-cq">
+    // `data-hotkeys-local`: N на этом экране — заметка в фокусе, а не глобальное
+    // «Быстрое создание» (`Hotkeys`).
+    <div ref={cqRef} className="today-cq" data-hotkeys-local={queue.length > 0 ? 'n' : undefined}>
       <header className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-2">
         <div className="min-w-0 flex-1">
           <h1 className="aura-page-title text-2xl font-semibold text-text-main">Сегодня</h1>
@@ -966,7 +1016,7 @@ export function TodayView() {
 
             {queue.length > 0 && (
               <p className="mb-6 text-xs text-text-dim">
-                J / K — выбор сделки · Enter — в фокус · D — главное действие · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку · Esc — к плану дня
+                J / K — выбор сделки · Enter — в фокус · D — главное действие · U — обновить шаг · T — перенести · S — отложить · N — заметка · O — открыть сделку · Esc — к плану дня
               </p>
             )}
           </div>
