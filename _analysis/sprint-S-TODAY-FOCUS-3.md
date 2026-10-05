@@ -230,9 +230,11 @@ grep -n "#[0-9a-fA-F]\{3,6\}\b" src/components/today/TodayMoveTile.tsx | head
 
 ## КОММИТ
 
+Перед коммитом сохрани отчёт (формат — секция ОТЧЁТ ниже) в `_analysis/sprint-S-TODAY-FOCUS-3-report.md`: спринт-файл уже в `main`, а страж `sprint-file` требует файл `_analysis/` в диффе ветки (урок FOCUS-1). `git add` и `git commit` — отдельными вызовами.
+
 ```bash
 git checkout -b feat/today-focus-3
-git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-3.md
+git add src/ tests/ _analysis/sprint-S-TODAY-FOCUS-3-report.md
 git commit -m "feat(today): ходы — полоса и таймер остывания до «Решить судьбу»
 
 - decide-clock: дни срыва или тишины, день перехода, состояния calm/warn/over/none/done
