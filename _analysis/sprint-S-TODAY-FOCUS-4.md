@@ -157,6 +157,8 @@ export function countBuckets(
 
 ---
 
+Попутно (гейт FOCUS-3): `moveWhy` и тип `MoveWhy` в `src/lib/utils/today-text.ts` остались без потребителей после удаления `TodayMoveCard` — удалить вместе с их тестами (`grep -rn "moveWhy" src tests`).
+
 ## ТЕСТЫ
 
 **`tests/unit/focus-feed.test.ts`** — новый. `now` — 04.10.2026 12:00 МСК.

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Шапка фокуса</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: доска сравнения — пары «сейчас / предложение» в колонку 28rem, ниже решения и что доска не проверяет.
+   Рамка страницы — свои токены (тема зрителя); образцы — фиксированные токены тем приложения (cobalt, frost). */
+:root{
+ --bg:#f3f5f6;--surface:#ffffff;--ink:#14201f;--dim:#4f605f;--line:#d3dcdb;--accent:#0e7c86;--accent-ink:#0a5e66;--accent-soft:#e1f0f1;
+ --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1716;--surface:#16201f;--ink:#e4eeed;--dim:#9caeac;--line:#2a3937;--accent:#3fb3bd;--accent-ink:#80d3da;--accent-soft:#123739;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1716;--surface:#16201f;--ink:#e4eeed;--dim:#9caeac;--line:#2a3937;--accent:#3fb3bd;--accent-ink:#80d3da;--accent-soft:#123739;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:.9375rem;line-height:1.55}
+.wrap{max-width:64rem;margin:0 auto;padding-inline:1.25rem;padding-block:2.25rem 4rem;display:flex;flex-direction:column;gap:1.75rem}
+.eyebrow{font-family:var(--mono);font-size:.75rem;color:var(--accent-ink)}
+h1{font-size:1.75rem;line-height:1.2;font-weight:600;margin:.375rem 0 0;text-wrap:balance}
+h2{font-size:1.125rem;font-weight:600;margin:0 0 .75rem}
+.lead{color:var(--dim);max-width:66ch;margin:.5rem 0 0}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,29rem),1fr));gap:1.25rem;align-items:start}
+.cap{display:flex;align-items:baseline;gap:.5rem;font-size:.8125rem;color:var(--dim);margin-bottom:.5rem}
+.cap b{color:var(--ink);font-weight:600}
+.cap .tag{font-family:var(--mono);font-size:.6875rem;padding:.0625rem .375rem;border-radius:.25rem;background:var(--accent-soft);color:var(--accent-ink)}
+.stage{border-radius:.75rem;padding:1.25rem;overflow-x:auto}
+.note{font-size:.8125rem;color:var(--dim);margin-top:.5rem;max-width:30rem}
+table{border-collapse:collapse;font-size:.8125rem;width:100%}
+th,td{border:1px solid var(--line);padding:.5rem .625rem;text-align:left;vertical-align:top}
+th{background:var(--surface);font-weight:600}
+td code{font-family:var(--mono);font-size:.75rem}
+.tbl{overflow-x:auto;background:var(--surface);border-radius:.5rem}
+ul.plain{margin:0;padding-left:1.125rem;display:flex;flex-direction:column;gap:.375rem;max-width:68ch}
+.measure{font-family:var(--mono);font-size:.75rem;color:var(--accent-ink)}
+
+/* ── Образцы приложения: токены из globals.css (cobalt — тема на скриншоте 05.10; frost — белое стекло) ── */
+.app{--a-bg:#FAF8F5;--a-surface:#FFFFFF;--a-surface2:#F2EFE9;--a-border:#E6E2DA;--a-text:#17171C;--a-dim:#5F5F6A;--a-mute:#5F5F6A;
+ --glass:rgba(3,8,28,.84);--sheen:linear-gradient(160deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 46%,rgba(255,255,255,.04) 100%);
+ --gshadow:0 10px 32px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.24),inset 0 -1px 0 rgba(255,255,255,.06);
+ --hair:rgba(255,255,255,.20);--s-text:#FFFFFF;--s-dim:#D2D2D6;--s-red:#FF7A68;--s-warn:#FFC24D;--s-btn:rgba(255,255,255,.35);
+ --plate:rgba(255,255,255,.09);--plate-b:rgba(255,255,255,.16);--mark-fill:#93B7FF;--mark-ink:#050B1F;
+ --rl:20px;--rs:9px;--info:#2F7FA8;--a-warn:#7A5C00;
+ background:var(--a-bg);font-family:'Inter',system-ui,sans-serif;font-feature-settings:'cv11';color:var(--a-text);color-scheme:light}
+.app.frost{--a-bg:#0d1020;--a-surface:rgba(255,255,255,.07);--a-surface2:rgba(255,255,255,.04);--a-border:rgba(255,255,255,.12);--a-text:#eef2ff;--a-dim:#94a4d4;--a-mute:#7e90c0;
+ --glass:rgba(221,232,255,.88);--sheen:linear-gradient(160deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,0) 48%,rgba(0,0,0,.05) 100%);
+ --gshadow:0 10px 34px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.65),inset 0 -1px 0 rgba(0,0,0,.05);
+ --hair:rgba(255,255,255,.55);--s-text:#0B152C;--s-dim:#454D5E;--s-red:#8D3123;--s-warn:#764600;--s-btn:rgba(0,0,0,.22);
+ --plate:rgba(0,0,0,.055);--plate-b:rgba(0,0,0,.10);--mark-fill:#4B70C6;--mark-ink:#FFFFFF;--rl:20px;--info:#5b8aff;--a-warn:#F0C45E;
+ background:radial-gradient(120% 80% at 20% 0%,#1b2350 0%,#0d1020 60%);color-scheme:dark}
+.focus{width:28rem;max-width:100%;border:1px solid var(--a-border);border-radius:var(--rl);background:var(--a-surface);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.focus.n25{width:25rem}
+.head{background-color:var(--glass);background-image:var(--sheen);box-shadow:var(--gshadow);border-bottom:1px solid var(--hair);color:var(--s-text);padding:16px 16px 14px;border-radius:var(--rl) var(--rl) 0 0}
+.row{display:flex;align-items:flex-start;gap:12px}
+.kick{flex:1;min-width:0;padding-top:2px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--s-dim);line-height:1.45}
+.kick .red{color:var(--s-red)} .kick .warn{color:var(--s-warn);display:inline-flex;align-items:center;gap:4px}
+.kick .warn svg{width:12px;height:12px;flex:none}
+.amt{flex:none;text-align:right}
+.amt b{display:block;font-size:18px;font-weight:600;line-height:1.25;font-variant-numeric:tabular-nums;color:var(--s-text)}
+.amt span{font-size:11px;color:var(--s-dim)}
+.step-big{margin:8px 0 0;font-size:18px;font-weight:600;line-height:1.375;color:var(--s-text);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.ctx{margin:6px 0 0;font-size:12px;line-height:1.5;color:var(--s-dim)}
+.ctx a,.name a{color:var(--s-text);text-decoration:none}
+.ctx a{font-weight:500}
+.arr{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin-left:2px}
+.name{margin:6px 0 0;font-size:16px;font-weight:600;line-height:1.35;color:var(--s-text)}
+.ctx2{margin:2px 0 0;font-size:12px;line-height:1.5;color:var(--s-dim)}
+.plate{margin-top:12px;background:var(--plate);border:1px solid var(--plate-b);border-radius:var(--rl) var(--rl) var(--rl) var(--rs);padding:10px 14px 12px}
+.plate-l{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--s-dim)}
+.plate-t{margin-top:4px;font-size:14px;font-weight:500;line-height:1.42;color:var(--s-text);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.acts{margin-top:12px;display:flex;align-items:center;gap:2px 2px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:999px;font-size:12.5px;font-weight:500;white-space:nowrap}
+.btn.p{background:var(--mark-fill);color:var(--mark-ink)}
+.btn.t{color:var(--s-dim);padding:0 5px}
+.btn.o{margin-left:auto;color:var(--s-dim);padding:0 4px}
+.kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 3px;border:1px solid currentColor;border-radius:999px;font-size:10px;font-weight:500;opacity:.7}
+.body{padding:12px 16px 14px;background:var(--a-surface)}
+.sec{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--a-mute)}
+.pulse{display:grid;grid-template-columns:repeat(30,1fr);gap:3px;margin-top:10px}
+.pulse i{height:22px;border-radius:999px;background:color-mix(in srgb,var(--a-text) 8%,transparent)}
+.pulse i.t{background:color-mix(in srgb,var(--a-text) 45%,transparent)}
+.pulse i.s{background:var(--info)}
+.pl{display:flex;justify-content:space-between;font-size:11px;color:var(--a-mute);margin-top:6px}
+.health{padding:12px 16px 12px;border-top:1px solid var(--a-border);background:var(--a-surface)}
+.hrow{display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:12px;line-height:1.45;color:var(--a-text)}
+.hrow svg{width:13px;height:13px;flex:none;margin-top:2px;color:var(--a-warn)}
+.hrow .ht{flex:1;min-width:0}
+.hrow .hact{flex:none;font-size:12px;font-weight:500;color:var(--a-text);border:1px solid var(--a-border);border-radius:999px;padding:1px 9px;white-space:nowrap}
+@media (max-width:30rem){.focus,.focus.n25{width:100%}}
+</style>
+</head><body>
+
+<div class="wrap">
+ <header>
+  <span class="eyebrow">dashboard-crm · «Сегодня» · шапка фокуса · доска к S-TODAY-FOCUS-5 · 05.10.2026</span>
+  <h1>Шапка фокуса</h1>
+  <p class="lead">Сейчас и предложение рядом, на живых данных 05.10. Название сделки становится заголовком, шаг уходит на подложку, как в «Следующем шаге» карточки сделки. У «Под риском» в шапке остаются значок и слово, а причины уходят в тело секцией «Риски» сразу под пульсом. Сумма, ряд действий и овальные подсказки клавиш — без изменений. Тема cobalt — как на твоём скриншоте; ниже frost и ширина 1280.</p>
+ </header>
+
+ <section>
+  <h2>1. «Под риском» — Фитнес Десерты. WMS</h2>
+  <div class="pair">
+   <div>
+    <div class="cap"><span class="tag">сейчас</span><b>cobalt · 28rem</b><span class="measure" data-m="a"></span></div>
+    <div class="stage app"><div class="focus" id="m-a">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0">Под риском</p><div class="amt"><b>3,9 млн ₽</b><span>КП отправлено</span></div></div>
+      <p class="step-big">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</p>
+      <p class="ctx"><a href="#">Фитнес Десерты. WMS<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a> · ООО "ФИТНЕС ДЕСЕРТЫ" · Защита бюджета · перенесён 3 раза</p>
+      <div class="acts"><span class="btn p">Обновить шаг<span class="kbd">D</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть сделку<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="body"><div class="sec">Было · 30 дней</div><div class="pulse" data-p="0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0"></div><div class="pl"><span>6 сент</span><span>сегодня</span></div></div>
+    </div></div>
+    <p class="note">Кто это — третья строка, 12 px, вперемешку с юрлицом. Почему «под риском» — не сказано. Дата шага 9 окт в шапке отсутствует.</p>
+   </div>
+   <div>
+    <div class="cap"><span class="tag">предложение</span><b>cobalt · 28rem</b><span class="measure" data-m="b"></span></div>
+    <div class="stage app"><div class="focus" id="m-b">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0"><span class="warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg>Под риском</span></p><div class="amt"><b>3,9 млн ₽</b><span>КП отправлено</span></div></div>
+      <p class="name"><a href="#">Фитнес Десерты. WMS<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a></p>
+      <p class="ctx2">ООО "ФИТНЕС ДЕСЕРТЫ" · Защита бюджета · перенесён 3 раза</p>
+      <div class="plate"><div class="plate-l">Следующий шаг · пт 9 окт</div><div class="plate-t">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</div></div>
+      <div class="acts"><span class="btn p">Обновить шаг<span class="kbd">D</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть сделку<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="body"><div class="sec">Было · 30 дней</div><div class="pulse" data-p="0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0"></div><div class="pl"><span>6 сент</span><span>сегодня</span></div></div><div class="health"><div class="sec">Риски</div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">КП истекло 18 сен — отправлено 9 сен, ответа нет</span><span class="hact">Открыть КП</span></div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">Задача «Позвонить Александру. Уточнить было ли рассмотрение КП» — срок был 15 сен</span><span class="hact">Готово</span></div></div>
+    </div></div>
+    <p class="note">В шапке — только значок и «Под риском». Причины — секцией «Риски» сразу под пульсом, каждая с действием: КП отправлено 9 сен и истекло 18 сен, задача «Позвонить Александру…» висит с 15 сен (живые данные). Секция появляется только у сделки с сигналами.</p>
+   </div>
+  </div>
+ </section>
+
+ <section>
+  <h2>2. Ход 1 из 3, свежий срыв — Лоренц снек</h2>
+  <div class="pair">
+   <div>
+    <div class="cap"><span class="tag">сейчас</span><b>cobalt · 28rem</b><span class="measure" data-m="c"></span></div>
+    <div class="stage app"><div class="focus" id="m-c">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0">Ход 1 из 3 · Свежий срыв · <span class="red">5 дн.</span></p><div class="amt"><b>14,3 млн ₽</b><span>черновик КП</span></div></div>
+      <p class="step-big">Получить ОС по новой концепции пн - вт, либо файл по успешному тесту</p>
+      <p class="ctx"><a href="#">Лоренц снек<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a> · ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · перенесён 6 раз</p>
+      <div class="acts"><span class="btn p">Сделано<span class="kbd">D</span></span><span class="btn t">Перенести<span class="kbd">T</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть сделку<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="body"><div class="sec">Было · 30 дней</div><div class="pulse" data-p="1,0,0,1,1,0,2,0,0,1,0,0,1,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0"></div><div class="pl"><span>6 сент</span><span>сегодня</span></div></div>
+    </div></div>
+   </div>
+   <div>
+    <div class="cap"><span class="tag">предложение</span><b>cobalt · 28rem</b><span class="measure" data-m="d"></span></div>
+    <div class="stage app"><div class="focus" id="m-d">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0">Ход 1 из 3 · Свежий срыв · <span class="red">5 дн. после срока</span></p><div class="amt"><b>14,3 млн ₽</b><span>черновик КП</span></div></div>
+      <p class="name"><a href="#">Лоренц снек<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a></p>
+      <p class="ctx2">ООО "ЛОРЕНЦ СНЭК-УОРЛД РАША" · перенесён 6 раз</p>
+      <div class="plate"><div class="plate-l">Следующий шаг · срок был ср 30 сен</div><div class="plate-t">Получить ОС по новой концепции пн - вт, либо файл по успешному тесту</div></div>
+      <div class="acts"><span class="btn p">Сделано<span class="kbd">D</span></span><span class="btn t">Перенести<span class="kbd">T</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть сделку<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="body"><div class="sec">Было · 30 дней</div><div class="pulse" data-p="1,0,0,1,1,0,2,0,0,1,0,0,1,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0"></div><div class="pl"><span>6 сент</span><span>сегодня</span></div></div>
+    </div></div>
+    <p class="note">Красный — один раз, в кикере. Дата срока в подписи подложки нейтральная: второй красный рядом был бы двойным маркером одного факта. Сигналов риска у сделки нет — секции «Риски» нет: задача со сроком сегодня просроченной станет только завтра.</p>
+   </div>
+  </div>
+ </section>
+
+ <section>
+  <h2>3. Предложение в frost и на 1280</h2>
+  <div class="pair">
+   <div>
+    <div class="cap"><span class="tag">предложение</span><b>frost · белое стекло</b><span class="measure" data-m="e"></span></div>
+    <div class="stage app frost"><div class="focus" id="m-e">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0"><span class="warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg>Под риском</span></p><div class="amt"><b>3,9 млн ₽</b><span>КП отправлено</span></div></div>
+      <p class="name"><a href="#">Фитнес Десерты. WMS<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a></p>
+      <p class="ctx2">ООО "ФИТНЕС ДЕСЕРТЫ" · Защита бюджета · перенесён 3 раза</p>
+      <div class="plate"><div class="plate-l">Следующий шаг · пт 9 окт</div><div class="plate-t">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</div></div>
+      <div class="acts"><span class="btn p">Обновить шаг<span class="kbd">D</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть сделку<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="body"><div class="sec">Было · 30 дней</div><div class="pulse" data-p="0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0"></div><div class="pl"><span>6 сент</span><span>сегодня</span></div></div><div class="health"><div class="sec">Риски</div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">КП истекло 18 сен — отправлено 9 сен, ответа нет</span><span class="hact">Открыть КП</span></div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">Задача «Позвонить Александру. Уточнить было ли рассмотрение КП» — срок был 15 сен</span><span class="hact">Готово</span></div></div>
+    </div></div>
+   </div>
+   <div>
+    <div class="cap"><span class="tag">предложение</span><b>cobalt · 25rem (1280)</b><span class="measure" data-m="f"></span></div>
+    <div class="stage app"><div class="focus n25" id="m-f">
+     <div class="head">
+      <div class="row"><p class="kick" style="margin:0"><span class="warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg>Под риском</span></p><div class="amt"><b>3,9 млн ₽</b><span>КП отправлено</span></div></div>
+      <p class="name"><a href="#">Фитнес Десерты. WMS<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg></a></p>
+      <p class="ctx2">ООО "ФИТНЕС ДЕСЕРТЫ" · Защита бюджета · перенесён 3 раза</p>
+      <div class="plate"><div class="plate-l">Следующий шаг · пт 9 окт</div><div class="plate-t">Получил ответ, что сейчас пересматривают процессы. Но проект еще актуален.</div></div>
+      <div class="acts"><span class="btn p">Обновить шаг<span class="kbd">D</span></span><span class="btn t">Отложить<span class="kbd">S</span></span><span class="btn o">Открыть<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M8 7h9v9"/></svg><span class="kbd">O</span></span></div>
+     </div>
+     <div class="health"><div class="sec">Риски</div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">КП истекло 18 сен — отправлено 9 сен, ответа нет</span><span class="hact">Открыть КП</span></div><div class="hrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></svg><span class="ht">Задача «Позвонить Александру. Уточнить было ли рассмотрение КП» — срок был 15 сен</span><span class="hact">Готово</span></div></div>
+    </div></div>
+   </div>
+  </div>
+ </section>
+
+ <section>
+  <h2>Решения</h2>
+  <div class="tbl"><table>
+   <thead><tr><th>ID</th><th>Решение</th><th>Отвергнуто</th><th>Основание</th><th>Чинит</th><th>Чем платим</th></tr></thead>
+   <tbody>
+    <tr><td>H-01</td><td>Название сделки — заголовок шапки, 16/600 со значком ↗; юрлицо, стадия и «перенесён N раз» — тихой строкой под ним</td><td>Шаг 18/600 заголовком (A-03, F-03)</td><td>[CONVENTION] боковой просмотр записи называет запись в заголовке: HubSpot, Attio, Pipedrive. [JUDGMENT] шаг у нас — свободный текст, часто заметка о статусе, а не действие (пример выше)</td><td>Замечание владельца 05.10: название теряется; подтверждение сделки при J/K</td><td>Частично отменяет A-03. Шаг больше не самый крупный текст экрана</td></tr>
+    <tr><td>H-02</td><td>Шаг — на подложке <code>.glass-plate</code> (тот же класс и угол-«хвостик», что у «Следующего шага» в карточке сделки), 14/500 до трёх строк, подпись «Следующий шаг · {день}»</td><td>Шаг крупным текстом прямо на стекле</td><td>[JUDGMENT] один объект — один материал в продукте (довод B-01); подложка отделяет «что делать» от «чья сделка»</td><td>Замечание владельца 05.10; дата шага в шапке не показывалась вовсе</td><td>Шапка выше на ≈ 45 px (на доске 216 → 261, на 1280 — 279): тело фокуса — пульс и лента — уходит вниз на столько же. Подложка — ещё один прямоугольник в тёмной шапке</td></tr>
+    <tr><td>H-03</td><td>Кикер «Под риском» — значок и слово цветом <code>--sheet-warning</code>, без причины</td><td>Причина в кикере (первая версия доски); только слово без значка (сейчас)</td><td>[JUDGMENT] шапка — что и чья сделка; группа понятна по значку и слову, конкретика — секцией ниже (предложение владельца 05.10)</td><td>Замечание владельца 05.10: шапка тише и воздушнее</td><td>Причина не видна без взгляда на тело — но тело открыто всегда, секция вторая, сразу под пульсом</td></tr><tr><td>H-05</td><td>Секция «Риски» — второй в теле фокуса, сразу под пульсом (решение владельца 05.10: пульс первой строкой), только у сделки с сигналами <code>riskSignals</code>: строка на каждый — истёкшее КП, каждая просроченная задача, каждый просроченный звонок — с действием («Открыть КП», «Готово», «Выполнен»). Просроченные задачи и звонки уходят из «Задач и звонков» в «Риски»</td><td>Название «Здоровье» (так называется карточка сделки — но там пять других сигналов <code>getDealSignals</code>, пересечения нет); причины тёплым цветом в «КП» и «Задачах» ниже</td><td>[PATTERN] IBM Carbon, status indicators: цвет рядом с текстом. Решение F-15 обещало причину риска в фокусе. [JUDGMENT] одно имя — один набор: «Риски» объясняют ровно группу «Под риском»; слово уже есть в продукте (зона «Риски» карточек лида и сделки)</td><td>F-15 (причины в фокусе нет)</td><td>Тело ниже на высоту секции (≈ 60–80 px). Цвет предупреждения — только в «Рисках»: строка «КП» ниже нейтральная, если её факт уже в «Рисках»</td></tr>
+    <tr><td>H-04</td><td>Сумма — без изменений: 18/600 справа сверху с источником</td><td>Сумма крупнее или цветом</td><td>[JUDGMENT] две главных строки (сумма и новое название) снова спорят за взгляд; верх-право уже сильная позиция</td><td>Вопрос владельца 05.10</td><td>—</td></tr>
+    <tr><td>—</td><td>Подсказки клавиш — овалами, как сейчас</td><td>Прямоугольный <code>kbd</code></td><td>Решение владельца 05.10: прямоугольник выбивается из скруглённого виджета</td><td>—</td><td>«O» на кнопке похожа на ноль — принято</td></tr>
+   </tbody>
+  </table></div>
+ </section>
+
+ <section>
+  <h2>Что доска не проверяет</h2>
+  <ul class="plain">
+   <li>Реальные компоненты: токены перенесены из <code>globals.css</code> (cobalt и frost), разметка написана заново.</li>
+   <li>Высоту в приложении: замеры над образцами — по этой доске, шрифт Inter из Google Fonts.</li>
+   <li>Длинные названия сделок и три сигнала риска сразу — в живых данных 05.10 таких нет.</li>
+   <li>Форму хода в шапке: при открытой форме подложка шага остаётся над формой — это проверит смок спринта.</li>
+   <li>Остальные темы (aura, washi, fuji, minimal, aurora, tidal): материал стекла в них прогнан раньше, сама подложка — нет.</li>
+  </ul>
+ </section>
+</div>
+
+<script>
+document.querySelectorAll('.pulse').forEach(p=>{p.dataset.p.split(',').forEach(v=>{const i=document.createElement('i');if(v==='1')i.className='t';if(v==='2')i.className='s';p.appendChild(i)})});
+function measure(){document.querySelectorAll('[data-m]').forEach(s=>{const f=document.getElementById('m-'+s.dataset.m);if(!f)return;const h=f.querySelector('.head');s.textContent='шапка '+Math.round(h.getBoundingClientRect().height)+' px'})}
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(measure);window.addEventListener('resize',measure);
+</script>
+</body></html>
