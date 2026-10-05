@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
-import { Dot, Flag, ListChecks, Phone, StickyNote, Users, type LucideIcon } from 'lucide-react';
+import { Dot, Flag, ListChecks, Phone, StickyNote, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import { ContactCallChip } from '@/components/shared/ContactCallChip';
 import { PulseDayStrip } from '@/components/shared/PulseDayStrip';
 import { cn } from '@/lib/utils/cn';
@@ -11,6 +11,7 @@ import { countBuckets, feedBucket, filterFeed, type FeedBucket, type FeedFilter 
 import { TIMELINE_PAGE_SIZE } from '@/lib/timeline/cursor';
 import { dealHeaderAmount } from '@/lib/domain/deal-amount';
 import { pickActiveQuote } from '@/lib/domain/quote-version';
+import { focusRiskRows, type FocusRiskRow } from '@/lib/domain/today-risks';
 import { useEntityTimeline } from '@/lib/hooks/use-entity-timeline';
 import { useStageTimeGauge } from '@/lib/hooks/use-stage-gauge';
 import { useContactBrief } from '@/lib/hooks/use-contact-brief';
@@ -20,7 +21,7 @@ import { formatContactName } from '@/lib/utils/contact-name';
 import { projectHref } from '@/lib/utils/project-href';
 import { pluralRu } from '@/lib/utils/plural';
 import { localDateKey, mskTime } from '@/lib/utils/date-helpers';
-import { dayText, deadlineText, plannedText, quoteLineText } from '@/lib/utils/today-text';
+import { dayText, deadlineText, focusRiskText, plannedText, quoteLineText } from '@/lib/utils/today-text';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { PipelineStage } from '@/types/database';
 import type { Quote } from '@/types/entities';
@@ -117,7 +118,8 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
 }
 
 /**
- * Тело фокуса (спека, §4): «Было» → «Лента» → «Задачи и звонки» → «КП» → «Сделка».
+ * Тело фокуса (спека, §4): «Было» → «Риски» → заметка → «Лента» → «Задачи и звонки» →
+ * «КП» → «Сделка».
  * Содержимое — из раскрытой панели V3 (удалена этим спринтом), без новой логики.
  *
  * ⚠️ Пропсы простые — проект, касания, задачи, КП, — а не `TodayDealView`: это тело
@@ -161,6 +163,15 @@ export function TodayFocusBody({
   // (`ProjectDetail`, S-DEAL-LAYOUT-1).
   const quotesHref = `${href}?tab=quotes`;
 
+  // FOCUS-5: один факт — один маркер. Просроченное живёт только в «Рисках» (с цветом
+  // предупреждения); «Задачи и звонки» показывают остальное, строка КП не красится.
+  const risks = focusRiskRows({ quotes, tasks, calls }, now);
+  const quoteExpiredInRisks = risks.some((r) => r.kind === 'quote_expired');
+  const restTasks = tasks.filter((t) => !t.overdue);
+  const restCalls = calls.filter((c) => !c.overdue);
+  const riskKey = (r: FocusRiskRow) =>
+    r.kind === 'quote_expired' ? r.quoteId : r.kind === 'task_overdue' ? r.taskId : r.callId;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <Section
@@ -177,6 +188,32 @@ export function TodayFocusBody({
           <p className="mt-2 text-xs text-text-dim">За 30 дней по сделке не было ни одного касания</p>
         )}
       </Section>
+
+      {risks.length > 0 && (
+        <Section title="Риски">
+          <ul className="space-y-1.5">
+            {risks.map((r) => (
+              <li key={riskKey(r)} className="flex items-start gap-2 text-xs">
+                <TriangleAlert aria-hidden="true" className="mt-0.5 h-[0.8125rem] w-[0.8125rem] shrink-0 text-warning-text" />
+                <span className="min-w-0 flex-1 text-text-main">{focusRiskText(r)}</span>
+                {r.kind === 'quote_expired' ? (
+                  <Link href={quotesHref} className={ROW_BUTTON}>
+                    Открыть КП
+                  </Link>
+                ) : r.kind === 'task_overdue' ? (
+                  <button type="button" onClick={() => updateTask.mutate({ id: r.taskId, lane: 'done' })} className={ROW_BUTTON}>
+                    Готово
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => updateCall.mutate({ id: r.callId, status: 'done' })} className={ROW_BUTTON}>
+                    Выполнен
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <section className="border-t border-border px-4 py-3">
         <TodayFocusNote projectId={project.id} inputRef={noteRef} onCreated={setNoteSentAt} />
@@ -250,27 +287,23 @@ export function TodayFocusBody({
         </Link>
       </Section>
 
-      {(tasks.length > 0 || calls.length > 0) && (
+      {(restTasks.length > 0 || restCalls.length > 0) && (
         <Section title="Задачи и звонки">
           <ul className="space-y-1.5">
-            {tasks.map((t) => (
+            {restTasks.map((t) => (
               <li key={t.id} className="flex items-start gap-2 text-xs">
                 <span className="min-w-0 flex-1 text-text-main">
                   Задача «{t.text}»
-                  {t.deadline && (
-                    <span className={t.overdue ? 'text-warning-text' : 'text-text-dim'}>
-                      {' '}· {t.overdue ? 'срок был' : 'срок'} {dayText(t.deadline)}
-                    </span>
-                  )}
+                  {t.deadline && <span className="text-text-dim"> · срок {dayText(t.deadline)}</span>}
                 </span>
                 <button type="button" onClick={() => updateTask.mutate({ id: t.id, lane: 'done' })} className={ROW_BUTTON}>
                   Готово
                 </button>
               </li>
             ))}
-            {calls.map((c) => (
+            {restCalls.map((c) => (
               <li key={c.id} className="flex items-start gap-2 text-xs">
-                <span className={cn('min-w-0 flex-1', c.overdue ? 'text-warning-text' : 'text-text-main')}>
+                <span className="min-w-0 flex-1 text-text-main">
                   Звонок {dayText(c.date)}, {mskTime(c.date)}
                 </span>
                 <button type="button" onClick={() => updateCall.mutate({ id: c.id, status: 'done' })} className={ROW_BUTTON}>
@@ -290,7 +323,9 @@ export function TodayFocusBody({
           </Link>
         }
       >
-        <p className={cn('text-xs', quoteLine.warn ? 'text-warning-text' : 'text-text-main')}>{quoteLine.text}</p>
+        <p className={cn('text-xs', quoteLine.warn && !quoteExpiredInRisks ? 'text-warning-text' : 'text-text-main')}>
+          {quoteLine.text}
+        </p>
       </Section>
 
       <Section title="Сделка">

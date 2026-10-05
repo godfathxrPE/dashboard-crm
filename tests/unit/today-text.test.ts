@@ -9,6 +9,7 @@ import {
   doneText,
   dueText,
   focusKicker,
+  focusRiskText,
   inMovesText,
   namesText,
   planItemText,
@@ -16,6 +17,7 @@ import {
   quoteLineText,
   rowPill,
   signalsText,
+  stepPlateLabel,
 } from '@/lib/utils/today-text';
 import type { AfterInfo, TodayDealView } from '@/lib/domain/today-model';
 import type { TodayDealClass } from '@/lib/domain/today-deals';
@@ -205,22 +207,71 @@ function quote(over: Partial<Parameters<typeof quoteLineText>[0] & object> = {})
 describe('focusKicker', () => {
   it('ход 1 из 3, свежий срыв 4 дня', () => {
     const v = { ...view({ cls: { overdueDays: 4, group: 'fresh' } }), slot: 'fresh' as const };
-    expect(focusKicker(v, { n: 1, of: 3 })).toEqual({ lead: 'Ход 1 из 3 · Свежий срыв', days: '4 дн.', hot: true });
+    expect(focusKicker(v, { n: 1, of: 3 })).toEqual({ lead: 'Ход 1 из 3 · Свежий срыв', days: '4 дн.', hot: true, risk: false });
   });
 
   it('строка «Обновить шаг», 26 дней после срока', () => {
     expect(focusKicker(view({ cls: { overdueDays: 26, group: 'stale' } }), null))
-      .toEqual({ lead: 'Обновить шаг', days: '26 дн. после срока', hot: false });
+      .toEqual({ lead: 'Обновить шаг', days: '26 дн. после срока', hot: false, risk: false });
   });
 
   it('строка без шага — «шага нет»', () => {
     const v = view({ next_step: null, next_action_date: null, cls: { noStep: true, group: 'decide' } });
-    expect(focusKicker(v, null)).toEqual({ lead: 'Решить судьбу', days: 'шага нет', hot: false });
+    expect(focusKicker(v, null)).toEqual({ lead: 'Решить судьбу', days: 'шага нет', hot: false, risk: false });
   });
 
   it('шаг впереди — дней нет', () => {
     const v = view({ next_action_date: '2026-10-09', cls: { stepAhead: true, group: 'plan' } });
     expect(focusKicker(v, null).days).toBeNull();
+  });
+});
+
+describe('focusKicker: «Под риском» (FOCUS-5)', () => {
+  it('строка группы risk — risk: true, дней нет', () => {
+    const v = view({ next_action_date: '2026-10-09', cls: { stepAhead: true, group: 'risk' } });
+    expect(focusKicker(v, null)).toEqual({ lead: 'Под риском', days: null, hot: false, risk: true });
+  });
+
+  it('ход свежего срыва — risk: false, дни как раньше', () => {
+    const v = { ...view({ cls: { overdueDays: 5, group: 'fresh' } }), slot: 'fresh' as const };
+    expect(focusKicker(v, { n: 2, of: 3 })).toEqual({ lead: 'Ход 2 из 3 · Свежий срыв', days: '5 дн.', hot: true, risk: false });
+  });
+});
+
+describe('focusRiskText', () => {
+  it('КП с датой отправки', () => {
+    expect(
+      focusRiskText({ kind: 'quote_expired', quoteId: 'q1', validUntil: '2026-09-18', sentAt: '2026-09-09T10:00:00+03:00' }),
+    ).toBe('КП истекло 18 сент — отправлено 9 сент');
+  });
+
+  it('КП без sentAt — без хвоста «отправлено»', () => {
+    expect(focusRiskText({ kind: 'quote_expired', quoteId: 'q1', validUntil: '2026-09-18', sentAt: null }))
+      .toBe(`КП истекло ${dayText('2026-09-18')}`);
+  });
+
+  it('задача', () => {
+    expect(focusRiskText({ kind: 'task_overdue', taskId: 't1', text: 'Позвонить Александру', deadline: '2026-10-04T12:00:00+03:00' }))
+      .toBe(`Задача «Позвонить Александру» — срок был ${dayText('2026-10-04')}`);
+  });
+
+  it('звонок — день и время по МСК', () => {
+    expect(focusRiskText({ kind: 'call_overdue', callId: 'c1', date: '2026-10-02T08:00:00Z' }))
+      .toBe(`Звонок ${dayText('2026-10-02')}, 11:00 — не выполнен`);
+  });
+});
+
+describe('stepPlateLabel', () => {
+  it('шаг впереди — день недели', () => {
+    expect(stepPlateLabel(view({ next_action_date: '2026-10-09' }), '2026-10-05')).toBe('Следующий шаг · пт 9 окт');
+  });
+
+  it('срок прошёл — «срок был»', () => {
+    expect(stepPlateLabel(view({ next_action_date: '2026-09-30' }), '2026-10-05')).toBe('Следующий шаг · срок был ср 30 сент');
+  });
+
+  it('даты нет — только подпись', () => {
+    expect(stepPlateLabel(view({ next_action_date: null }), '2026-10-05')).toBe('Следующий шаг');
   });
 });
 
