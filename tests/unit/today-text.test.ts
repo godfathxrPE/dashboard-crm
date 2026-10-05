@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   afterText,
   amountSourceText,
+  clockCaption,
   dayText,
   dayWeekdayText,
   deadlineText,
@@ -19,6 +20,7 @@ import {
 } from '@/lib/utils/today-text';
 import type { AfterInfo, TodayDealView } from '@/lib/domain/today-model';
 import type { TodayDealClass } from '@/lib/domain/today-deals';
+import type { DecideClock } from '@/lib/domain/decide-clock';
 
 // Вид собирается руками, без `buildTodayModel`: здесь проверяются слова, а не модель.
 
@@ -379,5 +381,50 @@ describe('rowPill', () => {
     const v = view({ cls: { overdueDays: 4, group: 'fresh' } });
     expect(rowPill(v, TODAY, { nextDateKey: '2026-10-05' })).toEqual({ text: 'шаг пн 5 окт', tone: 'done', title: null });
     expect(rowPill(v, TODAY, { nextDateKey: null })).toEqual({ text: 'шага нет', tone: 'done', title: null });
+  });
+});
+
+describe('clockCaption', () => {
+  const clock = (over: Partial<DecideClock>): DecideClock => ({
+    basis: 'overdue', days: 4, ratio: 4 / 14, tipKey: '2026-10-15', state: 'calm', ...over,
+  });
+
+  it('calm → «15 окт — в «Решить судьбу»»', () => {
+    expect(clockCaption(clock({}), view())).toBe('15 окт — в «Решить судьбу»');
+  });
+
+  it('warn — та же подпись', () => {
+    expect(clockCaption(clock({ state: 'warn', days: 9, tipKey: '2026-10-10' }), view())).toBe('10 окт — в «Решить судьбу»');
+  });
+
+  it('over → «с 3 окт — в «Решить судьбу»»', () => {
+    expect(clockCaption(clock({ basis: 'silence', state: 'over', days: 16, tipKey: '2026-10-03', ratio: 1 }), view()))
+      .toBe('с 3 окт — в «Решить судьбу»');
+  });
+
+  const none = clock({ basis: 'none', days: null, ratio: 0, tipKey: null, state: 'none' });
+
+  it('none, назначено на сегодня с временем → «назначено на сегодня, 14:00»', () => {
+    expect(clockCaption(none, view({ cls: { stepAhead: true, assignedToday: { time: '14:00' } } })))
+      .toBe('назначено на сегодня, 14:00');
+  });
+
+  it('none, назначено на сегодня без времени', () => {
+    expect(clockCaption(none, view({ next_action_date: '2026-10-04', cls: { stepAhead: true, assignedToday: { time: null } } })))
+      .toBe('назначено на сегодня');
+  });
+
+  it('none, шаг впереди → «шаг пт 9 окт»', () => {
+    expect(clockCaption(none, view({ next_action_date: '2026-10-09', cls: { stepAhead: true, group: 'plan' } })))
+      .toBe('шаг пт 9 окт');
+  });
+
+  it('none, встреча впереди → plannedText', () => {
+    expect(clockCaption(none, view({
+      next_step: null,
+      next_action_date: null,
+      cls: { noStep: true, group: 'plan' },
+      planned: { dateKey: '2026-10-07', time: '11:00', kind: 'meeting' },
+    }))).toBe('встреча 7 окт, 11:00');
   });
 });

@@ -35,7 +35,6 @@ import { markMoveDone, reconcileDayMoves, takeOneMore, unmarkMoveDone, type DayM
 import { planRestore, type StepMode } from '@/lib/domain/step-flow';
 import { stepActionsFor } from '@/lib/domain/step-actions';
 import { nextInSweep, resolveSelection, type SelectionScreen } from '@/lib/domain/today-selection';
-import { pluralRu } from '@/lib/utils/plural';
 import { doneText } from '@/lib/utils/today-text';
 import {
   buildTodayModel,
@@ -287,8 +286,6 @@ export function TodayView() {
     [modelInput, now, dayState, pinnedGroups, base],
   );
   const dayDone = useMemo(() => new Set(dayState?.done ?? []), [dayState]);
-  const movesDone = (model?.moves ?? []).filter((v) => dayDone.has(v.source.id)).length;
-  const allMovesDone = !!model && model.moves.length > 0 && movesDone === model.moves.length;
 
   // Все четыре запроса модели: без КП и стадий модель не собирается, и без ошибки
   // на экране скелетон висел бы вечно.
@@ -515,14 +512,15 @@ export function TodayView() {
     [model, expandedGroups, showAllGroups],
   );
 
-  // ── Плоская очередь клавиш: карточки ходов → строки открытых групп сверху вниз →
+  // ── Плоская очередь клавиш: плитки ходов → строки открытых групп сверху вниз →
   // строки раскрытого чипа. ⚠️ JSX рендерит kbdIndex ИЗ ЭТОГО ЖЕ массива (`kbdIndexOf`):
   // второй порядок, написанный руками, однажды разошёлся бы с первым, и j/k подсвечивал
   // бы одну строку, а Enter открывал другую — ни tsc, ни тесты такое не ловят.
   // Отложенные и свёрнутые строки в очередь не входят: невидимые позиции дали бы
   // провалы фокуса.
   const queue: QueueItem[] = [
-    ...(allMovesDone ? [] : model?.moves ?? []).map((view): QueueItem => ({ kind: 'move', view })),
+    // S-TODAY-FOCUS-3: плитки сделанного набора не сворачиваются — и в очереди остаются.
+    ...(model?.moves ?? []).map((view): QueueItem => ({ kind: 'move', view })),
     ...layout.flatMap((l) => l.rows.map((view): QueueItem => ({ kind: 'row', view }))),
     ...openChipRows.map((row): QueueItem => ({ kind: 'off', row })),
   ];
@@ -887,22 +885,6 @@ export function TodayView() {
           <h1 className="aura-page-title text-2xl font-semibold text-text-main">Сегодня</h1>
           <p className="mt-1 text-sm text-text-dim">{dateProse}</p>
         </div>
-        {dayState && model && model.moves.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-text-dim" title="Сколько ходов дня уже сделано">
-            <span className="flex gap-1" aria-hidden="true">
-              {model.moves.map((v) => (
-                <span
-                  key={v.source.id}
-                  className={dayDone.has(v.source.id) ? 'h-2 w-2 rounded-full bg-success' : 'h-2 w-2 rounded-full border border-border2'}
-                />
-              ))}
-            </span>
-            <span>
-              <b className="font-semibold tabular-nums text-text-main">{movesDone}</b> из {model.moves.length}{' '}
-              {pluralRu(model.moves.length, 'хода', 'ходов', 'ходов')} сделано
-            </span>
-          </div>
-        )}
       </header>
 
       {loadError ? (
@@ -942,9 +924,9 @@ export function TodayView() {
                 loading={loading}
                 selectedId={focusId}
                 onSelect={selectDeal}
-                // Карточка показывает итог только у сделанного хода набора.
+                now={now}
+                // Плитка показывает итог только у сделанного хода набора.
                 doneOf={(view) => (dayDone.has(view.source.id) ? doneOf(view) : null)}
-                allDone={allMovesDone}
                 onTakeMore={
                   dayState && freshComputed.some((m) => !dayState.picked.includes(m.id))
                     ? () => persistDayMoves(takeOneMore(dayState, freshComputed))
