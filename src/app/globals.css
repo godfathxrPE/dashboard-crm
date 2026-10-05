@@ -1876,33 +1876,17 @@ table { font-variant-numeric: tabular-nums; }
 
   /* S-TODAY-V3-SCREEN-1: экран «Сегодня» — раскладка по ширине КОНТЕНТА, а не экрана
      (довод .deal-org-split: ширину съедает сайдбар, и при 1280 контент уже 1440 на
-     целую колонку). Контейнер один — корень экрана; карточки ходов, строки сделок и
-     раскрытая панель меряются от него.
-     «Мобайл-ферст»: одна колонка по умолчанию. С 40rem — сетка строки с узкой второй
-     колонкой (8rem, 1280), с 66rem — полная `minmax(0,1fr) 9.5rem 15rem` (1440).
-     Три карточки — с 52rem. */
+     целую колонку). Контейнер один — корень экрана; карточки ходов и фокус меряются
+     от него. «Мобайл-ферст»: одна колонка по умолчанию, три карточки — с 52rem.
+     Строка сделки — S-TODAY-FOCUS-2, блок без слоя ниже по файлу. */
   .today-cq { container-type: inline-size; }
-  .today-cards,
-  .today-row-grid {
+  .today-cards {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-  }
-  .today-cards { gap: 0.75rem; }
-  .today-row-grid { gap: 0.25rem 1.25rem; }
-  .today-row-head { display: none; }
-  /* В одну колонку сумма и срок встают под названием — с отступом шеврона. */
-  .today-row-sub { padding-left: 1.25rem; }
-  @container (min-width: 40rem) {
-    .today-row-grid { grid-template-columns: minmax(0, 1fr) 8rem 15rem; }
-    .today-row-head { display: grid; }
-    .today-row-amount { text-align: right; }
-    .today-row-sub { padding-left: 0; }
+    gap: 0.75rem;
   }
   @container (min-width: 52rem) {
     .today-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @container (min-width: 66rem) {
-    .today-row-grid { grid-template-columns: minmax(0, 1fr) 9.5rem 15rem; }
   }
 
   /* S-TODAY-FOCUS-1 (`_analysis/today-focus-spec.md`, §2): список + фокус справа.
@@ -2433,10 +2417,11 @@ table tbody tr[data-kbd-focused] {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-/* S-TODAY-FOCUS-1: сделка в фокусе «Сегодня» — карточка хода и строка группы.
+/* S-TODAY-FOCUS-1: сделка в фокусе «Сегодня» — карточка хода.
    ВРЕМЕННЫЙ маркер выбора (спека §3): `--accent-l2` — конвенция «выбрано»
-   (`theme-system.md`). S2 заменяет его у строк язычком, S3 — у плиток стеклом.
-   Вне @layer и с (0,3,0): фон `.sheet` у карточки задан без слоя. Клавиатурной
+   (`theme-system.md`). У строк его с S2 заменил язычок (`data-today-pick` у строки
+   снят), у плиток его заменит стекло в S3. Вне @layer: `.sheet` живёт в
+   `@layer components`, а стеклянные темы перекрашивают его без слоя. Клавиатурной
    рамки `kbd-focus-row` у сделок нет — подсветка J/K и выбор одно и то же. */
 .today-cq [data-today-pick][aria-current='true'] {
   background: var(--accent-l2);
@@ -2449,6 +2434,154 @@ table tbody tr[data-kbd-focused] {
    Скоуп — фокус: общий материал стекла этим спринтом не трогаем. */
 .today-focus .glass-sheet .text-red {
   color: var(--sheet-red);
+}
+
+/* ═══ S-TODAY-FOCUS-2: список «Сделки в работе» (`_analysis/today-focus-spec.md`, §5) ═══
+   Без слоя и НИЖЕ `.t-frost .sheet` (≈ стр. 2100): `.sheet.today-grp` (0,2,0) равен
+   ему по специфичности и выигрывает порядком. `.sheet` сам — в `@layer components`.
+
+   Лист группы — БЕЗ своего контекста наложения: язычок выбора (z-index: -1 в строке)
+   рисуется под листом и выходит из-под левого края. transform, filter,
+   backdrop-filter, opacity < 1 или overflow: hidden на этом листе спрячут язычок
+   целиком. Спека S-TODAY-FOCUS §5, решение F-18. */
+.today-grp { position: relative; overflow: visible; margin-bottom: 0.625rem; }
+.sheet.today-grp { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* Стеклянные темы: лист без blur читается плёнкой (см. `.t-frost .sheet`). Blur —
+   на подложке под листом: псевдоэлемент контекст наложения у самого листа не
+   создаёт. Подложка (z-index: -1) идёт раньше строк в порядке дерева — язычок
+   рисуется поверх неё и под листом. */
+.t-frost .sheet.today-grp::before,
+.t-aurora .sheet.today-grp::before,
+.t-tidal .sheet.today-grp::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* Заголовок группы: иконка · название (правило — в title) · тихий счёт · шеврон. */
+.today-grp-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.625rem;
+  padding: 0.625rem 1rem 0.375rem;
+}
+
+/* Строка сделки. Разделитель — псевдоэлементом с отступами 1rem, есть и у первой
+   строки после заголовка. Граница — классом, не утилитой: `.t-frost *` перекрасил
+   бы утилиту при равной специфичности. */
+.today-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem;
+  column-gap: 0.875rem;
+  align-items: start;
+  width: 100%;
+  padding: 0.5625rem 1rem;
+  transition: background-color 120ms ease-out;
+}
+.today-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  border-top: 1px solid var(--border);
+}
+.today-row:hover { background: var(--surface2); }
+/* Лист без overflow: hidden (язычок) — скругление низа у последней строки само. */
+.today-grp > .today-row:last-child { border-radius: 0 0 var(--radius-m) var(--radius-m); }
+.today-row-foot { position: relative; }
+.today-row-foot::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Плашка `rowPill`. Риск — контуром `--border2`: правило после safety-net. */
+.today-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 1.25rem;
+  padding: 0 0.4375rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.today-pill-risk {
+  background: transparent;
+  border: 1px solid var(--border2);
+}
+
+/* Чип сделки свёрнутой группы: клик раскрывает группу и ведёт сделку в фокус. */
+.today-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  transition: background-color 120ms ease-out;
+}
+button.today-chip:hover { background: var(--surface2); }
+.today-chip-more {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-mute);
+  font-size: 0.75rem;
+}
+
+/* Язычок выбора (F-18). Левая колонка — свой контекст наложения: язычок с
+   z-index: -1 рисуется над фоном страницы, но под листом группы. Язычок выходит на
+   9 px (-0.5625rem), под листом — ещё 4 px запаса: пружина 1.35 не отрывает его от
+   края. Цвет — `--accent`: язычок про выбор, не про смысл. Фон строки при выборе не
+   меняется — один факт, один маркер. */
+.today-split > .min-w-0 { isolation: isolate; }
+.today-tab {
+  position: absolute;
+  z-index: -1;
+  left: -0.5625rem;
+  top: 0.3125rem;
+  bottom: 0.3125rem;
+  width: 0.8125rem;
+  border-radius: 0.375rem 0 0 0.375rem;
+  background: var(--accent);
+  box-shadow: -1px 0 0 color-mix(in srgb, var(--accent) 60%, var(--text)),
+              0 1px 2px color-mix(in srgb, var(--text) 18%, transparent);
+  transform: translateX(0.75rem);
+  opacity: 0;
+  transition: transform 140ms ease-in, opacity 0s linear 140ms;
+}
+.today-row[aria-current='true'] .today-tab {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 260ms cubic-bezier(0.3, 1.35, 0.5, 1) 110ms, opacity 0s linear 110ms;
+}
+/* Быстрый J/K (`TodayView`, смены выбора чаще 150 мс): без анимации, без «хвоста».
+   Вторая строка селектора обязательна: правило выбранной строки выше — (0,3,0), и
+   голое `[data-tab-fast] .today-tab` (0,2,0) его не перебивает (замер смоком 5:
+   у выбранной строки оставалось 0.26s). */
+[data-tab-fast='true'] .today-tab,
+[data-tab-fast='true'] .today-row[aria-current='true'] .today-tab { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .today-tab,
+  .today-row[aria-current='true'] .today-tab { transition: none; }
 }
 
 /* Peek-панель: слайд справа; z-40 — между drawer (30) и dropdown (50) */
