@@ -75,7 +75,6 @@ export function DealNextStep({ project }: { project: Project }) {
 
   const health = getDealHealth(project);
   const overdue = health === 'overdue-action';
-  const noAction = health === 'no-action';
   const overdueDays = overdue && project.next_action_date
     ? getNextActionOverdueDays(project.next_action_date)
     : 0;
@@ -92,11 +91,9 @@ export function DealNextStep({ project }: { project: Project }) {
     <div id="deal-next-step" data-next-step className="min-w-0">
       <div
         data-card
-        // Жёлтый кант пустого состояния живёт в CSS материала, а не в утилитах:
-        // safety-net тёмных тем (`.t-frost *`) глушит любую `border-*`-утилиту при
-        // равной специфичности. Отсюда `data-empty` вместо классов рамки.
+        // Без жёлтого канта пустого шага (приёмка владельца 05.10, как у лида в #144): пустое
+        // состояние видно строкой «Дата: назначить», а риск пишет сигнал `next_step`.
         // Акцентной полосы слева нет — снята по визуальной приёмке 09.09.
-        data-empty={noAction ? 'true' : undefined}
         className="glass-sheet px-5 pb-4 pt-[1.125rem]"
       >
         <div className="mb-2.5 flex items-center gap-2">
