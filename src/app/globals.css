@@ -2155,6 +2155,8 @@ table { font-variant-numeric: tabular-nums; }
   box-shadow: var(--sheet-shadow);
   border-color: var(--sheet-hairline);
   color: var(--sheet-text);
+  /* Нативные контролы (иконка календаря у type="date", скроллбар) — по светлоте стекла. */
+  color-scheme: var(--sheet-scheme);
 
   /* Утилиты Tailwind компилируются в `color: var(--<токен>)` (`tailwind.config.ts`,
      функция-значение `v()`), поэтому одно переопределение токенов на контейнере
@@ -2171,6 +2173,16 @@ table { font-variant-numeric: tabular-nums; }
   --accent-text:  var(--sheet-mark);
   --border:       var(--sheet-btn-border);
   --surface2:     var(--sheet-hover);
+  /* Поля и вторичная кнопка (`bg-surface`, `border-input`). Без этого поле на тёмном
+     стекле белое, а текст в нём уже белый (`--text` перекрашен выше) — fix-S-GLASS-THEME-1. */
+  --surface:      var(--sheet-plate-bg);
+  --border-input: var(--sheet-btn-border);
+  /* Смысловой текст. `--danger-text`/`--success-text` вычислены на :root из `--red-text`/
+     `--green-text` темы — перекраска `--red`/`--green` выше до них не доходит. */
+  --red-text:     var(--sheet-red);
+  --danger-text:  var(--sheet-red);
+  --green-text:   var(--sheet-green);
+  --success-text: var(--sheet-green);
 }
 
 /* Подпись «Следующий шаг». Правило нужно из-за ЛИТЕРАЛА `.t-fuji .text-accent
@@ -2203,6 +2215,32 @@ table { font-variant-numeric: tabular-nums; }
    Замер в браузере до правки: frost рендерил #0d1020 (3.99:1), aurora #0a0e1a (4.09),
    tidal #080f0d (4.25), lime #14210A. */
 .glass-sheet .bg-accent.text-white { color: var(--sheet-mark-ink) !important; }
+
+/* fix-S-GLASS-THEME-1: CTA на стекле — заливка метки во всех темах.
+   washi и fuji делают CTA контурным: `.t-washi/.t-fuji button.bg-accent
+   { background: transparent !important }` (0,2,1). Глиф при этом брало правило выше
+   ((0,3,0), тёмный `--sheet-mark-ink`) — тёмное на тёмном стекле. Пара заливка/глиф
+   метки уже выверена на 4.5:1 (таблица S-DEAL-NEXTSTEP-1), контур под стекло не мерян.
+   Специфичность равна тематической, решает порядок — правило обязано стоять ниже тем.
+   Цена: в washi и fuji CTA на стекле — заливка, а не фирменный контур темы.
+   `:disabled` — против `.t-minimal .bg-accent:disabled` ((0,3,0), серая `--surface3`
+   светлой палитры на тёмном стекле); (0,3,1) выигрывает счётом. Тише — `opacity`. */
+.glass-sheet button.bg-accent,
+.glass-sheet a.bg-accent,
+.glass-sheet button.bg-accent:hover,
+.glass-sheet a.bg-accent:hover,
+.glass-sheet button.bg-accent:disabled {
+  background: var(--sheet-mark-fill) !important;
+  border-color: var(--sheet-mark-fill) !important;
+  color: var(--sheet-mark-ink) !important;
+}
+.glass-sheet button.bg-accent:hover,
+.glass-sheet a.bg-accent:hover { filter: brightness(.92); }
+/* Подчёркивание washi (::after, белое) и золотой градиент fuji (::before) — не на стекле. */
+.glass-sheet button.bg-accent::before,
+.glass-sheet button.bg-accent::after,
+.glass-sheet a.bg-accent::before,
+.glass-sheet a.bg-accent::after { content: none; }
 
 /* S-DEAL-CONTACT-1: кнопка звонка в чипе основного контакта (спека A1-a, 1.3/1.4).
    Акцент — РАМКОЙ и иконкой, не заливкой: заливка в виджете одна, у метки.
@@ -2413,15 +2451,6 @@ table tbody tr[data-kbd-focused] {
 .kbd-focus-row {
   background: var(--accent-l);
   box-shadow: inset 2px 0 0 var(--accent);
-}
-
-/* S-TODAY-FOCUS-1: красный кикера на стекле фокуса. `.text-red` читает
-   `var(--red-text, var(--red))`, а `.glass-sheet` перекрашивает только `--red`:
-   в темах с `--red-text` (minimal, aura, washi…) дни срыва остались бы тёмно-красными
-   на тёмном стекле. Замер смоком в minimal: #B02A24 вместо --sheet-red #FF7A68.
-   Скоуп — фокус: общий материал стекла этим спринтом не трогаем. */
-.today-focus .glass-sheet .text-red {
-  color: var(--sheet-red);
 }
 
 /* ═══ S-TODAY-FOCUS-2: список «Сделки в работе» (`_analysis/today-focus-spec.md`, §5) ═══
@@ -3044,6 +3073,7 @@ button.today-chip { max-width: 100%; }
   --sheet-mark:         #D2D2D6;
   --sheet-mark-fill:    #D2D2D6;
   --sheet-mark-ink:     #040406;
+  --sheet-scheme:       dark;
 }
 
 /* ⚠️ Переопределение washi стоит ЗДЕСЬ, ПОСЛЕ :root, а не в блоке `.t-washi` выше.
@@ -3144,6 +3174,7 @@ button.today-chip { max-width: 100%; }
   --sheet-plate-bg:     rgba(0,0,0,.055);
   --sheet-plate-border: rgba(0,0,0,.10);
   --sheet-mark-ink:     #FFFFFF;
+  --sheet-scheme:       light;
 }
 .t-frost  { --sheet-glass: rgba(221, 232, 255, .88); --sheet-text: #0B152C; --sheet-dim: #454D5E;
             --sheet-mark: #3355A8; --sheet-mark-fill: #4B70C6; }
