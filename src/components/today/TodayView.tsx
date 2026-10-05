@@ -537,6 +537,11 @@ export function TodayView() {
     snooze.mutate({ entity_type: 'deal', entity_id: id });
   };
   const isDealDone = (id: string) => dayDone.has(id) || results.has(id);
+  /** Плашка строки: ход записан сегодня — день нового шага (`cleared` — без шага). */
+  const writtenOf = (id: string) => {
+    const r = results.get(id);
+    return r ? { nextDateKey: r.outcome === 'cleared' ? null : r.dateKey } : null;
+  };
 
   /** Группа, в которой строка стоит сейчас: группа показа или настоящая. */
   const shownGroupOf = (id: string): TodayGroup | null =>
@@ -742,6 +747,19 @@ export function TodayView() {
     if (headFocusTick > 0) focusHeadEntry(headRef.current);
   }, [headFocusTick]);
 
+  // S-TODAY-FOCUS-2: язычок выбора. Смена фокуса чаще 150 мс (зажатая J) — без
+  // анимации: пружины не накладываются, «хвоста» нет. Через 150 мс тишины атрибут
+  // снимается — следующий одиночный выбор снова с пружиной.
+  const [tabFast, setTabFast] = useState(false);
+  const lastFocusChangeAt = useRef(0);
+  useEffect(() => {
+    const at = performance.now();
+    if (at - lastFocusChangeAt.current < 150) setTabFast(true);
+    lastFocusChangeAt.current = at;
+    const timer = setTimeout(() => setTabFast(false), 150);
+    return () => clearTimeout(timer);
+  }, [focusId]);
+
   /** Esc внутри фокуса (форма закрыта): закрыть панель и вернуть DOM-фокус на строку. */
   const onFocusKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'Escape' || composer !== null) return;
@@ -915,7 +933,7 @@ export function TodayView() {
         />
       ) : (
         <div className={hasFocus ? 'today-split' : undefined}>
-          <div ref={queueRef} className="min-w-0">
+          <div ref={queueRef} className="min-w-0" data-tab-fast={tabFast ? 'true' : undefined}>
             {(loading || (model && model.total > 0)) && (
               <TodayMoves
                 moves={model?.moves ?? []}
@@ -951,7 +969,8 @@ export function TodayView() {
               selectedId={focusId}
               onSelect={selectDeal}
               kbdIndexOf={dealKbdIndex}
-              writtenIds={new Set(results.keys())}
+              todayKey={todayKey}
+            writtenOf={writtenOf}
               onSweep={startSweep}
             />
 

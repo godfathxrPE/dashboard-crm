@@ -1,4 +1,4 @@
-import { mskDayCaption } from '@/lib/utils/date-helpers';
+import { diffDaysKey, mskDayCaption } from '@/lib/utils/date-helpers';
 import { pluralRu } from '@/lib/utils/plural';
 import { formatBudget } from '@/lib/validators/project';
 import { quoteValidity } from '@/lib/domain/quote-validity';
@@ -280,4 +280,54 @@ export function quoteLineText(
     case 'expired':
       return { text: withDay('Истекло', quote.valid_until ?? quote.updated_at), warn: true, action: 'open' };
   }
+}
+
+// ── S-TODAY-FOCUS-2: плашка строки списка (спека, §5) ──
+
+const NBSP = '\u00a0';
+
+/**
+ * Плашка справа в строке сделки: дни срыва, срок шага или «шага нет». Стадия и
+ * «что было после срока» ушли в фокус — строке остаётся одно число.
+ *
+ * Порядок проверок — таблица спринта, первая подошедшая побеждает. `written` —
+ * ход записан сегодня: плашка показывает новый шаг, а не прежнюю просрочку.
+ * «дн.» — через неразрывный пробел: плашка узкая, перенос «4 / дн.» её ломает.
+ */
+export function rowPill(
+  view: TodayDealView,
+  todayKey: string,
+  written: { nextDateKey: string | null } | null,
+): { text: string; tone: 'hot' | 'risk' | 'plain' | 'done'; title: string | null } {
+  const { cls, source, planned } = view;
+  if (written) {
+    return {
+      text: written.nextDateKey ? `шаг ${dayWeekdayText(written.nextDateKey)}` : 'шага нет',
+      tone: 'done',
+      title: null,
+    };
+  }
+  if (cls.group === 'fresh' && cls.overdueDays !== null) {
+    return { text: `${cls.overdueDays}${NBSP}дн.`, tone: 'hot', title: null };
+  }
+  if (cls.group === 'risk') {
+    const days = source.next_action_date ? diffDaysKey(todayKey, source.next_action_date.slice(0, 10)) : 0;
+    return {
+      text: days <= 0 ? 'сегодня' : `через ${days}${NBSP}дн.`,
+      tone: 'risk',
+      title: signalsText(view.signals),
+    };
+  }
+  if (cls.overdueDays !== null) return { text: `${cls.overdueDays}${NBSP}дн.`, tone: 'plain', title: null };
+  if (cls.stepAhead && source.next_action_date) {
+    return { text: dayWeekdayText(source.next_action_date), tone: 'plain', title: null };
+  }
+  if (planned) {
+    return {
+      text: `${dayWeekdayText(planned.dateKey)}${planned.time ? `, ${planned.time}` : ''}`,
+      tone: 'plain',
+      title: null,
+    };
+  }
+  return { text: 'шага нет', tone: 'plain', title: null };
 }

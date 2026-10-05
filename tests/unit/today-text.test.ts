@@ -14,6 +14,7 @@ import {
   planItemText,
   plannedText,
   quoteLineText,
+  rowPill,
   signalsText,
 } from '@/lib/utils/today-text';
 import type { AfterInfo, TodayDealView } from '@/lib/domain/today-model';
@@ -317,5 +318,66 @@ describe('quoteLineText', () => {
   it('истекло без valid_until — дата из updated_at', () => {
     expect(quoteLineText(quote({ status: 'expired' }), 'budget', NOW))
       .toEqual({ text: 'Истекло 20 сент', warn: true, action: 'open' });
+  });
+});
+
+// ── S-TODAY-FOCUS-2 ──
+
+describe('rowPill', () => {
+  const TODAY = '2026-10-04';
+  const NB = '\u00a0';
+
+  it('fresh, 4 дня — «4 дн.», hot', () => {
+    expect(rowPill(view({ cls: { overdueDays: 4, group: 'fresh' } }), TODAY, null))
+      .toEqual({ text: `4${NB}дн.`, tone: 'hot', title: null });
+  });
+
+  it('risk, шаг через 3 дня, два сигнала — «через 3 дн.», title из signalsText', () => {
+    const signals = [
+      { key: 'quote_expired' as const, since: '2026-09-18' },
+      { key: 'task_overdue' as const, since: '2026-09-15' },
+    ];
+    const v = view({ next_action_date: '2026-10-07', cls: { group: 'risk', stepAhead: true }, signals });
+    expect(rowPill(v, TODAY, null))
+      .toEqual({ text: `через 3${NB}дн.`, tone: 'risk', title: signalsText(signals) });
+  });
+
+  it('risk, шаг сегодня — «сегодня»', () => {
+    const v = view({
+      next_action_date: TODAY,
+      cls: { group: 'risk', stepAhead: true },
+      signals: [{ key: 'call_overdue', since: '2026-10-01' }],
+    });
+    expect(rowPill(v, TODAY, null).text).toBe('сегодня');
+  });
+
+  it('stale, 26 дней — «26 дн.», plain', () => {
+    expect(rowPill(view({ cls: { overdueDays: 26, group: 'stale' } }), TODAY, null))
+      .toEqual({ text: `26${NB}дн.`, tone: 'plain', title: null });
+  });
+
+  it('шаг впереди без сигналов — день недели и дата', () => {
+    const v = view({ next_action_date: '2026-10-09', cls: { group: 'plan', stepAhead: true } });
+    expect(rowPill(v, TODAY, null)).toEqual({ text: 'пт 9 окт', tone: 'plain', title: null });
+  });
+
+  it('шага нет, впереди встреча — день и время', () => {
+    const v = view({
+      next_step: null, next_action_date: null,
+      cls: { group: 'plan', noStep: true },
+      planned: { dateKey: '2026-10-08', time: '14:00', kind: 'meeting' },
+    });
+    expect(rowPill(v, TODAY, null).text).toBe('чт 8 окт, 14:00');
+  });
+
+  it('без шага, встречи нет — «шага нет»', () => {
+    const v = view({ next_step: null, next_action_date: null, cls: { group: 'decide', noStep: true } });
+    expect(rowPill(v, TODAY, null)).toEqual({ text: 'шага нет', tone: 'plain', title: null });
+  });
+
+  it('written с датой — «шаг пн 5 окт», done; без даты — «шага нет», done', () => {
+    const v = view({ cls: { overdueDays: 4, group: 'fresh' } });
+    expect(rowPill(v, TODAY, { nextDateKey: '2026-10-05' })).toEqual({ text: 'шаг пн 5 окт', tone: 'done', title: null });
+    expect(rowPill(v, TODAY, { nextDateKey: null })).toEqual({ text: 'шага нет', tone: 'done', title: null });
   });
 });
