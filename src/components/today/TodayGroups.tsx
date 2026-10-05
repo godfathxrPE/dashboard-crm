@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { pluralRu } from '@/lib/utils/plural';
@@ -28,12 +28,10 @@ interface TodayGroupsProps {
   layout: readonly TodayGroupLayout[];
   onToggleGroup: (key: TodayGroupView['key']) => void;
   onShowAll: (key: TodayGroupView['key']) => void;
-  openRowId: string | null;
-  onToggleRow: (id: string) => void;
-  /** Панель раскрытой строки — рисуется под ней. */
-  panel: ReactNode;
+  /** Сделка в фокусе. */
+  selectedId: string | null;
+  onSelect: (id: string, e: MouseEvent) => void;
   kbdIndexOf: (id: string) => number;
-  activeIndex: number;
   /** ACT-1: сделки, по которым сегодня записан ход. */
   writtenIds: ReadonlySet<string>;
   /** «Разобрать по одной» у свёрнутой «Решить судьбу». */
@@ -129,8 +127,8 @@ function GroupHeading({ layout, onToggle, onSweep }: { layout: TodayGroupLayout;
 
 /** Список «Сделки в работе»: один лист, группы по типу решения (макет, кадр 1). */
 export function TodayGroups({
-  loading, total, noStepAhead, noAmount, layout, onToggleGroup, onShowAll, openRowId, onToggleRow, panel,
-  kbdIndexOf, activeIndex, writtenIds, onSweep,
+  loading, total, noStepAhead, noAmount, layout, onToggleGroup, onShowAll, selectedId, onSelect,
+  kbdIndexOf, writtenIds, onSweep,
 }: TodayGroupsProps) {
   const visibleGroups = layout.filter((l) => l.view.total > 0);
 
@@ -176,17 +174,14 @@ export function TodayGroups({
           <div key={l.view.key}>
             <GroupHeading layout={l} onToggle={() => onToggleGroup(l.view.key)} onSweep={onSweep} />
             {l.rows.map((v) => (
-              <div key={v.source.id}>
-                <TodayDealRow
-                  view={v}
-                  expanded={openRowId === v.source.id}
-                  onToggle={() => onToggleRow(v.source.id)}
-                  kbdIndex={kbdIndexOf(v.source.id)}
-                  focused={activeIndex === kbdIndexOf(v.source.id)}
-                  writtenToday={writtenIds.has(v.source.id)}
-                />
-                {openRowId === v.source.id && panel}
-              </div>
+              <TodayDealRow
+                key={v.source.id}
+                view={v}
+                selected={selectedId === v.source.id}
+                onSelect={(e) => onSelect(v.source.id, e)}
+                kbdIndex={kbdIndexOf(v.source.id)}
+                writtenToday={writtenIds.has(v.source.id)}
+              />
             ))}
             {l.hidden > 0 && (
               <div className="border-t border-border px-4 py-2 text-xs text-text-dim">

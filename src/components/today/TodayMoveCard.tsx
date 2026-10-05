@@ -1,7 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import type { MouseEvent } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { formatBudget } from '@/lib/validators/project';
@@ -14,50 +13,43 @@ interface TodayMoveCardProps {
   slot: MoveSlot;
   /** Номер в круге, 1-based. */
   number: number;
-  expanded: boolean;
-  onToggle: () => void;
-  /** Ход сделан: подпись итога и «Вернуть» (пока итог в памяти экрана). */
-  done: { text: string; onRestore?: () => void; restoring?: boolean } | null;
-  /** Ряд действий (`TodayStepActions`); `extra` — «Подробнее» этой карточки. */
-  renderActions: (extra: ReactNode) => ReactNode;
+  /** Сделка в фокусе. */
+  selected: boolean;
+  /** Клик — в фокус; ⌘/Ctrl или средняя кнопка — карточка сделки в новой вкладке. */
+  onSelect: (e: MouseEvent) => void;
+  /** Ход сделан — подпись итога; `null` — ход не сделан. «Вернуть» — в шапке фокуса. */
+  doneText: string | null;
   kbdIndex: number;
-  focused: boolean;
 }
 
 /**
- * Карточка хода дня (макет, кадры 1, 4, 5). Действия — `TodayStepActions`: кнопки по
- * таблице хода или форма на месте. Сделанный ход остаётся карточкой: номер зелёный,
- * шаг зачёркнут, вместо кнопок — итог записи.
+ * Карточка хода дня (макет V3, кадры 1, 4, 5). S-TODAY-FOCUS-1: карточка — кнопка
+ * выбора целиком; действия хода и форма живут в шапке фокуса. Сделанный ход остаётся
+ * карточкой: номер зелёный, шаг зачёркнут, внизу — итог записи.
+ *
+ * Внутри `<button>` — только фразовые элементы (`span` с `block`), не `p`.
  *
  * `useFieldMoves` зовётся здесь, а не в контейнере: запросов переносов ровно столько,
  * сколько карточек (до трёх), а не по одному на каждую сделку экрана.
  */
-export function TodayMoveCard({
-  view, slot, number, expanded, onToggle, done, renderActions, kbdIndex, focused,
-}: TodayMoveCardProps) {
+export function TodayMoveCard({ view, slot, number, selected, onSelect, doneText, kbdIndex }: TodayMoveCardProps) {
   const { data: moves } = useFieldMoves(view.source.id);
   const why = moveWhy(view, slot, moves?.step.count ?? 0);
   const step = view.source.next_step?.trim();
   const amount = view.amount.amount;
-  const toggle = (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          onClick={onToggle}
-          aria-label={expanded ? 'Свернуть' : 'Подробнее'}
-          title={expanded ? 'Свернуть' : 'Подробнее'}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
-        >
-          <ChevronDown size={14} aria-hidden="true" className={cn('transition-transform', expanded && 'rotate-180')} />
-        </button>
-      );
+  const done = doneText !== null;
 
   return (
-    <article
+    <button
+      type="button"
       data-row-index={kbdIndex}
-      className={cn('sheet flex flex-col px-4 py-3.5', focused && 'kbd-focus-row')}
+      data-today-pick
+      aria-current={selected ? 'true' : undefined}
+      onClick={onSelect}
+      onAuxClick={(e) => { if (e.button === 1) onSelect(e); }}
+      className={cn('sheet flex flex-col px-4 py-3.5 text-left transition-colors', !selected && 'queue-row-hover')}
     >
-      <div className="flex items-start gap-2">
+      <span className="flex w-full items-start gap-2">
         <span
           aria-hidden="true"
           className={cn(
@@ -75,9 +67,9 @@ export function TodayMoveCard({
         ) : (
           <span className="shrink-0 text-body text-text-mute" title="Сумма не указана">—</span>
         )}
-      </div>
+      </span>
 
-      <p
+      <span
         data-today-step
         className={cn(
           'mt-2 line-clamp-2 text-[0.9375rem] font-medium leading-snug',
@@ -86,9 +78,9 @@ export function TodayMoveCard({
         )}
       >
         {step || 'Шаг не задан'}
-      </p>
+      </span>
 
-      <p className="mt-1.5 text-xs text-text-dim">
+      <span className="mt-1.5 block text-xs text-text-dim">
         <b className="font-semibold text-text-main">{why.lead}</b>{' '}
         {why.due && (
           <>
@@ -99,28 +91,11 @@ export function TodayMoveCard({
           </>
         )}
         {why.facts.join(' · ')}
-      </p>
+      </span>
 
-      <div className="mt-auto pt-3">
-        {done ? (
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-            <span className="text-xs font-medium text-success-text">{done.text}</span>
-            {done.onRestore && (
-              <button
-                type="button"
-                disabled={done.restoring}
-                onClick={done.onRestore}
-                className="inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main disabled:opacity-50"
-              >
-                Вернуть
-              </button>
-            )}
-            <span className="ml-auto">{toggle}</span>
-          </div>
-        ) : (
-          renderActions(toggle)
-        )}
-      </div>
-    </article>
+      {done && (
+        <span className="mt-auto block pt-3 text-xs font-medium text-success-text">{doneText}</span>
+      )}
+    </button>
   );
 }

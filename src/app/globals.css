@@ -1880,16 +1880,14 @@ table { font-variant-numeric: tabular-nums; }
      раскрытая панель меряются от него.
      «Мобайл-ферст»: одна колонка по умолчанию. С 40rem — сетка строки с узкой второй
      колонкой (8rem, 1280), с 66rem — полная `minmax(0,1fr) 9.5rem 15rem` (1440).
-     Три карточки и три колонки панели — с 52rem. */
+     Три карточки — с 52rem. */
   .today-cq { container-type: inline-size; }
   .today-cards,
-  .today-panel-cols,
   .today-row-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
   .today-cards { gap: 0.75rem; }
-  .today-panel-cols { gap: 1.25rem; }
   .today-row-grid { gap: 0.25rem 1.25rem; }
   .today-row-head { display: none; }
   /* В одну колонку сумма и срок встают под названием — с отступом шеврона. */
@@ -1902,10 +1900,61 @@ table { font-variant-numeric: tabular-nums; }
   }
   @container (min-width: 52rem) {
     .today-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .today-panel-cols { grid-template-columns: 1.1fr 1.3fr 0.8fr; }
   }
   @container (min-width: 66rem) {
     .today-row-grid { grid-template-columns: minmax(0, 1fr) 9.5rem 15rem; }
+  }
+
+  /* S-TODAY-FOCUS-1 (`_analysis/today-focus-spec.md`, §2): список + фокус справа.
+     Фокус — один детальный вид сделки: шапка на стекле не прокручивается, тело
+     прокручивается внутри (`overflow-y: auto` у тела, `min-h-0`).
+     ⚠️ Порог 56rem — то же число, что `useContainerWide(ref, 56)` в `TodayView.tsx`:
+     JS выбирает режим (широкий — фокус в сетке, узкий — панель поверх), CSS — сетку.
+     Граница — здесь, классом, а не утилитой `border-*`: safety-net `.t-frost *`
+     перекрашивает утилиту при равной специфичности. */
+  .today-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .today-focus {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-l);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+  /* Узкий режим: портал в body — вне обёртки PageTransition с её transform
+     (`.page-entering`): с ним `position: fixed` считался бы от обёртки. */
+  .today-focus.today-focus-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 40;
+    height: 100vh;
+    max-height: none;
+    width: min(28rem, 92vw);
+    border-radius: 0;
+  }
+  /* 56rem — порог `useContainerWide` (см. выше). */
+  @container (min-width: 56rem) {
+    .today-split { grid-template-columns: minmax(0, 1fr) 25rem; }
+  }
+  @container (min-width: 66rem) {
+    .today-split { grid-template-columns: minmax(0, 1fr) 28rem; }
+  }
+  /* «Открыть сделку ↗ O» в шапке фокуса: при контенте < 66rem фокус 25rem (1280) —
+     ряд читается «Открыть ↗ O». Ширина фокуса однозначно следует из ширины контента,
+     второй контейнер не нужен. В узком режиме фокус — портал вне `.today-cq`, правило
+     не действует, и 28rem панели хватает на длинную подпись. */
+  @container (max-width: 66rem) {
+    .today-open-long { display: none; }
   }
 
   /* S-LEAD-V2-WORK-1 (спека §5): квалификация лида — раскладка по ширине БЛОКА,
@@ -2382,6 +2431,24 @@ table tbody tr[data-kbd-focused] {
 .kbd-focus-row {
   background: var(--accent-l);
   box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* S-TODAY-FOCUS-1: сделка в фокусе «Сегодня» — карточка хода и строка группы.
+   ВРЕМЕННЫЙ маркер выбора (спека §3): `--accent-l2` — конвенция «выбрано»
+   (`theme-system.md`). S2 заменяет его у строк язычком, S3 — у плиток стеклом.
+   Вне @layer и с (0,3,0): фон `.sheet` у карточки задан без слоя. Клавиатурной
+   рамки `kbd-focus-row` у сделок нет — подсветка J/K и выбор одно и то же. */
+.today-cq [data-today-pick][aria-current='true'] {
+  background: var(--accent-l2);
+}
+
+/* S-TODAY-FOCUS-1: красный кикера на стекле фокуса. `.text-red` читает
+   `var(--red-text, var(--red))`, а `.glass-sheet` перекрашивает только `--red`:
+   в темах с `--red-text` (minimal, aura, washi…) дни срыва остались бы тёмно-красными
+   на тёмном стекле. Замер смоком в minimal: #B02A24 вместо --sheet-red #FF7A68.
+   Скоуп — фокус: общий материал стекла этим спринтом не трогаем. */
+.today-focus .glass-sheet .text-red {
+  color: var(--sheet-red);
 }
 
 /* Peek-панель: слайд справа; z-40 — между drawer (30) и dropdown (50) */

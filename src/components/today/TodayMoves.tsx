@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import { Button } from '@/components/ui/Button';
 import { pluralRu } from '@/lib/utils/plural';
 import type { TodayDealView } from '@/lib/domain/today-model';
@@ -12,19 +12,16 @@ interface TodayMovesProps {
   assignedCount: number;
   limit: number;
   loading: boolean;
-  openId: string | null;
-  onToggle: (id: string) => void;
+  /** Сделка в фокусе. */
+  selectedId: string | null;
+  onSelect: (id: string, e: MouseEvent) => void;
   /** Ход сделан — подпись итога и «Вернуть»; `null` — ход не сделан. */
   doneOf: (view: TodayDealView) => { text: string; onRestore?: () => void; restoring?: boolean } | null;
-  renderActions: (view: TodayDealView, extra: ReactNode) => ReactNode;
   /** Все ходы набора сделаны — карточки свёрнуты в строку. */
   allDone: boolean;
   /** «Взять ещё ход»; `null` — кандидатов нет, кнопки нет. */
   onTakeMore: (() => void) | null;
-  /** Панель открытой карточки — под рядом карточек. */
-  panel: ReactNode;
   kbdIndexOf: (id: string) => number;
-  activeIndex: number;
 }
 
 function CardSkeleton() {
@@ -43,8 +40,7 @@ function CardSkeleton() {
  * ход берётся только кнопкой.
  */
 export function TodayMoves({
-  moves, assignedCount, limit, loading, openId, onToggle, doneOf, renderActions, allDone, onTakeMore, panel,
-  kbdIndexOf, activeIndex,
+  moves, assignedCount, limit, loading, selectedId, onSelect, doneOf, allDone, onTakeMore, kbdIndexOf,
 }: TodayMovesProps) {
   return (
     <section aria-label="Ходы на сегодня" className="mb-6">
@@ -107,12 +103,10 @@ export function TodayMoves({
               view={v}
               slot={v.slot ?? 'fill'}
               number={i + 1}
-              expanded={openId === v.source.id}
-              onToggle={() => onToggle(v.source.id)}
-              done={doneOf(v)}
-              renderActions={(extra) => renderActions(v, extra)}
+              selected={selectedId === v.source.id}
+              onSelect={(e) => onSelect(v.source.id, e)}
+              doneText={doneOf(v)?.text ?? null}
               kbdIndex={kbdIndexOf(v.source.id)}
-              focused={activeIndex === kbdIndexOf(v.source.id)}
             />
           ))}
         </div>
@@ -123,8 +117,6 @@ export function TodayMoves({
           На сегодня назначено {assignedCount} {pluralRu(assignedCount, 'шаг', 'шага', 'шагов')} при лимите {limit}. Показаны все.
         </p>
       )}
-
-      {panel && !allDone && <div className="mt-3">{panel}</div>}
     </section>
   );
 }
