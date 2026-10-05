@@ -19,19 +19,33 @@ interface TodayStepActionsProps {
   onSnooze: () => void;
   /** Ссылка карточки сделки — для «Закрыть сделку — в карточке». */
   href: string;
-  /** Дополнительная кнопка ряда (у карточки — «Подробнее»). */
+  /** Дополнительная кнопка ряда (в фокусе — «Открыть сделку ↗ O»). */
   extra?: ReactNode;
+  /** S-TODAY-FOCUS-1: клавиши на кнопках (D, T, S); `extra` уезжает вправо. */
+  keyHints?: boolean;
 }
 
 const TEXT_BUTTON =
   'inline-flex min-h-7 items-center whitespace-nowrap rounded px-1.5 text-xs transition-colors hover:bg-surface2 hover:text-text-main';
 
 /**
- * Кнопки хода по таблице задачи 4 (`stepActionsFor`) — или форма, если она открыта.
- * Один компонент на карточку хода и блок «Сейчас»: мышь и клавиши D/U/T идут через
- * ту же таблицу, и разойтись им негде.
+ * Клавиша на кнопке. Геометрия — как в `Hotkeys.tsx`; цвет наследуется от кнопки:
+ * на primary-заливке и на стекле фокуса `text-text-mute` спорил бы с подписью.
  */
-export function TodayStepActions({ view, primary, composer, onCompose, onWritten, onSnooze, href, extra }: TodayStepActionsProps) {
+export function KeyHint({ k }: { k: string }) {
+  return (
+    <kbd className="ml-1.5 rounded border border-border px-1 font-mono text-meta leading-tight opacity-70">{k}</kbd>
+  );
+}
+
+/**
+ * Кнопки хода по таблице задачи 4 (`stepActionsFor`) — или форма, если она открыта.
+ * S-TODAY-FOCUS-1: ряд один на экран — в шапке фокуса; мышь и клавиши D/U/T идут
+ * через ту же таблицу, и разойтись им негде.
+ */
+export function TodayStepActions({
+  view, primary, composer, onCompose, onWritten, onSnooze, href, extra, keyHints,
+}: TodayStepActionsProps) {
   if (composer) {
     return <TodayStepComposer view={view} mode={composer} onCancel={() => onCompose(null)} onWritten={onWritten} />;
   }
@@ -52,22 +66,25 @@ export function TodayStepActions({ view, primary, composer, onCompose, onWritten
           className="whitespace-nowrap px-2"
         >
           {actions.primary.label}
+          {keyHints && <KeyHint k="D" />}
         </Button>
         {actions.canMove && (
           <button type="button" onClick={() => onCompose('move')} className={`${TEXT_BUTTON} text-text-dim`}>
             Перенести
+            {keyHints && <KeyHint k="T" />}
           </button>
         )}
-        <button type="button" onClick={onSnooze} className={`${TEXT_BUTTON} ml-auto text-text-mute`}>
+        <button type="button" onClick={onSnooze} className={`${TEXT_BUTTON} text-text-mute${keyHints ? '' : ' ml-auto'}`}>
           Отложить
+          {keyHints && <KeyHint k="S" />}
         </button>
-        {extra}
+        {keyHints && extra ? <span className="ml-auto">{extra}</span> : extra}
       </div>
     </div>
   );
 }
 
-/** Итог записанного хода в блоке «Сейчас»: подпись и «Вернуть», пока итог в памяти. */
+/** Итог записанного хода в шапке фокуса: подпись и «Вернуть», пока итог в памяти. */
 export function TodayStepDone({ text, onRestore, restoring }: { text: string; onRestore?: () => void; restoring?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">

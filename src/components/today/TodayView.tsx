@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { CheckCircle2, Clock } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
 import { useCalls, useUpdateCall } from '@/lib/hooks/use-calls';
 import { useLeads, useUpdateLead } from '@/lib/hooks/use-leads';
 import { getLeadHealth, compareLeadHealth } from '@/lib/utils/lead-health';
@@ -20,6 +22,7 @@ import { useLastTouchMap, daysSince, touchLevel } from '@/lib/hooks/use-last-tou
 import { useReconnectDays } from '@/lib/hooks/use-org-settings';
 import { useUiStore } from '@/lib/stores/ui-store';
 import { useKeyboardNav } from '@/lib/hooks/use-keyboard-nav';
+import { useContainerWide } from '@/lib/hooks/use-container-wide';
 import { useDealTouches } from '@/lib/hooks/use-deal-touches';
 import { useDealsQuotes } from '@/lib/hooks/use-quotes';
 import { useDayMoves } from '@/lib/hooks/use-day-moves';
@@ -31,6 +34,7 @@ import { DEFAULT_TODAY_THRESHOLDS, pickMoves, type TodayGroup } from '@/lib/doma
 import { markMoveDone, reconcileDayMoves, takeOneMore, unmarkMoveDone, type DayMovesState } from '@/lib/domain/day-moves';
 import { planRestore, type StepMode } from '@/lib/domain/step-flow';
 import { stepActionsFor } from '@/lib/domain/step-actions';
+import { nextInSweep, resolveSelection, type SelectionScreen } from '@/lib/domain/today-selection';
 import { pluralRu } from '@/lib/utils/plural';
 import { doneText } from '@/lib/utils/today-text';
 import {
@@ -46,12 +50,14 @@ import type { PipelineStage } from '@/types/database';
 import { QueueRow } from './QueueRow';
 import { TodayMoves } from './TodayMoves';
 import { TodayGroups, type TodayGroupLayout } from './TodayGroups';
-import { TodayDealPanel } from './TodayDealPanel';
+import { TodayFocusPane, focusHeadEntry } from './TodayFocusPane';
 import { TodayOffDeals, type OffDealChip, type OffDealRow } from './TodayOffDeals';
-import { TodayStepActions, TodayStepDone } from './TodayStepActions';
+import { KeyHint, TodayStepActions, TodayStepDone } from './TodayStepActions';
 import type { StepResult } from './TodayStepComposer';
 
 const MOVES_LIMIT = DEFAULT_TODAY_THRESHOLDS.movesLimit;
+/** Порог широкого режима, rem — то же число, что `@container (min-width: 56rem)` у `.today-split`. */
+const FOCUS_WIDE_REM = 56;
 
 const RED = 'var(--red-text, var(--red))';
 const YELLOW = 'var(--yellow-text, var(--yellow))';
@@ -121,23 +127,30 @@ export function TodayView() {
   const unsnooze = useUnsnooze();
   const [showSnoozed, setShowSnoozed] = useState(false);
 
-  // ACT-1: форма хода — одна на экран: в карточке хода или в «Сейчас» панели.
+  // ACT-1: форма хода — одна на экран. S-TODAY-FOCUS-1: живёт только в шапке фокуса.
   // `wasPicked` — была ли сделка в наборе дня, когда форму открыли. Решает, отмечать ли
   // ход сделанным: optimistic-правка `useUpdateProject` может сделать сделку «назначенной
   // на сегодня» ещё до конца записи, сверка добавит её в набор — и перенос строки на
   // сегодня засчитался бы как сделанный ход (найдено смоком ACT-1).
-  const [composer, setComposer] = useState<{ id: string; mode: StepMode; place: 'card' | 'panel'; wasPicked: boolean } | null>(null);
+  const [composer, setComposer] = useState<{ id: string; mode: StepMode; wasPicked: boolean } | null>(null);
   // Итоги записей до перезагрузки: подпись карточки, «записано сегодня», «Вернуть».
   const [results, setResults] = useState<ReadonlyMap<string, StepResult>>(new Map());
   // Группа показа записанной строки — строка стоит на месте до перезагрузки.
   const [pinnedGroups, setPinnedGroups] = useState<ReadonlyMap<string, TodayGroup>>(new Map());
-  // «Разобрать по одной»: после записи по сделке «Решить судьбу» открыть следующую.
+  // «Разобрать по одной»: после записи по сделке «Решить судьбу» выбрать следующую.
   const [sweep, setSweep] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const flow = useStepFlow();
 
-  // Одна открытая панель на экран: под рядом ходов или под строкой группы.
-  const [openPanel, setOpenPanel] = useState<{ id: string; place: 'move' | 'row' } | null>(null);
+  // S-TODAY-FOCUS-1 (спека §3): выбор — id сделки, не индекс очереди клавиш. В фокусе
+  // `resolveSelection(selectedId, …)`: выбранная, если она на экране, иначе по умолчанию.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Узкий режим (< 56rem): фокус — панель поверх списка, открыта ли она.
+  const [narrowOpen, setNarrowOpen] = useState(false);
+  // Enter по сделке просит DOM-фокус в шапке фокуса — счётчик запросов.
+  const [headFocusTick, setHeadFocusTick] = useState(0);
+  const cqRef = useRef<HTMLDivElement>(null);
+  const wide = useContainerWide(cqRef, FOCUS_WIDE_REM);
   // Свёрнутые группы — в памяти экрана, не в localStorage: открыл, посмотрел, ушёл.
   const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<TodayGroup>>(new Set());
   const [showAllGroups, setShowAllGroups] = useState<ReadonlySet<TodayGroup>>(new Set());
@@ -518,7 +531,8 @@ export function TodayView() {
   const offKbdIndex = (key: string) => kbdIndexByKey.get(key) ?? -1;
 
   const snoozeDeal = (id: string) => {
-    if (openPanel?.id === id) setOpenPanel(null);
+    // Выбор не сбрасываем: отложенной сделки на экране нет, и `resolveSelection`
+    // сам отдаёт фокус сделке по умолчанию.
     if (composer?.id === id) setComposer(null);
     snooze.mutate({ entity_type: 'deal', entity_id: id });
   };
@@ -528,7 +542,7 @@ export function TodayView() {
   const shownGroupOf = (id: string): TodayGroup | null =>
     model?.groups.find((g) => g.rows.some((v) => v.source.id === id))?.key ?? null;
 
-  const handleWritten = (view: TodayDealView, result: StepResult, place: 'card' | 'panel') => {
+  const handleWritten = (view: TodayDealView, result: StepResult) => {
     const id = view.source.id;
     setResults((cur) => new Map(cur).set(id, result));
     setComposer(null);
@@ -539,12 +553,13 @@ export function TodayView() {
     } else {
       const group = shownGroupOf(id) ?? view.cls.group;
       setPinnedGroups((cur) => new Map(cur).set(id, group));
-      // «Разобрать по одной»: следующая строка «Решить судьбу»; строк нет — панель закрыта.
-      if (sweep && place === 'panel' && group === 'decide') {
-        const rows = layout.find((l) => l.view.key === 'decide')?.rows ?? [];
-        const next = rows[rows.findIndex((v) => v.source.id === id) + 1];
-        if (next) setOpenPanel({ id: next.source.id, place: 'row' });
-        else { setOpenPanel(null); setSweep(false); }
+      // «Разобрать по одной»: следующая строка «Решить судьбу»; строк нет — выбор по
+      // умолчанию.
+      if (sweep && group === 'decide') {
+        const rows = (layout.find((l) => l.view.key === 'decide')?.rows ?? []).map((v) => v.source.id);
+        const next = nextInSweep(id, rows);
+        setSelectedId(next);
+        if (!next) setSweep(false);
       }
     }
   };
@@ -566,18 +581,18 @@ export function TodayView() {
     }
   };
 
-  const openComposer = (id: string, mode: StepMode, place: 'card' | 'panel') =>
-    setComposer({ id, mode, place, wasPicked: !!dayStateRef.current?.picked.includes(id) });
+  const openComposer = (id: string, mode: StepMode) =>
+    setComposer({ id, mode, wasPicked: !!dayStateRef.current?.picked.includes(id) });
 
-  /** Открыть форму: у карточки — в карточке, у строки — в «Сейчас» раскрытой панели. */
+  /**
+   * Открыть форму по сделке — в шапке фокуса. Узкий режим открывает и панель:
+   * иначе форма открылась бы невидимой, а клавиши экрана замолчали бы.
+   */
   const composeFor = (q: Extract<QueueItem, { kind: 'move' | 'row' }>, mode: StepMode) => {
     const id = q.view.source.id;
-    if (q.kind === 'move') {
-      openComposer(id, mode, 'card');
-    } else {
-      setOpenPanel({ id, place: 'row' });
-      openComposer(id, mode, 'panel');
-    }
+    setSelectedId(id);
+    if (!wide) setNarrowOpen(true);
+    openComposer(id, mode);
   };
   const dealItem = (i: number) => {
     const q = queue[i];
@@ -588,24 +603,68 @@ export function TodayView() {
     const first = model?.groups.find((g) => g.key === 'decide')?.rows[0];
     if (!first) return;
     setExpandedGroups((cur) => new Set(cur).add('decide'));
-    setOpenPanel({ id: first.source.id, place: 'row' });
+    setSelectedId(first.source.id);
+    if (!wide) setNarrowOpen(true);
     setSweep(true);
   };
-  const togglePanel = (id: string, place: 'move' | 'row') =>
-    setOpenPanel((cur) => (cur && cur.id === id && cur.place === place ? null : { id, place }));
   const openDealPage = (id: string) => {
     const p = projectsById.get(id);
     if (p) router.push(projectHref(p));
   };
 
+  // ── Выбор (спека §3): сделка в фокусе — выбранная, если она на экране, иначе по
+  // умолчанию. Строки свёрнутых групп — тоже «на экране»: свёрнутая группа прячет
+  // строку, но сделку не убирает.
+  const selectionScreen = useMemo<SelectionScreen | null>(
+    () => (model
+      ? {
+        moves: model.moves.map((v) => v.source.id),
+        doneMoves: dayDone,
+        rows: model.groups.flatMap((g) => g.rows.map((v) => v.source.id)),
+      }
+      : null),
+    [model, dayDone],
+  );
+  const focusId = selectionScreen ? resolveSelection(selectedId, selectionScreen) : null;
+  const hrefOf = (id: string) => {
+    const p = projectsById.get(id);
+    return p ? projectHref(p) : '/deals';
+  };
+
+  /** Клик по плитке или строке: в фокус; ⌘/Ctrl или средняя кнопка — новая вкладка. */
+  const selectDeal = (id: string, e: MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.button === 1) {
+      window.open(hrefOf(id), '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setSelectedId(id);
+    if (!wide) setNarrowOpen(true);
+  };
+
   const queueRef = useRef<HTMLDivElement>(null);
-  const { activeIndex } = useKeyboardNav({
+  const paneRef = useRef<HTMLElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  /**
+   * DOM-фокус в фокусе — клавиши экрана молчат: иначе Enter на кнопке «Сделано» в
+   * шапке перехватил бы `useKeyboardNav` (он ловит Enter на `window` с
+   * `preventDefault`). Считается только фокус с клавиатуры (`:focus-visible`):
+   * после клика мышью по «Готово» в теле J/K не должны умирать до Esc.
+   */
+  const focusHoldsKeys = () => {
+    const el = document.activeElement;
+    return !!el && !!paneRef.current?.contains(el) && el.matches(':focus-visible');
+  };
+  const { activeIndex, setActiveIndex } = useKeyboardNav({
     itemCount: queue.length,
+    // Enter по сделке — DOM-фокус в шапку фокуса (узкий режим — сначала открыть
+    // панель); по строке вне сделок — прежний переход.
     onSelect: (i) => {
       const q = queue[i];
       if (!q) return;
-      if (q.kind === 'off') q.row.onOpen();
-      else togglePanel(q.view.source.id, q.kind);
+      if (q.kind === 'off') { q.row.onOpen(); return; }
+      setSelectedId(q.view.source.id);
+      if (!wide) setNarrowOpen(true);
+      setHeadFocusTick((t) => t + 1);
     },
     // D — главная кнопка сделки по таблице хода (`stepActionsFor`), у строки чипа — её primary.
     onAction: (i) => {
@@ -635,12 +694,64 @@ export function TodayView() {
         if (q) snoozeDeal(q.view.source.id);
       },
     },
-    // Форма хода открыта — клавиши экрана молчат: иначе Enter на кнопке даты раскрывает
-    // панель вместо выбора даты, а S откладывает сделку посреди ввода.
-    isActive: () => composer === null,
+    // Esc: узкий режим и панель открыта — закрыть её; иначе выбор по умолчанию.
+    // `useKeyboardNav` перед этим сбрасывает индекс в −1 — возвращаем его на сделку
+    // в фокусе: подсветка и выбор одно и то же.
+    onEscape: () => {
+      const target = !wide && narrowOpen
+        ? focusId
+        : selectionScreen ? resolveSelection(null, selectionScreen) : null;
+      if (!wide && narrowOpen) setNarrowOpen(false);
+      else setSelectedId(null);
+      setActiveIndex(target ? dealKbdIndex(target) : -1);
+    },
+    // Форма хода открыта или DOM-фокус в фокусе — клавиши экрана молчат: иначе Enter
+    // на кнопке даты раскрывает чужое, а S откладывает сделку посреди ввода.
+    isActive: () => composer === null && !focusHoldsKeys(),
     containerRef: queueRef,
     enabled: mounted && queue.length > 0,
   });
+
+  // ── Подсветка J/K и выбор — один факт (спека §3, F-18).
+  // Индекс встал на сделку → она в фокусе. Очередь читается из ref: эффект зависит
+  // только от индекса.
+  const queueNow = useRef(queue);
+  queueNow.current = queue;
+  useEffect(() => {
+    const q = queueNow.current[activeIndex];
+    if (q && q.kind !== 'off') setSelectedId(q.view.source.id);
+  }, [activeIndex]);
+  // Сменились сделка в фокусе или состав очереди → индекс на неё. От `activeIndex`
+  // эффект НЕ зависит: иначе J на строку лида вернул бы подсветку на сделку. Ставится
+  // безусловно: `useKeyboardNav` при смене числа строк (раскрыли группу) сбрасывает
+  // индекс в −1 в том же коммите, и сверка с текущим значением его бы пропустила.
+  const queueKey = queue.map((q) => (q.kind === 'off' ? q.row.key : q.view.source.id)).join('|');
+  const focusKbdIndex = focusId ? dealKbdIndex(focusId) : -1;
+  useEffect(() => {
+    setActiveIndex(focusKbdIndex);
+  }, [focusId, queueKey, focusKbdIndex, setActiveIndex]);
+
+  // Узкий режим закрыт, а сделок не осталось или экран стал широким — панель не висит.
+  useEffect(() => {
+    if (wide || !focusId) setNarrowOpen(false);
+  }, [wide, focusId]);
+
+  // Enter по сделке: DOM-фокус в шапку — эффектом после коммита, а не rAF: в узком
+  // режиме панели до рендера нет, а rAF в невидимой вкладке не зовётся вовсе.
+  useEffect(() => {
+    if (headFocusTick > 0) focusHeadEntry(headRef.current);
+  }, [headFocusTick]);
+
+  /** Esc внутри фокуса (форма закрыта): закрыть панель и вернуть DOM-фокус на строку. */
+  const onFocusKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Escape' || composer !== null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!wide) setNarrowOpen(false);
+    const row = queueRef.current?.querySelector<HTMLElement>(`[data-row-index="${activeIndex}"]`);
+    if (row) row.focus();
+    else (document.activeElement as HTMLElement | null)?.blur();
+  };
 
   // ── Отложенное: сделки — из модели, лиды и контакты — сопоставлением с ПОЛНЫМИ
   // списками (`…All`). Висячий snooze (сделке назначили шаг, лид закрыт) просто не
@@ -678,57 +789,71 @@ export function TodayView() {
     return out;
   }, [snoozes, todayKey, model, projectsById, leadsNeedingActionAll, coolingContactsAll, router]);
 
-  // ── Панель: одна на экран. Вид берётся из модели — сделка могла уйти в «Отложено».
-  const panelView = openPanel && model
-    ? [...model.moves, ...model.groups.flatMap((g) => g.rows)].find((v) => v.source.id === openPanel.id) ?? null
+  // ── Фокус: вид — из модели (сделка могла уйти в «Отложено»), номер хода — по набору.
+  const focusView = focusId && model
+    ? [...model.moves, ...model.groups.flatMap((g) => g.rows)].find((v) => v.source.id === focusId) ?? null
     : null;
-  const panelProject = panelView ? projectsById.get(panelView.source.id) ?? null : null;
-  const panelStage: PipelineStage | null = panelProject?.stage_id ? stageById.get(panelProject.stage_id) ?? null : null;
-  // Первый несделанный ход держит единственную primary-кнопку экрана; открытая форма
-  // забирает её себе.
-  const primaryId = composer ? null : model?.moves.find((v) => !dayDone.has(v.source.id))?.source.id ?? null;
-  const hrefOf = (id: string) => {
-    const p = projectsById.get(id);
-    return p ? projectHref(p) : '/deals';
-  };
-  /** Итог хода. Карточка — только у сделанного хода набора; панель — и у записанной строки. */
-  const doneOf = (view: TodayDealView, scope: 'card' | 'panel' = 'card') => {
+  const focusProject = focusView ? projectsById.get(focusView.source.id) ?? null : null;
+  const focusStage: PipelineStage | null = focusProject?.stage_id ? stageById.get(focusProject.stage_id) ?? null : null;
+  const focusMoveIndex = focusView && model ? model.moves.findIndex((v) => v.source.id === focusView.source.id) : -1;
+  /** Итог хода — у сделанного хода набора и у записанной строки. */
+  const doneOf = (view: TodayDealView) => {
     const id = view.source.id;
     const result = results.get(id) ?? null;
-    if (scope === 'card' ? !dayDone.has(id) : !result && !dayDone.has(id)) return null;
+    if (!result && !dayDone.has(id)) return null;
     return {
       text: doneText(view, result),
       onRestore: result ? () => void restore(view) : undefined,
       restoring: restoringId === id,
     };
   };
-  const actionsFor = (view: TodayDealView, place: 'card' | 'panel', extra?: ReactNode) => (
-    <TodayStepActions
-      view={view}
-      primary={place === 'card' && primaryId === view.source.id}
-      composer={composer && composer.id === view.source.id && composer.place === place ? composer.mode : null}
-      onCompose={(mode) => (mode ? openComposer(view.source.id, mode, place) : setComposer(null))}
-      onWritten={(result) => handleWritten(view, result, place)}
-      onSnooze={() => snoozeDeal(view.source.id)}
-      href={hrefOf(view.source.id)}
-      extra={extra}
-    />
-  );
-  const panelActions = (view: TodayDealView) => {
-    const done = doneOf(view, 'panel');
-    return done ? <TodayStepDone {...done} /> : actionsFor(view, 'panel');
+  const focusActions = (view: TodayDealView) => {
+    const done = doneOf(view);
+    if (done) return <TodayStepDone {...done} />;
+    const id = view.source.id;
+    return (
+      <TodayStepActions
+        view={view}
+        // Ряд действий на экране один — главная кнопка всегда primary.
+        primary
+        keyHints
+        composer={composer && composer.id === id ? composer.mode : null}
+        onCompose={(mode) => (mode ? openComposer(id, mode) : setComposer(null))}
+        onWritten={(result) => handleWritten(view, result)}
+        onSnooze={() => snoozeDeal(id)}
+        href={hrefOf(id)}
+        extra={
+          <Link
+            href={hrefOf(id)}
+            className="inline-flex min-h-7 items-center gap-0.5 whitespace-nowrap rounded px-1.5 text-xs text-text-dim transition-colors hover:bg-surface2 hover:text-text-main"
+          >
+            Открыть<span className="today-open-long">{'\u00a0'}сделку</span>
+            <ArrowUpRight aria-hidden="true" className="h-3 w-3 shrink-0" />
+            <KeyHint k="O" />
+          </Link>
+        }
+      />
+    );
   };
-  const panel = (place: 'move' | 'row') =>
-    panelView && panelProject && now && openPanel?.place === place ? (
-      <TodayDealPanel
-        view={panelView}
-        project={panelProject}
-        stage={panelStage}
+  const focusPane = (overlay: boolean) =>
+    focusView && focusProject && now ? (
+      <TodayFocusPane
+        view={focusView}
+        project={focusProject}
+        stage={focusStage}
+        quotes={quotesQ.data?.get(focusView.source.id) ?? []}
         now={now}
-        actions={panelActions(panelView)}
-        standalone={place === 'move'}
+        move={focusMoveIndex >= 0 && model ? { n: focusMoveIndex + 1, of: model.moves.length } : null}
+        actions={focusActions(focusView)}
+        composerOpen={composer?.id === focusView.source.id}
+        paneRef={paneRef}
+        headRef={headRef}
+        onKeyDown={onFocusKeyDown}
+        overlay={overlay}
+        onClose={overlay ? () => setNarrowOpen(false) : undefined}
       />
     ) : null;
+  const hasFocus = !!focusView;
 
   const dateProse = now
     ? format(now, 'EEEE, d MMMM', { locale: ru }).replace(/^./, (ch) => ch.toUpperCase())
@@ -738,7 +863,7 @@ export function TodayView() {
   const assignedCount = model?.moves.filter((v) => v.slot === 'assigned').length ?? 0;
 
   return (
-    <div className="today-cq">
+    <div ref={cqRef} className="today-cq">
       <header className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-2">
         <div className="min-w-0 flex-1">
           <h1 className="aura-page-title text-2xl font-semibold text-text-main">Сегодня</h1>
@@ -789,65 +914,68 @@ export function TodayView() {
           action={{ label: 'Открыть обзор', href: '/overview' }}
         />
       ) : (
-        <div ref={queueRef}>
-          {(loading || (model && model.total > 0)) && (
-            <TodayMoves
-              moves={model?.moves ?? []}
-              assignedCount={assignedCount}
-              limit={DEFAULT_TODAY_THRESHOLDS.movesLimit}
+        <div className={hasFocus ? 'today-split' : undefined}>
+          <div ref={queueRef} className="min-w-0">
+            {(loading || (model && model.total > 0)) && (
+              <TodayMoves
+                moves={model?.moves ?? []}
+                assignedCount={assignedCount}
+                limit={DEFAULT_TODAY_THRESHOLDS.movesLimit}
+                loading={loading}
+                selectedId={focusId}
+                onSelect={selectDeal}
+                // Карточка показывает итог только у сделанного хода набора.
+                doneOf={(view) => (dayDone.has(view.source.id) ? doneOf(view) : null)}
+                allDone={allMovesDone}
+                onTakeMore={
+                  dayState && freshComputed.some((m) => !dayState.picked.includes(m.id))
+                    ? () => persistDayMoves(takeOneMore(dayState, freshComputed))
+                    : null
+                }
+                kbdIndexOf={dealKbdIndex}
+              />
+            )}
+
+            <TodayGroups
               loading={loading}
-              openId={openPanel?.place === 'move' ? openPanel.id : null}
-              onToggle={(id) => togglePanel(id, 'move')}
-              doneOf={(view) => doneOf(view, 'card')}
-              renderActions={(view, extra) => actionsFor(view, 'card', extra)}
-              allDone={allMovesDone}
-              onTakeMore={
-                dayState && freshComputed.some((m) => !dayState.picked.includes(m.id))
-                  ? () => persistDayMoves(takeOneMore(dayState, freshComputed))
-                  : null
-              }
-              panel={panel('move')}
+              total={model?.total ?? 0}
+              noStepAhead={model?.noStepAhead ?? 0}
+              noAmount={model?.noAmount ?? 0}
+              layout={layout}
+              onToggleGroup={(key) => setExpandedGroups((cur) => {
+                const next = new Set(cur);
+                if (next.has(key)) next.delete(key); else next.add(key);
+                return next;
+              })}
+              onShowAll={(key) => setShowAllGroups((cur) => new Set(cur).add(key))}
+              selectedId={focusId}
+              onSelect={selectDeal}
               kbdIndexOf={dealKbdIndex}
+              writtenIds={new Set(results.keys())}
+              onSweep={startSweep}
+            />
+
+            <TodayOffDeals
+              chips={chips}
+              openKey={openChip}
+              onToggle={(key) => setOpenChip((cur) => (cur === key ? null : key))}
+              kbdIndexOf={offKbdIndex}
               activeIndex={activeIndex}
             />
-          )}
 
-          <TodayGroups
-            loading={loading}
-            total={model?.total ?? 0}
-            noStepAhead={model?.noStepAhead ?? 0}
-            noAmount={model?.noAmount ?? 0}
-            layout={layout}
-            onToggleGroup={(key) => setExpandedGroups((cur) => {
-              const next = new Set(cur);
-              if (next.has(key)) next.delete(key); else next.add(key);
-              return next;
-            })}
-            onShowAll={(key) => setShowAllGroups((cur) => new Set(cur).add(key))}
-            openRowId={openPanel?.place === 'row' ? openPanel.id : null}
-            onToggleRow={(id) => togglePanel(id, 'row')}
-            panel={panel('row')}
-            kbdIndexOf={dealKbdIndex}
-            activeIndex={activeIndex}
-            writtenIds={new Set(results.keys())}
-            onSweep={startSweep}
-          />
-
-          <TodayOffDeals
-            chips={chips}
-            openKey={openChip}
-            onToggle={(key) => setOpenChip((cur) => (cur === key ? null : key))}
-            kbdIndexOf={offKbdIndex}
-            activeIndex={activeIndex}
-          />
-
-          {queue.length > 0 && (
-            <p className="mb-6 text-xs text-text-dim">
-              J / K — по строкам · Enter — раскрыть · D — главное действие · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку
-            </p>
-          )}
+            {queue.length > 0 && (
+              <p className="mb-6 text-xs text-text-dim">
+                J / K — выбор сделки · Enter — в фокус · D — главное действие · U — обновить шаг · T — перенести · S — отложить · O — открыть сделку · Esc — к плану дня
+              </p>
+            )}
+          </div>
+          {wide && focusPane(false)}
         </div>
       )}
+
+      {/* Узкий режим: панель поверх списка — порталом в body, вне обёртки
+          PageTransition с её transform (спека §2). */}
+      {!wide && narrowOpen && mounted && createPortal(focusPane(true), document.body)}
 
       {/* S-QUEUE-1: одна полоса на весь экран. Рендерится и при пустой очереди —
           иначе отложенное некуда вернуть. */}

@@ -1,5 +1,10 @@
 import { mskDayCaption } from '@/lib/utils/date-helpers';
 import { pluralRu } from '@/lib/utils/plural';
+import { formatBudget } from '@/lib/validators/project';
+import { quoteValidity } from '@/lib/domain/quote-validity';
+import { TODAY_GROUP_LABELS } from '@/lib/constants/today-groups';
+import type { Quote } from '@/types/entities';
+import type { QuoteStatus } from '@/lib/validators/quote';
 import type { TouchKind } from '@/lib/domain/deal-touch';
 import type { MoveSlot, PlannedEvent, RiskSignal } from '@/lib/domain/today-deals';
 import type { TodayDealView } from '@/lib/domain/today-model';
@@ -184,4 +189,95 @@ export function doneText(view: TodayDealView, result: DoneOutcome | null): strin
   return cls.stepAhead && source.next_action_date
     ? `Записано в сделку · шаг ${dayWeekdayText(source.next_action_date)}`
     : 'Шаг закрыт · сделка осталась без шага';
+}
+
+// ── S-TODAY-FOCUS-1: тексты фокуса (спека `today-focus-spec.md`, §4) ──
+
+/** Короткий вид слота — кикер фокуса (S1) и плитка хода (S3). */
+export const SLOT_KINDS: Record<MoveSlot, string> = {
+  assigned: 'На сегодня',
+  fresh: 'Свежий срыв',
+  biggest: 'Сумма без шага',
+  fill: 'Добор',
+};
+
+/**
+ * Кикер шапки фокуса: «почему эта сделка здесь». Ход — номер и вид слота, строка —
+ * группа. `days` — просрочка шага; шага нет — «шага нет»; шаг впереди — `null`.
+ * `hot` — свежий срыв: его дни красятся.
+ */
+export function focusKicker(
+  view: TodayDealView,
+  move: { n: number; of: number } | null,
+): { lead: string; days: string | null; hot: boolean } {
+  const { cls } = view;
+  const lead = move
+    ? `Ход ${move.n} из ${move.of} · ${SLOT_KINDS[view.slot ?? 'fill']}`
+    : TODAY_GROUP_LABELS[cls.group];
+  const days = cls.overdueDays !== null
+    ? (move ? `${cls.overdueDays} дн.` : `${cls.overdueDays} дн. после срока`)
+    : cls.noStep ? 'шага нет' : null;
+  return { lead, days, hot: cls.group === 'fresh' };
+}
+
+/** Источник суммы под суммой в шапке. */
+export function amountSourceText(
+  source: 'quote' | 'budget' | 'none',
+  activeStatus: QuoteStatus | null,
+): string {
+  if (source === 'budget') return 'бюджет сделки';
+  if (source === 'none') return 'суммы нет';
+  if (activeStatus === 'draft') return 'черновик КП';
+  if (activeStatus === 'sent') return 'КП отправлено';
+  if (activeStatus === 'accepted') return 'КП принято';
+  return 'по КП';
+}
+
+/** Сегменты через « · »; сегмент без значения пропускается вместе с разделителем. */
+function joinSegments(parts: readonly (string | null)[]): string {
+  return parts.filter((p): p is string => !!p).join(' · ');
+}
+
+/** «Отправлено 7 сент» / «Отправлено» — дата без значения отпадает вместе с пробелом. */
+function withDay(word: string, iso: string | null): string {
+  return iso ? `${word} ${dayText(iso)}` : word;
+}
+
+/** Строка секции «КП» тела фокуса. */
+export function quoteLineText(
+  quote: Pick<Quote, 'status' | 'amount' | 'created_at' | 'sent_at' | 'accepted_at' | 'valid_until' | 'updated_at'> | null,
+  amountSource: 'quote' | 'budget' | 'none',
+  now: Date,
+): { text: string; warn: boolean; action: 'open' | 'create' } {
+  if (!quote) {
+    return {
+      text: amountSource === 'budget'
+        ? 'КП не заведено · сумма — из бюджета сделки'
+        : 'КП не заведено · суммы нет',
+      warn: false,
+      action: 'create',
+    };
+  }
+  const amount = quote.amount != null ? formatBudget(quote.amount) : null;
+  switch (quote.status) {
+    case 'draft':
+      return { text: joinSegments([withDay('Черновик от', quote.created_at), amount, 'не отправлено']), warn: false, action: 'open' };
+    case 'sent': {
+      const level = quoteValidity(quote.valid_until, now).level;
+      const until = quote.valid_until
+        ? withDay(level === 'expired' ? 'истекло' : 'действует до', quote.valid_until)
+        : null;
+      return {
+        text: joinSegments([withDay('Отправлено', quote.sent_at), until]),
+        warn: level === 'expired' || level === 'soon',
+        action: 'open',
+      };
+    }
+    case 'accepted':
+      return { text: joinSegments([withDay('Принято', quote.accepted_at), amount]), warn: false, action: 'open' };
+    case 'rejected':
+      return { text: withDay('Отклонено', quote.updated_at), warn: false, action: 'open' };
+    case 'expired':
+      return { text: withDay('Истекло', quote.valid_until ?? quote.updated_at), warn: true, action: 'open' };
+  }
 }

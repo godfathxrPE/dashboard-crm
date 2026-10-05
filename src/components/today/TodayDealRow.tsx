@@ -1,5 +1,6 @@
 'use client';
 
+import type { MouseEvent } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { formatBudget } from '@/lib/validators/project';
@@ -8,10 +9,11 @@ import type { TodayDealView } from '@/lib/domain/today-model';
 
 interface TodayDealRowProps {
   view: TodayDealView;
-  expanded: boolean;
-  onToggle: () => void;
+  /** Сделка в фокусе. */
+  selected: boolean;
+  /** Клик — в фокус; ⌘/Ctrl или средняя кнопка — карточка сделки в новой вкладке. */
+  onSelect: (e: MouseEvent) => void;
   kbdIndex: number;
-  focused: boolean;
   /** ACT-1: по сделке сегодня записан ход — строка стоит на месте до перезагрузки. */
   writtenToday?: boolean;
 }
@@ -23,8 +25,11 @@ interface TodayDealRowProps {
  * Цвет — только у смысла: красный — число дней свежего срыва (`--danger-text`),
  * сигнал риска — `--warning-text`. Точек-маркеров нет. `--accent` для смысла не
  * берётся: в `t-washi` он равен красному.
+ *
+ * S-TODAY-FOCUS-1: строка не раскрывается — клик выбирает сделку в фокус. Шеврон
+ * пока стоит: его снимает S2 вместе с новой сеткой строки.
  */
-export function TodayDealRow({ view, expanded, onToggle, kbdIndex, focused, writtenToday }: TodayDealRowProps) {
+export function TodayDealRow({ view, selected, onSelect, kbdIndex, writtenToday }: TodayDealRowProps) {
   const { source, cls } = view;
   const step = source.next_step?.trim();
   const due = dueText(view);
@@ -35,18 +40,20 @@ export function TodayDealRow({ view, expanded, onToggle, kbdIndex, focused, writ
     <button
       type="button"
       data-row-index={kbdIndex}
-      aria-expanded={expanded}
-      onClick={onToggle}
+      data-today-pick
+      aria-current={selected ? 'true' : undefined}
+      onClick={onSelect}
+      onAuxClick={(e) => { if (e.button === 1) onSelect(e); }}
       className={cn(
         'today-row-grid w-full items-start border-t border-border px-4 py-2.5 text-left transition-colors',
-        focused ? 'kbd-focus-row' : 'queue-row-hover',
+        !selected && 'queue-row-hover',
       )}
     >
       <span className="flex min-w-0 gap-1.5">
         <ChevronRight
           size={14}
           aria-hidden="true"
-          className={cn('mt-1 shrink-0 text-text-mute transition-transform', expanded && 'rotate-90')}
+          className="mt-1 shrink-0 text-text-mute"
         />
         <span className="min-w-0">
           <span data-today-name className="block text-[0.9375rem] font-semibold leading-snug text-text-main">

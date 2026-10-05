@@ -1,16 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import {
   afterText,
+  amountSourceText,
   dayText,
   dayWeekdayText,
   deadlineText,
   doneText,
   dueText,
+  focusKicker,
   inMovesText,
   moveWhy,
   namesText,
   planItemText,
   plannedText,
+  quoteLineText,
   signalsText,
 } from '@/lib/utils/today-text';
 import type { AfterInfo, TodayDealView } from '@/lib/domain/today-model';
@@ -213,5 +216,106 @@ describe('doneText', () => {
       .toBe('Записано в сделку · шаг вт 6 окт');
     expect(doneText(view({ next_step: null, next_action_date: null, cls: { noStep: true, group: 'stale' } }), null))
       .toBe('Шаг закрыт · сделка осталась без шага');
+  });
+});
+
+// ── S-TODAY-FOCUS-1 ──
+
+/** `now` экрана — фиксированный день: 04.10.2026, полдень МСК. */
+const NOW = new Date('2026-10-04T12:00:00+03:00');
+
+function quote(over: Partial<Parameters<typeof quoteLineText>[0] & object> = {}): NonNullable<Parameters<typeof quoteLineText>[0]> {
+  return {
+    status: 'draft',
+    amount: null,
+    created_at: '2026-09-07T10:00:00+03:00',
+    sent_at: null,
+    accepted_at: null,
+    valid_until: null,
+    updated_at: '2026-09-20T10:00:00+03:00',
+    ...over,
+  };
+}
+
+describe('focusKicker', () => {
+  it('ход 1 из 3, свежий срыв 4 дня', () => {
+    const v = { ...view({ cls: { overdueDays: 4, group: 'fresh' } }), slot: 'fresh' as const };
+    expect(focusKicker(v, { n: 1, of: 3 })).toEqual({ lead: 'Ход 1 из 3 · Свежий срыв', days: '4 дн.', hot: true });
+  });
+
+  it('строка «Обновить шаг», 26 дней после срока', () => {
+    expect(focusKicker(view({ cls: { overdueDays: 26, group: 'stale' } }), null))
+      .toEqual({ lead: 'Обновить шаг', days: '26 дн. после срока', hot: false });
+  });
+
+  it('строка без шага — «шага нет»', () => {
+    const v = view({ next_step: null, next_action_date: null, cls: { noStep: true, group: 'decide' } });
+    expect(focusKicker(v, null)).toEqual({ lead: 'Решить судьбу', days: 'шага нет', hot: false });
+  });
+
+  it('шаг впереди — дней нет', () => {
+    const v = view({ next_action_date: '2026-10-09', cls: { stepAhead: true, group: 'plan' } });
+    expect(focusKicker(v, null).days).toBeNull();
+  });
+});
+
+describe('amountSourceText', () => {
+  it('черновик, отправлено, принято, бюджет, суммы нет', () => {
+    expect(amountSourceText('quote', 'draft')).toBe('черновик КП');
+    expect(amountSourceText('quote', 'sent')).toBe('КП отправлено');
+    expect(amountSourceText('quote', 'accepted')).toBe('КП принято');
+    expect(amountSourceText('budget', null)).toBe('бюджет сделки');
+    expect(amountSourceText('none', null)).toBe('суммы нет');
+  });
+
+  it('КП с другим статусом или без него — «по КП»', () => {
+    expect(amountSourceText('quote', 'rejected')).toBe('по КП');
+    expect(amountSourceText('quote', null)).toBe('по КП');
+  });
+});
+
+describe('quoteLineText', () => {
+  it('КП нет, сумма из бюджета — «Создать КП»', () => {
+    expect(quoteLineText(null, 'budget', NOW))
+      .toEqual({ text: 'КП не заведено · сумма — из бюджета сделки', warn: false, action: 'create' });
+    expect(quoteLineText(null, 'none', NOW).text).toBe('КП не заведено · суммы нет');
+  });
+
+  it('черновик на 14,3 млн', () => {
+    // formatBudget ставит неразрывные пробелы: «14,3 млн ₽».
+    expect(quoteLineText(quote({ amount: 1_430_000_000 }), 'quote', NOW))
+      .toEqual({ text: 'Черновик от 7 сент · 14,3\u00a0млн\u00a0₽ · не отправлено', warn: false, action: 'open' });
+  });
+
+  it('черновик без суммы — сегмент суммы пропущен', () => {
+    expect(quoteLineText(quote(), 'budget', NOW).text).toBe('Черновик от 7 сент · не отправлено');
+  });
+
+  it('отправлено, срок вчера — warn и «истекло»', () => {
+    const r = quoteLineText(quote({ status: 'sent', sent_at: '2026-09-20T10:00:00+03:00', valid_until: '2026-10-03' }), 'quote', NOW);
+    expect(r).toEqual({ text: 'Отправлено 20 сент · истекло 3 окт', warn: true, action: 'open' });
+  });
+
+  it('отправлено, срок скоро — warn и «действует до»', () => {
+    const r = quoteLineText(quote({ status: 'sent', sent_at: '2026-09-20T10:00:00+03:00', valid_until: '2026-10-06' }), 'quote', NOW);
+    expect(r.text).toBe('Отправлено 20 сент · действует до 6 окт');
+    expect(r.warn).toBe(true);
+  });
+
+  it('отправлено без valid_until — сегмента «действует до» нет', () => {
+    const r = quoteLineText(quote({ status: 'sent', sent_at: '2026-09-20T10:00:00+03:00' }), 'quote', NOW);
+    expect(r).toEqual({ text: 'Отправлено 20 сент', warn: false, action: 'open' });
+  });
+
+  it('принято, отклонено', () => {
+    expect(quoteLineText(quote({ status: 'accepted', accepted_at: '2026-09-25T10:00:00+03:00', amount: 50_000_000 }), 'quote', NOW).text)
+      .toBe('Принято 25 сент · 500\u00a0тыс.\u00a0₽');
+    expect(quoteLineText(quote({ status: 'rejected' }), 'budget', NOW))
+      .toEqual({ text: 'Отклонено 20 сент', warn: false, action: 'open' });
+  });
+
+  it('истекло без valid_until — дата из updated_at', () => {
+    expect(quoteLineText(quote({ status: 'expired' }), 'budget', NOW))
+      .toEqual({ text: 'Истекло 20 сент', warn: true, action: 'open' });
   });
 });
