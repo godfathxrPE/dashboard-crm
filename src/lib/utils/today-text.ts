@@ -1,4 +1,4 @@
-import { diffDaysKey, mskDayCaption } from '@/lib/utils/date-helpers';
+import { diffDaysKey, mskDayCaption, mskTime } from '@/lib/utils/date-helpers';
 import { pluralRu } from '@/lib/utils/plural';
 import { formatBudget } from '@/lib/validators/project';
 import { quoteValidity } from '@/lib/domain/quote-validity';
@@ -9,6 +9,7 @@ import type { TouchKind } from '@/lib/domain/deal-touch';
 import type { MoveSlot, PlannedEvent, RiskSignal } from '@/lib/domain/today-deals';
 import type { DecideClock } from '@/lib/domain/decide-clock';
 import type { TodayDealView } from '@/lib/domain/today-model';
+import type { FocusRiskRow } from '@/lib/domain/today-risks';
 
 // ═══════════════════════════════════════════════════════
 // S-TODAY-V3-SCREEN-1: тексты экрана «Сегодня».
@@ -183,19 +184,53 @@ export const SLOT_KINDS: Record<MoveSlot, string> = {
  * Кикер шапки фокуса: «почему эта сделка здесь». Ход — номер и вид слота, строка —
  * группа. `days` — просрочка шага; шага нет — «шага нет»; шаг впереди — `null`.
  * `hot` — свежий срыв: его дни красятся.
+ * `risk` — группа «Под риском» (FOCUS-5, H-03): шапка ставит значок и слово, дней нет —
+ * причины риска перечислены секцией «Риски» тела.
  */
 export function focusKicker(
   view: TodayDealView,
   move: { n: number; of: number } | null,
-): { lead: string; days: string | null; hot: boolean } {
+): { lead: string; days: string | null; hot: boolean; risk: boolean } {
   const { cls } = view;
+  const risk = cls.group === 'risk';
   const lead = move
     ? `Ход ${move.n} из ${move.of} · ${SLOT_KINDS[view.slot ?? 'fill']}`
     : TODAY_GROUP_LABELS[cls.group];
-  const days = cls.overdueDays !== null
-    ? (move ? `${cls.overdueDays} дн.` : `${cls.overdueDays} дн. после срока`)
-    : cls.noStep ? 'шага нет' : null;
-  return { lead, days, hot: cls.group === 'fresh' };
+  const days = risk
+    ? null
+    : cls.overdueDays !== null
+      ? (move ? `${cls.overdueDays} дн.` : `${cls.overdueDays} дн. после срока`)
+      : cls.noStep ? 'шага нет' : null;
+  return { lead, days, hot: cls.group === 'fresh', risk };
+}
+
+/**
+ * Подпись подложки шага в шапке фокуса (FOCUS-5, H-02) — как «Следующий шаг» карточки
+ * сделки. Цвета у подписи нет: срыв уже отмечен красным в кикере (один факт — один маркер).
+ */
+export function stepPlateLabel(view: TodayDealView, todayKey: string): string {
+  const key = view.source.next_action_date?.slice(0, 10);
+  if (!key) return 'Следующий шаг';
+  return key < todayKey
+    ? `Следующий шаг · срок был ${dayWeekdayText(key)}`
+    : `Следующий шаг · ${dayWeekdayText(key)}`;
+}
+
+/**
+ * Строка секции «Риски» тела фокуса (FOCUS-5). `dayText` принимает и ключ дня, и
+ * `timestamptz`: день события из времени — по МСК, как во всех текстах экрана.
+ */
+export function focusRiskText(row: FocusRiskRow): string {
+  switch (row.kind) {
+    case 'quote_expired':
+      return `КП истекло ${dayText(row.validUntil)}${row.sentAt ? ` — отправлено ${dayText(row.sentAt)}` : ''}`;
+    case 'task_overdue':
+      return `Задача «${row.text}» — срок был ${dayText(row.deadline)}`;
+    case 'call_overdue': {
+      const time = mskTime(row.date);
+      return `Звонок ${dayText(row.date)}${time ? `, ${time}` : ''} — не выполнен`;
+    }
+  }
 }
 
 /** Источник суммы под суммой в шапке. */

@@ -2180,6 +2180,12 @@ table { font-variant-numeric: tabular-nums; }
    theme-if в компоненте не заводим, весь theme-слой живёт здесь. */
 .glass-sheet .text-accent { color: var(--sheet-mark); }
 
+/* Граница подложки шага (`.glass-plate`, в `@layer components`). Безслойный safety-net
+   `.t-frost/.t-aurora/.t-tidal *` бьёт любой слой и красил её в `--border` стекла
+   (`--sheet-btn-border`, .22) вместо `--sheet-plate-border` (.10) — замер FOCUS-5 во
+   frost. Задело и `DealNextStep`, и шапку фокуса «Сегодня»: подложка одна. */
+.glass-sheet .glass-plate { border-color: var(--sheet-plate-border); }
+
 /* Квадрат иконки. Заливку приходится ставить правилом, а не только токеном: aura
    ремапит `.t-aura .bg-accent` в `var(--accent-text) !important`, то есть в
    ПОДПИСЬ, а не в заливку. Специфичность и `!important` равны аурному правилу,

@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, X } from 'lucide-react';
+import { ArrowUpRight, TriangleAlert, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useFieldMoves } from '@/lib/hooks/use-stage-story';
 import { pickActiveQuote } from '@/lib/domain/quote-version';
 import { projectHref } from '@/lib/utils/project-href';
 import { pluralRu } from '@/lib/utils/plural';
 import { formatBudget } from '@/lib/validators/project';
-import { amountSourceText, focusKicker } from '@/lib/utils/today-text';
+import { localDateKey } from '@/lib/utils/date-helpers';
+import { amountSourceText, focusKicker, stepPlateLabel } from '@/lib/utils/today-text';
 import type { Project } from '@/lib/hooks/use-projects';
 import type { PipelineStage } from '@/types/database';
 import type { Quote } from '@/types/entities';
@@ -80,6 +81,7 @@ export function TodayFocusPane({
     wasComposing.current = composerOpen;
   }, [composerOpen, headRef]);
 
+  // Название сделки — заголовок шапки, здесь только то, что под ним.
   const context = [
     source.companyName,
     source.stage?.name ?? null,
@@ -96,7 +98,18 @@ export function TodayFocusPane({
       <div ref={headRef} className={cn('glass-sheet relative shrink-0 px-4 pb-3.5 pt-4', overlay && 'pr-11')}>
         <div className="flex items-start gap-3">
           <p className="min-w-0 flex-1 pt-0.5 text-meta font-semibold uppercase tracking-wider text-text-dim">
-            {kicker.lead}
+            {kicker.risk ? (
+              <>
+                {move && `${kicker.lead} · `}
+                {/* Причин риска здесь нет: они секцией «Риски» в теле, каждая с действием. */}
+                <span className="inline-flex items-center gap-1 align-top text-warning-text">
+                  <TriangleAlert aria-hidden="true" className="h-3 w-3 shrink-0" />
+                  Под риском
+                </span>
+              </>
+            ) : (
+              kicker.lead
+            )}
             {kicker.days && (
               <>
                 {' · '}
@@ -112,23 +125,26 @@ export function TodayFocusPane({
           </div>
         </div>
 
-        <p className={cn('mt-2 line-clamp-3 text-lg font-semibold leading-snug', step ? 'text-text-main' : 'text-text-dim')}>
-          {step || 'Шаг не задан'}
-        </p>
+        <Link
+          href={href}
+          title="Открыть карточку сделки · O"
+          className="mt-1.5 flex items-start gap-1 text-base font-semibold leading-snug text-text-main underline-offset-2 hover:underline"
+        >
+          <span className="line-clamp-2 min-w-0">{source.name}</span>
+          <ArrowUpRight aria-hidden="true" className="mt-[0.3125rem] h-3 w-3 shrink-0" />
+        </Link>
 
-        <p className="mt-1.5 text-xs text-text-dim">
-          <Link
-            href={href}
-            title="Открыть карточку сделки · O"
-            className="inline-flex items-center gap-0.5 font-medium text-text-main underline-offset-2 hover:underline"
-          >
-            {source.name}
-            <ArrowUpRight aria-hidden="true" className="h-3 w-3 shrink-0" />
-          </Link>
-          {context.map((c) => (
-            <span key={c}> · {c}</span>
-          ))}
-        </p>
+        {context.length > 0 && <p className="mt-0.5 text-xs text-text-dim">{context.join(' · ')}</p>}
+
+        {/* Подложка — та же, что у «Следующего шага» карточки сделки (`DealNextStep`). */}
+        <div className="glass-plate mt-3 px-3.5 pb-3 pt-2.5">
+          <p className="text-meta font-semibold uppercase tracking-wider text-text-dim">
+            {stepPlateLabel(view, localDateKey(now))}
+          </p>
+          <p className={cn('mt-1 line-clamp-3 text-sm font-medium leading-[1.42]', step ? 'text-text-main' : 'text-text-dim')}>
+            {step || 'Шаг не задан'}
+          </p>
+        </div>
 
         <div className="mt-3">{actions}</div>
 
