@@ -53,9 +53,9 @@ export function focusHeadEntry(head: HTMLElement | null) {
  *
  * Имя `TodayFocus` не занимать: так назывался удалённый в V3 «Фокус дня».
  *
- * ⚠️ Внутри `.glass-sheet` перекрашены `--red` и `--warning-text`, а `--danger`,
- * `--danger-text`, `--success` — нет. Цвет смысла в шапке — `text-red` и
- * `text-warning-text`, иначе красный на тёмном стекле теряет контраст в светлых темах.
+ * ⚠️ Смысловой текст (`--red-text`, `--danger-text`, `--green-text`, `--success-text`)
+ * стекло перекрашивает само — fix-S-GLASS-THEME-1. `--danger` и `--success` (заливки)
+ * не перекрашены: цвет смысла в шапке — текстовые утилиты, не заливки.
  * `data-card` на шапке нет: `.t-aura [data-card]` перебил бы стекло.
  */
 export function TodayFocusPane({
