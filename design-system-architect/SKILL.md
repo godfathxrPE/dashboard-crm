@@ -20,6 +20,8 @@ description: >
 
 # Design System Architect
 
+Version: 2026-10-11
+
 Архитектор дизайн-систем для shadcn/ui + Tailwind v4 + CSS variables. Скилл
 закрывает системное мышление о компонентах: токены, scale, варианты, anatomy,
 composition, theming, governance.

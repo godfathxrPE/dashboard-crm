@@ -359,9 +359,9 @@ const { data } = await supabase
 ### No N+1, parallel independent reads
 
 - **No N+1**: related rows come through embedding (`company:companies(id,name)`) or ONE
-  `.in('id', ids)` — never a query per row in a loop. dashboard-crm: `.in()` breaks on
-  an empty and on a long list — `src/lib/utils/query-batching.ts` (`chunkForIn`,
-  `fetchInBatches`).
+  `.in('id', ids)` — never a query per row in a loop. Guard `.in()` on both ends: an empty
+  list → skip the request; a long one overflows the URL length limit (ids are sent in
+  the query string) → split into chunks of ~100–200 ids and merge the results.
 - **Independent queries — `Promise.all`** in a queryFn / Route Handler / Server Action;
   `await` each result in the branch that actually needs it.
 
@@ -379,7 +379,7 @@ const [deals, tasks] = await Promise.all([
 await supabase.from('companies').upsert(rows, { onConflict: 'org_id,inn' });
 ```
 
-Bulk import (CSV / Excel, e.g. К7): batches of 500–1000 rows, one `.insert(array)` per
+Bulk import (CSV / Excel): batches of 500–1000 rows, one `.insert(array)` per
 batch (or an RPC) — never a request per row.
 
 ### Pagination
@@ -411,11 +411,11 @@ total; prefer `'estimated'` / `head: true`.
 ### Search
 
 Escape user input before `.or()` / `.ilike()`: `%`, `_`, `\` are LIKE wildcards;
-`,` `(` `)` split a PostgREST `.or()` filter. dashboard-crm: `escapeIlike` in
-`src/lib/hooks/use-entity-search.ts`.
+`,` `(` `)` split a PostgREST `.or()` filter.
 
 ```typescript
-const term = escapeIlike(query.trim()).replace(/[,()]/g, ' ');
+const esc = (s: string) => s.replace(/[\\%_]/g, '\\$&').replace(/[,()]/g, ' ');
+const term = esc(query.trim());
 const { data } = await supabase
   .from('contacts')
   .select('id,first_name,last_name,email')

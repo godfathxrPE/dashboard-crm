@@ -17,6 +17,8 @@ description: >
 
 # Supabase Patterns
 
+Version: 2026-10-11
+
 Battle-tested patterns for building Next.js applications with Supabase.
 Covers auth, RLS, schema design, triggers, realtime, storage, edge functions,
 and client architecture. Every pattern includes the "why" and common failure modes.
@@ -98,12 +100,14 @@ User has a Supabase question
 
 ## Core Principles
 
+Project conventions (migration path, type generation, helper utilities) live in the project's *-architect skill and override generic examples here. dashboard-crm → crm-architect.
+
 1. **RLS is your firewall** — never trust client-side filtering. RLS is the only reliable access control.
 2. **Two clients, two contexts** — browser client (cookies) vs server client (headers). Never mix.
-3. **Migrations go through the project's gate** — SQL files in `supabase/migrations/`, applied via the project's migration gate (dashboard-crm: Supabase MCP `apply_migration` — see crm-architect; a migration with `drop`/`delete` — by the owner in SQL Editor, MCP hangs on it). Next number — from `schema_migrations`, not from the folder. No `supabase db push`.
+3. **One migration path** — SQL files in `supabase/migrations/`. Apply migrations through the project's single migration path (CLI, MCP or CI) — never ad-hoc. Number from the applied-migrations history, not the folder.
 4. **Triggers are per-table** — generic multi-table triggers fail (`OLD.column` resolves at parse time).
 5. **FK deletions at DB level** — `ON DELETE SET NULL` or `CASCADE`. Client-side cleanup fails under RLS.
-6. **Schema is source of truth** — TypeScript types mirror DB schema. Regenerate after every migration with the project's script (dashboard-crm: `scripts/gen-types.sh`), never by hand.
+6. **Schema is source of truth** — TypeScript types mirror DB schema. Regenerate types after every migration using the project's type-generation step (see the project's *-architect skill), never by hand.
 7. **Server Actions for mutations** — prefer Server Actions over API routes for form submissions in Next.js 15.
 
 ## Workflow
@@ -127,7 +131,7 @@ Before delivering any Supabase code:
 - [ ] Server client in Server Components / API routes / Server Actions only
 - [ ] No `storageKey` or `flowType` overrides in client config
 - [ ] Migration SQL uses `IF NOT EXISTS` / `IF EXISTS` where they exist; `ADD CONSTRAINT` / `CREATE POLICY` — `drop … if exists` + create, or a DO-guard on `pg_constraint`
-- [ ] TypeScript types regenerated with the project script after migration
+- [ ] TypeScript types regenerated with the project's type-generation step after migration
 - [ ] Selects list explicit columns — no `*` / `rel(*)`
 - [ ] FK constraints use appropriate ON DELETE strategy
 - [ ] Trigger functions are per-table, not generic
@@ -142,7 +146,7 @@ Before delivering any Supabase code:
 | `flowType: 'implicit'` override | Breaks server-side code exchange in SSR | Use defaults (pkce) |
 | Generic trigger for N tables | `OLD.column` parse-time resolution | Per-table trigger function |
 | Client-side FK cleanup on DELETE | RLS blocks cross-user updates | `ON DELETE SET NULL/CASCADE` |
-| `supabase db push` | Schema drift, migration conflicts | Project's migration gate (dashboard-crm: MCP `apply_migration`) |
+| Ad-hoc migration apply (`supabase db push` from a laptop, manual SQL) | Schema drift, migration conflicts | The project's single migration path |
 | RLS disabled "temporarily" | Forgotten, data exposed | Always-on, SECURITY DEFINER for admin |
 | Service key in client bundle | Full bypass of RLS | Anon key only in browser |
 | `.single()` without error handling | Throws on 0 or 2+ results | Check for error, handle empty |

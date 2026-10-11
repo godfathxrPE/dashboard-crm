@@ -140,7 +140,7 @@ it's your primary security layer.
 -- Enable RLS
 ALTER TABLE [table] ENABLE ROW LEVEL SECURITY;
 
--- Users see only their own rows (ownership column: owner_id / created_by → profiles)
+-- Users see only their own rows (ownership column: owner_id / created_by → profiles (or your project's users table))
 CREATE POLICY "select_own" ON [table]
   FOR SELECT TO authenticated
   USING (owner_id = (select auth.uid()));
@@ -161,7 +161,7 @@ CREATE POLICY "delete_own" ON [table]
 
 `TO authenticated` — политика не вычисляется для `anon` вовсе. Мультитенантный
 проект: первым конъюнктом `org_id = (select public.current_org_id())`, роль —
-`(select public.current_org_role())` (dashboard-crm — см. crm-architect).
+`(select public.current_org_role())` — имена хелперов берутся из проекта.
 
 ### RLS Performance
 

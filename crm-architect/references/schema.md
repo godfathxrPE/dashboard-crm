@@ -85,3 +85,4 @@ DDL на горячей таблице (`ALTER`, `CREATE INDEX`) — перво�
 **Исключение из гейта:** миграцию с `drop` или `delete` прогоняет владелец в SQL
 Editor (MCP `apply_migration` на них виснет) — см. learnings, «MCP `apply_migration` /
 `execute_sql` виснет на `drop` и на `delete`».
+Прогон — одной транзакцией с `insert into supabase_migrations.schema_migrations`.

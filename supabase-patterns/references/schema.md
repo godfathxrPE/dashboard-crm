@@ -13,7 +13,7 @@ CREATE TABLE public.[entities] (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   -- multi-tenant: org-first
   org_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-  -- ownership → profiles, not auth.users
+  -- ownership → profiles (or your project's users table), not auth.users
   owner_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_by uuid DEFAULT auth.uid() REFERENCES public.profiles(id) ON DELETE SET NULL,
   -- entity-specific columns --
@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_[entities]_owner_id   ON public.[entities](owner_
 CREATE INDEX IF NOT EXISTS idx_[entities]_created_by ON public.[entities](created_by);
 ```
 
-**Ownership = `owner_id` / `created_by` → `profiles`**, org-first (`org_id not null`,
+**Ownership = `owner_id` / `created_by` → `profiles` (or your project's users table)**, org-first (`org_id not null`,
 первый конъюнкт политики). `user_id` — только там, где колонка действительно означает
 пользователя, а не владельца сущности (`leads`, `activity_log` — актор записи журнала).
 
@@ -173,16 +173,13 @@ $$ LANGUAGE plpgsql;
 
 ## TypeScript Type Generation
 
-### Codegen — through the project's script
+### Codegen — through a safe wrapper
 
-Generate types with the project's script, not a bare `npx supabase gen types … > file`:
-redirection truncates the target before the command runs, and any failure (no CLI, no
-network, an interactive npx prompt) leaves an empty or garbage types file.
-
-- **dashboard-crm**: `scripts/gen-types.sh` → `src/types/supabase.gen.ts` (temp file +
-  sanity checks, the target is replaced only after they pass). Generated files are never
-  edited by hand.
-- Other project without a script: write the same wrapper first (temp file → checks → `mv`).
+Regenerate types after every migration using the project's type-generation step (see the
+project's *-architect skill). Not a bare `npx supabase gen types … > file`: redirection
+truncates the target before the command runs, and any failure (no CLI, no network, an
+interactive npx prompt) leaves an empty or garbage types file. No such step yet — write a
+wrapper first: temp file → sanity checks → `mv`. Generated files are never edited by hand.
 
 Run it after EVERY applied migration. Types must match the schema.
 
@@ -252,15 +249,15 @@ supabase/migrations/
 ```
 
 Numbered sequentially. Descriptive name. One concern per file.
-**Next number — from `supabase_migrations.schema_migrations`, not from the folder**:
-numbers get lost in the folder (applied without a file, reserved, cancelled).
+**Number from the applied-migrations history, not the folder**: numbers get lost in the
+folder (applied without a file, reserved, cancelled).
 
 ### Migration Template
 
 ```sql
 -- Migration: [NNN]_[description].sql
 -- Purpose: [what this migration does]
--- Apply: via the project's migration gate (dashboard-crm: Supabase MCP apply_migration)
+-- Apply: through the project's single migration path
 -- Rollback: [how to undo, if applicable]
 
 -- 1. Schema changes
@@ -288,19 +285,16 @@ CREATE POLICY "select_own" ON [table] FOR SELECT TO authenticated
    DO-block guard on `pg_constraint`.
 2. Always `IF EXISTS` for DROP operations
 3. One migration = one concern
-4. Apply via the project's migration gate (dashboard-crm: Supabase MCP
-   `apply_migration` — see crm-architect). Exception (dashboard-crm): a migration with
-   `drop` or `delete` is run by the owner in SQL Editor — MCP `apply_migration` hangs on it.
-5. Never `supabase db push` — causes schema drift
-6. Next migration number — from `schema_migrations`, not from the folder
-7. Regenerate types with the project script after every migration (dashboard-crm:
-   `scripts/gen-types.sh`)
-8. Update Zod validators if new form fields added
+4. Apply migrations through the project's single migration path (CLI, MCP or CI) —
+   never ad-hoc. Two paths at once cause schema drift
+5. Number from the applied-migrations history, not the folder
+6. Regenerate types after every migration using the project's type-generation step
+7. Update Zod validators if new form fields added
 
 ### After Migration Checklist
 
-- [ ] Applied through the gate; version present in `supabase_migrations.schema_migrations`
-- [ ] Types regenerated with the project script (dashboard-crm: `scripts/gen-types.sh`)
+- [ ] Applied through the project's migration path; version present in the applied-migrations history
+- [ ] Types regenerated with the project's type-generation step
 - [ ] Zod validators updated (if new form field)
 - [ ] Hook updated (select, insert, update queries)
 - [ ] Tested in app (create/read/update/delete)
