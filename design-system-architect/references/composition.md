@@ -273,6 +273,10 @@ export function StandardDataTable<T>({
 90% случаев — `<StandardDataTable>`. 10% когда нужно нестандартно — собирай
 из примитивов.
 
+**Без булевых режимов на общих компонентах.** Никаких `isEditing` / `isCompact` /
+`isLead` на shared-компоненте: каждый флаг удваивает число состояний. Вместо флага —
+явные варианты (`LeadCard`, `DealCard`), собранные из общих частей.
+
 ---
 
 ## React.cloneElement и Context API
@@ -311,6 +315,10 @@ const TabsTrigger = ({ value, children }) => {
 
 **Это паттерн Radix** — посмотри как сделано в shadcn/ui компонентах,
 они почти все используют Context.
+
+**Форма контекста.** Context отдаёт `{ state, actions, meta }`; откуда берутся данные
+(запрос, store, props), знает только Provider — потребители не зависят от источника.
+React 19: `use(Ctx)` вместо `useContext(Ctx)`.
 
 ### `cloneElement` (legacy)
 

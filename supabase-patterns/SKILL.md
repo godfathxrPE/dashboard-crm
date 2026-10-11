@@ -84,8 +84,10 @@ User has a Supabase question
 | 401 Unauthorized | Expired JWT, wrong client, missing auth header | auth.md |
 | 403 Forbidden | RLS policy blocks the operation | auth.md §RLS |
 | 400 Bad Request | Schema mismatch (missing column, wrong type) | schema.md |
-| "new row violates row-level security" | INSERT policy missing or user_id not set | auth.md §RLS |
-| "permission denied for table" | RLS enabled but no policies defined | auth.md §RLS |
+| "new row violates row-level security" | INSERT policy missing or `owner_id`/`created_by` not set | auth.md §RLS |
+| "permission denied for table" (42501) | Missing GRANT for the role | auth.md §Common RLS Errors |
+| Query returns 0 rows, no error | RLS enabled with no matching policy — RLS never raises on SELECT | auth.md §RLS |
+| Slow list query, advisor `auth_rls_initplan` | Bare `auth.uid()` in a policy is evaluated per row | auth.md §RLS Performance |
 | Infinite redirect loop | `storageKey` or `flowType` override in client | auth.md §Client Config |
 | Trigger error "column X does not exist" | Generic trigger on multiple tables | schema.md §Triggers |
 | Data visible to wrong user | Missing or wrong RLS policy | auth.md §RLS |
@@ -98,10 +100,10 @@ User has a Supabase question
 
 1. **RLS is your firewall** — never trust client-side filtering. RLS is the only reliable access control.
 2. **Two clients, two contexts** — browser client (cookies) vs server client (headers). Never mix.
-3. **Migrations are manual** — SQL files applied in Dashboard SQL Editor. No auto-migration tooling.
+3. **Migrations go through the project's gate** — SQL files in `supabase/migrations/`, applied via the project's migration gate (dashboard-crm: Supabase MCP `apply_migration` — see crm-architect; a migration with `drop`/`delete` — by the owner in SQL Editor, MCP hangs on it). Next number — from `schema_migrations`, not from the folder. No `supabase db push`.
 4. **Triggers are per-table** — generic multi-table triggers fail (`OLD.column` resolves at parse time).
 5. **FK deletions at DB level** — `ON DELETE SET NULL` or `CASCADE`. Client-side cleanup fails under RLS.
-6. **Schema is source of truth** — TypeScript types mirror DB schema. Regenerate after every migration.
+6. **Schema is source of truth** — TypeScript types mirror DB schema. Regenerate after every migration with the project's script (dashboard-crm: `scripts/gen-types.sh`), never by hand.
 7. **Server Actions for mutations** — prefer Server Actions over API routes for form submissions in Next.js 15.
 
 ## Workflow
@@ -117,17 +119,19 @@ User has a Supabase question
 
 Before delivering any Supabase code:
 
-- [ ] RLS enabled on all new tables
-- [ ] RLS policies cover SELECT, INSERT, UPDATE, DELETE
-- [ ] INSERT policy includes `WITH CHECK (auth.uid() = user_id)`
+- [ ] RLS enabled on all new tables; `revoke all … from anon` + explicit grants to `authenticated`
+- [ ] RLS policies cover SELECT, INSERT, UPDATE, DELETE, each `TO authenticated`
+- [ ] Policies org-first, ownership via `owner_id`/`created_by`; INSERT has `WITH CHECK (owner_id = (select auth.uid()))`
+- [ ] `auth.uid()` / role helpers wrapped in `(select …)` (initplan)
 - [ ] Browser client in 'use client' components only
 - [ ] Server client in Server Components / API routes / Server Actions only
 - [ ] No `storageKey` or `flowType` overrides in client config
-- [ ] Migration SQL uses `IF NOT EXISTS` / `IF EXISTS`
-- [ ] TypeScript types updated after migration (codegen command provided)
+- [ ] Migration SQL uses `IF NOT EXISTS` / `IF EXISTS` where they exist; `ADD CONSTRAINT` / `CREATE POLICY` — `drop … if exists` + create, or a DO-guard on `pg_constraint`
+- [ ] TypeScript types regenerated with the project script after migration
+- [ ] Selects list explicit columns — no `*` / `rel(*)`
 - [ ] FK constraints use appropriate ON DELETE strategy
 - [ ] Trigger functions are per-table, not generic
-- [ ] Indexes on user_id and FK columns
+- [ ] Indexes on every column a policy references (`org_id`, `owner_id`, `created_by`, `assigned_to`) and on FK columns
 - [ ] Storage buckets have RLS policies (if applicable)
 
 ## Anti-Patterns (NEVER)
@@ -138,9 +142,10 @@ Before delivering any Supabase code:
 | `flowType: 'implicit'` override | Breaks server-side code exchange in SSR | Use defaults (pkce) |
 | Generic trigger for N tables | `OLD.column` parse-time resolution | Per-table trigger function |
 | Client-side FK cleanup on DELETE | RLS blocks cross-user updates | `ON DELETE SET NULL/CASCADE` |
-| `supabase db push` | Schema drift, migration conflicts | Manual SQL in Dashboard |
+| `supabase db push` | Schema drift, migration conflicts | Project's migration gate (dashboard-crm: MCP `apply_migration`) |
 | RLS disabled "temporarily" | Forgotten, data exposed | Always-on, SECURITY DEFINER for admin |
 | Service key in client bundle | Full bypass of RLS | Anon key only in browser |
 | `.single()` without error handling | Throws on 0 or 2+ results | Check for error, handle empty |
-| Hardcoded user ID | Breaks multi-user, security hole | Always `auth.uid()` |
+| Hardcoded user ID | Breaks multi-user, security hole | `(select auth.uid())` in policies, `getUser()` in server code |
+| `*` / `rel(*)` in `.select()` | Payload and coupling grow with every new column | Explicit column list |
 | API route for simple mutation | Unnecessary boilerplate in Next.js 15 | Server Action with server client |

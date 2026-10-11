@@ -42,6 +42,17 @@ Never import `createServerClient` in a Client Component.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/database';
+
+type Row = Database['public']['Tables']['[entities]']['Row'];
+type EntityInsert = Database['public']['Tables']['[entities]']['Insert'];
+type EntityUpdate = Database['public']['Tables']['[entities]']['Update'];
+
+// Explicit columns, never `*` / `rel(*)`: payload and coupling grow with every new column.
+const LIST_SELECT = 'id,title,status,created_at,company:companies(id,name)';
+type ListItem = Pick<Row, 'id' | 'title' | 'status' | 'created_at'> & {
+  company: { id: string; name: string } | null;
+};
 
 export function use[Entities]() {
   const supabase = createClient();
@@ -50,10 +61,10 @@ export function use[Entities]() {
   // READ
   const query = useQuery({
     queryKey: ['[entities]'],
-    queryFn: async () => {
+    queryFn: async (): Promise<ListItem[]> => {
       const { data, error } = await supabase
         .from('[entities]')
-        .select('*, companies(*), contacts(*)')
+        .select(LIST_SELECT)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -66,17 +77,24 @@ export function use[Entities]() {
       const { data, error } = await supabase
         .from('[entities]')
         .insert(values)
-        .select('*, companies(*), contacts(*)')
+        .select(LIST_SELECT)
         .single();
       if (error) throw error;
       return data;
     },
     onMutate: async (newItem) => {
       await queryClient.cancelQueries({ queryKey: ['[entities]'] });
-      const previous = queryClient.getQueryData(['[entities]']);
-      queryClient.setQueryData(['[entities]'], (old: any[]) =>
-        [{ ...newItem, id: 'temp-' + Date.now() }, ...(old ?? [])]
-      );
+      const previous = queryClient.getQueryData<ListItem[]>(['[entities]']);
+      queryClient.setQueryData<ListItem[]>(['[entities]'], (old = []) => [
+        {
+          id: 'temp-' + Date.now(),
+          title: newItem.title,
+          status: newItem.status ?? null,
+          created_at: new Date().toISOString(),
+          company: null,
+        },
+        ...old,
+      ]);
       return { previous };
     },
     onError: (_err, _vars, context) => {
@@ -96,16 +114,16 @@ export function use[Entities]() {
         .from('[entities]')
         .update(values)
         .eq('id', id)
-        .select('*, companies(*), contacts(*)')
+        .select(LIST_SELECT)
         .single();
       if (error) throw error;
       return data;
     },
     onMutate: async (updated) => {
       await queryClient.cancelQueries({ queryKey: ['[entities]'] });
-      const previous = queryClient.getQueryData(['[entities]']);
-      queryClient.setQueryData(['[entities]'], (old: any[]) =>
-        (old ?? []).map(item => item.id === updated.id ? { ...item, ...updated } : item)
+      const previous = queryClient.getQueryData<ListItem[]>(['[entities]']);
+      queryClient.setQueryData<ListItem[]>(['[entities]'], (old = []) =>
+        old.map(item => item.id === updated.id ? { ...item, ...updated } : item)
       );
       return { previous };
     },
@@ -130,9 +148,9 @@ export function use[Entities]() {
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['[entities]'] });
-      const previous = queryClient.getQueryData(['[entities]']);
-      queryClient.setQueryData(['[entities]'], (old: any[]) =>
-        (old ?? []).filter(item => item.id !== id)
+      const previous = queryClient.getQueryData<ListItem[]>(['[entities]']);
+      queryClient.setQueryData<ListItem[]>(['[entities]'], (old = []) =>
+        old.filter(item => item.id !== id)
       );
       return { previous };
     },
@@ -217,9 +235,10 @@ export async function createTask(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated' };
 
+  // created_by: default auth.uid() in the table; ownership is owner_id / created_by, never user_id
   const { error } = await supabase
     .from('tasks')
-    .insert({ ...parsed.data, user_id: user.id });
+    .insert({ ...parsed.data, owner_id: user.id });
 
   if (error) return { error: error.message };
 
@@ -227,6 +246,13 @@ export async function createTask(formData: FormData) {
   return { success: true };
 }
 ```
+
+### Server Action = public endpoint
+
+A Server Action is a public endpoint: safeParse → `getUser()` → authz. With the
+user-scoped server client RLS is the authz layer; with service-role or SECURITY
+DEFINER RPC check org membership and role explicitly. Write `owner_id`/`created_by`,
+never `user_id`.
 
 ### Server Action with React Query
 
@@ -313,43 +339,91 @@ If realtime isn't firing:
 ```typescript
 const { data } = await supabase
   .from('tasks')
-  .select('*, companies(*), contacts(*), projects(*)')
+  .select('id,title,status,due_date,company:companies(id,name),project:projects(id,title)')
   .order('created_at', { ascending: false });
 ```
+
+Explicit columns in every select — never `*` / `rel(*)`.
 
 ### Filtered Queries
 
 ```typescript
 const { data } = await supabase
   .from('calls')
-  .select('*')
+  .select('id,subject,status,scheduled_date')
   .eq('status', 'planned')
   .gte('scheduled_date', new Date().toISOString())
   .order('scheduled_date', { ascending: true });
 ```
 
+### No N+1, parallel independent reads
+
+- **No N+1**: related rows come through embedding (`company:companies(id,name)`) or ONE
+  `.in('id', ids)` — never a query per row in a loop. dashboard-crm: `.in()` breaks on
+  an empty and on a long list — `src/lib/utils/query-batching.ts` (`chunkForIn`,
+  `fetchInBatches`).
+- **Independent queries — `Promise.all`** in a queryFn / Route Handler / Server Action;
+  `await` each result in the branch that actually needs it.
+
+```typescript
+const [deals, tasks] = await Promise.all([
+  supabase.from('projects').select('id,title,stage_id').eq('owner_id', userId),
+  supabase.from('tasks').select('id,title,due_date').eq('assigned_to', userId),
+]);
+```
+
+### Upsert and Bulk Import
+
+```typescript
+// Requires a UNIQUE constraint on (org_id, inn) + INSERT, UPDATE and SELECT policies
+await supabase.from('companies').upsert(rows, { onConflict: 'org_id,inn' });
+```
+
+Bulk import (CSV / Excel, e.g. К7): batches of 500–1000 rows, one `.insert(array)` per
+batch (or an RPC) — never a request per row.
+
 ### Pagination
+
+Lists default to keyset:
+`.order('created_at',{ascending:false}).order('id').lt('created_at', cursor).limit(N)`;
+ties → `(created_at, id)`:
 
 ```typescript
 const PAGE_SIZE = 20;
-const { data, count } = await supabase
+let q = supabase
   .from('contacts')
-  .select('*', { count: 'exact' })
-  .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-  .order('created_at', { ascending: false });
+  .select('id,first_name,last_name,created_at')
+  .order('created_at', { ascending: false })
+  .order('id', { ascending: false })
+  .limit(PAGE_SIZE);
+if (cursor) {
+  // tie-safe: rows with the same created_at continue by id
+  q = q.or(
+    `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+  );
+}
+const { data } = await q;
 ```
+
+`.range()` only for small bounded tables. `count: 'exact'` only when the UI shows a
+total; prefer `'estimated'` / `head: true`.
 
 ### Search
 
+Escape user input before `.or()` / `.ilike()`: `%`, `_`, `\` are LIKE wildcards;
+`,` `(` `)` split a PostgREST `.or()` filter. dashboard-crm: `escapeIlike` in
+`src/lib/hooks/use-entity-search.ts`.
+
 ```typescript
+const term = escapeIlike(query.trim()).replace(/[,()]/g, ' ');
 const { data } = await supabase
   .from('contacts')
-  .select('*')
-  .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`);
+  .select('id,first_name,last_name,email')
+  .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`);
 ```
 
-For better performance on large tables, use PostgreSQL full-text search
-(`tsvector` + `tsquery`) with a GIN index.
+On large tables substring search needs `pg_trgm` + GIN, word search — a `tsvector`
+column + GIN (see schema.md → Indexes).
 
 ---
 
@@ -358,7 +432,7 @@ For better performance on large tables, use PostgreSQL full-text search
 ### Standard Pattern
 
 ```typescript
-const { data, error } = await supabase.from('tasks').select('*');
+const { data, error } = await supabase.from('tasks').select('id,title,status');
 
 if (error) {
   console.error('Supabase error:', error.message);
@@ -372,8 +446,8 @@ return data ?? []; // Always return array, never null
 
 | Code | Meaning | Fix |
 |------|---------|-----|
-| `PGRST301` | Row not found (.single()) | Check if ID exists, handle empty |
-| `42501` | Permission denied (RLS) | Check RLS policies |
+| `PGRST116` | `.single()` got 0 or >1 rows | Check if ID exists; `.maybeSingle()` when absence is normal |
+| `42501` | Missing GRANT, or a write rejected by RLS `WITH CHECK` | Check grants, then policies. RLS on SELECT never raises — it returns 0 rows |
 | `23505` | Unique constraint violation | Handle duplicate, show user message |
 | `23503` | FK constraint violation | Referenced row doesn't exist |
 | `42703` | Column doesn't exist | Schema mismatch, run migration |
@@ -383,12 +457,12 @@ return data ?? []; // Always return array, never null
 ## CSV Export with Cyrillic
 
 ```typescript
-export function exportToCSV(data: any[], filename: string) {
+export function exportToCSV(data: Record<string, unknown>[], filename: string) {
   const BOM = '\uFEFF'; // Required for Excel to read Cyrillic
   const headers = Object.keys(data[0]).join(',');
   const rows = data.map(row =>
     Object.values(row).map(v =>
-      typeof v === 'string' ? `"${v.replace(/"/g, '""')}"` : v
+      typeof v === 'string' ? `"${v.replace(/"/g, '""')}"` : String(v ?? '')
     ).join(',')
   );
   const csv = BOM + [headers, ...rows].join('\n');

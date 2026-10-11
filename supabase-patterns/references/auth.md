@@ -140,20 +140,39 @@ it's your primary security layer.
 -- Enable RLS
 ALTER TABLE [table] ENABLE ROW LEVEL SECURITY;
 
--- Users see only their own data
+-- Users see only their own rows (ownership column: owner_id / created_by → profiles)
 CREATE POLICY "select_own" ON [table]
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT TO authenticated
+  USING (owner_id = (select auth.uid()));
 
 CREATE POLICY "insert_own" ON [table]
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+  FOR INSERT TO authenticated
+  WITH CHECK (owner_id = (select auth.uid()));
 
 CREATE POLICY "update_own" ON [table]
-  FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  FOR UPDATE TO authenticated
+  USING (owner_id = (select auth.uid()))
+  WITH CHECK (owner_id = (select auth.uid()));
 
 CREATE POLICY "delete_own" ON [table]
-  FOR DELETE USING (auth.uid() = user_id);
+  FOR DELETE TO authenticated
+  USING (owner_id = (select auth.uid()));
 ```
+
+`TO authenticated` — политика не вычисляется для `anon` вовсе. Мультитенантный
+проект: первым конъюнктом `org_id = (select public.current_org_id())`, роль —
+`(select public.current_org_role())` (dashboard-crm — см. crm-architect).
+
+### RLS Performance
+
+Wrap stable no-arg calls in a subselect so the planner evaluates them once
+(initplan): `(select auth.uid())`, `(select public.current_org_role())`. Bare
+`auth.uid()` = per-row (advisor `auth_rls_initplan`). Same for storage policies.
+Index every column a policy references (`org_id`, `owner_id`, `created_by`,
+`assigned_to`). SECURITY DEFINER helpers: `set search_path = ''` (or
+`public, pg_temp`) with schema-qualified names; internal helpers in schema
+`private`; `revoke execute … from public, anon`; check `(select auth.uid())`
+NULL-safely inside.
 
 ### RLS + Triggers
 
@@ -164,17 +183,20 @@ DEFINER нужен только если триггер пишет в табли
 
 ```sql
 CREATE OR REPLACE FUNCTION log_something()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
 BEGIN
-  INSERT INTO activity_log (user_id, event_type, payload)
-  VALUES (NEW.user_id, 'something_happened', '{}'::jsonb);
+  INSERT INTO public.activity_log (user_id, event_type, payload)
+  VALUES (auth.uid(), 'something_happened', '{}'::jsonb);  -- user_id = actor of the log entry
   RETURN NEW;
 END;
 $$;
 ```
 
-**SECURITY DEFINER** = runs with the permissions of the function creator (superuser).
-Use only when the trigger genuinely needs to bypass RLS.
+**SECURITY DEFINER** = runs with the permissions of the function owner — not
+superuser (in Supabase migrations the owner is usually `postgres`). Use only when
+the trigger genuinely needs to bypass RLS; default is INVOKER. Always pin
+`search_path` (advisor: mutable search_path).
 
 ### RLS + FK Deletion
 
@@ -189,10 +211,10 @@ at the constraint level, BEFORE RLS is evaluated. No client-side cleanup needed.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "new row violates row-level security" | INSERT policy missing, or user_id not set | Add INSERT policy with WITH CHECK, ensure user_id is set |
-| "permission denied for table X" | RLS enabled but zero policies defined | Add policies for all operations |
-| Data from other users visible | SELECT policy too permissive or missing | Check USING clause, ensure `auth.uid() = user_id` |
-| Trigger INSERT blocked | Trigger runs as calling user, not superuser | Use SECURITY DEFINER on trigger function |
+| "new row violates row-level security" | INSERT policy missing, or `owner_id`/`created_by` not set | Add INSERT policy with WITH CHECK; default `created_by` to `auth.uid()` |
+| "permission denied for table X" (42501) | Missing GRANT for the role. RLS with no policies does NOT raise — it returns 0 rows silently | `grant select, insert, update, delete on <t> to authenticated`; then add policies |
+| Data from other users visible | SELECT policy too permissive or missing | Check USING clause: `owner_id = (select auth.uid())`, org-first in multi-tenant |
+| Trigger INSERT blocked | Trigger runs as calling user (INVOKER) | SECURITY DEFINER on the trigger function — runs as function owner, not superuser; pin `search_path` |
 
 ---
 

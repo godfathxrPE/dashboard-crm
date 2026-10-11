@@ -67,7 +67,7 @@ serve(async (req) => {
     // Your logic here
     const { data, error } = await supabase
       .from('tasks')
-      .select('*')
+      .select('id,title,status')
       .limit(10);
 
     if (error) throw error;

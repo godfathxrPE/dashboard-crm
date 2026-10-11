@@ -24,23 +24,23 @@ Storage uses the `storage.objects` table. Policies follow the same pattern as da
 ```sql
 -- Allow users to upload to their own folder
 CREATE POLICY "upload_own" ON storage.objects
-  FOR INSERT WITH CHECK (
+  FOR INSERT TO authenticated WITH CHECK (
     bucket_id = 'documents'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 -- Allow users to read their own files
 CREATE POLICY "read_own" ON storage.objects
-  FOR SELECT USING (
+  FOR SELECT TO authenticated USING (
     bucket_id = 'documents'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
 -- Allow users to delete their own files
 CREATE POLICY "delete_own" ON storage.objects
-  FOR DELETE USING (
+  FOR DELETE TO authenticated USING (
     bucket_id = 'documents'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND (storage.foldername(name))[1] = (select auth.uid())::text
   );
 ```
 

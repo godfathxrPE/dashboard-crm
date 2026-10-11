@@ -429,3 +429,13 @@ npx shadcn@latest add dialog
 - **Tailwind v4 работает иначе при кастомизации цветов** — не правь `tailwind.config.ts`, правь `:root` и `@theme inline` в `globals.css`
 - **`@/lib/utils`** — стандартный путь cn(). Если в проекте `@/lib/cn` — это рассинхрон с shadcn-defaults, перенеси
 - **Tailwind-merge config** — если переопределил `colors`/`spacing`, проверь, что `tailwind-merge` знает о них (иначе `cn()` не сольёт правильно)
+
+### shadcn micro-rules (ONLY if repo has `components.json` AND `components/ui` is real shadcn; dashboard-crm is NOT)
+
+- `gap-*` over `space-*`; `size-N` over `w-N h-N`; `cn()` for conditionals.
+- No `z-index` on overlays; no manual `dark:` overrides.
+- Dialog/Sheet always have a Title (`sr-only` if hidden); Items inside their Group;
+  Avatar has AvatarFallback.
+- Button has no `isLoading` — compose Spinner + `disabled`.
+- Updating upstream: `add <c> --dry-run`, then `--diff`, merge by hand.
+- NEVER `apply <preset>`, `init --force`, `--overwrite` without explicit approval.
