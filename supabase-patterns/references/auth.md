@@ -140,7 +140,7 @@ it's your primary security layer.
 -- Enable RLS
 ALTER TABLE [table] ENABLE ROW LEVEL SECURITY;
 
--- Users see only their own rows (ownership column: owner_id / created_by → profiles (or your project's users table))
+-- Users see only their own rows (ownership column: owner_id / created_by → profiles or your project's users table)
 CREATE POLICY "select_own" ON [table]
   FOR SELECT TO authenticated
   USING (owner_id = (select auth.uid()));

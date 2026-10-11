@@ -411,10 +411,11 @@ total; prefer `'estimated'` / `head: true`.
 ### Search
 
 Escape user input before `.or()` / `.ilike()`: `%`, `_`, `\` are LIKE wildcards;
-`,` `(` `)` split a PostgREST `.or()` filter.
+`,` `(` `)` split a PostgREST `.or()` filter; `*` is a wildcard in PostgREST `like`/`ilike`
+filters too.
 
 ```typescript
-const esc = (s: string) => s.replace(/[\\%_]/g, '\\$&').replace(/[,()]/g, ' ');
+const esc = (s: string) => s.replace(/[\\%_]/g, '\\$&').replace(/[,()*]/g, ' ');
 const term = esc(query.trim());
 const { data } = await supabase
   .from('contacts')
