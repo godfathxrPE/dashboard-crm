@@ -14,7 +14,7 @@ description: >
   code-review advice in this loop. dashboard-crm specifics (migrations, advisors,
   schema) — crm-architect. Not for tasks done directly in chat or non-coding prompts.
 ---
-<!-- skill v2.3 · 2026-10-02 · мерж только через PR, единый канал доставки спринта -->
+<!-- skill v2.4 · 2026-10-11 · шаг 2a «grill open decisions», факты ищем сами (skills.sh-ревью) -->
 
 # Sprint Prompt Builder
 
@@ -224,6 +224,15 @@ Worktree удаляется до `gh pr merge`: иначе `--delete-branch` н�
 
 1. **Classify** — determine task type using the Decision Flow below
 2. **Gather** — check if enough context is available; if not, ask (see Missing Context table)
+2a. **Grill open decisions** (feature / migration / multi-sprint only; skip for a simple fix).
+   List the design decisions the sprint depends on as a tree. Ask in rounds: each round =
+   every decision whose prerequisites are settled. Number questions, give your recommended
+   answer for each, phrase so "yes" accepts it. A question depending on another open one
+   waits for the next round. Facts (paths, schema, current behavior) are YOUR job — look
+   them up via crm-architect, grep or live DB; never ask Oleg. Decisions are Oleg's. Stop
+   when no open decision remains; record answers in `claude/decisions-<topic>-<date>.md`
+   and reference it in the sprint file. Do not write the prompt before Oleg confirms the
+   decision list.
 3. **Read template** — open `references/templates.md`, pick the matching template
 4. **Adapt** — fill template with real file paths, table/column names, class names from user's context
 5. **Verify** — run the prompt through the Quality Checklist (12 points)
@@ -240,10 +249,10 @@ and real names — not placeholders. If any critical piece is missing, ask.
 | Missing | Ask | Why |
 |---------|-----|-----|
 | Stack / framework | "Какой стек? (Next.js, Python, etc.)" | Determines file structure, commands, build tools |
-| File paths | "Где лежат компоненты? (src/components/, app/, etc.)" | Prompts with wrong paths fail silently |
-| DB schema | "Какие таблицы/колонки задействованы?" | SQL + types must match real schema |
+| File paths | **Look up, don't ask** (crm-architect, grep). Only without code access: "Где лежат компоненты? (src/components/, app/, etc.)" | Prompts with wrong paths fail silently |
+| DB schema | **Look up, don't ask** (crm-architect, live DB). Only without DB access: "Какие таблицы/колонки задействованы?" | SQL + types must match real schema |
 | Current state | "Что сейчас работает, что сломано?" | РАЗВЕДКА must verify the right things |
-| Dependencies | "Какие библиотеки уже используются? (UI kit, ORM, etc.)" | Prevents importing conflicting packages |
+| Dependencies | **Look up, don't ask** (`package.json`, crm-architect). Only without code access: "Какие библиотеки уже используются? (UI kit, ORM, etc.)" | Prevents importing conflicting packages |
 | Новый экран без мокапа | «Экран спроектирован? Покажи мокап» — нет → сначала `crm-ui-designer` (для CRM) | Экран, описанный текстом в промпте, переделывается после первого же гейта |
 
 Ask only what you cannot infer. If user shared project context earlier in the
