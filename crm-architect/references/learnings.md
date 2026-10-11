@@ -41,6 +41,7 @@ Prevents errors when re-running migrations or when column already exists.
 ### ✅ Always make new FK columns nullable with `ON DELETE SET NULL`
 Unless it's a junction table (CASCADE) or owned resource (CASCADE).
 Non-nullable FKs cause delete failures when parent is removed.
+Exception: `org_id` — not null, `on delete cascade` (see schema.md, «Новая org-таблица»).
 
 ### ✅ activity_log.project_id must be nullable
 Deleted entities have no project. Entity-deletion log entries need `project_id = NULL`.
@@ -60,6 +61,7 @@ Deleted entities have no project. Entity-deletion log entries need `project_id =
 - Флаг «уже сделано» (`*_at`) обязан знать, ЧТО его сбрасывает (`reminded_at` ↔ триггер сброса на deadline). Журнал: «S-TG-2».
 - Событие журнала обязано нести id сущности, даже если сегодня его никто не читает: 478 `task_created` без `task_id` невосстановимы. Журнал: «S-COST-TRUTH-1».
 - Автогенерация типов описывает СХЕМУ, а не права: тип компилируется — запрос может быть запрещён grants/RLS. Журнал: «S-TG-1».
+- Захват задания, когда воркеров больше одного: `update … where id = (select id … for update skip locked limit 1) returning *` (альтернатива CAS-reclaim). Журнал: «skills.sh-ревью 2026-10-09».
 
 ### ⚠️ `AFTER UPDATE OF <col>` не фичит derived-by-BEFORE-trigger колонки
 Если `<col>` проставляется BEFORE-триггером (напр. `status` дерайвится из `stage_id`),
@@ -769,9 +771,12 @@ Dropdowns: 50  |  Overlay: 999  |  Modal: 1000
 `useState(startEditing)` читает проп ОДИН раз, при монтировании. Повторное открытие
 работает, только пока родитель размонтирует компонент между показами; оставишь
 смонтированным — проп замрёт молча, без ошибки и без предупреждения тайпчекера.
-**Fix**: либо гарантировать размонтирование и написать это в JSDoc пропа, либо
-синхронизировать `useEffect`-ом. `InlineEdit.startEditing` — первый вариант
-(журнал 2026-08-24).
+**Fix (предпочтительно)**: пересоздать компонент ключом — `key={entityId}` у родителя,
+и `useState` заново прочтёт проп. Равноценно — гарантировать размонтирование между
+показами и написать это в JSDoc пропа (`InlineEdit.startEditing`, журнал 2026-08-24).
+Синхронизация `useEffect`-ом — крайний случай: лишний рендер со старым значением.
+Значение, вычислимое из пропсов/state, считается в рендере — не хранится в state и не
+синхронизируется.
 
 ### ❌ Never use `ignoreBuildErrors: true` in next.config
 Masks TypeScript errors that break in production. Fix the errors instead.
@@ -875,6 +880,9 @@ Dialog/Dropdown). Дропдауны — свой `Combobox`/`AssigneeSelect` + 
 - Глобальный обработчик клавиш на `window` выключается через `isActive`, пока открыта любая форма на месте: `isInputFocused` не видит кнопок формы, а `preventDefault` на `Enter` отменяет их нажатие. Журнал: «S-TODAY-V3».
 - Экранная клавиша против глобальной (`Hotkeys`): порядок слушателей на `window` не держится — экран объявляет `data-hotkeys-local~="<клавиша>"` на корне, `Hotkeys` уступает. Журнал: «S-TODAY-FOCUS-4».
 - `npm run build` и `next dev` делят `.next`: после сборки dev отдаёт 500 — остановить dev, удалить `.next`, запустить dev заново. Сборку на гейте — при остановленном dev. Журнал: «S-TODAY-FOCUS-4».
+- Побочный эффект клика/сабмита живёт в обработчике события, а не во флаге state + `useEffect`: эффект перезапускается и даёт двойную отправку. Журнал: «skills.sh-ревью 2026-10-09».
+- Компонент внутри компонента не объявлять (ячейки `DataTable`, слоты канбана): новый тип на каждый рендер = перемонтирование, теряются фокус, inline-правка и сенсоры dnd. Журнал: «skills.sh-ревью 2026-10-09».
+- `cond ? <X/> : null`, не `count && <X/>` — иначе бейдж рисует `0`. Журнал: «skills.sh-ревью 2026-10-09».
 
 ---
 

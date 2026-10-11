@@ -22,6 +22,11 @@
 делался ложный вывод «миграция не применена» про применённую. **060 зарезервирована и
 не занята** — идти вперёд, не возвращаться к ней.
 
+**Медленный запрос** → `explain (analyze, buffers)` через MCP `execute_sql`. ANALYZE
+запрос исполняет: DML оборачивать в `begin … rollback` (в CC сервер `supabase_ro`
+read-only — DML там упадёт и так, профилировать его на гейте). Главные нарушители —
+`pg_stat_statements` (расширение установлено) + `get_advisors type=performance`.
+
 ## Что остаётся памятью скилла (этого нет в `docs/schema.md`)
 
 **Порядок слоёв.** Migration → Types (`supabase.gen.ts` регенерацией, руками не
@@ -38,9 +43,13 @@ plural) → Component. Пропуск слоя — источник расхож
 (`is_meeting_attendee(id)` в `meetings_select`) обёрткой не лечится — там
 коррелированный подзапрос по определению; либо принять, либо редизайн видимости.
 
-**Hardening новых функций.** `SECURITY DEFINER SET search_path = public, pg_temp` +
-адресный ACL: `revoke all from public, anon` → `grant execute to authenticated |
-service_role`. Исключения осознанные: `check_stage_requirements` обязана быть
+**Hardening новых функций.** Дефолт для новой функции — `SECURITY INVOKER`.
+Hardening относится к функциям, которые ОБЯЗАНЫ быть `SECURITY DEFINER`:
+`SET search_path = public, pg_temp` + адресный ACL: `revoke all from public, anon` →
+`grant execute to authenticated | service_role`. Новые внутренние хелперы (не RPC,
+клиент их не зовёт) — в схему `private` с `revoke execute … from public, anon`; схемы
+`private` в живой БД пока нет (сверено 2026-10-11) — её заводит первая такая миграция.
+Исключения осознанные: `check_stage_requirements` обязана быть
 исполняемой у `authenticated` (её зовёт модалка перехода стадии, guard внутри
 функции) — «доведение до конвенции» сломает переход из UI. По той же причине 20 WARN
 `authenticated_security_definer_function_executable` в advisors — это RPC проекта,
@@ -71,3 +80,8 @@ CASCADE. Одинокий soft-delete не вводить.
 (`apply_migration` → gen-types → advisors → ролевые смоки). Ни CLI (`supabase db
 push`), ни ручной прогон в SQL Editor. `docs/schema.md` обновляется тем же PR, что
 миграция.
+DDL на горячей таблице (`ALTER`, `CREATE INDEX`) — первой строкой
+`set lock_timeout = '5s';`. После большого бэкфилла — `analyze <table>`.
+**Исключение из гейта:** миграцию с `drop` или `delete` прогоняет владелец в SQL
+Editor (MCP `apply_migration` на них виснет) — см. learnings, «MCP `apply_migration` /
+`execute_sql` виснет на `drop` и на `delete`».

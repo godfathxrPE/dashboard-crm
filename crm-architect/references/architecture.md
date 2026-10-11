@@ -195,6 +195,9 @@
 - **lucide-react** — иконки (единственная icon-либа, без эмодзи в UI).
 - **react-hook-form** + **zod** — формы/валидация. **sonner** — тосты.
 - **Recharts** — графики. **SheetJS (xlsx)** — Excel-импорт.
+- **Тяжёлые модули — по требованию**: SheetJS — `const XLSX = await import('xlsx')`
+  внутри обработчика импорта (так сделано в `ExcelImport`, `PlanImport`); Recharts/Гант —
+  через `next/dynamic` с `ssr: false`, когда они не на первой отрисовке.
 - **Radix НЕ в стеке.** Модалки — кастомный `shared/Modal.tsx`; `components/ui/` —
   кастомные примитивы (не Radix Dialog/Dropdown). Дропдауны — свой `Combobox`/
   `AssigneeSelect` + портал (`use-anchored-rect`).
@@ -543,7 +546,7 @@ export function use[Entities]() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('[entities]')
-        .select('*, companies(*), contacts(*)')
+        .select('id,title,status,company:companies(id,name)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -579,6 +582,8 @@ export function use[Entities]() {
   return { ...query, create, update, remove };
 }
 ```
+
+No `*` and no `rel(*)` in templates: payload and coupling grow with every new column.
 
 ### Realtime Sync
 
@@ -827,6 +832,8 @@ AI-протокола. `deadline` режется до `slice(0,16)` под `date
 - Проп `hideSearch?: boolean` (POLISH-1) — скрывает встроенную search bar, когда поиск
   поднят в родителя (напр. `TasksTable`, где `TasksView` держит общее состояние поиска
   для Списка и Таблицы).
+- Клиентский поиск/фильтр по большим спискам: `const q = useDeferredValue(query)`,
+  фильтровать по `q`. Переключение таблица↔канбан — через `startTransition`.
 
 ### TodayView j/k/d
 - Плоский массив `flatRows` (порядок = порядок секций), смещения `off*` дают `kbdIndex`/`focused` каждой `QueueRow`; `Enter` = переход по телу строки, `d` = primary-действие («Выполнен»/«Готово»/«Запланировать шаг/звонок»). Без peek.
@@ -862,6 +869,11 @@ AI-протокола. `deadline` режется до `slice(0,16)` под `date
 - `useSavedViews(route?)` → `{ views, saveCurrent(label), remove(id), apply(view) }`. Реактивность через `useSyncExternalStore` (module-level cache + listeners + storage-event для других вкладок).
 - Хук сознательно НЕ использует `useSearchParams` (его тянет CommandPalette из layout) — `saveCurrent` снимает `window.location.search` целиком (включая `view=table`, `direction`, `f=…`).
 - `apply` = `router.push(route + query)`.
+- **Правило для ключей localStorage** (новых и при следующем касании этого хука):
+  ключ версионирован (`saved-views:v1`); каждое чтение и запись — в try/catch
+  (Safari private и переполнение квоты бросают); хранить минимум полей; старый ключ
+  мигрировать один раз и удалить. Нынешний ключ `'saved-views'` заведён до правила:
+  try/catch в нём уже есть, версии нет.
 
 ### UI (`ui/SavedViewChips.tsx`)
 - Рендерится в строке чипов после `ChipFilter` (обёртка `flex flex-wrap items-center gap-2`): разделитель-точка → чипы видов текущего route (Bookmark 12px, до 8 шт.) → кнопка «Сохранить вид» (BookmarkPlus, dashed border).
