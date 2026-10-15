@@ -1,47 +1,16 @@
 import type { Metadata } from 'next';
-import { Manrope, IBM_Plex_Sans, Onest, Unbounded, Inter } from 'next/font/google';
+// fix-FONTS-LOCAL: шрифты из пакетов, без обращения к Google Fonts на сборке
+// (next/font/google ронял деплой Vercel: #110, #147). Переменные --font-* —
+// в globals.css, :root. Веса не перечисляются: файлы вариативные (wght).
+import '@fontsource-variable/manrope/wght.css';
+import '@fontsource-variable/ibm-plex-sans/wght.css';
+import '@fontsource-variable/onest/wght.css';
+import '@fontsource-variable/unbounded/wght.css';
+import '@fontsource-variable/inter/wght.css';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { QueryProvider } from '@/components/layout/QueryProvider';
 import './globals.css';
-
-const manrope = Manrope({
-  subsets: ['latin', 'cyrillic'],
-  variable: '--font-manrope',
-  display: 'swap',
-});
-
-const plexSans = IBM_Plex_Sans({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600'],
-  variable: '--font-plex',
-  display: 'swap',
-});
-
-// Aura theme: Onest for UI (русский гротеск), Unbounded for KPI-цифр и заголовков
-const onest = Onest({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-onest',
-  display: 'swap',
-});
-
-// W4a: веса срезаны до фактических потребителей — 400 (.t-aura h1/.aura-page-title)
-// и 700 (KPI-цифра в analytics/Charts.tsx). 300/600 никто не использовал.
-const unbounded = Unbounded({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '700'],
-  variable: '--font-unbounded',
-  display: 'swap',
-});
-
-// Minimal theme: Inter — рабочая лошадь data-UI (кириллица, tabular nums, высокий x-height)
-const inter = Inter({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '600', '700'], // 700 — в UI встречается font-bold, без него faux-bold
-  variable: '--font-inter',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Torii CRM',
@@ -57,7 +26,7 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`t-cobalt ${manrope.variable} ${plexSans.variable} ${onest.variable} ${unbounded.variable} ${inter.variable}`}
+      className="t-cobalt"
       suppressHydrationWarning
     >
       <body>
