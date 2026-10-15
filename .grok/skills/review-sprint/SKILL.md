@@ -91,7 +91,7 @@ Blockers if violated:
 - [ ] learnings.md gotchas checked
 - [ ] SQL migrations as separate files; **not** applied from CC
 - [ ] `org_id` / RLS: org boundary first; role via `current_org_role()`
-- [ ] New functions: `SECURITY DEFINER SET search_path = public, pg_temp` + ACL
+- [ ] New functions: default `SECURITY INVOKER`; `SECURITY DEFINER` only with a stated reason in the migration and a NULL-safe org guard; every new function — `SET search_path = public, pg_temp` + ACL (revoke public, anon); internal helpers in schema `private`
 - [ ] No `flowType: 'implicit'` on Supabase client
 - [ ] DELETE relies on CASCADE, not client cleanup
 - [ ] CSS: variables only, scoped to theme class

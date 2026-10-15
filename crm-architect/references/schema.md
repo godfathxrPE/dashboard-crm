@@ -43,12 +43,15 @@ plural) → Component. Пропуск слоя — источник расхож
 (`is_meeting_attendee(id)` в `meetings_select`) обёрткой не лечится — там
 коррелированный подзапрос по определению; либо принять, либо редизайн видимости.
 
-**Hardening новых функций.** Дефолт для новой функции — `SECURITY INVOKER`.
-Hardening относится к функциям, которые ОБЯЗАНЫ быть `SECURITY DEFINER`:
+**Hardening новых функций** (решение владельца 15.10; правило целиком — `learnings.md`,
+«Конвенция новой функции»). Дефолт — `SECURITY INVOKER`; `SECURITY DEFINER` — только
+по причине, записанной в миграции, с NULL-safe org-гардом. Любой новой функции —
 `SET search_path = public, pg_temp` + адресный ACL: `revoke all from public, anon` →
 `grant execute to authenticated | service_role`. Новые внутренние хелперы (не RPC,
 клиент их не зовёт) — в схему `private` с `revoke execute … from public, anon`; схемы
-`private` в живой БД пока нет (сверено 2026-10-11) — её заводит первая такая миграция.
+`private` в живой БД пока нет (сверено 2026-10-11) — её заводит первая такая миграция;
+если хелпер зовёт RLS-политика — та же миграция даёт `grant usage on schema private to
+authenticated` и `grant execute` на функцию.
 Исключения осознанные: `check_stage_requirements` обязана быть
 исполняемой у `authenticated` (её зовёт модалка перехода стадии, guard внутри
 функции) — «доведение до конвенции» сломает переход из UI. По той же причине 20 WARN
