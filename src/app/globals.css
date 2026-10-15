@@ -97,6 +97,13 @@
   --blue: #2d6ab4;  --blue-l: rgba(45,106,180,0.09);
   --yellow: #a07020;  --yellow-l: rgba(160,112,32,0.09);  --yellow-text: #92661d;
   --purple: #7c3aed;  --purple-l: rgba(124,58,237,0.09);
+  /* fix-FONTS-LOCAL: семейства из @fontsource-variable/* (импорт wght.css в layout.tsx).
+     До 15.10 эти переменные ставил next/font/google классом на <html>. */
+  --font-manrope: 'Manrope Variable';
+  --font-plex: 'IBM Plex Sans Variable';
+  --font-onest: 'Onest Variable';
+  --font-unbounded: 'Unbounded Variable';
+  --font-inter: 'Inter Variable';
   /* Шрифт приложения: темы переопределяют --font-app, html применяет.
      body font-family НЕ задаёт — иначе перекрывает тему (visual-audit P0 1.1). */
   --font-app: var(--font-manrope, 'Manrope');
