@@ -1,6 +1,6 @@
 # STATUS — dashboard-crm
 
-**Ревизия 96 · 2026-10-15 · main: merge PR #195 · тег: `v2026.08.1`**
+**Ревизия 97 · 2026-10-15 · main: merge PR #197 · тег: `v2026.08.1`**
 
 Единственный носитель состояния «что открыто / что закрыто». Правится только этот файл;
 события (спринт-отчёты в `_analysis/`, гейты и хендоффы в Claude Project) неизменяемы
@@ -32,7 +32,7 @@
 ТЕСТОВОЙ сделке: создать → двинуть стадию → посмотреть вкладку → удалить (CASCADE уберёт
 переходы). Журнал живой сделки под смок не портить.
 
-**Мёртвый код после S-DEBT-1 (#195)** — один chore: `--time-ok-fill` / `--time-warn-fill` / `--time-over-fill` (`globals.css` ~3006–3008) без читателей — единственным был удалённый `FILL_BY_STATE`; ветка `rich = false` у `GateChip` (`PipelineCockpit.tsx` ~524) — единственный вызов передаёт `rich`; двойное «S-LEAD-V2-HEALTH-1» в шапке `PipelineCockpit.tsx`.
+**Мёртвый код после S-DEBT-1 (#195)** — один chore: `--time-ok-fill` / `--time-warn-fill` / `--time-over-fill` (`globals.css` ~3006–3008) без читателей — единственным был удалённый `FILL_BY_STATE`; ветка `rich = false` у `GateChip` (`PipelineCockpit.tsx` ~524) — единственный вызов передаёт `rich`; двойное «S-LEAD-V2-HEALTH-1» в шапке `PipelineCockpit.tsx`; зависимость `geist` в `package.json` без потребителей (гейт #197).
 
 **Цвет звонка в ленте карточки сделки** — `DealFeedParts` красит звонок `--blue`, а «Пульс» рядом красит смену стадии `--info`, который в большинстве тем и есть `--blue`: один цвет — два смысла (находка F-08 ревью визуала 04.10, Claude Project `today-visual-ab-2026-10-04.md`). В фокусе «Сегодня» (S-TODAY-FOCUS-4) лента уже нейтральная, стадия — `--info`.
 
@@ -61,8 +61,6 @@
 показывает «Добавить подсказку для стадии…» и сдвигает всё ниже примерно на 16 px: клик сразу после
 наведения на кокпит уходит мимо цели (приёмка S-BRIEF-IN-DEAL-1.2 — синтетический клик промахнулся мимо
 «Весь бриф»). Резервировать высоту строки или показывать подсказку поверх контента.
-
-**fix-FONTS-LOCAL (бывшие D-1 и fix-FONT-UNBOUNDED)** — `src/app/layout.tsx` грузит из `next/font/google` все пять шрифтов (Manrope, IBM Plex Sans, Onest, Unbounded, Inter): сборка на Vercel падает случайно на ответе Google Fonts — прод-деплой docs-PR #110 (`TypeError … reading '1'`, `loader.js:122`), превью #147 (`Cannot read properties of null`); ретраев у загрузчика нет, required-чек `checks` при этом зелёный. Лечится переводом всех пяти на `next/font/local` с файлами в репо — один chore. (Прежняя формулировка «Unbounded на local, как Inter» неверна: Inter тоже из Google.)
 
 **Эпик S-NOTES** — **NOTES-READ-1 закрыт #147, S-NOTES-1 закрыт #151, S-NOTES-2 закрыт #153–#155.**
 Дальше **S-NOTES-3**: вкладки композера; поиск по ленте (`p_search` уже в `entity_timeline`); лента
@@ -658,4 +656,6 @@ S-R2-D3 в силе). Спецификация W10 требует другого
 | #194 | docs | **Ревизия 95.** Строка #193; развилка DEFINER/INVOKER снята из «Очереди». Правок кода нет |
 | #195 | chore S-DEBT-1 | **`docs-pr.sh` и мёртвый код.** `docs-pr.sh`: `-c core.quotePath=false` у `git diff --name-only` и `git ls-files --others` (кириллица в путях больше не даёт отказ), номер PR — только в первую ячейку строки таблицы (`^| #PR |`, без `g`). `PipelineCockpit`: удалены `LegacyRow`, `FILL_BY_STATE`, `BORDER_BY_STATE`, `gauge` обязателен. `globals.css`: удалён `--glass-sheen`. Спринт-файл — `_analysis/fix-S-DEBT-1.md` (страж принимает только `sprint-*`/`fix-*`). 2823 теста, миграций нет. Гейт — принято; проп `focusNextAction` у `ProjectModal` оказался живым (`PipelineBoard` после переноса стадии) — пункт снят из хвостов S-TODAY-V3 как ошибочный |
 | #196 | docs | **Ревизия 96.** Строка #195; сняты оба fix `docs-pr.sh`, `--glass-sheen` и ошибочный хвост `focusNextAction`; в «Очередь» — мёртвый код после S-DEBT-1; журнал «S-DEBT-1», строка в `learnings.md`. Правок кода нет |
+| #197 | fix-FONTS-LOCAL | **Шрифты из `@fontsource-variable/*` вместо `next/font/google`** (решение владельца 15.10). Пять пакетов с точными версиями, импорт `wght.css` в `layout.tsx`, переменные `--font-*` в `:root` `globals.css`; потребители не менялись. Сборка без обращения к Google Fonts: 0 совпадений `gstatic|googleapis` в `.next`, 31 woff2 в `static/media`. Закрывает D-1 и fix-FONT-UNBOUNDED (падения деплоя #110, #147). Цена: нет preload и подгонки метрик фолбэка. Гейт — принято; прод 15.10: пять `@font-face` из пакетов, Plex (fuji) и Manrope грузятся, запросов к Google 0. Миграций нет |
+| #PR | docs | **Ревизия 97.** Строка #197; пункт fix-FONTS-LOCAL снят, `geist` — в «Мёртвый код после S-DEBT-1»; журнал «fix-FONTS-LOCAL», строка в `learnings.md`. Правок кода нет |
 Закрытое до августа — `CHANGELOG.md` и roadmap-ревизии; сюда не переносится.
