@@ -23,15 +23,12 @@ import type { StageTimeGauge } from '@/lib/domain/stage-norm';
 //
 // Компонент презентационный: данные собирают вызывающие (ProjectDetail,
 // LeadDetail) — у кокпита нет запросов и нет знания о сущностях. Тайм-часть
-// опциональна (`gauge: null` → `LegacyRow`). S-LEAD-V2-HEALTH-1: лид тоже на
-// `CockpitRow` — шкала из `leadStatusGauge`, плюс аддитивные `map={null}`,
-// `counterLabel`, `inlineNames`/`restNames`; `LegacyRow` без потребителей.
+// обязательна; ветка без шкалы удалена в S-DEBT-1 — потребителей не было с
+// S-LEAD-V2-HEALTH-1. S-LEAD-V2-HEALTH-1: лид тоже на `CockpitRow` —
+// шкала из `leadStatusGauge`, плюс аддитивные `map={null}`, `counterLabel`,
+// `inlineNames`/`restNames`.
 //
 // S-COCKPIT-ROW-1: рестайл строки по макету (спека S-STAGE-PROFILE-1, раздел A).
-// Всё новое включается НАЛИЧИЕМ `gauge`: у лида (`gauge === null`) строка
-// рендерится прежней веткой `LegacyRow` без единого изменения — это главный
-// регрессионный риск спринта, поэтому ветки разведены целиком, а не условиями
-// в каждом классе.
 // ═══════════════════════════════════════════════════════
 
 export interface CockpitGateItem {
@@ -44,8 +41,8 @@ export interface PipelineCockpitProps {
   /** Имена пройденных стадий — в title чипа «✓ N». */
   pastNames: string[];
   current: { name: string };
-  /** null — строка без тайм-части (`LegacyRow`; потребителей нет с S-LEAD-V2-HEALTH-1). */
-  gauge: StageTimeGauge | null;
+  /** Шкала времени в стадии; у лида — `leadStatusGauge`. */
+  gauge: StageTimeGauge;
   /** Слот после счётчика внутри ячейки. */
   currentExtra?: React.ReactNode;
   /** Подпись над строкой: «Привлечение · группа 1 из 4». */
@@ -112,25 +109,12 @@ export interface CockpitMiniGroup {
   segments: CockpitSegment[];
 }
 
-const FILL_BY_STATE = {
-  ok: 'var(--time-ok-fill)',
-  warn: 'var(--time-warn-fill)',
-  over: 'var(--time-over-fill)',
-} as const;
-
-const BORDER_BY_STATE = {
-  ok: 'var(--accent)',
-  warn: 'var(--yellow)',
-  over: 'var(--red)',
-} as const;
-
 /**
- * S-COCKPIT-ROW-1 (П1): цвет состояния новой строки. `ok` — `--mark-today`, а НЕ
+ * S-COCKPIT-ROW-1 (П1): цвет состояния строки. `ok` — `--mark-today`, а НЕ
  * `--accent`: в t-washi `--accent` и `--red` — один #C23B3B, и рамка «идём по
  * норме» совпадала с рамкой «просрочено» ещё ДО рестайла (дефект существовал,
  * спринт его нашёл, а не создал). Тот же токен, что у столбика текущей стадии в
- * StageProfile (TONE_COLOR.ok) — ячейка и столбик не расходятся. Старая таблица
- * `BORDER_BY_STATE` осталась за строкой лида, которой спринт не касается.
+ * StageProfile (TONE_COLOR.ok) — ячейка и столбик не расходятся.
  */
 const STATE_COLOR = {
   ok: 'var(--mark-today)',
@@ -181,187 +165,7 @@ function writeMapChoice(key: string | undefined, open: boolean): void {
 }
 
 export function PipelineCockpit(props: PipelineCockpitProps) {
-  return props.gauge === null ? <LegacyRow {...props} /> : <CockpitRow {...props} gauge={props.gauge} />;
-}
-
-/**
- * Строка до S-COCKPIT-ROW-1 — ветка лида (`gauge === null`), П4 спринта: ни класса
- * не тронуто. Сделки и внедрения сюда больше не попадают — у них `gauge` есть всегда.
- * С S-LEAD-V2-HEALTH-1 лид тоже на `CockpitRow` — потребителей у ветки нет;
- * удаление — отдельным решением.
- */
-function LegacyRow({
-  pastCount,
-  pastNames,
-  current,
-  gauge,
-  currentExtra,
-  groupLabel,
-  gate,
-  next,
-  extraActions,
-  restCount,
-  restGroupsCount,
-  metaRight,
-  locked = false,
-  guidance,
-  map,
-}: PipelineCockpitProps) {
-  const [mapOpen, setMapOpen] = useState(false);
-  const toggleMap = () => setMapOpen((v) => !v);
-
-  const gateItems = gate?.items ?? [];
-  const showGate = !locked && gateItems.length > 0;
-  const gateMet = gateItems.filter((i) => i.met).length;
-  const gatePassed = gateItems.length === 0 || gateMet === gateItems.length;
-
-  const state = gauge?.state ?? 'ok';
-  const showFill = !locked && gauge?.pct != null;
-
-  return (
-    // `group/cockpit` — якорь наведения для слота `guidance`: пустое приглашение
-    // «Добавить подсказку» проявляется по наведению на блок стадии (S-FORMAT-1),
-    // а не занимает строку на каждой ненастроенной сделке.
-    <div className="group/cockpit">
-      {groupLabel && (
-        <div
-          className="mb-1 text-meta font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--accent-text, var(--accent))' }}
-        >
-          {groupLabel}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {/* 1. Прошлое — свёрнутый хвост пройденных стадий */}
-        {pastCount > 0 && (
-          <>
-            <button
-              type="button"
-              onClick={toggleMap}
-              title={pastNames.join(', ')}
-              className="inline-flex items-center gap-1 rounded-full bg-accent-l px-2.5 py-1 text-xs font-semibold"
-              style={{ color: 'var(--accent-text, var(--accent))' }}
-            >
-              <Check size={11} strokeWidth={3} />
-              {pastCount}
-            </button>
-            <span className="h-[2px] w-3.5 rounded bg-accent" aria-hidden />
-          </>
-        )}
-
-        {/* 2. Ячейка текущей стадии — заливка = расход нормы дней */}
-        <div
-          className="relative inline-flex items-center gap-2 overflow-hidden rounded-[0.625rem]
-                     border-[1.5px] bg-surface px-3 py-1.5"
-          style={{ borderColor: locked ? 'var(--border)' : BORDER_BY_STATE[state] }}
-        >
-          {showFill && (
-            <span
-              aria-hidden
-              className="absolute inset-y-0 left-0"
-              style={{ width: `${gauge!.pct}%`, background: FILL_BY_STATE[state] }}
-            />
-          )}
-          <span className="relative text-[0.8125rem] font-semibold text-text-main">{current.name}</span>
-          {/* Гейт-фикс S-PIPELINE-COCKPIT-1: у терминала (won/lost/completed) возраст
-              стадии — шум («Выиграна · 45 дн.» читается как проблема), счётчик скрыт. */}
-          {!locked && gauge?.days != null && (
-            <span
-              className={cn(
-                'relative inline-flex items-center gap-1 text-meta tabular-nums',
-                state === 'ok' && 'text-text-dim',
-              )}
-              style={
-                state === 'warn'
-                  ? { color: 'var(--yellow-text, var(--yellow))' }
-                  : state === 'over'
-                    ? { color: 'var(--red-text, var(--red))' }
-                    : undefined
-              }
-              title={gauge.norm != null ? `Норма стадии — ${gauge.norm} дн.` : undefined}
-            >
-              {state === 'over' && <Clock size={12} />}
-              {state === 'over' && gauge.norm != null
-                ? `${gauge.days} дн. · норма ${gauge.norm}`
-                : `${gauge.days} дн.`}
-            </span>
-          )}
-          {currentExtra && <span className="relative">{currentExtra}</span>}
-        </div>
-
-        {/* 3. Готовность гейта — точки + поповер с чек-листом */}
-        {showGate && <GateChip items={gateItems} met={gateMet} title={gate!.title} />}
-
-        {/* 4. Соединитель к следующей стадии */}
-        {!locked && next && (
-          <span
-            aria-hidden
-            className={cn('h-[2px] w-3.5 rounded', gatePassed ? 'bg-accent' : 'bg-border2')}
-          />
-        )}
-
-        {/* 5. Следующая стадия */}
-        {!locked && next && (
-          <button
-            type="button"
-            onClick={next.onClick}
-            title={
-              next.locked
-                ? `Перейти на «${next.label}» — требования стадии ещё не закрыты`
-                : `Перейти на стадию «${next.label}»`
-            }
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-[0.625rem] border px-3 py-1.5 text-xs transition-colors',
-              next.locked ? 'border-border text-text-mute' : 'font-medium hover:bg-accent-l',
-            )}
-            style={next.locked ? undefined : { borderColor: 'var(--accent)', color: 'var(--accent-text, var(--accent))' }}
-          >
-            {next.locked ? <Lock size={12} /> : null}
-            {next.label}
-            {next.probability != null && <span className="tabular-nums">· {next.probability}%</span>}
-            {!next.locked && <ArrowRight size={12} />}
-          </button>
-        )}
-
-        {!locked && extraActions}
-
-        {/* 6. Хвост — сколько стадий осталось за кадром */}
-        {restCount > 0 && (
-          <button
-            type="button"
-            onClick={toggleMap}
-            title="Показать карту воронки"
-            className="rounded-full border border-dashed border-border2 px-2 py-0.5 text-xs text-text-mute
-                       transition-colors hover:bg-surface2"
-          >
-            +{restCount}
-            {restGroupsCount != null && restGroupsCount > 0 && ` · ${restGroupsCount} ${groupsWord(restGroupsCount)}`}
-          </button>
-        )}
-
-        {/* 7. Разворот карты */}
-        <button
-          type="button"
-          onClick={toggleMap}
-          aria-expanded={mapOpen}
-          title={mapOpen ? 'Свернуть карту воронки' : 'Показать карту воронки'}
-          className="flex h-6 w-6 items-center justify-center rounded-md text-text-mute
-                     transition-colors hover:bg-surface2"
-        >
-          {mapOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-
-        {metaRight && <span className="ml-auto text-xs tabular-nums text-text-mute">{metaRight}</span>}
-      </div>
-
-      {/* empty:mt-0 — слот отдан, но содержимое условно (не-owner без подсказки
-          не видит ничего): пустая обёртка не должна оставлять отступ. */}
-      {guidance && <div className="mt-2 empty:mt-0">{guidance}</div>}
-
-      {mapOpen && <div className="mt-2">{typeof map === 'function' ? map({ collapse: toggleMap }) : map}</div>}
-    </div>
-  );
+  return <CockpitRow {...props} />;
 }
 
 /**
@@ -399,7 +203,7 @@ function CockpitRow({
   counterLabel,
   inlineNames = false,
   restNames = [],
-}: PipelineCockpitProps & { gauge: StageTimeGauge }) {
+}: PipelineCockpitProps) {
   // Ручной выбор перекрывает дефолт; дефолт при этом живой — смена стадии на
   // `closing` раскроет карту, если пользователь её не трогал (П3).
   const [manual, setManual] = useState<boolean | null>(() => readMapChoice(mapStorageKey));

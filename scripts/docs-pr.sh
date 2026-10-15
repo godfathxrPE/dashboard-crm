@@ -84,7 +84,9 @@ under_any_prefix() {
 
 # Всё изменённое в рабочем дереве: tracked-изменения к HEAD + untracked
 # (не игнорируемые). Порядок не важен, дубликатов не бывает по построению.
-CHANGED="$( { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard; } | sort -u)"
+# Без core.quotePath=false git экранирует не-ASCII путь в кавычки, и проверка
+# префиксов видит его вне `_analysis/` (04.10, `_analysis/план.mxl`).
+CHANGED="$( { git -c core.quotePath=false diff --name-only HEAD 2>/dev/null; git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)"
 
 # 4) Рабочее дерево не должно нести правки вне разрешённых путей — иначе это
 # кодовая правка, случайно зацепленная документным прогоном. supabase/migrations/
@@ -243,9 +245,10 @@ case "$PR_NUM" in
 esac
 echo "$prog: PR #$PR_NUM создан ($pr_url)"
 
-# ── Шаг 5б. Подстановка номера PR — литерал "| #PR |", БЕЗ регулярок по "#" ──
+# ── Шаг 5б. Подстановка номера PR — только первая ячейка строки таблицы, `^| #PR |` ──
 # (в прозе реестра STATUS номера PR встречаются десятками — широкий шаблон
-# переписал бы историю). Плейсхолдера нет — шаг молча пропускается: документная
+# переписал бы историю; прозу с упоминанием плейсхолдера `sed /g` переписывал —
+# строка #165 реестра). Плейсхолдера нет — шаг молча пропускается: документная
 # правка не обязана быть закрытием спринта.
 placeholder='| #PR |'
 files_with_placeholder=()
@@ -254,13 +257,13 @@ for f in "${FILES[@]}"; do
     *.md|*.html) ;;
     *) continue ;;
   esac
-  grep -qF -- "$placeholder" "$f" 2>/dev/null && files_with_placeholder+=("$f")
+  grep -q -- '^| #PR |' "$f" 2>/dev/null && files_with_placeholder+=("$f")
 done
 
 if [ ${#files_with_placeholder[@]} -gt 0 ]; then
   for f in "${files_with_placeholder[@]}"; do
     tmp="$(mktemp)" || fail_after_checkout "mktemp не удался при подстановке номера PR"
-    sed "s/| #PR |/| #${PR_NUM} |/g" "$f" > "$tmp" && mv "$tmp" "$f"
+    sed "s/^| #PR |/| #${PR_NUM} |/" "$f" > "$tmp" && mv "$tmp" "$f"
   done
   changed_now=0
   for f in "${files_with_placeholder[@]}"; do
