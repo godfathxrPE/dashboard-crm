@@ -74,8 +74,12 @@ Edge-функции (на 2026-08-03): `ai-run` — **version 7**, `ai-summarize
   `current_org_role()`, ownership через `owner_id`/`created_by` (не `user_id`).
   Обе функции звать в initplan-обёртке `( select public.current_org_role() )` — иначе
   планировщик вызывает их построчно.
-  Новые функции — `SECURITY DEFINER SET search_path = public, pg_temp` + адресный ACL
-  (`revoke all from public, anon` → `grant execute to authenticated|service_role`).
+  Новые функции — дефолт `SECURITY INVOKER` (RLS вызывающего отрабатывает сама);
+  `SECURITY DEFINER` — только когда обход RLS нужен намеренно, с причиной в комментарии
+  миграции и NULL-safe org-гардом. Любой новой функции — `SET search_path = public, pg_temp` и
+  адресный ACL (`revoke all from public, anon` → `grant execute to authenticated|service_role`).
+  Внутренние хелперы (клиент не зовёт) — в схеме `private`. Решение владельца 15.10;
+  детали — `crm-architect/references/learnings.md`, «Конвенция новой функции».
 - **Новая org-таблица.** `org_id not null references organizations(id) on delete cascade`;
   `created_by uuid default auth.uid() references public.profiles(id) on delete set null`
   (именно `profiles`, не `auth.users`); `created_at`/`updated_at`, второй — триггером на

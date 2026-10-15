@@ -140,12 +140,23 @@ OTHERS` в теле молча **маскирует** нарушение CHECK/c
 Голый `current_org_role()` или параметризованный `shares_org_with(id)` —
 вычисляется на каждую строку. Все org-политики используют обёртку (023).
 
-### ✅ Hardening-конвенция для КАЖДОЙ новой функции
-`SECURITY DEFINER SET search_path = public, pg_temp` + адресный ACL:
-- **RLS/RPC-helpers** (зовёт клиент): `REVOKE anon`, `GRANT authenticated, service_role`.
+### ✅ Конвенция новой функции (решение владельца 15.10)
+Дефолт — `SECURITY INVOKER`: RLS вызывающего отрабатывает сама, ошибка в гарде не
+открывает чужую org. `SECURITY DEFINER` — только по причине, записанной комментарием в
+миграции: RLS-хелпер против рекурсии (`is_org_member`, 021), запись в таблицу, закрытую
+пользователю (`activity_log`), RPC с проверкой внутри (`check_stage_requirements`).
+Гарды DEFINER — NULL-safe (раздел ниже). Обоим видам — `SET search_path = public, pg_temp`
+(без него advisor `function_search_path_mutable`) и адресный ACL:
+- **RPC** (зовёт клиент): `REVOKE … FROM public, anon`, `GRANT EXECUTE … TO authenticated, service_role`.
 - **Триггерные** (зовёт только триггер): `GRANT service_role` только — EXECUTE
-  проверяется при `CREATE TRIGGER`, не при срабатывании, поэтому authenticated
-  не нужен. Без `search_path` advisors ругается (mutable search_path).
+  проверяется при `CREATE TRIGGER`, не при срабатывании, поэтому authenticated не нужен.
+- **Внутренние хелперы** (клиент не зовёт) — в схеме `private`: PostgREST её не
+  выставляет, RPC-поверхности нет. Хелпер, который зовёт RLS-политика, требует
+  `grant usage on schema private to authenticated` и `grant execute` на функцию.
+Существующие DEFINER-функции под конвенцию не переписываются — она для новых. До 15.10
+конвенция требовала DEFINER для каждой функции; отсюда 20 WARN
+`authenticated_security_definer_function_executable` — это RPC проекта, `EXECUTE` массово
+не снимать. Журнал — «2026-10-15 · конвенция функций».
 
 ### ❌ Service-контекст: `auth.uid()` = NULL → `current_org_id()` = NULL
 В SQL Editor / MCP / фоне JWT нет → helpers возвращают NULL. Триггеры, пишущие

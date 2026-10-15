@@ -207,7 +207,7 @@ dashboard-crm отношения не имеет (тулкит оформлен�
 - [ ] `docs/schema.md` updated тем же PR, что миграция (**копии в скилле больше нет** — обновлять только репо)
 - [ ] **Разведка живой БД через Supabase MCP** (read-only) — не папка миграций
 - [ ] **org_id / RLS-паттерн соблюдён** (org-граница первым конъюнктом, роль через `current_org_role()`, ownership через `owner_id`/`created_by`, не `user_id`)
-- [ ] **Новые функции по hardening-конвенции** (`SECURITY DEFINER SET search_path = public, pg_temp` + адресный ACL)
+- [ ] **Новые функции по конвенции 15.10**: дефолт `SECURITY INVOKER`; `SECURITY DEFINER` — только с причиной в миграции и NULL-safe org-гардом; всем — `SET search_path = public, pg_temp` + адресный ACL; внутренние хелперы — в схеме `private` (`references/learnings.md`, «Конвенция новой функции»)
 - [ ] **Миграции не применяются из CC** — пишутся и коммитятся, применяет гейт Cowork
 - [ ] **Новый раздел приложения — шесть точек правки**, не одна (страница · `TextNavSidebar` · `section-colors` · `ContentHeader` · `AuraOrbs`+`globals.css` · `CommandPalette` дважды). Таблицу с последствиями пропуска — в `learnings.md`
 - [ ] **Числовой порог в сиде сверен с живой БД** — «сколько строк попадёт сегодня»; ноль допустим, но как решение, не как сюрприз
